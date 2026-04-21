@@ -1,0 +1,29 @@
+{
+  "name": "nova-ha-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-slider": "latest",
+    "@radix-ui/react-tooltip": "latest",
+    "gree-hvac-client": "^2.2.0",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "ws": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/ws": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}
