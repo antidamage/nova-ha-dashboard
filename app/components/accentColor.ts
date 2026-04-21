@@ -87,7 +87,7 @@ function normalizeColor(value: Partial<ThemeColorValue> | null | undefined, fall
     x: clamp(Number(value?.cursor?.x ?? fallback.cursor.x), 0, 1),
     y: clamp(Number(value?.cursor?.y ?? fallback.cursor.y), 0, 1),
   };
-  const intensity = clamp(Math.round(Number(value?.intensity ?? fallback.intensity)), 15, 100);
+  const intensity = clamp(Math.round(Number(value?.intensity ?? fallback.intensity)), 0, 100);
 
   return { cursor, intensity, rgb };
 }

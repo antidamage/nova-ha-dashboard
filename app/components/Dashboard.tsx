@@ -31,6 +31,7 @@ import {
   WeatherStatus,
 } from "../../lib/types";
 import { useDeviceTheme } from "./accentColor";
+import { DotLineControl, DotSpectrumControl } from "./DotControls";
 
 type LoadState = "idle" | "loading" | "error";
 
@@ -110,34 +111,10 @@ type SpectrumValue = {
   preview: [number, number, number];
 };
 
-type SpectrumDot = {
-  id: string;
-  x: number;
-  xPx: number;
-  y: number;
-  yPx: number;
-  padWidth: number;
-  padHeight: number;
-  rgb: [number, number, number];
-};
-
 const CLOCK_TIME_ZONE = "Pacific/Auckland";
-const SPECTRUM_DOT_GAP_PX = 15;
-const SPECTRUM_DOT_INFLUENCE_RADIUS_PX = 78;
 const LIGHT_DRAG_COMMAND_INTERVAL_MS = 160;
 const LIGHT_COMMAND_POLL_HOLD_MS = 5000;
 const SPECTRUM_LOCAL_HOLD_MS = LIGHT_COMMAND_POLL_HOLD_MS;
-const REMOTE_CONTROL_EASE_MS = 1000;
-const SPECTRUM_PROGRAMMATIC_CURSOR_MS = REMOTE_CONTROL_EASE_MS;
-const SPECTRUM_CURSOR_INSET_PX = 40;
-const SVG_SPECTRUM_DOT_RADIUS_PX = 0.5;
-const SVG_SPECTRUM_CURSOR_RADIUS_PX = 38;
-const SVG_SPECTRUM_CURSOR_STROKE_PX = 3;
-const SVG_LINE_HEIGHT_PX = 48;
-const SVG_LINE_CENTER_Y_PX = SVG_LINE_HEIGHT_PX / 2;
-const SVG_LINE_CURSOR_RADIUS_PX = 16.5;
-const SVG_LINE_CURSOR_STROKE_PX = 3;
-const LINE_CURSOR_INSET_PX = 18;
 const CLIMATE_COMMAND_POLL_DELAYS_MS = [500, 1500, 3500];
 const STEP_EPSILON = 0.0001;
 
@@ -145,10 +122,6 @@ const CANDLELIGHT_SPECTRUM: SpectrumValue = {
   cursor: { x: 0.08, y: 0.12 },
   preview: [255, 147, 41],
 };
-
-const ACCENT_DOT_RGB: [number, number, number] = [215, 255, 50];
-const DISABLED_SPECTRUM_DOT_RGB = "126 126 126";
-const HIGHLIGHT_DOT_RGB: [number, number, number] = [40, 243, 255];
 
 const WHITE_SPECTRUM: SpectrumValue = {
   cursor: { x: 0.13, y: 0.96 },
@@ -221,31 +194,6 @@ function spectrumRgbAtPosition(x: number, y: number): [number, number, number] {
   return hslToRgb(hue, saturation, lightness);
 }
 
-function buildSpectrumDots(width: number, height: number): SpectrumDot[] {
-  const columns = Math.max(2, Math.round(width / SPECTRUM_DOT_GAP_PX) + 1);
-  const rows = Math.max(2, Math.round(height / SPECTRUM_DOT_GAP_PX) + 1);
-  const dots: SpectrumDot[] = [];
-
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
-      const x = columns === 1 ? 0.5 : column / (columns - 1);
-      const y = rows === 1 ? 0.5 : row / (rows - 1);
-
-      dots.push({
-        id: `${column}-${row}`,
-        x,
-        xPx: x * width,
-        y,
-        yPx: y * height,
-        padWidth: width,
-        padHeight: height,
-        rgb: spectrumRgbAtPosition(x, y),
-      });
-    }
-  }
-
-  return dots;
-}
 
 function spectrumFromRgb(rgb: [number, number, number]): SpectrumValue {
   const normalized = rgb.map((value) => clamp(Math.round(value), 0, 255)) as [number, number, number];
@@ -275,141 +223,6 @@ function spectrumFromKelvin(kelvin: number): SpectrumValue {
   };
 }
 
-function insetPixel(value: number, length: number, insetPx: number) {
-  if (length <= 0) {
-    return clamp(value, 0, 1) * length;
-  }
-
-  const inset = Math.min(insetPx, length / 2);
-  return inset + clamp(value, 0, 1) * Math.max(0, length - inset * 2);
-}
-
-function insetPercent(value: number, length: number, insetPx: number) {
-  return length > 0 ? (insetPixel(value, length, insetPx) / length) * 100 : clamp(value, 0, 1) * 100;
-}
-
-function spectrumDisplayPoint(cursor: SpectrumValue["cursor"], width: number, height: number) {
-  const xPx = insetPixel(cursor.x, width, SPECTRUM_CURSOR_INSET_PX);
-  const yPx = insetPixel(cursor.y, height, SPECTRUM_CURSOR_INSET_PX);
-
-  return {
-    xPx,
-    yPx,
-    xPct: width > 0 ? (xPx / width) * 100 : clamp(cursor.x, 0, 1) * 100,
-    yPct: height > 0 ? (yPx / height) * 100 : clamp(cursor.y, 0, 1) * 100,
-  };
-}
-
-function focusedSpectrumDotSize(
-  dot: SpectrumDot,
-  cursor: SpectrumValue["cursor"],
-  displayPoint?: { xPx: number; yPx: number },
-) {
-  const dx = dot.xPx - (displayPoint?.xPx ?? cursor.x * dot.padWidth);
-  const dy = dot.yPx - (displayPoint?.yPx ?? cursor.y * dot.padHeight);
-  const distance = Math.hypot(dx, dy);
-  const weight = clamp(1 - distance / SPECTRUM_DOT_INFLUENCE_RADIUS_PX, 0, 1);
-  const eased = weight * weight * (3 - 2 * weight);
-
-  return Math.round((1 + eased * 5) * 100) / 100;
-}
-
-function focusedLineDotSize(dotX: number, cursorX: number, width: number, displayX?: number) {
-  const distance = Math.abs(dotX - (displayX ?? cursorX * width));
-  const weight = clamp(1 - distance / SPECTRUM_DOT_INFLUENCE_RADIUS_PX, 0, 1);
-  const eased = weight * weight * (3 - 2 * weight);
-
-  return Math.round((1 + eased * 5) * 100) / 100;
-}
-
-function svgSpectrumDotRadius(scale: number) {
-  return Math.round(SVG_SPECTRUM_DOT_RADIUS_PX * scale * 100) / 100;
-}
-
-function easeCursorTravel(value: number) {
-  const smoothProgress = value * value * (3 - 2 * value);
-  return 1 - Math.pow(1 - smoothProgress, 2.25);
-}
-
-function useRemoteEasedNumber(target: number) {
-  const [displayValue, setDisplayValue] = useState(target);
-  const displayValueRef = useRef(target);
-  const localInteractionRef = useRef(false);
-  const animationRef = useRef<number | null>(null);
-
-  const cancelAnimation = useCallback(() => {
-    if (animationRef.current !== null) {
-      window.cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
-    }
-  }, []);
-
-  const setImmediate = useCallback(
-    (next: number) => {
-      cancelAnimation();
-      displayValueRef.current = next;
-      setDisplayValue(next);
-    },
-    [cancelAnimation],
-  );
-
-  const setLocalValue = useCallback(
-    (next: number) => {
-      localInteractionRef.current = true;
-      setImmediate(next);
-    },
-    [setImmediate],
-  );
-
-  const releaseLocalValue = useCallback(
-    (next: number) => {
-      setImmediate(next);
-      localInteractionRef.current = false;
-    },
-    [setImmediate],
-  );
-
-  useEffect(() => {
-    if (localInteractionRef.current) {
-      displayValueRef.current = target;
-      setDisplayValue(target);
-      return;
-    }
-
-    cancelAnimation();
-    const start = displayValueRef.current;
-    const distance = Math.abs(target - start);
-    if (distance < 0.01) {
-      displayValueRef.current = target;
-      setDisplayValue(target);
-      return;
-    }
-
-    const startedAt = performance.now();
-    const animate = (now: number) => {
-      const progress = clamp((now - startedAt) / REMOTE_CONTROL_EASE_MS, 0, 1);
-      const eased = easeCursorTravel(progress);
-      const next = start + (target - start) * eased;
-
-      displayValueRef.current = next;
-      setDisplayValue(next);
-
-      if (progress < 1) {
-        animationRef.current = window.requestAnimationFrame(animate);
-      } else {
-        animationRef.current = null;
-        displayValueRef.current = target;
-        setDisplayValue(target);
-      }
-    };
-
-    animationRef.current = window.requestAnimationFrame(animate);
-  }, [cancelAnimation, target]);
-
-  useEffect(() => cancelAnimation, [cancelAnimation]);
-
-  return { displayValue, releaseLocalValue, setLocalValue };
-}
 
 function useThrottledCommand<T>(send: (value: T) => void, intervalMs: number) {
   const lastSentAt = useRef(0);
@@ -574,6 +387,7 @@ function useDashboardState() {
   const [error, setError] = useState<string | null>(null);
   const pollingPausedUntil = useRef(0);
   const eventStreamConnected = useRef(false);
+  const eventClientId = useRef<number | null>(null);
   const lastEventFallbackPollAt = useRef(0);
 
   const pausePolling = useCallback((durationMs: number) => {
@@ -677,6 +491,15 @@ function useDashboardState() {
     const handleDisconnect = () => {
       eventStreamConnected.current = false;
     };
+    const handleClientId = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as { id?: unknown };
+        const id = Number(payload.id);
+        eventClientId.current = Number.isInteger(id) && id > 0 ? id : null;
+      } catch {
+        eventClientId.current = null;
+      }
+    };
     const handleState = (event: MessageEvent) => {
       if (Date.now() < pollingPausedUntil.current) {
         return;
@@ -694,18 +517,21 @@ function useDashboardState() {
 
     events.addEventListener("open", handleOpen);
     events.addEventListener("error", handleDisconnect);
+    events.addEventListener("client-id", handleClientId as EventListener);
     events.addEventListener("state", handleState as EventListener);
 
     return () => {
       eventStreamConnected.current = false;
+      eventClientId.current = null;
       events.removeEventListener("open", handleOpen);
       events.removeEventListener("error", handleDisconnect);
+      events.removeEventListener("client-id", handleClientId as EventListener);
       events.removeEventListener("state", handleState as EventListener);
       events.close();
     };
   }, []);
 
-  return { data, status, error, setData, refresh, pausePolling };
+  return { data, status, error, eventClientId, setData, refresh, pausePolling };
 }
 
 function useBuildReload() {
@@ -856,12 +682,7 @@ function ZoneButton({
         </span>
       </span>
       {networkStatus ? (
-        <span
-          className={classNames(
-            "zone-counts zone-network-status mt-3 grid gap-2 text-xs font-semibold uppercase",
-            routerStatus?.wanConnected ? "zone-network-status-connected" : "zone-network-status-disconnected",
-          )}
-        >
+        <span className="zone-counts mt-3 grid gap-2 text-xs font-semibold text-neutral-400">
           <span>{networkStatus}</span>
         </span>
       ) : hideCounts || countDomains.length === 0 ? null : (
@@ -950,274 +771,27 @@ function SpectrumPad({
   onValueChange: (value: SpectrumValue) => void;
   onPick: (rgb: [number, number, number], cursor: SpectrumCursor) => void;
 }) {
-  const padRef = useRef<HTMLDivElement | null>(null);
-  const cursorAnimation = useRef<number | null>(null);
-  const draggingCursor = useRef(false);
-  const cursorElement = useRef<SVGGElement | null>(null);
-  const dotElements = useRef(new Map<string, SVGCircleElement>());
-  const activeDotIds = useRef(new Set<string>());
-  const dotsRef = useRef<SpectrumDot[]>([]);
-  const disabledRef = useRef(disabled);
-  const padSizeRef = useRef({ width: 0, height: 0 });
-  const targetCursorRef = useRef(value.cursor);
-  const [dots, setDots] = useState<SpectrumDot[]>([]);
-  const [padSize, setPadSize] = useState({ width: 0, height: 0 });
-  const displayCursorRef = useRef(value.cursor);
-  const [isDragging, setIsDragging] = useState(false);
   const { flush: flushPickCommand, queue: queuePickCommand } = useThrottledCommand(
     ({ cursor, rgb }: { cursor: SpectrumCursor; rgb: [number, number, number] }) => onPick(rgb, cursor),
     LIGHT_DRAG_COMMAND_INTERVAL_MS,
   );
 
-  const applyDisplayCursor = useCallback((cursor: SpectrumValue["cursor"]) => {
-    displayCursorRef.current = cursor;
-
-    if (cursorElement.current) {
-      const point = spectrumDisplayPoint(cursor, padSizeRef.current.width, padSizeRef.current.height);
-      cursorElement.current.setAttribute("transform", `translate(${point.xPx} ${point.yPx}) rotate(-105)`);
-    }
-
-    for (const dotId of activeDotIds.current) {
-      const dotElement = dotElements.current.get(dotId);
-      if (!dotElement) {
-        continue;
-      }
-
-      dotElement.setAttribute("r", String(SVG_SPECTRUM_DOT_RADIUS_PX));
-    }
-    activeDotIds.current = new Set();
-
-    if (disabledRef.current) {
-      return;
-    }
-
-    const point = spectrumDisplayPoint(cursor, padSizeRef.current.width, padSizeRef.current.height);
-    const nextActiveDotIds = new Set<string>();
-
-    for (const dot of dotsRef.current) {
-      const distance = Math.hypot(dot.xPx - point.xPx, dot.yPx - point.yPx);
-      if (distance > SPECTRUM_DOT_INFLUENCE_RADIUS_PX) {
-        continue;
-      }
-
-      const dotElement = dotElements.current.get(dot.id);
-      if (!dotElement) {
-        continue;
-      }
-
-      const size = focusedSpectrumDotSize(dot, cursor, point);
-      dotElement.setAttribute("r", String(svgSpectrumDotRadius(size)));
-      nextActiveDotIds.add(dot.id);
-    }
-
-    activeDotIds.current = nextActiveDotIds;
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (cursorAnimation.current) {
-        window.cancelAnimationFrame(cursorAnimation.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const target = value.cursor;
-
-    if (Math.hypot(target.x - targetCursorRef.current.x, target.y - targetCursorRef.current.y) < 0.001) {
-      return;
-    }
-    targetCursorRef.current = target;
-
-    if (cursorAnimation.current) {
-      window.cancelAnimationFrame(cursorAnimation.current);
-      cursorAnimation.current = null;
-    }
-
-    if (draggingCursor.current || disabledRef.current) {
-      applyDisplayCursor(target);
-      return;
-    }
-
-    const start = displayCursorRef.current;
-    const distance = Math.hypot(target.x - start.x, target.y - start.y);
-    if (distance < 0.001) {
-      applyDisplayCursor(target);
-      return;
-    }
-
-    const startedAt = performance.now();
-    const animate = (now: number) => {
-      const progress = clamp((now - startedAt) / SPECTRUM_PROGRAMMATIC_CURSOR_MS, 0, 1);
-      const eased = easeCursorTravel(progress);
-      const next = {
-        x: start.x + (target.x - start.x) * eased,
-        y: start.y + (target.y - start.y) * eased,
-      };
-
-      applyDisplayCursor(next);
-
-      if (progress < 1) {
-        cursorAnimation.current = window.requestAnimationFrame(animate);
-      } else {
-        cursorAnimation.current = null;
-      }
-    };
-
-    cursorAnimation.current = window.requestAnimationFrame(animate);
-  }, [applyDisplayCursor, value.cursor.x, value.cursor.y]);
-
-  useEffect(() => {
-    dotsRef.current = dots;
-    applyDisplayCursor(displayCursorRef.current);
-  }, [applyDisplayCursor, dots]);
-
-  useEffect(() => {
-    disabledRef.current = disabled;
-
-    if (disabled) {
-      draggingCursor.current = false;
-      setIsDragging(false);
-    }
-
-    applyDisplayCursor(displayCursorRef.current);
-  }, [applyDisplayCursor, disabled]);
-
-  useEffect(() => {
-    const pad = padRef.current;
-    if (!pad) {
-      return;
-    }
-
-    const rebuild = () => {
-      const rect = pad.getBoundingClientRect();
-      const nextSize = { width: rect.width, height: rect.height };
-      padSizeRef.current = nextSize;
-      setPadSize(nextSize);
-      setDots(buildSpectrumDots(rect.width, rect.height));
-    };
-
-    rebuild();
-    const observer = new ResizeObserver(rebuild);
-    observer.observe(pad);
-    window.addEventListener("orientationchange", rebuild);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("orientationchange", rebuild);
-    };
-  }, []);
-
-  const pick = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (disabled || !padRef.current) {
-        return;
-      }
-
-      const rect = padRef.current.getBoundingClientRect();
-      const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-      const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
-      const rgb = spectrumRgbAtPosition(x, y);
-      const cursor = { x, y };
-
-      if (cursorAnimation.current) {
-        window.cancelAnimationFrame(cursorAnimation.current);
-        cursorAnimation.current = null;
-      }
-      targetCursorRef.current = cursor;
-      applyDisplayCursor(cursor);
-      onValueChange({ cursor, preview: rgb });
-      queuePickCommand({ cursor, rgb });
-    },
-    [disabled, onValueChange, queuePickCommand],
-  );
-
-  const stopDragging = useCallback(() => {
-    draggingCursor.current = false;
-    setIsDragging(false);
-    flushPickCommand();
-  }, [flushPickCommand]);
-
   return (
     <div className="relative">
-      <div
-        ref={padRef}
-        role="slider"
-        aria-label="Zone color spectrum"
-        aria-disabled={disabled}
-        aria-valuetext={`rgb ${value.preview.join(" ")}`}
-        tabIndex={disabled ? -1 : 0}
-        onPointerDown={(event) => {
-          if (disabled) {
-            return;
-          }
-          event.currentTarget.setPointerCapture(event.pointerId);
-          draggingCursor.current = true;
-          setIsDragging(true);
-          pick(event);
+      <DotSpectrumControl
+        ariaLabel="Zone color spectrum"
+        cursor={value.cursor}
+        disabled={disabled}
+        intensity={brightness}
+        rgbAtPosition={spectrumRgbAtPosition}
+        onChange={(cursor, rgb) => {
+          onValueChange({ cursor, preview: rgb });
+          queuePickCommand({ cursor, rgb });
         }}
-        onPointerMove={(event) => {
-          if (event.buttons === 1) {
-            pick(event);
-          }
+        onCommit={() => {
+          flushPickCommand();
         }}
-        onPointerUp={() => {
-          stopDragging();
-        }}
-        onPointerCancel={() => {
-          stopDragging();
-        }}
-        onLostPointerCapture={() => {
-          stopDragging();
-        }}
-        className={classNames(
-          "spectrum-pad relative h-60 w-full touch-none overflow-hidden outline-none",
-          disabled && "spectrum-pad-disabled",
-        )}
-      >
-        <div className="spectrum-pad-bg absolute inset-0 bg-neutral-950/80" />
-        <svg
-          className="spectrum-svg pointer-events-none absolute inset-0 h-full w-full"
-          viewBox={`0 0 ${Math.max(padSize.width, 1)} ${Math.max(padSize.height, 1)}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          {dots.map((dot) => {
-            return (
-              <circle
-                key={dot.id}
-                ref={(node) => {
-                  if (node) {
-                    dotElements.current.set(dot.id, node);
-                  } else {
-                    dotElements.current.delete(dot.id);
-                  }
-                }}
-                className="spectrum-svg-dot"
-                cx={dot.xPx}
-                cy={dot.yPx}
-                r={SVG_SPECTRUM_DOT_RADIUS_PX}
-                fill={disabled ? `rgb(${DISABLED_SPECTRUM_DOT_RGB})` : `rgb(${dot.rgb.join(" ")})`}
-              />
-            );
-          })}
-          {disabled ? null : (
-            <g
-              ref={cursorElement}
-              className={classNames("spectrum-svg-cursor", isDragging && "spectrum-svg-cursor-dragging")}
-              transform={`translate(${spectrumDisplayPoint(displayCursorRef.current, padSize.width, padSize.height).xPx} ${spectrumDisplayPoint(displayCursorRef.current, padSize.width, padSize.height).yPx}) rotate(-105)`}
-            >
-              <circle
-                cx={0}
-                cy={0}
-                r={SVG_SPECTRUM_CURSOR_RADIUS_PX}
-                strokeWidth={SVG_SPECTRUM_CURSOR_STROKE_PX}
-                strokeDasharray="20 40"
-              />
-            </g>
-          )}
-        </svg>
-      </div>
+      />
       <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-neutral-300">
         <span className="uppercase text-fuchsia-200">Spectrum</span>
         <span className="tabular-nums text-neutral-400">brightness {brightness}%</span>
@@ -1239,191 +813,33 @@ function IntensityControl({
   onBrightnessChange: (value: number) => void;
   onBrightnessCommit: (value: number) => void;
 }) {
-  const padRef = useRef<HTMLDivElement | null>(null);
-  const commitValueRef = useRef(brightness);
-  const draggingRef = useRef(false);
-  const [dotCount, setDotCount] = useState(2);
-  const [lineWidth, setLineWidth] = useState(0);
-  const { displayValue, releaseLocalValue, setLocalValue } = useRemoteEasedNumber(brightness);
-  const displayBrightness = clamp(displayValue, 0, 100);
-  const displayPercent = displayBrightness / 100;
   const { flush: flushBrightnessCommand, queue: queueBrightnessCommand } = useThrottledCommand(
     onBrightnessCommit,
     LIGHT_DRAG_COMMAND_INTERVAL_MS,
   );
-
-  useEffect(() => {
-    commitValueRef.current = brightness;
-  }, [brightness]);
-
-  useEffect(() => {
-    const pad = padRef.current;
-    if (!pad) {
-      return;
-    }
-
-    const rebuild = () => {
-      const rect = pad.getBoundingClientRect();
-      setLineWidth(rect.width);
-      setDotCount(Math.max(2, Math.round(rect.width / SPECTRUM_DOT_GAP_PX) + 1));
-    };
-
-    rebuild();
-    const observer = new ResizeObserver(rebuild);
-    observer.observe(pad);
-    window.addEventListener("orientationchange", rebuild);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("orientationchange", rebuild);
-    };
-  }, []);
-
-  const setBrightnessValue = useCallback(
-    (value: number) => {
-      const next = clamp(Math.round(value), 0, 100);
-      commitValueRef.current = next;
-      setLocalValue(next);
-      onBrightnessChange(next);
-      return next;
-    },
-    [onBrightnessChange, setLocalValue],
-  );
-
-  const pick = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (disabled || !padRef.current) {
-        return;
-      }
-
-      const rect = padRef.current.getBoundingClientRect();
-      const next = setBrightnessValue(((event.clientX - rect.left) / rect.width) * 100);
-      queueBrightnessCommand(next);
-    },
-    [disabled, queueBrightnessCommand, setBrightnessValue],
-  );
-
-  const commit = useCallback(() => {
-    if (!draggingRef.current) {
-      return;
-    }
-    draggingRef.current = false;
-    const value = commitValueRef.current;
-    releaseLocalValue(value);
-    flushBrightnessCommand();
-  }, [flushBrightnessCommand, releaseLocalValue]);
-
-  const keyStep = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, next: number) => {
-      event.preventDefault();
-      const value = clamp(Math.round(next), 0, 100);
-      setBrightnessValue(value);
-      releaseLocalValue(value);
-      onBrightnessCommit(value);
-    },
-    [onBrightnessCommit, releaseLocalValue, setBrightnessValue],
-  );
-
-  const dots = Array.from({ length: dotCount }, (_, index) => {
-    const amount = dotCount <= 1 ? 0 : index / (dotCount - 1);
-    return {
-      id: index,
-      amount,
-      opacity: amount * 0.96,
-      rgb: color,
-      xPx: amount * lineWidth,
-    };
-  });
-  const displayLabel = Math.round(displayBrightness);
-  const displayCursorX = insetPixel(displayPercent, lineWidth, LINE_CURSOR_INSET_PX);
 
   return (
     <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
       <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_96px] md:items-center">
         <p className="text-sm font-black uppercase text-cyan-200">Intensity</p>
         <div className="px-1">
-          <div
-            ref={padRef}
-            role="slider"
-            aria-label="Brightness"
-            aria-disabled={disabled}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={displayLabel}
-            tabIndex={disabled ? -1 : 0}
-            onKeyDown={(event) => {
-              if (disabled) {
-                return;
-              }
-              if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-                keyStep(event, commitValueRef.current - 1);
-              } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-                keyStep(event, commitValueRef.current + 1);
-              } else if (event.key === "PageDown") {
-                keyStep(event, commitValueRef.current - 10);
-              } else if (event.key === "PageUp") {
-                keyStep(event, commitValueRef.current + 10);
-              } else if (event.key === "Home") {
-                keyStep(event, 0);
-              } else if (event.key === "End") {
-                keyStep(event, 100);
-              }
+          <DotLineControl
+            ariaLabel="Brightness"
+            color={color}
+            disabled={disabled}
+            intensity={brightness}
+            max={100}
+            min={0}
+            step={1}
+            value={brightness}
+            onChange={(value) => {
+              onBrightnessChange(value);
+              queueBrightnessCommand(value);
             }}
-            onPointerDown={(event) => {
-              if (disabled) {
-                return;
-              }
-              event.currentTarget.setPointerCapture(event.pointerId);
-              draggingRef.current = true;
-              pick(event);
-            }}
-            onPointerMove={(event) => {
-              if (event.buttons === 1) {
-                pick(event);
-              }
-            }}
-            onPointerUp={commit}
-            onPointerCancel={commit}
-            onLostPointerCapture={commit}
-            className={classNames(
-              "intensity-dot-pad relative h-12 w-full touch-none overflow-hidden outline-none",
-              disabled && "intensity-dot-pad-disabled",
-            )}
-          >
-            <svg
-              className="dot-line-svg pointer-events-none absolute inset-0 h-full w-full"
-              viewBox={`0 0 ${Math.max(lineWidth, 1)} ${SVG_LINE_HEIGHT_PX}`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              {dots.map((dot) => {
-                const size = focusedLineDotSize(dot.xPx, displayPercent, lineWidth, displayCursorX);
-
-                return (
-                  <circle
-                    key={dot.id}
-                    className="dot-line-svg-dot"
-                    cx={dot.xPx}
-                    cy={SVG_LINE_CENTER_Y_PX}
-                    r={svgSpectrumDotRadius(size)}
-                    fill={`rgb(${dot.rgb.join(" ")})`}
-                    opacity={dot.opacity}
-                  />
-                );
-              })}
-              <g className="dot-line-svg-cursor" transform={`translate(${displayCursorX} ${SVG_LINE_CENTER_Y_PX}) rotate(-120)`}>
-                <circle
-                  cx={0}
-                  cy={0}
-                  r={SVG_LINE_CURSOR_RADIUS_PX}
-                  strokeWidth={SVG_LINE_CURSOR_STROKE_PX}
-                  strokeDasharray="17.3 34.6"
-                />
-              </g>
-            </svg>
-          </div>
+            onCommit={flushBrightnessCommand}
+          />
         </div>
-        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{displayLabel}%</p>
+        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{Math.round(brightness)}%</p>
       </div>
     </div>
   );
@@ -1801,11 +1217,13 @@ function ClimateCard({
 }
 
 function TemperatureStepper({
+  disabled = false,
   entity,
   label,
   onChange,
   step = 0.5,
 }: {
+  disabled?: boolean;
   entity: DashboardEntity;
   label: string;
   onChange: (temperature: number) => Promise<void>;
@@ -1820,13 +1238,17 @@ function TemperatureStepper({
   }, [entity.entity_id, serverTarget]);
 
   const nudge = (delta: number) => {
+    if (disabled) {
+      return;
+    }
+
     const next = temperatureDelta(entity, delta, step, target ?? serverTarget ?? current ?? 20);
     setTarget(next);
     void onChange(next);
   };
 
   return (
-    <div className="temperature-stepper border border-neutral-700 bg-neutral-950/70 p-4">
+    <div className={classNames("temperature-stepper border border-neutral-700 bg-neutral-950/70 p-4", disabled && "temperature-stepper-disabled")}>
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-sm font-black uppercase text-cyan-300">{label}</p>
@@ -1849,6 +1271,7 @@ function TemperatureStepper({
           type="button"
           className="climate-icon-button border"
           aria-label={`Lower ${label}`}
+          disabled={disabled}
           onClick={() => nudge(-step)}
         >
           <Minus className="h-7 w-7" />
@@ -1857,6 +1280,7 @@ function TemperatureStepper({
           type="button"
           className="climate-icon-button border"
           aria-label={`Raise ${label}`}
+          disabled={disabled}
           onClick={() => nudge(step)}
         >
           <Plus className="h-7 w-7" />
@@ -1957,7 +1381,7 @@ function PanelHeaterControl({
           />
         </div>
 
-        <TemperatureStepper entity={entity} label="Temperature" step={0.5} onChange={setTemperature} />
+        <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={0.5} onChange={setTemperature} />
       </div>
     </ClimateCard>
   );
@@ -2001,44 +1425,13 @@ function AirConditionerControl({
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
 }) {
   const currentFanIndex = entity ? AIRCON_FAN_STEPS.indexOf(airconFanStep(entity, quietSwitch, turboSwitch)) : 0;
-  const fanPadRef = useRef<HTMLDivElement | null>(null);
-  const fanCommitRef = useRef(currentFanIndex);
-  const fanDraggingRef = useRef(false);
-  const [fanDotCount, setFanDotCount] = useState(2);
-  const [fanInteracting, setFanInteracting] = useState(false);
-  const [fanLineWidth, setFanLineWidth] = useState(0);
-  const {
-    displayValue: fanDisplayValue,
-    releaseLocalValue: releaseLocalFanValue,
-    setLocalValue: setLocalFanValue,
-  } = useRemoteEasedNumber(currentFanIndex);
+  const [displayedFanStep, setDisplayedFanStep] = useState<AirconFanStep>(
+    AIRCON_FAN_STEPS[currentFanIndex] ?? "medium",
+  );
 
   useEffect(() => {
-    fanCommitRef.current = currentFanIndex;
+    setDisplayedFanStep(AIRCON_FAN_STEPS[currentFanIndex] ?? "medium");
   }, [currentFanIndex]);
-
-  useEffect(() => {
-    const pad = fanPadRef.current;
-    if (!pad) {
-      return;
-    }
-
-    const rebuild = () => {
-      const rect = pad.getBoundingClientRect();
-      setFanLineWidth(rect.width);
-      setFanDotCount(Math.max(2, Math.round(rect.width / SPECTRUM_DOT_GAP_PX) + 1));
-    };
-
-    rebuild();
-    const observer = new ResizeObserver(rebuild);
-    observer.observe(pad);
-    window.addEventListener("orientationchange", rebuild);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("orientationchange", rebuild);
-    };
-  }, [entity?.entity_id]);
 
   if (!entity) {
     return <ClimateCard kicker="Air Control" title="Air Conditioner" />;
@@ -2198,52 +1591,6 @@ function AirConditionerControl({
     return callClimateActions(actions, onEntityActions, `Air Conditioner fan ${step}`);
   };
 
-  const setFanIndexValue = (value: number) => {
-    const next = clamp(Math.round(value), 0, AIRCON_FAN_STEPS.length - 1);
-    fanCommitRef.current = next;
-    setLocalFanValue(next);
-  };
-  const pickFanIndex = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!fanPadRef.current) {
-      return;
-    }
-
-    const rect = fanPadRef.current.getBoundingClientRect();
-    setFanIndexValue(((event.clientX - rect.left) / rect.width) * (AIRCON_FAN_STEPS.length - 1));
-  };
-  const commitFanIndex = () => {
-    if (!fanDraggingRef.current) {
-      return;
-    }
-    fanDraggingRef.current = false;
-    setFanInteracting(false);
-    const next = fanCommitRef.current;
-    releaseLocalFanValue(next);
-    void setFanStep(AIRCON_FAN_STEPS[next] ?? "medium");
-  };
-  const keyFanIndex = (event: React.KeyboardEvent<HTMLDivElement>, next: number) => {
-    event.preventDefault();
-    const value = clamp(Math.round(next), 0, AIRCON_FAN_STEPS.length - 1);
-    setFanIndexValue(value);
-    releaseLocalFanValue(value);
-    void setFanStep(AIRCON_FAN_STEPS[value] ?? "medium");
-  };
-
-  const displayedFanIndex = clamp(fanDisplayValue, 0, AIRCON_FAN_STEPS.length - 1);
-  const displayedFanStep = AIRCON_FAN_STEPS[Math.round(displayedFanIndex)] ?? "medium";
-  const fanDisplayPercent = displayedFanIndex / (AIRCON_FAN_STEPS.length - 1);
-  const fanDisplayCursorX = insetPixel(fanDisplayPercent, fanLineWidth, LINE_CURSOR_INSET_PX);
-  const fanDotColor = fanInteracting ? HIGHLIGHT_DOT_RGB : ACCENT_DOT_RGB;
-  const fanDots = Array.from({ length: fanDotCount }, (_, index) => {
-    const amount = fanDotCount <= 1 ? 0 : index / (fanDotCount - 1);
-    return {
-      id: index,
-      amount,
-      opacity: amount * 0.96,
-      rgb: fanDotColor,
-      xPx: amount * fanLineWidth,
-    };
-  });
 
   return (
     <ClimateCard entity={entity} kicker="Air Control" title="Air Conditioner">
@@ -2261,6 +1608,7 @@ function AirConditionerControl({
           </button>
           <LabeledSwitch
             checked={sweepOn}
+            disabled={!isOn}
             icon={<Waves className="h-4 w-4" />}
             label="Air conditioner sweep"
             leftLabel="Fixed"
@@ -2277,7 +1625,7 @@ function AirConditionerControl({
                 key={mode}
                 type="button"
                 className={classNames("climate-mode-button border", active && "climate-mode-button-active")}
-                disabled={supportedModes.length > 0 && !supportedModes.includes(mode)}
+                disabled={!isOn || (supportedModes.length > 0 && !supportedModes.includes(mode))}
                 onClick={() => setMode(mode, label)}
               >
                 <Icon className="h-6 w-6" />
@@ -2287,98 +1635,34 @@ function AirConditionerControl({
           })}
         </div>
 
-        <TemperatureStepper entity={entity} label="Temperature" step={1} onChange={setTemperature} />
+        <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={1} onChange={setTemperature} />
 
-        <div className="climate-fan-speed border border-neutral-700 bg-neutral-950/70 p-4">
+        <div className={classNames("climate-fan-speed border border-neutral-700 bg-neutral-950/70 p-4", !isOn && "climate-fan-speed-disabled")}>
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-black uppercase text-cyan-300">Fan Speed</p>
             <p className="font-mono text-sm font-black uppercase text-neutral-100">{displayedFanStep}</p>
           </div>
-          <div
-            ref={fanPadRef}
-            role="slider"
-            aria-label="Air conditioner fan speed"
-            aria-valuemin={0}
-            aria-valuemax={AIRCON_FAN_STEPS.length - 1}
-            aria-valuenow={Math.round(displayedFanIndex)}
-            aria-valuetext={displayedFanStep}
-            tabIndex={0}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
-                keyFanIndex(event, fanCommitRef.current - 1);
-              } else if (event.key === "ArrowRight" || event.key === "ArrowUp") {
-                keyFanIndex(event, fanCommitRef.current + 1);
-              } else if (event.key === "Home") {
-                keyFanIndex(event, 0);
-              } else if (event.key === "End") {
-                keyFanIndex(event, AIRCON_FAN_STEPS.length - 1);
-              }
+          <DotLineControl
+            ariaLabel="Air conditioner fan speed"
+            ariaValueText={displayedFanStep}
+            disabled={!isOn}
+            min={0}
+            max={AIRCON_FAN_STEPS.length - 1}
+            step={1}
+            value={currentFanIndex}
+            onChange={(index) => {
+              setDisplayedFanStep(AIRCON_FAN_STEPS[Math.round(index)] ?? "medium");
             }}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId);
-              fanDraggingRef.current = true;
-              setFanInteracting(true);
-              pickFanIndex(event);
+            onCommit={(index) => {
+              const step = AIRCON_FAN_STEPS[Math.round(index)] ?? "medium";
+              setDisplayedFanStep(step);
+              void setFanStep(step);
             }}
-            onPointerMove={(event) => {
-              if (event.buttons === 1) {
-                pickFanIndex(event);
-              }
-            }}
-            onPointerUp={commitFanIndex}
-            onPointerCancel={commitFanIndex}
-            onLostPointerCapture={commitFanIndex}
-            className="intensity-dot-pad relative h-12 w-full touch-none overflow-hidden outline-none"
-          >
-            <svg
-              className="dot-line-svg pointer-events-none absolute inset-0 h-full w-full"
-              viewBox={`0 0 ${Math.max(fanLineWidth, 1)} ${SVG_LINE_HEIGHT_PX}`}
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              {fanDots.map((dot) => {
-                const size = focusedLineDotSize(dot.xPx, fanDisplayPercent, fanLineWidth, fanDisplayCursorX);
-
-                return (
-                  <circle
-                    key={dot.id}
-                    className="dot-line-svg-dot"
-                    cx={dot.xPx}
-                    cy={SVG_LINE_CENTER_Y_PX}
-                    r={svgSpectrumDotRadius(size)}
-                    fill={`rgb(${dot.rgb.join(" ")})`}
-                    opacity={dot.opacity}
-                  />
-                );
-              })}
-              <g
-                className={classNames("dot-line-svg-cursor", fanInteracting && "dot-line-svg-cursor-active")}
-                transform={`translate(${fanDisplayCursorX} ${SVG_LINE_CENTER_Y_PX}) rotate(-120)`}
-              >
-                <circle
-                  cx={0}
-                  cy={0}
-                  r={SVG_LINE_CURSOR_RADIUS_PX}
-                  strokeWidth={SVG_LINE_CURSOR_STROKE_PX}
-                  strokeDasharray="17.3 34.6"
-                />
-              </g>
-            </svg>
-          </div>
-          <div className="dot-line-markers relative mt-2 h-4 text-xs font-black uppercase text-neutral-400">
-            <span
-              className={classNames("dot-line-marker", displayedFanStep === "quiet" && "dot-line-marker-active")}
-              style={{ left: `${insetPercent(0, fanLineWidth, LINE_CURSOR_INSET_PX)}%` }}
-            >
-              Quiet
-            </span>
-            <span
-              className={classNames("dot-line-marker", displayedFanStep === "turbo" && "dot-line-marker-active")}
-              style={{ left: `${insetPercent(1, fanLineWidth, LINE_CURSOR_INSET_PX)}%` }}
-            >
-              Turbo
-            </span>
-          </div>
+            markers={[
+              { active: displayedFanStep === "quiet", label: "Quiet", value: 0 },
+              { active: displayedFanStep === "turbo", label: "Turbo", value: AIRCON_FAN_STEPS.length - 1 },
+            ]}
+          />
         </div>
       </div>
     </ClimateCard>
@@ -2897,30 +2181,54 @@ function isNetworkZone(zone: DashboardZone) {
   return zone.id === "network" || zone.name.trim().toLowerCase() === "network";
 }
 
-function selectedZoneIdFromLocation() {
+const SELECTED_ZONE_STORAGE_KEY = "nova.dashboard.selectedZone.v1";
+
+function selectedZoneIdFromStorage() {
   if (typeof window === "undefined") {
     return "everything";
   }
 
-  return new URLSearchParams(window.location.search).get("zone") ?? "everything";
+  try {
+    return window.sessionStorage.getItem(SELECTED_ZONE_STORAGE_KEY) ?? "everything";
+  } catch {
+    return "everything";
+  }
 }
 
-function writeSelectedZoneToLocation(zoneId: string) {
+function writeSelectedZoneToStorage(zoneId: string) {
   if (typeof window === "undefined") {
     return;
   }
 
-  const url = new URL(window.location.href);
-  url.searchParams.set("zone", zoneId);
-  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  try {
+    window.sessionStorage.setItem(SELECTED_ZONE_STORAGE_KEY, zoneId);
+  } catch {
+    // Browsers can deny storage in private or restricted contexts; selection can still live in React state.
+  }
+}
+
+function removeLegacySelectedZoneParam() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const current = new URL(window.location.href);
+  if (!current.searchParams.has("zone")) {
+    return;
+  }
+
+  current.searchParams.delete("zone");
+  const nextSearch = current.searchParams.toString();
+  const nextUrl = `${current.pathname}${nextSearch ? `?${nextSearch}` : ""}${current.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
 }
 
 export function Dashboard() {
   useDeviceTheme();
   useBuildReload();
 
-  const { data, error, pausePolling, refresh, setData } = useDashboardState();
-  const [selectedZoneId, setSelectedZoneId] = useState(selectedZoneIdFromLocation);
+  const { data, error, eventClientId, pausePolling, refresh, setData } = useDashboardState();
+  const [selectedZoneId, setSelectedZoneId] = useState(selectedZoneIdFromStorage);
   const [toast, setToast] = useState<string | null>(null);
   const entityActionSequence = useRef(0);
   const zoneActionSequence = useRef(0);
@@ -2952,31 +2260,31 @@ export function Dashboard() {
     if (data && !data.zones.some((zone) => zone.id === selectedZoneId)) {
       const fallbackZoneId = data.zones[0]?.id ?? "everything";
       setSelectedZoneId(fallbackZoneId);
-      writeSelectedZoneToLocation(fallbackZoneId);
+      writeSelectedZoneToStorage(fallbackZoneId);
     }
   }, [data, selectedZoneId]);
 
   useEffect(() => {
-    const syncSelectedZoneFromLocation = () => {
-      setSelectedZoneId(selectedZoneIdFromLocation());
+    removeLegacySelectedZoneParam();
+
+    const syncSelectedZoneFromStorage = () => {
+      setSelectedZoneId(selectedZoneIdFromStorage());
     };
 
-    window.addEventListener("popstate", syncSelectedZoneFromLocation);
-    window.addEventListener("pageshow", syncSelectedZoneFromLocation);
+    window.addEventListener("pageshow", syncSelectedZoneFromStorage);
 
     return () => {
-      window.removeEventListener("popstate", syncSelectedZoneFromLocation);
-      window.removeEventListener("pageshow", syncSelectedZoneFromLocation);
+      window.removeEventListener("pageshow", syncSelectedZoneFromStorage);
     };
   }, []);
 
   const selectZone = useCallback((zoneId: string) => {
     setSelectedZoneId(zoneId);
-    writeSelectedZoneToLocation(zoneId);
+    writeSelectedZoneToStorage(zoneId);
   }, []);
 
   useEffect(() => {
-    writeSelectedZoneToLocation(selectedZoneId);
+    writeSelectedZoneToStorage(selectedZoneId);
   }, [selectedZoneId]);
 
   useEffect(() => {
@@ -3061,7 +2369,7 @@ export function Dashboard() {
         const response = await fetch("/api/zone", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ zoneId: selectedZone.id, action, ...body }),
+          body: JSON.stringify({ zoneId: selectedZone.id, action, sourceClientId: eventClientId.current, ...body }),
         });
         const payload = await response.json();
         if (!response.ok) {
@@ -3089,7 +2397,7 @@ export function Dashboard() {
         }
       }
     },
-    [pausePolling, refresh, scheduleLightResumePoll, selectedZone, setData],
+    [eventClientId, pausePolling, refresh, scheduleLightResumePoll, selectedZone, setData],
   );
 
   const applyEntityActions = useCallback(
@@ -3116,7 +2424,7 @@ export function Dashboard() {
           const response = await fetch("/api/entity", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(action),
+            body: JSON.stringify({ ...action, sourceClientId: eventClientId.current }),
           });
           const body = await response.json();
           if (!response.ok) {
@@ -3148,7 +2456,7 @@ export function Dashboard() {
         }
       }
     },
-    [data, pausePolling, refresh, scheduleClimateCommandPolls, scheduleLightResumePoll, setData],
+    [data, eventClientId, pausePolling, refresh, scheduleClimateCommandPolls, scheduleLightResumePoll, setData],
   );
 
   const insideZone = zoneTree.inside;

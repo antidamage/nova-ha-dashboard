@@ -95,13 +95,20 @@ function sendClient(client: DashboardEventClient, chunk: string) {
   }
 }
 
-function broadcast(chunk: string) {
+function broadcast(chunk: string, options: { excludeClientId?: number | null } = {}) {
   for (const client of store.clients) {
+    if (options.excludeClientId && client.id === options.excludeClientId) {
+      continue;
+    }
+
     sendClient(client, chunk);
   }
 }
 
-export function publishDashboardState(state: DashboardState, options: { force?: boolean } = {}) {
+export function publishDashboardState(
+  state: DashboardState,
+  options: { excludeClientId?: number | null; force?: boolean } = {},
+) {
   if (!options.force && Date.now() < store.lightPollHoldUntil) {
     return;
   }
@@ -114,7 +121,7 @@ export function publishDashboardState(state: DashboardState, options: { force?: 
 
   store.latestSignature = signature;
   store.latestJson = JSON.stringify(stateWithMetadata);
-  broadcast(sseEvent("state", store.latestJson));
+  broadcast(sseEvent("state", store.latestJson), { excludeClientId: options.excludeClientId });
 }
 
 export function holdDashboardEventLightPolling(durationMs = LIGHT_COMMAND_EVENT_HOLD_MS) {
@@ -370,6 +377,7 @@ export function subscribeDashboardEvents() {
       store.clients.add(client);
 
       sendClient(client, "retry: 2000\n\n");
+      sendClient(client, sseEvent("client-id", JSON.stringify({ id: client.id })));
       if (store.latestJson) {
         sendClient(client, sseEvent("state", store.latestJson));
       }

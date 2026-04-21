@@ -18,9 +18,9 @@
   --cyber-title-on-line: var(--cyber-title-dark);
   --cyber-title-on-cyan: var(--cyber-title-dark);
   --cyber-title-on-bg: var(--cyber-title-light);
-  --cyber-title-glow-bg: color-mix(in srgb, var(--cyber-title-on-bg) 14%, transparent);
-  --cyber-title-glow-line: color-mix(in srgb, var(--cyber-title-on-line) 14%, transparent);
-  --cyber-title-glow-cyan: color-mix(in srgb, var(--cyber-title-on-cyan) 14%, transparent);
+  --cyber-title-glow-bg: color-mix(in srgb, var(--cyber-title-on-bg) 28%, transparent);
+  --cyber-title-glow-line: color-mix(in srgb, var(--cyber-title-on-line) 28%, transparent);
+  --cyber-title-glow-cyan: color-mix(in srgb, var(--cyber-title-on-cyan) 28%, transparent);
   --cyber-text: var(--cyber-title-on-bg);
   --cyber-muted: color-mix(in srgb, var(--cyber-title-on-bg) 58%, var(--cyber-bg));
   --cyber-display: "Rajdhani", "Share Tech Mono", "Arial Narrow", system-ui, sans-serif;
@@ -364,18 +364,6 @@ button,
   border-top: 1px solid rgba(215, 255, 50, 0.42);
 }
 
-.zone-network-status {
-  color: var(--cyber-muted) !important;
-}
-
-.zone-network-status-connected {
-  color: var(--cyber-title-on-bg) !important;
-}
-
-.zone-network-status-disconnected {
-  color: var(--cyber-danger) !important;
-}
-
 .spectrum-svg,
 .dot-line-svg {
   display: block;
@@ -446,17 +434,6 @@ button,
   display: none;
 }
 
-@media (min-resolution: 2dppx) {
-  .spectrum-dot {
-    --spectrum-dot-size: 1px;
-  }
-}
-
-@media (min-resolution: 3dppx) {
-  .spectrum-dot {
-    --spectrum-dot-size: 0.667px;
-  }
-}
 
 .spectrum-cursor {
   --spectrum-cursor-size: 80px;
@@ -523,6 +500,8 @@ button,
 
 .dashboard-shell .intensity-dot-pad {
   box-shadow: none !important;
+  mask-image: linear-gradient(to right, transparent 0, black 40px);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 40px);
 }
 
 .dashboard-shell .intensity-dot-pad:focus-visible {
@@ -781,7 +760,7 @@ button,
 
 .climate-toggle:disabled,
 .climate-mode-button:disabled {
-  opacity: 0.42;
+  opacity: 0.6;
 }
 
 .climate-switch-row {
@@ -796,7 +775,7 @@ button,
 }
 
 .climate-switch-row-disabled {
-  opacity: 0.42;
+  opacity: 0.6;
 }
 
 .climate-switch-label {
@@ -855,6 +834,11 @@ button,
 .temperature-stepper,
 .climate-fan-speed {
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.temperature-stepper-disabled,
+.climate-fan-speed-disabled {
+  opacity: 0.6;
 }
 
 .climate-temp-readout {

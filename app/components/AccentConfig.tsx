@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeftRight, Home, RotateCcw } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import {
   DeviceTheme,
   ThemeColorSlot,
@@ -27,6 +27,53 @@ const TITLE_TONES: Array<{ value: ThemeTitleTone; label: string }> = [
   { value: "dark", label: "Dark" },
 ];
 
+function isThemeConfigColorSlot(value: string | null): value is ThemeConfigColorSlot {
+  return THEME_SLOTS.some((choice) => choice.slot === value);
+}
+
+const CONFIG_WIDGET_STORAGE_KEY = "nova.dashboard.configWidget.v1";
+
+function selectedConfigWidgetFromStorage(): ThemeConfigColorSlot {
+  if (typeof window === "undefined") {
+    return "accent";
+  }
+
+  try {
+    const widget = window.sessionStorage.getItem(CONFIG_WIDGET_STORAGE_KEY);
+    return isThemeConfigColorSlot(widget) ? widget : "accent";
+  } catch {
+    return "accent";
+  }
+}
+
+function writeSelectedConfigWidgetToStorage(widget: ThemeConfigColorSlot) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(CONFIG_WIDGET_STORAGE_KEY, widget);
+  } catch {
+    // Browsers can deny storage in private or restricted contexts; selection can still live in React state.
+  }
+}
+
+function removeLegacyConfigWidgetParam() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const current = new URL(window.location.href);
+  if (!current.searchParams.has("widget")) {
+    return;
+  }
+
+  current.searchParams.delete("widget");
+  const nextSearch = current.searchParams.toString();
+  const nextUrl = `${current.pathname}${nextSearch ? `?${nextSearch}` : ""}${current.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
@@ -47,6 +94,7 @@ function AccentSpectrum({
       <DotSpectrumControl
         ariaLabel={`${label} color spectrum`}
         cursor={value.cursor}
+        intensity={value.intensity}
         rgbAtPosition={themeRgbAtPosition}
         onChange={(cursor, rgb) => onChange({ ...value, cursor, rgb })}
       />
@@ -76,10 +124,11 @@ function AccentIntensity({
             ariaLabel={`${label} intensity`}
             ariaValueText={`${value.intensity}%`}
             value={value.intensity}
-            min={15}
+            min={0}
             max={100}
             step={1}
             color={value.rgb}
+            intensity={value.intensity}
             onChange={(intensity) => onChange({ ...value, intensity })}
           />
         </div>
@@ -133,7 +182,7 @@ function TitleToneControl({
 
 export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTheme & ThemeColorValue> | null }) {
   const { resetTheme, setTheme, setThemeColor, theme, themeReady } = useDeviceTheme(initialTheme);
-  const [activeSlot, setActiveSlot] = useState<ThemeConfigColorSlot>("accent");
+  const [activeSlot, setActiveSlot] = useState<ThemeConfigColorSlot>(selectedConfigWidgetFromStorage);
   const activeChoice = THEME_SLOTS.find((choice) => choice.slot === activeSlot) ?? THEME_SLOTS[0];
   const activeColor = theme[activeSlot];
   const activeRgb = appliedThemeRgb(activeColor);
@@ -147,6 +196,19 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
   const swapAccentHighlight = () => {
     setTheme({ ...theme, accent: theme.highlight, highlight: theme.accent });
   };
+
+  const selectSlot = useCallback((slot: ThemeConfigColorSlot) => {
+    setActiveSlot(slot);
+    writeSelectedConfigWidgetToStorage(slot);
+  }, []);
+
+  useEffect(() => {
+    removeLegacyConfigWidgetParam();
+
+    const onPageShow = () => setActiveSlot(selectedConfigWidgetFromStorage());
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   return (
     <main className="min-h-screen text-neutral-100" style={{ backgroundColor: "var(--cyber-bg)" }}>
@@ -182,7 +244,7 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                         type="button"
                         aria-pressed={activeSlot === choice.slot}
                         className={`theme-display-card border p-4 text-left ${activeSlot === choice.slot ? "theme-display-card-active" : ""}`}
-                        onClick={() => setActiveSlot(choice.slot)}
+                        onClick={() => selectSlot(choice.slot)}
                       >
                         <span
                           className="theme-display-swatch border"
@@ -218,7 +280,7 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                     type="button"
                     aria-pressed={activeSlot === choice.slot}
                     className={`theme-choice-tab border px-4 py-3 ${activeSlot === choice.slot ? "theme-choice-tab-active" : ""}`}
-                    onClick={() => setActiveSlot(choice.slot)}
+                    onClick={() => selectSlot(choice.slot)}
                   >
                     {choice.label}
                   </button>

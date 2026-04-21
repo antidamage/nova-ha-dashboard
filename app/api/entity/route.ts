@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 
 const domains = new Set(["light", "switch", "climate", "fan", "cover", "humidifier"]);
 
+function clientId(value: unknown): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -28,15 +33,19 @@ export async function POST(request: Request) {
       data: body.data ?? {},
       remember: body.remember ?? undefined,
     };
+    const sourceClientId = clientId(body.sourceClientId);
     const state = await setEntityAction({
       ...action,
     });
 
     if (entityActionAffectsLighting(state, action)) {
       holdDashboardEventLightPolling();
-      publishDashboardState(optimisticDashboardStateForEntityAction(state, action), { force: true });
+      publishDashboardState(optimisticDashboardStateForEntityAction(state, action), {
+        excludeClientId: sourceClientId,
+        force: true,
+      });
     } else {
-      publishDashboardState(state);
+      publishDashboardState(state, { excludeClientId: sourceClientId });
     }
     return NextResponse.json(state);
   } catch (error) {

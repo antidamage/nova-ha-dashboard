@@ -21,6 +21,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
 try {
+  document.addEventListener("contextmenu", function (event) {
+    event.preventDefault();
+  });
+
   var themeKey = "nova.dashboard.accent.v1";
   var cookieValue = function (name) {
     var parts = document.cookie ? document.cookie.split("; ") : [];
@@ -44,7 +48,7 @@ try {
   };
   var applied = function (color, fallbackRgb) {
     var rawRgb = color && Array.isArray(color.rgb) ? color.rgb : fallbackRgb;
-    var intensity = clamp(Math.round(Number(color && color.intensity ? color.intensity : 100)), 15, 100) / 100;
+    var intensity = clamp(Math.round(Number(color && color.intensity !== undefined ? color.intensity : 100)), 0, 100) / 100;
     return rawRgb.slice(0, 3).map(function (part) {
       return clamp(Math.round(Number(part) * intensity), 0, 255);
     });

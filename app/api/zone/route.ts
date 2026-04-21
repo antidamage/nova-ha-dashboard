@@ -45,6 +45,11 @@ function spectrumCursor(value: unknown): SpectrumCursor | undefined {
   };
 }
 
+function clientId(value: unknown): number | null {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -57,6 +62,7 @@ export async function POST(request: Request) {
     const brightnessPct = body.brightnessPct === undefined ? undefined : Number(body.brightnessPct);
     const rgb = rgbTuple(body.rgb);
     const cursor = spectrumCursor(body.cursor);
+    const sourceClientId = clientId(body.sourceClientId);
     const state = await setZoneAction({
       zoneId,
       action,
@@ -69,10 +75,10 @@ export async function POST(request: Request) {
       holdDashboardEventLightPolling();
       publishDashboardState(
         optimisticDashboardStateForZoneAction(state, { action, brightnessPct, cursor, rgb, zoneId }),
-        { force: true },
+        { excludeClientId: sourceClientId, force: true },
       );
     } else {
-      publishDashboardState(state);
+      publishDashboardState(state, { excludeClientId: sourceClientId });
     }
     return NextResponse.json(state);
   } catch (error) {

@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Rgb = [number, number, number];
+type DotColor = Rgb | string;
 type Cursor = { x: number; y: number };
 
 const DOT_GAP_PX = 15;
 const LINE_CURSOR_INSET_PX = 18;
 const SPECTRUM_CURSOR_INSET_PX = 40;
-const DOT_INFLUENCE_RADIUS_PX = 78;
-const SVG_DOT_RADIUS_PX = 0.5;
+const DOT_INFLUENCE_RADIUS_PX = 140;
+const LINE_DOT_INFLUENCE_RADIUS_PX = 72;
+const SVG_DOT_RADIUS_PX = 1.0;
 const SVG_LINE_HEIGHT_PX = 48;
 const SVG_LINE_CENTER_Y_PX = SVG_LINE_HEIGHT_PX / 2;
 const SVG_LINE_CURSOR_RADIUS_PX = 16.5;
@@ -17,6 +19,9 @@ const SVG_LINE_CURSOR_STROKE_PX = 3;
 const SVG_SPECTRUM_CURSOR_RADIUS_PX = 38;
 const SVG_SPECTRUM_CURSOR_STROKE_PX = 3;
 const REMOTE_EASE_MS = 1000;
+const DISABLED_DOT_RGB: Rgb = [126, 126, 126];
+const DEFAULT_LINE_COLOR = "var(--cyber-line)";
+const DEFAULT_ACTIVE_LINE_COLOR = "var(--cyber-cyan)";
 
 function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -46,14 +51,82 @@ function insetPercent(value: number, length: number, insetPx: number) {
 
 function focusedDotScale(distance: number, radius: number) {
   const weight = clamp(1 - distance / radius, 0, 1);
+  // Quartic falloff: concentrates magnification near the cursor, drops off fast toward the edge
+  const eased = weight * weight * weight * weight;
+  const base = 1 + eased * 11;
+
+  // Sharp centre spike: 4× normal max at distance 0, cubic falloff over ~12px
+  const spikeWeight = clamp(1 - distance / 12, 0, 1);
+  const spike = spikeWeight * spikeWeight * spikeWeight * 18;
+
+  return Math.round((base + spike) * 100) / 100;
+}
+
+function focusedLineDotScale(distance: number) {
+  const weight = clamp(1 - distance / LINE_DOT_INFLUENCE_RADIUS_PX, 0, 1);
   const eased = weight * weight * (3 - 2 * weight);
-  return Math.round((1 + eased * 5) * 100) / 100;
+
+  return Math.round((1 + eased * 3) * 100) / 100;
 }
 
 function svgDotRadius(scale: number) {
   return Math.round(SVG_DOT_RADIUS_PX * scale * 100) / 100;
 }
 
+function scaledRgb(rgb: Rgb, scale: number): Rgb {
+  return rgb.map((part) => clamp(Math.round(part * scale), 0, 255)) as Rgb;
+}
+
+function dotColorFill(color: DotColor, scale: number) {
+  return Array.isArray(color) ? `rgb(${scaledRgb(color, scale).join(" ")})` : color;
+}
+
+// Animates a number toward target on every prop change, ignoring local interaction flag.
+// Used for dot influence so dots always ease even when the thumb snaps.
+function usePropEasedNumber(target: number) {
+  const [display, setDisplay] = useState(target);
+  const displayRef = useRef(target);
+  const animRef = useRef<number | null>(null);
+
+  const cancel = useCallback(() => {
+    if (animRef.current !== null) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    cancel();
+    const start = displayRef.current;
+    if (Math.abs(target - start) < 0.01) {
+      displayRef.current = target;
+      setDisplay(target);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const t = clamp((now - startedAt) / 400, 0, 1);
+      const next = start + (target - start) * easeOut(t);
+      displayRef.current = next;
+      setDisplay(next);
+      if (t < 1) {
+        animRef.current = requestAnimationFrame(tick);
+      } else {
+        animRef.current = null;
+        displayRef.current = target;
+        setDisplay(target);
+      }
+    };
+    animRef.current = requestAnimationFrame(tick);
+  }, [cancel, target]);
+
+  useEffect(() => cancel, [cancel]);
+
+  return display;
+}
+
+// Animates a 1D number toward target, snapping during local drag and easing on remote changes.
 function useRemoteEasedNumber(target: number) {
   const [displayValue, setDisplayValue] = useState(target);
   const displayValueRef = useRef(target);
@@ -62,7 +135,7 @@ function useRemoteEasedNumber(target: number) {
 
   const cancelAnimation = useCallback(() => {
     if (animationRef.current !== null) {
-      window.cancelAnimationFrame(animationRef.current);
+      cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
   }, []);
@@ -115,7 +188,7 @@ function useRemoteEasedNumber(target: number) {
       setDisplayValue(next);
 
       if (progress < 1) {
-        animationRef.current = window.requestAnimationFrame(animate);
+        animationRef.current = requestAnimationFrame(animate);
       } else {
         animationRef.current = null;
         displayValueRef.current = target;
@@ -123,7 +196,7 @@ function useRemoteEasedNumber(target: number) {
       }
     };
 
-    animationRef.current = window.requestAnimationFrame(animate);
+    animationRef.current = requestAnimationFrame(animate);
   }, [cancelAnimation, target]);
 
   useEffect(() => cancelAnimation, [cancelAnimation]);
@@ -131,12 +204,88 @@ function useRemoteEasedNumber(target: number) {
   return { displayValue, releaseLocalValue, setLocalValue };
 }
 
+// Animates a 2D cursor toward target, snapping during local drag and easing on remote changes.
+function useEasedCursor(targetX: number, targetY: number) {
+  const [display, setDisplay] = useState<Cursor>({ x: targetX, y: targetY });
+  const displayRef = useRef<Cursor>({ x: targetX, y: targetY });
+  const localRef = useRef(false);
+  const animRef = useRef<number | null>(null);
+
+  const cancel = useCallback(() => {
+    if (animRef.current !== null) {
+      cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    }
+  }, []);
+
+  const setLocal = useCallback(
+    (next: Cursor) => {
+      cancel();
+      localRef.current = true;
+      displayRef.current = next;
+      setDisplay(next);
+    },
+    [cancel],
+  );
+
+  const release = useCallback(
+    (next: Cursor) => {
+      cancel();
+      displayRef.current = next;
+      setDisplay(next);
+      localRef.current = false;
+    },
+    [cancel],
+  );
+
+  useEffect(() => {
+    if (localRef.current) {
+      const next = { x: targetX, y: targetY };
+      displayRef.current = next;
+      setDisplay(next);
+      return;
+    }
+
+    cancel();
+    const start = displayRef.current;
+    const dist = Math.hypot(targetX - start.x, targetY - start.y);
+    if (dist < 0.001) {
+      const next = { x: targetX, y: targetY };
+      displayRef.current = next;
+      setDisplay(next);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const t = clamp((now - startedAt) / REMOTE_EASE_MS, 0, 1);
+      const e = easeOut(t);
+      const next = { x: start.x + (targetX - start.x) * e, y: start.y + (targetY - start.y) * e };
+      displayRef.current = next;
+      setDisplay(next);
+      if (t < 1) {
+        animRef.current = requestAnimationFrame(tick);
+      } else {
+        animRef.current = null;
+        displayRef.current = { x: targetX, y: targetY };
+        setDisplay({ x: targetX, y: targetY });
+      }
+    };
+    animRef.current = requestAnimationFrame(tick);
+  }, [cancel, targetX, targetY]);
+
+  useEffect(() => cancel, [cancel]);
+
+  return { display, setLocal, release };
+}
+
 export function DotLineControl({
-  activeColor,
+  activeColor = DEFAULT_ACTIVE_LINE_COLOR,
   ariaLabel,
   ariaValueText,
-  color,
+  color = DEFAULT_LINE_COLOR,
   disabled = false,
+  intensity = 100,
   markers,
   max = 100,
   min = 0,
@@ -145,11 +294,12 @@ export function DotLineControl({
   step = 1,
   value,
 }: {
-  activeColor?: Rgb;
+  activeColor?: DotColor;
   ariaLabel: string;
   ariaValueText?: string;
-  color: Rgb;
+  color?: DotColor;
   disabled?: boolean;
+  intensity?: number;
   markers?: Array<{ active?: boolean; label: string; value: number }>;
   max?: number;
   min?: number;
@@ -165,10 +315,14 @@ export function DotLineControl({
   const [interacting, setInteracting] = useState(false);
   const [lineWidth, setLineWidth] = useState(0);
   const { displayValue, releaseLocalValue, setLocalValue } = useRemoteEasedNumber(value);
+  const dotDisplayValue = usePropEasedNumber(value);
   const range = Math.max(step, max - min);
   const displayRatio = clamp((displayValue - min) / range, 0, 1);
+  const dotDisplayRatio = clamp((dotDisplayValue - min) / range, 0, 1);
   const displayCursorX = insetPixel(displayRatio, lineWidth, LINE_CURSOR_INSET_PX);
-  const endpoint = interacting && activeColor ? activeColor : color;
+  const dotCursorX = insetPixel(dotDisplayRatio, lineWidth, LINE_CURSOR_INSET_PX);
+  const endpoint = interacting ? activeColor : color;
+  const intensityScale = clamp(intensity / 100, 0, 1);
 
   useEffect(() => {
     commitValueRef.current = value;
@@ -250,8 +404,8 @@ export function DotLineControl({
     const amount = dotCount <= 1 ? 0 : index / (dotCount - 1);
     return {
       amount,
+      fill: dotColorFill(endpoint, intensityScale),
       opacity: amount * 0.96,
-      rgb: endpoint,
       xPx: amount * lineWidth,
     };
   });
@@ -314,7 +468,7 @@ export function DotLineControl({
         aria-hidden="true"
       >
         {dots.map((dot, index) => {
-          const size = focusedDotScale(Math.abs(dot.xPx - displayCursorX), DOT_INFLUENCE_RADIUS_PX);
+          const size = focusedLineDotScale(Math.abs(dot.xPx - dotCursorX));
 
           return (
             <circle
@@ -323,7 +477,7 @@ export function DotLineControl({
               cx={dot.xPx}
               cy={SVG_LINE_CENTER_Y_PX}
               r={svgDotRadius(size)}
-              fill={`rgb(${dot.rgb.join(" ")})`}
+              fill={dot.fill}
               opacity={dot.opacity}
             />
           );
@@ -373,20 +527,29 @@ export function DotLineControl({
 export function DotSpectrumControl({
   ariaLabel,
   cursor,
+  disabled = false,
+  intensity = 100,
   onChange,
+  onCommit,
   rgbAtPosition,
 }: {
   ariaLabel: string;
   cursor: Cursor;
+  disabled?: boolean;
+  intensity?: number;
   onChange: (cursor: Cursor, rgb: Rgb) => void;
+  onCommit?: (cursor: Cursor, rgb: Rgb) => void;
   rgbAtPosition: (x: number, y: number) => Rgb;
 }) {
   const padRef = useRef<HTMLDivElement | null>(null);
   const [dots, setDots] = useState<Array<{ id: string; rgb: Rgb; x: number; xPx: number; y: number; yPx: number }>>([]);
   const [dragging, setDragging] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const cursorX = insetPixel(cursor.x, size.width, SPECTRUM_CURSOR_INSET_PX);
-  const cursorY = insetPixel(cursor.y, size.height, SPECTRUM_CURSOR_INSET_PX);
+  const { display: displayCursor, setLocal: setLocalCursor, release: releaseCursor } = useEasedCursor(cursor.x, cursor.y);
+  const intensityScale = clamp(intensity / 100, 0, 1);
+
+  const cursorX = insetPixel(displayCursor.x, size.width, SPECTRUM_CURSOR_INSET_PX);
+  const cursorY = insetPixel(displayCursor.y, size.height, SPECTRUM_CURSOR_INSET_PX);
 
   useEffect(() => {
     const pad = padRef.current;
@@ -431,14 +594,32 @@ export function DotSpectrumControl({
   }, [rgbAtPosition]);
 
   const pick = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (!padRef.current) {
+    if (disabled || !padRef.current) {
       return;
     }
 
     const rect = padRef.current.getBoundingClientRect();
     const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
     const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
-    onChange({ x, y }, rgbAtPosition(x, y));
+    const next = { x, y };
+    setLocalCursor(next);
+    onChange(next, rgbAtPosition(x, y));
+  };
+
+  const stop = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging) return;
+    setDragging(false);
+    const rect = padRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+      const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+      const next = { x, y };
+      releaseCursor(next);
+      onCommit?.(next, rgbAtPosition(x, y));
+    } else {
+      releaseCursor(cursor);
+      onCommit?.(cursor, rgbAtPosition(cursor.x, cursor.y));
+    }
   };
 
   return (
@@ -446,8 +627,10 @@ export function DotSpectrumControl({
       ref={padRef}
       role="slider"
       aria-label={ariaLabel}
-      tabIndex={0}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
       onPointerDown={(event) => {
+        if (disabled) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         setDragging(true);
         pick(event);
@@ -457,10 +640,19 @@ export function DotSpectrumControl({
           pick(event);
         }
       }}
-      onPointerUp={() => setDragging(false)}
-      onPointerCancel={() => setDragging(false)}
-      onLostPointerCapture={() => setDragging(false)}
-      className="spectrum-pad accent-spectrum-pad relative h-48 w-full touch-none overflow-hidden outline-none"
+      onPointerUp={stop}
+      onPointerCancel={(event) => {
+        setDragging(false);
+        releaseCursor(cursor);
+        onCommit?.(cursor, rgbAtPosition(cursor.x, cursor.y));
+      }}
+      onLostPointerCapture={(event) => {
+        if (dragging) stop(event);
+      }}
+      className={classNames(
+        "spectrum-pad accent-spectrum-pad relative h-48 w-full touch-none overflow-hidden outline-none",
+        disabled && "spectrum-pad-disabled",
+      )}
     >
       <div className="spectrum-pad-bg absolute inset-0 bg-neutral-950/80" />
       <svg
@@ -472,6 +664,7 @@ export function DotSpectrumControl({
         {dots.map((dot) => {
           const distance = Math.hypot(dot.xPx - cursorX, dot.yPx - cursorY);
           const dotSize = focusedDotScale(distance, DOT_INFLUENCE_RADIUS_PX);
+          const rgb = disabled ? DISABLED_DOT_RGB : scaledRgb(dot.rgb, intensityScale);
 
           return (
             <circle
@@ -480,22 +673,24 @@ export function DotSpectrumControl({
               cx={dot.xPx}
               cy={dot.yPx}
               r={svgDotRadius(dotSize)}
-              fill={`rgb(${dot.rgb.join(" ")})`}
+              fill={`rgb(${rgb.join(" ")})`}
             />
           );
         })}
-        <g
-          className={classNames("spectrum-svg-cursor", dragging && "spectrum-svg-cursor-dragging")}
-          transform={`translate(${cursorX} ${cursorY}) rotate(-105)`}
-        >
-          <circle
-            cx={0}
-            cy={0}
-            r={SVG_SPECTRUM_CURSOR_RADIUS_PX}
-            strokeWidth={SVG_SPECTRUM_CURSOR_STROKE_PX}
-            strokeDasharray="20 40"
-          />
-        </g>
+        {!disabled && (
+          <g
+            className={classNames("spectrum-svg-cursor", dragging && "spectrum-svg-cursor-dragging")}
+            transform={`translate(${cursorX} ${cursorY}) rotate(-105)`}
+          >
+            <circle
+              cx={0}
+              cy={0}
+              r={SVG_SPECTRUM_CURSOR_RADIUS_PX}
+              strokeWidth={SVG_SPECTRUM_CURSOR_STROKE_PX}
+              strokeDasharray="20 40"
+            />
+          </g>
+        )}
       </svg>
     </div>
   );
