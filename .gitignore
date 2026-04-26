@@ -21,9 +21,11 @@ pnpm-debug.log*
 
 # local tooling artifacts
 .codex/
+.cache/
 .playwright-cli/
 output/
 data/*.json
+data/terrain-fetches/
 
 # OS/editor noise
 .DS_Store

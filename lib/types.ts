@@ -4,7 +4,8 @@ export type HaDomain =
   | "climate"
   | "fan"
   | "cover"
-  | "humidifier";
+  | "humidifier"
+  | "sensor";
 
 export type HaState = {
   entity_id: string;
@@ -99,7 +100,15 @@ export type WeatherStatus = {
   feelsLike: number | null;
 };
 
+export type SunStatus = {
+  entity_id: string;
+  state: string;
+  nextRising: string | null;
+  nextSetting: string | null;
+};
+
 export type AirconPreferences = {
+  autoMode?: boolean;
   hvacMode?: string;
   temperature?: number;
   fanMode?: string;
@@ -120,6 +129,7 @@ export type DashboardState = {
   totals: Record<HaDomain, number>;
   router: RouterStatus;
   spectrumCursors?: Record<string, SpectrumCursor>;
+  sun: SunStatus | null;
   weather: WeatherStatus | null;
   preferences: DashboardPreferences;
   warnings: string[];

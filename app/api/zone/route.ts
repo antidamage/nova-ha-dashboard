@@ -14,6 +14,10 @@ export const dynamic = "force-dynamic";
 type ZoneAction = "on" | "off" | "brightness" | "color" | "candlelight" | "white";
 const zoneActions = new Set<string>(["on", "off", "brightness", "color", "candlelight", "white"]);
 
+function traceId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function rgbTuple(value: unknown): [number, number, number] | undefined {
   if (!Array.isArray(value) || value.length !== 3) {
     return undefined;
@@ -51,6 +55,8 @@ function clientId(value: unknown): number | null {
 }
 
 export async function POST(request: Request) {
+  const id = traceId();
+
   try {
     const body = await request.json();
     const zoneId = String(body.zoneId ?? "everything");
@@ -68,6 +74,7 @@ export async function POST(request: Request) {
       action,
       brightnessPct,
       rgb,
+      traceId: id,
     });
 
     rememberSpectrumCursor(zoneId, cursor);

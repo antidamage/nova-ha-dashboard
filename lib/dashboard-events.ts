@@ -1,9 +1,12 @@
-import { buildDashboardState } from "./ha";
+import { readDashboardBuildId } from "./build-id";
+import { buildDashboardState, warmWeatherCache } from "./ha";
 import type { DashboardEntity, DashboardState, HaDomain, SpectrumCursor } from "./types";
 
+const DASHBOARD_BUILD_EVENT_POLL_MS = 5000;
 const DASHBOARD_EVENT_POLL_MS = 2000;
 const DASHBOARD_EVENT_HEARTBEAT_MS = 15000;
 const LIGHT_COMMAND_EVENT_HOLD_MS = 5000;
+const WEATHER_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
 type DashboardEventClient = {
   id: number;
@@ -11,8 +14,10 @@ type DashboardEventClient = {
 };
 
 type DashboardEventStore = {
+  buildPollTimer: ReturnType<typeof setInterval> | null;
   clients: Set<DashboardEventClient>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
+  latestBuildId: string | null;
   latestJson: string | null;
   latestSignature: string | null;
   lightPollHoldUntil: number;
@@ -20,6 +25,7 @@ type DashboardEventStore = {
   pollTimer: ReturnType<typeof setInterval> | null;
   polling: boolean;
   spectrumCursors: Record<string, SpectrumCursor>;
+  weatherRefreshTimer: ReturnType<typeof setInterval> | null;
 };
 
 const encoder = new TextEncoder();
@@ -30,8 +36,10 @@ const globalWithDashboardEvents = globalThis as typeof globalThis & {
 const store =
   globalWithDashboardEvents.__novaDashboardEvents ??
   (globalWithDashboardEvents.__novaDashboardEvents = {
+    buildPollTimer: null,
     clients: new Set<DashboardEventClient>(),
     heartbeatTimer: null,
+    latestBuildId: null,
     latestJson: null,
     latestSignature: null,
     lightPollHoldUntil: 0,
@@ -39,6 +47,7 @@ const store =
     pollTimer: null,
     polling: false,
     spectrumCursors: {},
+    weatherRefreshTimer: null,
   });
 
 type ZoneActionInput = {
@@ -102,6 +111,27 @@ function broadcast(chunk: string, options: { excludeClientId?: number | null } =
     }
 
     sendClient(client, chunk);
+  }
+}
+
+async function publishDashboardBuild(options: { client?: DashboardEventClient; force?: boolean } = {}) {
+  const buildId = await readDashboardBuildId();
+  const previousBuildId = store.latestBuildId;
+  store.latestBuildId = buildId;
+
+  if (options.client) {
+    sendClient(options.client, sseEvent("build", JSON.stringify({ buildId })));
+    return;
+  }
+
+  if (!options.force && previousBuildId === buildId) {
+    return;
+  }
+
+  broadcast(sseEvent("build", JSON.stringify({ buildId })));
+
+  if (previousBuildId && previousBuildId !== buildId) {
+    broadcast(sseEvent("reload", JSON.stringify({ buildId, previousBuildId, reason: "build-changed" })));
   }
 }
 
@@ -334,6 +364,13 @@ async function pollDashboardState() {
 }
 
 function startDashboardEventPoller() {
+  if (!store.buildPollTimer) {
+    void publishDashboardBuild();
+    store.buildPollTimer = setInterval(() => {
+      void publishDashboardBuild();
+    }, DASHBOARD_BUILD_EVENT_POLL_MS);
+  }
+
   if (!store.pollTimer) {
     void pollDashboardState();
     store.pollTimer = setInterval(() => {
@@ -345,6 +382,13 @@ function startDashboardEventPoller() {
     store.heartbeatTimer = setInterval(() => {
       broadcast(": keep-alive\n\n");
     }, DASHBOARD_EVENT_HEARTBEAT_MS);
+  }
+
+  if (!store.weatherRefreshTimer) {
+    void warmWeatherCache();
+    store.weatherRefreshTimer = setInterval(() => {
+      void warmWeatherCache();
+    }, WEATHER_REFRESH_INTERVAL_MS);
   }
 }
 
@@ -358,9 +402,19 @@ function stopDashboardEventPollerIfIdle() {
     store.pollTimer = null;
   }
 
+  if (store.buildPollTimer) {
+    clearInterval(store.buildPollTimer);
+    store.buildPollTimer = null;
+  }
+
   if (store.heartbeatTimer) {
     clearInterval(store.heartbeatTimer);
     store.heartbeatTimer = null;
+  }
+
+  if (store.weatherRefreshTimer) {
+    clearInterval(store.weatherRefreshTimer);
+    store.weatherRefreshTimer = null;
   }
 }
 
@@ -378,6 +432,7 @@ export function subscribeDashboardEvents() {
 
       sendClient(client, "retry: 2000\n\n");
       sendClient(client, sseEvent("client-id", JSON.stringify({ id: client.id })));
+      void publishDashboardBuild({ client });
       if (store.latestJson) {
         sendClient(client, sseEvent("state", store.latestJson));
       }

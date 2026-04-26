@@ -1,7 +1,9 @@
 "use client";
 
 import * as Tooltip from "@radix-ui/react-tooltip";
+import dynamic from "next/dynamic";
 import {
+  Droplets,
   Fan,
   Flame,
   Gauge,
@@ -15,10 +17,9 @@ import {
   Sun,
   Thermometer,
   ToggleLeft,
-  Waves,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AirconPreferences,
   DashboardEntity,
@@ -28,10 +29,15 @@ import {
   HaDomain,
   RouterStatus,
   SpectrumCursor,
+  SunStatus,
   WeatherStatus,
 } from "../../lib/types";
 import { useDeviceTheme } from "./accentColor";
 import { DotLineControl, DotSpectrumControl } from "./DotControls";
+import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import { useBuildReload } from "./useBuildReload";
+
+const MapPanel = dynamic(() => import("./MapPanel").then((module) => module.MapPanel), { ssr: false });
 
 type LoadState = "idle" | "loading" | "error";
 
@@ -50,6 +56,7 @@ const domainIcons: Record<HaDomain, React.ComponentType<{ className?: string }>>
   fan: Fan,
   cover: Gauge,
   humidifier: Gauge,
+  sensor: Thermometer,
 };
 
 const domainAccent: Record<HaDomain, string> = {
@@ -59,6 +66,7 @@ const domainAccent: Record<HaDomain, string> = {
   fan: "text-emerald-300 border-emerald-300/40 bg-emerald-300/10",
   cover: "text-orange-300 border-orange-300/40 bg-orange-300/10",
   humidifier: "text-sky-300 border-sky-300/40 bg-sky-300/10",
+  sensor: "text-cyan-300 border-cyan-300/40 bg-cyan-300/10",
 };
 
 function classNames(...parts: Array<string | false | null | undefined>) {
@@ -111,12 +119,55 @@ type SpectrumValue = {
   preview: [number, number, number];
 };
 
+type LoungeEnvironment = {
+  humidity: number | null;
+  humidityEntity?: DashboardEntity;
+  temperature: number | null;
+  temperatureEntity?: DashboardEntity;
+};
+
 const CLOCK_TIME_ZONE = "Pacific/Auckland";
-const LIGHT_DRAG_COMMAND_INTERVAL_MS = 160;
+const VANCOUVER_TIME_ZONE = "America/Vancouver";
+const LIGHT_DRAG_COMMAND_INTERVAL_MS = 450;
 const LIGHT_COMMAND_POLL_HOLD_MS = 5000;
 const SPECTRUM_LOCAL_HOLD_MS = LIGHT_COMMAND_POLL_HOLD_MS;
 const CLIMATE_COMMAND_POLL_DELAYS_MS = [500, 1500, 3500];
+const AIRCON_AUTO_POLL_MS = 10_000;
+const AIRCON_AUTO_HYSTERESIS_DEGREES = 1;
 const STEP_EPSILON = 0.0001;
+const LOUNGE_ZONE_ID = "lounge";
+const LOUNGE_TEMPERATURE_SENSOR_IDS = [
+  "sensor.wifi_temperature_humidity_sensor_temperature",
+  "sensor.lounge_temperature",
+];
+const LOUNGE_HUMIDITY_SENSOR_IDS = [
+  "sensor.wifi_temperature_humidity_sensor_humidity",
+  "sensor.lounge_humidity",
+];
+const DEFAULT_MAP_CENTER = {
+  lat: -36.8509,
+  lng: 174.7645,
+};
+const RADAR_PRELOAD_ZOOM = 7;
+const RADAR_PRELOAD_RADIUS = 1;
+const RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+const RADAR_COLOR_FALLBACKS = {
+  high: "255 255 255",
+  low: "40 243 255",
+};
+
+type FullscreenDocumentShim = Document & {
+  fullscreenElement?: Element | null;
+  mozFullScreenElement?: Element | null;
+  msFullscreenElement?: Element | null;
+  webkitFullscreenElement?: Element | null;
+};
+
+type FullscreenElementShim = HTMLElement & {
+  mozRequestFullScreen?: () => Promise<void> | void;
+  msRequestFullscreen?: () => Promise<void> | void;
+  webkitRequestFullscreen?: () => Promise<void> | void;
+};
 
 const CANDLELIGHT_SPECTRUM: SpectrumValue = {
   cursor: { x: 0.08, y: 0.12 },
@@ -127,6 +178,67 @@ const WHITE_SPECTRUM: SpectrumValue = {
   cursor: { x: 0.13, y: 0.96 },
   preview: [255, 255, 255],
 };
+
+function parseMapCenter(value?: string): [number, number] {
+  const [latText, lngText] = (value ?? "").split(",").map((part) => part.trim());
+  const lat = Number(latText);
+  const lng = Number(lngText);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return [DEFAULT_MAP_CENTER.lng, DEFAULT_MAP_CENTER.lat];
+  }
+
+  return [lng, lat];
+}
+
+function cssRgbCsv(variableName: string, fallback: string) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(variableName).trim() || fallback;
+  return value.replace(/\s+/g, ",");
+}
+
+function radarPaletteMode() {
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--cyber-map-radar-mode").trim().toLowerCase();
+  return value === "custom" ? "custom" : "spectrum";
+}
+
+function lonLatToTile(lng: number, lat: number, zoom: number): [number, number] {
+  const scale = 2 ** zoom;
+  const x = Math.floor(((lng + 180) / 360) * scale);
+  const latRadians = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRadians) + (1 / Math.cos(latRadians))) / Math.PI) / 2 * scale);
+
+  return [x, y];
+}
+
+function radarPreloadUrls(refreshBucket = Math.floor(Date.now() / RADAR_REFRESH_INTERVAL_MS)) {
+  const [lng, lat] = parseMapCenter(process.env.NEXT_PUBLIC_MAP_CENTER);
+  const [centerTileX, centerTileY] = lonLatToTile(lng, lat, RADAR_PRELOAD_ZOOM);
+  const mode = radarPaletteMode();
+  const low = encodeURIComponent(cssRgbCsv("--cyber-map-radar-low-rgb", RADAR_COLOR_FALLBACKS.low));
+  const high = encodeURIComponent(cssRgbCsv("--cyber-map-radar-high-rgb", RADAR_COLOR_FALLBACKS.high));
+  const tileCount = 2 ** RADAR_PRELOAD_ZOOM;
+  const urls: string[] = [];
+
+  for (let yOffset = -RADAR_PRELOAD_RADIUS; yOffset <= RADAR_PRELOAD_RADIUS; yOffset += 1) {
+    for (let xOffset = -RADAR_PRELOAD_RADIUS; xOffset <= RADAR_PRELOAD_RADIUS; xOffset += 1) {
+      const tileX = centerTileX + xOffset;
+      const tileY = centerTileY + yOffset;
+
+      if (tileX < 0 || tileY < 0 || tileX >= tileCount || tileY >= tileCount) {
+        continue;
+      }
+
+      urls.push(`/api/radar/${RADAR_PRELOAD_ZOOM}/${tileX}/${tileY}?mode=${mode}&low=${low}&high=${high}&v=${refreshBucket}`);
+    }
+  }
+
+  return urls;
+}
+
+async function preloadRadarTiles(refreshBucket = Math.floor(Date.now() / RADAR_REFRESH_INTERVAL_MS)) {
+  const urls = radarPreloadUrls(refreshBucket);
+  await Promise.allSettled(urls.map((url) => fetch(url, { cache: "force-cache" })));
+}
 
 async function fetchDashboardStateSnapshot() {
   const response = await fetch("/api/state", { cache: "no-store" });
@@ -224,15 +336,25 @@ function spectrumFromKelvin(kelvin: number): SpectrumValue {
 }
 
 
-function useThrottledCommand<T>(send: (value: T) => void, intervalMs: number) {
+function useReducedDragCommand<T>(
+  send: (value: T) => void,
+  intervalMs: number,
+  reduce: (values: T[], lastSent: T | null) => T = (values) => values[values.length - 1] as T,
+) {
   const lastSentAt = useRef(0);
-  const pending = useRef<{ value: T } | null>(null);
+  const lastSent = useRef<T | null>(null);
+  const pending = useRef<T[]>([]);
+  const reduceRef = useRef(reduce);
   const sendRef = useRef(send);
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  useEffect(() => {
+    reduceRef.current = reduce;
+  }, [reduce]);
 
   const clearTimer = useCallback(() => {
     if (timer.current !== null) {
@@ -241,33 +363,47 @@ function useThrottledCommand<T>(send: (value: T) => void, intervalMs: number) {
     }
   }, []);
 
-  const flush = useCallback(() => {
+  const drain = useCallback(() => {
     clearTimer();
-    const next = pending.current;
-    if (!next) {
+    if (!pending.current.length) {
       return;
     }
 
-    pending.current = null;
+    const next = reduceRef.current(pending.current, lastSent.current);
+    pending.current = [];
     lastSentAt.current = Date.now();
-    sendRef.current(next.value);
+    lastSent.current = next;
+    sendRef.current(next);
+  }, [clearTimer]);
+
+  const flush = useCallback(() => {
+    clearTimer();
+    if (!pending.current.length) {
+      return;
+    }
+
+    const next = pending.current[pending.current.length - 1];
+    pending.current = [];
+    lastSentAt.current = Date.now();
+    lastSent.current = next;
+    sendRef.current(next);
   }, [clearTimer]);
 
   const queue = useCallback(
     (value: T) => {
-      pending.current = { value };
+      pending.current.push(value);
       const remainingMs = intervalMs - (Date.now() - lastSentAt.current);
 
       if (remainingMs <= 0) {
-        flush();
+        drain();
         return;
       }
 
       if (timer.current === null) {
-        timer.current = window.setTimeout(flush, remainingMs);
+        timer.current = window.setTimeout(drain, remainingMs);
       }
     },
-    [flush, intervalMs],
+    [drain, intervalMs],
   );
 
   useEffect(() => clearTimer, [clearTimer]);
@@ -379,6 +515,10 @@ function spectrumWithCursor(value: SpectrumValue | null, cursor?: SpectrumCursor
       y: clamp(cursor.y, 0, 1),
     },
   };
+}
+
+function candlelightBrightnessPct(sun?: SunStatus | null) {
+  return sun?.state === "below_horizon" ? 60 : 100;
 }
 
 function useDashboardState() {
@@ -534,77 +674,6 @@ function useDashboardState() {
   return { data, status, error, eventClientId, setData, refresh, pausePolling };
 }
 
-function useBuildReload() {
-  const currentBuildId = useRef<string | null>(null);
-  const checking = useRef(false);
-
-  const applyStylesheetCacheBreaker = useCallback((buildId: string) => {
-    const links = document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href*="/_next/static/"][href*=".css"]');
-    links.forEach((link) => {
-      const url = new URL(link.href, window.location.href);
-      if (url.searchParams.get("v") === buildId) {
-        return;
-      }
-
-      url.searchParams.set("v", buildId);
-      link.href = `${url.pathname}${url.search}${url.hash}`;
-    });
-  }, []);
-
-  const checkBuild = useCallback(async () => {
-    if (checking.current) {
-      return;
-    }
-
-    checking.current = true;
-    try {
-      const response = await fetch("/api/version", { cache: "no-store" });
-      if (!response.ok) {
-        return;
-      }
-
-      const payload = (await response.json()) as { buildId?: string };
-      const nextBuildId = payload.buildId;
-      if (!nextBuildId) {
-        return;
-      }
-
-      applyStylesheetCacheBreaker(nextBuildId);
-
-      if (currentBuildId.current === null) {
-        currentBuildId.current = nextBuildId;
-      } else if (currentBuildId.current !== nextBuildId) {
-        window.location.reload();
-      }
-    } finally {
-      checking.current = false;
-    }
-  }, [applyStylesheetCacheBreaker]);
-
-  useEffect(() => {
-    checkBuild();
-    const timer = window.setInterval(checkBuild, 60_000);
-    const checkWhenVisible = () => {
-      if (!document.hidden) {
-        checkBuild();
-      }
-    };
-
-    window.addEventListener("focus", checkWhenVisible);
-    window.addEventListener("online", checkWhenVisible);
-    window.addEventListener("pageshow", checkWhenVisible);
-    document.addEventListener("visibilitychange", checkWhenVisible);
-
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", checkWhenVisible);
-      window.removeEventListener("online", checkWhenVisible);
-      window.removeEventListener("pageshow", checkWhenVisible);
-      document.removeEventListener("visibilitychange", checkWhenVisible);
-    };
-  }, [checkBuild]);
-}
-
 function StatChip({ domain, count }: { domain: HaDomain; count: number }) {
   const Icon = domainIcons[domain];
 
@@ -724,7 +793,7 @@ function IconButton({
   return (
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
-        <button
+        <MomentaryFeedbackButton
           type="button"
           aria-label={label}
           onPointerDown={(event) => {
@@ -744,7 +813,7 @@ function IconButton({
           )}
         >
           {children}
-        </button>
+        </MomentaryFeedbackButton>
       </Tooltip.Trigger>
       <Tooltip.Portal>
         <Tooltip.Content
@@ -771,7 +840,7 @@ function SpectrumPad({
   onValueChange: (value: SpectrumValue) => void;
   onPick: (rgb: [number, number, number], cursor: SpectrumCursor) => void;
 }) {
-  const { flush: flushPickCommand, queue: queuePickCommand } = useThrottledCommand(
+  const { flush: flushPickCommand, queue: queuePickCommand } = useReducedDragCommand(
     ({ cursor, rgb }: { cursor: SpectrumCursor; rgb: [number, number, number] }) => onPick(rgb, cursor),
     LIGHT_DRAG_COMMAND_INTERVAL_MS,
   );
@@ -813,7 +882,7 @@ function IntensityControl({
   onBrightnessChange: (value: number) => void;
   onBrightnessCommit: (value: number) => void;
 }) {
-  const { flush: flushBrightnessCommand, queue: queueBrightnessCommand } = useThrottledCommand(
+  const { flush: flushBrightnessCommand, queue: queueBrightnessCommand } = useReducedDragCommand(
     onBrightnessCommit,
     LIGHT_DRAG_COMMAND_INTERVAL_MS,
   );
@@ -871,6 +940,83 @@ function formatTemperature(value: number | null) {
   return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
 }
 
+function formatHumidity(value: number | null) {
+  if (value === null) {
+    return "--";
+  }
+
+  return Math.round(value).toString();
+}
+
+function numericEntityState(entity?: DashboardEntity) {
+  const value = Number(entity?.state);
+  return Number.isFinite(value) ? value : null;
+}
+
+function sensorDeviceClass(entity: DashboardEntity) {
+  return String(entity.attributes.device_class ?? "").toLowerCase();
+}
+
+function entityMatchesAnyId(entity: DashboardEntity, entityIds: string[]) {
+  return entityIds.includes(entity.entity_id);
+}
+
+function isLoungeZone(zone: DashboardZone) {
+  return zone.id === LOUNGE_ZONE_ID || zone.name.trim().toLowerCase() === LOUNGE_ZONE_ID;
+}
+
+function isBedroomZone(zone: DashboardZone) {
+  return zone.id === "bedroom" || zone.name.trim().toLowerCase() === "bedroom";
+}
+
+function sensorMatches(entity: DashboardEntity, target: "temperature" | "humidity") {
+  if (entity.domain !== "sensor") {
+    return false;
+  }
+
+  const text = entityText(entity);
+  return sensorDeviceClass(entity) === target || text.includes(target);
+}
+
+function findLoungeEnvironment(data: DashboardState | null): LoungeEnvironment | null {
+  if (!data) {
+    return null;
+  }
+
+  const loungeZone = data.zones.find(isLoungeZone);
+  const loungeSensors = loungeZone?.entities.filter((entity) => entity.domain === "sensor") ?? [];
+  const allSensors = data.entities.filter((entity) => entity.domain === "sensor");
+  const temperatureEntity =
+    allSensors.find((entity) => entityMatchesAnyId(entity, LOUNGE_TEMPERATURE_SENSOR_IDS)) ??
+    loungeSensors.find((entity) => sensorMatches(entity, "temperature")) ??
+    allSensors.find((entity) => sensorMatches(entity, "temperature") && entityText(entity).includes("lounge"));
+  const humidityEntity =
+    allSensors.find((entity) => entityMatchesAnyId(entity, LOUNGE_HUMIDITY_SENSOR_IDS)) ??
+    loungeSensors.find((entity) => sensorMatches(entity, "humidity")) ??
+    allSensors.find((entity) => sensorMatches(entity, "humidity") && entityText(entity).includes("lounge"));
+
+  if (!temperatureEntity && !humidityEntity) {
+    return null;
+  }
+
+  return {
+    humidity: numericEntityState(humidityEntity),
+    humidityEntity,
+    temperature: numericEntityState(temperatureEntity),
+    temperatureEntity,
+  };
+}
+
+function findBedroomPanelHeaterTemperature(data: DashboardState | null) {
+  const panelHeater = data?.entities.find(
+    (entity) =>
+      entity.domain === "climate" &&
+      (entity.entity_id === "climate.panel_heater" || matchesEntity(entity, ["panel heater"])),
+  );
+
+  return panelHeater ? climateCurrentTemperature(panelHeater) : null;
+}
+
 function roundToStep(value: number, step: number) {
   return Number((Math.round(value / step) * step).toFixed(3));
 }
@@ -910,6 +1056,9 @@ function dashboardEntityIsOn(entity: DashboardEntity) {
   }
   if (entity.domain === "climate") {
     return entity.state !== "off";
+  }
+  if (entity.domain === "sensor") {
+    return false;
   }
   return ["on", "open", "opening", "playing", "heat", "cool", "heat_cool"].includes(entity.state);
 }
@@ -1012,8 +1161,6 @@ function optimisticEntityForAction(entity: DashboardEntity, action: EntityAction
       setAttributes({ fan_mode: data.fan_mode });
     } else if (action.service === "set_swing_mode" && typeof data.swing_mode === "string") {
       setAttributes({ swing_mode: data.swing_mode });
-    } else if (action.service === "set_aircon_sweep") {
-      setAttributes({ swing_mode: data.enabled ? "both" : "off" });
     }
   } else if (["light", "switch"].includes(action.domain)) {
     if (action.service === "turn_on") {
@@ -1217,12 +1364,14 @@ function ClimateCard({
 }
 
 function TemperatureStepper({
+  currentTemperature,
   disabled = false,
   entity,
   label,
   onChange,
   step = 0.5,
 }: {
+  currentTemperature?: number | null;
   disabled?: boolean;
   entity: DashboardEntity;
   label: string;
@@ -1230,7 +1379,7 @@ function TemperatureStepper({
   step?: number;
 }) {
   const serverTarget = climateTargetTemperature(entity);
-  const current = climateCurrentTemperature(entity);
+  const current = currentTemperature ?? climateCurrentTemperature(entity);
   const [target, setTarget] = useState(serverTarget);
 
   useEffect(() => {
@@ -1267,7 +1416,7 @@ function TemperatureStepper({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <button
+        <MomentaryFeedbackButton
           type="button"
           className="climate-icon-button border"
           aria-label={`Lower ${label}`}
@@ -1275,8 +1424,8 @@ function TemperatureStepper({
           onClick={() => nudge(-step)}
         >
           <Minus className="h-7 w-7" />
-        </button>
-        <button
+        </MomentaryFeedbackButton>
+        <MomentaryFeedbackButton
           type="button"
           className="climate-icon-button border"
           aria-label={`Raise ${label}`}
@@ -1284,7 +1433,7 @@ function TemperatureStepper({
           onClick={() => nudge(step)}
         >
           <Plus className="h-7 w-7" />
-        </button>
+        </MomentaryFeedbackButton>
       </div>
     </div>
   );
@@ -1310,7 +1459,7 @@ function LabeledSwitch({
   return (
     <div className={classNames("climate-switch-row border", disabled && "climate-switch-row-disabled")}>
       <span className={classNames("climate-switch-label", !checked && "climate-switch-label-active")}>{leftLabel}</span>
-      <button
+      <MomentaryFeedbackButton
         type="button"
         className={classNames("cyber-switch", checked && "cyber-switch-checked")}
         role="switch"
@@ -1320,7 +1469,7 @@ function LabeledSwitch({
         onClick={onChange}
       >
         <span className="cyber-switch-thumb">{icon}</span>
-      </button>
+      </MomentaryFeedbackButton>
       <span className={classNames("climate-switch-label", checked && "climate-switch-label-active")}>{rightLabel}</span>
     </div>
   );
@@ -1361,7 +1510,7 @@ function PanelHeaterControl({
     <ClimateCard entity={entity} kicker="Heating Unit" title="Panel Heater">
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <button
+          <MomentaryFeedbackButton
             type="button"
             className={classNames("climate-toggle border", isOn && "climate-toggle-active")}
             role="switch"
@@ -1370,7 +1519,7 @@ function PanelHeaterControl({
           >
             <Power className="h-6 w-6" />
             <span>{isOn ? "On" : "Off"}</span>
-          </button>
+          </MomentaryFeedbackButton>
           <LabeledSwitch
             checked={false}
             disabled
@@ -1381,7 +1530,7 @@ function PanelHeaterControl({
           />
         </div>
 
-        <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={0.5} onChange={setTemperature} />
+        <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={1} onChange={setTemperature} />
       </div>
     </ClimateCard>
   );
@@ -1391,10 +1540,12 @@ const AIRCON_MODES = [
   { label: "Heating", mode: "heat", Icon: Flame },
   { label: "Cooling", mode: "cool", Icon: Snowflake },
   { label: "Fan", mode: "fan_only", Icon: Fan },
+  { label: "Auto", mode: "auto", Icon: Gauge },
 ] as const;
 
 const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
 
+type AirconMode = (typeof AIRCON_MODES)[number]["mode"];
 type AirconFanStep = (typeof AIRCON_FAN_STEPS)[number];
 
 function airconFanStep(entity: DashboardEntity, quietSwitch?: DashboardEntity, turboSwitch?: DashboardEntity): AirconFanStep {
@@ -1411,14 +1562,208 @@ function airconFanStep(entity: DashboardEntity, quietSwitch?: DashboardEntity, t
     : "medium";
 }
 
+function airconFanModeServiceValue(step: AirconFanStep) {
+  return step === "quiet" ? "low" : step === "turbo" ? "high" : step;
+}
+
+function airconFanStepForTemperatureDelta(delta: number): AirconFanStep {
+  const degreeSteps = Math.max(1, Math.floor(Math.abs(delta)));
+  const index = clamp(degreeSteps - 1, 0, AIRCON_FAN_STEPS.length - 1);
+  return AIRCON_FAN_STEPS[index] ?? "quiet";
+}
+
+function airconAutoHvacMode({
+  currentTemperature,
+  entity,
+  supportedModes,
+  targetTemperature,
+}: {
+  currentTemperature: number;
+  entity: DashboardEntity;
+  supportedModes: string[];
+  targetTemperature: number;
+}) {
+  const supported = (mode: string) => supportedModes.length === 0 || supportedModes.includes(mode);
+  const delta = currentTemperature - targetTemperature;
+
+  if (delta >= AIRCON_AUTO_HYSTERESIS_DEGREES && supported("cool")) {
+    return "cool";
+  }
+  if (delta <= -AIRCON_AUTO_HYSTERESIS_DEGREES && supported("heat")) {
+    return "heat";
+  }
+
+  if (delta > 0) {
+    return entity.state === "cool" && supported("cool") ? "cool" : null;
+  }
+  if (delta < 0) {
+    return entity.state === "heat" && supported("heat") ? "heat" : null;
+  }
+
+  return null;
+}
+
+function airconFanStepActions({
+  entity,
+  quietSwitch,
+  remember,
+  step,
+  turboSwitch,
+}: {
+  entity: DashboardEntity;
+  quietSwitch?: DashboardEntity;
+  remember?: AirconPreferences;
+  step: AirconFanStep;
+  turboSwitch?: DashboardEntity;
+}) {
+  const actions: EntityActionInput[] = [];
+  const quietEnabled = step === "quiet";
+  const turboEnabled = step === "turbo";
+  const fanMode = airconFanModeServiceValue(step);
+
+  if (quietSwitch && (quietSwitch.state === "on") !== quietEnabled) {
+    actions.push({
+      entityId: quietSwitch.entity_id,
+      domain: "switch",
+      service: quietEnabled ? "turn_on" : "turn_off",
+    });
+  }
+  if (turboSwitch && (turboSwitch.state === "on") !== turboEnabled) {
+    actions.push({
+      entityId: turboSwitch.entity_id,
+      domain: "switch",
+      service: turboEnabled ? "turn_on" : "turn_off",
+    });
+  }
+  if (String(entity.attributes.fan_mode ?? "").toLowerCase() !== fanMode) {
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "set_fan_mode",
+      data: { fan_mode: fanMode },
+    });
+  }
+
+  if (remember && actions.length) {
+    actions[actions.length - 1] = {
+      ...actions[actions.length - 1],
+      remember: { aircon: remember },
+    };
+  }
+
+  return actions;
+}
+
+function buildAirconAutoActions({
+  currentTemperature,
+  entity,
+  forceRemember = false,
+  preferences,
+  quietSwitch,
+  turboSwitch,
+}: {
+  currentTemperature: number | null;
+  entity?: DashboardEntity;
+  forceRemember?: boolean;
+  preferences?: AirconPreferences;
+  quietSwitch?: DashboardEntity;
+  turboSwitch?: DashboardEntity;
+}) {
+  if (!entity || currentTemperature === null) {
+    return [];
+  }
+
+  const targetTemperature = preferences?.temperature ?? climateTargetTemperature(entity);
+  if (targetTemperature === null || !Number.isFinite(targetTemperature)) {
+    return [];
+  }
+
+  const supportedModes = stringListAttribute(entity, "hvac_modes");
+  const hvacMode = airconAutoHvacMode({ currentTemperature, entity, supportedModes, targetTemperature });
+  const remember: AirconPreferences = {
+    autoMode: true,
+    hvacMode: hvacMode ?? undefined,
+    temperature: targetTemperature,
+  };
+  const actions: EntityActionInput[] = [];
+  const isOn = isClimateEntityOn(entity);
+
+  if (!hvacMode) {
+    if (isOn || forceRemember) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "turn_off",
+        remember: { aircon: remember },
+      });
+    }
+
+    return actions;
+  }
+
+  const fanStep = airconFanStepForTemperatureDelta(currentTemperature - targetTemperature);
+  const activeRemember: AirconPreferences = {
+    ...remember,
+    fanMode: airconFanModeServiceValue(fanStep),
+    quietMode: fanStep === "quiet",
+    turboMode: fanStep === "turbo",
+  };
+
+  if (!isOn) {
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "turn_on",
+    });
+  }
+
+  if (hvacMode && entity.state !== hvacMode) {
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "set_hvac_mode",
+      data: { hvac_mode: hvacMode },
+      remember: { aircon: activeRemember },
+    });
+  }
+
+  if (!isOn || climateTargetTemperature(entity) !== targetTemperature) {
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "set_temperature",
+      data: { temperature: targetTemperature },
+      remember: { aircon: activeRemember },
+    });
+  }
+
+  actions.push(...airconFanStepActions({ entity, quietSwitch, remember: activeRemember, step: fanStep, turboSwitch }));
+
+  if (!actions.length && forceRemember) {
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "set_temperature",
+      data: { temperature: targetTemperature },
+      remember: { aircon: activeRemember },
+    });
+  }
+
+  return actions;
+}
+
 function AirConditionerControl({
   entity,
+  freshAirSwitch,
+  loungeEnvironment,
   preferences,
   quietSwitch,
   turboSwitch,
   onEntityActions,
 }: {
   entity?: DashboardEntity;
+  freshAirSwitch?: DashboardEntity;
+  loungeEnvironment?: LoungeEnvironment | null;
   preferences?: AirconPreferences;
   quietSwitch?: DashboardEntity;
   turboSwitch?: DashboardEntity;
@@ -1439,10 +1784,9 @@ function AirConditionerControl({
 
   const isOn = isClimateEntityOn(entity);
   const supportedModes = stringListAttribute(entity, "hvac_modes");
-  const swingMode = String(entity.attributes.swing_mode ?? "off").toLowerCase();
-  const sweepOn = swingMode === "both";
 
   const airconSettings = {
+    autoMode: preferences?.autoMode ?? false,
     hvacMode:
       preferences?.hvacMode ??
       (isOn && entity.state !== "off" && entity.state !== "unavailable" && entity.state !== "unknown" ? entity.state : undefined),
@@ -1450,81 +1794,106 @@ function AirConditionerControl({
     fanMode: preferences?.fanMode ?? String(entity.attributes.fan_mode ?? "medium"),
     quietMode: preferences?.quietMode ?? quietSwitch?.state === "on",
     turboMode: preferences?.turboMode ?? turboSwitch?.state === "on",
-    swingMode: preferences?.swingMode ?? (sweepOn ? "both" : "off"),
   } satisfies AirconPreferences;
+  const isControlOn = isOn || airconSettings.autoMode;
 
   const setPower = () => {
     const actions: EntityActionInput[] = [];
 
-    if (isOn) {
-      actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_off" });
+    if (isControlOn) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "turn_off",
+        remember: { aircon: { autoMode: false } },
+      });
     } else {
+      const hvacMode = airconSettings.hvacMode && supportedModes.includes(airconSettings.hvacMode)
+        ? airconSettings.hvacMode
+        : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
+
       actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_on" });
-      if (airconSettings.hvacMode && supportedModes.includes(airconSettings.hvacMode)) {
+
+      if (hvacMode) {
         actions.push({
           entityId: entity.entity_id,
           domain: "climate",
           service: "set_hvac_mode",
-          data: { hvac_mode: airconSettings.hvacMode },
+          data: { hvac_mode: hvacMode },
+          remember: { aircon: { autoMode: false, hvacMode } },
         });
       }
+
       if (typeof airconSettings.temperature === "number") {
         actions.push({
           entityId: entity.entity_id,
           domain: "climate",
           service: "set_temperature",
           data: { temperature: airconSettings.temperature },
+          remember: { aircon: { autoMode: false, temperature: airconSettings.temperature } },
         });
       }
-      if (quietSwitch && typeof airconSettings.quietMode === "boolean") {
+
+      if (quietSwitch) {
         actions.push({
           entityId: quietSwitch.entity_id,
           domain: "switch",
           service: airconSettings.quietMode ? "turn_on" : "turn_off",
+          remember: { aircon: { quietMode: airconSettings.quietMode } },
         });
       }
-      if (turboSwitch && typeof airconSettings.turboMode === "boolean") {
+
+      if (turboSwitch) {
         actions.push({
           entityId: turboSwitch.entity_id,
           domain: "switch",
           service: airconSettings.turboMode ? "turn_on" : "turn_off",
+          remember: { aircon: { turboMode: airconSettings.turboMode } },
         });
       }
-      if (airconSettings.fanMode) {
-        actions.push({
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "set_fan_mode",
-          data: { fan_mode: airconSettings.fanMode },
-        });
-      }
-      if (airconSettings.swingMode) {
-        actions.push({
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "set_aircon_sweep",
-          data: { enabled: airconSettings.swingMode === "both" },
-        });
-      }
+
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "set_fan_mode",
+        data: { fan_mode: airconSettings.fanMode },
+        remember: { aircon: { fanMode: airconSettings.fanMode } },
+      });
     }
 
-    return callClimateActions(actions, onEntityActions, `Air Conditioner ${isOn ? "off" : "on"}`);
+    return callClimateActions(actions, onEntityActions, `Air Conditioner ${isControlOn ? "off" : "on"}`);
   };
 
-  const setMode = (mode: string, label: string) =>
-    callClimateActions(
+  const setMode = (mode: AirconMode, label: string) => {
+    if (mode === "auto") {
+      return callClimateActions(
+        buildAirconAutoActions({
+          currentTemperature: loungeEnvironment?.temperature ?? null,
+          entity,
+          forceRemember: true,
+          preferences: airconSettings,
+          quietSwitch,
+          turboSwitch,
+        }),
+        onEntityActions,
+        "Air Conditioner Auto",
+      );
+    }
+
+    return callClimateActions(
       [
         {
           entityId: entity.entity_id,
           domain: "climate",
           service: "set_hvac_mode",
           data: { hvac_mode: mode },
-          remember: { aircon: { hvacMode: mode } },
+          remember: { aircon: { autoMode: false, hvacMode: mode } },
         },
       ],
       onEntityActions,
       `Air Conditioner ${label}`,
     );
+  };
 
   const setTemperature = (temperature: number) =>
     callClimateActions(
@@ -1541,54 +1910,40 @@ function AirConditionerControl({
       `Air Conditioner ${temperature} degrees`,
     );
 
-  const setSweep = () =>
-    callClimateActions(
-      [
-        {
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "set_aircon_sweep",
-          data: { enabled: !sweepOn },
-          remember: { aircon: { swingMode: sweepOn ? "off" : "both" } },
-        },
-      ],
-      onEntityActions,
-      `Air Conditioner sweep ${sweepOn ? "off" : "on"}`,
-    );
+  const setFreshAir = () =>
+    freshAirSwitch
+      ? callClimateActions(
+          [
+            {
+              entityId: freshAirSwitch.entity_id,
+              domain: "switch",
+              service: freshAirSwitch.state === "on" ? "turn_off" : "turn_on",
+            },
+          ],
+          onEntityActions,
+          `Air Conditioner fresh air ${freshAirSwitch.state === "on" ? "off" : "on"}`,
+        )
+      : Promise.resolve();
 
   const setFanStep = (step: AirconFanStep) => {
-    const actions: EntityActionInput[] = [];
+    const fanMode = airconFanModeServiceValue(step);
 
-    if (quietSwitch) {
-      actions.push({
-        entityId: quietSwitch.entity_id,
-        domain: "switch",
-        service: step === "quiet" ? "turn_on" : "turn_off",
-      });
-    }
-    if (turboSwitch) {
-      actions.push({
-        entityId: turboSwitch.entity_id,
-        domain: "switch",
-        service: step === "turbo" ? "turn_on" : "turn_off",
-      });
-    }
-
-    actions.push({
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "set_fan_mode",
-      data: { fan_mode: step === "quiet" ? "low" : step === "turbo" ? "high" : step },
-      remember: {
-        aircon: {
-          fanMode: step === "quiet" ? "low" : step === "turbo" ? "high" : step,
+    return callClimateActions(
+      airconFanStepActions({
+        entity,
+        quietSwitch,
+        remember: {
+          autoMode: false,
+          fanMode,
           quietMode: step === "quiet",
           turboMode: step === "turbo",
         },
-      },
-    });
-
-    return callClimateActions(actions, onEntityActions, `Air Conditioner fan ${step}`);
+        step,
+        turboSwitch,
+      }),
+      onEntityActions,
+      `Air Conditioner fan ${step}`,
+    );
   };
 
 
@@ -1596,36 +1951,40 @@ function AirConditionerControl({
     <ClimateCard entity={entity} kicker="Air Control" title="Air Conditioner">
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <button
+          <MomentaryFeedbackButton
             type="button"
-            className={classNames("climate-toggle border", isOn && "climate-toggle-active")}
+            className={classNames("climate-toggle border", isControlOn && "climate-toggle-active")}
             role="switch"
-            aria-checked={isOn}
+            aria-checked={isControlOn}
             onClick={setPower}
           >
             <Power className="h-6 w-6" />
-            <span>{isOn ? "On" : "Off"}</span>
-          </button>
+            <span>{isControlOn ? "On" : "Off"}</span>
+          </MomentaryFeedbackButton>
           <LabeledSwitch
-            checked={sweepOn}
-            disabled={!isOn}
-            icon={<Waves className="h-4 w-4" />}
-            label="Air conditioner sweep"
-            leftLabel="Fixed"
-            rightLabel="Sweep"
-            onChange={setSweep}
+            checked={freshAirSwitch?.state === "on"}
+            disabled={!isControlOn || !freshAirSwitch}
+            label="Air conditioner fresh air"
+            leftLabel="Closed"
+            rightLabel="Fresh"
+            onChange={setFreshAir}
           />
         </div>
 
-        <div className="climate-mode-grid grid grid-cols-3 gap-3">
+        <div className="climate-mode-grid grid grid-cols-4 gap-3">
           {AIRCON_MODES.map(({ Icon, label, mode }) => {
-            const active = entity.state === mode;
+            const active = airconSettings.autoMode ? mode === "auto" : entity.state === mode;
+            const unavailable =
+              mode === "auto"
+                ? typeof loungeEnvironment?.temperature !== "number" ||
+                  (supportedModes.length > 0 && (!supportedModes.includes("heat") || !supportedModes.includes("cool")))
+                : supportedModes.length > 0 && !supportedModes.includes(mode);
             return (
               <button
                 key={mode}
                 type="button"
                 className={classNames("climate-mode-button border", active && "climate-mode-button-active")}
-                disabled={!isOn || (supportedModes.length > 0 && !supportedModes.includes(mode))}
+                disabled={!isControlOn || unavailable}
                 onClick={() => setMode(mode, label)}
               >
                 <Icon className="h-6 w-6" />
@@ -1635,9 +1994,16 @@ function AirConditionerControl({
           })}
         </div>
 
-        <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={1} onChange={setTemperature} />
+        <TemperatureStepper
+          currentTemperature={loungeEnvironment?.temperature}
+          disabled={!isControlOn}
+          entity={entity}
+          label="Temperature"
+          step={1}
+          onChange={setTemperature}
+        />
 
-        <div className={classNames("climate-fan-speed border border-neutral-700 bg-neutral-950/70 p-4", !isOn && "climate-fan-speed-disabled")}>
+        <div className={classNames("climate-fan-speed border border-neutral-700 bg-neutral-950/70 p-4", !isControlOn && "climate-fan-speed-disabled")}>
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-sm font-black uppercase text-cyan-300">Fan Speed</p>
             <p className="font-mono text-sm font-black uppercase text-neutral-100">{displayedFanStep}</p>
@@ -1645,7 +2011,7 @@ function AirConditionerControl({
           <DotLineControl
             ariaLabel="Air conditioner fan speed"
             ariaValueText={displayedFanStep}
-            disabled={!isOn}
+            disabled={!isControlOn}
             min={0}
             max={AIRCON_FAN_STEPS.length - 1}
             step={1}
@@ -1669,30 +2035,44 @@ function AirConditionerControl({
   );
 }
 
-function ClimateControls({
-  onEntityActions,
-  preferences,
-  zone,
-}: {
-  onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
-  preferences?: DashboardPreferences;
-  zone: DashboardZone;
-}) {
-  const climateEntities = zone.entities.filter((entity) => entity.domain === "climate");
+function climateDevicesForZone(zone?: DashboardZone | null) {
+  const climateEntities = zone?.entities.filter((entity) => entity.domain === "climate") ?? [];
   const heater =
     climateEntities.find((entity) => matchesEntity(entity, ["panel", "heater"])) ??
     climateEntities.find((entity) => entity.entity_id.includes("panel_heater"));
   const aircon =
     climateEntities.find((entity) => matchesEntity(entity, ["air conditioner", "air con", "c6780cad"])) ??
     climateEntities.find((entity) => entity.entity_id !== heater?.entity_id);
-  const switches = zone.entities.filter((entity) => entity.domain === "switch");
-  const quietSwitch = switches.find((entity) => matchesEntity(entity, ["quiet"]));
-  const turboSwitch = switches.find((entity) => matchesEntity(entity, ["xtra", "turbo"]));
+  const switches = zone?.entities.filter((entity) => entity.domain === "switch") ?? [];
+
+  return {
+    aircon,
+    freshAirSwitch: switches.find((entity) => matchesEntity(entity, ["fresh"])),
+    heater,
+    quietSwitch: switches.find((entity) => matchesEntity(entity, ["quiet"])),
+    turboSwitch: switches.find((entity) => matchesEntity(entity, ["xtra", "turbo"])),
+  };
+}
+
+function ClimateControls({
+  loungeEnvironment,
+  onEntityActions,
+  preferences,
+  zone,
+}: {
+  loungeEnvironment?: LoungeEnvironment | null;
+  onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
+  preferences?: DashboardPreferences;
+  zone: DashboardZone;
+}) {
+  const { aircon, freshAirSwitch, heater, quietSwitch, turboSwitch } = climateDevicesForZone(zone);
 
   return (
     <div className="climate-control-grid grid gap-5">
       <AirConditionerControl
         entity={aircon}
+        freshAirSwitch={freshAirSwitch}
+        loungeEnvironment={loungeEnvironment}
         preferences={preferences?.aircon}
         quietSwitch={quietSwitch}
         turboSwitch={turboSwitch}
@@ -1771,6 +2151,12 @@ function OutsideControls({
       </section>
 
       <WeatherPanel weather={weather} />
+
+      <section className="outside-map-panel border border-[var(--cyber-line-dim)] bg-[var(--cyber-panel)]">
+        <Suspense fallback={null}>
+          <MapPanel className="h-full w-full" />
+        </Suspense>
+      </section>
     </div>
   );
 }
@@ -1835,7 +2221,76 @@ function WeatherMetric({ label, suffix, value }: { label: string; suffix?: strin
   );
 }
 
+function LoungeEnvironmentPanel({ environment }: { environment: LoungeEnvironment | null }) {
+  return (
+    <section className="lounge-environment-panel border border-neutral-700 bg-neutral-950/70 p-5">
+      <header className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-black uppercase text-cyan-300">Lounge Sensor</p>
+          <h2 className="mt-1 truncate text-3xl font-black uppercase text-neutral-50">Environment</h2>
+        </div>
+        <div className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
+          {environment?.temperatureEntity || environment?.humidityEntity ? "Live" : "Missing"}
+        </div>
+      </header>
+
+      <div className="lounge-environment-grid grid gap-3">
+        <div className="lounge-environment-metric border border-neutral-700 bg-neutral-950/70 p-4">
+          <p className="flex items-center gap-2 text-xs font-black uppercase text-neutral-400">
+            <Thermometer className="h-4 w-4 text-cyan-300" />
+            Temperature
+          </p>
+          <p className="mt-2 font-mono text-4xl font-black tabular-nums text-neutral-50">
+            {formatTemperature(environment?.temperature ?? null)}
+            <span className="text-lg">&deg;</span>
+          </p>
+        </div>
+        <div className="lounge-environment-metric border border-neutral-700 bg-neutral-950/70 p-4">
+          <p className="flex items-center gap-2 text-xs font-black uppercase text-neutral-400">
+            <Droplets className="h-4 w-4 text-cyan-300" />
+            Humidity
+          </p>
+          <p className="mt-2 font-mono text-4xl font-black tabular-nums text-neutral-50">
+            {formatHumidity(environment?.humidity ?? null)}
+            <span className="ml-1 text-lg text-neutral-400">%</span>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BedroomTemperaturePanel({ temperature }: { temperature: number | null }) {
+  return (
+    <section className="lounge-environment-panel border border-neutral-700 bg-neutral-950/70 p-5">
+      <header className="mb-4 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-black uppercase text-cyan-300">Bedroom</p>
+          <h2 className="mt-1 truncate text-3xl font-black uppercase text-neutral-50">Temperature</h2>
+        </div>
+        <div className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
+          Panel Heater
+        </div>
+      </header>
+
+      <div className="lounge-environment-metric border border-neutral-700 bg-neutral-950/70 p-4">
+        <p className="flex items-center gap-2 text-xs font-black uppercase text-neutral-400">
+          <Thermometer className="h-4 w-4 text-cyan-300" />
+          Current Room
+        </p>
+        <p className="mt-2 font-mono text-4xl font-black tabular-nums text-neutral-50">
+          {formatTemperature(temperature)}
+          <span className="text-lg">&deg;</span>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function ZoneControls({
+  bedroomTemperature,
+  loungeEnvironment,
+  sun,
   zone,
   onEntityActions,
   onZoneAction,
@@ -1844,6 +2299,9 @@ function ZoneControls({
   spectrumCursor,
   weather,
 }: {
+  bedroomTemperature?: number | null;
+  loungeEnvironment?: LoungeEnvironment | null;
+  sun?: SunStatus | null;
   zone: DashboardZone;
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
   onZoneAction: (action: string, body?: Record<string, unknown>) => Promise<void>;
@@ -1862,6 +2320,8 @@ function ZoneControls({
   const climateZone = isClimateZone(zone);
   const outsideZone = isOutsideZone(zone);
   const networkZone = isNetworkZone(zone);
+  const bedroomZone = isBedroomZone(zone);
+  const loungeZone = isLoungeZone(zone);
   const lightingZone = !climateZone && !outsideZone && !networkZone;
   const lightEntities = useMemo(
     () => (lightingZone ? zone.entities.filter((entity) => entity.domain === "light") : []),
@@ -1906,12 +2366,12 @@ function ZoneControls({
   const applyPresetAction = useCallback(
     (action: "on" | "candlelight" | "white") => {
       const nextSpectrum = action === "white" ? WHITE_SPECTRUM : CANDLELIGHT_SPECTRUM;
-      const nextBrightness = action === "white" ? 100 : 86;
+      const nextBrightness = action === "white" ? 100 : candlelightBrightnessPct(sun);
       setBrightness(nextBrightness);
       rememberSpectrum(nextSpectrum);
       onZoneAction(action, { brightnessPct: nextBrightness, cursor: nextSpectrum.cursor });
     },
-    [onZoneAction, rememberSpectrum],
+    [onZoneAction, rememberSpectrum, sun],
   );
 
   return (
@@ -1933,9 +2393,6 @@ function ZoneControls({
             <IconButton label="On: candlelight" disabled={!hasLightDevices} variant="yellow" onClick={() => applyPresetAction("on")}>
               <Power className="h-7 w-7" />
             </IconButton>
-            <IconButton label="Off" disabled={!hasLightDevices && zone.counts.switch === 0} variant="pink" onClick={() => onZoneAction("off")}>
-              <PowerOff className="h-7 w-7" />
-            </IconButton>
             <IconButton
               label="Candlelight"
               disabled={!hasLightDevices}
@@ -1952,6 +2409,9 @@ function ZoneControls({
             >
               <Sun className="h-7 w-7" />
             </IconButton>
+            <IconButton label="Off" disabled={!hasLightDevices && zone.counts.switch === 0} variant="pink" onClick={() => onZoneAction("off")}>
+              <PowerOff className="h-7 w-7" />
+            </IconButton>
           </div>
         ) : null}
       </header>
@@ -1961,11 +2421,18 @@ function ZoneControls({
           {networkZone ? (
             router ? <RouterPanel router={router} /> : null
           ) : climateZone ? (
-            <ClimateControls zone={zone} preferences={preferences} onEntityActions={onEntityActions} />
+            <ClimateControls
+              zone={zone}
+              loungeEnvironment={loungeEnvironment}
+              preferences={preferences}
+              onEntityActions={onEntityActions}
+            />
           ) : outsideZone ? (
             <OutsideControls zone={zone} weather={weather ?? null} onEntityActions={onEntityActions} />
           ) : (
             <>
+              {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
+              {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
               <SpectrumPad
                 disabled={!hasActiveLights}
                 brightness={brightness}
@@ -2125,8 +2592,9 @@ function ClockPanel() {
     if (!now) {
       return {
         time: "--:--:--",
-        date: "Syncing time",
-        zone: "Auckland",
+      date: "Syncing time",
+      vancouverTime: "--:--",
+      zone: "Auckland",
       };
     }
 
@@ -2135,7 +2603,7 @@ function ClockPanel() {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        hourCycle: "h23",
+        hourCycle: "h12",
         timeZone: CLOCK_TIME_ZONE,
       }).format(now),
       date: new Intl.DateTimeFormat("en-NZ", {
@@ -2143,6 +2611,12 @@ function ClockPanel() {
         day: "2-digit",
         month: "short",
         timeZone: CLOCK_TIME_ZONE,
+      }).format(now),
+      vancouverTime: new Intl.DateTimeFormat("en-CA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h12",
+        timeZone: VANCOUVER_TIME_ZONE,
       }).format(now),
       zone: "Auckland",
     };
@@ -2163,6 +2637,9 @@ function ClockPanel() {
       <div className="clock-face border border-neutral-700 bg-neutral-950/70 p-5" aria-live="polite">
         <p className="clock-time font-black tabular-nums text-neutral-50">{clock.time}</p>
         <p className="clock-date mt-2 font-black uppercase text-neutral-100">{clock.date}</p>
+        <p className="clock-subtime mt-2 font-black uppercase text-neutral-300">
+          World [Vancouver {clock.vancouverTime}]
+        </p>
       </div>
     </section>
   );
@@ -2223,8 +2700,41 @@ function removeLegacySelectedZoneParam() {
   window.history.replaceState(window.history.state, "", nextUrl);
 }
 
+function isFullscreenActive() {
+  const fullscreenDocument = document as FullscreenDocumentShim;
+  return Boolean(
+    fullscreenDocument.fullscreenElement
+      ?? fullscreenDocument.webkitFullscreenElement
+      ?? fullscreenDocument.mozFullScreenElement
+      ?? fullscreenDocument.msFullscreenElement,
+  );
+}
+
+async function requestDashboardFullscreen() {
+  if (isFullscreenActive()) {
+    return;
+  }
+
+  const element = document.documentElement as FullscreenElementShim;
+  const request =
+    element.requestFullscreen
+    ?? element.webkitRequestFullscreen
+    ?? element.mozRequestFullScreen
+    ?? element.msRequestFullscreen;
+
+  if (!request) {
+    return;
+  }
+
+  try {
+    await request.call(element);
+  } catch {
+    // Browsers often require user activation for fullscreen. This preference is best-effort.
+  }
+}
+
 export function Dashboard() {
-  useDeviceTheme();
+  const { theme, themeReady } = useDeviceTheme();
   useBuildReload();
 
   const { data, error, eventClientId, pausePolling, refresh, setData } = useDashboardState();
@@ -2234,6 +2744,9 @@ export function Dashboard() {
   const zoneActionSequence = useRef(0);
   const climatePollTimers = useRef<number[]>([]);
   const lightResumePollTimer = useRef<number | null>(null);
+  const attemptedAutoFullscreen = useRef(false);
+  const latestData = useRef<DashboardState | null>(null);
+  const applyEntityActionsRef = useRef<((actions: EntityActionInput[], toastMessage: string) => Promise<void>) | null>(null);
 
   const selectedZone = useMemo(() => {
     if (!data) {
@@ -2255,6 +2768,61 @@ export function Dashboard() {
       outside,
     };
   }, [data]);
+  const loungeEnvironment = useMemo(() => findLoungeEnvironment(data), [data]);
+  const bedroomTemperature = useMemo(() => findBedroomPanelHeaterTemperature(data), [data]);
+
+  useEffect(() => {
+    latestData.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    if (attemptedAutoFullscreen.current || !themeReady) {
+      return;
+    }
+
+    attemptedAutoFullscreen.current = true;
+
+    if (!theme.autoFullscreenOnLoad) {
+      return;
+    }
+
+    void requestDashboardFullscreen();
+  }, [theme.autoFullscreenOnLoad, themeReady]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let preloadInterval: number | null = null;
+
+    const runPreload = () => {
+      if (cancelled) {
+        return;
+      }
+
+      void preloadRadarTiles();
+    };
+
+    runPreload();
+    void import("./MapPanel");
+
+    const now = Date.now();
+    const nextRefreshDelay = Math.max(1000, RADAR_REFRESH_INTERVAL_MS - (now % RADAR_REFRESH_INTERVAL_MS) + 1000);
+    const preloadTimeout = window.setTimeout(() => {
+      runPreload();
+      preloadInterval = window.setInterval(runPreload, RADAR_REFRESH_INTERVAL_MS);
+    }, nextRefreshDelay);
+
+    const handleAccentChange = () => runPreload();
+    window.addEventListener("nova-accent-change", handleAccentChange);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(preloadTimeout);
+      if (preloadInterval !== null) {
+        window.clearInterval(preloadInterval);
+      }
+      window.removeEventListener("nova-accent-change", handleAccentChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (data && !data.zones.some((zone) => zone.id === selectedZoneId)) {
@@ -2459,6 +3027,69 @@ export function Dashboard() {
     [data, eventClientId, pausePolling, refresh, scheduleClimateCommandPolls, scheduleLightResumePoll, setData],
   );
 
+  useEffect(() => {
+    applyEntityActionsRef.current = applyEntityActions;
+  }, [applyEntityActions]);
+
+  const airconAutoMode = data?.preferences.aircon?.autoMode ?? false;
+
+  useEffect(() => {
+    if (!airconAutoMode) {
+      return;
+    }
+
+    let alive = true;
+    let applying = false;
+
+    const runAuto = async () => {
+      if (!alive || applying || document.hidden) {
+        return;
+      }
+
+      applying = true;
+      let snapshot = latestData.current;
+      try {
+        snapshot = await fetchDashboardStateSnapshot();
+        if (!alive) {
+          return;
+        }
+        setData(snapshot);
+      } catch {
+        snapshot = latestData.current;
+      }
+
+      const currentEnvironment = findLoungeEnvironment(snapshot);
+      const currentClimateZone = snapshot?.zones.find(isClimateZone) ?? null;
+      const { aircon, quietSwitch, turboSwitch } = climateDevicesForZone(currentClimateZone);
+      const actions = buildAirconAutoActions({
+        currentTemperature: currentEnvironment?.temperature ?? null,
+        entity: aircon,
+        preferences: snapshot?.preferences.aircon,
+        quietSwitch,
+        turboSwitch,
+      });
+
+      if (!actions.length) {
+        applying = false;
+        return;
+      }
+
+      try {
+        await applyEntityActionsRef.current?.(actions, "Air Conditioner auto");
+      } finally {
+        applying = false;
+      }
+    };
+
+    void runAuto();
+    const timer = window.setInterval(runAuto, AIRCON_AUTO_POLL_MS);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [airconAutoMode, setData]);
+
   const insideZone = zoneTree.inside;
   const climateZone = zoneTree.climate;
   const outsideZone = zoneTree.outside;
@@ -2556,6 +3187,9 @@ export function Dashboard() {
               {selectedZone ? (
                 <ZoneControls
                   zone={selectedZone}
+                  bedroomTemperature={bedroomTemperature}
+                  loungeEnvironment={loungeEnvironment}
+                  sun={data?.sun}
                   onEntityActions={applyEntityActions}
                   onZoneAction={applyZoneAction}
                   preferences={data?.preferences}

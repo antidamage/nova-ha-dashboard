@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Rgb = [number, number, number];
 type DotColor = Rgb | string;
 type Cursor = { x: number; y: number };
+type SpectrumDot = { decorative?: boolean; id: string; rgb: Rgb; x: number; xPx: number; y: number; yPx: number };
 
 const DOT_GAP_PX = 15;
 const LINE_CURSOR_INSET_PX = 18;
@@ -19,6 +20,7 @@ const SVG_LINE_CURSOR_STROKE_PX = 3;
 const SVG_SPECTRUM_CURSOR_RADIUS_PX = 38;
 const SVG_SPECTRUM_CURSOR_STROKE_PX = 3;
 const REMOTE_EASE_MS = 1000;
+const DECORATIVE_SPECTRUM_DOT_RGB: Rgb = [24, 26, 27];
 const DISABLED_DOT_RGB: Rgb = [126, 126, 126];
 const DEFAULT_LINE_COLOR = "var(--cyber-line)";
 const DEFAULT_ACTIVE_LINE_COLOR = "var(--cyber-cyan)";
@@ -45,6 +47,21 @@ function insetPixel(value: number, length: number, insetPx: number) {
   return inset + clamp(value, 0, 1) * Math.max(0, length - inset * 2);
 }
 
+function pixelToInsetRatio(pixel: number, length: number, insetPx: number) {
+  if (length <= 0) {
+    return 0;
+  }
+
+  const inset = Math.min(insetPx, length / 2);
+  const usable = Math.max(0, length - inset * 2);
+
+  if (usable <= 0) {
+    return 0.5;
+  }
+
+  return clamp((pixel - inset) / usable, 0, 1);
+}
+
 function insetPercent(value: number, length: number, insetPx: number) {
   return length > 0 ? (insetPixel(value, length, insetPx) / length) * 100 : clamp(value, 0, 1) * 100;
 }
@@ -53,11 +70,11 @@ function focusedDotScale(distance: number, radius: number) {
   const weight = clamp(1 - distance / radius, 0, 1);
   // Quartic falloff: concentrates magnification near the cursor, drops off fast toward the edge
   const eased = weight * weight * weight * weight;
-  const base = 1 + eased * 11;
+  const base = 1 + eased * 5.5;
 
   // Sharp centre spike: 4× normal max at distance 0, cubic falloff over ~12px
   const spikeWeight = clamp(1 - distance / 12, 0, 1);
-  const spike = spikeWeight * spikeWeight * spikeWeight * 18;
+  const spike = spikeWeight * spikeWeight * spikeWeight * 8.5;
 
   return Math.round((base + spike) * 100) / 100;
 }
@@ -280,11 +297,12 @@ function useEasedCursor(targetX: number, targetY: number) {
 }
 
 export function DotLineControl({
-  activeColor = DEFAULT_ACTIVE_LINE_COLOR,
+  activeColor,
   ariaLabel,
   ariaValueText,
   color = DEFAULT_LINE_COLOR,
   disabled = false,
+  dotOpacity = 1,
   intensity = 100,
   markers,
   max = 100,
@@ -299,6 +317,7 @@ export function DotLineControl({
   ariaValueText?: string;
   color?: DotColor;
   disabled?: boolean;
+  dotOpacity?: number;
   intensity?: number;
   markers?: Array<{ active?: boolean; label: string; value: number }>;
   max?: number;
@@ -321,8 +340,9 @@ export function DotLineControl({
   const dotDisplayRatio = clamp((dotDisplayValue - min) / range, 0, 1);
   const displayCursorX = insetPixel(displayRatio, lineWidth, LINE_CURSOR_INSET_PX);
   const dotCursorX = insetPixel(dotDisplayRatio, lineWidth, LINE_CURSOR_INSET_PX);
-  const endpoint = interacting ? activeColor : color;
+  const endpoint = interacting ? (activeColor ?? (Array.isArray(color) ? color : DEFAULT_ACTIVE_LINE_COLOR)) : color;
   const intensityScale = clamp(intensity / 100, 0, 1);
+  const dotOpacityScale = clamp(dotOpacity, 0, 1);
 
   useEffect(() => {
     commitValueRef.current = value;
@@ -405,7 +425,7 @@ export function DotLineControl({
     return {
       amount,
       fill: dotColorFill(endpoint, intensityScale),
-      opacity: amount * 0.96,
+      opacity: amount * 0.96 * dotOpacityScale,
       xPx: amount * lineWidth,
     };
   });
@@ -479,6 +499,10 @@ export function DotLineControl({
               r={svgDotRadius(size)}
               fill={dot.fill}
               opacity={dot.opacity}
+              stroke="var(--cyber-title-on-bg)"
+              strokeWidth={1}
+              style={{ color: dot.fill }}
+              vectorEffect="non-scaling-stroke"
             />
           );
         })}
@@ -542,7 +566,7 @@ export function DotSpectrumControl({
   rgbAtPosition: (x: number, y: number) => Rgb;
 }) {
   const padRef = useRef<HTMLDivElement | null>(null);
-  const [dots, setDots] = useState<Array<{ id: string; rgb: Rgb; x: number; xPx: number; y: number; yPx: number }>>([]);
+  const [dots, setDots] = useState<SpectrumDot[]>([]);
   const [dragging, setDragging] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const { display: displayCursor, setLocal: setLocalCursor, release: releaseCursor } = useEasedCursor(cursor.x, cursor.y);
@@ -559,21 +583,55 @@ export function DotSpectrumControl({
 
     const rebuild = () => {
       const rect = pad.getBoundingClientRect();
-      const columns = Math.max(2, Math.round(rect.width / DOT_GAP_PX) + 1);
-      const rows = Math.max(2, Math.round(rect.height / DOT_GAP_PX) + 1);
-      const nextDots: Array<{ id: string; rgb: Rgb; x: number; xPx: number; y: number; yPx: number }> = [];
+      const insetX = Math.min(SPECTRUM_CURSOR_INSET_PX, rect.width / 2);
+      const insetY = Math.min(SPECTRUM_CURSOR_INSET_PX, rect.height / 2);
+      const usableWidth = Math.max(0, rect.width - insetX * 2);
+      const usableHeight = Math.max(0, rect.height - insetY * 2);
+      const columns = Math.max(2, Math.round(usableWidth / DOT_GAP_PX) + 1);
+      const rows = Math.max(2, Math.round(usableHeight / DOT_GAP_PX) + 1);
+      const nextDots: SpectrumDot[] = [];
 
       for (let row = 0; row < rows; row += 1) {
         for (let column = 0; column < columns; column += 1) {
           const x = columns === 1 ? 0.5 : column / (columns - 1);
           const y = rows === 1 ? 0.5 : row / (rows - 1);
           nextDots.push({
-            id: `${column}-${row}`,
+            id: `color-${column}-${row}`,
             rgb: rgbAtPosition(x, y),
             x,
-            xPx: x * rect.width,
+            xPx: insetPixel(x, rect.width, SPECTRUM_CURSOR_INSET_PX),
             y,
-            yPx: y * rect.height,
+            yPx: insetPixel(y, rect.height, SPECTRUM_CURSOR_INSET_PX),
+          });
+        }
+      }
+
+      const edgeInset = DOT_GAP_PX;
+      const edgeColumns = Math.max(0, Math.floor(Math.max(0, rect.width - edgeInset * 2) / DOT_GAP_PX) + 1);
+      const edgeRows = Math.max(0, Math.floor(Math.max(0, rect.height - edgeInset * 2) / DOT_GAP_PX) + 1);
+      const safeLeft = insetX;
+      const safeRight = rect.width - insetX;
+      const safeTop = insetY;
+      const safeBottom = rect.height - insetY;
+
+      for (let row = 0; row < edgeRows; row += 1) {
+        for (let column = 0; column < edgeColumns; column += 1) {
+          const xPx = edgeInset + column * DOT_GAP_PX;
+          const yPx = edgeInset + row * DOT_GAP_PX;
+          const outsideSafeArea = xPx < safeLeft || xPx > safeRight || yPx < safeTop || yPx > safeBottom;
+
+          if (!outsideSafeArea) {
+            continue;
+          }
+
+          nextDots.push({
+            decorative: true,
+            id: `edge-${column}-${row}`,
+            rgb: DECORATIVE_SPECTRUM_DOT_RGB,
+            x: pixelToInsetRatio(xPx, rect.width, SPECTRUM_CURSOR_INSET_PX),
+            xPx,
+            y: pixelToInsetRatio(yPx, rect.height, SPECTRUM_CURSOR_INSET_PX),
+            yPx,
           });
         }
       }
@@ -599,8 +657,8 @@ export function DotSpectrumControl({
     }
 
     const rect = padRef.current.getBoundingClientRect();
-    const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-    const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+    const x = pixelToInsetRatio(event.clientX - rect.left, rect.width, SPECTRUM_CURSOR_INSET_PX);
+    const y = pixelToInsetRatio(event.clientY - rect.top, rect.height, SPECTRUM_CURSOR_INSET_PX);
     const next = { x, y };
     setLocalCursor(next);
     onChange(next, rgbAtPosition(x, y));
@@ -611,8 +669,8 @@ export function DotSpectrumControl({
     setDragging(false);
     const rect = padRef.current?.getBoundingClientRect();
     if (rect) {
-      const x = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-      const y = clamp((event.clientY - rect.top) / rect.height, 0, 1);
+      const x = pixelToInsetRatio(event.clientX - rect.left, rect.width, SPECTRUM_CURSOR_INSET_PX);
+      const y = pixelToInsetRatio(event.clientY - rect.top, rect.height, SPECTRUM_CURSOR_INSET_PX);
       const next = { x, y };
       releaseCursor(next);
       onCommit?.(next, rgbAtPosition(x, y));
@@ -664,7 +722,11 @@ export function DotSpectrumControl({
         {dots.map((dot) => {
           const distance = Math.hypot(dot.xPx - cursorX, dot.yPx - cursorY);
           const dotSize = focusedDotScale(distance, DOT_INFLUENCE_RADIUS_PX);
-          const rgb = disabled ? DISABLED_DOT_RGB : scaledRgb(dot.rgb, intensityScale);
+          const rgb = dot.decorative
+            ? DECORATIVE_SPECTRUM_DOT_RGB
+            : disabled
+              ? DISABLED_DOT_RGB
+              : scaledRgb(dot.rgb, intensityScale);
 
           return (
             <circle
@@ -674,6 +736,7 @@ export function DotSpectrumControl({
               cy={dot.yPx}
               r={svgDotRadius(dotSize)}
               fill={`rgb(${rgb.join(" ")})`}
+              style={{ color: `rgb(${rgb.join(" ")})` }}
             />
           );
         })}

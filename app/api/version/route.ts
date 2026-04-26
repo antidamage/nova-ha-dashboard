@@ -1,21 +1,12 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { NextResponse } from "next/server";
+import { readDashboardBuildId } from "../../../lib/build-id";
 
 export const dynamic = "force-dynamic";
-
-async function buildId() {
-  try {
-    return (await readFile(join(process.cwd(), ".next", "BUILD_ID"), "utf8")).trim();
-  } catch {
-    return process.env.NOVA_DASHBOARD_BUILD_ID ?? "development";
-  }
-}
 
 export async function GET() {
   return NextResponse.json(
     {
-      buildId: await buildId(),
+      buildId: await readDashboardBuildId(),
       generatedAt: new Date().toISOString(),
     },
     {

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 export type ThemeColorSlot = "accent" | "highlight";
 export type ThemeTitleTone = "auto" | "light" | "dark";
+export type RadarPaletteMode = "spectrum" | "custom";
+export type MapThemeColorSlot = "base" | "water" | "land" | "buildingLow" | "buildingHigh" | "roads" | "labels" | "radarLow" | "radarHigh";
 
 export type ThemeColorValue = {
   cursor: { x: number; y: number };
@@ -11,13 +13,33 @@ export type ThemeColorValue = {
   rgb: [number, number, number];
 };
 
+export type ThemeBorderValue = {
+  color: ThemeColorValue;
+  enabled: boolean;
+  opacity: number;
+};
+
 export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
+  autoFullscreenOnLoad: boolean;
   background: ThemeColorValue;
+  border: ThemeBorderValue;
+  map: Record<MapThemeColorSlot, ThemeColorValue>;
+  radarOpacity: number;
+  radarPaletteMode: RadarPaletteMode;
   titleTone: ThemeTitleTone;
+};
+
+type StoredMapTheme = Partial<Record<MapThemeColorSlot, Partial<ThemeColorValue>>> & {
+  buildings?: Partial<ThemeColorValue>;
+  majorRoads?: Partial<ThemeColorValue>;
+  minorRoads?: Partial<ThemeColorValue>;
 };
 
 const THEME_STORAGE_KEY = "nova.dashboard.accent.v1";
 const THEME_COOKIE_NAME = "nova.dashboard.accent.v1";
+export const RADAR_OPACITY_DEFAULT = 100;
+export const RADAR_OPACITY_MAX = 100;
+export const RADAR_OPACITY_MIN = 0;
 
 export const DEFAULT_THEME: DeviceTheme = {
   accent: {
@@ -30,11 +52,70 @@ export const DEFAULT_THEME: DeviceTheme = {
     intensity: 100,
     rgb: [40, 243, 255],
   },
+  autoFullscreenOnLoad: false,
   background: {
     cursor: { x: 0.55, y: 0.93 },
     intensity: 16,
     rgb: [231, 244, 250],
   },
+  border: {
+    color: {
+      cursor: { x: 0.22, y: 0.0 },
+      intensity: 100,
+      rgb: [215, 255, 50],
+    },
+    enabled: false,
+    opacity: 36,
+  },
+  map: {
+    base: {
+      cursor: { x: 0.55, y: 0.93 },
+      intensity: 16,
+      rgb: [231, 244, 250],
+    },
+    water: {
+      cursor: { x: 0.55, y: 0.72 },
+      intensity: 100,
+      rgb: [191, 232, 255],
+    },
+    land: {
+      cursor: { x: 0.55, y: 0.94 },
+      intensity: 14,
+      rgb: [217, 229, 229],
+    },
+    buildingLow: {
+      cursor: { x: 0.22, y: 0.0 },
+      intensity: 100,
+      rgb: [215, 255, 50],
+    },
+    buildingHigh: {
+      cursor: { x: 0.5, y: 1.0 },
+      intensity: 100,
+      rgb: [255, 255, 255],
+    },
+    roads: {
+      cursor: { x: 0.22, y: 0.0 },
+      intensity: 100,
+      rgb: [215, 255, 50],
+    },
+    labels: {
+      cursor: { x: 0.22, y: 0.0 },
+      intensity: 100,
+      rgb: [215, 255, 50],
+    },
+    radarLow: {
+      cursor: { x: 0.5, y: 0.0 },
+      intensity: 100,
+      rgb: [40, 243, 255],
+    },
+    radarHigh: {
+      cursor: { x: 0.5, y: 1.0 },
+      intensity: 100,
+      rgb: [255, 255, 255],
+    },
+  },
+  radarOpacity: RADAR_OPACITY_DEFAULT,
+  radarPaletteMode: "spectrum",
   titleTone: "auto",
 };
 
@@ -92,16 +173,73 @@ function normalizeColor(value: Partial<ThemeColorValue> | null | undefined, fall
   return { cursor, intensity, rgb };
 }
 
+function normalizeRadarPaletteMode(value: unknown): RadarPaletteMode {
+  return value === "custom" ? "custom" : "spectrum";
+}
+
+export function normalizeRadarOpacity(value: unknown) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed)) {
+    return RADAR_OPACITY_DEFAULT;
+  }
+
+  return clamp(Math.round(parsed), RADAR_OPACITY_MIN, RADAR_OPACITY_MAX);
+}
+
+function matchesThemeColor(value: Partial<ThemeColorValue> | null | undefined, expected: ThemeColorValue) {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = normalizeColor(value, expected);
+  return normalized.intensity === expected.intensity
+    && normalized.rgb.every((part, index) => part === expected.rgb[index]);
+}
+
 function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | undefined): DeviceTheme {
   const storedAccent = value?.accent ?? (Array.isArray(value?.rgb) ? value : null);
   const titleTone = ["auto", "light", "dark"].includes(String(value?.titleTone))
     ? (value?.titleTone as ThemeTitleTone)
     : DEFAULT_THEME.titleTone;
+  const borderValue = value?.border;
+  const mapValue = value?.map as StoredMapTheme | null | undefined;
+  const buildingLowValue = mapValue?.buildingLow ?? mapValue?.buildings;
+  const buildingHighValue = matchesThemeColor(mapValue?.buildingHigh, {
+    cursor: { x: 0.5, y: 0.0 },
+    intensity: 100,
+    rgb: [40, 243, 255],
+  }) ? undefined : mapValue?.buildingHigh;
+  const waterValue = matchesThemeColor(mapValue?.water, {
+    cursor: { x: 0.55, y: 0.94 },
+    intensity: 12,
+    rgb: [217, 233, 242],
+  }) ? undefined : mapValue?.water;
+  const roadsValue = mapValue?.roads ?? mapValue?.majorRoads ?? mapValue?.minorRoads;
 
   return {
     accent: normalizeColor(storedAccent, DEFAULT_THEME.accent),
     highlight: normalizeColor(value?.highlight, DEFAULT_THEME.highlight),
+    autoFullscreenOnLoad: value?.autoFullscreenOnLoad === true,
     background: normalizeColor(value?.background, DEFAULT_THEME.background),
+    border: {
+      color: normalizeColor(borderValue?.color, DEFAULT_THEME.border.color),
+      enabled: borderValue?.enabled === true,
+      opacity: clamp(Math.round(Number(borderValue?.opacity ?? DEFAULT_THEME.border.opacity)), 0, 100),
+    },
+    map: {
+      base: normalizeColor(mapValue?.base, DEFAULT_THEME.map.base),
+      water: normalizeColor(waterValue, DEFAULT_THEME.map.water),
+      land: normalizeColor(mapValue?.land, DEFAULT_THEME.map.land),
+      buildingLow: normalizeColor(buildingLowValue, DEFAULT_THEME.map.buildingLow),
+      buildingHigh: normalizeColor(buildingHighValue, DEFAULT_THEME.map.buildingHigh),
+      roads: normalizeColor(roadsValue, DEFAULT_THEME.map.roads),
+      labels: normalizeColor(mapValue?.labels, DEFAULT_THEME.map.labels),
+      radarLow: normalizeColor(mapValue?.radarLow, DEFAULT_THEME.map.radarLow),
+      radarHigh: normalizeColor(mapValue?.radarHigh, DEFAULT_THEME.map.radarHigh),
+    },
+    radarOpacity: normalizeRadarOpacity(value?.radarOpacity),
+    radarPaletteMode: normalizeRadarPaletteMode(value?.radarPaletteMode),
     titleTone,
   };
 }
@@ -136,6 +274,22 @@ function applyCssColor(name: "line" | "cyan", rgb: [number, number, number]) {
 
   root.style.setProperty("--cyber-cyan", `rgb(${value})`);
   root.style.setProperty("--cyber-cyan-rgb", value);
+}
+
+function applyCssBorder(border: ThemeBorderValue, fallbackRgb: [number, number, number]) {
+  const normalizedBorder = {
+    color: normalizeColor(border.color, DEFAULT_THEME.border.color),
+    enabled: border.enabled === true,
+    opacity: clamp(Math.round(Number(border.opacity ?? DEFAULT_THEME.border.opacity)), 0, 100),
+  };
+  const rgb = normalizedBorder.enabled ? appliedThemeRgb(normalizedBorder.color) : fallbackRgb;
+  const opacity = normalizedBorder.enabled ? normalizedBorder.opacity / 100 : 0.36;
+  const value = `${rgb[0]} ${rgb[1]} ${rgb[2]}`;
+  const root = document.documentElement;
+
+  root.style.setProperty("--cyber-border-rgb", value);
+  root.style.setProperty("--cyber-border-dim", `rgb(${value} / ${opacity})`);
+  root.style.setProperty("--cyber-border-strong", `rgb(${value} / ${Math.min(1, opacity + 0.54)})`);
 }
 
 function mixRgb(from: [number, number, number], to: [number, number, number], amount: number): [number, number, number] {
@@ -183,6 +337,30 @@ function applyCssTitleTone(tone: ThemeTitleTone, accent: [number, number, number
   root.style.setProperty("--cyber-title-on-bg", titleColorFor(tone, background, true));
 }
 
+function applyCssMap(map: DeviceTheme["map"]) {
+  const root = document.documentElement;
+  const setMapColor = (name: string, color: ThemeColorValue) => {
+    const rgb = appliedThemeRgb(color);
+    const value = `${rgb[0]} ${rgb[1]} ${rgb[2]}`;
+    root.style.setProperty(`--cyber-map-${name}`, `rgb(${value})`);
+    root.style.setProperty(`--cyber-map-${name}-rgb`, value);
+  };
+
+  setMapColor("base", map.base);
+  setMapColor("water", map.water);
+  setMapColor("land", map.land);
+  setMapColor("building-low", map.buildingLow);
+  setMapColor("building-high", map.buildingHigh);
+  setMapColor("roads", map.roads);
+  setMapColor("labels", map.labels);
+  setMapColor("radar-low", map.radarLow);
+  setMapColor("radar-high", map.radarHigh);
+}
+
+function applyCssRadarOpacity(value: number) {
+  document.documentElement.style.setProperty("--cyber-map-radar-opacity", String(normalizeRadarOpacity(value)));
+}
+
 export function applyDeviceTheme(theme: DeviceTheme) {
   const normalized = normalizeTheme(theme);
   const accent = appliedThemeRgb(normalized.accent);
@@ -191,8 +369,12 @@ export function applyDeviceTheme(theme: DeviceTheme) {
 
   applyCssColor("line", accent);
   applyCssColor("cyan", highlight);
+  applyCssBorder(normalized.border, accent);
   applyCssBackground(background);
   applyCssTitleTone(normalized.titleTone, accent, highlight, background);
+  applyCssMap(normalized.map);
+  applyCssRadarOpacity(normalized.radarOpacity);
+  document.documentElement.style.setProperty("--cyber-map-radar-mode", normalized.radarPaletteMode);
 }
 
 function readTheme(fallback: Partial<DeviceTheme & ThemeColorValue> | null | undefined = DEFAULT_THEME) {

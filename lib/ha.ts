@@ -10,9 +10,9 @@ import {
   HaState,
   RouterMetric,
   RouterStatus,
+  SunStatus,
   WeatherStatus,
 } from "./types";
-import { setGreeAirconSweep } from "./gree";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
 
 const HA_URL = process.env.HA_URL ?? "http://127.0.0.1:8123";
@@ -25,6 +25,7 @@ const CONTROL_DOMAINS: HaDomain[] = [
   "fan",
   "cover",
   "humidifier",
+  "sensor",
 ];
 
 const ILLUMINATION_RE = /\b(neon|light|lights|lamp|lamps|led|strip|glow|fairy|sign|illumination)\b/i;
@@ -34,7 +35,13 @@ const CLIMATE_AREA_NAMES = new Set(["climate", "heating"]);
 const NETWORK_ZONE_ID = "network";
 const WEATHER_ENTITY_ID = "weather.forecast_home";
 const ROUTER_STATUS_CACHE_MS = 250;
-const WEATHER_FORECAST_CACHE_MS = 10 * 60 * 1000;
+const WEATHER_FORECAST_CACHE_MS = 35 * 60 * 1000;
+const LOUNGE_SENSOR_ENTITY_IDS = new Set([
+  "sensor.wifi_temperature_humidity_sensor_temperature",
+  "sensor.wifi_temperature_humidity_sensor_humidity",
+  "sensor.lounge_temperature",
+  "sensor.lounge_humidity",
+]);
 let routerStatusCache: { at: number; value: RouterStatus } | null = null;
 let routerStatusRequest: Promise<RouterStatus> | null = null;
 let weatherForecastCache: { at: number; entityId: string; value: WeatherForecastEntry | null } | null = null;
@@ -76,10 +83,47 @@ export async function callService(
   service: string,
   serviceData: Record<string, unknown>,
 ) {
-  return haRest<HaState[]>(`/api/services/${domain}/${service}`, {
-    method: "POST",
-    body: JSON.stringify(serviceData),
-  });
+  const startedAt = Date.now();
+  const shouldLog = domain === "climate";
+
+  if (shouldLog) {
+    console.info("[nova-dashboard] HA climate service call", { domain, service, serviceData });
+  }
+
+  try {
+    const result = await haRest<HaState[]>(`/api/services/${domain}/${service}`, {
+      method: "POST",
+      body: JSON.stringify(serviceData),
+    });
+
+    if (shouldLog) {
+      console.info("[nova-dashboard] HA climate service success", {
+        domain,
+        durationMs: Date.now() - startedAt,
+        result: result.map((state) => ({
+          attributes: state.attributes,
+          entity_id: state.entity_id,
+          state: state.state,
+        })),
+        service,
+        serviceData,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    if (shouldLog) {
+      console.error("[nova-dashboard] HA climate service failed", {
+        domain,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+        service,
+        serviceData,
+      });
+    }
+
+    throw error;
+  }
 }
 
 async function callServiceWithResponse<T>(
@@ -202,6 +246,20 @@ function isSupportSwitch(entity: Pick<DashboardEntity, "domain" | "entity_id" | 
   return SUPPORT_SWITCH_RE.test(`${entity.name} ${entity.entity_id.replaceAll("_", " ")}`);
 }
 
+function isDashboardSensor(state: HaState, name: string) {
+  if (LOUNGE_SENSOR_ENTITY_IDS.has(state.entity_id)) {
+    return true;
+  }
+
+  const deviceClass = String(state.attributes.device_class ?? "").toLowerCase();
+  if (deviceClass !== "temperature" && deviceClass !== "humidity") {
+    return false;
+  }
+
+  const text = `${state.entity_id} ${name}`.toLowerCase();
+  return text.includes("lounge");
+}
+
 function lightLayerEntities(entities: DashboardEntity[]) {
   return entities.filter((entity) => entity.domain === "light" || entity.isIllumination);
 }
@@ -243,6 +301,10 @@ function isEntityOn(entity: DashboardEntity) {
 
   if (entity.domain === "climate") {
     return entity.state !== "off";
+  }
+
+  if (entity.domain === "sensor") {
+    return false;
   }
 
   return ["on", "open", "opening", "playing", "heat", "cool", "heat_cool"].includes(entity.state);
@@ -365,6 +427,13 @@ async function dailyWeatherForecast(entityId: string) {
   return weatherForecastRequest;
 }
 
+export async function warmWeatherCache(entityId = WEATHER_ENTITY_ID): Promise<void> {
+  weatherForecastCache = null;
+  await dailyWeatherForecast(entityId).catch((error) => {
+    console.warn("[nova-dashboard] Background weather refresh failed", { error });
+  });
+}
+
 async function buildWeatherStatus(states: HaState[], warnings: string[]): Promise<WeatherStatus | null> {
   const weatherState = stateById(states, WEATHER_ENTITY_ID) ?? states.find((state) => state.entity_id.startsWith("weather."));
   if (!weatherState) {
@@ -403,6 +472,20 @@ async function buildWeatherStatus(states: HaState[], warnings: string[]): Promis
     uvIndex: roundOne(uvIndex),
     maxUvIndex: roundOne(maxUvIndex),
     feelsLike: apparentTemperature(temperature, humidity, windSpeed, windUnit),
+  };
+}
+
+function buildSunStatus(states: HaState[]): SunStatus | null {
+  const sun = stateById(states, "sun.sun");
+  if (!sun) {
+    return null;
+  }
+
+  return {
+    entity_id: sun.entity_id,
+    state: sun.state,
+    nextRising: typeof sun.attributes.next_rising === "string" ? sun.attributes.next_rising : null,
+    nextSetting: typeof sun.attributes.next_setting === "string" ? sun.attributes.next_setting : null,
   };
 }
 
@@ -458,6 +541,9 @@ export async function buildDashboardState(): Promise<DashboardState> {
     const device = registry?.device_id ? deviceById.get(registry.device_id) : undefined;
     const areaId = registry?.area_id ?? device?.area_id ?? "unassigned";
     const name = friendlyName(state, registry);
+    if (domain === "sensor" && !isDashboardSensor(state, name)) {
+      return [];
+    }
 
     const entity = {
       entity_id: state.entity_id,
@@ -538,6 +624,7 @@ export async function buildDashboardState(): Promise<DashboardState> {
     entities,
     totals: countDomains(entities),
     router: buildRouterStatus(states),
+    sun: buildSunStatus(states),
     weather: await buildWeatherStatus(states, warnings),
     preferences: await readDashboardPreferences(),
     warnings,
@@ -604,6 +691,7 @@ export async function setZoneAction(input: {
   action: "on" | "off" | "brightness" | "color" | "candlelight" | "white";
   brightnessPct?: number;
   rgb?: [number, number, number];
+  traceId?: string;
 }) {
   const dashboard = await buildDashboardState();
   const zone = dashboard.zones.find((candidate) => candidate.id === input.zoneId);
@@ -616,6 +704,20 @@ export async function setZoneAction(input: {
   const switches = zone.entities.filter((entity) => entity.domain === "switch" && !isSupportSwitch(entity));
   const illuminationSwitches = switches.filter((entity) => entity.isIllumination);
   const climates = zone.entities.filter((entity) => entity.domain === "climate");
+
+  if (climates.length) {
+    console.info("[nova-dashboard] climate zone action", {
+      action: input.action,
+      climates: climates.map((entity) => ({
+        attributes: entity.attributes,
+        entity_id: entity.entity_id,
+        name: entity.name,
+        state: entity.state,
+      })),
+      traceId: input.traceId,
+      zoneId: input.zoneId,
+    });
+  }
 
   if (input.action === "off") {
     await callMany([
@@ -709,6 +811,7 @@ export async function setEntityAction(input: {
   service: string;
   data?: Record<string, unknown>;
   remember?: Parameters<typeof mergeDashboardPreferences>[0];
+  traceId?: string;
 }) {
   const allowed: Record<HaDomain, string[]> = {
     light: ["turn_on", "turn_off", "toggle"],
@@ -720,29 +823,78 @@ export async function setEntityAction(input: {
       "set_temperature",
       "set_fan_mode",
       "set_swing_mode",
-      "set_aircon_sweep",
     ],
     fan: ["turn_on", "turn_off", "toggle", "set_percentage"],
     cover: ["open_cover", "close_cover", "stop_cover"],
     humidifier: ["turn_on", "turn_off", "toggle", "set_humidity"],
+    sensor: [],
   };
 
   if (!allowed[input.domain]?.includes(input.service)) {
     throw new Error(`Service ${input.domain}.${input.service} is not allowed`);
   }
 
-  if (input.domain === "climate" && input.service === "set_aircon_sweep") {
-    await setGreeAirconSweep(Boolean(input.data?.enabled));
-  } else {
+  const isAirconRelated =
+    input.domain === "climate" ||
+    `${input.entityId} ${input.service}`.toLowerCase().match(/\b(air|gree|quiet|turbo|xtra)\b/) !== null;
+
+  if (isAirconRelated) {
+    console.info("[nova-dashboard] aircon setEntityAction start", {
+      data: input.data ?? {},
+      domain: input.domain,
+      entityId: input.entityId,
+      remember: input.remember,
+      service: input.service,
+      traceId: input.traceId,
+    });
+  }
+
+  try {
     await callService(input.domain, input.service, {
       entity_id: input.entityId,
       ...(input.data ?? {}),
     });
+  } catch (error) {
+    if (isAirconRelated) {
+      console.error("[nova-dashboard] aircon setEntityAction service failed", {
+        data: input.data ?? {},
+        domain: input.domain,
+        entityId: input.entityId,
+        error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+        service: input.service,
+        traceId: input.traceId,
+      });
+    }
+
+    throw error;
   }
 
   if (input.remember) {
+    if (isAirconRelated) {
+      console.info("[nova-dashboard] aircon preference merge", {
+        remember: input.remember,
+        traceId: input.traceId,
+      });
+    }
     await mergeDashboardPreferences(input.remember);
   }
 
-  return buildDashboardState();
+  const nextState = await buildDashboardState();
+
+  if (isAirconRelated) {
+    const entity = nextState.entities.find((candidate) => candidate.entity_id === input.entityId);
+    console.info("[nova-dashboard] aircon setEntityAction complete", {
+      entity: entity
+        ? {
+            attributes: entity.attributes,
+            entity_id: entity.entity_id,
+            name: entity.name,
+            state: entity.state,
+          }
+        : null,
+      traceId: input.traceId,
+    });
+  }
+
+  return nextState;
 }
