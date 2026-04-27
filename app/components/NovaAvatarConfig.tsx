@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   appliedThemeRgb,
   themeRgbAtPosition,
@@ -13,6 +13,23 @@ import {
   type NovaAvatarTheme,
 } from "./novaAvatarTheme";
 import NovaAvatar from "./NovaAvatar";
+
+type AvatarSlot =
+  | "gradientCenter"
+  | "gradientOuter"
+  | "line0"
+  | "line1"
+  | "line2";
+
+type AvatarSlotChoice = { slot: AvatarSlot; label: string; detail: string };
+
+const AVATAR_SLOTS: AvatarSlotChoice[] = [
+  { slot: "gradientCenter", label: "Gradient Center", detail: "Inner glow" },
+  { slot: "gradientOuter", label: "Gradient Outer", detail: "Outer falloff" },
+  { slot: "line0", label: "Line 1", detail: "First arc colour" },
+  { slot: "line1", label: "Line 2", detail: "Second arc colour" },
+  { slot: "line2", label: "Line 3", detail: "Third arc colour" },
+];
 
 function NovaSpectrum({
   label,
@@ -52,7 +69,7 @@ function NovaIntensity({
 }) {
   return (
     <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
-      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_96px] md:items-center">
+      <div className="grid gap-4">
         <p className="text-sm font-black uppercase text-cyan-200">Intensity</p>
         <div className="px-1">
           <DotLineControl
@@ -67,41 +84,35 @@ function NovaIntensity({
             onChange={(intensity) => onChange({ ...value, intensity })}
           />
         </div>
-        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{value.intensity}%</p>
+        <p className="text-4xl font-black tabular-nums text-neutral-50">{value.intensity}%</p>
       </div>
     </div>
   );
 }
 
-function ColorBlock({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: ThemeColorValue;
-  onChange: (value: ThemeColorValue) => void;
-}) {
-  return (
-    <div className="nova-avatar-cfg-color-block">
-      <NovaSpectrum label={label} value={value} onChange={onChange} />
-      <NovaIntensity label={label} value={value} onChange={onChange} />
-    </div>
-  );
+function readSlot(theme: NovaAvatarTheme, slot: AvatarSlot): ThemeColorValue {
+  if (slot === "gradientCenter") return theme.gradientCenter;
+  if (slot === "gradientOuter") return theme.gradientOuter;
+  if (slot === "line0") return theme.lineColors[0];
+  if (slot === "line1") return theme.lineColors[1];
+  return theme.lineColors[2];
 }
 
 export function NovaAvatarConfig() {
   const { theme, setTheme, resetTheme } = useNovaAvatarTheme();
+  const [activeSlot, setActiveSlot] = useState<AvatarSlot | null>(null);
 
-  const setSlot = useCallback(
-    (slot: "gradientCenter" | "gradientOuter", value: ThemeColorValue) => {
-      setTheme({ ...theme, [slot]: value });
-    },
-    [setTheme, theme],
-  );
-
-  const setLine = useCallback(
-    (index: 0 | 1 | 2, value: ThemeColorValue) => {
+  const writeSlot = useCallback(
+    (slot: AvatarSlot, value: ThemeColorValue) => {
+      if (slot === "gradientCenter") {
+        setTheme({ ...theme, gradientCenter: value });
+        return;
+      }
+      if (slot === "gradientOuter") {
+        setTheme({ ...theme, gradientOuter: value });
+        return;
+      }
+      const index = slot === "line0" ? 0 : slot === "line1" ? 1 : 2;
       const nextLines: NovaAvatarTheme["lineColors"] = [
         theme.lineColors[0],
         theme.lineColors[1],
@@ -113,51 +124,81 @@ export function NovaAvatarConfig() {
     [setTheme, theme],
   );
 
+  const selectSlot = useCallback((slot: AvatarSlot) => {
+    setActiveSlot((current) => (current === slot ? null : slot));
+  }, []);
+
+  const renderWidget = (choice: AvatarSlotChoice) => {
+    const value = readSlot(theme, choice.slot);
+    const rgb = appliedThemeRgb(value);
+    const active = activeSlot === choice.slot;
+
+    return (
+      <div
+        key={choice.slot}
+        className={`theme-widget-cell grid gap-3 ${active ? "theme-widget-cell-active" : ""}`}
+      >
+        <button
+          type="button"
+          aria-pressed={active}
+          className={`theme-display-card border p-4 text-left ${active ? "theme-display-card-active" : ""}`}
+          onClick={() => selectSlot(choice.slot)}
+        >
+          <span
+            className="theme-display-swatch border"
+            style={{ backgroundColor: `rgb(${rgb.join(",")})` }}
+          />
+          <span className="theme-display-copy">
+            <span className="theme-display-label zone-title-bar">{choice.label}</span>
+            <span className="theme-display-detail">{choice.detail}</span>
+            <span className="theme-display-rgb">rgb {rgb.join(" ")}</span>
+          </span>
+        </button>
+
+        {active ? (
+          <div className="theme-inline-editor-reveal">
+            <div className="theme-inline-editor grid gap-4 border border-cyan-300/30 bg-neutral-900/80 p-4">
+              <NovaSpectrum
+                label={choice.label}
+                value={value}
+                onChange={(next) => writeSlot(choice.slot, next)}
+              />
+              <NovaIntensity
+                label={choice.label}
+                value={value}
+                onChange={(next) => writeSlot(choice.slot, next)}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <section className="nova-avatar-cfg">
+      <div className="nova-avatar-cfg-preview-wrap">
+        <NovaAvatar size={150} forceVisible className="nova-avatar-cfg-preview-host" />
+      </div>
       <header className="nova-avatar-cfg-header">
-        <div>
-          <h2 className="nova-avatar-cfg-title">Nova avatar</h2>
-          <p className="nova-avatar-cfg-subtitle">
-            Background gradient and the three line colors. Updates live.
-          </p>
-        </div>
-        <div className="nova-avatar-cfg-preview">
-          <NovaAvatar size={150} forceVisible className="nova-avatar-cfg-preview-host" />
-        </div>
+        <h2 className="nova-avatar-cfg-title">Nova</h2>
+        <p className="nova-avatar-cfg-subtitle">
+          Responsive host activity widget
+        </p>
       </header>
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Background gradient</h3>
-        <ColorBlock
-          label="Gradient Center"
-          value={theme.gradientCenter}
-          onChange={(v) => setSlot("gradientCenter", v)}
-        />
-        <ColorBlock
-          label="Gradient Outer"
-          value={theme.gradientOuter}
-          onChange={(v) => setSlot("gradientOuter", v)}
-        />
+        <div className="theme-widget-grid grid gap-3">
+          {AVATAR_SLOTS.slice(0, 2).map(renderWidget)}
+        </div>
       </div>
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Line colors</h3>
-        <ColorBlock
-          label="Line 1"
-          value={theme.lineColors[0]}
-          onChange={(v) => setLine(0, v)}
-        />
-        <ColorBlock
-          label="Line 2"
-          value={theme.lineColors[1]}
-          onChange={(v) => setLine(1, v)}
-        />
-        <ColorBlock
-          label="Line 3"
-          value={theme.lineColors[2]}
-          onChange={(v) => setLine(2, v)}
-        />
+        <div className="theme-widget-grid grid gap-3">
+          {AVATAR_SLOTS.slice(2).map(renderWidget)}
+        </div>
       </div>
 
       <div className="nova-avatar-cfg-actions">
@@ -176,5 +217,4 @@ export function NovaAvatarConfig() {
   );
 }
 
-// Keeps DEFAULT export accessible for future code that wants to inspect defaults.
 export { DEFAULT_NOVA_AVATAR_THEME };

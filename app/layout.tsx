@@ -164,7 +164,7 @@ try {
         />
       </head>
       <body>
-        <NovaAvatar size={150} />
+        <NovaAvatar size={200} />
         {children}
       </body>
     </html>

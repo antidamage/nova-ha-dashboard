@@ -27,15 +27,15 @@ const REFLECTION = {
   vignette: 1.45,
   capPeak: 4.5,
   capMid: 1.6,
-  streakPeak: 5.0,
-  streakMid: 3.5,
+  streakPeak: 3.5,
+  streakMid: 1.5,
   kissPeak: 5.0,
   kissMid: 1.5,
   refract: 1.4,
   // Lower-edge rim reflections (curling up from the bottom-left and
   // bottom-right). Roughly half the upper streak per the brief.
-  lowerRimPeak: 2.5,
-  lowerRimMid: 1.75,
+  lowerRimPeak: 1.5,
+  lowerRimMid: 1.0,
 } as const;
 
 const SEGMENT_COUNT = 50;
@@ -82,10 +82,14 @@ export default function NovaAvatar({
   size = SIZE,
   forceVisible = false,
   className,
+  scrollScaleDistance = 300,
+  scrollScaleMin = 0.5,
 }: {
   size?: number;
   forceVisible?: boolean;
   className?: string;
+  scrollScaleDistance?: number;
+  scrollScaleMin?: number;
 }) {
   BACKGROUND_RADIUS = size * 0.48;
   const pathname = usePathname();
@@ -94,6 +98,7 @@ export default function NovaAvatar({
   const { theme } = useNovaAvatarTheme();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
   // Mutable references — avoid re-creating the animation loop on data tick.
   const targetLoadRef = useRef(0);
   const currentLoadRef = useRef(0);
@@ -403,12 +408,30 @@ export default function NovaAvatar({
     return () => cancelAnimationFrame(raf);
   }, [size, hidden]);
 
+  useEffect(() => {
+    if (hidden || forceVisible) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const distance = Math.max(1, scrollScaleDistance);
+    const minScale = Math.max(0, Math.min(1, scrollScaleMin));
+    const onScroll = () => {
+      const y = typeof window !== "undefined" ? window.scrollY || 0 : 0;
+      const t = Math.min(1, Math.max(0, y / distance));
+      const scale = 1 + (minScale - 1) * t;
+      host.style.setProperty("--nova-avatar-scale", scale.toFixed(4));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [hidden, forceVisible, scrollScaleDistance, scrollScaleMin]);
+
   if (hidden) return null;
 
   const hostClass = className ?? "nova-avatar-host";
 
   return (
     <div
+      ref={hostRef}
       className={hostClass}
       aria-label="Nova"
       role="img"

@@ -79,11 +79,13 @@ body:has(.nova-avatar-host) {
   position: fixed;
   top: var(--nova-avatar-margin);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(var(--nova-avatar-scale, 1));
+  transform-origin: top center;
   height: var(--nova-avatar-size);
   z-index: 1000;
   pointer-events: none;
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55));
+  will-change: transform;
 }
 
 .nova-avatar-canvas {
@@ -104,10 +106,25 @@ body:has(.nova-avatar-host) {
 
 .nova-avatar-cfg-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 14px;
+}
+
+.nova-avatar-cfg-preview-wrap {
+  position: sticky;
+  top: var(--nova-avatar-margin);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  background: linear-gradient(to bottom, var(--cyber-panel) 70%, transparent);
+  pointer-events: none;
+}
+
+.nova-avatar-cfg-preview-wrap > * {
+  pointer-events: auto;
 }
 
 .nova-avatar-cfg-title {
@@ -188,7 +205,8 @@ body:has(.nova-avatar-host) {
 
   .nova-avatar-host {
     left: var(--nova-avatar-margin);
-    transform: none;
+    transform: scale(var(--nova-avatar-scale, 1));
+    transform-origin: top left;
   }
 }
 

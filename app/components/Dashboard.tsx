@@ -133,7 +133,11 @@ const LIGHT_COMMAND_POLL_HOLD_MS = 5000;
 const SPECTRUM_LOCAL_HOLD_MS = LIGHT_COMMAND_POLL_HOLD_MS;
 const CLIMATE_COMMAND_POLL_DELAYS_MS = [500, 1500, 3500];
 const AIRCON_AUTO_POLL_MS = 10_000;
-const AIRCON_AUTO_HYSTERESIS_DEGREES = 1;
+const AIRCON_AUTO_BAND_DEGREES = 1;
+// The lounge temp sensor only refreshes every ~10 minutes. Once we're within
+// the band, run for this much longer before turning off; afterwards we wait
+// for a fresh sensor reading before deciding whether to resume.
+const AIRCON_AUTO_TAIL_MS = 2 * 60_000;
 const STEP_EPSILON = 0.0001;
 const LOUNGE_ZONE_ID = "lounge";
 const LOUNGE_TEMPERATURE_SENSOR_IDS = [
@@ -1572,36 +1576,24 @@ function airconFanStepForTemperatureDelta(delta: number): AirconFanStep {
   return AIRCON_FAN_STEPS[index] ?? "quiet";
 }
 
-function airconAutoHvacMode({
-  currentTemperature,
-  entity,
-  supportedModes,
-  targetTemperature,
-}: {
-  currentTemperature: number;
-  entity: DashboardEntity;
-  supportedModes: string[];
-  targetTemperature: number;
-}) {
-  const supported = (mode: string) => supportedModes.length === 0 || supportedModes.includes(mode);
-  const delta = currentTemperature - targetTemperature;
+type AirconAutoState = {
+  // Timestamp (ms) when the current temperature first entered the +/- band
+  // while the unit was still running. Used to time the post-target tail.
+  enteredBandAt: number | null;
+  // True after we deliberately turned off following the tail. Stays true
+  // until the lounge sensor reports a fresh reading that pushes us back
+  // outside the band.
+  tailedOff: boolean;
+  // Last sensor reading we acted on. We assume the sensor truly updated
+  // whenever this value changes, since it only refreshes every ~10 min.
+  lastSensorTemperature: number | null;
+};
 
-  if (delta >= AIRCON_AUTO_HYSTERESIS_DEGREES && supported("cool")) {
-    return "cool";
-  }
-  if (delta <= -AIRCON_AUTO_HYSTERESIS_DEGREES && supported("heat")) {
-    return "heat";
-  }
-
-  if (delta > 0) {
-    return entity.state === "cool" && supported("cool") ? "cool" : null;
-  }
-  if (delta < 0) {
-    return entity.state === "heat" && supported("heat") ? "heat" : null;
-  }
-
-  return null;
-}
+const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
+  enteredBandAt: null,
+  tailedOff: false,
+  lastSensorTemperature: null,
+};
 
 function airconFanStepActions({
   entity,
@@ -1654,14 +1646,179 @@ function airconFanStepActions({
   return actions;
 }
 
-function buildAirconAutoActions({
+function planAirconAutoTick({
   currentTemperature,
   entity,
   forceRemember = false,
+  now = Date.now(),
   preferences,
   quietSwitch,
+  state = INITIAL_AIRCON_AUTO_STATE,
   turboSwitch,
 }: {
+  currentTemperature: number | null;
+  entity?: DashboardEntity;
+  forceRemember?: boolean;
+  now?: number;
+  preferences?: AirconPreferences;
+  quietSwitch?: DashboardEntity;
+  state?: AirconAutoState;
+  turboSwitch?: DashboardEntity;
+}): { actions: EntityActionInput[]; nextState: AirconAutoState } {
+  const noop = (overrides: Partial<AirconAutoState> = {}) => ({
+    actions: [] as EntityActionInput[],
+    nextState: { ...state, ...overrides },
+  });
+
+  if (!entity || currentTemperature === null) {
+    return noop();
+  }
+
+  const targetTemperature = preferences?.temperature ?? climateTargetTemperature(entity);
+  if (targetTemperature === null || !Number.isFinite(targetTemperature)) {
+    return noop();
+  }
+
+  const lastSensorTemperature = currentTemperature;
+  const sensorChanged = state.lastSensorTemperature !== currentTemperature;
+  const supportedModes = stringListAttribute(entity, "hvac_modes");
+  const supported = (mode: string) => supportedModes.length === 0 || supportedModes.includes(mode);
+  const delta = currentTemperature - targetTemperature;
+  const absDelta = Math.abs(delta);
+  const isOn = isClimateEntityOn(entity);
+  const inactiveRemember = (mode?: string): AirconPreferences => ({
+    autoMode: true,
+    hvacMode: mode,
+    temperature: targetTemperature,
+  });
+
+  // After a tail-off, hold position until the sensor actually updates and
+  // shows we've drifted back out of the band.
+  let tailedOff = state.tailedOff;
+  if (tailedOff) {
+    if (!sensorChanged) {
+      return noop({ lastSensorTemperature });
+    }
+    if (absDelta < AIRCON_AUTO_BAND_DEGREES) {
+      return noop({ lastSensorTemperature });
+    }
+    tailedOff = false;
+  }
+
+  // Active phase — outside the band, drive heat or cool toward the target.
+  if (absDelta >= AIRCON_AUTO_BAND_DEGREES) {
+    const desiredMode = delta > 0 ? "cool" : "heat";
+    if (!supported(desiredMode)) {
+      const actions: EntityActionInput[] = [];
+      if (isOn || forceRemember) {
+        actions.push({
+          entityId: entity.entity_id,
+          domain: "climate",
+          service: "turn_off",
+          remember: { aircon: inactiveRemember() },
+        });
+      }
+      return {
+        actions,
+        nextState: { enteredBandAt: null, tailedOff: false, lastSensorTemperature },
+      };
+    }
+
+    const fanStep = airconFanStepForTemperatureDelta(delta);
+    const activeRemember: AirconPreferences = {
+      ...inactiveRemember(desiredMode),
+      fanMode: airconFanModeServiceValue(fanStep),
+      quietMode: fanStep === "quiet",
+      turboMode: fanStep === "turbo",
+    };
+
+    const actions: EntityActionInput[] = [];
+    if (!isOn) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "turn_on",
+      });
+    }
+    if (entity.state !== desiredMode) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "set_hvac_mode",
+        data: { hvac_mode: desiredMode },
+        remember: { aircon: activeRemember },
+      });
+    }
+    if (!isOn || climateTargetTemperature(entity) !== targetTemperature) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "set_temperature",
+        data: { temperature: targetTemperature },
+        remember: { aircon: activeRemember },
+      });
+    }
+    actions.push(
+      ...airconFanStepActions({ entity, quietSwitch, remember: activeRemember, step: fanStep, turboSwitch }),
+    );
+
+    if (!actions.length && forceRemember) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "set_temperature",
+        data: { temperature: targetTemperature },
+        remember: { aircon: activeRemember },
+      });
+    }
+
+    return {
+      actions,
+      nextState: { enteredBandAt: null, tailedOff: false, lastSensorTemperature },
+    };
+  }
+
+  // Inside the band.
+  if (!isOn) {
+    // Already off — sit tight until the sensor reading wanders out of band.
+    const actions: EntityActionInput[] = [];
+    if (forceRemember) {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "turn_off",
+        remember: { aircon: inactiveRemember() },
+      });
+    }
+    return {
+      actions,
+      nextState: { enteredBandAt: null, tailedOff: true, lastSensorTemperature },
+    };
+  }
+
+  // Running and within the band — start/continue the tail and turn off once
+  // it has elapsed. The unit keeps its current settings during the tail.
+  const enteredAt = state.enteredBandAt ?? now;
+  if (now - enteredAt >= AIRCON_AUTO_TAIL_MS) {
+    return {
+      actions: [
+        {
+          entityId: entity.entity_id,
+          domain: "climate",
+          service: "turn_off",
+          remember: { aircon: inactiveRemember() },
+        },
+      ],
+      nextState: { enteredBandAt: null, tailedOff: true, lastSensorTemperature },
+    };
+  }
+  return {
+    actions: [],
+    nextState: { enteredBandAt: enteredAt, tailedOff: false, lastSensorTemperature },
+  };
+}
+
+function buildAirconAutoActions(args: {
   currentTemperature: number | null;
   entity?: DashboardEntity;
   forceRemember?: boolean;
@@ -1669,87 +1826,7 @@ function buildAirconAutoActions({
   quietSwitch?: DashboardEntity;
   turboSwitch?: DashboardEntity;
 }) {
-  if (!entity || currentTemperature === null) {
-    return [];
-  }
-
-  const targetTemperature = preferences?.temperature ?? climateTargetTemperature(entity);
-  if (targetTemperature === null || !Number.isFinite(targetTemperature)) {
-    return [];
-  }
-
-  const supportedModes = stringListAttribute(entity, "hvac_modes");
-  const hvacMode = airconAutoHvacMode({ currentTemperature, entity, supportedModes, targetTemperature });
-  const remember: AirconPreferences = {
-    autoMode: true,
-    hvacMode: hvacMode ?? undefined,
-    temperature: targetTemperature,
-  };
-  const actions: EntityActionInput[] = [];
-  const isOn = isClimateEntityOn(entity);
-
-  if (!hvacMode) {
-    if (isOn || forceRemember) {
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "turn_off",
-        remember: { aircon: remember },
-      });
-    }
-
-    return actions;
-  }
-
-  const fanStep = airconFanStepForTemperatureDelta(currentTemperature - targetTemperature);
-  const activeRemember: AirconPreferences = {
-    ...remember,
-    fanMode: airconFanModeServiceValue(fanStep),
-    quietMode: fanStep === "quiet",
-    turboMode: fanStep === "turbo",
-  };
-
-  if (!isOn) {
-    actions.push({
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "turn_on",
-    });
-  }
-
-  if (hvacMode && entity.state !== hvacMode) {
-    actions.push({
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "set_hvac_mode",
-      data: { hvac_mode: hvacMode },
-      remember: { aircon: activeRemember },
-    });
-  }
-
-  if (!isOn || climateTargetTemperature(entity) !== targetTemperature) {
-    actions.push({
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "set_temperature",
-      data: { temperature: targetTemperature },
-      remember: { aircon: activeRemember },
-    });
-  }
-
-  actions.push(...airconFanStepActions({ entity, quietSwitch, remember: activeRemember, step: fanStep, turboSwitch }));
-
-  if (!actions.length && forceRemember) {
-    actions.push({
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "set_temperature",
-      data: { temperature: targetTemperature },
-      remember: { aircon: activeRemember },
-    });
-  }
-
-  return actions;
+  return planAirconAutoTick(args).actions;
 }
 
 function AirConditionerControl({
@@ -3032,9 +3109,11 @@ export function Dashboard() {
   }, [applyEntityActions]);
 
   const airconAutoMode = data?.preferences.aircon?.autoMode ?? false;
+  const airconAutoStateRef = useRef<AirconAutoState>(INITIAL_AIRCON_AUTO_STATE);
 
   useEffect(() => {
     if (!airconAutoMode) {
+      airconAutoStateRef.current = INITIAL_AIRCON_AUTO_STATE;
       return;
     }
 
@@ -3061,13 +3140,15 @@ export function Dashboard() {
       const currentEnvironment = findLoungeEnvironment(snapshot);
       const currentClimateZone = snapshot?.zones.find(isClimateZone) ?? null;
       const { aircon, quietSwitch, turboSwitch } = climateDevicesForZone(currentClimateZone);
-      const actions = buildAirconAutoActions({
+      const { actions, nextState } = planAirconAutoTick({
         currentTemperature: currentEnvironment?.temperature ?? null,
         entity: aircon,
         preferences: snapshot?.preferences.aircon,
         quietSwitch,
+        state: airconAutoStateRef.current,
         turboSwitch,
       });
+      airconAutoStateRef.current = nextState;
 
       if (!actions.length) {
         applying = false;

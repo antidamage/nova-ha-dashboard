@@ -554,14 +554,14 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                     <ArrowLeftRight className="h-5 w-5" />
                   </MomentaryFeedbackButton>
                 </div>
-                <div className="theme-widget-grid grid gap-3 md:grid-cols-2">
+                <div className="theme-widget-grid grid gap-3">
                   {THEME_SLOTS.map(renderWidget)}
                 </div>
               </section>
 
               <section className="theme-config-section grid gap-3">
                 <h2 className="text-xl font-black uppercase text-neutral-100">Map Components</h2>
-                <div className="theme-widget-grid grid gap-3 md:grid-cols-2">
+                <div className="theme-widget-grid grid gap-3">
                   {MAP_THEME_SLOTS.map(renderWidget)}
                 </div>
               </section>
@@ -581,7 +581,7 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                   onChange={(radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) })}
                 />
                 {theme.radarPaletteMode === "custom" ? (
-                  <div className="theme-widget-grid grid gap-3 md:grid-cols-2">
+                  <div className="theme-widget-grid grid gap-3">
                     {RADAR_THEME_SLOTS.map(renderWidget)}
                   </div>
                 ) : null}
