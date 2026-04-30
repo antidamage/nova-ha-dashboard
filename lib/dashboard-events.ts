@@ -1,12 +1,15 @@
 import { readDashboardBuildId } from "./build-id";
 import { buildDashboardState, warmWeatherCache } from "./ha";
-import type { DashboardEntity, DashboardState, HaDomain, SpectrumCursor } from "./types";
+import { isIcloudEnabled, logIcloudDisabledOnce } from "./icloud-config";
+import type { DashboardEntity, DashboardState, HaDomain, SpectrumCursor, Task } from "./types";
 
 const DASHBOARD_BUILD_EVENT_POLL_MS = 5000;
 const DASHBOARD_EVENT_POLL_MS = 2000;
 const DASHBOARD_EVENT_HEARTBEAT_MS = 15000;
 const LIGHT_COMMAND_EVENT_HOLD_MS = 5000;
 const WEATHER_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+const TASK_ALERT_TICK_MS = 1000;
+const ICLOUD_SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 type DashboardEventClient = {
   id: number;
@@ -17,14 +20,21 @@ type DashboardEventStore = {
   buildPollTimer: ReturnType<typeof setInterval> | null;
   clients: Set<DashboardEventClient>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
+  icloudSyncTimer: ReturnType<typeof setInterval> | null;
+  icloudSyncing: boolean;
   latestBuildId: string | null;
   latestJson: string | null;
   latestSignature: string | null;
+  latestTasksJson: string | null;
   lightPollHoldUntil: number;
   nextClientId: number;
+  nextIcloudSyncAt: number;
   pollTimer: ReturnType<typeof setInterval> | null;
   polling: boolean;
   spectrumCursors: Record<string, SpectrumCursor>;
+  taskAlertSessions: Record<string, string>;
+  taskAlertTimer: ReturnType<typeof setInterval> | null;
+  taskAlertTicking: boolean;
   weatherRefreshTimer: ReturnType<typeof setInterval> | null;
 };
 
@@ -39,16 +49,31 @@ const store =
     buildPollTimer: null,
     clients: new Set<DashboardEventClient>(),
     heartbeatTimer: null,
+    icloudSyncTimer: null,
+    icloudSyncing: false,
     latestBuildId: null,
     latestJson: null,
     latestSignature: null,
+    latestTasksJson: null,
     lightPollHoldUntil: 0,
     nextClientId: 0,
+    nextIcloudSyncAt: 0,
     pollTimer: null,
     polling: false,
     spectrumCursors: {},
+    taskAlertSessions: {},
+    taskAlertTimer: null,
+    taskAlertTicking: false,
     weatherRefreshTimer: null,
   });
+
+store.icloudSyncTimer ??= null;
+store.icloudSyncing ??= false;
+store.latestTasksJson ??= null;
+store.nextIcloudSyncAt ??= 0;
+store.taskAlertSessions ??= {};
+store.taskAlertTimer ??= null;
+store.taskAlertTicking ??= false;
 
 type ZoneActionInput = {
   action: string;
@@ -152,6 +177,20 @@ export function publishDashboardState(
   store.latestSignature = signature;
   store.latestJson = JSON.stringify(stateWithMetadata);
   broadcast(sseEvent("state", store.latestJson), { excludeClientId: options.excludeClientId });
+}
+
+export function publishDashboardError(message: string) {
+  broadcast(sseEvent("dashboard-error", JSON.stringify({ message })));
+}
+
+export function publishTasks(tasks: Task[]) {
+  store.latestTasksJson = JSON.stringify({ tasks });
+  broadcast(sseEvent("tasks", store.latestTasksJson));
+}
+
+export function publishTaskDismiss(taskId: string) {
+  delete store.taskAlertSessions[taskId];
+  broadcast(sseEvent("task-dismiss", JSON.stringify({ taskId })));
 }
 
 export function holdDashboardEventLightPolling(durationMs = LIGHT_COMMAND_EVENT_HOLD_MS) {
@@ -352,14 +391,113 @@ async function pollDashboardState() {
   try {
     publishDashboardState(await buildDashboardState());
   } catch (error) {
-    broadcast(
-      sseEvent(
-        "dashboard-error",
-        JSON.stringify({ message: error instanceof Error ? error.message : "Failed to refresh dashboard state" }),
-      ),
-    );
+    publishDashboardError(error instanceof Error ? error.message : "Failed to refresh dashboard state");
   } finally {
     store.polling = false;
+  }
+}
+
+function isTaskAlerting(task: Task, now: number) {
+  if (task.dismissedAt) {
+    return false;
+  }
+
+  const start = new Date(task.start).getTime();
+  const end = new Date(task.end).getTime();
+  return Number.isFinite(start) && Number.isFinite(end) && start <= now && now < end;
+}
+
+async function sendTasksSnapshot(client: DashboardEventClient) {
+  try {
+    if (!store.latestTasksJson) {
+      const { readTasks } = await import("./tasks");
+      store.latestTasksJson = JSON.stringify({ tasks: await readTasks() });
+    }
+
+    sendClient(client, sseEvent("tasks", store.latestTasksJson));
+  } catch (error) {
+    sendClient(
+      client,
+      sseEvent(
+        "dashboard-error",
+        JSON.stringify({ message: error instanceof Error ? error.message : "Failed to read scheduled tasks" }),
+      ),
+    );
+  }
+}
+
+async function scanTaskAlerts() {
+  if (store.taskAlertTicking) {
+    return;
+  }
+
+  store.taskAlertTicking = true;
+  try {
+    const { readTasks } = await import("./tasks");
+    const tasks = await readTasks();
+    const now = Date.now();
+    const activeAlertingTaskIds = new Set<string>();
+
+    for (const task of tasks) {
+      if (!isTaskAlerting(task, now)) {
+        delete store.taskAlertSessions[task.id];
+        continue;
+      }
+
+      activeAlertingTaskIds.add(task.id);
+      const sessionKey = `${task.start}:${task.end}`;
+      if (store.taskAlertSessions[task.id] === sessionKey) {
+        continue;
+      }
+
+      store.taskAlertSessions[task.id] = sessionKey;
+      broadcast(sseEvent("task-alert", JSON.stringify({ taskId: task.id, name: task.name, end: task.end })));
+    }
+
+    for (const taskId of Object.keys(store.taskAlertSessions)) {
+      if (!activeAlertingTaskIds.has(taskId)) {
+        delete store.taskAlertSessions[taskId];
+      }
+    }
+  } catch (error) {
+    publishDashboardError(error instanceof Error ? error.message : "Failed to scan task alerts");
+  } finally {
+    store.taskAlertTicking = false;
+  }
+}
+
+async function runIcloudSync(options: { force?: boolean } = {}) {
+  if (!isIcloudEnabled()) {
+    logIcloudDisabledOnce();
+    return;
+  }
+
+  const now = Date.now();
+  if (!options.force && now < store.nextIcloudSyncAt) {
+    return;
+  }
+  if (store.icloudSyncing) {
+    return;
+  }
+
+  store.icloudSyncing = true;
+  try {
+    const { syncIcloud } = await import("./icloud-sync");
+    await syncIcloud();
+    store.nextIcloudSyncAt = Date.now() + ICLOUD_SYNC_INTERVAL_MS;
+  } catch {
+    try {
+      const { getIcloudSyncStatus } = await import("./icloud-sync");
+      const status = getIcloudSyncStatus();
+      const backoffUntil = status.authBackoffUntil ? new Date(status.authBackoffUntil).getTime() : 0;
+      store.nextIcloudSyncAt = Number.isFinite(backoffUntil) && backoffUntil > Date.now()
+        ? backoffUntil
+        : Date.now() + ICLOUD_SYNC_INTERVAL_MS;
+    } catch {
+      store.nextIcloudSyncAt = Date.now() + ICLOUD_SYNC_INTERVAL_MS;
+    }
+  } finally {
+    store.icloudSyncing = false;
   }
 }
 
@@ -390,6 +528,24 @@ function startDashboardEventPoller() {
       void warmWeatherCache();
     }, WEATHER_REFRESH_INTERVAL_MS);
   }
+
+  if (!store.taskAlertTimer) {
+    void scanTaskAlerts();
+    store.taskAlertTimer = setInterval(() => {
+      void scanTaskAlerts();
+    }, TASK_ALERT_TICK_MS);
+  }
+
+  if (!store.icloudSyncTimer) {
+    if (isIcloudEnabled()) {
+      void runIcloudSync({ force: true });
+      store.icloudSyncTimer = setInterval(() => {
+        void runIcloudSync();
+      }, ICLOUD_SYNC_INTERVAL_MS);
+    } else {
+      logIcloudDisabledOnce();
+    }
+  }
 }
 
 function stopDashboardEventPollerIfIdle() {
@@ -416,6 +572,17 @@ function stopDashboardEventPollerIfIdle() {
     clearInterval(store.weatherRefreshTimer);
     store.weatherRefreshTimer = null;
   }
+
+  if (store.taskAlertTimer) {
+    clearInterval(store.taskAlertTimer);
+    store.taskAlertTimer = null;
+    store.taskAlertSessions = {};
+  }
+
+  if (store.icloudSyncTimer) {
+    clearInterval(store.icloudSyncTimer);
+    store.icloudSyncTimer = null;
+  }
 }
 
 export function subscribeDashboardEvents() {
@@ -436,6 +603,7 @@ export function subscribeDashboardEvents() {
       if (store.latestJson) {
         sendClient(client, sseEvent("state", store.latestJson));
       }
+      void sendTasksSnapshot(client);
 
       startDashboardEventPoller();
     },

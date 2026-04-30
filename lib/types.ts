@@ -67,6 +67,22 @@ export type SpectrumCursor = {
   y: number;
 };
 
+export type TaskSource = "local" | "icloud-calendar" | "icloud-reminders";
+
+export type Task = {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
+  createdAt: string;
+  dismissedAt?: string;
+  source: TaskSource;
+  sourceId?: string;
+  sourceCalendar?: string;
+  occurrenceDate?: string;
+  readOnly?: boolean;
+};
+
 export type RouterMetric = {
   entity_id: string;
   value: number | null;

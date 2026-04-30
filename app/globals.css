@@ -75,6 +75,7 @@ body {
   -webkit-user-select: none;
   user-select: none;
   --nova-avatar-size: 96px;
+  --nova-avatar-render-size: 200px;
   --nova-avatar-margin: 14px;
 }
 
@@ -98,6 +99,97 @@ body:has(.nova-avatar-host) {
 .nova-avatar-canvas {
   display: block;
   border-radius: 50%;
+}
+
+.current-task-chip {
+  position: fixed;
+  top: calc(var(--nova-avatar-margin) + var(--nova-avatar-render-size) + 8px);
+  left: 50%;
+  z-index: 950;
+  display: flex;
+  width: min(360px, calc(100vw - 32px));
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(var(--cyber-cyan-rgb) / 0.64);
+  background:
+    linear-gradient(90deg, rgb(var(--cyber-cyan-rgb) / 0.18), rgb(var(--cyber-line-rgb) / 0.12)),
+    var(--cyber-panel);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  padding: 8px 12px;
+  pointer-events: none;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+body.task-alerting {
+  cursor: pointer;
+}
+
+.task-alert-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 128px 42px rgb(var(--cyber-cyan-rgb) / 0.7),
+    inset 0 0 72px 18px rgb(var(--cyber-line-rgb) / 0.72);
+  animation: task-alert-pulse 1.2s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+.task-alert-banner {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 1150;
+  display: flex;
+  width: min(720px, calc(100vw - 24px));
+  min-height: 54px;
+  align-items: center;
+  gap: 12px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(var(--cyber-cyan-rgb) / 0.78);
+  border-top: 0;
+  background:
+    linear-gradient(90deg, rgb(var(--cyber-cyan-rgb) / 0.24), rgb(var(--cyber-line-rgb) / 0.16)),
+    var(--cyber-panel);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  padding: 10px 14px;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+
+@keyframes task-alert-pulse {
+  0%,
+  100% {
+    opacity: 0.32;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (min-aspect-ratio: 1/1) and (min-width: 720px) {
+  .current-task-chip {
+    left: var(--nova-avatar-margin);
+    justify-content: flex-start;
+    transform: none;
+    width: min(280px, calc(100vw - var(--nova-avatar-margin) * 2));
+  }
 }
 
 /* Nova avatar config section on /config */

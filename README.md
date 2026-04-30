@@ -46,6 +46,11 @@ The app expects Home Assistant connection settings from environment variables:
 - `HA_URL`: Home Assistant base URL, defaulting to `http://127.0.0.1:8123`.
 - `HA_TOKEN`: a Home Assistant long-lived access token.
 - `GREE_AIRCON_HOST`: optional direct LAN IP for the Gree air conditioner, defaulting to the current Nova LAN address. This is used only for fixed louver positioning that Home Assistant does not expose.
+- `ICLOUD_USERNAME`: optional Apple ID email for CalDAV Calendar/Reminders sync.
+- `ICLOUD_APP_PASSWORD`: optional Apple app-specific password for CalDAV sync.
+- `ICLOUD_CALENDARS`: optional comma-separated allow-list of iCloud calendar names.
+- `ICLOUD_REMINDERS`: optional comma-separated allow-list of iCloud reminder list names.
+- `ICLOUD_SYNC_DAYS`: optional forward sync window in days, defaulting to `7`.
 
 Production secrets live on Nova, not in this repository.
 

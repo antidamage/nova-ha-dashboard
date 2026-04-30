@@ -35,6 +35,7 @@ import {
 import { useDeviceTheme } from "./accentColor";
 import { DotLineControl, DotSpectrumControl } from "./DotControls";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import { TasksPanel } from "./TasksPanel";
 import { useBuildReload } from "./useBuildReload";
 
 const MapPanel = dynamic(() => import("./MapPanel").then((module) => module.MapPanel), { ssr: false });
@@ -3375,6 +3376,8 @@ export function Dashboard() {
             </aside>
 
             <div className="control-stage grid gap-5">
+              <TasksPanel />
+
               {selectedZone ? (
                 <ZoneControls
                   zone={selectedZone}
