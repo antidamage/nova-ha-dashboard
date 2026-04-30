@@ -75544,3 +75544,2075 @@ Failed to fetch radar tile {
   y: 79,
   z: 7
 }
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 77,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 125,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 78,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 126,
+  y: 79,
+  z: 7
+}
+Failed to fetch radar tile {
+  error: TypeError: fetch failed
+      at async k (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:5797)
+      at async o (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:9500)
+      at async f (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:10541)
+      at async Module.U [as handler] (D:\Projects\Agent\nova-ha-dashboard\.next\server\chunks\[root-of-the-server]__0jhutu.._.js:1:11648) {
+    [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: tilecache.rainviewer.com:443, timeout: 10000ms)
+        at ignore-listed frames {
+      code: 'UND_ERR_CONNECT_TIMEOUT'
+    }
+  },
+  x: 127,
+  y: 79,
+  z: 7
+}
