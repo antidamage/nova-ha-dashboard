@@ -24,6 +24,11 @@ const WHEEL_ZOOM_RENDER_THRESHOLD = 0.0006;
 const WHEEL_ZOOM_MAX_DELTA_PER_SECOND = 1.25;
 const RADAR_SOURCE_ID = "rain-radar";
 const RADAR_LAYER_ID = "rain-radar-layer";
+const SATELLITE_SOURCE_ID = "satellite-imagery";
+const SATELLITE_LAYER_ID = "satellite-ground";
+const SATELLITE_ATTRIBUTION =
+  "Imagery: Esri, Maxar, Earthstar Geographics, and the GIS User Community";
+const satelliteSourceTilesByMap = new WeakMap<maplibregl.Map, string>();
 const RADAR_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const RADAR_SOURCE_POLL_MS = 60 * 1000;
 const MAP_COLOR_FALLBACKS = {
@@ -243,6 +248,67 @@ function radarOpacityMultiplier() {
   return Math.max(0, Math.min(1, readCssNumber("--cyber-map-radar-opacity", 100) / 100));
 }
 
+function satelliteEnabled() {
+  return readCssNumber("--cyber-map-satellite", 1) >= 0.5;
+}
+
+function mapLabelSizeMultiplier() {
+  return Math.max(0.5, Math.min(2, readCssNumber("--cyber-map-label-size", 100) / 100));
+}
+
+function buildingExtrusionOpacity() {
+  return Math.max(0, Math.min(1, readCssNumber("--cyber-map-building-opacity", BUILDING_EXTRUSION_OPACITY * 100) / 100));
+}
+
+function buildingFootprintOpacity() {
+  return buildingExtrusionOpacity() * (BUILDING_FOOTPRINT_OPACITY / BUILDING_EXTRUSION_OPACITY);
+}
+
+function waterOpacityMultiplier() {
+  if (readCssNumber("--cyber-map-water-enabled", 1) < 0.5) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(1, readCssNumber("--cyber-map-water-opacity", 100) / 100));
+}
+
+function scaledLabelSize(value: number, multiplier: number) {
+  return Math.round(value * multiplier * 100) / 100;
+}
+
+function streetLabelSizeExpression(multiplier = 1) {
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    13,
+    scaledLabelSize(9, multiplier),
+    16,
+    scaledLabelSize(12, multiplier),
+  ] as const;
+}
+
+function satelliteTileTemplate() {
+  const base = encodeURIComponent(cssRgbCsv("--cyber-map-base-rgb", MAP_COLOR_FALLBACKS.base));
+  return `/api/satellite/{z}/{x}/{y}?base=${base}`;
+}
+
+function updateSatelliteSource(map: maplibregl.Map) {
+  const source = map.getSource(SATELLITE_SOURCE_ID) as MutableRasterTileSource | undefined;
+  if (!source) {
+    return;
+  }
+
+  const nextTiles = satelliteTileTemplate();
+  if (satelliteSourceTilesByMap.get(map) === nextTiles) {
+    return;
+  }
+
+  satelliteSourceTilesByMap.set(map, nextTiles);
+  source.setTiles([nextTiles]);
+  map.triggerRepaint();
+}
+
 function radarOpacityExpression(opacityMultiplier: number) {
   return [
     "interpolate",
@@ -352,6 +418,13 @@ const cyberpunkStyle = {
       maxzoom: 7,
       attribution: RAIN_RADAR_ATTRIBUTION_LABEL,
     },
+    [SATELLITE_SOURCE_ID]: {
+      type: "raster",
+      tiles: ["/api/satellite/{z}/{x}/{y}"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: SATELLITE_ATTRIBUTION,
+    },
   },
   light: {
     anchor: "viewport",
@@ -368,15 +441,6 @@ const cyberpunkStyle = {
       },
     },
     {
-      id: "water",
-      type: "fill",
-      source: "openfreemap",
-      "source-layer": "water",
-      paint: {
-        "fill-color": "rgb(191 232 255)",
-      },
-    },
-    {
       id: "landuse",
       type: "fill",
       source: "openfreemap",
@@ -384,6 +448,25 @@ const cyberpunkStyle = {
       paint: {
         "fill-color": "rgb(30 32 32)",
         "fill-opacity": landuseOpacityExpression(),
+      },
+    },
+    {
+      id: SATELLITE_LAYER_ID,
+      type: "raster",
+      source: SATELLITE_SOURCE_ID,
+      paint: {
+        "raster-opacity": 1,
+        "raster-resampling": "linear",
+      },
+    },
+    {
+      id: "water",
+      type: "fill",
+      source: "openfreemap",
+      "source-layer": "water",
+      paint: {
+        "fill-color": "rgb(191 232 255)",
+        "fill-opacity": 1,
       },
     },
     {
@@ -464,7 +547,7 @@ const cyberpunkStyle = {
         "text-letter-spacing": 0.02,
         "text-pitch-alignment": "viewport",
         "text-rotation-alignment": "map",
-        "text-size": ["interpolate", ["linear"], ["zoom"], 13, 9, 16, 12],
+        "text-size": streetLabelSizeExpression(),
       },
       paint: {
         "text-color": "rgb(215 255 50)",
@@ -498,6 +581,7 @@ function applyMapTheme(map: maplibregl.Map) {
   const buildingLowColor = cssRgb("--cyber-map-building-low-rgb", MAP_COLOR_FALLBACKS.buildingLow);
   const buildingHighColor = cssRgb("--cyber-map-building-high-rgb", MAP_COLOR_FALLBACKS.buildingHigh);
   const labelColor = cssRgb("--cyber-map-labels-rgb", MAP_COLOR_FALLBACKS.labels);
+  const labelSizeMultiplier = mapLabelSizeMultiplier();
   const roadColor = "--cyber-map-roads-rgb";
 
   if (map.getLayer("background")) {
@@ -505,6 +589,7 @@ function applyMapTheme(map: maplibregl.Map) {
   }
   if (map.getLayer("water")) {
     map.setPaintProperty("water", "fill-color", cssRgb("--cyber-map-water-rgb", MAP_COLOR_FALLBACKS.water));
+    map.setPaintProperty("water", "fill-opacity", waterOpacityMultiplier());
   }
   if (map.getLayer("landuse")) {
     map.setPaintProperty("landuse", "fill-color", cssRgb("--cyber-map-land-rgb", MAP_COLOR_FALLBACKS.land));
@@ -513,12 +598,12 @@ function applyMapTheme(map: maplibregl.Map) {
 
   if (map.getLayer("building-footprint")) {
     map.setPaintProperty("building-footprint", "fill-color", buildingHeightColorExpression(buildingLowColor, buildingHighColor));
-    map.setPaintProperty("building-footprint", "fill-opacity", buildingFootprintOpacityExpression());
+    map.setPaintProperty("building-footprint", "fill-opacity", buildingFootprintOpacityExpression(buildingFootprintOpacity()));
   }
 
   if (map.getLayer("building-3d")) {
     map.setPaintProperty("building-3d", "fill-extrusion-color", buildingHeightColorExpression(buildingLowColor, buildingHighColor));
-    map.setPaintProperty("building-3d", "fill-extrusion-opacity", buildingExtrusionOpacityExpression());
+    map.setPaintProperty("building-3d", "fill-extrusion-opacity", buildingExtrusionOpacityExpression(buildingExtrusionOpacity()));
   }
   if (map.getLayer("road-major")) {
     map.setPaintProperty("road-major", "line-color", cssRgbWithOpacity(roadColor, MAP_COLOR_FALLBACKS.roads, 0.36));
@@ -527,14 +612,20 @@ function applyMapTheme(map: maplibregl.Map) {
     map.setPaintProperty("road-minor", "line-color", cssRgbWithOpacity(roadColor, MAP_COLOR_FALLBACKS.roads, 0.18));
   }
   if (map.getLayer("label-street")) {
+    map.setLayoutProperty("label-street", "text-size", streetLabelSizeExpression(labelSizeMultiplier));
     map.setPaintProperty("label-street", "text-color", labelColor);
   }
   if (map.getLayer("label-place")) {
+    map.setLayoutProperty("label-place", "text-size", scaledLabelSize(11, labelSizeMultiplier));
     map.setPaintProperty("label-place", "text-color", labelColor);
   }
   if (map.getLayer(RADAR_LAYER_ID)) {
     map.setPaintProperty(RADAR_LAYER_ID, "raster-opacity", radarOpacityExpression(radarOpacityMultiplier()));
   }
+  if (map.getLayer(SATELLITE_LAYER_ID)) {
+    map.setLayoutProperty(SATELLITE_LAYER_ID, "visibility", satelliteEnabled() ? "visible" : "none");
+  }
+  updateSatelliteSource(map);
   updateRadarSource(map);
 }
 

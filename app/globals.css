@@ -15,16 +15,21 @@
   --cyber-border-strong: rgb(var(--cyber-border-rgb) / 0.9);
   --cyber-cyan: #28f3ff;
   --cyber-cyan-rgb: 40 243 255;
+  --cyber-highlight: var(--cyber-cyan);
+  --cyber-highlight-rgb: var(--cyber-cyan-rgb);
   --cyber-map-base: #252728;
   --cyber-map-base-rgb: 37 39 40;
   --cyber-map-water: #bfe8ff;
   --cyber-map-water-rgb: 191 232 255;
+  --cyber-map-water-enabled: 1;
+  --cyber-map-water-opacity: 100;
   --cyber-map-land: #1e2020;
   --cyber-map-land-rgb: 30 32 32;
   --cyber-map-building-low: #d7ff32;
   --cyber-map-building-low-rgb: 215 255 50;
   --cyber-map-building-high: #ffffff;
   --cyber-map-building-high-rgb: 255 255 255;
+  --cyber-map-building-opacity: 38;
   --cyber-map-roads: #d7ff32;
   --cyber-map-roads-rgb: 215 255 50;
   --cyber-map-labels: #d7ff32;
@@ -33,6 +38,7 @@
   --cyber-map-radar-low-rgb: 40 243 255;
   --cyber-map-radar-high: #ffffff;
   --cyber-map-radar-high-rgb: 255 255 255;
+  --cyber-map-label-size: 100;
   --cyber-map-radar-opacity: 100;
   --cyber-map-radar-mode: spectrum;
   --cyber-danger: #ff405b;
@@ -40,6 +46,7 @@
   --cyber-title-light: #f5f7ee;
   --cyber-title-on-line: var(--cyber-title-dark);
   --cyber-title-on-cyan: var(--cyber-title-dark);
+  --cyber-title-on-highlight: var(--cyber-title-on-cyan);
   --cyber-title-on-bg: var(--cyber-title-light);
   --cyber-title-glow-bg: color-mix(in srgb, var(--cyber-title-on-bg) 28%, transparent);
   --cyber-title-glow-line: color-mix(in srgb, var(--cyber-title-on-line) 28%, transparent);
@@ -1218,9 +1225,9 @@ button,
 
 .climate-toggle-active,
 .climate-mode-button-active {
-  border-color: var(--cyber-cyan) !important;
-  background: rgb(var(--cyber-cyan-rgb) / 0.12) !important;
-  color: var(--cyber-title-on-cyan) !important;
+  border-color: var(--cyber-highlight) !important;
+  background: rgb(var(--cyber-highlight-rgb) / 0.12) !important;
+  color: var(--cyber-title-on-highlight) !important;
 }
 
 .climate-toggle:disabled,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type ThemeColorSlot = "accent" | "highlight";
+export type ThemeConfigScope = "local" | "shared";
 export type ThemeTitleTone = "auto" | "light" | "dark";
 export type RadarPaletteMode = "spectrum" | "custom";
 export type MapThemeColorSlot = "base" | "water" | "land" | "buildingLow" | "buildingHigh" | "roads" | "labels" | "radarLow" | "radarHigh";
@@ -19,11 +20,20 @@ export type ThemeBorderValue = {
   opacity: number;
 };
 
+export type ThemeMapLayerValue = {
+  enabled: boolean;
+  opacity: number;
+};
+
 export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   autoFullscreenOnLoad: boolean;
   background: ThemeColorValue;
   border: ThemeBorderValue;
   map: Record<MapThemeColorSlot, ThemeColorValue>;
+  mapBuildingOpacity: number;
+  mapLabelSize: number;
+  mapSatellite: boolean;
+  mapWater: ThemeMapLayerValue;
   radarOpacity: number;
   radarPaletteMode: RadarPaletteMode;
   titleTone: ThemeTitleTone;
@@ -37,9 +47,20 @@ type StoredMapTheme = Partial<Record<MapThemeColorSlot, Partial<ThemeColorValue>
 
 const THEME_STORAGE_KEY = "nova.dashboard.accent.v1";
 const THEME_COOKIE_NAME = "nova.dashboard.accent.v1";
+const THEME_SCOPE_STORAGE_KEY = "nova.dashboard.configScope.v1";
+const THEME_SCOPE_COOKIE_NAME = "nova.dashboard.configScope.v1";
+const THEME_CHANGE_EVENT = "nova-accent-change";
+const THEME_SCOPE_CHANGE_EVENT = "nova-config-scope-change";
+const SHARED_THEME_POLL_MS = 30 * 1000;
 export const RADAR_OPACITY_DEFAULT = 100;
 export const RADAR_OPACITY_MAX = 100;
 export const RADAR_OPACITY_MIN = 0;
+export const MAP_LABEL_SIZE_DEFAULT = 100;
+export const MAP_LABEL_SIZE_MAX = 200;
+export const MAP_LABEL_SIZE_MIN = 50;
+export const MAP_BUILDING_OPACITY_DEFAULT = 38;
+export const MAP_BUILDING_OPACITY_MAX = 100;
+export const MAP_BUILDING_OPACITY_MIN = 0;
 
 export const DEFAULT_THEME: DeviceTheme = {
   accent: {
@@ -114,6 +135,13 @@ export const DEFAULT_THEME: DeviceTheme = {
       rgb: [255, 255, 255],
     },
   },
+  mapBuildingOpacity: MAP_BUILDING_OPACITY_DEFAULT,
+  mapLabelSize: MAP_LABEL_SIZE_DEFAULT,
+  mapSatellite: true,
+  mapWater: {
+    enabled: true,
+    opacity: 100,
+  },
   radarOpacity: RADAR_OPACITY_DEFAULT,
   radarPaletteMode: "spectrum",
   titleTone: "auto",
@@ -177,14 +205,34 @@ function normalizeRadarPaletteMode(value: unknown): RadarPaletteMode {
   return value === "custom" ? "custom" : "spectrum";
 }
 
-export function normalizeRadarOpacity(value: unknown) {
+function normalizeThemeScope(value: unknown): ThemeConfigScope {
+  return value === "shared" ? "shared" : "local";
+}
+
+function normalizeNumber(value: unknown, fallback: number, min: number, max: number) {
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    return RADAR_OPACITY_DEFAULT;
+    return fallback;
   }
 
-  return clamp(Math.round(parsed), RADAR_OPACITY_MIN, RADAR_OPACITY_MAX);
+  return clamp(Math.round(parsed), min, max);
+}
+
+function normalizePercent(value: unknown, fallback: number) {
+  return normalizeNumber(value, fallback, 0, 100);
+}
+
+function normalizeMapLabelSize(value: unknown) {
+  return normalizeNumber(value, MAP_LABEL_SIZE_DEFAULT, MAP_LABEL_SIZE_MIN, MAP_LABEL_SIZE_MAX);
+}
+
+function normalizeMapBuildingOpacity(value: unknown) {
+  return normalizeNumber(value, MAP_BUILDING_OPACITY_DEFAULT, MAP_BUILDING_OPACITY_MIN, MAP_BUILDING_OPACITY_MAX);
+}
+
+export function normalizeRadarOpacity(value: unknown) {
+  return normalizePercent(value, RADAR_OPACITY_DEFAULT);
 }
 
 function matchesThemeColor(value: Partial<ThemeColorValue> | null | undefined, expected: ThemeColorValue) {
@@ -203,6 +251,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     ? (value?.titleTone as ThemeTitleTone)
     : DEFAULT_THEME.titleTone;
   const borderValue = value?.border;
+  const mapWaterValue = value?.mapWater;
   const mapValue = value?.map as StoredMapTheme | null | undefined;
   const buildingLowValue = mapValue?.buildingLow ?? mapValue?.buildings;
   const buildingHighValue = matchesThemeColor(mapValue?.buildingHigh, {
@@ -237,6 +286,13 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
       labels: normalizeColor(mapValue?.labels, DEFAULT_THEME.map.labels),
       radarLow: normalizeColor(mapValue?.radarLow, DEFAULT_THEME.map.radarLow),
       radarHigh: normalizeColor(mapValue?.radarHigh, DEFAULT_THEME.map.radarHigh),
+    },
+    mapBuildingOpacity: normalizeMapBuildingOpacity(value?.mapBuildingOpacity),
+    mapLabelSize: normalizeMapLabelSize(value?.mapLabelSize),
+    mapSatellite: value?.mapSatellite !== false,
+    mapWater: {
+      enabled: mapWaterValue?.enabled !== false,
+      opacity: normalizePercent(mapWaterValue?.opacity, DEFAULT_THEME.mapWater.opacity),
     },
     radarOpacity: normalizeRadarOpacity(value?.radarOpacity),
     radarPaletteMode: normalizeRadarPaletteMode(value?.radarPaletteMode),
@@ -274,6 +330,8 @@ function applyCssColor(name: "line" | "cyan", rgb: [number, number, number]) {
 
   root.style.setProperty("--cyber-cyan", `rgb(${value})`);
   root.style.setProperty("--cyber-cyan-rgb", value);
+  root.style.setProperty("--cyber-highlight", `rgb(${value})`);
+  root.style.setProperty("--cyber-highlight-rgb", value);
 }
 
 function applyCssBorder(border: ThemeBorderValue, fallbackRgb: [number, number, number]) {
@@ -334,6 +392,7 @@ function applyCssTitleTone(tone: ThemeTitleTone, accent: [number, number, number
   const root = document.documentElement;
   root.style.setProperty("--cyber-title-on-line", titleColorFor(tone, accent, false));
   root.style.setProperty("--cyber-title-on-cyan", titleColorFor(tone, highlight, false));
+  root.style.setProperty("--cyber-title-on-highlight", titleColorFor(tone, highlight, false));
   root.style.setProperty("--cyber-title-on-bg", titleColorFor(tone, background, true));
 }
 
@@ -357,6 +416,20 @@ function applyCssMap(map: DeviceTheme["map"]) {
   setMapColor("radar-high", map.radarHigh);
 }
 
+function applyCssMapWater(water: ThemeMapLayerValue) {
+  const root = document.documentElement;
+  root.style.setProperty("--cyber-map-water-enabled", water.enabled ? "1" : "0");
+  root.style.setProperty("--cyber-map-water-opacity", String(normalizePercent(water.opacity, DEFAULT_THEME.mapWater.opacity)));
+}
+
+function applyCssMapLabelSize(value: number) {
+  document.documentElement.style.setProperty("--cyber-map-label-size", String(normalizeMapLabelSize(value)));
+}
+
+function applyCssMapBuildingOpacity(value: number) {
+  document.documentElement.style.setProperty("--cyber-map-building-opacity", String(normalizeMapBuildingOpacity(value)));
+}
+
 function applyCssRadarOpacity(value: number) {
   document.documentElement.style.setProperty("--cyber-map-radar-opacity", String(normalizeRadarOpacity(value)));
 }
@@ -373,11 +446,49 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssBackground(background);
   applyCssTitleTone(normalized.titleTone, accent, highlight, background);
   applyCssMap(normalized.map);
+  applyCssMapBuildingOpacity(normalized.mapBuildingOpacity);
+  applyCssMapLabelSize(normalized.mapLabelSize);
+  applyCssMapWater(normalized.mapWater);
   applyCssRadarOpacity(normalized.radarOpacity);
   document.documentElement.style.setProperty("--cyber-map-radar-mode", normalized.radarPaletteMode);
+  document.documentElement.style.setProperty("--cyber-map-satellite", normalized.mapSatellite ? "1" : "0");
 }
 
-function readTheme(fallback: Partial<DeviceTheme & ThemeColorValue> | null | undefined = DEFAULT_THEME) {
+function cookieValue(name: string) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const prefix = `${name}=`;
+  return document.cookie
+    .split("; ")
+    .find((part) => part.startsWith(prefix))
+    ?.slice(prefix.length) ?? null;
+}
+
+function readThemeScope() {
+  if (typeof window === "undefined") {
+    return "local" as ThemeConfigScope;
+  }
+
+  try {
+    return normalizeThemeScope(window.localStorage.getItem(THEME_SCOPE_STORAGE_KEY) ?? cookieValue(THEME_SCOPE_COOKIE_NAME));
+  } catch {
+    return normalizeThemeScope(cookieValue(THEME_SCOPE_COOKIE_NAME));
+  }
+}
+
+function writeThemeScopeCookie(scope: ThemeConfigScope) {
+  window.document.cookie = `${THEME_SCOPE_COOKIE_NAME}=${scope}; Path=/; Max-Age=31536000; SameSite=Lax`;
+}
+
+function writeThemeScope(scope: ThemeConfigScope) {
+  const normalized = normalizeThemeScope(scope);
+  window.localStorage.setItem(THEME_SCOPE_STORAGE_KEY, normalized);
+  writeThemeScopeCookie(normalized);
+}
+
+function readLocalTheme(fallback: Partial<DeviceTheme & ThemeColorValue> | null | undefined = DEFAULT_THEME) {
   if (typeof window === "undefined") {
     return normalizeTheme(fallback);
   }
@@ -389,6 +500,36 @@ function readTheme(fallback: Partial<DeviceTheme & ThemeColorValue> | null | und
   }
 }
 
+function readLocalAutoFullscreen() {
+  if (typeof window === "undefined") {
+    return DEFAULT_THEME.autoFullscreenOnLoad;
+  }
+
+  try {
+    return normalizeTheme(JSON.parse(window.localStorage.getItem(THEME_STORAGE_KEY) ?? "null") ?? DEFAULT_THEME).autoFullscreenOnLoad;
+  } catch {
+    return DEFAULT_THEME.autoFullscreenOnLoad;
+  }
+}
+
+function withLocalAutoFullscreen(theme: DeviceTheme) {
+  return {
+    ...theme,
+    autoFullscreenOnLoad: readLocalAutoFullscreen(),
+  };
+}
+
+async function readSharedTheme(fallback: Partial<DeviceTheme & ThemeColorValue> | null | undefined = DEFAULT_THEME) {
+  const response = await fetch("/api/theme", { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Shared theme request failed: ${response.status}`);
+  }
+
+  const data = await response.json() as { theme?: Partial<DeviceTheme & ThemeColorValue> | null };
+  return withLocalAutoFullscreen(normalizeTheme(data.theme ?? fallback));
+}
+
 function writeThemeCookie(theme: DeviceTheme) {
   window.document.cookie = `${THEME_COOKIE_NAME}=${encodeURIComponent(JSON.stringify(normalizeTheme(theme)))}; Path=/; Max-Age=31536000; SameSite=Lax`;
 }
@@ -397,42 +538,120 @@ function removeThemeCookie() {
   window.document.cookie = `${THEME_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
-function writeTheme(theme: DeviceTheme) {
+function writeLocalTheme(theme: DeviceTheme) {
   const normalized = normalizeTheme(theme);
   window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(normalized));
   writeThemeCookie(normalized);
-  window.dispatchEvent(new CustomEvent("nova-accent-change"));
+}
+
+function writeLocalAutoFullscreen(autoFullscreenOnLoad: boolean) {
+  const normalized = normalizeTheme({
+    ...readLocalTheme(DEFAULT_THEME),
+    autoFullscreenOnLoad,
+  });
+  window.localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(normalized));
+}
+
+function sharedThemePayload(theme: DeviceTheme): Record<string, unknown> {
+  const { autoFullscreenOnLoad: _localOnly, ...sharedTheme } = normalizeTheme(theme);
+  return sharedTheme;
+}
+
+async function writeSharedTheme(theme: DeviceTheme) {
+  const normalized = normalizeTheme(theme);
+  const response = await fetch("/api/theme", {
+    body: JSON.stringify({ theme: sharedThemePayload(normalized) }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Shared theme update failed: ${response.status}`);
+  }
 }
 
 export function useDeviceTheme(initialTheme?: Partial<DeviceTheme & ThemeColorValue> | null) {
+  const [themeScope, setThemeScopeState] = useState<ThemeConfigScope>(() => readThemeScope());
   const [theme, setThemeState] = useState(() => normalizeTheme(initialTheme ?? DEFAULT_THEME));
   const [themeReady, setThemeReady] = useState(initialTheme != null);
 
-  useEffect(() => {
-    const load = () => {
-      const next = readTheme(initialTheme ?? DEFAULT_THEME);
-      setThemeState(next);
-      applyDeviceTheme(next);
-      writeThemeCookie(next);
+  const loadTheme = useCallback(async (requestedScope: ThemeConfigScope = readThemeScope()) => {
+    const nextScope = normalizeThemeScope(requestedScope);
+    const fallback = initialTheme ?? DEFAULT_THEME;
+    setThemeScopeState(nextScope);
+
+    try {
+      const nextTheme = nextScope === "shared"
+        ? await readSharedTheme(fallback)
+        : readLocalTheme(fallback);
+      setThemeState(nextTheme);
+      applyDeviceTheme(nextTheme);
+      writeThemeCookie(nextTheme);
+      writeThemeScopeCookie(nextScope);
       setThemeReady(true);
+      window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT));
+    } catch (error) {
+      console.error("[nova-dashboard] failed to load dashboard theme", error);
+      setThemeReady(true);
+    }
+  }, [initialTheme]);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== THEME_STORAGE_KEY && event.key !== THEME_SCOPE_STORAGE_KEY) {
+        return;
+      }
+
+      void loadTheme();
     };
+    const onScopeChange = () => void loadTheme();
 
-    load();
-    window.addEventListener("storage", load);
-    window.addEventListener("nova-accent-change", load);
-
+    void loadTheme();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(THEME_SCOPE_CHANGE_EVENT, onScopeChange);
     return () => {
-      window.removeEventListener("storage", load);
-      window.removeEventListener("nova-accent-change", load);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(THEME_SCOPE_CHANGE_EVENT, onScopeChange);
     };
-  }, []);
+  }, [loadTheme]);
+
+  useEffect(() => {
+    if (themeScope !== "shared") {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void loadTheme("shared");
+    }, SHARED_THEME_POLL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [loadTheme, themeScope]);
 
   const setTheme = useCallback((next: DeviceTheme) => {
     const normalized = normalizeTheme(next);
     setThemeState(normalized);
     applyDeviceTheme(normalized);
-    writeTheme(normalized);
-  }, []);
+    writeThemeCookie(normalized);
+    window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT));
+
+    if (themeScope === "shared") {
+      writeLocalAutoFullscreen(normalized.autoFullscreenOnLoad);
+      void writeSharedTheme(normalized).catch((error) => {
+        console.error("[nova-dashboard] failed to update shared dashboard theme", error);
+      });
+      return;
+    }
+
+    writeLocalTheme(normalized);
+  }, [themeScope]);
+
+  const setThemeScope = useCallback((nextScope: ThemeConfigScope) => {
+    const normalized = normalizeThemeScope(nextScope);
+    writeThemeScope(normalized);
+    setThemeScopeState(normalized);
+    window.dispatchEvent(new CustomEvent(THEME_SCOPE_CHANGE_EVENT));
+    void loadTheme(normalized);
+  }, [loadTheme]);
 
   const setThemeColor = useCallback(
     (slot: ThemeColorSlot | "background", value: ThemeColorValue) => {
@@ -442,13 +661,26 @@ export function useDeviceTheme(initialTheme?: Partial<DeviceTheme & ThemeColorVa
   );
 
   const resetTheme = useCallback(() => {
-    setThemeState(DEFAULT_THEME);
+    const nextTheme = themeScope === "shared"
+      ? { ...DEFAULT_THEME, autoFullscreenOnLoad: readLocalAutoFullscreen() }
+      : DEFAULT_THEME;
+
+    setThemeState(nextTheme);
     setThemeReady(true);
-    applyDeviceTheme(DEFAULT_THEME);
+    applyDeviceTheme(nextTheme);
+    writeThemeCookie(nextTheme);
+    window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT));
+
+    if (themeScope === "shared") {
+      void writeSharedTheme(nextTheme).catch((error) => {
+        console.error("[nova-dashboard] failed to reset shared dashboard theme", error);
+      });
+      return;
+    }
+
     window.localStorage.removeItem(THEME_STORAGE_KEY);
     removeThemeCookie();
-    window.dispatchEvent(new CustomEvent("nova-accent-change"));
-  }, []);
+  }, [themeScope]);
 
-  return { resetTheme, setTheme, setThemeColor, theme, themeReady };
+  return { resetTheme, setTheme, setThemeColor, setThemeScope, theme, themeReady, themeScope };
 }

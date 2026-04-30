@@ -1373,30 +1373,38 @@ function TemperatureStepper({
   entity,
   label,
   onChange,
+  onTargetPreviewChange,
   step = 0.5,
+  targetTemperature,
 }: {
   currentTemperature?: number | null;
   disabled?: boolean;
   entity: DashboardEntity;
   label: string;
   onChange: (temperature: number) => Promise<void>;
+  onTargetPreviewChange?: (temperature: number) => void;
   step?: number;
+  targetTemperature?: number | null;
 }) {
   const serverTarget = climateTargetTemperature(entity);
+  const displayedTarget = targetTemperature ?? serverTarget;
   const current = currentTemperature ?? climateCurrentTemperature(entity);
-  const [target, setTarget] = useState(serverTarget);
+  const [target, setTarget] = useState(displayedTarget);
 
+  // Keep the stepper locally responsive, but let the parent own the selected
+  // target so aircon auto mode uses the same number the screen is showing.
   useEffect(() => {
-    setTarget(serverTarget);
-  }, [entity.entity_id, serverTarget]);
+    setTarget(displayedTarget);
+  }, [displayedTarget, entity.entity_id]);
 
   const nudge = (delta: number) => {
     if (disabled) {
       return;
     }
 
-    const next = temperatureDelta(entity, delta, step, target ?? serverTarget ?? current ?? 20);
+    const next = temperatureDelta(entity, delta, step, target ?? displayedTarget ?? current ?? 20);
     setTarget(next);
+    onTargetPreviewChange?.(next);
     void onChange(next);
   };
 
@@ -1552,6 +1560,41 @@ const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high",
 type AirconMode = (typeof AIRCON_MODES)[number]["mode"];
 type AirconFanStep = (typeof AIRCON_FAN_STEPS)[number];
 
+function isAirconMode(value?: string): value is AirconMode {
+  return AIRCON_MODES.some((mode) => mode.mode === value);
+}
+
+function airconEntityMode(entity: DashboardEntity) {
+  return isAirconMode(entity.state) ? entity.state : undefined;
+}
+
+function displayedAirconMode(entity: DashboardEntity, settings: AirconPreferences): AirconMode | undefined {
+  if (settings.autoMode) {
+    return "auto";
+  }
+
+  const selectedMode = isAirconMode(settings.hvacMode) ? settings.hvacMode : undefined;
+  const entityMode = airconEntityMode(entity);
+
+  if (entityMode && selectedMode && entityMode !== selectedMode && isClimateEntityOn(entity)) {
+    return entityMode;
+  }
+
+  return selectedMode ?? entityMode;
+}
+
+function airconModeSupported(supportedModes: string[], mode: AirconMode) {
+  return supportedModes.length === 0 || supportedModes.includes(mode);
+}
+
+function airconAutoSupported(supportedModes: string[]) {
+  return supportedModes.length === 0 || (supportedModes.includes("heat") && supportedModes.includes("cool"));
+}
+
+function airconAutoMeasuredTemperature(entity?: DashboardEntity, loungeEnvironment?: LoungeEnvironment | null) {
+  return loungeEnvironment?.temperature ?? (entity ? climateCurrentTemperature(entity) : null);
+}
+
 function airconFanStep(entity: DashboardEntity, quietSwitch?: DashboardEntity, turboSwitch?: DashboardEntity): AirconFanStep {
   if (quietSwitch?.state === "on") {
     return "quiet";
@@ -1576,6 +1619,31 @@ function airconFanStepForTemperatureDelta(delta: number): AirconFanStep {
   return AIRCON_FAN_STEPS[index] ?? "quiet";
 }
 
+/*
+ * Dashboard-managed aircon auto mode.
+ *
+ * This is intentionally not the Gree/HA "auto" HVAC mode. The dashboard owns a
+ * small thermostat loop so it can pick heat or cool from the measured room
+ * temperature and then shut the unit down after a short tail inside the target
+ * band. The measured temperature comes from the lounge sensor first, then the
+ * AC entity's own current_temperature if the lounge sensor is unavailable. The
+ * invariant that matters most:
+ *
+ *   temperatureDelta = measuredRoomTemperature - selectedTargetTemperature
+ *
+ * If temperatureDelta is positive, the room is hotter than the target, so the
+ * only sensible active mode is "cool". If it is negative, the room is colder
+ * than the target, so the only sensible active mode is "heat". Do not invert
+ * this sign, and do not derive the target from raw HA state in one place while
+ * the UI shows a different locally selected target in another place. The
+ * TemperatureStepper is controlled by AirConditionerControl so an immediate
+ * "21 -> 23, then Auto" click sequence plans against 23 even before the server
+ * has echoed the preference back.
+ *
+ * Preferences are the dashboard's memory: autoMode means "run this thermostat
+ * loop"; hvacMode records the last heat/cool mode selected by the loop or the
+ * user so the UI can stay stable unless HA reports a real conflicting mode.
+ */
 type AirconAutoState = {
   // Timestamp (ms) when the current temperature first entered the +/- band
   // while the unit was still running. Used to time the post-target tail.
@@ -1670,7 +1738,7 @@ function planAirconAutoTick({
     nextState: { ...state, ...overrides },
   });
 
-  if (!entity || currentTemperature === null) {
+  if (!entity) {
     return noop();
   }
 
@@ -1679,18 +1747,40 @@ function planAirconAutoTick({
     return noop();
   }
 
-  const lastSensorTemperature = currentTemperature;
-  const sensorChanged = state.lastSensorTemperature !== currentTemperature;
   const supportedModes = stringListAttribute(entity, "hvac_modes");
   const supported = (mode: string) => supportedModes.length === 0 || supportedModes.includes(mode);
-  const delta = currentTemperature - targetTemperature;
-  const absDelta = Math.abs(delta);
-  const isOn = isClimateEntityOn(entity);
   const inactiveRemember = (mode?: string): AirconPreferences => ({
     autoMode: true,
     hvacMode: mode,
     temperature: targetTemperature,
   });
+  const preferredMode = preferences?.hvacMode;
+  const selectedMode = isAirconMode(preferredMode) ? preferredMode : airconEntityMode(entity);
+
+  if (currentTemperature === null) {
+    if (!forceRemember) {
+      return noop();
+    }
+
+    return {
+      actions: [
+        {
+          entityId: entity.entity_id,
+          domain: "climate",
+          service: "set_temperature",
+          data: { temperature: targetTemperature },
+          remember: { aircon: inactiveRemember(selectedMode) },
+        },
+      ],
+      nextState: { ...state, lastSensorTemperature: null },
+    };
+  }
+
+  const lastSensorTemperature = currentTemperature;
+  const sensorChanged = state.lastSensorTemperature !== currentTemperature;
+  const delta = currentTemperature - targetTemperature;
+  const absDelta = Math.abs(delta);
+  const isOn = isClimateEntityOn(entity);
 
   // After a tail-off, hold position until the sensor actually updates and
   // shows we've drifted back out of the band.
@@ -1850,10 +1940,25 @@ function AirConditionerControl({
   const [displayedFanStep, setDisplayedFanStep] = useState<AirconFanStep>(
     AIRCON_FAN_STEPS[currentFanIndex] ?? "medium",
   );
+  const entityTargetTemperature = entity ? climateTargetTemperature(entity) ?? undefined : undefined;
+  const rememberedTargetTemperature = typeof preferences?.temperature === "number" ? preferences.temperature : undefined;
+  // Manual mode follows the actual AC setpoint first; dashboard Auto follows
+  // the remembered dashboard target first. In both cases user nudges update
+  // selectedTargetTemperature immediately so the next Auto click cannot use a
+  // stale target from a previous render or a delayed HA echo.
+  const preferredTargetTemperature =
+    preferences?.autoMode === true
+      ? rememberedTargetTemperature ?? entityTargetTemperature
+      : entityTargetTemperature ?? rememberedTargetTemperature;
+  const [selectedTargetTemperature, setSelectedTargetTemperature] = useState<number | undefined>(preferredTargetTemperature);
 
   useEffect(() => {
     setDisplayedFanStep(AIRCON_FAN_STEPS[currentFanIndex] ?? "medium");
   }, [currentFanIndex]);
+
+  useEffect(() => {
+    setSelectedTargetTemperature(preferredTargetTemperature);
+  }, [entity?.entity_id, preferredTargetTemperature]);
 
   if (!entity) {
     return <ClimateCard kicker="Air Control" title="Air Conditioner" />;
@@ -1861,18 +1966,20 @@ function AirConditionerControl({
 
   const isOn = isClimateEntityOn(entity);
   const supportedModes = stringListAttribute(entity, "hvac_modes");
+  const entityUnavailable = ["unavailable", "unknown"].includes(entity.state);
 
   const airconSettings = {
     autoMode: preferences?.autoMode ?? false,
     hvacMode:
       preferences?.hvacMode ??
       (isOn && entity.state !== "off" && entity.state !== "unavailable" && entity.state !== "unknown" ? entity.state : undefined),
-    temperature: preferences?.temperature ?? climateTargetTemperature(entity) ?? undefined,
+    temperature: selectedTargetTemperature ?? preferredTargetTemperature,
     fanMode: preferences?.fanMode ?? String(entity.attributes.fan_mode ?? "medium"),
     quietMode: preferences?.quietMode ?? quietSwitch?.state === "on",
     turboMode: preferences?.turboMode ?? turboSwitch?.state === "on",
   } satisfies AirconPreferences;
   const isControlOn = isOn || airconSettings.autoMode;
+  const activeMode = displayedAirconMode(entity, airconSettings);
 
   const setPower = () => {
     const actions: EntityActionInput[] = [];
@@ -1885,9 +1992,11 @@ function AirConditionerControl({
         remember: { aircon: { autoMode: false } },
       });
     } else {
-      const hvacMode = airconSettings.hvacMode && supportedModes.includes(airconSettings.hvacMode)
-        ? airconSettings.hvacMode
-        : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
+      const preferredMode = isAirconMode(airconSettings.hvacMode) ? airconSettings.hvacMode : undefined;
+      const hvacMode =
+        preferredMode && airconModeSupported(supportedModes, preferredMode)
+          ? preferredMode
+          : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
 
       actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_on" });
 
@@ -1945,7 +2054,7 @@ function AirConditionerControl({
     if (mode === "auto") {
       return callClimateActions(
         buildAirconAutoActions({
-          currentTemperature: loungeEnvironment?.temperature ?? null,
+          currentTemperature: airconAutoMeasuredTemperature(entity, loungeEnvironment),
           entity,
           forceRemember: true,
           preferences: airconSettings,
@@ -1972,8 +2081,9 @@ function AirConditionerControl({
     );
   };
 
-  const setTemperature = (temperature: number) =>
-    callClimateActions(
+  const setTemperature = (temperature: number) => {
+    setSelectedTargetTemperature(temperature);
+    return callClimateActions(
       [
         {
           entityId: entity.entity_id,
@@ -1986,6 +2096,7 @@ function AirConditionerControl({
       onEntityActions,
       `Air Conditioner ${temperature} degrees`,
     );
+  };
 
   const setFreshAir = () =>
     freshAirSwitch
@@ -2050,18 +2161,15 @@ function AirConditionerControl({
 
         <div className="climate-mode-grid grid grid-cols-4 gap-3">
           {AIRCON_MODES.map(({ Icon, label, mode }) => {
-            const active = airconSettings.autoMode ? mode === "auto" : entity.state === mode;
-            const unavailable =
-              mode === "auto"
-                ? typeof loungeEnvironment?.temperature !== "number" ||
-                  (supportedModes.length > 0 && (!supportedModes.includes("heat") || !supportedModes.includes("cool")))
-                : supportedModes.length > 0 && !supportedModes.includes(mode);
+            const active = activeMode === mode;
+            const unavailable = mode === "auto" ? !airconAutoSupported(supportedModes) : !airconModeSupported(supportedModes, mode);
             return (
               <button
                 key={mode}
                 type="button"
+                aria-pressed={active}
                 className={classNames("climate-mode-button border", active && "climate-mode-button-active")}
-                disabled={!isControlOn || unavailable}
+                disabled={entityUnavailable || unavailable}
                 onClick={() => setMode(mode, label)}
               >
                 <Icon className="h-6 w-6" />
@@ -2076,7 +2184,9 @@ function AirConditionerControl({
           disabled={!isControlOn}
           entity={entity}
           label="Temperature"
+          onTargetPreviewChange={setSelectedTargetTemperature}
           step={1}
+          targetTemperature={airconSettings.temperature}
           onChange={setTemperature}
         />
 
@@ -3141,7 +3251,7 @@ export function Dashboard() {
       const currentClimateZone = snapshot?.zones.find(isClimateZone) ?? null;
       const { aircon, quietSwitch, turboSwitch } = climateDevicesForZone(currentClimateZone);
       const { actions, nextState } = planAirconAutoTick({
-        currentTemperature: currentEnvironment?.temperature ?? null,
+        currentTemperature: airconAutoMeasuredTemperature(aircon, currentEnvironment),
         entity: aircon,
         preferences: snapshot?.preferences.aircon,
         quietSwitch,

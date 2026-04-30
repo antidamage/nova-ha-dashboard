@@ -537,6 +537,9 @@ export async function buildDashboardState(): Promise<DashboardState> {
     if (registry?.disabled_by || registry?.hidden_by) {
       return [];
     }
+    if (state.state === "unavailable" && state.attributes?.restored === true) {
+      return [];
+    }
 
     const device = registry?.device_id ? deviceById.get(registry.device_id) : undefined;
     const areaId = registry?.area_id ?? device?.area_id ?? "unassigned";

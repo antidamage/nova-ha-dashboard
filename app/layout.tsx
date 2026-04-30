@@ -27,6 +27,7 @@ try {
   });
 
   var themeKey = "nova.dashboard.accent.v1";
+  var themeScopeKey = "nova.dashboard.configScope.v1";
   var cookieValue = function (name) {
     var parts = document.cookie ? document.cookie.split("; ") : [];
     for (var index = 0; index < parts.length; index += 1) {
@@ -37,7 +38,9 @@ try {
     }
     return null;
   };
-  var storedText = localStorage.getItem(themeKey);
+  var themeScope = (localStorage.getItem(themeScopeKey) || cookieValue(themeScopeKey)) === "shared" ? "shared" : "local";
+  document.cookie = themeScopeKey + "=" + themeScope + "; Path=/; Max-Age=31536000; SameSite=Lax";
+  var storedText = themeScope === "shared" ? null : localStorage.getItem(themeKey);
   var cookieText = cookieValue(themeKey);
   var stored = JSON.parse(storedText || (cookieText ? decodeURIComponent(cookieText) : "null") || "null");
   var accent = stored && stored.accent ? stored.accent : (stored && Array.isArray(stored.rgb) ? stored : null);
@@ -45,8 +48,12 @@ try {
   var background = stored && stored.background ? stored.background : null;
   var border = stored && stored.border ? stored.border : null;
   var map = stored && stored.map ? stored.map : null;
+  var mapBuildingOpacity = stored && stored.mapBuildingOpacity;
+  var mapLabelSize = stored && stored.mapLabelSize;
+  var mapWater = stored && stored.mapWater ? stored.mapWater : null;
   var radarOpacity = stored && stored.radarOpacity;
   var radarPaletteMode = stored && stored.radarPaletteMode === "custom" ? "custom" : "spectrum";
+  var mapSatellite = !(stored && stored.mapSatellite === false);
   var titleTone = stored && stored.titleTone ? stored.titleTone : "auto";
   var clamp = function (value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -69,6 +76,16 @@ try {
   var normalizedRadarOpacity = function (value) {
     var parsed = Number(value);
     if (!Number.isFinite(parsed)) return 100;
+    return clamp(Math.round(parsed), 0, 100);
+  };
+  var normalizedMapLabelSize = function (value) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 100;
+    return clamp(Math.round(parsed), 50, 200);
+  };
+  var normalizedMapBuildingOpacity = function (value) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 38;
     return clamp(Math.round(parsed), 0, 100);
   };
   var mix = function (from, to, amount) {
@@ -101,6 +118,8 @@ try {
     }
     document.documentElement.style.setProperty("--cyber-cyan", "rgb(" + value + ")");
     document.documentElement.style.setProperty("--cyber-cyan-rgb", value);
+    document.documentElement.style.setProperty("--cyber-highlight", "rgb(" + value + ")");
+    document.documentElement.style.setProperty("--cyber-highlight-rgb", value);
   };
   var setBorder = function (borderValue, fallbackRgb) {
     var enabled = borderValue && borderValue.enabled === true;
@@ -120,6 +139,7 @@ try {
   var setTitleTone = function (tone, accentRgb, highlightRgb, backgroundRgb) {
     document.documentElement.style.setProperty("--cyber-title-on-line", titleColor(tone, accentRgb, false));
     document.documentElement.style.setProperty("--cyber-title-on-cyan", titleColor(tone, highlightRgb, false));
+    document.documentElement.style.setProperty("--cyber-title-on-highlight", titleColor(tone, highlightRgb, false));
     document.documentElement.style.setProperty("--cyber-title-on-bg", titleColor(tone, backgroundRgb, true));
   };
   var setMapColor = function (name, color, fallbackRgb) {
@@ -145,8 +165,32 @@ try {
   var setRadarOpacity = function (value) {
     document.documentElement.style.setProperty("--cyber-map-radar-opacity", String(normalizedRadarOpacity(value)));
   };
-  if (stored) {
-    document.cookie = themeKey + "=" + encodeURIComponent(JSON.stringify(stored)) + "; Path=/; Max-Age=31536000; SameSite=Lax";
+  var setMapLabelSize = function (value) {
+    document.documentElement.style.setProperty("--cyber-map-label-size", String(normalizedMapLabelSize(value)));
+  };
+  var setMapBuildingOpacity = function (value) {
+    document.documentElement.style.setProperty("--cyber-map-building-opacity", String(normalizedMapBuildingOpacity(value)));
+  };
+  var setMapWater = function (value) {
+    var enabled = !(value && value.enabled === false);
+    document.documentElement.style.setProperty("--cyber-map-water-enabled", enabled ? "1" : "0");
+    document.documentElement.style.setProperty("--cyber-map-water-opacity", String(normalizedRadarOpacity(value && value.opacity)));
+  };
+  var applyTheme = function (themeValue) {
+    if (!themeValue) return;
+    var accent = themeValue.accent ? themeValue.accent : (Array.isArray(themeValue.rgb) ? themeValue : null);
+    var highlight = themeValue.highlight ? themeValue.highlight : null;
+    var background = themeValue.background ? themeValue.background : null;
+    var border = themeValue.border ? themeValue.border : null;
+    var map = themeValue.map ? themeValue.map : null;
+    var mapBuildingOpacity = themeValue.mapBuildingOpacity;
+    var mapLabelSize = themeValue.mapLabelSize;
+    var mapWater = themeValue.mapWater ? themeValue.mapWater : null;
+    var radarOpacity = themeValue.radarOpacity;
+    var radarPaletteMode = themeValue.radarPaletteMode === "custom" ? "custom" : "spectrum";
+    var mapSatellite = !(themeValue.mapSatellite === false);
+    var titleTone = themeValue.titleTone ? themeValue.titleTone : "auto";
+    document.cookie = themeKey + "=" + encodeURIComponent(JSON.stringify(themeValue)) + "; Path=/; Max-Age=31536000; SameSite=Lax";
     var accentRgb = applied(accent, [215, 255, 50]);
     var highlightRgb = applied(highlight, [40, 243, 255]);
     var backgroundRgb = applied(background, [37, 39, 40]);
@@ -156,7 +200,23 @@ try {
     setBackground(backgroundRgb);
     setTitleTone(titleTone, accentRgb, highlightRgb, backgroundRgb);
     setMap(map);
+    document.documentElement.style.setProperty("--cyber-map-radar-mode", radarPaletteMode);
+    setMapBuildingOpacity(mapBuildingOpacity);
+    setMapLabelSize(mapLabelSize);
+    setMapWater(mapWater);
     setRadarOpacity(radarOpacity);
+    document.documentElement.style.setProperty("--cyber-map-satellite", mapSatellite ? "1" : "0");
+  };
+  if (stored) {
+    applyTheme(stored);
+  }
+  if (themeScope === "shared") {
+    fetch("/api/theme", { cache: "no-store" })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) {
+        if (data && data.theme) applyTheme(data.theme);
+      })
+      .catch(function () {});
   }
 } catch (_) {}
 `,

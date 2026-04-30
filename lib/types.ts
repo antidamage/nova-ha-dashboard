@@ -120,6 +120,8 @@ export type AirconPreferences = {
 
 export type DashboardPreferences = {
   aircon?: AirconPreferences;
+  theme?: Record<string, unknown>;
+  themeUpdatedAt?: string;
 };
 
 export type DashboardState = {

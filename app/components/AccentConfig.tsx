@@ -4,6 +4,12 @@ import { ArrowLeftRight, Check, Home, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   DeviceTheme,
+  MAP_BUILDING_OPACITY_DEFAULT,
+  MAP_BUILDING_OPACITY_MAX,
+  MAP_BUILDING_OPACITY_MIN,
+  MAP_LABEL_SIZE_DEFAULT,
+  MAP_LABEL_SIZE_MAX,
+  MAP_LABEL_SIZE_MIN,
   MapThemeColorSlot,
   RADAR_OPACITY_DEFAULT,
   RADAR_OPACITY_MAX,
@@ -11,7 +17,9 @@ import {
   RadarPaletteMode,
   ThemeBorderValue,
   ThemeColorSlot,
+  ThemeConfigScope,
   ThemeColorValue,
+  ThemeMapLayerValue,
   ThemeTitleTone,
   appliedThemeRgb,
   normalizeRadarOpacity,
@@ -60,6 +68,11 @@ const TITLE_TONES: Array<{ value: ThemeTitleTone; label: string }> = [
   { value: "auto", label: "Auto" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
+];
+
+const CONFIG_SCOPES: Array<{ value: ThemeConfigScope; label: string; detail: string }> = [
+  { value: "local", label: "Local", detail: "This client" },
+  { value: "shared", label: "Shared", detail: "Host settings" },
 ];
 
 function isThemeConfigSlot(value: string | null): value is ThemeConfigSlot {
@@ -275,6 +288,173 @@ function BorderToggle({
   );
 }
 
+function ConfigScopeSwitch({
+  onChange,
+  value,
+}: {
+  onChange: (value: ThemeConfigScope) => void;
+  value: ThemeConfigScope;
+}) {
+  return (
+    <section className="theme-config-section grid gap-3">
+      <h2 className="text-xl font-black uppercase text-neutral-100">Config Source</h2>
+      <div className="grid grid-cols-2 gap-3" role="tablist" aria-label="Config source">
+        {CONFIG_SCOPES.map((scope) => {
+          const active = value === scope.value;
+
+          return (
+            <MomentaryFeedbackButton
+              key={scope.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={`theme-choice-tab border p-4 text-left ${active ? "theme-choice-tab-active" : ""}`}
+              onClick={() => onChange(scope.value)}
+            >
+              <span className="grid min-w-0 gap-1">
+                <span className="theme-display-label zone-title-bar">{scope.label}</span>
+                <span className="theme-display-detail">{scope.detail}</span>
+              </span>
+            </MomentaryFeedbackButton>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function WaterToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <CheckboxRow
+      checked={checked}
+      label="Water Fill"
+      detail={checked ? "Harbour fill is visible on the map" : "Water layer is hidden on the map"}
+      onChange={onChange}
+    />
+  );
+}
+
+function WaterOpacity({
+  color,
+  onChange,
+  water,
+}: {
+  color: [number, number, number];
+  onChange: (water: ThemeMapLayerValue) => void;
+  water: ThemeMapLayerValue;
+}) {
+  const opacity = clamp(Math.round(Number(water.opacity)), 0, 100);
+
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_96px] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">Water Opacity</p>
+        <div className="px-1">
+          <DotLineControl
+            ariaLabel="Water opacity"
+            ariaValueText={`${opacity}%`}
+            value={opacity}
+            min={0}
+            max={100}
+            step={1}
+            color={color}
+            activeColor={color}
+            dotOpacity={opacity / 100}
+            onChange={(nextOpacity) => onChange({ ...water, opacity: nextOpacity })}
+          />
+        </div>
+        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{opacity}%</p>
+      </div>
+    </div>
+  );
+}
+
+function MapLabelSizeControl({
+  color,
+  onChange,
+  value,
+}: {
+  color: [number, number, number];
+  onChange: (value: number) => void;
+  value: number;
+}) {
+  const labelSize = clamp(Math.round(Number(value)), MAP_LABEL_SIZE_MIN, MAP_LABEL_SIZE_MAX);
+
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_96px] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">Label Size</p>
+        <div className="px-1">
+          <DotLineControl
+            ariaLabel="Map label size"
+            ariaValueText={`${labelSize}%`}
+            value={labelSize}
+            min={MAP_LABEL_SIZE_MIN}
+            max={MAP_LABEL_SIZE_MAX}
+            step={50}
+            color={color}
+            activeColor={color}
+            onChange={onChange}
+            markers={[
+              { active: labelSize === MAP_LABEL_SIZE_MIN, label: "Min", value: MAP_LABEL_SIZE_MIN },
+              { active: labelSize === MAP_LABEL_SIZE_DEFAULT, label: "Default", value: MAP_LABEL_SIZE_DEFAULT },
+              { active: labelSize === MAP_LABEL_SIZE_MAX, label: "Max", value: MAP_LABEL_SIZE_MAX },
+            ]}
+          />
+        </div>
+        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{labelSize}%</p>
+      </div>
+    </div>
+  );
+}
+
+function BuildingOpacityControl({
+  highColor,
+  lowColor,
+  onChange,
+  value,
+}: {
+  highColor: [number, number, number];
+  lowColor: [number, number, number];
+  onChange: (value: number) => void;
+  value: number;
+}) {
+  const opacity = clamp(Math.round(Number(value)), MAP_BUILDING_OPACITY_MIN, MAP_BUILDING_OPACITY_MAX);
+
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_96px] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">Building Opacity</p>
+        <div className="px-1">
+          <DotLineControl
+            ariaLabel="Building opacity"
+            ariaValueText={`${opacity}%`}
+            value={opacity}
+            min={MAP_BUILDING_OPACITY_MIN}
+            max={MAP_BUILDING_OPACITY_MAX}
+            step={1}
+            color={lowColor}
+            activeColor={highColor}
+            dotOpacity={opacity / 100}
+            onChange={onChange}
+            markers={[
+              { active: opacity === MAP_BUILDING_OPACITY_DEFAULT, label: "Default", value: MAP_BUILDING_OPACITY_DEFAULT },
+              { active: opacity === MAP_BUILDING_OPACITY_MAX, label: "Max", value: MAP_BUILDING_OPACITY_MAX },
+            ]}
+          />
+        </div>
+        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{opacity}%</p>
+      </div>
+    </div>
+  );
+}
+
 function TitleToneControl({
   accentColor,
   highlightColor,
@@ -408,11 +588,15 @@ function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): ThemeColo
 export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTheme & ThemeColorValue> | null }) {
   useBuildReload();
 
-  const { resetTheme, setTheme, setThemeColor, theme, themeReady } = useDeviceTheme(initialTheme);
+  const { resetTheme, setTheme, setThemeColor, setThemeScope, theme, themeReady, themeScope } = useDeviceTheme(initialTheme);
   const [activeSlot, setActiveSlot] = useState<ThemeConfigSlot | null>(selectedConfigWidgetFromStorage);
   const accentRgb = appliedThemeRgb(theme.accent);
   const highlightRgb = appliedThemeRgb(theme.highlight);
   const borderRgb = appliedThemeRgb(theme.border.color);
+  const buildingLowRgb = appliedThemeRgb(theme.map.buildingLow);
+  const buildingHighRgb = appliedThemeRgb(theme.map.buildingHigh);
+  const labelRgb = appliedThemeRgb(theme.map.labels);
+  const waterRgb = appliedThemeRgb(theme.map.water);
   const radarLowRgb = appliedThemeRgb(theme.map.radarLow);
   const radarHighRgb = appliedThemeRgb(theme.map.radarHigh);
 
@@ -444,6 +628,10 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
     setTheme({ ...theme, border });
   };
 
+  const updateMapWater = (mapWater: ThemeMapLayerValue) => {
+    setTheme({ ...theme, mapWater });
+  };
+
   useEffect(() => {
     removeLegacyConfigWidgetParam();
 
@@ -465,6 +653,9 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
     const value = themeColorForSlot(theme, choice.slot);
     const rgb = choice.slot === "border" ? borderRgb : appliedThemeRgb(value);
     const active = activeSlot === choice.slot;
+    const isBuilding = choice.slot === "map.buildingLow" || choice.slot === "map.buildingHigh";
+    const isLabels = choice.slot === "map.labels";
+    const isWater = choice.slot === "map.water";
 
     return (
       <div key={choice.slot} className={`theme-widget-cell grid gap-3 ${active ? "theme-widget-cell-active" : ""}`}>
@@ -476,13 +667,22 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
         >
           <span
             className="theme-display-swatch border"
-            style={{ backgroundColor: `rgb(${rgb.join(",")})` }}
+            style={{
+              backgroundColor: `rgb(${rgb.join(",")})`,
+              opacity: isWater ? (theme.mapWater.enabled ? Math.max(0.18, theme.mapWater.opacity / 100) : 0.24) : undefined,
+            }}
           />
           <span className="theme-display-copy">
             <span className="theme-display-label zone-title-bar">{choice.label}</span>
             <span className="theme-display-detail">{choice.detail}</span>
             <span className="theme-display-rgb">
-              {choice.slot === "border" && !theme.border.enabled ? "line default" : `rgb ${rgb.join(" ")}`}
+              {choice.slot === "border" && !theme.border.enabled
+                ? "line default"
+                : isWater
+                  ? theme.mapWater.enabled
+                    ? `rgb ${rgb.join(" ")} / ${theme.mapWater.opacity}%`
+                    : "water disabled"
+                  : `rgb ${rgb.join(" ")}`}
             </span>
           </span>
         </button>
@@ -496,8 +696,32 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                   onChange={(enabled) => updateBorder({ ...theme.border, enabled })}
                 />
               ) : null}
+              {isWater ? (
+                <WaterToggle
+                  checked={theme.mapWater.enabled}
+                  onChange={(enabled) => updateMapWater({ ...theme.mapWater, enabled })}
+                />
+              ) : null}
               <AccentSpectrum label={choice.label} value={value} onChange={(nextValue) => updateSlotColor(choice.slot, nextValue)} />
               <AccentIntensity label={choice.label} value={value} onChange={(nextValue) => updateSlotColor(choice.slot, nextValue)} />
+              {isLabels ? (
+                <MapLabelSizeControl
+                  color={labelRgb}
+                  value={theme.mapLabelSize}
+                  onChange={(mapLabelSize) => setTheme({ ...theme, mapLabelSize })}
+                />
+              ) : null}
+              {isBuilding ? (
+                <BuildingOpacityControl
+                  lowColor={buildingLowRgb}
+                  highColor={buildingHighRgb}
+                  value={theme.mapBuildingOpacity}
+                  onChange={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity })}
+                />
+              ) : null}
+              {isWater ? (
+                <WaterOpacity water={theme.mapWater} color={waterRgb} onChange={updateMapWater} />
+              ) : null}
               {choice.slot === "border" ? (
                 <BorderOpacity border={theme.border} color={borderRgb} onChange={updateBorder} />
               ) : null}
@@ -518,7 +742,7 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
 
             <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="text-sm font-black uppercase text-cyan-300">Local Config</p>
+                <p className="text-sm font-black uppercase text-cyan-300">Config</p>
                 <h1 className="mt-1 text-4xl font-black uppercase text-neutral-50 sm:text-5xl">Theme</h1>
               </div>
               <div className="config-actions grid grid-cols-2 gap-3">
@@ -532,12 +756,14 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
             </header>
 
             <div className="grid gap-5">
+              <ConfigScopeSwitch value={themeScope} onChange={setThemeScope} />
+
               <section className="theme-config-section grid gap-3">
                 <h2 className="text-xl font-black uppercase text-neutral-100">Dashboard Behaviour</h2>
                 <CheckboxRow
                   checked={theme.autoFullscreenOnLoad}
                   label="Auto Fullscreen"
-                  detail={theme.autoFullscreenOnLoad ? "Requests fullscreen when the dashboard opens" : "Dashboard opens without requesting fullscreen"}
+                  detail={theme.autoFullscreenOnLoad ? "Local client requests fullscreen when the dashboard opens" : "Local client opens without requesting fullscreen"}
                   onChange={(autoFullscreenOnLoad) => setTheme({ ...theme, autoFullscreenOnLoad })}
                 />
               </section>
@@ -561,6 +787,12 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
 
               <section className="theme-config-section grid gap-3">
                 <h2 className="text-xl font-black uppercase text-neutral-100">Map Components</h2>
+                <CheckboxRow
+                  checked={theme.mapSatellite}
+                  label="Satellite Ground"
+                  detail={theme.mapSatellite ? "Tinted satellite imagery covers the map ground plane" : "Map ground uses the flat base and land use colours"}
+                  onChange={(mapSatellite) => setTheme({ ...theme, mapSatellite })}
+                />
                 <div className="theme-widget-grid grid gap-3">
                   {MAP_THEME_SLOTS.map(renderWidget)}
                 </div>
