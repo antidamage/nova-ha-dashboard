@@ -190,6 +190,10 @@ body.task-alerting {
     transform: none;
     width: min(280px, calc(100vw - var(--nova-avatar-margin) * 2));
   }
+
+  .zone-button-tasks {
+    margin-top: 64px;
+  }
 }
 
 /* Nova avatar config section on /config */

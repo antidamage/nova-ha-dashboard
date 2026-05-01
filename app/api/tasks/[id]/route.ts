@@ -14,11 +14,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const body = await request.json();
-    const task = await updateTask(id, {
+    const patch: { name: unknown; start: unknown; end: unknown; repeat?: unknown } = {
       name: body.name,
       start: body.start,
       end: body.end,
-    });
+    };
+    if (Object.prototype.hasOwnProperty.call(body, "repeat")) {
+      patch.repeat = body.repeat;
+    }
+
+    const task = await updateTask(id, patch);
 
     return NextResponse.json(task);
   } catch (error) {

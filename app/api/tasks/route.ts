@@ -22,6 +22,7 @@ export async function POST(request: Request) {
       name: body.name,
       start: body.start,
       end: body.end,
+      repeat: body.repeat,
       source: "local",
     });
 

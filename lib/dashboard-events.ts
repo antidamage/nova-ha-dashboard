@@ -409,10 +409,8 @@ function isTaskAlerting(task: Task, now: number) {
 
 async function sendTasksSnapshot(client: DashboardEventClient) {
   try {
-    if (!store.latestTasksJson) {
-      const { readTasks } = await import("./tasks");
-      store.latestTasksJson = JSON.stringify({ tasks: await readTasks() });
-    }
+    const { readTasks } = await import("./tasks");
+    store.latestTasksJson = JSON.stringify({ tasks: await readTasks() });
 
     sendClient(client, sseEvent("tasks", store.latestTasksJson));
   } catch (error) {

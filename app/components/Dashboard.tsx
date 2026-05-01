@@ -160,6 +160,23 @@ const RADAR_COLOR_FALLBACKS = {
   high: "255 255 255",
   low: "40 243 255",
 };
+const TASKS_ZONE_ID = "tasks";
+const TASKS_ZONE: DashboardZone = {
+  id: TASKS_ZONE_ID,
+  name: "Tasks",
+  entities: [],
+  counts: {
+    light: 0,
+    switch: 0,
+    climate: 0,
+    fan: 0,
+    cover: 0,
+    humidifier: 0,
+    sensor: 0,
+  },
+  isOn: false,
+  brightnessPct: 0,
+};
 
 type FullscreenDocumentShim = Document & {
   fullscreenElement?: Element | null;
@@ -720,6 +737,7 @@ function ZoneButton({
   hideCounts = false,
   domains,
   routerStatus,
+  className,
 }: {
   zone: DashboardZone;
   selected: boolean;
@@ -728,6 +746,7 @@ function ZoneButton({
   hideCounts?: boolean;
   domains?: HaDomain[];
   routerStatus?: RouterStatus;
+  className?: string;
 }) {
   const countDomains = domains ?? countDomainsForZone(zone);
   const networkStatus = isNetworkZone(zone)
@@ -742,6 +761,7 @@ function ZoneButton({
         "zone-button group relative flex min-h-24 w-full flex-col justify-between overflow-hidden border bg-neutral-900/80 p-4 text-left outline-none transition",
         nested && "zone-button-child min-h-20 py-3 pl-6",
         selected && "zone-button-selected",
+        className,
         selected
           ? "border-cyan-300 shadow-[0_0_0_1px_rgba(103,232,249,0.5),0_0_26px_rgba(103,232,249,0.16)]"
           : "border-neutral-700 hover:border-fuchsia-300/80",
@@ -2940,6 +2960,9 @@ export function Dashboard() {
     if (!data) {
       return null;
     }
+    if (selectedZoneId === TASKS_ZONE_ID) {
+      return null;
+    }
     return data.zones.find((zone) => zone.id === selectedZoneId) ?? data.zones[0] ?? null;
   }, [data, selectedZoneId]);
 
@@ -3013,7 +3036,7 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (data && !data.zones.some((zone) => zone.id === selectedZoneId)) {
+    if (data && selectedZoneId !== TASKS_ZONE_ID && !data.zones.some((zone) => zone.id === selectedZoneId)) {
       const fallbackZoneId = data.zones[0]?.id ?? "everything";
       setSelectedZoneId(fallbackZoneId);
       writeSelectedZoneToStorage(fallbackZoneId);
@@ -3285,6 +3308,7 @@ export function Dashboard() {
   const insideZone = zoneTree.inside;
   const climateZone = zoneTree.climate;
   const outsideZone = zoneTree.outside;
+  const tasksZoneSelected = selectedZoneId === TASKS_ZONE_ID;
 
   return (
     <Tooltip.Provider delayDuration={250}>
@@ -3320,6 +3344,14 @@ export function Dashboard() {
                 <Zap className="h-5 w-5 text-yellow-300" />
               </div>
               <div className="grid gap-3">
+                <ZoneButton
+                  zone={TASKS_ZONE}
+                  selected={tasksZoneSelected}
+                  onClick={() => selectZone(TASKS_ZONE_ID)}
+                  className="zone-button-tasks"
+                  hideCounts
+                />
+
                 {insideZone ? (
                   <div className={classNames("zone-tree", zoneTree.indoor.length > 0 && "zone-parent-widget")}>
                     <ZoneButton
@@ -3376,9 +3408,9 @@ export function Dashboard() {
             </aside>
 
             <div className="control-stage grid gap-5">
-              <TasksPanel />
+              <TasksPanel showPanel={tasksZoneSelected} />
 
-              {selectedZone ? (
+              {tasksZoneSelected ? null : selectedZone ? (
                 <ZoneControls
                   zone={selectedZone}
                   bedroomTemperature={bedroomTemperature}

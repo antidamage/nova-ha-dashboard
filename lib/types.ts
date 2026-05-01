@@ -69,6 +69,18 @@ export type SpectrumCursor = {
 
 export type TaskSource = "local" | "icloud-calendar" | "icloud-reminders";
 
+export type TaskRepeat =
+  | {
+      kind: "hourly";
+    }
+  | {
+      kind: "morning-night";
+    }
+  | {
+      kind: "days";
+      intervalDays: number;
+    };
+
 export type Task = {
   id: string;
   name: string;
@@ -76,6 +88,7 @@ export type Task = {
   end: string;
   createdAt: string;
   dismissedAt?: string;
+  repeat?: TaskRepeat;
   source: TaskSource;
   sourceId?: string;
   sourceCalendar?: string;

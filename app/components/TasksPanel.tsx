@@ -20,14 +20,17 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { parseTaskCsv, type ParseTaskCsvResult } from "../../lib/parse-task-csv";
-import type { Task, TaskSource } from "../../lib/types";
+import type { Task, TaskRepeat, TaskSource } from "../../lib/types";
 
 type TaskTab = "today" | "upcoming";
+type TaskRepeatDraftKind = "none" | TaskRepeat["kind"];
 
 type TaskDraft = {
   name: string;
   start: string;
   end: string;
+  repeatKind: TaskRepeatDraftKind;
+  repeatDays: string;
 };
 
 type AlertState = {
@@ -56,6 +59,13 @@ const TASK_TIME_FORMATTER = new Intl.DateTimeFormat("en-NZ", {
 
 const inputClassName =
   "min-h-11 w-full border border-neutral-700 bg-neutral-950/70 px-3 py-2 font-mono text-sm font-black uppercase text-neutral-100 outline-none focus:border-cyan-300";
+
+const repeatOptions: Array<{ label: string; value: TaskRepeatDraftKind }> = [
+  { label: "No repeat", value: "none" },
+  { label: "Hourly", value: "hourly" },
+  { label: "Morning/night", value: "morning-night" },
+  { label: "Every N days", value: "days" },
+];
 
 function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -94,6 +104,8 @@ function defaultDraft(): TaskDraft {
     name: "",
     start: localInputValue(start),
     end: localInputValue(end),
+    repeatKind: "none",
+    repeatDays: "1",
   };
 }
 
@@ -102,7 +114,35 @@ function taskDraft(task: Task): TaskDraft {
     name: task.name,
     start: isoToLocalInput(task.start),
     end: isoToLocalInput(task.end),
+    repeatKind: task.repeat?.kind ?? "none",
+    repeatDays: task.repeat?.kind === "days" ? String(task.repeat.intervalDays) : "1",
   };
+}
+
+function draftRepeat(draft: TaskDraft): TaskRepeat | null {
+  if (draft.repeatKind === "hourly") {
+    return { kind: "hourly" };
+  }
+  if (draft.repeatKind === "morning-night") {
+    return { kind: "morning-night" };
+  }
+  if (draft.repeatKind === "days") {
+    return { kind: "days", intervalDays: Number(draft.repeatDays) };
+  }
+  return null;
+}
+
+function repeatLabel(repeat: TaskRepeat | undefined) {
+  if (!repeat) {
+    return null;
+  }
+  if (repeat.kind === "hourly") {
+    return "Repeats hourly";
+  }
+  if (repeat.kind === "morning-night") {
+    return "Repeats morning/night";
+  }
+  return `Repeats every ${repeat.intervalDays} day${repeat.intervalDays === 1 ? "" : "s"}`;
 }
 
 function startOfLocalDay(date: Date) {
@@ -221,7 +261,7 @@ function TaskEditor({
   busy: boolean;
   initial: TaskDraft;
   onCancel: () => void;
-  onSave: (draft: { name: string; start: string; end: string }) => Promise<void>;
+  onSave: (draft: { name: string; start: string; end: string; repeat: TaskRepeat | null }) => Promise<void>;
   submitLabel: string;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(initial);
@@ -230,7 +270,7 @@ function TaskEditor({
   useEffect(() => {
     setDraft(initial);
     setError(null);
-  }, [initial.end, initial.name, initial.start]);
+  }, [initial.end, initial.name, initial.repeatDays, initial.repeatKind, initial.start]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -249,9 +289,16 @@ function TaskEditor({
       setError("End must be after start");
       return;
     }
+    if (draft.repeatKind === "days") {
+      const repeatDays = Number(draft.repeatDays);
+      if (!Number.isInteger(repeatDays) || repeatDays < 1 || repeatDays > 365) {
+        setError("Repeat days must be between 1 and 365");
+        return;
+      }
+    }
 
     setError(null);
-    await onSave({ name: draft.name.trim(), start, end });
+    await onSave({ name: draft.name.trim(), start, end, repeat: draftRepeat(draft) });
   };
 
   return (
@@ -283,6 +330,41 @@ function TaskEditor({
             onChange={(event) => setDraft((current) => ({ ...current, end: event.target.value }))}
           />
         </label>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
+        <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+          Repeat
+          <select
+            className={inputClassName}
+            value={draft.repeatKind}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                repeatKind: event.target.value as TaskRepeatDraftKind,
+              }))
+            }
+          >
+            {repeatOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {draft.repeatKind === "days" ? (
+          <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+            Days
+            <input
+              className={inputClassName}
+              type="number"
+              min={1}
+              max={365}
+              step={1}
+              value={draft.repeatDays}
+              onChange={(event) => setDraft((current) => ({ ...current, repeatDays: event.target.value }))}
+            />
+          </label>
+        ) : null}
       </div>
       {error ? <p className="text-sm font-black uppercase text-red-400">{error}</p> : null}
       <div className="flex flex-wrap justify-end gap-2">
@@ -532,7 +614,7 @@ function ImportModal({
   );
 }
 
-export function TasksPanel() {
+export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [nowMs, setNowMs] = useState(Date.now());
   const [tab, setTab] = useState<TaskTab>("today");
@@ -808,7 +890,7 @@ export function TasksPanel() {
 
   const selectedCount = selectedTaskIds.size;
 
-  const saveNewTask = async (draft: { name: string; start: string; end: string }) => {
+  const saveNewTask = async (draft: { name: string; start: string; end: string; repeat: TaskRepeat | null }) => {
     setBusyId("create");
     try {
       await jsonFetch<Task>("/api/tasks", {
@@ -825,7 +907,7 @@ export function TasksPanel() {
     }
   };
 
-  const saveTask = async (task: Task, draft: { name: string; start: string; end: string }) => {
+  const saveTask = async (task: Task, draft: { name: string; start: string; end: string; repeat: TaskRepeat | null }) => {
     setBusyId(task.id);
     try {
       await jsonFetch<Task>(`/api/tasks/${encodeURIComponent(task.id)}`, {
@@ -947,175 +1029,186 @@ export function TasksPanel() {
 
       <audio ref={audioRef} src={ALERT_AUDIO_PATH} preload="auto" />
 
-      <section className="tasks-panel border border-neutral-700 bg-neutral-950/70 p-4">
-        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-black uppercase text-cyan-300">Schedule</p>
-            <h2 className="mt-1 text-2xl font-black uppercase text-neutral-50">Tasks</h2>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
-              type="button"
-              onClick={() => {
-                setCreateOpen((current) => {
-                  const next = !current;
-                  if (next) {
-                    setCreateDraft(defaultDraft());
-                  }
-                  return next;
-                });
-                setExpandedTaskId(null);
-                setEditMode(false);
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              Add
-            </button>
-            <button
-              className={classNames(
-                "inline-flex min-h-11 items-center gap-2 border px-3 py-2 text-sm font-black",
-                editMode ? "border-cyan-300/60 bg-cyan-300/10 text-cyan-100" : "border-neutral-700",
-              )}
-              type="button"
-              onClick={toggleEditMode}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </button>
-            <button
-              className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
-              type="button"
-              onClick={() => setImportOpen(true)}
-            >
-              <Upload className="h-4 w-4" />
-              Import
-            </button>
-          </div>
-        </header>
+      {showPanel ? (
+        <>
+          <section className="tasks-panel border border-neutral-700 bg-neutral-950/70 p-4">
+            <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black uppercase text-cyan-300">Schedule</p>
+                <h2 className="mt-1 text-2xl font-black uppercase text-neutral-50">Tasks</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                  type="button"
+                  onClick={() => {
+                    setCreateOpen((current) => {
+                      const next = !current;
+                      if (next) {
+                        setCreateDraft(defaultDraft());
+                      }
+                      return next;
+                    });
+                    setExpandedTaskId(null);
+                    setEditMode(false);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </button>
+                <button
+                  className={classNames(
+                    "inline-flex min-h-11 items-center gap-2 border px-3 py-2 text-sm font-black",
+                    editMode ? "border-cyan-300/60 bg-cyan-300/10 text-cyan-100" : "border-neutral-700",
+                  )}
+                  type="button"
+                  onClick={toggleEditMode}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </button>
+                <button
+                  className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                  type="button"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="h-4 w-4" />
+                  Import
+                </button>
+              </div>
+            </header>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-grid grid-cols-2 border border-neutral-700">
-            {(["today", "upcoming"] as TaskTab[]).map((candidate) => (
-              <button
-                key={candidate}
-                className={classNames(
-                  "min-h-10 px-4 py-2 text-sm font-black uppercase",
-                  tab === candidate && "bg-cyan-300/10 text-cyan-100",
-                )}
-                type="button"
-                onClick={() => setTab(candidate)}
-              >
-                {candidate === "today" ? "Today" : "Upcoming"}
-              </button>
-            ))}
-          </div>
-
-          {editMode ? (
-            <button
-              className="inline-flex min-h-10 items-center gap-2 border border-red-400/60 bg-red-500/10 px-3 py-2 text-sm font-black text-red-100"
-              type="button"
-              onClick={() => void deleteSelected()}
-              disabled={!selectedCount || busyId === "delete"}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete ({selectedCount})
-            </button>
-          ) : null}
-        </div>
-
-        {message ? (
-          <div className="mb-3 border border-cyan-300/40 bg-cyan-300/10 p-2 font-mono text-sm font-black uppercase text-cyan-100">
-            {message}
-          </div>
-        ) : null}
-
-        <div className="grid gap-3">
-          {createOpen ? (
-            <TaskEditor
-              busy={busyId === "create"}
-              initial={createDraft}
-              onCancel={() => setCreateOpen(false)}
-              onSave={saveNewTask}
-              submitLabel="Create"
-            />
-          ) : null}
-
-          {visibleTasks.length ? (
-            visibleTasks.map((task) => {
-              const status = statusForTask(task, nowMs);
-              const selected = selectedTaskIds.has(task.id);
-              const expanded = expandedTaskId === task.id;
-
-              return (
-                <div key={task.id} className="grid gap-2">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="inline-grid grid-cols-2 border border-neutral-700">
+                {(["today", "upcoming"] as TaskTab[]).map((candidate) => (
                   <button
+                    key={candidate}
                     className={classNames(
-                      "task-row grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-neutral-700 bg-neutral-950/70 p-3 text-left",
-                      selected && "border-cyan-300/60 bg-cyan-300/10",
+                      "min-h-10 px-4 py-2 text-sm font-black uppercase",
+                      tab === candidate && "bg-cyan-300/10 text-cyan-100",
                     )}
                     type="button"
-                    onClick={() => rowClick(task)}
+                    onClick={() => setTab(candidate)}
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      {editMode ? (
+                    {candidate === "today" ? "Today" : "Upcoming"}
+                  </button>
+                ))}
+              </div>
+
+              {editMode ? (
+                <button
+                  className="inline-flex min-h-10 items-center gap-2 border border-red-400/60 bg-red-500/10 px-3 py-2 text-sm font-black text-red-100"
+                  type="button"
+                  onClick={() => void deleteSelected()}
+                  disabled={!selectedCount || busyId === "delete"}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete ({selectedCount})
+                </button>
+              ) : null}
+            </div>
+
+            {message ? (
+              <div className="mb-3 border border-cyan-300/40 bg-cyan-300/10 p-2 font-mono text-sm font-black uppercase text-cyan-100">
+                {message}
+              </div>
+            ) : null}
+
+            <div className="grid gap-3">
+              {createOpen ? (
+                <TaskEditor
+                  busy={busyId === "create"}
+                  initial={createDraft}
+                  onCancel={() => setCreateOpen(false)}
+                  onSave={saveNewTask}
+                  submitLabel="Create"
+                />
+              ) : null}
+
+              {visibleTasks.length ? (
+                visibleTasks.map((task) => {
+                  const status = statusForTask(task, nowMs);
+                  const repeat = repeatLabel(task.repeat);
+                  const selected = selectedTaskIds.has(task.id);
+                  const expanded = expandedTaskId === task.id;
+
+                  return (
+                    <div key={task.id} className="grid gap-2">
+                      <button
+                        className={classNames(
+                          "task-row grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-neutral-700 bg-neutral-950/70 p-3 text-left",
+                          selected && "border-cyan-300/60 bg-cyan-300/10",
+                        )}
+                        type="button"
+                        onClick={() => rowClick(task)}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {editMode ? (
+                            <span
+                              className={classNames(
+                                "inline-flex h-7 w-7 flex-none items-center justify-center border border-neutral-600",
+                                selected && "border-cyan-300 bg-cyan-300 text-neutral-950",
+                              )}
+                            >
+                              {selected ? <CircleCheck className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                            </span>
+                          ) : null}
+                          <div className="min-w-0">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <TaskSourceIcon task={task} />
+                              <p className="truncate text-lg font-black uppercase text-neutral-100">{task.name}</p>
+                            </div>
+                            <p className="mt-1 font-mono text-sm font-black uppercase text-neutral-500">{timeRange(task)}</p>
+                            {repeat ? (
+                              <p className="mt-1 flex items-center gap-1 font-mono text-xs font-black uppercase text-cyan-200/80">
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                {repeat}
+                              </p>
+                            ) : null}
+                            {task.sourceCalendar ? (
+                              <p className="mt-1 truncate font-mono text-xs font-black uppercase text-neutral-500">
+                                {sourceLabel(task.source)} / {task.sourceCalendar}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
                         <span
                           className={classNames(
-                            "inline-flex h-7 w-7 flex-none items-center justify-center border border-neutral-600",
-                            selected && "border-cyan-300 bg-cyan-300 text-neutral-950",
+                            "whitespace-nowrap border px-2 py-1 font-mono text-xs font-black uppercase",
+                            statusClassName(status),
                           )}
                         >
-                          {selected ? <CircleCheck className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                          {status}
                         </span>
+                      </button>
+
+                      {expanded && !editMode ? (
+                        task.readOnly || task.source !== "local" ? (
+                          <ReadOnlyTaskPanel busy={busyId === task.id} onConvert={convertTaskToLocal} task={task} />
+                        ) : (
+                          <TaskEditor
+                            busy={busyId === task.id}
+                            initial={taskDraft(task)}
+                            onCancel={() => setExpandedTaskId(null)}
+                            onSave={(draft) => saveTask(task, draft)}
+                            submitLabel="Save"
+                          />
+                        )
                       ) : null}
-                      <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <TaskSourceIcon task={task} />
-                          <p className="truncate text-lg font-black uppercase text-neutral-100">{task.name}</p>
-                        </div>
-                        <p className="mt-1 font-mono text-sm font-black uppercase text-neutral-500">{timeRange(task)}</p>
-                        {task.sourceCalendar ? (
-                          <p className="mt-1 truncate font-mono text-xs font-black uppercase text-neutral-500">
-                            {sourceLabel(task.source)} / {task.sourceCalendar}
-                          </p>
-                        ) : null}
-                      </div>
                     </div>
-                    <span
-                      className={classNames(
-                        "whitespace-nowrap border px-2 py-1 font-mono text-xs font-black uppercase",
-                        statusClassName(status),
-                      )}
-                    >
-                      {status}
-                    </span>
-                  </button>
-
-                  {expanded && !editMode ? (
-                    task.readOnly || task.source !== "local" ? (
-                      <ReadOnlyTaskPanel busy={busyId === task.id} onConvert={convertTaskToLocal} task={task} />
-                    ) : (
-                      <TaskEditor
-                        busy={busyId === task.id}
-                        initial={taskDraft(task)}
-                        onCancel={() => setExpandedTaskId(null)}
-                        onSave={(draft) => saveTask(task, draft)}
-                        submitLabel="Save"
-                      />
-                    )
-                  ) : null}
+                  );
+                })
+              ) : (
+                <div className="border border-neutral-700 bg-neutral-950/70 p-4 font-mono text-sm font-black uppercase text-neutral-500">
+                  No {tab === "today" ? "tasks today" : "upcoming tasks"}
                 </div>
-              );
-            })
-          ) : (
-            <div className="border border-neutral-700 bg-neutral-950/70 p-4 font-mono text-sm font-black uppercase text-neutral-500">
-              No {tab === "today" ? "tasks today" : "upcoming tasks"}
+              )}
             </div>
-          )}
-        </div>
-      </section>
+          </section>
 
-      <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+          <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+        </>
+      ) : null}
     </>
   );
 }

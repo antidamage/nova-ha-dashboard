@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { publishTaskDismiss, publishTasks } from "./dashboard-events";
 import { parseTaskCsv } from "./parse-task-csv";
-import type { Task, TaskSource } from "./types";
+import type { Task, TaskRepeat, TaskSource } from "./types";
 
 export { parseTaskCsv };
 export type { ParseTaskCsvError, ParseTaskCsvResult } from "./parse-task-csv";
@@ -17,6 +17,7 @@ type TaskInput = {
   name: unknown;
   start: unknown;
   end: unknown;
+  repeat?: unknown;
   source?: TaskSource;
   sourceId?: string;
   sourceCalendar?: string;
@@ -28,9 +29,15 @@ type TaskPatch = Partial<{
   name: unknown;
   start: unknown;
   end: unknown;
+  repeat: unknown;
 }>;
 
 let writeQueue = Promise.resolve();
+
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
+const MIN_REPEAT_DAYS = 1;
+const MAX_REPEAT_DAYS = 365;
 
 function randomTaskId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -57,9 +64,54 @@ function normalizedName(value: unknown) {
   return value.trim();
 }
 
+function normalizedRepeat(value: unknown): TaskRepeat | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as { kind?: unknown; intervalDays?: unknown };
+  if (candidate.kind === "hourly") {
+    return { kind: "hourly" };
+  }
+  if (candidate.kind === "morning-night") {
+    return { kind: "morning-night" };
+  }
+  if (candidate.kind === "days") {
+    const intervalDays = Number(candidate.intervalDays);
+    if (!Number.isInteger(intervalDays) || intervalDays < MIN_REPEAT_DAYS || intervalDays > MAX_REPEAT_DAYS) {
+      throw new Error(`Repeat days must be between ${MIN_REPEAT_DAYS} and ${MAX_REPEAT_DAYS}`);
+    }
+
+    return { kind: "days", intervalDays };
+  }
+
+  return undefined;
+}
+
+function repeatIntervalMs(repeat: TaskRepeat) {
+  if (repeat.kind === "hourly") {
+    return HOUR_MS;
+  }
+  if (repeat.kind === "morning-night") {
+    return 12 * HOUR_MS;
+  }
+  return repeat.intervalDays * DAY_MS;
+}
+
 function ensureEndAfterStart(start: string, end: string) {
   if (new Date(end).getTime() <= new Date(start).getTime()) {
     throw new Error("Task end must be after task start");
+  }
+}
+
+function ensureRepeatWindow(start: string, end: string, repeat: TaskRepeat | undefined) {
+  if (!repeat) {
+    return;
+  }
+
+  const durationMs = new Date(end).getTime() - new Date(start).getTime();
+  if (durationMs >= repeatIntervalMs(repeat)) {
+    throw new Error("Task duration must be shorter than the repeat interval");
   }
 }
 
@@ -68,6 +120,58 @@ function sortTasks(tasks: Task[]) {
     const byStart = new Date(left.start).getTime() - new Date(right.start).getTime();
     return byStart || left.name.localeCompare(right.name) || left.id.localeCompare(right.id);
   });
+}
+
+function nextIntervalStart(start: string, durationMs: number, repeat: TaskRepeat, nowMs: number) {
+  const startMs = new Date(start).getTime();
+  if (!Number.isFinite(startMs)) {
+    return null;
+  }
+
+  if (repeat.kind !== "days") {
+    const intervalMs = repeatIntervalMs(repeat);
+    const elapsedAfterEnd = nowMs - (startMs + durationMs);
+    const steps = Math.max(1, Math.floor(elapsedAfterEnd / intervalMs) + 1);
+    return new Date(startMs + steps * intervalMs);
+  }
+
+  let next = new Date(start);
+  const elapsedAfterEnd = nowMs - (startMs + durationMs);
+  const roughSteps = Math.max(1, Math.floor(elapsedAfterEnd / repeatIntervalMs(repeat)) + 1);
+  next.setDate(next.getDate() + roughSteps * repeat.intervalDays);
+
+  while (next.getTime() + durationMs <= nowMs) {
+    next.setDate(next.getDate() + repeat.intervalDays);
+  }
+
+  return next;
+}
+
+function refreshedRepeatingTask(task: Task, nowMs: number) {
+  if (!task.repeat || task.source !== "local") {
+    return { task, changed: false };
+  }
+
+  const startMs = new Date(task.start).getTime();
+  const endMs = new Date(task.end).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || nowMs < endMs) {
+    return { task, changed: false };
+  }
+
+  const durationMs = endMs - startMs;
+  const nextStart = nextIntervalStart(task.start, durationMs, task.repeat, nowMs);
+  if (!nextStart) {
+    return { task, changed: false };
+  }
+
+  const updated: Task = {
+    ...task,
+    start: nextStart.toISOString(),
+    end: new Date(nextStart.getTime() + durationMs).toISOString(),
+    dismissedAt: undefined,
+  };
+
+  return { task: updated, changed: true };
 }
 
 function normalizedTask(value: unknown): Task | null {
@@ -91,13 +195,20 @@ function normalizedTask(value: unknown): Task | null {
     return null;
   }
 
+  const start = normalizedDate(candidate.start, "Task start");
+  const end = normalizedDate(candidate.end, "Task end");
+  const repeat = source === "local" ? normalizedRepeat(candidate.repeat) : undefined;
+  ensureEndAfterStart(start, end);
+  ensureRepeatWindow(start, end, repeat);
+
   return {
     id: candidate.id,
     name: candidate.name,
-    start: normalizedDate(candidate.start, "Task start"),
-    end: normalizedDate(candidate.end, "Task end"),
+    start,
+    end,
     createdAt: normalizedDate(candidate.createdAt, "Task creation time"),
     dismissedAt: candidate.dismissedAt ? normalizedDate(candidate.dismissedAt, "Task dismissal time") : undefined,
+    repeat,
     source,
     sourceId: candidate.sourceId,
     sourceCalendar: candidate.sourceCalendar,
@@ -137,21 +248,25 @@ function validatedNewTask(input: TaskInput): Task {
   const start = normalizedDate(input.start, "Task start");
   const end = normalizedDate(input.end, "Task end");
   ensureEndAfterStart(start, end);
-
   const source = input.source ?? "local";
+  const repeat = source === "local" ? normalizedRepeat(input.repeat) : undefined;
+  ensureRepeatWindow(start, end, repeat);
 
-  return {
+  const task: Task = {
     id: randomTaskId(),
     name: normalizedName(input.name),
     start,
     end,
     createdAt: new Date().toISOString(),
+    repeat,
     source,
     sourceId: input.sourceId,
     sourceCalendar: input.sourceCalendar,
     occurrenceDate: input.occurrenceDate,
     readOnly: input.readOnly ?? source !== "local",
   };
+
+  return refreshedRepeatingTask(task, Date.now()).task;
 }
 
 function validatedParsedTask(task: Task): Task {
@@ -159,8 +274,10 @@ function validatedParsedTask(task: Task): Task {
   const end = normalizedDate(task.end, "Task end");
   ensureEndAfterStart(start, end);
   const source = task.source ?? "local";
+  const repeat = source === "local" ? normalizedRepeat(task.repeat) : undefined;
+  ensureRepeatWindow(start, end, repeat);
 
-  return {
+  const normalized: Task = {
     ...task,
     id: typeof task.id === "string" && task.id ? task.id : randomTaskId(),
     name: normalizedName(task.name),
@@ -168,9 +285,12 @@ function validatedParsedTask(task: Task): Task {
     end,
     createdAt: task.createdAt ? normalizedDate(task.createdAt, "Task creation time") : new Date().toISOString(),
     dismissedAt: task.dismissedAt ? normalizedDate(task.dismissedAt, "Task dismissal time") : undefined,
+    repeat,
     source,
     readOnly: task.readOnly ?? source !== "local",
   };
+
+  return refreshedRepeatingTask(normalized, Date.now()).task;
 }
 
 async function mutateTasks<T>(mutator: (tasks: Task[]) => { tasks: Task[]; result: T }): Promise<T> {
@@ -195,7 +315,32 @@ async function mutateTasks<T>(mutator: (tasks: Task[]) => { tasks: Task[]; resul
 }
 
 export async function readTasks(): Promise<Task[]> {
-  return readTaskFile();
+  let nextTasks: Task[] = [];
+  let changed = false;
+
+  const run = writeQueue.then(async () => {
+    const current = await readTaskFile();
+    const refreshed = current.map((task) => {
+      const result = refreshedRepeatingTask(task, Date.now());
+      changed ||= result.changed;
+      return result.task;
+    });
+    nextTasks = changed ? sortTasks(refreshed) : current;
+    if (changed) {
+      await writeTaskFile(nextTasks);
+    }
+  });
+  writeQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  await run;
+  if (changed) {
+    publishTasks(nextTasks);
+  }
+
+  return nextTasks;
 }
 
 export async function writeTasks(tasks: Task[]): Promise<void> {
@@ -246,14 +391,18 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
     const start = patch.start === undefined ? current.start : normalizedDate(patch.start, "Task start");
     const end = patch.end === undefined ? current.end : normalizedDate(patch.end, "Task end");
     ensureEndAfterStart(start, end);
+    const hasRepeatPatch = Object.prototype.hasOwnProperty.call(patch, "repeat");
+    const repeat = hasRepeatPatch ? normalizedRepeat(patch.repeat) : current.repeat;
+    ensureRepeatWindow(start, end, repeat);
 
-    const updated: Task = {
+    const updated: Task = refreshedRepeatingTask({
       ...current,
       name: patch.name === undefined ? current.name : normalizedName(patch.name),
       start,
       end,
+      repeat,
       dismissedAt: start === current.start && end === current.end ? current.dismissedAt : undefined,
-    };
+    }, Date.now()).task;
 
     return {
       tasks: tasks.map((task) => (task.id === id ? updated : task)),
