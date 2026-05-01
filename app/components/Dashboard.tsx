@@ -2586,7 +2586,7 @@ function ZoneControls({
     <section className="zone-panel relative min-h-[620px] border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
       <div className="panel-corner panel-corner-left" />
       <div className="panel-corner panel-corner-right" />
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="zone-panel-header flex flex-col gap-4">
         <div className="min-w-0">
           <p className="text-sm font-black uppercase text-cyan-300">Zone Control</p>
           <h1 className="mt-1 text-4xl font-black uppercase text-neutral-50 sm:text-5xl">{zone.name}</h1>
@@ -3313,7 +3313,7 @@ export function Dashboard() {
   return (
     <Tooltip.Provider delayDuration={250}>
       <main className="min-h-screen bg-neutral-950 text-neutral-100">
-        <div className="dashboard-shell min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+        <div className="dashboard-shell min-h-screen px-4 py-5 sm:px-6">
           <header className="top-banner p-0">
             {data?.warnings.length ? (
             <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -3335,7 +3335,7 @@ export function Dashboard() {
             </div>
           ) : null}
 
-          <div className="dashboard-layout grid gap-5 lg:grid-cols-[320px_1fr]">
+          <div className="dashboard-layout grid gap-5">
             <ClockPanel />
 
             <aside className="zones-panel border border-neutral-700 bg-neutral-950/70 p-4">
@@ -3344,14 +3344,6 @@ export function Dashboard() {
                 <Zap className="h-5 w-5 text-yellow-300" />
               </div>
               <div className="grid gap-3">
-                <ZoneButton
-                  zone={TASKS_ZONE}
-                  selected={tasksZoneSelected}
-                  onClick={() => selectZone(TASKS_ZONE_ID)}
-                  className="zone-button-tasks"
-                  hideCounts
-                />
-
                 {insideZone ? (
                   <div className={classNames("zone-tree", zoneTree.indoor.length > 0 && "zone-parent-widget")}>
                     <ZoneButton
@@ -3404,6 +3396,14 @@ export function Dashboard() {
                     domains={["light"]}
                   />
                 ) : null}
+
+                <ZoneButton
+                  zone={TASKS_ZONE}
+                  selected={tasksZoneSelected}
+                  onClick={() => selectZone(TASKS_ZONE_ID)}
+                  className="zone-button-tasks"
+                  hideCounts
+                />
               </div>
             </aside>
 

@@ -9,6 +9,7 @@ import {
   CircleCheck,
   ClipboardList,
   Clock3,
+  Download,
   ListTodo,
   Pencil,
   Plus,
@@ -23,12 +24,14 @@ import { parseTaskCsv, type ParseTaskCsvResult } from "../../lib/parse-task-csv"
 import type { Task, TaskRepeat, TaskSource } from "../../lib/types";
 
 type TaskTab = "today" | "upcoming";
-type TaskRepeatDraftKind = "none" | TaskRepeat["kind"];
+type TaskRepeatDraftKind = TaskRepeat["kind"];
 
 type TaskDraft = {
   name: string;
   start: string;
   end: string;
+  hasEnd: boolean;
+  repeatEnabled: boolean;
   repeatKind: TaskRepeatDraftKind;
   repeatDays: string;
 };
@@ -36,7 +39,7 @@ type TaskDraft = {
 type AlertState = {
   taskId: string;
   name: string;
-  end: string;
+  end?: string;
 };
 
 type IcloudStatus = {
@@ -48,7 +51,7 @@ type IcloudStatus = {
   authBackoffUntil?: string;
 };
 
-const ALERT_AUDIO_PATH = "/sounds/task-alert.mp3";
+const ALERT_AUDIO_PATH = "/api/tasks/audio";
 const ALERT_AUDIO_WINDOW_MS = 5000;
 const ALERT_AUDIO_REPEAT_MS = 5 * 60 * 1000;
 const TASK_TIME_FORMATTER = new Intl.DateTimeFormat("en-NZ", {
@@ -61,11 +64,16 @@ const inputClassName =
   "min-h-11 w-full border border-neutral-700 bg-neutral-950/70 px-3 py-2 font-mono text-sm font-black uppercase text-neutral-100 outline-none focus:border-cyan-300";
 
 const repeatOptions: Array<{ label: string; value: TaskRepeatDraftKind }> = [
-  { label: "No repeat", value: "none" },
   { label: "Hourly", value: "hourly" },
   { label: "Morning/night", value: "morning-night" },
   { label: "Every N days", value: "days" },
 ];
+
+const IMPORT_TEMPLATE = [
+  "# start,end,name,repeat",
+  "2026-05-01 09:00,2026-05-01 09:30,Feed starter,days:1",
+  "21:00,,Medication reminder,morning/night",
+].join("\n");
 
 function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -94,6 +102,12 @@ function localInputToIso(value: string) {
   return date.toISOString();
 }
 
+function fallbackEndInput(startInput: string) {
+  const start = localInputToIso(startInput);
+  const startDate = start ? new Date(start) : new Date();
+  return localInputValue(new Date(startDate.getTime() + 30 * 60 * 1000));
+}
+
 function defaultDraft(): TaskDraft {
   const start = new Date();
   start.setSeconds(0, 0);
@@ -104,22 +118,31 @@ function defaultDraft(): TaskDraft {
     name: "",
     start: localInputValue(start),
     end: localInputValue(end),
-    repeatKind: "none",
+    hasEnd: true,
+    repeatEnabled: false,
+    repeatKind: "days",
     repeatDays: "1",
   };
 }
 
 function taskDraft(task: Task): TaskDraft {
+  const start = isoToLocalInput(task.start);
+
   return {
     name: task.name,
-    start: isoToLocalInput(task.start),
-    end: isoToLocalInput(task.end),
-    repeatKind: task.repeat?.kind ?? "none",
+    start,
+    end: task.end ? isoToLocalInput(task.end) : fallbackEndInput(start),
+    hasEnd: Boolean(task.end),
+    repeatEnabled: Boolean(task.repeat),
+    repeatKind: task.repeat?.kind ?? "days",
     repeatDays: task.repeat?.kind === "days" ? String(task.repeat.intervalDays) : "1",
   };
 }
 
 function draftRepeat(draft: TaskDraft): TaskRepeat | null {
+  if (!draft.repeatEnabled) {
+    return null;
+  }
   if (draft.repeatKind === "hourly") {
     return { kind: "hourly" };
   }
@@ -162,21 +185,39 @@ function taskStartMs(task: Task) {
 }
 
 function taskEndMs(task: Task) {
-  return new Date(task.end).getTime();
+  return task.end ? new Date(task.end).getTime() : taskStartMs(task);
+}
+
+function taskHasEnd(task: Task) {
+  return typeof task.end === "string" && task.end.trim().length > 0;
 }
 
 function isTaskActive(task: Task, nowMs: number) {
+  if (!taskHasEnd(task) || task.dismissedAt) {
+    return false;
+  }
+
   const start = taskStartMs(task);
   const end = taskEndMs(task);
   return Number.isFinite(start) && Number.isFinite(end) && start <= nowMs && nowMs < end;
 }
 
+function isTaskReminderDue(task: Task, nowMs: number) {
+  const start = taskStartMs(task);
+  return !taskHasEnd(task) && !task.dismissedAt && Number.isFinite(start) && start <= nowMs;
+}
+
 function isTaskAlerting(task: Task, nowMs: number) {
-  return isTaskActive(task, nowMs) && !task.dismissedAt;
+  return !task.dismissedAt && (isTaskActive(task, nowMs) || isTaskReminderDue(task, nowMs));
 }
 
 function timeRange(task: Task) {
-  return `${TASK_TIME_FORMATTER.format(new Date(task.start))} - ${TASK_TIME_FORMATTER.format(new Date(task.end))}`;
+  const start = TASK_TIME_FORMATTER.format(new Date(task.start));
+  if (!task.end) {
+    return `${start} reminder`;
+  }
+
+  return `${start} - ${TASK_TIME_FORMATTER.format(new Date(task.end))}`;
 }
 
 function sourceLabel(source: TaskSource) {
@@ -190,11 +231,17 @@ function sourceLabel(source: TaskSource) {
 }
 
 function statusForTask(task: Task, nowMs: number) {
+  if (task.dismissedAt) {
+    return "Done";
+  }
+  if (isTaskReminderDue(task, nowMs)) {
+    return "Due";
+  }
   if (taskEndMs(task) <= nowMs) {
     return "Done";
   }
   if (isTaskActive(task, nowMs)) {
-    return task.dismissedAt ? "Dismissed" : "Active";
+    return "Active";
   }
   return "Upcoming";
 }
@@ -203,7 +250,7 @@ function statusClassName(status: string) {
   if (status === "Active") {
     return "border-cyan-300/50 bg-cyan-300/10 text-cyan-100";
   }
-  if (status === "Dismissed") {
+  if (status === "Due") {
     return "border-yellow-300/50 bg-yellow-300/10 text-yellow-100";
   }
   if (status === "Done") {
@@ -228,13 +275,58 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-function CurrentTaskChip({ task }: { task: Task | null }) {
+type TaskEditorSaveDraft = {
+  name: string;
+  start: string;
+  end?: string | null;
+  repeat: TaskRepeat | null;
+};
+
+function repeatExportValue(repeat: TaskRepeat | undefined) {
+  if (!repeat) {
+    return "";
+  }
+  if (repeat.kind === "hourly") {
+    return "hourly";
+  }
+  if (repeat.kind === "morning-night") {
+    return "morning/night";
+  }
+  return `days:${repeat.intervalDays}`;
+}
+
+function exportDateTime(value: string | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return localInputValue(new Date(value)).replace("T", " ");
+}
+
+function tasksToExportText(tasks: Task[]) {
+  return [
+    "# start,end,name,repeat",
+    ...tasks
+      .filter((task) => task.source === "local")
+      .sort((left, right) => taskStartMs(left) - taskStartMs(right))
+      .map((task) =>
+        [
+          exportDateTime(task.start),
+          exportDateTime(task.end),
+          task.name.replaceAll(",", " "),
+          repeatExportValue(task.repeat),
+        ].join(","),
+      ),
+  ].join("\n");
+}
+
+function CurrentTaskBar({ task }: { task: Task | null }) {
   if (!task) {
     return null;
   }
 
   return (
-    <div className="current-task-chip" aria-live="polite">
+    <div className="current-task-bar" aria-live="polite">
       <Clock3 className="h-4 w-4" />
       <span className="min-w-0 truncate">{task.name}</span>
     </div>
@@ -251,6 +343,31 @@ function TaskSourceIcon({ task }: { task: Task }) {
   return null;
 }
 
+function TaskCheckbox({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      className={classNames("cyber-checkbox-row border p-3 text-left", checked && "cyber-checkbox-row-active")}
+      onClick={() => onChange(!checked)}
+    >
+      <span className={classNames("cyber-checkbox", checked && "cyber-checkbox-checked")} aria-hidden="true">
+        {checked ? <Check className="h-5 w-5" strokeWidth={3} /> : null}
+      </span>
+      <span className="theme-display-label zone-title-bar">{label}</span>
+    </button>
+  );
+}
+
 function TaskEditor({
   busy,
   initial,
@@ -261,7 +378,7 @@ function TaskEditor({
   busy: boolean;
   initial: TaskDraft;
   onCancel: () => void;
-  onSave: (draft: { name: string; start: string; end: string; repeat: TaskRepeat | null }) => Promise<void>;
+  onSave: (draft: TaskEditorSaveDraft) => Promise<void>;
   submitLabel: string;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(initial);
@@ -270,26 +387,30 @@ function TaskEditor({
   useEffect(() => {
     setDraft(initial);
     setError(null);
-  }, [initial.end, initial.name, initial.repeatDays, initial.repeatKind, initial.start]);
+  }, [initial.end, initial.hasEnd, initial.name, initial.repeatDays, initial.repeatEnabled, initial.repeatKind, initial.start]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const start = localInputToIso(draft.start);
-    const end = localInputToIso(draft.end);
+    const end = draft.hasEnd ? localInputToIso(draft.end) : null;
 
     if (!draft.name.trim()) {
       setError("Task name is required");
       return;
     }
-    if (!start || !end) {
-      setError("Start and end are required");
+    if (!start) {
+      setError("Start is required");
       return;
     }
-    if (new Date(end).getTime() <= new Date(start).getTime()) {
+    if (draft.hasEnd && !end) {
+      setError("End is required");
+      return;
+    }
+    if (end && new Date(end).getTime() <= new Date(start).getTime()) {
       setError("End must be after start");
       return;
     }
-    if (draft.repeatKind === "days") {
+    if (draft.repeatEnabled && draft.repeatKind === "days") {
       const repeatDays = Number(draft.repeatDays);
       if (!Number.isInteger(repeatDays) || repeatDays < 1 || repeatDays > 365) {
         setError("Repeat days must be between 1 and 365");
@@ -318,52 +439,82 @@ function TaskEditor({
             className={inputClassName}
             type="datetime-local"
             value={draft.start}
-            onChange={(event) => setDraft((current) => ({ ...current, start: event.target.value }))}
-          />
-        </label>
-        <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
-          End
-          <input
-            className={inputClassName}
-            type="datetime-local"
-            value={draft.end}
-            onChange={(event) => setDraft((current) => ({ ...current, end: event.target.value }))}
-          />
-        </label>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
-        <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
-          Repeat
-          <select
-            className={inputClassName}
-            value={draft.repeatKind}
             onChange={(event) =>
               setDraft((current) => ({
                 ...current,
-                repeatKind: event.target.value as TaskRepeatDraftKind,
+                start: event.target.value,
+                end: current.hasEnd && !current.end ? fallbackEndInput(event.target.value) : current.end,
               }))
             }
-          >
-            {repeatOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          />
         </label>
-        {draft.repeatKind === "days" ? (
-          <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
-            Days
-            <input
-              className={inputClassName}
-              type="number"
-              min={1}
-              max={365}
-              step={1}
-              value={draft.repeatDays}
-              onChange={(event) => setDraft((current) => ({ ...current, repeatDays: event.target.value }))}
-            />
-          </label>
+        <div className="grid gap-2">
+          <TaskCheckbox
+            checked={draft.hasEnd}
+            label="Task end"
+            onChange={(hasEnd) =>
+              setDraft((current) => ({
+                ...current,
+                hasEnd,
+                end: current.end || fallbackEndInput(current.start),
+              }))
+            }
+          />
+          {draft.hasEnd ? (
+            <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+              End
+              <input
+                className={inputClassName}
+                type="datetime-local"
+                value={draft.end}
+                onChange={(event) => setDraft((current) => ({ ...current, end: event.target.value }))}
+              />
+            </label>
+          ) : null}
+        </div>
+      </div>
+      <div className="grid gap-3">
+        <TaskCheckbox
+          checked={draft.repeatEnabled}
+          label="Repeating"
+          onChange={(repeatEnabled) => setDraft((current) => ({ ...current, repeatEnabled }))}
+        />
+        {draft.repeatEnabled ? (
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
+            <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+              Repeat
+              <select
+                className={inputClassName}
+                value={draft.repeatKind}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    repeatKind: event.target.value as TaskRepeatDraftKind,
+                  }))
+                }
+              >
+                {repeatOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {draft.repeatKind === "days" ? (
+              <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                Days
+                <input
+                  className={inputClassName}
+                  type="number"
+                  min={1}
+                  max={365}
+                  step={1}
+                  value={draft.repeatDays}
+                  onChange={(event) => setDraft((current) => ({ ...current, repeatDays: event.target.value }))}
+                />
+              </label>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {error ? <p className="text-sm font-black uppercase text-red-400">{error}</p> : null}
@@ -518,7 +669,7 @@ function ImportModal({
         <header className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-black uppercase">Import tasks</h2>
-            <p className="font-mono text-xs font-black uppercase text-neutral-500">start,end,name</p>
+            <p className="font-mono text-xs font-black uppercase text-neutral-500">start,end,name,repeat</p>
           </div>
           <button
             className="inline-flex h-11 w-11 items-center justify-center border border-neutral-700"
@@ -559,10 +710,18 @@ function ImportModal({
           ) : null}
         </section>
 
+        <section className="grid gap-2 border border-neutral-700 bg-neutral-950/70 p-3">
+          <h3 className="text-sm font-black uppercase text-cyan-100">Template</h3>
+          <pre className="select-text whitespace-pre-wrap font-mono text-xs font-black uppercase text-neutral-300">
+            {IMPORT_TEMPLATE}
+          </pre>
+        </section>
+
         <textarea
           className="min-h-48 w-full resize-y border border-neutral-700 bg-neutral-950/70 p-3 font-mono text-sm text-neutral-100 outline-none focus:border-cyan-300"
           value={csv}
           onChange={(event) => setCsv(event.target.value)}
+          placeholder={IMPORT_TEMPLATE}
           spellCheck={false}
         />
 
@@ -614,6 +773,51 @@ function ImportModal({
   );
 }
 
+function ExportModal({
+  onClose,
+  open,
+  tasks,
+}: {
+  onClose: () => void;
+  open: boolean;
+  tasks: Task[];
+}) {
+  const text = useMemo(() => tasksToExportText(tasks), [tasks]);
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 p-4">
+      <div className="tasks-modal grid max-h-[92vh] w-full max-w-3xl gap-4 overflow-auto border border-neutral-700 bg-neutral-950 p-4 text-neutral-100">
+        <header className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black uppercase">Export tasks</h2>
+            <p className="font-mono text-xs font-black uppercase text-neutral-500">start,end,name,repeat</p>
+          </div>
+          <button
+            className="inline-flex h-11 w-11 items-center justify-center border border-neutral-700"
+            type="button"
+            onClick={onClose}
+            aria-label="Close export"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <textarea
+          className="min-h-80 w-full resize-y select-text border border-neutral-700 bg-neutral-950/70 p-3 font-mono text-sm text-neutral-100 outline-none focus:border-cyan-300"
+          value={text}
+          readOnly
+          spellCheck={false}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -624,6 +828,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [editMode, setEditMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(() => new Set());
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [alert, setAlert] = useState<AlertState | null>(null);
@@ -650,7 +855,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   useEffect(() => {
     let alive = true;
 
-    void jsonFetch<{ tasks: Task[] }>("/api/tasks", { cache: "no-store" })
+    void jsonFetch<{ tasks: Task[] }>("/api/tasks?command=list", { cache: "no-store" })
       .then((payload) => {
         if (alive) {
           setTasks(payload.tasks);
@@ -696,7 +901,6 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
     stopAudio();
     audio.currentTime = 0;
-    // TODO: Add public/sounds/task-alert.mp3. The user can replace it with the final alert tone.
     audio.play().catch((error) => {
       console.info("[nova-dashboard] task alert audio blocked or unavailable", error);
     });
@@ -719,7 +923,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   }, []);
 
   const dismissAlert = useCallback(
-    async ({ post = true, taskId }: { post?: boolean; taskId?: string } = {}) => {
+    async ({ post = true, taskId, updateTask = true }: { post?: boolean; taskId?: string; updateTask?: boolean } = {}) => {
       const active = alertRef.current;
       const targetTaskId = taskId ?? active?.taskId;
       if (!targetTaskId) {
@@ -731,9 +935,11 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
       dismissingTaskIds.current.add(targetTaskId);
       const dismissedAt = new Date().toISOString();
-      setTasks((current) =>
-        current.map((task) => (task.id === targetTaskId ? { ...task, dismissedAt: task.dismissedAt ?? dismissedAt } : task)),
-      );
+      if (updateTask) {
+        setTasks((current) =>
+          current.map((task) => (task.id === targetTaskId ? { ...task, dismissedAt: task.dismissedAt ?? dismissedAt } : task)),
+        );
+      }
       if (active?.taskId === targetTaskId) {
         setAlert(null);
         document.body.classList.remove("task-alerting");
@@ -742,10 +948,11 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
       try {
         if (post) {
-          await jsonFetch<Task>(`/api/tasks/${encodeURIComponent(targetTaskId)}/dismiss`, {
+          const task = await jsonFetch<Task>(`/api/tasks/${encodeURIComponent(targetTaskId)}/dismiss`, {
             method: "POST",
             body: "{}",
           });
+          setTasks((current) => current.map((candidate) => (candidate.id === targetTaskId ? task : candidate)));
         }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Failed to dismiss task");
@@ -784,7 +991,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       try {
         const payload = JSON.parse(event.data) as { taskId?: string };
         if (payload.taskId) {
-          void dismissAlert({ post: false, taskId: payload.taskId });
+          void dismissAlert({ post: false, taskId: payload.taskId, updateTask: false });
         }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Failed to read task dismissal");
@@ -848,6 +1055,10 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     }
 
     const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest(".task-alert-banner")) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
@@ -890,10 +1101,10 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
   const selectedCount = selectedTaskIds.size;
 
-  const saveNewTask = async (draft: { name: string; start: string; end: string; repeat: TaskRepeat | null }) => {
+  const saveNewTask = async (draft: TaskEditorSaveDraft) => {
     setBusyId("create");
     try {
-      await jsonFetch<Task>("/api/tasks", {
+      await jsonFetch<Task>("/api/tasks?command=add", {
         method: "POST",
         body: JSON.stringify(draft),
       });
@@ -907,7 +1118,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     }
   };
 
-  const saveTask = async (task: Task, draft: { name: string; start: string; end: string; repeat: TaskRepeat | null }) => {
+  const saveTask = async (task: Task, draft: TaskEditorSaveDraft) => {
     setBusyId(task.id);
     try {
       await jsonFetch<Task>(`/api/tasks/${encodeURIComponent(task.id)}`, {
@@ -926,9 +1137,9 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const convertTaskToLocal = async (task: Task) => {
     setBusyId(task.id);
     try {
-      await jsonFetch<Task>("/api/tasks", {
+      await jsonFetch<Task>("/api/tasks?command=add", {
         method: "POST",
-        body: JSON.stringify({ name: task.name, start: task.start, end: task.end }),
+        body: JSON.stringify({ name: task.name, start: task.start, end: task.end ?? null }),
       });
       await jsonFetch<{ ok: boolean }>(`/api/tasks/${encodeURIComponent(task.id)}`, {
         method: "DELETE",
@@ -970,6 +1181,39 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     }
   };
 
+  const completeTask = async (task: Task) => {
+    if (dismissingTaskIds.current.has(task.id)) {
+      return;
+    }
+
+    dismissingTaskIds.current.add(task.id);
+    setBusyId(task.id);
+    const dismissedAt = new Date().toISOString();
+    setTasks((current) =>
+      current.map((candidate) => (candidate.id === task.id ? { ...candidate, dismissedAt: candidate.dismissedAt ?? dismissedAt } : candidate)),
+    );
+    if (alertRef.current?.taskId === task.id) {
+      setAlert(null);
+      document.body.classList.remove("task-alerting");
+      clearAudioCadence();
+    }
+
+    try {
+      const updated = await jsonFetch<Task>(`/api/tasks/${encodeURIComponent(task.id)}/dismiss`, {
+        method: "POST",
+        body: "{}",
+      });
+      setTasks((current) => current.map((candidate) => (candidate.id === task.id ? updated : candidate)));
+      setExpandedTaskId(null);
+      setMessage("Task done");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to mark task done");
+    } finally {
+      dismissingTaskIds.current.delete(task.id);
+      setBusyId(null);
+    }
+  };
+
   const toggleEditMode = () => {
     setEditMode((current) => {
       const next = !current;
@@ -1007,7 +1251,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
   return (
     <>
-      <CurrentTaskChip task={activeTask} />
+      <CurrentTaskBar task={activeTask} />
 
       {alert ? (
         <>
@@ -1075,6 +1319,14 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                   <Upload className="h-4 w-4" />
                   Import
                 </button>
+                <button
+                  className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                  type="button"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </button>
               </div>
             </header>
 
@@ -1131,56 +1383,70 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                   const repeat = repeatLabel(task.repeat);
                   const selected = selectedTaskIds.has(task.id);
                   const expanded = expandedTaskId === task.id;
+                  const canComplete = status !== "Done";
 
                   return (
                     <div key={task.id} className="grid gap-2">
-                      <button
+                      <div
                         className={classNames(
                           "task-row grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-neutral-700 bg-neutral-950/70 p-3 text-left",
                           selected && "border-cyan-300/60 bg-cyan-300/10",
                         )}
-                        type="button"
-                        onClick={() => rowClick(task)}
                       >
-                        <div className="flex min-w-0 items-center gap-3">
-                          {editMode ? (
-                            <span
-                              className={classNames(
-                                "inline-flex h-7 w-7 flex-none items-center justify-center border border-neutral-600",
-                                selected && "border-cyan-300 bg-cyan-300 text-neutral-950",
-                              )}
-                            >
-                              {selected ? <CircleCheck className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-                            </span>
-                          ) : null}
-                          <div className="min-w-0">
-                            <div className="flex min-w-0 items-center gap-2">
-                              <TaskSourceIcon task={task} />
-                              <p className="truncate text-lg font-black uppercase text-neutral-100">{task.name}</p>
+                        <button className="task-row-main min-w-0 w-full text-left" type="button" onClick={() => rowClick(task)}>
+                          <div className="flex min-w-0 items-center gap-3">
+                            {editMode ? (
+                              <span
+                                className={classNames(
+                                  "inline-flex h-7 w-7 flex-none items-center justify-center border border-neutral-600",
+                                  selected && "border-cyan-300 bg-cyan-300 text-neutral-950",
+                                )}
+                              >
+                                {selected ? <CircleCheck className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                              </span>
+                            ) : null}
+                            <div className="min-w-0">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <TaskSourceIcon task={task} />
+                                <p className="truncate text-lg font-black uppercase text-neutral-100">{task.name}</p>
+                              </div>
+                              <p className="mt-1 font-mono text-sm font-black uppercase text-neutral-500">{timeRange(task)}</p>
+                              {repeat ? (
+                                <p className="mt-1 flex items-center gap-1 font-mono text-xs font-black uppercase text-cyan-200/80">
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  {repeat}
+                                </p>
+                              ) : null}
+                              {task.sourceCalendar ? (
+                                <p className="mt-1 truncate font-mono text-xs font-black uppercase text-neutral-500">
+                                  {sourceLabel(task.source)} / {task.sourceCalendar}
+                                </p>
+                              ) : null}
                             </div>
-                            <p className="mt-1 font-mono text-sm font-black uppercase text-neutral-500">{timeRange(task)}</p>
-                            {repeat ? (
-                              <p className="mt-1 flex items-center gap-1 font-mono text-xs font-black uppercase text-cyan-200/80">
-                                <RefreshCw className="h-3.5 w-3.5" />
-                                {repeat}
-                              </p>
-                            ) : null}
-                            {task.sourceCalendar ? (
-                              <p className="mt-1 truncate font-mono text-xs font-black uppercase text-neutral-500">
-                                {sourceLabel(task.source)} / {task.sourceCalendar}
-                              </p>
-                            ) : null}
                           </div>
+                        </button>
+                        <div className="grid justify-items-end gap-2">
+                          <span
+                            className={classNames(
+                              "whitespace-nowrap border px-2 py-1 font-mono text-xs font-black uppercase",
+                              statusClassName(status),
+                            )}
+                          >
+                            {status}
+                          </span>
+                          {canComplete && !editMode ? (
+                            <button
+                              className="inline-flex min-h-9 items-center gap-2 border border-cyan-300/60 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100"
+                              type="button"
+                              onClick={() => void completeTask(task)}
+                              disabled={busyId === task.id}
+                            >
+                              <Check className="h-4 w-4" />
+                              Done
+                            </button>
+                          ) : null}
                         </div>
-                        <span
-                          className={classNames(
-                            "whitespace-nowrap border px-2 py-1 font-mono text-xs font-black uppercase",
-                            statusClassName(status),
-                          )}
-                        >
-                          {status}
-                        </span>
-                      </button>
+                      </div>
 
                       {expanded && !editMode ? (
                         task.readOnly || task.source !== "local" ? (
@@ -1207,6 +1473,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
           </section>
 
           <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />
+          <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} tasks={tasks} />
         </>
       ) : null}
     </>

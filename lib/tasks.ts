@@ -16,7 +16,7 @@ type TaskFile = {
 type TaskInput = {
   name: unknown;
   start: unknown;
-  end: unknown;
+  end?: unknown;
   repeat?: unknown;
   source?: TaskSource;
   sourceId?: string;
@@ -54,6 +54,17 @@ function normalizedDate(value: unknown, fieldName: string) {
   }
 
   return date.toISOString();
+}
+
+function normalizedOptionalDate(value: unknown, fieldName: string) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value === "string" && !value.trim()) {
+    return undefined;
+  }
+
+  return normalizedDate(value, fieldName);
 }
 
 function normalizedName(value: unknown) {
@@ -98,14 +109,18 @@ function repeatIntervalMs(repeat: TaskRepeat) {
   return repeat.intervalDays * DAY_MS;
 }
 
-function ensureEndAfterStart(start: string, end: string) {
+function ensureEndAfterStart(start: string, end: string | undefined) {
+  if (!end) {
+    return;
+  }
+
   if (new Date(end).getTime() <= new Date(start).getTime()) {
     throw new Error("Task end must be after task start");
   }
 }
 
-function ensureRepeatWindow(start: string, end: string, repeat: TaskRepeat | undefined) {
-  if (!repeat) {
+function ensureRepeatWindow(start: string, end: string | undefined, repeat: TaskRepeat | undefined) {
+  if (!repeat || !end) {
     return;
   }
 
@@ -153,8 +168,18 @@ function refreshedRepeatingTask(task: Task, nowMs: number) {
   }
 
   const startMs = new Date(task.start).getTime();
-  const endMs = new Date(task.end).getTime();
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || nowMs < endMs) {
+  const hasEnd = typeof task.end === "string" && task.end.trim().length > 0;
+  const endMs = hasEnd ? new Date(task.end as string).getTime() : startMs;
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    return { task, changed: false };
+  }
+
+  const completed = Boolean(task.dismissedAt) && nowMs >= startMs;
+  if (!completed && nowMs < endMs) {
+    return { task, changed: false };
+  }
+
+  if (!hasEnd && !completed) {
     return { task, changed: false };
   }
 
@@ -167,7 +192,7 @@ function refreshedRepeatingTask(task: Task, nowMs: number) {
   const updated: Task = {
     ...task,
     start: nextStart.toISOString(),
-    end: new Date(nextStart.getTime() + durationMs).toISOString(),
+    end: hasEnd ? new Date(nextStart.getTime() + durationMs).toISOString() : undefined,
     dismissedAt: undefined,
   };
 
@@ -184,7 +209,6 @@ function normalizedTask(value: unknown): Task | null {
     typeof candidate.id !== "string" ||
     typeof candidate.name !== "string" ||
     typeof candidate.start !== "string" ||
-    typeof candidate.end !== "string" ||
     typeof candidate.createdAt !== "string"
   ) {
     return null;
@@ -196,7 +220,7 @@ function normalizedTask(value: unknown): Task | null {
   }
 
   const start = normalizedDate(candidate.start, "Task start");
-  const end = normalizedDate(candidate.end, "Task end");
+  const end = normalizedOptionalDate(candidate.end, "Task end");
   const repeat = source === "local" ? normalizedRepeat(candidate.repeat) : undefined;
   ensureEndAfterStart(start, end);
   ensureRepeatWindow(start, end, repeat);
@@ -246,7 +270,7 @@ async function writeTaskFile(tasks: Task[]): Promise<void> {
 
 function validatedNewTask(input: TaskInput): Task {
   const start = normalizedDate(input.start, "Task start");
-  const end = normalizedDate(input.end, "Task end");
+  const end = normalizedOptionalDate(input.end, "Task end");
   ensureEndAfterStart(start, end);
   const source = input.source ?? "local";
   const repeat = source === "local" ? normalizedRepeat(input.repeat) : undefined;
@@ -271,7 +295,7 @@ function validatedNewTask(input: TaskInput): Task {
 
 function validatedParsedTask(task: Task): Task {
   const start = normalizedDate(task.start, "Task start");
-  const end = normalizedDate(task.end, "Task end");
+  const end = normalizedOptionalDate(task.end, "Task end");
   ensureEndAfterStart(start, end);
   const source = task.source ?? "local";
   const repeat = source === "local" ? normalizedRepeat(task.repeat) : undefined;
@@ -389,7 +413,7 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
     }
 
     const start = patch.start === undefined ? current.start : normalizedDate(patch.start, "Task start");
-    const end = patch.end === undefined ? current.end : normalizedDate(patch.end, "Task end");
+    const end = patch.end === undefined ? current.end : normalizedOptionalDate(patch.end, "Task end");
     ensureEndAfterStart(start, end);
     const hasRepeatPatch = Object.prototype.hasOwnProperty.call(patch, "repeat");
     const repeat = hasRepeatPatch ? normalizedRepeat(patch.repeat) : current.repeat;
@@ -422,16 +446,18 @@ export async function deleteTasks(ids: string[]): Promise<void> {
 
 export async function dismissTask(id: string): Promise<Task> {
   const dismissedAt = new Date().toISOString();
+  const nowMs = Date.now();
   const task = await mutateTasks((tasks) => {
     const index = tasks.findIndex((candidate) => candidate.id === id);
     if (index < 0) {
       throw new Error("Task not found");
     }
 
-    const updated = {
+    const dismissed = {
       ...tasks[index],
       dismissedAt,
     };
+    const updated = refreshedRepeatingTask(dismissed, nowMs).task;
 
     return {
       tasks: tasks.map((candidate) => (candidate.id === id ? updated : candidate)),

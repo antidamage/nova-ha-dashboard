@@ -1,4 +1,4 @@
-import type { Task } from "./types";
+import type { Task, TaskRepeat } from "./types";
 
 export type ParseTaskCsvError = {
   line: number;
@@ -58,11 +58,39 @@ function splitTaskCsvLine(line: string) {
     return null;
   }
 
+  const thirdComma = line.indexOf(",", secondComma + 1);
+
   return {
     start: line.slice(0, firstComma).trim(),
     end: line.slice(firstComma + 1, secondComma).trim(),
-    name: line.slice(secondComma + 1).trim(),
+    name: line.slice(secondComma + 1, thirdComma < 0 ? undefined : thirdComma).trim(),
+    repeat: thirdComma < 0 ? "" : line.slice(thirdComma + 1).trim(),
   };
+}
+
+function parsedRepeat(value: string): TaskRepeat | undefined {
+  const text = value.trim().toLowerCase();
+  if (!text || text === "none" || text === "no repeat") {
+    return undefined;
+  }
+  if (text === "hourly") {
+    return { kind: "hourly" };
+  }
+  if (text === "morning-night" || text === "morning/night") {
+    return { kind: "morning-night" };
+  }
+
+  const daysMatch = /^(?:days?|every\s*)[:= ]?(\d+)$/.exec(text);
+  if (daysMatch) {
+    return { kind: "days", intervalDays: Number(daysMatch[1]) };
+  }
+
+  const bareDays = Number(text);
+  if (Number.isInteger(bareDays)) {
+    return { kind: "days", intervalDays: bareDays };
+  }
+
+  return undefined;
 }
 
 export function parseTaskCsv(text: string, referenceDate: Date): ParseTaskCsvResult {
@@ -80,7 +108,7 @@ export function parseTaskCsv(text: string, referenceDate: Date): ParseTaskCsvRes
 
     const fields = splitTaskCsvLine(rawLine);
     if (!fields) {
-      errors.push({ line: lineNumber, message: "Expected start,end,name" });
+      errors.push({ line: lineNumber, message: "Expected start,end,name[,repeat]" });
       return;
     }
 
@@ -90,22 +118,32 @@ export function parseTaskCsv(text: string, referenceDate: Date): ParseTaskCsvRes
     }
 
     const start = parsedDate(fields.start, referenceDate);
-    const end = parsedDate(fields.end, referenceDate);
+    const end = fields.end ? parsedDate(fields.end, referenceDate) : null;
     if (!start) {
       errors.push({ line: lineNumber, message: "Start time is invalid" });
       return;
     }
-    if (!end) {
+    if (fields.end && !end) {
       errors.push({ line: lineNumber, message: "End time is invalid" });
       return;
     }
 
-    if (end.timeOnly && end.date.getTime() < start.date.getTime()) {
+    if (end?.timeOnly && end.date.getTime() < start.date.getTime()) {
       end.date = new Date(end.date.getTime() + 24 * 60 * 60 * 1000);
     }
 
-    if (end.date.getTime() <= start.date.getTime()) {
+    if (end && end.date.getTime() <= start.date.getTime()) {
       errors.push({ line: lineNumber, message: "End time must be after start time" });
+      return;
+    }
+
+    const repeat = parsedRepeat(fields.repeat);
+    if (fields.repeat && !repeat) {
+      errors.push({ line: lineNumber, message: "Repeat must be hourly, morning/night, or days:N" });
+      return;
+    }
+    if (repeat?.kind === "days" && (repeat.intervalDays < 1 || repeat.intervalDays > 365)) {
+      errors.push({ line: lineNumber, message: "Repeat days must be between 1 and 365" });
       return;
     }
 
@@ -113,8 +151,9 @@ export function parseTaskCsv(text: string, referenceDate: Date): ParseTaskCsvRes
       id: randomTaskId(),
       name: fields.name,
       start: start.date.toISOString(),
-      end: end.date.toISOString(),
+      end: end?.date.toISOString(),
       createdAt,
+      repeat,
       source: "local",
     });
   });

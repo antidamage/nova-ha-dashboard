@@ -85,7 +85,7 @@ export type Task = {
   id: string;
   name: string;
   start: string;
-  end: string;
+  end?: string;
   createdAt: string;
   dismissedAt?: string;
   repeat?: TaskRepeat;

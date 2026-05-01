@@ -36,6 +36,7 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   mapWater: ThemeMapLayerValue;
   radarOpacity: number;
   radarPaletteMode: RadarPaletteMode;
+  taskGlowIntensity: number;
   titleTone: ThemeTitleTone;
 };
 
@@ -61,6 +62,9 @@ export const MAP_LABEL_SIZE_MIN = 50;
 export const MAP_BUILDING_OPACITY_DEFAULT = 38;
 export const MAP_BUILDING_OPACITY_MAX = 100;
 export const MAP_BUILDING_OPACITY_MIN = 0;
+export const TASK_GLOW_INTENSITY_DEFAULT = 200;
+export const TASK_GLOW_INTENSITY_MAX = 300;
+export const TASK_GLOW_INTENSITY_MIN = 50;
 
 export const DEFAULT_THEME: DeviceTheme = {
   accent: {
@@ -144,6 +148,7 @@ export const DEFAULT_THEME: DeviceTheme = {
   },
   radarOpacity: RADAR_OPACITY_DEFAULT,
   radarPaletteMode: "spectrum",
+  taskGlowIntensity: TASK_GLOW_INTENSITY_DEFAULT,
   titleTone: "auto",
 };
 
@@ -235,6 +240,10 @@ export function normalizeRadarOpacity(value: unknown) {
   return normalizePercent(value, RADAR_OPACITY_DEFAULT);
 }
 
+export function normalizeTaskGlowIntensity(value: unknown) {
+  return normalizeNumber(value, TASK_GLOW_INTENSITY_DEFAULT, TASK_GLOW_INTENSITY_MIN, TASK_GLOW_INTENSITY_MAX);
+}
+
 function matchesThemeColor(value: Partial<ThemeColorValue> | null | undefined, expected: ThemeColorValue) {
   if (!value) {
     return false;
@@ -296,6 +305,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     },
     radarOpacity: normalizeRadarOpacity(value?.radarOpacity),
     radarPaletteMode: normalizeRadarPaletteMode(value?.radarPaletteMode),
+    taskGlowIntensity: normalizeTaskGlowIntensity(value?.taskGlowIntensity),
     titleTone,
   };
 }
@@ -434,6 +444,20 @@ function applyCssRadarOpacity(value: number) {
   document.documentElement.style.setProperty("--cyber-map-radar-opacity", String(normalizeRadarOpacity(value)));
 }
 
+function applyCssTaskGlowIntensity(value: number) {
+  const intensity = normalizeTaskGlowIntensity(value);
+  const scale = intensity / 100;
+  const root = document.documentElement;
+
+  root.style.setProperty("--task-glow-intensity", String(intensity));
+  root.style.setProperty("--task-glow-cyan-blur", `${Math.round(128 * scale)}px`);
+  root.style.setProperty("--task-glow-cyan-spread", `${Math.round(42 * scale)}px`);
+  root.style.setProperty("--task-glow-line-blur", `${Math.round(72 * scale)}px`);
+  root.style.setProperty("--task-glow-line-spread", `${Math.round(18 * scale)}px`);
+  root.style.setProperty("--task-glow-cyan-alpha", Math.min(1, 0.7 * scale).toFixed(3));
+  root.style.setProperty("--task-glow-line-alpha", Math.min(1, 0.72 * scale).toFixed(3));
+}
+
 export function applyDeviceTheme(theme: DeviceTheme) {
   const normalized = normalizeTheme(theme);
   const accent = appliedThemeRgb(normalized.accent);
@@ -450,6 +474,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssMapLabelSize(normalized.mapLabelSize);
   applyCssMapWater(normalized.mapWater);
   applyCssRadarOpacity(normalized.radarOpacity);
+  applyCssTaskGlowIntensity(normalized.taskGlowIntensity);
   document.documentElement.style.setProperty("--cyber-map-radar-mode", normalized.radarPaletteMode);
   document.documentElement.style.setProperty("--cyber-map-satellite", normalized.mapSatellite ? "1" : "0");
 }

@@ -53,6 +53,7 @@ try {
   var mapWater = stored && stored.mapWater ? stored.mapWater : null;
   var radarOpacity = stored && stored.radarOpacity;
   var radarPaletteMode = stored && stored.radarPaletteMode === "custom" ? "custom" : "spectrum";
+  var taskGlowIntensity = stored && stored.taskGlowIntensity;
   var mapSatellite = !(stored && stored.mapSatellite === false);
   var titleTone = stored && stored.titleTone ? stored.titleTone : "auto";
   var clamp = function (value, min, max) {
@@ -87,6 +88,11 @@ try {
     var parsed = Number(value);
     if (!Number.isFinite(parsed)) return 38;
     return clamp(Math.round(parsed), 0, 100);
+  };
+  var normalizedTaskGlowIntensity = function (value) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 200;
+    return clamp(Math.round(parsed), 50, 300);
   };
   var mix = function (from, to, amount) {
     return [
@@ -165,6 +171,17 @@ try {
   var setRadarOpacity = function (value) {
     document.documentElement.style.setProperty("--cyber-map-radar-opacity", String(normalizedRadarOpacity(value)));
   };
+  var setTaskGlowIntensity = function (value) {
+    var intensity = normalizedTaskGlowIntensity(value);
+    var scale = intensity / 100;
+    document.documentElement.style.setProperty("--task-glow-intensity", String(intensity));
+    document.documentElement.style.setProperty("--task-glow-cyan-blur", Math.round(128 * scale) + "px");
+    document.documentElement.style.setProperty("--task-glow-cyan-spread", Math.round(42 * scale) + "px");
+    document.documentElement.style.setProperty("--task-glow-line-blur", Math.round(72 * scale) + "px");
+    document.documentElement.style.setProperty("--task-glow-line-spread", Math.round(18 * scale) + "px");
+    document.documentElement.style.setProperty("--task-glow-cyan-alpha", Math.min(1, 0.7 * scale).toFixed(3));
+    document.documentElement.style.setProperty("--task-glow-line-alpha", Math.min(1, 0.72 * scale).toFixed(3));
+  };
   var setMapLabelSize = function (value) {
     document.documentElement.style.setProperty("--cyber-map-label-size", String(normalizedMapLabelSize(value)));
   };
@@ -188,6 +205,7 @@ try {
     var mapWater = themeValue.mapWater ? themeValue.mapWater : null;
     var radarOpacity = themeValue.radarOpacity;
     var radarPaletteMode = themeValue.radarPaletteMode === "custom" ? "custom" : "spectrum";
+    var taskGlowIntensity = themeValue.taskGlowIntensity;
     var mapSatellite = !(themeValue.mapSatellite === false);
     var titleTone = themeValue.titleTone ? themeValue.titleTone : "auto";
     document.cookie = themeKey + "=" + encodeURIComponent(JSON.stringify(themeValue)) + "; Path=/; Max-Age=31536000; SameSite=Lax";
@@ -205,6 +223,7 @@ try {
     setMapLabelSize(mapLabelSize);
     setMapWater(mapWater);
     setRadarOpacity(radarOpacity);
+    setTaskGlowIntensity(taskGlowIntensity);
     document.documentElement.style.setProperty("--cyber-map-satellite", mapSatellite ? "1" : "0");
   };
   if (stored) {

@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeftRight, Check, Home, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeftRight, Check, Home, Music, RotateCcw, Trash2, Upload } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DeviceTheme,
   MAP_BUILDING_OPACITY_DEFAULT,
@@ -15,6 +15,9 @@ import {
   RADAR_OPACITY_MAX,
   RADAR_OPACITY_MIN,
   RadarPaletteMode,
+  TASK_GLOW_INTENSITY_DEFAULT,
+  TASK_GLOW_INTENSITY_MAX,
+  TASK_GLOW_INTENSITY_MIN,
   ThemeBorderValue,
   ThemeColorSlot,
   ThemeConfigScope,
@@ -23,6 +26,7 @@ import {
   ThemeTitleTone,
   appliedThemeRgb,
   normalizeRadarOpacity,
+  normalizeTaskGlowIntensity,
   themeRgbAtPosition,
   useDeviceTheme,
 } from "./accentColor";
@@ -92,6 +96,8 @@ function isRadarPaletteSlot(slot: ThemeConfigSlot | null) {
 }
 
 const CONFIG_WIDGET_STORAGE_KEY = "nova.dashboard.configWidget.v1";
+const TASK_GLOW_PREVIEW_MS = 2600;
+const TASK_REMINDER_AUDIO_PATH = "/api/tasks/audio";
 
 function selectedConfigWidgetFromStorage(): ThemeConfigSlot | null {
   if (typeof window === "undefined") {
@@ -575,6 +581,196 @@ function RadarOpacityControl({
   );
 }
 
+function TaskGlowIntensityControl({
+  color,
+  onChange,
+  onPreview,
+  value,
+}: {
+  color: [number, number, number];
+  onChange: (value: number) => void;
+  onPreview: () => void;
+  value: number;
+}) {
+  const intensity = normalizeTaskGlowIntensity(value);
+
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_112px] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">Reminder Glow</p>
+        <div className="px-1">
+          <DotLineControl
+            ariaLabel="Task reminder glow intensity"
+            ariaValueText={`${intensity}%`}
+            value={intensity}
+            min={TASK_GLOW_INTENSITY_MIN}
+            max={TASK_GLOW_INTENSITY_MAX}
+            step={10}
+            color={color}
+            activeColor={color}
+            intensity={Math.min(100, intensity)}
+            onChange={(nextValue) => onChange(normalizeTaskGlowIntensity(nextValue))}
+            onCommit={onPreview}
+            markers={[
+              { active: intensity === TASK_GLOW_INTENSITY_DEFAULT, label: "Default", value: TASK_GLOW_INTENSITY_DEFAULT },
+              { active: intensity === TASK_GLOW_INTENSITY_MAX, label: "Max", value: TASK_GLOW_INTENSITY_MAX },
+            ]}
+          />
+        </div>
+        <p className="text-3xl font-black tabular-nums text-neutral-50 md:text-right">{intensity}%</p>
+      </div>
+    </div>
+  );
+}
+
+type TaskReminderAudioStatus = {
+  exists: boolean;
+  size?: number;
+  updatedAt?: string;
+};
+
+function formatBytes(value: number | undefined) {
+  if (!Number.isFinite(value ?? Number.NaN)) {
+    return "";
+  }
+
+  const bytes = Number(value);
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function TaskReminderAudioControl({ onStatusChange }: { onStatusChange?: (exists: boolean) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<TaskReminderAudioStatus | null>(null);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/tasks/audio?status=1", { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to read reminder audio");
+      }
+      const nextStatus = payload as TaskReminderAudioStatus;
+      setStatus(nextStatus);
+      onStatusChange?.(nextStatus.exists);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to read reminder audio");
+    }
+  }, [onStatusChange]);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  const uploadFile = async (file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch("/api/tasks/audio", {
+        method: "POST",
+        body: form,
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to upload reminder audio");
+      }
+
+      const nextStatus = payload as TaskReminderAudioStatus;
+      setStatus(nextStatus);
+      onStatusChange?.(nextStatus.exists);
+      setMessage("Reminder audio uploaded");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to upload reminder audio");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    }
+  };
+
+  const removeFile = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/tasks/audio", { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to remove reminder audio");
+      }
+      const nextStatus = payload as TaskReminderAudioStatus;
+      setStatus(nextStatus);
+      onStatusChange?.(nextStatus.exists);
+      setMessage("Reminder audio removed");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to remove reminder audio");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_auto] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">Reminder MP3</p>
+        <div className="grid gap-1 font-mono text-sm font-black uppercase text-neutral-300">
+          <span className="inline-flex items-center gap-2">
+            <Music className="h-4 w-4" />
+            {status?.exists ? "Audio ready" : "No MP3 uploaded"}
+          </span>
+          {status?.exists ? (
+            <span className="text-xs text-neutral-500">
+              {formatBytes(status.size)}
+              {status.updatedAt ? ` / ${new Date(status.updatedAt).toLocaleString()}` : ""}
+            </span>
+          ) : null}
+          {message ? <span className="text-xs text-cyan-100">{message}</span> : null}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <input
+            ref={inputRef}
+            className="sr-only"
+            type="file"
+            accept="audio/mpeg,.mp3"
+            onChange={(event) => void uploadFile(event.target.files?.[0] ?? null)}
+          />
+          <button
+            className="inline-flex min-h-11 items-center gap-2 border border-cyan-300/60 px-4 py-2 text-sm font-black"
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+          >
+            <Upload className="h-4 w-4" />
+            {busy ? "Working" : "Upload"}
+          </button>
+          {status?.exists ? (
+            <button
+              className="inline-flex min-h-11 items-center gap-2 border border-red-400/60 px-4 py-2 text-sm font-black"
+              type="button"
+              onClick={() => void removeFile()}
+              disabled={busy}
+            >
+              <Trash2 className="h-4 w-4" />
+              Remove
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): ThemeColorValue {
   if (slot === "border") {
     return theme.border.color;
@@ -590,6 +786,10 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
 
   const { resetTheme, setTheme, setThemeColor, setThemeScope, theme, themeReady, themeScope } = useDeviceTheme(initialTheme);
   const [activeSlot, setActiveSlot] = useState<ThemeConfigSlot | null>(selectedConfigWidgetFromStorage);
+  const [taskReminderAudioExists, setTaskReminderAudioExists] = useState(false);
+  const taskAudioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const taskAudioPreviewStopTimer = useRef<number | null>(null);
+  const taskGlowPreviewTimer = useRef<number | null>(null);
   const accentRgb = appliedThemeRgb(theme.accent);
   const highlightRgb = appliedThemeRgb(theme.highlight);
   const borderRgb = appliedThemeRgb(theme.border.color);
@@ -632,6 +832,63 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
     setTheme({ ...theme, mapWater });
   };
 
+  const stopTaskAudioPreview = useCallback(() => {
+    if (taskAudioPreviewStopTimer.current !== null) {
+      window.clearTimeout(taskAudioPreviewStopTimer.current);
+      taskAudioPreviewStopTimer.current = null;
+    }
+
+    const audio = taskAudioPreviewRef.current;
+    if (audio) {
+      audio.pause();
+      try {
+        audio.currentTime = 0;
+      } catch {
+        // Some browsers will not allow seeking until the MP3 has loaded metadata.
+      }
+    }
+  }, []);
+
+  const previewTaskAudio = useCallback(() => {
+    if (!taskReminderAudioExists) {
+      return;
+    }
+
+    stopTaskAudioPreview();
+
+    let audio = taskAudioPreviewRef.current;
+    if (!audio) {
+      audio = new Audio();
+      audio.preload = "auto";
+      taskAudioPreviewRef.current = audio;
+    }
+
+    audio.src = `${TASK_REMINDER_AUDIO_PATH}?preview=${Date.now()}`;
+    const playPromise = audio.play();
+    if (playPromise) {
+      playPromise.catch((error) => {
+        console.info("[nova-dashboard] task preview audio blocked or unavailable", error);
+      });
+    }
+
+    taskAudioPreviewStopTimer.current = window.setTimeout(stopTaskAudioPreview, TASK_GLOW_PREVIEW_MS);
+  }, [stopTaskAudioPreview, taskReminderAudioExists]);
+
+  const previewTaskGlow = useCallback(() => {
+    if (taskGlowPreviewTimer.current !== null) {
+      window.clearTimeout(taskGlowPreviewTimer.current);
+    }
+
+    previewTaskAudio();
+    document.body.classList.remove("task-glow-preview");
+    void document.body.offsetWidth;
+    document.body.classList.add("task-glow-preview");
+    taskGlowPreviewTimer.current = window.setTimeout(() => {
+      document.body.classList.remove("task-glow-preview");
+      taskGlowPreviewTimer.current = null;
+    }, TASK_GLOW_PREVIEW_MS);
+  }, [previewTaskAudio]);
+
   useEffect(() => {
     removeLegacyConfigWidgetParam();
 
@@ -639,6 +896,16 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
     window.addEventListener("pageshow", onPageShow);
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (taskGlowPreviewTimer.current !== null) {
+        window.clearTimeout(taskGlowPreviewTimer.current);
+      }
+      stopTaskAudioPreview();
+      document.body.classList.remove("task-glow-preview");
+    };
+  }, [stopTaskAudioPreview]);
 
   useEffect(() => {
     if (theme.radarPaletteMode === "custom" || !isRadarPaletteSlot(activeSlot)) {
@@ -734,7 +1001,7 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
 
   return (
     <main className="min-h-screen text-neutral-100" style={{ backgroundColor: "var(--cyber-bg)" }}>
-      <div className="dashboard-shell config-shell min-h-screen px-4 py-5 sm:px-6 lg:px-8">
+      <div className="dashboard-shell config-shell min-h-screen px-4 py-5 sm:px-6">
         <div className="config-layout mx-auto grid max-w-5xl gap-5" style={{ visibility: themeReady ? "visible" : "hidden" }}>
           <section className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
             <div className="panel-corner panel-corner-left" />
@@ -766,6 +1033,17 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                   detail={theme.autoFullscreenOnLoad ? "Local client requests fullscreen when the dashboard opens" : "Local client opens without requesting fullscreen"}
                   onChange={(autoFullscreenOnLoad) => setTheme({ ...theme, autoFullscreenOnLoad })}
                 />
+              </section>
+
+              <section className="theme-config-section grid gap-3">
+                <h2 className="text-xl font-black uppercase text-neutral-100">Tasks</h2>
+                <TaskGlowIntensityControl
+                  color={highlightRgb}
+                  value={theme.taskGlowIntensity ?? TASK_GLOW_INTENSITY_DEFAULT}
+                  onChange={(taskGlowIntensity) => setTheme({ ...theme, taskGlowIntensity })}
+                  onPreview={previewTaskGlow}
+                />
+                <TaskReminderAudioControl onStatusChange={setTaskReminderAudioExists} />
               </section>
 
               <section className="theme-config-section grid gap-3">

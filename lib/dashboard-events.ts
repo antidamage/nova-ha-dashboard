@@ -25,6 +25,7 @@ type DashboardEventStore = {
   latestBuildId: string | null;
   latestJson: string | null;
   latestSignature: string | null;
+  latestTaskAudioJson: string | null;
   latestTasksJson: string | null;
   lightPollHoldUntil: number;
   nextClientId: number;
@@ -32,6 +33,7 @@ type DashboardEventStore = {
   pollTimer: ReturnType<typeof setInterval> | null;
   polling: boolean;
   spectrumCursors: Record<string, SpectrumCursor>;
+  taskClients: Set<DashboardEventClient>;
   taskAlertSessions: Record<string, string>;
   taskAlertTimer: ReturnType<typeof setInterval> | null;
   taskAlertTicking: boolean;
@@ -54,6 +56,7 @@ const store =
     latestBuildId: null,
     latestJson: null,
     latestSignature: null,
+    latestTaskAudioJson: null,
     latestTasksJson: null,
     lightPollHoldUntil: 0,
     nextClientId: 0,
@@ -61,6 +64,7 @@ const store =
     pollTimer: null,
     polling: false,
     spectrumCursors: {},
+    taskClients: new Set<DashboardEventClient>(),
     taskAlertSessions: {},
     taskAlertTimer: null,
     taskAlertTicking: false,
@@ -69,8 +73,10 @@ const store =
 
 store.icloudSyncTimer ??= null;
 store.icloudSyncing ??= false;
+store.latestTaskAudioJson ??= null;
 store.latestTasksJson ??= null;
 store.nextIcloudSyncAt ??= 0;
+store.taskClients ??= new Set<DashboardEventClient>();
 store.taskAlertSessions ??= {};
 store.taskAlertTimer ??= null;
 store.taskAlertTicking ??= false;
@@ -126,6 +132,7 @@ function sendClient(client: DashboardEventClient, chunk: string) {
     client.controller.enqueue(encoder.encode(chunk));
   } catch {
     store.clients.delete(client);
+    store.taskClients.delete(client);
   }
 }
 
@@ -135,6 +142,13 @@ function broadcast(chunk: string, options: { excludeClientId?: number | null } =
       continue;
     }
 
+    sendClient(client, chunk);
+  }
+}
+
+function broadcastTask(chunk: string) {
+  broadcast(chunk);
+  for (const client of store.taskClients) {
     sendClient(client, chunk);
   }
 }
@@ -185,12 +199,17 @@ export function publishDashboardError(message: string) {
 
 export function publishTasks(tasks: Task[]) {
   store.latestTasksJson = JSON.stringify({ tasks });
-  broadcast(sseEvent("tasks", store.latestTasksJson));
+  broadcastTask(sseEvent("tasks", store.latestTasksJson));
 }
 
 export function publishTaskDismiss(taskId: string) {
   delete store.taskAlertSessions[taskId];
-  broadcast(sseEvent("task-dismiss", JSON.stringify({ taskId })));
+  broadcastTask(sseEvent("task-dismiss", JSON.stringify({ taskId })));
+}
+
+export function publishTaskAudioStatus(status: { exists: boolean; size?: number; updatedAt?: string }) {
+  store.latestTaskAudioJson = JSON.stringify(status);
+  broadcastTask(sseEvent("task-audio", store.latestTaskAudioJson));
 }
 
 export function holdDashboardEventLightPolling(durationMs = LIGHT_COMMAND_EVENT_HOLD_MS) {
@@ -403,8 +422,16 @@ function isTaskAlerting(task: Task, now: number) {
   }
 
   const start = new Date(task.start).getTime();
+  if (!Number.isFinite(start) || start > now) {
+    return false;
+  }
+
+  if (!task.end) {
+    return true;
+  }
+
   const end = new Date(task.end).getTime();
-  return Number.isFinite(start) && Number.isFinite(end) && start <= now && now < end;
+  return Number.isFinite(end) && now < end;
 }
 
 async function sendTasksSnapshot(client: DashboardEventClient) {
@@ -443,13 +470,13 @@ async function scanTaskAlerts() {
       }
 
       activeAlertingTaskIds.add(task.id);
-      const sessionKey = `${task.start}:${task.end}`;
+      const sessionKey = `${task.start}:${task.end ?? "reminder"}`;
       if (store.taskAlertSessions[task.id] === sessionKey) {
         continue;
       }
 
       store.taskAlertSessions[task.id] = sessionKey;
-      broadcast(sseEvent("task-alert", JSON.stringify({ taskId: task.id, name: task.name, end: task.end })));
+      broadcastTask(sseEvent("task-alert", JSON.stringify({ taskId: task.id, name: task.name, end: task.end })));
     }
 
     for (const taskId of Object.keys(store.taskAlertSessions)) {
@@ -517,6 +544,9 @@ function startDashboardEventPoller() {
   if (!store.heartbeatTimer) {
     store.heartbeatTimer = setInterval(() => {
       broadcast(": keep-alive\n\n");
+      for (const client of store.taskClients) {
+        sendClient(client, ": keep-alive\n\n");
+      }
     }, DASHBOARD_EVENT_HEARTBEAT_MS);
   }
 
@@ -547,7 +577,7 @@ function startDashboardEventPoller() {
 }
 
 function stopDashboardEventPollerIfIdle() {
-  if (store.clients.size > 0) {
+  if (store.clients.size > 0 || store.taskClients.size > 0) {
     return;
   }
 
@@ -602,12 +632,45 @@ export function subscribeDashboardEvents() {
         sendClient(client, sseEvent("state", store.latestJson));
       }
       void sendTasksSnapshot(client);
+      if (store.latestTaskAudioJson) {
+        sendClient(client, sseEvent("task-audio", store.latestTaskAudioJson));
+      }
 
       startDashboardEventPoller();
     },
     cancel() {
       if (client) {
         store.clients.delete(client);
+      }
+      stopDashboardEventPollerIfIdle();
+    },
+  });
+}
+
+export function subscribeTaskEvents() {
+  let client: DashboardEventClient | null = null;
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      client = {
+        id: store.nextClientId + 1,
+        controller,
+      };
+      store.nextClientId = client.id;
+      store.taskClients.add(client);
+
+      sendClient(client, "retry: 2000\n\n");
+      sendClient(client, sseEvent("client-id", JSON.stringify({ id: client.id })));
+      void sendTasksSnapshot(client);
+      if (store.latestTaskAudioJson) {
+        sendClient(client, sseEvent("task-audio", store.latestTaskAudioJson));
+      }
+
+      startDashboardEventPoller();
+    },
+    cancel() {
+      if (client) {
+        store.taskClients.delete(client);
       }
       stopDashboardEventPollerIfIdle();
     },
