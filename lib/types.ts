@@ -147,8 +147,21 @@ export type AirconPreferences = {
   updatedAt?: string;
 };
 
+export type LightingPreferences = {
+  adaptiveCandlelightZones?: Record<
+    string,
+    {
+      enabled?: boolean;
+      lastSunState?: "above_horizon" | "below_horizon";
+      updatedAt?: string;
+    }
+  >;
+  updatedAt?: string;
+};
+
 export type DashboardPreferences = {
   aircon?: AirconPreferences;
+  lighting?: LightingPreferences;
   theme?: Record<string, unknown>;
   themeUpdatedAt?: string;
 };

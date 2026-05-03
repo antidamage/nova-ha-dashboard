@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
-    "start": "next start --hostname 0.0.0.0"
+    "start": "next start --hostname 0.0.0.0",
+    "test:aircon": "tsc -p tsconfig.aircon-test.json && node --test .tmp/aircon-tests/lib/aircon-control.test.js"
   },
   "dependencies": {
     "@radix-ui/react-slider": "latest",

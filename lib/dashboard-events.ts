@@ -1,5 +1,5 @@
 import { readDashboardBuildId } from "./build-id";
-import { buildDashboardState, warmWeatherCache } from "./ha";
+import { applyAdaptiveCandlelightTransitions, buildDashboardState, warmWeatherCache } from "./ha";
 import { isIcloudEnabled, logIcloudDisabledOnce } from "./icloud-config";
 import type { DashboardEntity, DashboardState, HaDomain, SpectrumCursor, Task } from "./types";
 
@@ -10,6 +10,7 @@ const LIGHT_COMMAND_EVENT_HOLD_MS = 5000;
 const WEATHER_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const TASK_ALERT_TICK_MS = 1000;
 const ICLOUD_SYNC_INTERVAL_MS = 10 * 60 * 1000;
+const ADAPTIVE_LIGHTING_POLL_MS = 60 * 1000;
 
 type DashboardEventClient = {
   id: number;
@@ -17,6 +18,8 @@ type DashboardEventClient = {
 };
 
 type DashboardEventStore = {
+  adaptiveLightingTimer: ReturnType<typeof setInterval> | null;
+  adaptiveLightingTicking: boolean;
   buildPollTimer: ReturnType<typeof setInterval> | null;
   clients: Set<DashboardEventClient>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
@@ -48,6 +51,8 @@ const globalWithDashboardEvents = globalThis as typeof globalThis & {
 const store =
   globalWithDashboardEvents.__novaDashboardEvents ??
   (globalWithDashboardEvents.__novaDashboardEvents = {
+    adaptiveLightingTimer: null,
+    adaptiveLightingTicking: false,
     buildPollTimer: null,
     clients: new Set<DashboardEventClient>(),
     heartbeatTimer: null,
@@ -71,6 +76,8 @@ const store =
     weatherRefreshTimer: null,
   });
 
+store.adaptiveLightingTimer ??= null;
+store.adaptiveLightingTicking ??= false;
 store.icloudSyncTimer ??= null;
 store.icloudSyncing ??= false;
 store.latestTaskAudioJson ??= null;
@@ -326,6 +333,10 @@ function optimisticZoneEntity(
   return entity;
 }
 
+function adaptiveCandlelightRgb(state: DashboardState): [number, number, number] {
+  return state.sun?.state === "below_horizon" ? [255, 147, 41] : [255, 214, 170];
+}
+
 export function isLightZoneAction(action: string) {
   return ["on", "off", "brightness", "color", "candlelight", "white"].includes(action);
 }
@@ -338,7 +349,7 @@ export function optimisticDashboardStateForZoneAction(state: DashboardState, inp
 
   const entityIds = new Set(zone.entities.map((entity) => entity.entity_id));
   const brightnessPct = Math.max(0, Math.min(100, Math.round(input.brightnessPct ?? zone.brightnessPct ?? 100)));
-  const rgb = input.rgb ?? null;
+  const rgb = input.rgb ?? (["on", "candlelight"].includes(input.action) ? adaptiveCandlelightRgb(state) : null);
 
   return withDashboardEntityUpdates(state, (entity) =>
     entityIds.has(entity.entity_id) ? optimisticZoneEntity(entity, input.action, brightnessPct, rgb) : entity,
@@ -526,6 +537,24 @@ async function runIcloudSync(options: { force?: boolean } = {}) {
   }
 }
 
+async function scanAdaptiveLighting() {
+  if (store.adaptiveLightingTicking) {
+    return;
+  }
+
+  store.adaptiveLightingTicking = true;
+  try {
+    const state = await applyAdaptiveCandlelightTransitions();
+    if (state) {
+      publishDashboardState(state, { force: true });
+    }
+  } catch (error) {
+    publishDashboardError(error instanceof Error ? error.message : "Failed to adjust lights for sun transition");
+  } finally {
+    store.adaptiveLightingTicking = false;
+  }
+}
+
 function startDashboardEventPoller() {
   if (!store.buildPollTimer) {
     void publishDashboardBuild();
@@ -562,6 +591,13 @@ function startDashboardEventPoller() {
     store.taskAlertTimer = setInterval(() => {
       void scanTaskAlerts();
     }, TASK_ALERT_TICK_MS);
+  }
+
+  if (!store.adaptiveLightingTimer) {
+    void scanAdaptiveLighting();
+    store.adaptiveLightingTimer = setInterval(() => {
+      void scanAdaptiveLighting();
+    }, ADAPTIVE_LIGHTING_POLL_MS);
   }
 
   if (!store.icloudSyncTimer) {
@@ -605,6 +641,11 @@ function stopDashboardEventPollerIfIdle() {
     clearInterval(store.taskAlertTimer);
     store.taskAlertTimer = null;
     store.taskAlertSessions = {};
+  }
+
+  if (store.adaptiveLightingTimer) {
+    clearInterval(store.adaptiveLightingTimer);
+    store.adaptiveLightingTimer = null;
   }
 
   if (store.icloudSyncTimer) {

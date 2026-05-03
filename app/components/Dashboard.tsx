@@ -32,6 +32,28 @@ import {
   SunStatus,
   WeatherStatus,
 } from "../../lib/types";
+import {
+  AIRCON_AUTO_POLL_MS,
+  AIRCON_FAN_STEPS,
+  AirconAutoThermostat,
+  airconAutoMeasuredTemperature,
+  airconAutoSupported,
+  airconFanModeServiceValue,
+  airconFanStep,
+  airconFanStepActions,
+  airconModeSupported,
+  buildAirconAutoActions,
+  climateCurrentTemperature,
+  climateTargetTemperature,
+  displayedAirconMode,
+  isAirconMode,
+  isClimateEntityOn,
+  numericClimateAttribute,
+  stringListAttribute,
+  type AirconFanStep,
+  type AirconMode,
+  type EntityActionInput,
+} from "../../lib/aircon-control";
 import { useDeviceTheme } from "./accentColor";
 import { DotLineControl, DotSpectrumControl } from "./DotControls";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
@@ -41,14 +63,6 @@ import { useBuildReload } from "./useBuildReload";
 const MapPanel = dynamic(() => import("./MapPanel").then((module) => module.MapPanel), { ssr: false });
 
 type LoadState = "idle" | "loading" | "error";
-
-type EntityActionInput = {
-  entityId: string;
-  domain: HaDomain;
-  service: string;
-  data?: Record<string, unknown>;
-  remember?: DashboardPreferences;
-};
 
 const domainIcons: Record<HaDomain, React.ComponentType<{ className?: string }>> = {
   light: Lightbulb,
@@ -133,12 +147,6 @@ const LIGHT_DRAG_COMMAND_INTERVAL_MS = 450;
 const LIGHT_COMMAND_POLL_HOLD_MS = 5000;
 const SPECTRUM_LOCAL_HOLD_MS = LIGHT_COMMAND_POLL_HOLD_MS;
 const CLIMATE_COMMAND_POLL_DELAYS_MS = [500, 1500, 3500];
-const AIRCON_AUTO_POLL_MS = 10_000;
-const AIRCON_AUTO_BAND_DEGREES = 1;
-// The lounge temp sensor only refreshes every ~10 minutes. Once we're within
-// the band, run for this much longer before turning off; afterwards we wait
-// for a fresh sensor reading before deciding whether to resume.
-const AIRCON_AUTO_TAIL_MS = 2 * 60_000;
 const STEP_EPSILON = 0.0001;
 const LOUNGE_ZONE_ID = "lounge";
 const LOUNGE_TEMPERATURE_SENSOR_IDS = [
@@ -194,6 +202,11 @@ type FullscreenElementShim = HTMLElement & {
 const CANDLELIGHT_SPECTRUM: SpectrumValue = {
   cursor: { x: 0.08, y: 0.12 },
   preview: [255, 147, 41],
+};
+
+const WARM_WHITE_SPECTRUM: SpectrumValue = {
+  cursor: { x: 0.09, y: 0.66 },
+  preview: [255, 214, 170],
 };
 
 const WHITE_SPECTRUM: SpectrumValue = {
@@ -541,6 +554,14 @@ function spectrumWithCursor(value: SpectrumValue | null, cursor?: SpectrumCursor
 
 function candlelightBrightnessPct(sun?: SunStatus | null) {
   return sun?.state === "below_horizon" ? 60 : 100;
+}
+
+function adaptiveCandlelightSpectrum(sun?: SunStatus | null) {
+  return sun?.state === "below_horizon" ? CANDLELIGHT_SPECTRUM : WARM_WHITE_SPECTRUM;
+}
+
+function adaptiveCandlelightLabel(sun?: SunStatus | null) {
+  return sun?.state === "below_horizon" ? "Candlelight" : "Warm white";
 }
 
 function useDashboardState() {
@@ -939,24 +960,6 @@ function IntensityControl({
   );
 }
 
-function stringListAttribute(entity: DashboardEntity, name: string) {
-  const value = entity.attributes[name];
-  return Array.isArray(value) ? value.map(String) : [];
-}
-
-function numericClimateAttribute(entity: DashboardEntity, name: string) {
-  const value = Number(entity.attributes[name]);
-  return Number.isFinite(value) ? value : null;
-}
-
-function climateTargetTemperature(entity: DashboardEntity) {
-  return numericClimateAttribute(entity, "temperature") ?? numericClimateAttribute(entity, "current_temperature");
-}
-
-function climateCurrentTemperature(entity: DashboardEntity) {
-  return numericClimateAttribute(entity, "current_temperature");
-}
-
 function formatTemperature(value: number | null) {
   if (value === null) {
     return "--.-";
@@ -1060,10 +1063,6 @@ function temperatureDelta(entity: DashboardEntity, delta: number, step: number, 
       : Math.floor(ratio) * increment;
 
   return clamp(roundToStep(stepped, increment), min, max);
-}
-
-function isClimateEntityOn(entity: DashboardEntity) {
-  return !["off", "unavailable", "unknown"].includes(entity.state);
 }
 
 function entityText(entity: DashboardEntity) {
@@ -1320,7 +1319,9 @@ function optimisticStateForZoneAction(
 
   const entityIds = new Set(zone.entities.map((entity) => entity.entity_id));
   const brightnessPct = clamp(Math.round(Number(body.brightnessPct ?? zone.brightnessPct ?? 100)), 0, 100);
-  const rgb = rgbFromBody(body.rgb);
+  const rgb =
+    rgbFromBody(body.rgb) ??
+    (["on", "candlelight"].includes(action) ? adaptiveCandlelightSpectrum(data.sun).preview : null);
 
   return withDashboardEntityUpdates(data, (entity) =>
     entityIds.has(entity.entity_id) ? optimisticZoneEntity(entity, action, brightnessPct, rgb) : entity,
@@ -1569,376 +1570,16 @@ function PanelHeaterControl({
   );
 }
 
-const AIRCON_MODES = [
+const AIRCON_MODE_BUTTONS: ReadonlyArray<{
+  label: string;
+  mode: AirconMode;
+  Icon: React.ComponentType<{ className?: string }>;
+}> = [
   { label: "Heating", mode: "heat", Icon: Flame },
   { label: "Cooling", mode: "cool", Icon: Snowflake },
   { label: "Fan", mode: "fan_only", Icon: Fan },
   { label: "Auto", mode: "auto", Icon: Gauge },
 ] as const;
-
-const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
-
-type AirconMode = (typeof AIRCON_MODES)[number]["mode"];
-type AirconFanStep = (typeof AIRCON_FAN_STEPS)[number];
-
-function isAirconMode(value?: string): value is AirconMode {
-  return AIRCON_MODES.some((mode) => mode.mode === value);
-}
-
-function airconEntityMode(entity: DashboardEntity) {
-  return isAirconMode(entity.state) ? entity.state : undefined;
-}
-
-function displayedAirconMode(entity: DashboardEntity, settings: AirconPreferences): AirconMode | undefined {
-  if (settings.autoMode) {
-    return "auto";
-  }
-
-  const selectedMode = isAirconMode(settings.hvacMode) ? settings.hvacMode : undefined;
-  const entityMode = airconEntityMode(entity);
-
-  if (entityMode && selectedMode && entityMode !== selectedMode && isClimateEntityOn(entity)) {
-    return entityMode;
-  }
-
-  return selectedMode ?? entityMode;
-}
-
-function airconModeSupported(supportedModes: string[], mode: AirconMode) {
-  return supportedModes.length === 0 || supportedModes.includes(mode);
-}
-
-function airconAutoSupported(supportedModes: string[]) {
-  return supportedModes.length === 0 || (supportedModes.includes("heat") && supportedModes.includes("cool"));
-}
-
-function airconAutoMeasuredTemperature(entity?: DashboardEntity, loungeEnvironment?: LoungeEnvironment | null) {
-  return loungeEnvironment?.temperature ?? (entity ? climateCurrentTemperature(entity) : null);
-}
-
-function airconFanStep(entity: DashboardEntity, quietSwitch?: DashboardEntity, turboSwitch?: DashboardEntity): AirconFanStep {
-  if (quietSwitch?.state === "on") {
-    return "quiet";
-  }
-  if (turboSwitch?.state === "on") {
-    return "turbo";
-  }
-
-  const mode = String(entity.attributes.fan_mode ?? "").toLowerCase();
-  return AIRCON_FAN_STEPS.includes(mode as AirconFanStep) && mode !== "quiet" && mode !== "turbo"
-    ? (mode as AirconFanStep)
-    : "medium";
-}
-
-function airconFanModeServiceValue(step: AirconFanStep) {
-  return step === "quiet" ? "low" : step === "turbo" ? "high" : step;
-}
-
-function airconFanStepForTemperatureDelta(delta: number): AirconFanStep {
-  const degreeSteps = Math.max(1, Math.floor(Math.abs(delta)));
-  const index = clamp(degreeSteps - 1, 0, AIRCON_FAN_STEPS.length - 1);
-  return AIRCON_FAN_STEPS[index] ?? "quiet";
-}
-
-/*
- * Dashboard-managed aircon auto mode.
- *
- * This is intentionally not the Gree/HA "auto" HVAC mode. The dashboard owns a
- * small thermostat loop so it can pick heat or cool from the measured room
- * temperature and then shut the unit down after a short tail inside the target
- * band. The measured temperature comes from the lounge sensor first, then the
- * AC entity's own current_temperature if the lounge sensor is unavailable. The
- * invariant that matters most:
- *
- *   temperatureDelta = measuredRoomTemperature - selectedTargetTemperature
- *
- * If temperatureDelta is positive, the room is hotter than the target, so the
- * only sensible active mode is "cool". If it is negative, the room is colder
- * than the target, so the only sensible active mode is "heat". Do not invert
- * this sign, and do not derive the target from raw HA state in one place while
- * the UI shows a different locally selected target in another place. The
- * TemperatureStepper is controlled by AirConditionerControl so an immediate
- * "21 -> 23, then Auto" click sequence plans against 23 even before the server
- * has echoed the preference back.
- *
- * Preferences are the dashboard's memory: autoMode means "run this thermostat
- * loop"; hvacMode records the last heat/cool mode selected by the loop or the
- * user so the UI can stay stable unless HA reports a real conflicting mode.
- */
-type AirconAutoState = {
-  // Timestamp (ms) when the current temperature first entered the +/- band
-  // while the unit was still running. Used to time the post-target tail.
-  enteredBandAt: number | null;
-  // True after we deliberately turned off following the tail. Stays true
-  // until the lounge sensor reports a fresh reading that pushes us back
-  // outside the band.
-  tailedOff: boolean;
-  // Last sensor reading we acted on. We assume the sensor truly updated
-  // whenever this value changes, since it only refreshes every ~10 min.
-  lastSensorTemperature: number | null;
-};
-
-const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
-  enteredBandAt: null,
-  tailedOff: false,
-  lastSensorTemperature: null,
-};
-
-function airconFanStepActions({
-  entity,
-  quietSwitch,
-  remember,
-  step,
-  turboSwitch,
-}: {
-  entity: DashboardEntity;
-  quietSwitch?: DashboardEntity;
-  remember?: AirconPreferences;
-  step: AirconFanStep;
-  turboSwitch?: DashboardEntity;
-}) {
-  const actions: EntityActionInput[] = [];
-  const quietEnabled = step === "quiet";
-  const turboEnabled = step === "turbo";
-  const fanMode = airconFanModeServiceValue(step);
-
-  if (quietSwitch && (quietSwitch.state === "on") !== quietEnabled) {
-    actions.push({
-      entityId: quietSwitch.entity_id,
-      domain: "switch",
-      service: quietEnabled ? "turn_on" : "turn_off",
-    });
-  }
-  if (turboSwitch && (turboSwitch.state === "on") !== turboEnabled) {
-    actions.push({
-      entityId: turboSwitch.entity_id,
-      domain: "switch",
-      service: turboEnabled ? "turn_on" : "turn_off",
-    });
-  }
-  if (String(entity.attributes.fan_mode ?? "").toLowerCase() !== fanMode) {
-    actions.push({
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "set_fan_mode",
-      data: { fan_mode: fanMode },
-    });
-  }
-
-  if (remember && actions.length) {
-    actions[actions.length - 1] = {
-      ...actions[actions.length - 1],
-      remember: { aircon: remember },
-    };
-  }
-
-  return actions;
-}
-
-function planAirconAutoTick({
-  currentTemperature,
-  entity,
-  forceRemember = false,
-  now = Date.now(),
-  preferences,
-  quietSwitch,
-  state = INITIAL_AIRCON_AUTO_STATE,
-  turboSwitch,
-}: {
-  currentTemperature: number | null;
-  entity?: DashboardEntity;
-  forceRemember?: boolean;
-  now?: number;
-  preferences?: AirconPreferences;
-  quietSwitch?: DashboardEntity;
-  state?: AirconAutoState;
-  turboSwitch?: DashboardEntity;
-}): { actions: EntityActionInput[]; nextState: AirconAutoState } {
-  const noop = (overrides: Partial<AirconAutoState> = {}) => ({
-    actions: [] as EntityActionInput[],
-    nextState: { ...state, ...overrides },
-  });
-
-  if (!entity) {
-    return noop();
-  }
-
-  const targetTemperature = preferences?.temperature ?? climateTargetTemperature(entity);
-  if (targetTemperature === null || !Number.isFinite(targetTemperature)) {
-    return noop();
-  }
-
-  const supportedModes = stringListAttribute(entity, "hvac_modes");
-  const supported = (mode: string) => supportedModes.length === 0 || supportedModes.includes(mode);
-  const inactiveRemember = (mode?: string): AirconPreferences => ({
-    autoMode: true,
-    hvacMode: mode,
-    temperature: targetTemperature,
-  });
-  const preferredMode = preferences?.hvacMode;
-  const selectedMode = isAirconMode(preferredMode) ? preferredMode : airconEntityMode(entity);
-
-  if (currentTemperature === null) {
-    if (!forceRemember) {
-      return noop();
-    }
-
-    return {
-      actions: [
-        {
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "set_temperature",
-          data: { temperature: targetTemperature },
-          remember: { aircon: inactiveRemember(selectedMode) },
-        },
-      ],
-      nextState: { ...state, lastSensorTemperature: null },
-    };
-  }
-
-  const lastSensorTemperature = currentTemperature;
-  const sensorChanged = state.lastSensorTemperature !== currentTemperature;
-  const delta = currentTemperature - targetTemperature;
-  const absDelta = Math.abs(delta);
-  const isOn = isClimateEntityOn(entity);
-
-  // After a tail-off, hold position until the sensor actually updates and
-  // shows we've drifted back out of the band.
-  let tailedOff = state.tailedOff;
-  if (tailedOff) {
-    if (!sensorChanged) {
-      return noop({ lastSensorTemperature });
-    }
-    if (absDelta < AIRCON_AUTO_BAND_DEGREES) {
-      return noop({ lastSensorTemperature });
-    }
-    tailedOff = false;
-  }
-
-  // Active phase — outside the band, drive heat or cool toward the target.
-  if (absDelta >= AIRCON_AUTO_BAND_DEGREES) {
-    const desiredMode = delta > 0 ? "cool" : "heat";
-    if (!supported(desiredMode)) {
-      const actions: EntityActionInput[] = [];
-      if (isOn || forceRemember) {
-        actions.push({
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "turn_off",
-          remember: { aircon: inactiveRemember() },
-        });
-      }
-      return {
-        actions,
-        nextState: { enteredBandAt: null, tailedOff: false, lastSensorTemperature },
-      };
-    }
-
-    const fanStep = airconFanStepForTemperatureDelta(delta);
-    const activeRemember: AirconPreferences = {
-      ...inactiveRemember(desiredMode),
-      fanMode: airconFanModeServiceValue(fanStep),
-      quietMode: fanStep === "quiet",
-      turboMode: fanStep === "turbo",
-    };
-
-    const actions: EntityActionInput[] = [];
-    if (!isOn) {
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "turn_on",
-      });
-    }
-    if (entity.state !== desiredMode) {
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "set_hvac_mode",
-        data: { hvac_mode: desiredMode },
-        remember: { aircon: activeRemember },
-      });
-    }
-    if (!isOn || climateTargetTemperature(entity) !== targetTemperature) {
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "set_temperature",
-        data: { temperature: targetTemperature },
-        remember: { aircon: activeRemember },
-      });
-    }
-    actions.push(
-      ...airconFanStepActions({ entity, quietSwitch, remember: activeRemember, step: fanStep, turboSwitch }),
-    );
-
-    if (!actions.length && forceRemember) {
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "set_temperature",
-        data: { temperature: targetTemperature },
-        remember: { aircon: activeRemember },
-      });
-    }
-
-    return {
-      actions,
-      nextState: { enteredBandAt: null, tailedOff: false, lastSensorTemperature },
-    };
-  }
-
-  // Inside the band.
-  if (!isOn) {
-    // Already off — sit tight until the sensor reading wanders out of band.
-    const actions: EntityActionInput[] = [];
-    if (forceRemember) {
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "turn_off",
-        remember: { aircon: inactiveRemember() },
-      });
-    }
-    return {
-      actions,
-      nextState: { enteredBandAt: null, tailedOff: true, lastSensorTemperature },
-    };
-  }
-
-  // Running and within the band — start/continue the tail and turn off once
-  // it has elapsed. The unit keeps its current settings during the tail.
-  const enteredAt = state.enteredBandAt ?? now;
-  if (now - enteredAt >= AIRCON_AUTO_TAIL_MS) {
-    return {
-      actions: [
-        {
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "turn_off",
-          remember: { aircon: inactiveRemember() },
-        },
-      ],
-      nextState: { enteredBandAt: null, tailedOff: true, lastSensorTemperature },
-    };
-  }
-  return {
-    actions: [],
-    nextState: { enteredBandAt: enteredAt, tailedOff: false, lastSensorTemperature },
-  };
-}
-
-function buildAirconAutoActions(args: {
-  currentTemperature: number | null;
-  entity?: DashboardEntity;
-  forceRemember?: boolean;
-  preferences?: AirconPreferences;
-  quietSwitch?: DashboardEntity;
-  turboSwitch?: DashboardEntity;
-}) {
-  return planAirconAutoTick(args).actions;
-}
 
 function AirConditionerControl({
   entity,
@@ -2181,7 +1822,7 @@ function AirConditionerControl({
         </div>
 
         <div className="climate-mode-grid grid grid-cols-4 gap-3">
-          {AIRCON_MODES.map(({ Icon, label, mode }) => {
+          {AIRCON_MODE_BUTTONS.map(({ Icon, label, mode }) => {
             const active = activeMode === mode;
             const unavailable = mode === "auto" ? !airconAutoSupported(supportedModes) : !airconModeSupported(supportedModes, mode);
             return (
@@ -2573,14 +2214,16 @@ function ZoneControls({
 
   const applyPresetAction = useCallback(
     (action: "on" | "candlelight" | "white") => {
-      const nextSpectrum = action === "white" ? WHITE_SPECTRUM : CANDLELIGHT_SPECTRUM;
+      const nextSpectrum = action === "white" ? WHITE_SPECTRUM : adaptiveCandlelightSpectrum(sun);
       const nextBrightness = action === "white" ? 100 : candlelightBrightnessPct(sun);
       setBrightness(nextBrightness);
       rememberSpectrum(nextSpectrum);
-      onZoneAction(action, { brightnessPct: nextBrightness, cursor: nextSpectrum.cursor });
+      onZoneAction(action, { brightnessPct: nextBrightness, cursor: nextSpectrum.cursor, rgb: nextSpectrum.preview });
     },
     [onZoneAction, rememberSpectrum, sun],
   );
+
+  const adaptivePresetLabel = adaptiveCandlelightLabel(sun);
 
   return (
     <section className="zone-panel relative min-h-[620px] border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
@@ -2598,11 +2241,11 @@ function ZoneControls({
         </div>
         {lightingZone ? (
           <div className="zone-actions grid grid-cols-4 gap-3">
-            <IconButton label="On: candlelight" disabled={!hasLightDevices} variant="yellow" onClick={() => applyPresetAction("on")}>
+            <IconButton label={`On: ${adaptivePresetLabel}`} disabled={!hasLightDevices} variant="yellow" onClick={() => applyPresetAction("on")}>
               <Power className="h-7 w-7" />
             </IconButton>
             <IconButton
-              label="Candlelight"
+              label={adaptivePresetLabel}
               disabled={!hasLightDevices}
               variant="yellow"
               onClick={() => applyPresetAction("candlelight")}
@@ -3243,11 +2886,12 @@ export function Dashboard() {
   }, [applyEntityActions]);
 
   const airconAutoMode = data?.preferences.aircon?.autoMode ?? false;
-  const airconAutoStateRef = useRef<AirconAutoState>(INITIAL_AIRCON_AUTO_STATE);
+  const airconAutoThermostatRef = useRef<AirconAutoThermostat | null>(null);
+  airconAutoThermostatRef.current ??= new AirconAutoThermostat();
 
   useEffect(() => {
     if (!airconAutoMode) {
-      airconAutoStateRef.current = INITIAL_AIRCON_AUTO_STATE;
+      airconAutoThermostatRef.current?.reset();
       return;
     }
 
@@ -3274,15 +2918,13 @@ export function Dashboard() {
       const currentEnvironment = findLoungeEnvironment(snapshot);
       const currentClimateZone = snapshot?.zones.find(isClimateZone) ?? null;
       const { aircon, quietSwitch, turboSwitch } = climateDevicesForZone(currentClimateZone);
-      const { actions, nextState } = planAirconAutoTick({
+      const { actions } = airconAutoThermostatRef.current!.plan({
         currentTemperature: airconAutoMeasuredTemperature(aircon, currentEnvironment),
         entity: aircon,
         preferences: snapshot?.preferences.aircon,
         quietSwitch,
-        state: airconAutoStateRef.current,
         turboSwitch,
       });
-      airconAutoStateRef.current = nextState;
 
       if (!actions.length) {
         applying = false;

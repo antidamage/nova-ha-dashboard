@@ -39,6 +39,19 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    if (next.lighting) {
+      const nextLighting = withoutUndefined(next.lighting as Record<string, unknown>);
+      merged.lighting = {
+        ...(current.lighting ?? {}),
+        ...nextLighting,
+        adaptiveCandlelightZones: {
+          ...(current.lighting?.adaptiveCandlelightZones ?? {}),
+          ...(next.lighting.adaptiveCandlelightZones ?? {}),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     await mkdir(path.dirname(PREFERENCES_PATH), { recursive: true });
     const tempPath = `${PREFERENCES_PATH}.${process.pid}.tmp`;
     await writeFile(tempPath, `${JSON.stringify(merged, null, 2)}\n`, "utf8");

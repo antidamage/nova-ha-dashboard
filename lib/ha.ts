@@ -36,6 +36,7 @@ const NETWORK_ZONE_ID = "network";
 const WEATHER_ENTITY_ID = "weather.forecast_home";
 const ROUTER_STATUS_CACHE_MS = 250;
 const WEATHER_FORECAST_CACHE_MS = 35 * 60 * 1000;
+const WARM_WHITE_KELVIN = 3000;
 const LOUNGE_SENSOR_ENTITY_IDS = new Set([
   "sensor.wifi_temperature_humidity_sensor_temperature",
   "sensor.wifi_temperature_humidity_sensor_humidity",
@@ -46,6 +47,9 @@ let routerStatusCache: { at: number; value: RouterStatus } | null = null;
 let routerStatusRequest: Promise<RouterStatus> | null = null;
 let weatherForecastCache: { at: number; entityId: string; value: WeatherForecastEntry | null } | null = null;
 let weatherForecastRequest: Promise<WeatherForecastEntry | null> | null = null;
+
+type AdaptiveSunState = "above_horizon" | "below_horizon";
+type LightPreset = "candlelight" | "warm-white" | "white";
 
 type WeatherForecastEntry = Record<string, unknown>;
 
@@ -673,12 +677,63 @@ function supportsColorTemp(entity: DashboardEntity) {
   return modes.includes("color_temp") || range.minKelvin !== null || range.maxKelvin !== null;
 }
 
-function presetColorTempKelvin(entity: DashboardEntity, preset: "candlelight" | "white") {
+function clampKelvinForEntity(entity: DashboardEntity, kelvin: number) {
   const range = colorTempKelvinRange(entity);
+  return Math.max(range.minKelvin ?? kelvin, Math.min(range.maxKelvin ?? kelvin, kelvin));
+}
+
+function presetColorTempKelvin(entity: DashboardEntity, preset: LightPreset) {
   if (preset === "candlelight") {
-    return range.minKelvin ?? 1800;
+    return colorTempKelvinRange(entity).minKelvin ?? 1800;
   }
-  return range.maxKelvin ?? 6500;
+  if (preset === "warm-white") {
+    return clampKelvinForEntity(entity, WARM_WHITE_KELVIN);
+  }
+  return colorTempKelvinRange(entity).maxKelvin ?? 6500;
+}
+
+function presetRgb(preset: LightPreset): [number, number, number] {
+  if (preset === "candlelight") {
+    return [255, 147, 41];
+  }
+  if (preset === "warm-white") {
+    return [255, 214, 170];
+  }
+  return [255, 255, 255];
+}
+
+function normalizedSunState(sun?: SunStatus | null): AdaptiveSunState | null {
+  return sun?.state === "above_horizon" || sun?.state === "below_horizon" ? sun.state : null;
+}
+
+function adaptiveCandlelightPreset(sun?: SunStatus | null): LightPreset {
+  return normalizedSunState(sun) === "below_horizon" ? "candlelight" : "warm-white";
+}
+
+function adaptiveCandlelightBrightnessPct(sun?: SunStatus | null) {
+  return normalizedSunState(sun) === "below_horizon" ? 60 : 100;
+}
+
+function addLightPresetToPayload(entity: DashboardEntity, payload: Record<string, unknown>, preset: LightPreset) {
+  if (supportsColorTemp(entity)) {
+    payload.color_temp_kelvin = presetColorTempKelvin(entity, preset);
+  } else if (supportsColor(entity)) {
+    payload.rgb_color = presetRgb(preset);
+  }
+}
+
+async function rememberAdaptiveCandlelightZone(zoneId: string, enabled: boolean, sunState: AdaptiveSunState | null) {
+  await mergeDashboardPreferences({
+    lighting: {
+      adaptiveCandlelightZones: {
+        [zoneId]: {
+          enabled,
+          lastSunState: enabled ? (sunState ?? undefined) : undefined,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    },
+  });
 }
 
 async function callMany(tasks: Promise<unknown>[]) {
@@ -771,10 +826,11 @@ export async function setZoneAction(input: {
         return callService("light", "turn_on", payload);
       }),
     ]);
+    await rememberAdaptiveCandlelightZone(input.zoneId, false, normalizedSunState(dashboard.sun));
     return buildDashboardState();
   }
 
-  const preset = input.action === "white" ? "white" : "candlelight";
+  const preset = input.action === "white" ? "white" : adaptiveCandlelightPreset(dashboard.sun);
   const brightnessBase = input.brightnessPct ?? zone.brightnessPct;
   const brightness = Math.max(1, Math.min(100, Math.round(brightnessBase || 86)));
 
@@ -790,22 +846,68 @@ export async function setZoneAction(input: {
       if (supportsBrightness(entity)) {
         payload.brightness_pct = brightness;
       }
-      if (preset === "candlelight") {
-        if (supportsColorTemp(entity)) {
-          payload.color_temp_kelvin = presetColorTempKelvin(entity, "candlelight");
-        } else if (supportsColor(entity)) {
-          payload.rgb_color = [255, 147, 41];
-        }
-      } else if (supportsColorTemp(entity)) {
-        payload.color_temp_kelvin = presetColorTempKelvin(entity, "white");
-      } else if (supportsColor(entity)) {
-        payload.rgb_color = [255, 255, 255];
-      }
+      addLightPresetToPayload(entity, payload, preset);
       return callService("light", "turn_on", payload);
     }),
   ]);
 
+  if (input.action === "on" || input.action === "candlelight") {
+    await rememberAdaptiveCandlelightZone(input.zoneId, true, normalizedSunState(dashboard.sun));
+  } else if (input.action === "white") {
+    await rememberAdaptiveCandlelightZone(input.zoneId, false, normalizedSunState(dashboard.sun));
+  }
+
   return buildDashboardState();
+}
+
+export async function applyAdaptiveCandlelightTransitions() {
+  const dashboard = await buildDashboardState();
+  const sunState = normalizedSunState(dashboard.sun);
+  if (!sunState) {
+    return null;
+  }
+
+  const adaptiveZones = dashboard.preferences.lighting?.adaptiveCandlelightZones ?? {};
+  const zonesById = new Map(dashboard.zones.map((zone) => [zone.id, zone]));
+  const touchedEntityIds = new Set<string>();
+  let applied = false;
+
+  for (const [zoneId, preference] of Object.entries(adaptiveZones)) {
+    if (!preference.enabled || preference.lastSunState === sunState) {
+      continue;
+    }
+
+    const zone = zonesById.get(zoneId);
+    if (!zone) {
+      continue;
+    }
+
+    const zoneActiveLights = zone.entities.filter((entity) => entity.domain === "light" && entity.state === "on");
+    if (!zoneActiveLights.length) {
+      continue;
+    }
+
+    const activeLights = zoneActiveLights.filter((entity) => !touchedEntityIds.has(entity.entity_id));
+    if (activeLights.length) {
+      const preset = adaptiveCandlelightPreset(dashboard.sun);
+      const brightness = adaptiveCandlelightBrightnessPct(dashboard.sun);
+      await callMany(
+        activeLights.map((entity) => {
+          touchedEntityIds.add(entity.entity_id);
+          const payload: Record<string, unknown> = { entity_id: entity.entity_id };
+          if (supportsBrightness(entity)) {
+            payload.brightness_pct = brightness;
+          }
+          addLightPresetToPayload(entity, payload, preset);
+          return callService("light", "turn_on", payload);
+        }),
+      );
+      applied = true;
+    }
+    await rememberAdaptiveCandlelightZone(zoneId, true, sunState);
+  }
+
+  return applied ? buildDashboardState() : null;
 }
 
 export async function setEntityAction(input: {
