@@ -1317,6 +1317,7 @@ button,
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
+.aircon-state-button,
 .climate-toggle,
 .climate-mode-button,
 .climate-icon-button {
@@ -1333,9 +1334,17 @@ button,
   text-transform: uppercase;
 }
 
+.aircon-state-button,
 .climate-toggle,
 .climate-mode-button {
   padding-inline: 12px;
+}
+
+.aircon-state-button {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
 .climate-mode-button {
@@ -1345,13 +1354,42 @@ button,
   line-height: 1;
 }
 
+.aircon-state-button-active,
 .climate-toggle-active,
 .climate-mode-button-active {
   border-color: var(--cyber-highlight) !important;
-  background: rgb(var(--cyber-highlight-rgb) / 0.12) !important;
+  background: var(--cyber-highlight) !important;
   color: var(--cyber-title-on-highlight) !important;
 }
 
+.dashboard-shell .aircon-state-button-active,
+.dashboard-shell .climate-mode-button-active,
+.dashboard-shell .climate-toggle-active {
+  color: var(--cyber-title-on-highlight) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .aircon-state-button-active svg,
+.dashboard-shell .climate-mode-button-active svg,
+.dashboard-shell .climate-toggle-active svg {
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .aircon-state-button:focus,
+.dashboard-shell .aircon-state-button:focus-visible,
+.dashboard-shell .aircon-state-button:active:not(:disabled) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dashboard-shell .aircon-state-button-active:hover:not(:disabled),
+.dashboard-shell .aircon-state-button-active:active:not(:disabled) {
+  border-color: var(--cyber-highlight) !important;
+  background: var(--cyber-highlight) !important;
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.aircon-state-button:disabled,
 .climate-toggle:disabled,
 .climate-mode-button:disabled {
   opacity: 0.6;
@@ -1382,7 +1420,7 @@ button,
 .climate-switch-label {
   min-width: 0;
   overflow: hidden;
-  color: var(--cyber-muted);
+  color: var(--cyber-title-on-bg);
   font-family: var(--cyber-mono);
   font-size: 0.78rem;
   font-weight: 900;
@@ -1393,15 +1431,14 @@ button,
   white-space: nowrap;
 }
 
-.climate-switch-label-active {
-  color: var(--cyber-cyan);
-}
-
 .cyber-switch {
   position: relative;
+  display: block;
+  width: 72px;
+  min-width: 72px;
   height: 34px;
-  border: 1px solid var(--cyber-border-dim);
-  background: rgb(var(--cyber-line-rgb) / 0.08);
+  border: 1px solid rgb(var(--cyber-highlight-rgb) / 0.58);
+  background: rgb(var(--cyber-line-rgb) / 0.1);
   outline: none;
 }
 
@@ -1421,15 +1458,15 @@ button,
   width: 26px;
   align-items: center;
   justify-content: center;
-  background: var(--cyber-line);
-  color: var(--cyber-title-on-line);
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight);
   transition: left 140ms ease;
 }
 
 .cyber-switch-checked .cyber-switch-thumb {
   left: calc(100% - 30px);
-  background: var(--cyber-cyan);
-  color: var(--cyber-title-on-cyan);
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight);
 }
 
 .dashboard-shell .momentary-feedback {
@@ -1460,6 +1497,13 @@ button,
 
 .dashboard-shell .momentary-feedback > * {
   position: relative;
+  z-index: 1;
+}
+
+.dashboard-shell .cyber-switch-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
   z-index: 1;
 }
 
