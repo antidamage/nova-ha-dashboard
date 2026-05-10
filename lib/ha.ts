@@ -38,6 +38,8 @@ const ROUTER_STATUS_CACHE_MS = 250;
 const WEATHER_FORECAST_CACHE_MS = 35 * 60 * 1000;
 const WARM_WHITE_KELVIN = 3000;
 const LOUNGE_SENSOR_ENTITY_IDS = new Set([
+  "sensor.tuya_mobile_lounge_sensor_temperature",
+  "sensor.tuya_mobile_lounge_sensor_humidity",
   "sensor.wifi_temperature_humidity_sensor_temperature",
   "sensor.wifi_temperature_humidity_sensor_humidity",
   "sensor.lounge_temperature",
@@ -541,7 +543,11 @@ export async function buildDashboardState(): Promise<DashboardState> {
     if (registry?.disabled_by || registry?.hidden_by) {
       return [];
     }
-    if (state.state === "unavailable" && state.attributes?.restored === true) {
+    if (
+      state.state === "unavailable" &&
+      state.attributes?.restored === true &&
+      !LOUNGE_SENSOR_ENTITY_IDS.has(state.entity_id)
+    ) {
       return [];
     }
 

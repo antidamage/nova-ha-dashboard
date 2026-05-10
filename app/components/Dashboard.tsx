@@ -146,14 +146,19 @@ const VANCOUVER_TIME_ZONE = "America/Vancouver";
 const LIGHT_DRAG_COMMAND_INTERVAL_MS = 450;
 const LIGHT_COMMAND_POLL_HOLD_MS = 5000;
 const SPECTRUM_LOCAL_HOLD_MS = LIGHT_COMMAND_POLL_HOLD_MS;
-const CLIMATE_COMMAND_POLL_DELAYS_MS = [500, 1500, 3500];
+// HA echoes the prior state for a beat after a command. Hold polling and
+// trust the optimistic update for this window so toggles don't flicker back.
+const ENTITY_COMMAND_HOLD_MS = 2000;
+const CLIMATE_COMMAND_POLL_DELAYS_MS = [ENTITY_COMMAND_HOLD_MS + 100];
 const STEP_EPSILON = 0.0001;
 const LOUNGE_ZONE_ID = "lounge";
 const LOUNGE_TEMPERATURE_SENSOR_IDS = [
+  "sensor.tuya_mobile_lounge_sensor_temperature",
   "sensor.wifi_temperature_humidity_sensor_temperature",
   "sensor.lounge_temperature",
 ];
 const LOUNGE_HUMIDITY_SENSOR_IDS = [
+  "sensor.tuya_mobile_lounge_sensor_humidity",
   "sensor.wifi_temperature_humidity_sensor_humidity",
   "sensor.lounge_humidity",
 ];
@@ -600,6 +605,11 @@ function useDashboardState() {
 
   useEffect(() => {
     let alive = true;
+    // Auto-recover during a deploy: if the server is unreachable for more
+    // than RELOAD_AFTER_OUTAGE_MS, reload the page so devices pick up the
+    // new build without a manual force-quit.
+    const RELOAD_AFTER_OUTAGE_MS = 8000;
+    let firstFailureAt = 0;
 
     async function load({ force = false, initial = false }: { force?: boolean; initial?: boolean } = {}) {
       if (!force && Date.now() < pollingPausedUntil.current) {
@@ -622,11 +632,18 @@ function useDashboardState() {
           setData(payload);
           setError(null);
           setStatus("idle");
+          firstFailureAt = 0;
         }
       } catch (err) {
         if (alive) {
           setError(err instanceof Error ? err.message : "Failed to load dashboard state");
           setStatus("error");
+          const now = Date.now();
+          if (firstFailureAt === 0) {
+            firstFailureAt = now;
+          } else if (now - firstFailureAt >= RELOAD_AFTER_OUTAGE_MS && !document.hidden) {
+            window.location.reload();
+          }
         }
       }
     }
@@ -985,8 +1002,13 @@ function sensorDeviceClass(entity: DashboardEntity) {
   return String(entity.attributes.device_class ?? "").toLowerCase();
 }
 
-function entityMatchesAnyId(entity: DashboardEntity, entityIds: string[]) {
-  return entityIds.includes(entity.entity_id);
+function findEntityByPreferredIds(entities: DashboardEntity[], entityIds: string[]) {
+  const byId = new Map(entities.map((entity) => [entity.entity_id, entity]));
+  const preferredLive = entityIds
+    .map((entityId) => byId.get(entityId))
+    .find((entity) => numericEntityState(entity) !== null);
+
+  return preferredLive ?? entityIds.map((entityId) => byId.get(entityId)).find(Boolean);
 }
 
 function isLoungeZone(zone: DashboardZone) {
@@ -1015,11 +1037,11 @@ function findLoungeEnvironment(data: DashboardState | null): LoungeEnvironment |
   const loungeSensors = loungeZone?.entities.filter((entity) => entity.domain === "sensor") ?? [];
   const allSensors = data.entities.filter((entity) => entity.domain === "sensor");
   const temperatureEntity =
-    allSensors.find((entity) => entityMatchesAnyId(entity, LOUNGE_TEMPERATURE_SENSOR_IDS)) ??
+    findEntityByPreferredIds(allSensors, LOUNGE_TEMPERATURE_SENSOR_IDS) ??
     loungeSensors.find((entity) => sensorMatches(entity, "temperature")) ??
     allSensors.find((entity) => sensorMatches(entity, "temperature") && entityText(entity).includes("lounge"));
   const humidityEntity =
-    allSensors.find((entity) => entityMatchesAnyId(entity, LOUNGE_HUMIDITY_SENSOR_IDS)) ??
+    findEntityByPreferredIds(allSensors, LOUNGE_HUMIDITY_SENSOR_IDS) ??
     loungeSensors.find((entity) => sensorMatches(entity, "humidity")) ??
     allSensors.find((entity) => sensorMatches(entity, "humidity") && entityText(entity).includes("lounge"));
 
@@ -1578,7 +1600,6 @@ const AIRCON_MODE_BUTTONS: ReadonlyArray<{
   { label: "Heating", mode: "heat", Icon: Flame },
   { label: "Cooling", mode: "cool", Icon: Snowflake },
   { label: "Fan", mode: "fan_only", Icon: Fan },
-  { label: "Auto", mode: "auto", Icon: Gauge },
 ] as const;
 
 function AirConditionerControl({
@@ -1643,73 +1664,78 @@ function AirConditionerControl({
   const isControlOn = isOn || airconSettings.autoMode;
   const activeMode = displayedAirconMode(entity, airconSettings);
 
-  const setPower = () => {
+  const setOff = () => {
+    return callClimateActions(
+      [
+        {
+          entityId: entity.entity_id,
+          domain: "climate",
+          service: "turn_off",
+          remember: { aircon: { autoMode: false } },
+        },
+      ],
+      onEntityActions,
+      "Air Conditioner off",
+    );
+  };
+
+  const setOn = () => {
     const actions: EntityActionInput[] = [];
+    const preferredMode = isAirconMode(airconSettings.hvacMode) ? airconSettings.hvacMode : undefined;
+    const hvacMode =
+      preferredMode && airconModeSupported(supportedModes, preferredMode)
+        ? preferredMode
+        : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
 
-    if (isControlOn) {
+    actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_on" });
+
+    if (hvacMode) {
       actions.push({
         entityId: entity.entity_id,
         domain: "climate",
-        service: "turn_off",
-        remember: { aircon: { autoMode: false } },
-      });
-    } else {
-      const preferredMode = isAirconMode(airconSettings.hvacMode) ? airconSettings.hvacMode : undefined;
-      const hvacMode =
-        preferredMode && airconModeSupported(supportedModes, preferredMode)
-          ? preferredMode
-          : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
-
-      actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_on" });
-
-      if (hvacMode) {
-        actions.push({
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "set_hvac_mode",
-          data: { hvac_mode: hvacMode },
-          remember: { aircon: { autoMode: false, hvacMode } },
-        });
-      }
-
-      if (typeof airconSettings.temperature === "number") {
-        actions.push({
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "set_temperature",
-          data: { temperature: airconSettings.temperature },
-          remember: { aircon: { autoMode: false, temperature: airconSettings.temperature } },
-        });
-      }
-
-      if (quietSwitch) {
-        actions.push({
-          entityId: quietSwitch.entity_id,
-          domain: "switch",
-          service: airconSettings.quietMode ? "turn_on" : "turn_off",
-          remember: { aircon: { quietMode: airconSettings.quietMode } },
-        });
-      }
-
-      if (turboSwitch) {
-        actions.push({
-          entityId: turboSwitch.entity_id,
-          domain: "switch",
-          service: airconSettings.turboMode ? "turn_on" : "turn_off",
-          remember: { aircon: { turboMode: airconSettings.turboMode } },
-        });
-      }
-
-      actions.push({
-        entityId: entity.entity_id,
-        domain: "climate",
-        service: "set_fan_mode",
-        data: { fan_mode: airconSettings.fanMode },
-        remember: { aircon: { fanMode: airconSettings.fanMode } },
+        service: "set_hvac_mode",
+        data: { hvac_mode: hvacMode },
+        remember: { aircon: { autoMode: false, hvacMode } },
       });
     }
 
-    return callClimateActions(actions, onEntityActions, `Air Conditioner ${isControlOn ? "off" : "on"}`);
+    if (typeof airconSettings.temperature === "number") {
+      actions.push({
+        entityId: entity.entity_id,
+        domain: "climate",
+        service: "set_temperature",
+        data: { temperature: airconSettings.temperature },
+        remember: { aircon: { autoMode: false, temperature: airconSettings.temperature } },
+      });
+    }
+
+    if (quietSwitch) {
+      actions.push({
+        entityId: quietSwitch.entity_id,
+        domain: "switch",
+        service: airconSettings.quietMode ? "turn_on" : "turn_off",
+        remember: { aircon: { quietMode: airconSettings.quietMode } },
+      });
+    }
+
+    if (turboSwitch) {
+      actions.push({
+        entityId: turboSwitch.entity_id,
+        domain: "switch",
+        service: airconSettings.turboMode ? "turn_on" : "turn_off",
+        remember: { aircon: { turboMode: airconSettings.turboMode } },
+      });
+    }
+
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "set_fan_mode",
+      data: { fan_mode: airconSettings.fanMode },
+      remember: { aircon: { fanMode: airconSettings.fanMode } },
+    });
+
+    return callClimateActions(actions, onEntityActions, "Air Conditioner on");
   };
 
   const setMode = (mode: AirconMode, label: string) => {
@@ -1763,16 +1789,16 @@ function AirConditionerControl({
   const setFreshAir = () =>
     freshAirSwitch
       ? callClimateActions(
-          [
-            {
-              entityId: freshAirSwitch.entity_id,
-              domain: "switch",
-              service: freshAirSwitch.state === "on" ? "turn_off" : "turn_on",
-            },
-          ],
-          onEntityActions,
-          `Air Conditioner fresh air ${freshAirSwitch.state === "on" ? "off" : "on"}`,
-        )
+        [
+          {
+            entityId: freshAirSwitch.entity_id,
+            domain: "switch",
+            service: freshAirSwitch.state === "on" ? "turn_off" : "turn_on",
+          },
+        ],
+        onEntityActions,
+        `Air Conditioner fresh air ${freshAirSwitch.state === "on" ? "off" : "on"}`,
+      )
       : Promise.resolve();
 
   const setFanStep = (step: AirconFanStep) => {
@@ -1801,30 +1827,44 @@ function AirConditionerControl({
     <ClimateCard entity={entity} kicker="Air Control" title="Air Conditioner">
       <div className="grid gap-4">
         <div className="grid grid-cols-2 gap-3">
-          <MomentaryFeedbackButton
-            type="button"
-            className={classNames("climate-toggle border", isControlOn && "climate-toggle-active")}
-            role="switch"
-            aria-checked={isControlOn}
-            onClick={setPower}
-          >
-            <Power className="h-6 w-6" />
-            <span>{isControlOn ? "On" : "Off"}</span>
-          </MomentaryFeedbackButton>
-          <LabeledSwitch
-            checked={freshAirSwitch?.state === "on"}
-            disabled={!isControlOn || !freshAirSwitch}
-            label="Air conditioner fresh air"
-            leftLabel="Closed"
-            rightLabel="Fresh"
-            onChange={setFreshAir}
-          />
+          <div className="grid grid-cols-3 gap-2">
+            <MomentaryFeedbackButton
+              type="button"
+              className={classNames("climate-toggle border", !isControlOn && "climate-toggle-active")}
+              aria-pressed={!isControlOn}
+              onClick={setOff}
+              disabled={!isControlOn}
+            >
+              <Power className="h-6 w-6" />
+              <span>Off</span>
+            </MomentaryFeedbackButton>
+            <MomentaryFeedbackButton
+              type="button"
+              className={classNames("climate-toggle border", isOn && !airconSettings.autoMode && "climate-toggle-active")}
+              aria-pressed={isOn && !airconSettings.autoMode}
+              onClick={setOn}
+              disabled={isOn && !airconSettings.autoMode}
+            >
+              <Power className="h-6 w-6" />
+              <span>On</span>
+            </MomentaryFeedbackButton>
+            <MomentaryFeedbackButton
+              type="button"
+              className={classNames("climate-toggle border", airconSettings.autoMode && "climate-toggle-active")}
+              aria-pressed={airconSettings.autoMode === true}
+              onClick={() => setMode("auto", "Auto")}
+              disabled={entityUnavailable || !airconAutoSupported(supportedModes)}
+            >
+              <Gauge className="h-6 w-6" />
+              <span>Auto</span>
+            </MomentaryFeedbackButton>
+          </div>
         </div>
 
-        <div className="climate-mode-grid grid grid-cols-4 gap-3">
+        <div className="climate-mode-grid grid grid-cols-3 gap-3">
           {AIRCON_MODE_BUTTONS.map(({ Icon, label, mode }) => {
             const active = activeMode === mode;
-            const unavailable = mode === "auto" ? !airconAutoSupported(supportedModes) : !airconModeSupported(supportedModes, mode);
+            const unavailable = !airconModeSupported(supportedModes, mode);
             return (
               <button
                 key={mode}
@@ -1839,6 +1879,19 @@ function AirConditionerControl({
               </button>
             );
           })}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-3">
+            <LabeledSwitch
+              checked={freshAirSwitch?.state === "on"}
+              disabled={!isControlOn || !freshAirSwitch}
+              label="Air conditioner fresh air"
+              leftLabel="Recirculate"
+              rightLabel="Fresh"
+              onChange={setFreshAir}
+            />
+          </div>
         </div>
 
         <TemperatureStepper
@@ -2071,6 +2124,10 @@ function WeatherMetric({ label, suffix, value }: { label: string; suffix?: strin
 }
 
 function LoungeEnvironmentPanel({ environment }: { environment: LoungeEnvironment | null }) {
+  const hasSensorEntity = Boolean(environment?.temperatureEntity || environment?.humidityEntity);
+  const hasSensorValue = environment?.temperature !== null || environment?.humidity !== null;
+  const statusLabel = hasSensorEntity ? (hasSensorValue ? "Live" : "Offline") : "Missing";
+
   return (
     <section className="lounge-environment-panel border border-neutral-700 bg-neutral-950/70 p-5">
       <header className="mb-4 flex items-start justify-between gap-4">
@@ -2079,7 +2136,7 @@ function LoungeEnvironmentPanel({ environment }: { environment: LoungeEnvironmen
           <h2 className="mt-1 truncate text-3xl font-black uppercase text-neutral-50">Environment</h2>
         </div>
         <div className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
-          {environment?.temperatureEntity || environment?.humidityEntity ? "Live" : "Missing"}
+          {statusLabel}
         </div>
       </header>
 
@@ -2443,9 +2500,9 @@ function ClockPanel() {
     if (!now) {
       return {
         time: "--:--:--",
-      date: "Syncing time",
-      vancouverTime: "--:--",
-      zone: "Auckland",
+        date: "Syncing time",
+        vancouverTime: "--:--",
+        zone: "Auckland",
       };
     }
 
@@ -2555,9 +2612,9 @@ function isFullscreenActive() {
   const fullscreenDocument = document as FullscreenDocumentShim;
   return Boolean(
     fullscreenDocument.fullscreenElement
-      ?? fullscreenDocument.webkitFullscreenElement
-      ?? fullscreenDocument.mozFullScreenElement
-      ?? fullscreenDocument.msFullscreenElement,
+    ?? fullscreenDocument.webkitFullscreenElement
+    ?? fullscreenDocument.mozFullScreenElement
+    ?? fullscreenDocument.msFullscreenElement,
   );
 }
 
@@ -2831,17 +2888,16 @@ export function Dashboard() {
       const sequence = entityActionSequence.current + 1;
       entityActionSequence.current = sequence;
       const holdLightPolling = entityActionsAffectLightPolling(actions, data);
-      const hasClimateAction = actions.some((action) => action.domain === "climate");
 
       if (holdLightPolling) {
         pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
+      } else {
+        pausePolling(ENTITY_COMMAND_HOLD_MS);
       }
 
       setData((current) => (current ? optimisticStateForEntityActions(current, actions) : current));
 
       try {
-        let payload: DashboardState | null = null;
-
         for (const action of actions) {
           const response = await fetch("/api/entity", {
             method: "POST",
@@ -2852,21 +2908,20 @@ export function Dashboard() {
           if (!response.ok) {
             throw new Error(body.error ?? "Entity action failed");
           }
-          payload = body as DashboardState;
         }
 
         if (sequence !== entityActionSequence.current) {
           return;
         }
 
+        // Don't apply per-action response payloads — HA usually echoes the
+        // pre-change snapshot, which would clobber the optimistic state.
+        // The scheduled poll below picks up the settled state once the hold
+        // expires.
         if (holdLightPolling) {
           pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
           scheduleLightResumePoll();
-        } else if (payload) {
-          setData(payload);
-        }
-
-        if (hasClimateAction && !holdLightPolling) {
+        } else {
           scheduleClimateCommandPolls(sequence);
         }
 
@@ -2958,16 +3013,16 @@ export function Dashboard() {
         <div className="dashboard-shell min-h-screen px-4 py-5 sm:px-6">
           <header className="top-banner p-0">
             {data?.warnings.length ? (
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              {data?.warnings.map((warning) => (
-                <span
-                  key={warning}
-                  className="border border-yellow-300/50 bg-yellow-300/10 px-3 py-2 text-xs font-black uppercase text-yellow-100"
-                >
-                  {warning}
-                </span>
-              ))}
-            </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {data?.warnings.map((warning) => (
+                  <span
+                    key={warning}
+                    className="border border-yellow-300/50 bg-yellow-300/10 px-3 py-2 text-xs font-black uppercase text-yellow-100"
+                  >
+                    {warning}
+                  </span>
+                ))}
+              </div>
             ) : null}
           </header>
 

@@ -10,7 +10,9 @@ export type EntityActionInput = {
 
 export const AIRCON_AUTO_POLL_MS = 10_000;
 const AIRCON_AUTO_BAND_DEGREES = 1;
-const AIRCON_AUTO_TAIL_MS = 2 * 60_000;
+// Auto turns the unit off as soon as the room enters the +/- band. No tail —
+// any lingering run-on caused heat/cool oscillation around the target.
+const AIRCON_AUTO_TAIL_MS = 0;
 
 export const AIRCON_MODES = ["heat", "cool", "fan_only", "auto"] as const;
 export const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
