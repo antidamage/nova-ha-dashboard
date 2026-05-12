@@ -51,6 +51,10 @@ type IcloudStatus = {
   authBackoffUntil?: string;
 };
 
+type TaskAudioStatus = {
+  exists: boolean;
+};
+
 const ALERT_AUDIO_PATH = "/api/tasks/audio";
 const ALERT_AUDIO_WINDOW_MS = 5000;
 const ALERT_AUDIO_REPEAT_MS = 5 * 60 * 1000;
@@ -832,6 +836,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [alert, setAlert] = useState<AlertState | null>(null);
+  const [taskAudioExists, setTaskAudioExists] = useState(false);
   const alertRef = useRef<AlertState | null>(null);
   const tasksRef = useRef<Task[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -872,6 +877,26 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+
+    void jsonFetch<TaskAudioStatus>("/api/tasks/audio?status=1", { cache: "no-store" })
+      .then((payload) => {
+        if (alive) {
+          setTaskAudioExists(payload.exists);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setTaskAudioExists(false);
+        }
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const stopAudio = useCallback(() => {
     if (audioStopTimer.current !== null) {
       window.clearTimeout(audioStopTimer.current);
@@ -894,6 +919,10 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   }, [stopAudio]);
 
   const playAudioWindow = useCallback(() => {
+    if (!taskAudioExists) {
+      return;
+    }
+
     const audio = audioRef.current;
     if (!audio) {
       return;
@@ -905,13 +934,18 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       console.info("[nova-dashboard] task alert audio blocked or unavailable", error);
     });
     audioStopTimer.current = window.setTimeout(stopAudio, ALERT_AUDIO_WINDOW_MS);
-  }, [stopAudio]);
+  }, [stopAudio, taskAudioExists]);
 
   const startAudioCadence = useCallback(() => {
+    if (!taskAudioExists) {
+      clearAudioCadence();
+      return;
+    }
+
     clearAudioCadence();
     playAudioWindow();
     audioRepeatTimer.current = window.setInterval(playAudioWindow, ALERT_AUDIO_REPEAT_MS);
-  }, [clearAudioCadence, playAudioWindow]);
+  }, [clearAudioCadence, playAudioWindow, taskAudioExists]);
 
   const triggerAlert = useCallback((nextAlert: AlertState) => {
     const dismissed = tasksRef.current.some((task) => task.id === nextAlert.taskId && task.dismissedAt);
@@ -1007,17 +1041,27 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
         setMessage("Dashboard event error");
       }
     };
+    const handleTaskAudio = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as TaskAudioStatus;
+        setTaskAudioExists(Boolean(payload.exists));
+      } catch {
+        setTaskAudioExists(false);
+      }
+    };
 
     events.addEventListener("tasks", handleTasks as EventListener);
     events.addEventListener("task-alert", handleTaskAlert as EventListener);
     events.addEventListener("task-dismiss", handleTaskDismiss as EventListener);
     events.addEventListener("dashboard-error", handleDashboardError as EventListener);
+    events.addEventListener("task-audio", handleTaskAudio as EventListener);
 
     return () => {
       events.removeEventListener("tasks", handleTasks as EventListener);
       events.removeEventListener("task-alert", handleTaskAlert as EventListener);
       events.removeEventListener("task-dismiss", handleTaskDismiss as EventListener);
       events.removeEventListener("dashboard-error", handleDashboardError as EventListener);
+      events.removeEventListener("task-audio", handleTaskAudio as EventListener);
       events.close();
     };
   }, [dismissAlert, triggerAlert]);
@@ -1047,7 +1091,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       document.body.classList.remove("task-alerting");
       clearAudioCadence();
     };
-  }, [alert, clearAudioCadence, startAudioCadence]);
+  }, [alert, clearAudioCadence, startAudioCadence, taskAudioExists]);
 
   useEffect(() => {
     if (!alert) {
@@ -1271,7 +1315,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
         </>
       ) : null}
 
-      <audio ref={audioRef} src={ALERT_AUDIO_PATH} preload="auto" />
+      {taskAudioExists ? <audio ref={audioRef} src={ALERT_AUDIO_PATH} preload="auto" /> : null}
 
       {showPanel ? (
         <>

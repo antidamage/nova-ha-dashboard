@@ -22,7 +22,7 @@ function readInitialTheme(value: string | undefined): Partial<DeviceTheme & Them
 export default async function ConfigPage() {
   const cookieStore = await cookies();
   const localTheme = readInitialTheme(cookieStore.get(THEME_COOKIE_NAME)?.value);
-  const configScope = cookieStore.get(THEME_SCOPE_COOKIE_NAME)?.value === "shared" ? "shared" : "local";
+  const configScope = cookieStore.get(THEME_SCOPE_COOKIE_NAME)?.value === "local" ? "local" : "shared";
   const preferences = configScope === "shared" ? await readDashboardPreferences() : null;
   const initialTheme = configScope === "shared"
     ? (preferences?.theme as Partial<DeviceTheme & ThemeColorValue> | undefined) ?? localTheme

@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -38,7 +38,8 @@ try {
     }
     return null;
   };
-  var themeScope = (localStorage.getItem(themeScopeKey) || cookieValue(themeScopeKey)) === "shared" ? "shared" : "local";
+  var explicitThemeScope = localStorage.getItem(themeScopeKey) || cookieValue(themeScopeKey);
+  var themeScope = explicitThemeScope === "local" ? "local" : "shared";
   document.cookie = themeScopeKey + "=" + themeScope + "; Path=/; Max-Age=31536000; SameSite=Lax";
   var storedText = themeScope === "shared" ? null : localStorage.getItem(themeKey);
   var cookieText = cookieValue(themeKey);

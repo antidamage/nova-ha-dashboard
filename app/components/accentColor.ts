@@ -52,6 +52,7 @@ const THEME_SCOPE_STORAGE_KEY = "nova.dashboard.configScope.v1";
 const THEME_SCOPE_COOKIE_NAME = "nova.dashboard.configScope.v1";
 const THEME_CHANGE_EVENT = "nova-accent-change";
 const THEME_SCOPE_CHANGE_EVENT = "nova-config-scope-change";
+const DEFAULT_THEME_SCOPE: ThemeConfigScope = "shared";
 const SHARED_THEME_POLL_MS = 30 * 1000;
 export const RADAR_OPACITY_DEFAULT = 100;
 export const RADAR_OPACITY_MAX = 100;
@@ -211,7 +212,13 @@ function normalizeRadarPaletteMode(value: unknown): RadarPaletteMode {
 }
 
 function normalizeThemeScope(value: unknown): ThemeConfigScope {
-  return value === "shared" ? "shared" : "local";
+  if (value === "local") {
+    return "local";
+  }
+  if (value === "shared") {
+    return "shared";
+  }
+  return DEFAULT_THEME_SCOPE;
 }
 
 function normalizeNumber(value: unknown, fallback: number, min: number, max: number) {
@@ -493,7 +500,7 @@ function cookieValue(name: string) {
 
 function readThemeScope() {
   if (typeof window === "undefined") {
-    return "local" as ThemeConfigScope;
+    return DEFAULT_THEME_SCOPE;
   }
 
   try {
