@@ -4,6 +4,22 @@ import { ArrowLeftRight, Check, Home, Music, RotateCcw, Trash2, Upload } from "l
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DeviceTheme,
+  FLUID_BACKGROUND_APEX_GLOW_DEFAULT,
+  FLUID_BACKGROUND_APEX_GLOW_MAX,
+  FLUID_BACKGROUND_APEX_GLOW_MIN,
+  FLUID_BACKGROUND_FALLOFF_POWER_DEFAULT,
+  FLUID_BACKGROUND_FALLOFF_POWER_MAX,
+  FLUID_BACKGROUND_FALLOFF_POWER_MIN,
+  FLUID_BACKGROUND_HUE_SPREAD_DEFAULT,
+  FLUID_BACKGROUND_HUE_SPREAD_MAX,
+  FLUID_BACKGROUND_HUE_SPREAD_MIN,
+  FLUID_BACKGROUND_PEAK_INTENSITY_DEFAULT,
+  FLUID_BACKGROUND_PEAK_INTENSITY_MAX,
+  FLUID_BACKGROUND_PEAK_INTENSITY_MIN,
+  FLUID_BACKGROUND_WARP_AMPLITUDE_DEFAULT,
+  FLUID_BACKGROUND_WARP_AMPLITUDE_MAX,
+  FLUID_BACKGROUND_WARP_AMPLITUDE_MIN,
+  FluidBackgroundSettings,
   MAP_BUILDING_OPACITY_DEFAULT,
   MAP_BUILDING_OPACITY_MAX,
   MAP_BUILDING_OPACITY_MIN,
@@ -623,6 +639,112 @@ function TaskGlowIntensityControl({
   );
 }
 
+type BackgroundEffectKey = keyof FluidBackgroundSettings;
+
+const BACKGROUND_EFFECT_CONTROLS: Array<{
+  defaultValue: number;
+  key: BackgroundEffectKey;
+  label: string;
+  max: number;
+  min: number;
+  step: number;
+  valueText: (value: number) => string;
+}> = [
+  {
+    defaultValue: FLUID_BACKGROUND_PEAK_INTENSITY_DEFAULT,
+    key: "peakIntensity",
+    label: "Peak Intensity",
+    max: FLUID_BACKGROUND_PEAK_INTENSITY_MAX,
+    min: FLUID_BACKGROUND_PEAK_INTENSITY_MIN,
+    step: 5,
+    valueText: (value) => `${value}%`,
+  },
+  {
+    defaultValue: FLUID_BACKGROUND_APEX_GLOW_DEFAULT,
+    key: "apexGlow",
+    label: "Apex Glow",
+    max: FLUID_BACKGROUND_APEX_GLOW_MAX,
+    min: FLUID_BACKGROUND_APEX_GLOW_MIN,
+    step: 5,
+    valueText: (value) => `${value}%`,
+  },
+  {
+    defaultValue: FLUID_BACKGROUND_WARP_AMPLITUDE_DEFAULT,
+    key: "warpAmplitude",
+    label: "Warp Amplitude",
+    max: FLUID_BACKGROUND_WARP_AMPLITUDE_MAX,
+    min: FLUID_BACKGROUND_WARP_AMPLITUDE_MIN,
+    step: 5,
+    valueText: (value) => `${value}%`,
+  },
+  {
+    defaultValue: FLUID_BACKGROUND_FALLOFF_POWER_DEFAULT,
+    key: "falloffPower",
+    label: "Falloff Power",
+    max: FLUID_BACKGROUND_FALLOFF_POWER_MAX,
+    min: FLUID_BACKGROUND_FALLOFF_POWER_MIN,
+    step: 5,
+    valueText: (value) => (value / 100).toFixed(2),
+  },
+  {
+    defaultValue: FLUID_BACKGROUND_HUE_SPREAD_DEFAULT,
+    key: "hueSpread",
+    label: "Hue Drift",
+    max: FLUID_BACKGROUND_HUE_SPREAD_MAX,
+    min: FLUID_BACKGROUND_HUE_SPREAD_MIN,
+    step: 1,
+    valueText: (value) => `${value}%`,
+  },
+];
+
+function BackgroundEffectControls({
+  accentColor,
+  highlightColor,
+  onChange,
+  value,
+}: {
+  accentColor: [number, number, number];
+  highlightColor: [number, number, number];
+  onChange: (value: FluidBackgroundSettings) => void;
+  value: FluidBackgroundSettings;
+}) {
+  return (
+    <div className="grid gap-3">
+      {BACKGROUND_EFFECT_CONTROLS.map((control) => {
+        const currentValue = value[control.key];
+        const displayValue = control.valueText(currentValue);
+
+        return (
+          <div key={control.key} className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+            <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)_112px] md:items-center">
+              <p className="text-sm font-black uppercase text-cyan-200">{control.label}</p>
+              <div className="px-1">
+                <DotLineControl
+                  ariaLabel={`Apple TV background ${control.label.toLowerCase()}`}
+                  ariaValueText={displayValue}
+                  value={currentValue}
+                  min={control.min}
+                  max={control.max}
+                  step={control.step}
+                  color={accentColor}
+                  activeColor={highlightColor}
+                  intensity={Math.min(100, Math.max(40, currentValue))}
+                  onChange={(nextValue) => onChange({ ...value, [control.key]: nextValue })}
+                  markers={[
+                    { active: currentValue === control.defaultValue, label: "Default", value: control.defaultValue },
+                    { active: currentValue === control.max, label: "Max", value: control.max },
+                  ]}
+                />
+              </div>
+              <p className="text-3xl font-black tabular-nums text-neutral-50 md:text-right">{displayValue}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 type TaskReminderAudioStatus = {
   exists: boolean;
   size?: number;
@@ -1032,6 +1154,16 @@ export function AccentConfig({ initialTheme }: { initialTheme?: Partial<DeviceTh
                   label="Auto Fullscreen"
                   detail={theme.autoFullscreenOnLoad ? "Local client requests fullscreen when the dashboard opens" : "Local client opens without requesting fullscreen"}
                   onChange={(autoFullscreenOnLoad) => setTheme({ ...theme, autoFullscreenOnLoad })}
+                />
+              </section>
+
+              <section className="theme-config-section grid gap-3">
+                <h2 className="text-xl font-black uppercase text-neutral-100">Apple TV Background</h2>
+                <BackgroundEffectControls
+                  accentColor={accentRgb}
+                  highlightColor={highlightRgb}
+                  value={theme.backgroundEffect}
+                  onChange={(backgroundEffect) => setTheme({ ...theme, backgroundEffect })}
                 />
               </section>
 

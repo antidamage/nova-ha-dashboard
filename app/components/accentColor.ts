@@ -25,9 +25,18 @@ export type ThemeMapLayerValue = {
   opacity: number;
 };
 
+export type FluidBackgroundSettings = {
+  apexGlow: number;
+  falloffPower: number;
+  hueSpread: number;
+  peakIntensity: number;
+  warpAmplitude: number;
+};
+
 export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   autoFullscreenOnLoad: boolean;
   background: ThemeColorValue;
+  backgroundEffect: FluidBackgroundSettings;
   border: ThemeBorderValue;
   map: Record<MapThemeColorSlot, ThemeColorValue>;
   mapBuildingOpacity: number;
@@ -66,6 +75,21 @@ export const MAP_BUILDING_OPACITY_MIN = 0;
 export const TASK_GLOW_INTENSITY_DEFAULT = 200;
 export const TASK_GLOW_INTENSITY_MAX = 300;
 export const TASK_GLOW_INTENSITY_MIN = 50;
+export const FLUID_BACKGROUND_APEX_GLOW_DEFAULT = 130;
+export const FLUID_BACKGROUND_APEX_GLOW_MAX = 240;
+export const FLUID_BACKGROUND_APEX_GLOW_MIN = 0;
+export const FLUID_BACKGROUND_FALLOFF_POWER_DEFAULT = 165;
+export const FLUID_BACKGROUND_FALLOFF_POWER_MAX = 320;
+export const FLUID_BACKGROUND_FALLOFF_POWER_MIN = 80;
+export const FLUID_BACKGROUND_HUE_SPREAD_DEFAULT = 18;
+export const FLUID_BACKGROUND_HUE_SPREAD_MAX = 100;
+export const FLUID_BACKGROUND_HUE_SPREAD_MIN = 0;
+export const FLUID_BACKGROUND_PEAK_INTENSITY_DEFAULT = 145;
+export const FLUID_BACKGROUND_PEAK_INTENSITY_MAX = 260;
+export const FLUID_BACKGROUND_PEAK_INTENSITY_MIN = 40;
+export const FLUID_BACKGROUND_WARP_AMPLITUDE_DEFAULT = 125;
+export const FLUID_BACKGROUND_WARP_AMPLITUDE_MAX = 220;
+export const FLUID_BACKGROUND_WARP_AMPLITUDE_MIN = 40;
 
 export const DEFAULT_THEME: DeviceTheme = {
   accent: {
@@ -83,6 +107,13 @@ export const DEFAULT_THEME: DeviceTheme = {
     cursor: { x: 0.55, y: 0.93 },
     intensity: 16,
     rgb: [231, 244, 250],
+  },
+  backgroundEffect: {
+    apexGlow: FLUID_BACKGROUND_APEX_GLOW_DEFAULT,
+    falloffPower: FLUID_BACKGROUND_FALLOFF_POWER_DEFAULT,
+    hueSpread: FLUID_BACKGROUND_HUE_SPREAD_DEFAULT,
+    peakIntensity: FLUID_BACKGROUND_PEAK_INTENSITY_DEFAULT,
+    warpAmplitude: FLUID_BACKGROUND_WARP_AMPLITUDE_DEFAULT,
   },
   border: {
     color: {
@@ -251,6 +282,16 @@ export function normalizeTaskGlowIntensity(value: unknown) {
   return normalizeNumber(value, TASK_GLOW_INTENSITY_DEFAULT, TASK_GLOW_INTENSITY_MIN, TASK_GLOW_INTENSITY_MAX);
 }
 
+export function normalizeFluidBackgroundSettings(value: Partial<FluidBackgroundSettings> | null | undefined): FluidBackgroundSettings {
+  return {
+    apexGlow: normalizeNumber(value?.apexGlow, FLUID_BACKGROUND_APEX_GLOW_DEFAULT, FLUID_BACKGROUND_APEX_GLOW_MIN, FLUID_BACKGROUND_APEX_GLOW_MAX),
+    falloffPower: normalizeNumber(value?.falloffPower, FLUID_BACKGROUND_FALLOFF_POWER_DEFAULT, FLUID_BACKGROUND_FALLOFF_POWER_MIN, FLUID_BACKGROUND_FALLOFF_POWER_MAX),
+    hueSpread: normalizeNumber(value?.hueSpread, FLUID_BACKGROUND_HUE_SPREAD_DEFAULT, FLUID_BACKGROUND_HUE_SPREAD_MIN, FLUID_BACKGROUND_HUE_SPREAD_MAX),
+    peakIntensity: normalizeNumber(value?.peakIntensity, FLUID_BACKGROUND_PEAK_INTENSITY_DEFAULT, FLUID_BACKGROUND_PEAK_INTENSITY_MIN, FLUID_BACKGROUND_PEAK_INTENSITY_MAX),
+    warpAmplitude: normalizeNumber(value?.warpAmplitude, FLUID_BACKGROUND_WARP_AMPLITUDE_DEFAULT, FLUID_BACKGROUND_WARP_AMPLITUDE_MIN, FLUID_BACKGROUND_WARP_AMPLITUDE_MAX),
+  };
+}
+
 function matchesThemeColor(value: Partial<ThemeColorValue> | null | undefined, expected: ThemeColorValue) {
   if (!value) {
     return false;
@@ -287,6 +328,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     highlight: normalizeColor(value?.highlight, DEFAULT_THEME.highlight),
     autoFullscreenOnLoad: value?.autoFullscreenOnLoad === true,
     background: normalizeColor(value?.background, DEFAULT_THEME.background),
+    backgroundEffect: normalizeFluidBackgroundSettings(value?.backgroundEffect),
     border: {
       color: normalizeColor(borderValue?.color, DEFAULT_THEME.border.color),
       enabled: borderValue?.enabled === true,
