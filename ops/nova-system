@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+#
+# nova-system — host-side power actions for the Nova HA Dashboard.
+#
+# The dashboard runs inside a Docker container and therefore cannot stop its own
+# container or reboot the host. It only ever *writes a request file* into the
+# shared, bind-persistent data dir; this script (driven by the same per-minute
+# user cron as nova-release) drains those requests and performs the action:
+#
+#   data/system/control/<id>.json  ->  { "action": "restart-dashboard"
+#                                                  | "restart-stack" | "reboot-host" }
+#
+#     restart-dashboard : `docker stop` the app container; the systemd unit's
+#                         Restart=always re-runs ExecStart (no sudo needed).
+#     restart-stack     : `docker restart` every related service container (Home
+#                         Assistant, MQTT, Matter, voice, bridges) and then bounce
+#                         the dashboard container last — a "restart everything
+#                         short of a reboot". No sudo needed (docker group).
+#     reboot-host       : reboot the whole machine. The app owner has no sudo, so
+#                         this needs a one-time NOPASSWD sudoers line (see
+#                         install-nova-system.sh) or a root-owned cron; without
+#                         it the reboot request is recorded as failed and the box
+#                         stays up.
+#
+# Mirrors nova-release: `set -euo pipefail`, a flock so runs never overlap, and a
+# tiny state.json for observability. An empty queue is a near-instant no-op.
+#
+set -euo pipefail
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
+APP_ROOT="${NOVA_APP_ROOT:-/opt/nova-ha-dashboard}"
+DATA_DIR="$APP_ROOT/data"
+SYSTEM_DIR="$DATA_DIR/system"
+STATE_FILE="$SYSTEM_DIR/state.json"
+CONTROL_DIR="$SYSTEM_DIR/control"
+LOCK_FILE="$APP_ROOT/.nova-system.lock"
+
+CONTAINER="${NOVA_CONTAINER:-nova-ha-dashboard}"
+
+# The "related services" a restart-stack bounces alongside the dashboard, in
+# start-up dependency order (broker first, dependents last). The dashboard
+# container is NOT in this list: it is --rm + systemd-managed, so it is handled
+# separately at the very end via `docker stop`, not `docker restart`. Containers
+# in the list that don't exist are skipped. Override if the stack changes.
+STACK_CONTAINERS="${NOVA_STACK_CONTAINERS:-mosquitto matter-server homeassistant tuya-mobile-mqtt-bridge linux-voice-assistant}"
+
+log() { printf '[nova-system] %s\n' "$*" >&2; }
+json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+# Tag every power action into the monitoring event stream (nova-monitoring's
+# spool -> JetStream -> VictoriaLogs) so no dashboard/stack restart is ever
+# unattributed. No-op when the monitoring agent isn't installed.
+NOVA_EVENT_BIN="${NOVA_EVENT_BIN:-/usr/local/bin/nova-event}"
+tag_event() {  # tag_event <event> [detail k=v]...
+  [ -x "$NOVA_EVENT_BIN" ] || return 0
+  local event="$1"; shift || true
+  local -a args=(--service nova-ha-dashboard --source helper --event "$event")
+  local kv
+  for kv in "$@"; do args+=(--detail "$kv"); done
+  "$NOVA_EVENT_BIN" "${args[@]}" >/dev/null 2>&1 || true
+}
+
+write_state() {  # write_state <action> <result> <message>
+  mkdir -p "$SYSTEM_DIR"
+  local now tmp
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  tmp="$STATE_FILE.tmp.$$"
+  cat > "$tmp" <<EOF
+{
+  "schema": 1,
+  "lastAction": "$(json_escape "$1")",
+  "lastResult": "$(json_escape "$2")",
+  "lastMessage": "$(json_escape "$3")",
+  "lastAt": "$now"
+}
+EOF
+  mv -f "$tmp" "$STATE_FILE"
+  log "$1: $2 — $3"
+}
+
+# ---------------------------------------------------------------------------
+# actions
+# ---------------------------------------------------------------------------
+do_restart_dashboard() {  # $1 = requestedBy (optional)
+  local requested_by="${1:-cli}"
+  write_state "restart-dashboard" "running" "Stopping container $CONTAINER (unit Restart=always will relaunch it)"
+  tag_event "restart-dashboard" "requestedBy=$requested_by" "reason=host control channel"
+  if docker stop "$CONTAINER" >/dev/null 2>&1; then
+    write_state "restart-dashboard" "ok" "Stopped $CONTAINER; it should relaunch automatically"
+  else
+    write_state "restart-dashboard" "failed" "docker stop $CONTAINER failed (is the container name correct?)"
+  fi
+}
+
+# Restart the whole Nova service stack "short of a reboot": docker restart every
+# related service container (HA, MQTT, Matter, voice, bridges) in dependency
+# order, then bounce the dashboard container last (same path as
+# restart-dashboard). Missing containers are skipped; a failure on any one is
+# recorded but does not abort the rest.
+do_restart_stack() {  # $1 = requestedBy (optional)
+  local requested_by="${1:-cli}"
+  write_state "restart-stack" "running" "Restarting service stack ($STACK_CONTAINERS) then the dashboard"
+  tag_event "restart-stack" "requestedBy=$requested_by" "reason=host control channel" "containers=$STACK_CONTAINERS"
+  local svc
+  local -a restarted=() failed=() skipped=()
+  for svc in $STACK_CONTAINERS; do
+    if ! docker inspect "$svc" >/dev/null 2>&1; then
+      log "skip $svc (no such container)"
+      skipped+=("$svc")
+      continue
+    fi
+    log "docker restart $svc"
+    if docker restart "$svc" >/dev/null 2>&1; then
+      restarted+=("$svc")
+    else
+      log "FAILED to restart $svc"
+      failed+=("$svc")
+    fi
+  done
+
+  # The dashboard goes last. It is --rm with the systemd unit on Restart=always,
+  # so `docker stop` (which removes the container) makes systemd relaunch a fresh
+  # one — `docker restart` would not have that effect here.
+  local dash_msg
+  if docker stop "$CONTAINER" >/dev/null 2>&1; then
+    dash_msg="dashboard stopped (systemd will relaunch)"
+  else
+    dash_msg="dashboard stop FAILED"
+    failed+=("$CONTAINER")
+  fi
+
+  local summary="restarted=[${restarted[*]:-}] skipped=[${skipped[*]:-}]; $dash_msg"
+  if [ "${#failed[@]}" -eq 0 ]; then
+    write_state "restart-stack" "ok" "$summary"
+  else
+    write_state "restart-stack" "failed" "failed=[${failed[*]}] $summary"
+  fi
+}
+
+# Reboot, trying the least-privileged path that works for this host. The first
+# command that is accepted takes the box down, so anything after it never runs.
+do_reboot_host() {  # $1 = requestedBy (optional)
+  local requested_by="${1:-cli}"
+  write_state "reboot-host" "running" "Rebooting the Nova host"
+  tag_event "reboot-host" "requestedBy=$requested_by" "reason=host control channel"
+  local attempt
+  # Try least-privileged first. A command that is missing (127) or rejected just
+  # falls through to the next; the first one accepted takes the box down.
+  for attempt in \
+    "sudo -n systemctl reboot" \
+    "sudo -n /sbin/reboot" \
+    "sudo -n reboot" \
+    "systemctl reboot" \
+    "reboot"; do
+    log "reboot via: $attempt"
+    if $attempt >/dev/null 2>&1; then
+      # Almost never reached — a successful reboot kills us first.
+      write_state "reboot-host" "ok" "Reboot command accepted ($attempt)"
+      return 0
+    fi
+  done
+  write_state "reboot-host" "failed" \
+    "No usable reboot path. Grant NOPASSWD sudo for 'systemctl reboot' (see install-nova-system.sh) or run the drain cron as root."
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# process: drain queued control requests (driven by per-minute cron).
+# ---------------------------------------------------------------------------
+do_process() {
+  mkdir -p "$CONTROL_DIR"
+  local req action requested_by
+  while :; do
+    req="$(ls -1tr "$CONTROL_DIR"/*.json 2>/dev/null | head -n1 || true)"
+    [ -n "$req" ] || break
+    action="$(grep -o '"action"[[:space:]]*:[[:space:]]*"[^"]*"' "$req" | head -n1 | sed 's/.*"\([^"]*\)"$/\1/')"
+    requested_by="$(grep -o '"requestedBy"[[:space:]]*:[[:space:]]*"[^"]*"' "$req" | head -n1 | sed 's/.*"\([^"]*\)"$/\1/')"
+    rm -f "$req"
+    case "$action" in
+      restart-dashboard) do_restart_dashboard "${requested_by:-api}" || true ;;
+      restart-stack)     do_restart_stack "${requested_by:-api}" || true ;;
+      reboot-host)       do_reboot_host "${requested_by:-api}" || true ;;
+      *)                 log "unknown action '$action'" ;;
+    esac
+  done
+}
+
+with_lock() {
+  exec 9>"$LOCK_FILE"
+  flock -n 9 || { log "another nova-system run holds the lock; exiting"; exit 0; }
+  "$@"
+}
+
+cmd="${1:-process}"; shift || true
+case "$cmd" in
+  process)           with_lock do_process ;;
+  restart-dashboard) with_lock do_restart_dashboard ;;
+  restart-stack)     with_lock do_restart_stack ;;
+  reboot)            with_lock do_reboot_host ;;
+  status)            cat "$STATE_FILE" 2>/dev/null || echo '{}' ;;
+  *) echo "usage: nova-system {process|restart-dashboard|restart-stack|reboot|status}" >&2; exit 2 ;;
+esac

@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "homeAssistant": {
+    "controlDomains": [
+      "light",
+      "switch",
+      "climate",
+      "fan",
+      "cover",
+      "humidifier",
+      "sensor"
+    ],
+    "illuminationNamePattern": "\\b(neon|light|lights|lamp|lamps|led|strip|glow|fairy|sign|illumination)\\b",
+    "supportSwitchPattern": "\\bauto[-_ ]?update\\b",
+    "everythingExcludedEntityIds": [],
+    "climateAreaNames": [
+      "climate",
+      "heating"
+    ],
+    "networkZoneId": "network",
+    "weatherEntityId": "weather.forecast_home",
+    "sunEntityId": "sun.sun",
+    "loungeSensorEntityIds": [],
+    "router": {
+      "name": "Router",
+      "wanStatusEntityId": "binary_sensor.router_wan_status",
+      "externalIpEntityId": "sensor.router_external_ip",
+      "downloadSpeedEntityId": "sensor.router_download_speed",
+      "uploadSpeedEntityId": "sensor.router_upload_speed"
+    },
+    "novaAssistSatelliteEntityId": "assist_satellite.assist_satellite"
+  },
+  "dashboard": {
+    "aircon": {
+      "offTimerIncrementMinutes": 30
+    },
+    "camera": {
+      "outside": {
+        "processing": {
+          "brightness": -0.12,
+          "contrast": 1.1,
+          "sharpness": 0.6
+        }
+      }
+    },
+    "lighting": {
+      "intensityThresholds": [],
+      "entityPresets": []
+    },
+    "avatar": {
+      "gradientAlert": {
+        "cursor": {
+          "x": 0.07793998332612997,
+          "y": 0.2532144274030413
+        },
+        "intensity": 34,
+        "rgb": [
+          231,
+          156,
+          90
+        ]
+      },
+      "gradientCenter": {
+        "cursor": {
+          "x": 0.1265082852696145,
+          "y": 0
+        },
+        "intensity": 56,
+        "rgb": [
+          255,
+          191,
+          0
+        ]
+      },
+      "gradientOuter": {
+        "cursor": {
+          "x": 0.09426439622814241,
+          "y": 0
+        },
+        "intensity": 20,
+        "rgb": [
+          255,
+          145,
+          0
+        ]
+      },
+      "gymAlertThresholdHours": 46,
+      "gymNumberColor": {
+        "cursor": {
+          "x": 0.10232536848851041,
+          "y": 0
+        },
+        "intensity": 93,
+        "rgb": [
+          255,
+          157,
+          0
+        ]
+      },
+      "gymNumberOpacity": 0,
+      "lineColors": [
+        {
+          "cursor": {
+            "x": 0.1282115169625482,
+            "y": 0
+          },
+          "intensity": 26,
+          "rgb": [
+            255,
+            196,
+            0
+          ]
+        },
+        {
+          "cursor": {
+            "x": 0.14698615935919723,
+            "y": 0
+          },
+          "intensity": 31,
+          "rgb": [
+            255,
+            225,
+            0
+          ]
+        },
+        {
+          "cursor": {
+            "x": 0.11734189192540956,
+            "y": 0
+          },
+          "intensity": 29,
+          "rgb": [
+            255,
+            179,
+            0
+          ]
+        }
+      ],
+      "lineOpacities": [
+        25,
+        30,
+        27
+      ]
+    },
+    "timing": {
+      "entityCommandHoldMs": 2000,
+      "dashboardEventPollMs": 5000,
+      "dashboardBuildEventPollMs": 5000,
+      "dashboardEventHeartbeatMs": 15000,
+      "dashboardEventPushDebounceMs": 150,
+      "lightCommandEventHoldMs": 5000,
+      "weatherRefreshIntervalMs": 1800000,
+      "adaptiveLightingPollMs": 60000,
+      "buildReloadAfterOutageMs": 8000
+    }
+  },
+  "mapWeather": {
+    "radar": {
+      "manifestUrl": "https://api.rainviewer.com/public/weather-maps.json",
+      "fallbackHost": "https://tilecache.rainviewer.com",
+      "refreshIntervalMs": 300000,
+      "sourcePollMs": 60000,
+      "preloadZoom": 7,
+      "preloadRadius": 1
+    },
+    "satellite": {
+      "tileUrlTemplate": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "attributionLabel": "Satellite: Esri World Imagery",
+      "attributionUrl": "https://www.esri.com/",
+      "maxZoom": 19
+    }
+  },
+  "power": {
+    "timing": {
+      "sampleIntervalMs": 30000,
+      "haPublishIntervalMs": 60000,
+      "discoveryIntervalMs": 86400000,
+      "rateCheckIntervalMs": 86400000,
+      "maxIntegrationHours": 2
+    },
+    "rates": {
+      "pageUrl": "https://www.powershop.co.nz/our-rates/",
+      "ratecardUrl": "https://www.powershop.co.nz/public/Ratecards/2026/03-Auckland-Central-South.pdf"
+    },
+    "modeledBaseLoads": {
+      "desktopActiveStartHour": 8,
+      "desktopActiveEndHour": 22.5,
+      "desktopActiveWatts": 285,
+      "desktopStandbyWatts": 6,
+      "novaAioAverageWatts": 42,
+      "aucklandMonthlyTempsC": [
+        20.3,
+        20.6,
+        19.4,
+        17.2,
+        14.8,
+        12.8,
+        11.8,
+        12.5,
+        14,
+        15.7,
+        17.4,
+        19.1
+      ],
+      "monthWeights": [
+        0.78,
+        0.76,
+        0.82,
+        0.94,
+        1.12,
+        1.25,
+        1.32,
+        1.2,
+        1.05,
+        0.93,
+        0.84,
+        0.79
+      ]
+    }
+  },
+  "theme": {
+    "defaultScope": "shared",
+    "sharedThemePollMs": 30000
+  },
+  "mcp": {
+    "enabled": true,
+    "requireBearerAuth": true,
+    "allowedOrigins": [
+      "http://localhost",
+      "http://127.0.0.1"
+    ],
+    "enableMutations": true,
+    "mutatingToolsRequireConfirm": true
+  },
+  "update": {
+    "repo": "antidamage/nova-ha-dashboard",
+    "branch": "main",
+    "autoUpdate": true,
+    "checkHourLocal": 3
+  }
+}

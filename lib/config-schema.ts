@@ -1,0 +1,316 @@
+import { z } from "zod";
+import {
+  AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX,
+  AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN,
+} from "./aircon-config";
+import {
+  DEFAULT_DAYTIME_LIGHT_BRIGHTNESS_PCT,
+  DEFAULT_EVENING_LIGHT_BRIGHTNESS_PCT,
+} from "./lighting-presets";
+
+export const DASHBOARD_CONFIG_SCHEMA_VERSION = 1;
+
+const entityIdSchema = z.string().min(1);
+const stringListSchema = z.array(z.string().min(1)).default([]);
+const millisecondsSchema = z.number().int().nonnegative();
+const dayOfMonthSchema = z.number().int().min(1).max(31);
+const urlTemplateSchema = z.string().min(1);
+const lightBrightnessPctSchema = z.number().int().min(1).max(100);
+const colorTemperatureKelvinSchema = z.number().int().min(1000).max(10000);
+
+export const HaDomainSchema = z.enum(["light", "switch", "climate", "fan", "cover", "humidifier", "sensor"]);
+
+const LightingIntensityThresholdSchema = z.object({
+  name: z.string().min(1).optional(),
+  thresholdPct: z.number().int().min(0).max(100),
+  entityIds: z.array(entityIdSchema).min(1),
+});
+const LightColorTemperatureOverrideSchema = z.object({
+  candlelight: colorTemperatureKelvinSchema.optional(),
+  daylight: colorTemperatureKelvinSchema.optional(),
+  sunlight: colorTemperatureKelvinSchema.optional(),
+});
+const LightingEntityPresetSchema = z.object({
+  entityId: entityIdSchema,
+  // Force this entity to always use the preset below, ignoring zone brightness/
+  // colour commands. Reapplied on every zone edit and by the scheduled poller.
+  pinned: z.boolean().optional(),
+  targetBrightnessPct: z.object({
+    daytime: lightBrightnessPctSchema.default(DEFAULT_DAYTIME_LIGHT_BRIGHTNESS_PCT),
+    evening: lightBrightnessPctSchema.default(DEFAULT_EVENING_LIGHT_BRIGHTNESS_PCT),
+  }).default({
+    daytime: DEFAULT_DAYTIME_LIGHT_BRIGHTNESS_PCT,
+    evening: DEFAULT_EVENING_LIGHT_BRIGHTNESS_PCT,
+  }),
+  colorTemperatureOverrideKelvin: LightColorTemperatureOverrideSchema.optional(),
+});
+const ThemeColorValueSchema = z.object({
+  cursor: z.object({
+    x: z.number().min(0).max(1),
+    y: z.number().min(0).max(1),
+  }),
+  intensity: z.number().int().min(0).max(100),
+  rgb: z.tuple([
+    z.number().int().min(0).max(255),
+    z.number().int().min(0).max(255),
+    z.number().int().min(0).max(255),
+  ]),
+});
+const NovaAvatarConfigSchema = z.object({
+  gradientAlert: ThemeColorValueSchema,
+  gradientCenter: ThemeColorValueSchema,
+  gradientOuter: ThemeColorValueSchema,
+  gymAlertThresholdHours: z.number().int().min(1).max(168),
+  gymNumberColor: ThemeColorValueSchema,
+  gymNumberOpacity: z.number().int().min(0).max(100),
+  lineColors: z.tuple([ThemeColorValueSchema, ThemeColorValueSchema, ThemeColorValueSchema]),
+  lineOpacities: z.tuple([
+    z.number().int().min(0).max(100),
+    z.number().int().min(0).max(100),
+    z.number().int().min(0).max(100),
+  ]),
+  // Per-orb-module slider values (moduleId -> settingId -> value). Optional so
+  // existing config files stay valid; without it zod's strip mode would drop
+  // the field whenever the legacy config.dashboard.avatar path round-trips.
+  orbModuleSettings: z.record(z.string(), z.record(z.string(), z.number())).optional(),
+});
+
+export const DashboardConfigSchema = z.object({
+  schemaVersion: z.literal(DASHBOARD_CONFIG_SCHEMA_VERSION),
+  homeAssistant: z.object({
+    controlDomains: z.array(HaDomainSchema).min(1),
+    illuminationNamePattern: z.string().min(1),
+    supportSwitchPattern: z.string().min(1),
+    everythingExcludedEntityIds: stringListSchema,
+    climateAreaNames: stringListSchema,
+    networkZoneId: z.string().min(1),
+    weatherEntityId: entityIdSchema,
+    sunEntityId: entityIdSchema,
+    loungeSensorEntityIds: stringListSchema,
+    router: z.object({
+      name: z.string().min(1),
+      wanStatusEntityId: entityIdSchema,
+      externalIpEntityId: entityIdSchema,
+      downloadSpeedEntityId: entityIdSchema,
+      uploadSpeedEntityId: entityIdSchema,
+    }),
+    novaAssistSatelliteEntityId: entityIdSchema,
+    // Entity-driven classification overrides. Home Assistant metadata
+    // (device_class, area assignment, area sensor bindings, labels) is the
+    // primary signal; the lists below are HA labels to honour plus explicit
+    // entity-id escape hatches for when that metadata is missing or wrong.
+    // Empty everywhere == pure HA-driven classification.
+    classification: z
+      .object({
+        illuminationLabels: z.array(z.string().min(1)).default(["nova_illumination"]),
+        hiddenLabels: z.array(z.string().min(1)).default(["nova_hidden"]),
+        environmentLabels: z.array(z.string().min(1)).default(["nova_environment"]),
+        forceIlluminationEntityIds: stringListSchema,
+        forceHiddenEntityIds: stringListSchema,
+        environmentSensorEntityIds: stringListSchema,
+        environmentSensorExcludeEntityIds: stringListSchema,
+      })
+      .default({
+        illuminationLabels: ["nova_illumination"],
+        hiddenLabels: ["nova_hidden"],
+        environmentLabels: ["nova_environment"],
+        forceIlluminationEntityIds: [],
+        forceHiddenEntityIds: [],
+        environmentSensorEntityIds: [],
+        environmentSensorExcludeEntityIds: [],
+      }),
+  }),
+  dashboard: z.object({
+    defaultZoneId: z.string().min(1),
+    specialZones: z.object({
+      power: z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+      }),
+      tasks: z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+      }),
+    }),
+    lighting: z.object({
+      intensityThresholds: z.array(LightingIntensityThresholdSchema).default([]),
+      entityPresets: z.array(LightingEntityPresetSchema).default([]),
+    }),
+    aircon: z.object({
+      offTimerIncrementMinutes: z.number().int().min(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN).max(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX),
+    }),
+    camera: z.object({
+      outside: z.object({
+        // Pre-configured video host: where the Outside camera stream is served
+        // FROM. Capture + hardware-encode live on the camera host; the
+        // dashboard host is a pure consumer that embeds the stream directly
+        // from this base URL (e.g. "http://camera-host.local:8080"). Empty =
+        // fall back to the dashboard's own same-origin /api/camera routes.
+        videoHostUrl: z.string().default(""),
+        // Master switch for the Outside camera. When false, NO ffmpeg ingestion
+        // runs at all — neither the real capture nor the synthetic test-pattern
+        // fallback — so the camera stops competing for CPU on a contended box.
+        // Defaults on so existing configs (and the shipped contract) keep the DVR.
+        // NOTE: with a videoHostUrl set, ingestion + processing are owned by the
+        // remote service (its /settings API); these nova fields remain only for
+        // the same-origin fallback path and are ignored once the host is remote.
+        ingestionEnabled: z.boolean().default(true),
+        processing: z.object({
+          brightness: z.number().min(-1).max(1),
+          contrast: z.number().min(0).max(2),
+          sharpness: z.number().min(0).max(5),
+        }),
+      }),
+    }),
+    avatar: NovaAvatarConfigSchema,
+    timing: z.object({
+      entityCommandHoldMs: millisecondsSchema,
+      dashboardEventPollMs: millisecondsSchema,
+      dashboardBuildEventPollMs: millisecondsSchema,
+      dashboardEventHeartbeatMs: millisecondsSchema,
+      dashboardEventPushDebounceMs: millisecondsSchema,
+      lightCommandEventHoldMs: millisecondsSchema,
+      weatherRefreshIntervalMs: millisecondsSchema,
+      adaptiveLightingPollMs: millisecondsSchema,
+      buildReloadAfterOutageMs: millisecondsSchema,
+    }),
+  }),
+  mapWeather: z.object({
+    center: z.object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    }),
+    radar: z.object({
+      manifestUrl: urlTemplateSchema,
+      fallbackHost: z.string().url(),
+      refreshIntervalMs: millisecondsSchema,
+      sourcePollMs: millisecondsSchema,
+      preloadZoom: z.number().int().min(0).max(22),
+      preloadRadius: z.number().int().min(0).max(6),
+    }),
+    satellite: z.object({
+      tileUrlTemplate: urlTemplateSchema,
+      attributionLabel: z.string().min(1),
+      attributionUrl: z.string().url(),
+      maxZoom: z.number().int().min(0).max(22),
+    }),
+  }),
+  power: z.object({
+    timeZone: z.string().min(1),
+    billing: z.object({
+      startDay: dayOfMonthSchema,
+      endDay: dayOfMonthSchema,
+    }),
+    timing: z.object({
+      sampleIntervalMs: millisecondsSchema,
+      haPublishIntervalMs: millisecondsSchema,
+      discoveryIntervalMs: millisecondsSchema,
+      rateCheckIntervalMs: millisecondsSchema,
+      maxIntegrationHours: z.number().positive(),
+    }),
+    rates: z.object({
+      pageUrl: z.string().url(),
+      ratecardUrl: z.string().url(),
+    }),
+    modeledBaseLoads: z.object({
+      desktopActiveStartHour: z.number().min(0).max(24),
+      desktopActiveEndHour: z.number().min(0).max(24),
+      desktopActiveWatts: z.number().nonnegative(),
+      desktopStandbyWatts: z.number().nonnegative(),
+      novaAioAverageWatts: z.number().nonnegative(),
+      aucklandMonthlyTempsC: z.array(z.number()).length(12),
+      monthWeights: z.array(z.number().positive()).length(12),
+    }),
+  }),
+  tasks: z.object({
+    iCloud: z.object({
+      caldavUrl: z.string().url(),
+      defaultSyncDays: z.number().int().min(1).max(60),
+      calendars: stringListSchema,
+      reminders: stringListSchema,
+      syncIntervalMs: millisecondsSchema,
+      defaultReminderDurationMs: millisecondsSchema,
+      authBackoffMs: millisecondsSchema,
+    }),
+    alertAudio: z.object({
+      fileName: z.string().min(1),
+      maxBytes: z.number().int().positive(),
+      alertWindowMs: millisecondsSchema,
+      repeatMs: millisecondsSchema,
+    }),
+  }),
+  theme: z.object({
+    defaultScope: z.enum(["shared", "local"]),
+    sharedThemePollMs: millisecondsSchema,
+  }),
+  mcp: z.object({
+    enabled: z.boolean(),
+    requireBearerAuth: z.boolean(),
+    allowedOrigins: stringListSchema,
+    enableMutations: z.boolean(),
+    mutatingToolsRequireConfirm: z.boolean(),
+  }),
+  update: z.object({
+    // GitHub "owner/repo" the live install tracks for self-updates.
+    repo: z.string().min(1),
+    // Branch whose HEAD counts as the latest available version.
+    branch: z.string().min(1),
+    // Default for the auto-update switch; the live toggle is stored in
+    // runtime preferences so flipping it never rewrites the whole config.
+    autoUpdate: z.boolean(),
+    // Local hour (0-23, in power.timeZone) for the once-a-day update check.
+    checkHourLocal: z.number().int().min(0).max(23),
+  }),
+});
+
+export type DashboardConfigV1 = z.infer<typeof DashboardConfigSchema>;
+export type DashboardConfig = DashboardConfigV1;
+
+export type ConfigValidationIssue = {
+  code: string;
+  message: string;
+  path: string;
+};
+
+export type ConfigValidationResult =
+  | {
+      ok: true;
+      config: DashboardConfig;
+      errors: [];
+    }
+  | {
+      ok: false;
+      config?: undefined;
+      errors: ConfigValidationIssue[];
+    };
+
+export type ConfigImportResult = ConfigValidationResult & {
+  applied: boolean;
+};
+
+export type SecretSetupStatus = {
+  homeAssistant: {
+    urlConfigured: boolean;
+    tokenConfigured: boolean;
+  };
+  iCloud: {
+    usernameConfigured: boolean;
+    appPasswordConfigured: boolean;
+    enabled: boolean;
+  };
+  powershop: {
+    emailConfigured: boolean;
+    passwordConfigured: boolean;
+    enabled: boolean;
+  };
+  mcp: {
+    bearerTokenConfigured: boolean;
+    authRequired: boolean;
+  };
+};
+
+export type McpToolResult = {
+  content: Array<{ type: "text"; text: string }>;
+  isError?: boolean;
+  structuredContent?: Record<string, unknown>;
+};

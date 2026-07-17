@@ -1,0 +1,12 @@
+{
+  "capturedAt": "2026-06-09T05:59:37.592Z",
+  "haUrl": "http://127.0.0.1:8123",
+  "dashboardUrl": "http://127.0.0.1",
+  "counts": {
+    "states": 182,
+    "areas": 7,
+    "devices": 60,
+    "entities": 224,
+    "labels": 0
+  }
+}

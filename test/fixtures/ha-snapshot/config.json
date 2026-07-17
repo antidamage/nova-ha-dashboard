@@ -1,0 +1,318 @@
+{
+  "config": {
+    "schemaVersion": 1,
+    "homeAssistant": {
+      "controlDomains": [
+        "light",
+        "switch",
+        "climate",
+        "fan",
+        "cover",
+        "humidifier",
+        "sensor"
+      ],
+      "illuminationNamePattern": "\\b(neon|light|lights|lamp|lamps|led|strip|glow|fairy|sign|illumination)\\b",
+      "supportSwitchPattern": "\\bauto[-_ ]?update\\b",
+      "everythingExcludedEntityIds": [
+        "light.outside_light"
+      ],
+      "climateAreaNames": [
+        "climate",
+        "heating"
+      ],
+      "networkZoneId": "network",
+      "weatherEntityId": "weather.forecast_home",
+      "sunEntityId": "sun.sun",
+      "loungeSensorEntityIds": [
+        "sensor.tuya_mobile_lounge_sensor_temperature",
+        "sensor.tuya_mobile_lounge_sensor_humidity",
+        "sensor.wifi_temperature_humidity_sensor_temperature",
+        "sensor.wifi_temperature_humidity_sensor_humidity",
+        "sensor.lounge_temperature",
+        "sensor.lounge_humidity"
+      ],
+      "router": {
+        "name": "NX620v",
+        "wanStatusEntityId": "binary_sensor.nx620v_wan_status",
+        "externalIpEntityId": "sensor.nx620v_external_ip",
+        "downloadSpeedEntityId": "sensor.nx620v_download_speed",
+        "uploadSpeedEntityId": "sensor.nx620v_upload_speed"
+      },
+      "novaAssistSatelliteEntityId": "assist_satellite.iridium_assist_satellite"
+    },
+    "dashboard": {
+      "defaultZoneId": "everything",
+      "specialZones": {
+        "power": {
+          "id": "power",
+          "name": "Power"
+        },
+        "tasks": {
+          "id": "tasks",
+          "name": "Tasks"
+        }
+      },
+      "lighting": {
+        "intensityThresholds": [
+          {
+            "name": "Neon Lights",
+            "thresholdPct": 50,
+            "entityIds": [
+              "light.cupboard_socket_1"
+            ]
+          }
+        ],
+        "entityPresets": [
+          {
+            "entityId": "light.conservatory_light",
+            "targetBrightnessPct": {
+              "daytime": 100,
+              "evening": 100
+            },
+            "colorTemperatureOverrideKelvin": {
+              "candlelight": 6500,
+              "daylight": 6500
+            }
+          }
+        ]
+      },
+      "aircon": {
+        "offTimerIncrementMinutes": 10
+      },
+      "avatar": {
+        "gradientAlert": {
+          "cursor": {
+            "x": 0.3758266497819052,
+            "y": 0
+          },
+          "intensity": 100,
+          "rgb": [
+            0,
+            255,
+            64
+          ]
+        },
+        "gradientCenter": {
+          "cursor": {
+            "x": 0.7297031096102435,
+            "y": 0
+          },
+          "intensity": 63,
+          "rgb": [
+            93,
+            0,
+            255
+          ]
+        },
+        "gradientOuter": {
+          "cursor": {
+            "x": 0.6227662867595329,
+            "y": 0
+          },
+          "intensity": 26,
+          "rgb": [
+            0,
+            68,
+            255
+          ]
+        },
+        "gymAlertThresholdHours": 46,
+        "gymNumberColor": {
+          "cursor": {
+            "x": 1,
+            "y": 1
+          },
+          "intensity": 100,
+          "rgb": [
+            255,
+            255,
+            255
+          ]
+        },
+        "gymNumberOpacity": 100,
+        "lineColors": [
+          {
+            "cursor": {
+              "x": 0.63,
+              "y": 0
+            },
+            "intensity": 100,
+            "rgb": [
+              80,
+              130,
+              255
+            ]
+          },
+          {
+            "cursor": {
+              "x": 0.79,
+              "y": 0
+            },
+            "intensity": 100,
+            "rgb": [
+              180,
+              95,
+              240
+            ]
+          },
+          {
+            "cursor": {
+              "x": 0.53,
+              "y": 0
+            },
+            "intensity": 100,
+            "rgb": [
+              60,
+              220,
+              240
+            ]
+          }
+        ],
+        "lineOpacities": [
+          100,
+          100,
+          100
+        ]
+      },
+      "timing": {
+        "entityCommandHoldMs": 2000,
+        "dashboardEventPollMs": 5000,
+        "dashboardBuildEventPollMs": 5000,
+        "dashboardEventHeartbeatMs": 15000,
+        "dashboardEventPushDebounceMs": 150,
+        "lightCommandEventHoldMs": 5000,
+        "weatherRefreshIntervalMs": 1800000,
+        "adaptiveLightingPollMs": 60000,
+        "buildReloadAfterOutageMs": 8000
+      }
+    },
+    "mapWeather": {
+      "center": {
+        "lat": -36.8509,
+        "lng": 174.7645
+      },
+      "radar": {
+        "manifestUrl": "https://api.rainviewer.com/public/weather-maps.json",
+        "fallbackHost": "https://tilecache.rainviewer.com",
+        "refreshIntervalMs": 300000,
+        "sourcePollMs": 60000,
+        "preloadZoom": 7,
+        "preloadRadius": 1
+      },
+      "satellite": {
+        "tileUrlTemplate": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "attributionLabel": "Satellite: Esri World Imagery",
+        "attributionUrl": "https://www.esri.com/",
+        "maxZoom": 19
+      }
+    },
+    "power": {
+      "timeZone": "Pacific/Auckland",
+      "billing": {
+        "startDay": 19,
+        "endDay": 18
+      },
+      "timing": {
+        "sampleIntervalMs": 30000,
+        "haPublishIntervalMs": 60000,
+        "discoveryIntervalMs": 86400000,
+        "rateCheckIntervalMs": 86400000,
+        "maxIntegrationHours": 2
+      },
+      "rates": {
+        "pageUrl": "https://www.powershop.co.nz/our-rates/",
+        "ratecardUrl": "https://www.powershop.co.nz/public/Ratecards/2026/03-Auckland-Central-South.pdf"
+      },
+      "modeledBaseLoads": {
+        "desktopActiveStartHour": 8,
+        "desktopActiveEndHour": 22.5,
+        "desktopActiveWatts": 285,
+        "desktopStandbyWatts": 6,
+        "novaAioAverageWatts": 42,
+        "aucklandMonthlyTempsC": [
+          20.3,
+          20.6,
+          19.4,
+          17.2,
+          14.8,
+          12.8,
+          11.8,
+          12.5,
+          14,
+          15.7,
+          17.4,
+          19.1
+        ],
+        "monthWeights": [
+          0.78,
+          0.76,
+          0.82,
+          0.94,
+          1.12,
+          1.25,
+          1.32,
+          1.2,
+          1.05,
+          0.93,
+          0.84,
+          0.79
+        ]
+      }
+    },
+    "tasks": {
+      "iCloud": {
+        "caldavUrl": "https://caldav.icloud.com",
+        "defaultSyncDays": 7,
+        "calendars": [
+          "__none__"
+        ],
+        "reminders": [
+          "Reminders"
+        ],
+        "syncIntervalMs": 300000,
+        "defaultReminderDurationMs": 1800000,
+        "authBackoffMs": 3600000
+      },
+      "alertAudio": {
+        "fileName": "task-reminder.mp3",
+        "maxBytes": 10485760,
+        "alertWindowMs": 5000,
+        "repeatMs": 300000
+      }
+    },
+    "theme": {
+      "defaultScope": "shared",
+      "sharedThemePollMs": 30000
+    },
+    "mcp": {
+      "enabled": true,
+      "requireBearerAuth": true,
+      "allowedOrigins": [
+        "http://localhost",
+        "http://127.0.0.1"
+      ],
+      "enableMutations": true,
+      "mutatingToolsRequireConfirm": true
+    }
+  },
+  "secrets": {
+    "homeAssistant": {
+      "urlConfigured": true,
+      "tokenConfigured": true
+    },
+    "iCloud": {
+      "usernameConfigured": true,
+      "appPasswordConfigured": true,
+      "enabled": true
+    },
+    "powershop": {
+      "emailConfigured": true,
+      "passwordConfigured": true,
+      "enabled": true
+    },
+    "mcp": {
+      "authRequired": true,
+      "bearerTokenConfigured": false
+    }
+  }
+}

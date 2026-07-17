@@ -1,0 +1,20 @@
+[Unit]
+Description=Nova Home Assistant Dashboard (VM appliance)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStartPre=-/usr/bin/docker rm -f nova-ha-dashboard
+# VM variant of ops/nova-ha-dashboard.service: no render node, no v4l capture
+# device, no /dev bind — the camera lives on Nocturnium and the dashboard
+# consumes it via videoHostUrl. Image is the plain
+# (non-VAAPI) runtime from ops/Dockerfile.
+ExecStart=/usr/bin/docker run --rm --name nova-ha-dashboard --network host --env-file /opt/nova-ha-dashboard/.env.local -e NODE_ENV=production -e PORT=80 -v /opt/nova-ha-dashboard:/app -w /app nova-ha-dashboard:plain npm start
+ExecStop=/usr/bin/docker stop nova-ha-dashboard
+
+[Install]
+WantedBy=multi-user.target

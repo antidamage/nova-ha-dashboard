@@ -1,0 +1,22 @@
+{
+  "name": "nova-dashboard",
+  "description": "Nova Home Assistant Dashboard MCP and agent package metadata.",
+  "mcp": {
+    "endpoint": "/api/mcp",
+    "transport": "json-rpc-over-http-post",
+    "auth": {
+      "type": "bearer",
+      "environmentVariable": "NOVA_DASHBOARD_MCP_TOKEN"
+    }
+  },
+  "skills": [
+    {
+      "name": "nova-dashboard-management",
+      "path": "/agent/skills/nova-dashboard-management/SKILL.md"
+    }
+  ],
+  "resources": {
+    "configSchema": "/api/config/schema",
+    "currentConfig": "/api/config"
+  }
+}

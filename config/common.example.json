@@ -1,0 +1,65 @@
+{
+  "_comment": "Copy this file to common.local.json and adjust for your home. common.local.json is ignored by git and OVERRIDES dashboard-config.default.json, common.json, and tasks.json. Delete any key you do not need to override. See docs/config-and-home-assistant.md for what belongs in config vs Home Assistant.",
+
+  "homeAssistant": {
+    "_comment": "BINDINGS: point Nova at the specific Home Assistant entities for this home. Weather/sun auto-detect (weather.* / sun.sun) usually work out of the box.",
+    "weatherEntityId": "weather.forecast_home",
+    "sunEntityId": "sun.sun",
+    "router": {
+      "name": "My Router",
+      "wanStatusEntityId": "binary_sensor.router_wan_status",
+      "externalIpEntityId": "sensor.router_external_ip",
+      "downloadSpeedEntityId": "sensor.router_download_speed",
+      "uploadSpeedEntityId": "sensor.router_upload_speed"
+    },
+    "novaAssistSatelliteEntityId": "assist_satellite.home_assist_satellite",
+
+    "_comment_structural": "STRUCTURAL: things Home Assistant cannot express. Which HA areas are organisational (climate/network groupings) rather than rooms, and which entities to leave out of the aggregate Home zone.",
+    "climateAreaNames": ["climate", "heating"],
+    "networkZoneId": "network",
+    "everythingExcludedEntityIds": ["light.outside_light"],
+
+    "_comment_classification": "OVERRIDES (escape hatches): prefer doing this in Home Assistant instead. Add a label to a device in HA, assign sensors to areas, or set entity_category. Only list entity ids here when HA metadata is missing or wrong.",
+    "classification": {
+      "illuminationLabels": ["nova_illumination"],
+      "hiddenLabels": ["nova_hidden"],
+      "environmentLabels": ["nova_environment"],
+      "forceIlluminationEntityIds": [],
+      "forceHiddenEntityIds": [],
+      "environmentSensorEntityIds": [],
+      "environmentSensorExcludeEntityIds": []
+    }
+  },
+
+  "dashboard": {
+    "defaultZoneId": "everything",
+    "specialZones": {
+      "power": { "id": "power", "name": "Power" },
+      "tasks": { "id": "tasks", "name": "Reminders" }
+    },
+
+    "_comment_lighting": "LIGHTING POLICY: opinions about how individual fixtures behave inside zone lighting actions. intensityThresholds map any lighting-layer entity (a real light, or a switch promoted with the nova_illumination label / forceIlluminationEntityIds) to an on/off-only fixture that only turns on when the zone is set at or above thresholdPct — useful for a switched outlet (e.g. neon) with no dimming. entityPresets pin a fixture to a fixed look: set pinned=true so it ignores the zone's brightness/colour and is always (re)driven to targetBrightnessPct + colorTemperatureOverrideKelvin, reapplied on every manual edit and by the scheduled poller (e.g. a conservatory kept warm-white at full brightness). ~3000K is warm white; ~6500K is cool/bright white.",
+    "lighting": {
+      "intensityThresholds": [
+        { "name": "Accent outlet", "thresholdPct": 60, "entityIds": ["switch.accent_outlet"] }
+      ],
+      "entityPresets": [
+        {
+          "entityId": "light.feature_light",
+          "pinned": true,
+          "targetBrightnessPct": { "daytime": 100, "evening": 100 },
+          "colorTemperatureOverrideKelvin": { "candlelight": 3000, "daylight": 3000 }
+        }
+      ]
+    }
+  },
+
+  "mapWeather": {
+    "center": { "lat": -36.8509, "lng": 174.7645 }
+  },
+
+  "power": {
+    "timeZone": "Pacific/Auckland",
+    "billing": { "startDay": 1, "endDay": 31 }
+  }
+}

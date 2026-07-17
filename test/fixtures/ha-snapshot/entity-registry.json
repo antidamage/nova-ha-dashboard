@@ -1,0 +1,6048 @@
+[
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.091719,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.sun_solar_rising",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9e39e2ead081e5dc8d1579c873b13241",
+    "labels": [],
+    "modified_at": 1774739667.091866,
+    "name": null,
+    "options": {},
+    "original_name": "Solar rising",
+    "platform": "sun",
+    "translation_key": "solar_rising",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-solar_rising"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.092817,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_next_dawn",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "36d4be0946330d9df9f94730fc76d629",
+    "labels": [],
+    "modified_at": 1774739667.422756,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next dawn",
+    "platform": "sun",
+    "translation_key": "next_dawn",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-next_dawn"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.093599,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_next_dusk",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e52f301ca25983f619e7ddea2a051020",
+    "labels": [],
+    "modified_at": 1774739667.423147,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next dusk",
+    "platform": "sun",
+    "translation_key": "next_dusk",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-next_dusk"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.094196,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_next_midnight",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a378d36d242ea87d7af4d417b002cef9",
+    "labels": [],
+    "modified_at": 1774739667.423459,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next midnight",
+    "platform": "sun",
+    "translation_key": "next_midnight",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-next_midnight"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.094785,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_next_noon",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d5ccd4ba6aa6e9e98691ce8a33881c22",
+    "labels": [],
+    "modified_at": 1774739667.423722,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next noon",
+    "platform": "sun",
+    "translation_key": "next_noon",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-next_noon"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.095373,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_next_rising",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "fc3c53ab3f1a6b813fda95c97b2e9be6",
+    "labels": [],
+    "modified_at": 1774739667.42394,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next rising",
+    "platform": "sun",
+    "translation_key": "next_rising",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-next_rising"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.095927,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_next_setting",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "002f8fc2f0a1fee37788b562a3507b86",
+    "labels": [],
+    "modified_at": 1774739667.42415,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next setting",
+    "platform": "sun",
+    "translation_key": "next_setting",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-next_setting"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.096484,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_solar_elevation",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f24f9a32737e86231976b94159eccca1",
+    "labels": [],
+    "modified_at": 1774739667.096599,
+    "name": null,
+    "options": {},
+    "original_name": "Solar elevation",
+    "platform": "sun",
+    "translation_key": "solar_elevation",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-solar_elevation"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1774739667.096836,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_solar_azimuth",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "979dd75858ab137c0356cdae594ff701",
+    "labels": [],
+    "modified_at": 1774739667.09693,
+    "name": null,
+    "options": {},
+    "original_name": "Solar azimuth",
+    "platform": "sun",
+    "translation_key": "solar_azimuth",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-solar_azimuth"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMEF7ERCS5HZBVEZQVZVQ",
+    "config_subentry_id": null,
+    "created_at": 1774739667.488619,
+    "device_id": "bcc26a8aa26773ec37dbae90d5ae3005",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "event.backup_automatic_backup",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e6977a0a58fce3c033beb94e11d25291",
+    "labels": [],
+    "modified_at": 1774739667.489139,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Automatic backup",
+    "platform": "backup",
+    "translation_key": "automatic_backup_event",
+    "unique_id": "automatic_backup_event"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMEF7ERCS5HZBVEZQVZVQ",
+    "config_subentry_id": null,
+    "created_at": 1774739667.490055,
+    "device_id": "bcc26a8aa26773ec37dbae90d5ae3005",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.backup_backup_manager_state",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "76c238e455a664a27983478181685f05",
+    "labels": [],
+    "modified_at": 1774739667.490591,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Backup Manager state",
+    "platform": "backup",
+    "translation_key": "backup_manager_state",
+    "unique_id": "backup_manager_state"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMEF7ERCS5HZBVEZQVZVQ",
+    "config_subentry_id": null,
+    "created_at": 1774739667.491056,
+    "device_id": "bcc26a8aa26773ec37dbae90d5ae3005",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.backup_next_scheduled_automatic_backup",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "c91d5aac501ef365665b6d6607480e70",
+    "labels": [],
+    "modified_at": 1774739667.491501,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Next scheduled automatic backup",
+    "platform": "backup",
+    "translation_key": "next_scheduled_automatic_backup",
+    "unique_id": "next_scheduled_automatic_backup"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMEF7ERCS5HZBVEZQVZVQ",
+    "config_subentry_id": null,
+    "created_at": 1774739667.491911,
+    "device_id": "bcc26a8aa26773ec37dbae90d5ae3005",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.backup_last_successful_automatic_backup",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bb8330fc17d6b0f69500ebdf510b8f17",
+    "labels": [],
+    "modified_at": 1774739667.492398,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Last successful automatic backup",
+    "platform": "backup",
+    "translation_key": "last_successful_automatic_backup",
+    "unique_id": "last_successful_automatic_backup"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMEF7ERCS5HZBVEZQVZVQ",
+    "config_subentry_id": null,
+    "created_at": 1774739667.492808,
+    "device_id": "bcc26a8aa26773ec37dbae90d5ae3005",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.backup_last_attempted_automatic_backup",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "1b37be028c2f60a030f2ba72c3d8efc9",
+    "labels": [],
+    "modified_at": 1774739667.493223,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Last attempted automatic backup",
+    "platform": "backup",
+    "translation_key": "last_attempted_automatic_backup",
+    "unique_id": "last_attempted_automatic_backup"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMHXGPG2EP3Z4A9C7FNK2",
+    "config_subentry_id": null,
+    "created_at": 1774739671.089422,
+    "device_id": "7d3faf100224e77b9b6f9ccf998d57f2",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "media_player.kitchen_speaker",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "df0ada39267b4061bd664598847c597e",
+    "labels": [],
+    "modified_at": 1779391834.873544,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "cast",
+    "translation_key": null,
+    "unique_id": "e24c9deb-e489-a843-0a37-4c089ae78f5b"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMHXGPG2EP3Z4A9C7FNK2",
+    "config_subentry_id": null,
+    "created_at": 1774739671.117194,
+    "device_id": "7239b2381f6cb3a0fbbae31c326dc46b",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "media_player.bedroom_speaker",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "505a15322f978e15ee4ca61bf5519967",
+    "labels": [],
+    "modified_at": 1779391834.893209,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "cast",
+    "translation_key": null,
+    "unique_id": "71044d1d-eb56-8fa2-5e49-a6be8d41f66f"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBMHXGPG2EP3Z4A9C7FNK2",
+    "config_subentry_id": null,
+    "created_at": 1774739671.125558,
+    "device_id": "f97fb27a6a2274675d0a6abc491f0452",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "media_player.lounge_display",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "504649f2ec03531d4804b08c37f43a1e",
+    "labels": [],
+    "modified_at": 1779391834.814887,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "cast",
+    "translation_key": null,
+    "unique_id": "cd333f42-9fb3-06e7-ca61-cc285005ba5c"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": null,
+    "config_subentry_id": null,
+    "created_at": 1774745354.039793,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "person.resident",
+    "has_entity_name": false,
+    "hidden_by": null,
+    "icon": null,
+    "id": "064e28172d07ca85cfb94b8719631c4b",
+    "labels": [],
+    "modified_at": 1774745354.040587,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Resident",
+    "platform": "person",
+    "translation_key": null,
+    "unique_id": "resident"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVH2NJDAACQJRPQ88YYVG0S",
+    "config_subentry_id": null,
+    "created_at": 1774745376.555614,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "todo.shopping_list",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "1bafb334a438311dd71734de3502963d",
+    "labels": [],
+    "modified_at": 1774745376.55622,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Shopping List",
+    "platform": "shopping_list",
+    "translation_key": "shopping_list",
+    "unique_id": "01KMVH2NJDAACQJRPQ88YYVG0S"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVH2NS58X9R652SNTXPEW26",
+    "config_subentry_id": null,
+    "created_at": 1774745376.594985,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "tts.google_translate_en_com",
+    "has_entity_name": false,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e9a6085aae10e257fc1ebdcd424e943f",
+    "labels": [],
+    "modified_at": 1777434378.13918,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Google Translate en com",
+    "platform": "google_translate",
+    "translation_key": null,
+    "unique_id": "01KMVH2NS58X9R652SNTXPEW26"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVH2NSY6YEZ3KVN77X3MGKZ",
+    "config_subentry_id": null,
+    "created_at": 1774745378.513397,
+    "device_id": "29300b7611d4555b757531e3125fd5e2",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "weather.forecast_home",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "3a019b4ae71fbeed6c63327a6e59dfc7",
+    "labels": [],
+    "modified_at": 1777092236.664433,
+    "name": "Climate",
+    "options": {
+      "conversation": {
+        "should_expose": false
+      },
+      "weather": {
+        "precipitation_unit": "mm",
+        "pressure_unit": "hPa",
+        "temperature_unit": "°C",
+        "visibility_unit": "km",
+        "wind_speed_unit": "km/h"
+      }
+    },
+    "original_name": "Home",
+    "platform": "met",
+    "translation_key": null,
+    "unique_id": "home"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.234991,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.nx620v_wan_status",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "305c02ffea4e72a5834c504bb959fd62",
+    "labels": [],
+    "modified_at": 1776596677.235788,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "WAN status",
+    "platform": "upnp",
+    "translation_key": "wan_status",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_wan_status"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.236875,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_data_received",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "82ac7ce30f7d1d1a35fc08a0c1f433a0",
+    "labels": [],
+    "modified_at": 1776596677.237015,
+    "name": null,
+    "options": {},
+    "original_name": "Data received",
+    "platform": "upnp",
+    "translation_key": "data_received",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_bytes_received"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.237384,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_data_sent",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "4e2b945918c840578e0db772d33ae59b",
+    "labels": [],
+    "modified_at": 1776596677.237495,
+    "name": null,
+    "options": {},
+    "original_name": "Data sent",
+    "platform": "upnp",
+    "translation_key": "data_sent",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_bytes_sent"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.23783,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_packets_received",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "62132e34aebb878239bcf71140e668e7",
+    "labels": [],
+    "modified_at": 1776596677.237944,
+    "name": null,
+    "options": {},
+    "original_name": "Packets received",
+    "platform": "upnp",
+    "translation_key": "packets_received",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_packets_received"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.238248,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_packets_sent",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "daae931ad55a9c9c3a12e4e345636a5a",
+    "labels": [],
+    "modified_at": 1776596677.238354,
+    "name": null,
+    "options": {},
+    "original_name": "Packets sent",
+    "platform": "upnp",
+    "translation_key": "packets_sent",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_packets_sent"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.238675,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nx620v_external_ip",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f91360e92be580bf770d16b401cc4cbc",
+    "labels": [],
+    "modified_at": 1776596677.239241,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "External IP",
+    "platform": "upnp",
+    "translation_key": "external_ip",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_ip"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.239783,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nx620v_uptime",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9adf164214cb7441ebc3972afbe8a17b",
+    "labels": [],
+    "modified_at": 1776596677.239897,
+    "name": null,
+    "options": {},
+    "original_name": "Uptime",
+    "platform": "upnp",
+    "translation_key": "uptime",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_uptime"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.240214,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nx620v_wan_status",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "724bdd4cb9bd6b6f2314c2693db6b14e",
+    "labels": [],
+    "modified_at": 1776596677.24032,
+    "name": null,
+    "options": {},
+    "original_name": "WAN status",
+    "platform": "upnp",
+    "translation_key": "wan_status",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_wan_status"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.241498,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_download_speed",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ac49c756257da07b2ceebdff5618805c",
+    "labels": [],
+    "modified_at": 1776656045.455816,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      },
+      "sensor": {
+        "unit_of_measurement": "MB/s",
+        "display_precision": 1,
+        "suggested_display_precision": 3
+      }
+    },
+    "original_name": "Download speed",
+    "platform": "upnp",
+    "translation_key": "download_speed",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_KiB/sec_received"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.242912,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_upload_speed",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "88db9f25af5b9cfc1eb6ff2736d434cc",
+    "labels": [],
+    "modified_at": 1776656045.456481,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      },
+      "sensor": {
+        "unit_of_measurement": "MB/s",
+        "suggested_display_precision": 3
+      }
+    },
+    "original_name": "Upload speed",
+    "platform": "upnp",
+    "translation_key": "upload_speed",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_KiB/sec_sent"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.244203,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_packet_download_speed",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e15d86b66cd8f003ae7770b2cbf9296a",
+    "labels": [],
+    "modified_at": 1776596677.244326,
+    "name": null,
+    "options": {},
+    "original_name": "Packet download speed",
+    "platform": "upnp",
+    "translation_key": "packet_download_speed",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_packets/sec_received"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776596677.244679,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.nx620v_packet_upload_speed",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "c184a14bed417a7d83e250f9bea0a3e1",
+    "labels": [],
+    "modified_at": 1776596677.244795,
+    "name": null,
+    "options": {},
+    "original_name": "Packet upload speed",
+    "platform": "upnp",
+    "translation_key": "packet_upload_speed",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_packets/sec_sent"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR3KWZ48YMF0RH8DD88TW5",
+    "config_subentry_id": null,
+    "created_at": 1776598241.429981,
+    "device_id": "cc72231f9777bd47ba67885f49eac9b1",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "media_player.home_theatre",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9d4ad4e983cec4bd3877f72d092c1789",
+    "labels": [],
+    "modified_at": 1780837898.019952,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "apple_tv",
+    "translation_key": null,
+    "unique_id": "02:00:5E:06:06:06"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR3KWZ48YMF0RH8DD88TW5",
+    "config_subentry_id": null,
+    "created_at": 1776598241.436786,
+    "device_id": "cc72231f9777bd47ba67885f49eac9b1",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "remote.home_theatre",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "28f33c945e20cb9caaec2f9736bbbacf",
+    "labels": [],
+    "modified_at": 1776598257.19022,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": null,
+    "platform": "apple_tv",
+    "translation_key": null,
+    "unique_id": "02:00:5E:06:06:06"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "config_subentry_id": null,
+    "created_at": 1776622840.160785,
+    "device_id": "fdd100c457f3c96577b820e7fe98a674",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nx620v_number_of_port_mapping_entries_ipv4",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "dadb0abb59822364dbc7a90bfcb7f4e3",
+    "labels": [],
+    "modified_at": 1776622840.160965,
+    "name": null,
+    "options": {},
+    "original_name": "Number of port mapping entries (IPv4)",
+    "platform": "upnp",
+    "translation_key": "port_mapping_number_of_entries_ipv4",
+    "unique_id": "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37_port_mapping_number_of_entries"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776635888.150896,
+    "device_id": "7caa3f3cedb00dfd81cd939c1dfa9abf",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.hallway_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d090b0ee8cab6636cedcbc90232da0f3",
+    "labels": [],
+    "modified_at": 1777434384.592064,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.eb63ee9f6ed5641813otkhswitch_led"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776653953.267178,
+    "device_id": "18b1ad0f7c85fe7b67b407bfb1b32f0a",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.nook_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a7d7ce44e4e99d2773a1ed58efdeb86a",
+    "labels": [],
+    "modified_at": 1777434384.591853,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.ebd488e9bc91b96f97zzyjswitch_led"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776653987.477672,
+    "device_id": "daa4e76cc35b0daccd0463ec9bee350b",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.outside_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "151c2a433713d18a6febcbc8a45a6e7b",
+    "labels": [],
+    "modified_at": 1777434384.592439,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.ebba11ab62ce79b372u95tswitch_led"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776635888.147621,
+    "device_id": "04ab522938ae46219a50d201fc720ec9",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.kitchen_light_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f746a89b387cd1e86e64ddc1d10592c6",
+    "labels": [],
+    "modified_at": 1777434384.591377,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.7463034340f520c1cf42switch_led"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.946078,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.wardrobe_cloud_connection",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "426959f5affa38e95f789603d9fd7574",
+    "labels": [],
+    "modified_at": 1776667669.946755,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Cloud connection",
+    "platform": "tplink",
+    "translation_key": "cloud_connection",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_cloud_connection"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.947249,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.wardrobe_overheated",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "699d72a4091a8f3bc86b1901a93ded16",
+    "labels": [],
+    "modified_at": 1776667669.947735,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Overheated",
+    "platform": "tplink",
+    "translation_key": "overheated",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_overheated"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.948848,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "button.wardrobe_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e6a77aa408b927621f85ec22b9f34956",
+    "labels": [],
+    "modified_at": 1776667669.948965,
+    "name": null,
+    "options": {},
+    "original_name": "Restart",
+    "platform": "tplink",
+    "translation_key": "reboot",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_reboot"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.952399,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.wardrobe",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2032f8ed527040f050f2ff3169583d1d",
+    "labels": [],
+    "modified_at": 1779788739.608375,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tplink",
+    "translation_key": null,
+    "unique_id": "02005E020202"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.954949,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.wardrobe_smooth_on",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2e222a2d70aa3555852fd73c013e5e2c",
+    "labels": [],
+    "modified_at": 1776667669.95547,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth on",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_on",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_smooth_transition_on"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.955995,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.wardrobe_smooth_off",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bc9090e5064889896b5affad896d504e",
+    "labels": [],
+    "modified_at": 1776667669.956479,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth off",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_off",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_smooth_transition_off"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.958765,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.wardrobe_light_preset",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "633f9a98e9864d24976f8c4e2bb793c8",
+    "labels": [],
+    "modified_at": 1776667669.959333,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Light preset",
+    "platform": "tplink",
+    "translation_key": "light_preset",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_light_preset"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.960884,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.wardrobe_signal_level",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "62acab887b0b4cebc9ff35fe4bd31893",
+    "labels": [],
+    "modified_at": 1776667669.96145,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Signal level",
+    "platform": "tplink",
+    "translation_key": "signal_level",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_signal_level"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.962018,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.wardrobe_signal_strength",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bfbdb0968486592cd7300c06f3bbb122",
+    "labels": [],
+    "modified_at": 1776667669.962163,
+    "name": null,
+    "options": {},
+    "original_name": "Signal strength",
+    "platform": "tplink",
+    "translation_key": "rssi",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.962498,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.wardrobe_ssid",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "02adbb409d7e720ebb5d59c69216b5e6",
+    "labels": [],
+    "modified_at": 1776667669.962609,
+    "name": null,
+    "options": {},
+    "original_name": "SSID",
+    "platform": "tplink",
+    "translation_key": "ssid",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_ssid"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.96296,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.wardrobe_device_time",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bb2d95a363a8f1b6e40a0f09ec4f3fde",
+    "labels": [],
+    "modified_at": 1776667669.963072,
+    "name": null,
+    "options": {},
+    "original_name": "Device time",
+    "platform": "tplink",
+    "translation_key": "device_time",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_device_time"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "config_subentry_id": null,
+    "created_at": 1776667669.965271,
+    "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "switch.wardrobe_auto_update_enabled",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "36ed621433a8e809a2aa46523732c58c",
+    "labels": [],
+    "modified_at": 1776667669.965835,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Auto-update enabled",
+    "platform": "tplink",
+    "translation_key": "auto_update_enabled",
+    "unique_id": "8023B81E8453CE124DFAE9EE432D51E0248A01D6_auto_update_enabled"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.789007,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.desk_cloud_connection",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "cbbbff8aec86f5ed65fee422b00c4ebf",
+    "labels": [],
+    "modified_at": 1776667671.78966,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Cloud connection",
+    "platform": "tplink",
+    "translation_key": "cloud_connection",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_cloud_connection"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.790145,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.desk_overheated",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "3000a6a77cd3efe488a183329c869cc9",
+    "labels": [],
+    "modified_at": 1776667671.790608,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Overheated",
+    "platform": "tplink",
+    "translation_key": "overheated",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_overheated"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.79173,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "button.desk_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "57aa01522a98095552c122fed353e133",
+    "labels": [],
+    "modified_at": 1776667671.791845,
+    "name": null,
+    "options": {},
+    "original_name": "Restart",
+    "platform": "tplink",
+    "translation_key": "reboot",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_reboot"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.795131,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.desk",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "90bd7dd6171504db9aaffb40adde6e00",
+    "labels": [],
+    "modified_at": 1779391844.424908,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tplink",
+    "translation_key": null,
+    "unique_id": "02005E070707"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.797692,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.desk_smooth_on",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "edf1fac907939f85fb4470bf434d38cb",
+    "labels": [],
+    "modified_at": 1776667671.798219,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth on",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_on",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_smooth_transition_on"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.798765,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.desk_smooth_off",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "fe187a6fc608308e9064e3004fcfbb7b",
+    "labels": [],
+    "modified_at": 1776667671.799276,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth off",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_off",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_smooth_transition_off"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.801525,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.desk_light_preset",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d277a36b11dc89cb8837bdbb7a00d6c1",
+    "labels": [],
+    "modified_at": 1776667671.802124,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Light preset",
+    "platform": "tplink",
+    "translation_key": "light_preset",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_light_preset"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.803723,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.desk_signal_level",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7b56a921334ba0f1ce3fecf38bd6e668",
+    "labels": [],
+    "modified_at": 1776667671.804328,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Signal level",
+    "platform": "tplink",
+    "translation_key": "signal_level",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_signal_level"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.80489,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.desk_signal_strength",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "5bd896e92e81f5031240ab8ceef0aafe",
+    "labels": [],
+    "modified_at": 1776667671.805011,
+    "name": null,
+    "options": {},
+    "original_name": "Signal strength",
+    "platform": "tplink",
+    "translation_key": "rssi",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.805347,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.desk_ssid",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ef47a772fd66da57900211b1b752151b",
+    "labels": [],
+    "modified_at": 1776667671.805456,
+    "name": null,
+    "options": {},
+    "original_name": "SSID",
+    "platform": "tplink",
+    "translation_key": "ssid",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_ssid"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.805837,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.desk_device_time",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f80892ed3fcdef58e547cb174bef5bcc",
+    "labels": [],
+    "modified_at": 1776667671.805963,
+    "name": null,
+    "options": {},
+    "original_name": "Device time",
+    "platform": "tplink",
+    "translation_key": "device_time",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_device_time"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "config_subentry_id": null,
+    "created_at": 1776667671.807218,
+    "device_id": "e40f328958e64358f95b67ba009f7a75",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "switch.desk_auto_update_enabled",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "b6253a70016cc4448f551d79b0d6bd64",
+    "labels": [],
+    "modified_at": 1776667671.807781,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Auto-update enabled",
+    "platform": "tplink",
+    "translation_key": "auto_update_enabled",
+    "unique_id": "8023E4625E7BD739B9734812C6FE6C56241F37F7_auto_update_enabled"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.57102,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.hallway_2_cloud_connection",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "b5dc12bb0db1ae81740134e544b039c3",
+    "labels": [],
+    "modified_at": 1776671068.571745,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Cloud connection",
+    "platform": "tplink",
+    "translation_key": "cloud_connection",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_cloud_connection"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.572235,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.hallway_2_overheated",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e184b6b40073c6be1f4525d23569d0ea",
+    "labels": [],
+    "modified_at": 1776671068.572739,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Overheated",
+    "platform": "tplink",
+    "translation_key": "overheated",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_overheated"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.573855,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "button.hallway_2_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "6f5b31f6abe7e36be1aae62fb0570552",
+    "labels": [],
+    "modified_at": 1776671068.573974,
+    "name": null,
+    "options": {},
+    "original_name": "Restart",
+    "platform": "tplink",
+    "translation_key": "reboot",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_reboot"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.577441,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.hallway_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8b1be6c27e8b51e41136b1353abd0e7a",
+    "labels": [],
+    "modified_at": 1779391834.840456,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tplink",
+    "translation_key": null,
+    "unique_id": "02005E040404"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.580114,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.hallway_2_smooth_on",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "065be695123ea3ca889309b3659a6ae6",
+    "labels": [],
+    "modified_at": 1776671068.580662,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth on",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_on",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_smooth_transition_on"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.581196,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.hallway_2_smooth_off",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d33ab1ddd42747f14bfa0845283e8beb",
+    "labels": [],
+    "modified_at": 1776671068.581704,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth off",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_off",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_smooth_transition_off"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.584028,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.hallway_2_light_preset",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7788fbc1ef32651047b1bf02c4c37ad5",
+    "labels": [],
+    "modified_at": 1776671068.584619,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Light preset",
+    "platform": "tplink",
+    "translation_key": "light_preset",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_light_preset"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.586209,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.hallway_2_signal_level",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bf5c99cada3c4cf85c3cbc01a308dd3d",
+    "labels": [],
+    "modified_at": 1776671068.586833,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Signal level",
+    "platform": "tplink",
+    "translation_key": "signal_level",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_signal_level"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.587378,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.hallway_2_signal_strength",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "4e7f9d86c1118331a60d83c620e3ef8b",
+    "labels": [],
+    "modified_at": 1776671068.587503,
+    "name": null,
+    "options": {},
+    "original_name": "Signal strength",
+    "platform": "tplink",
+    "translation_key": "rssi",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.587849,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.hallway_2_ssid",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "4d4e486701595615f3fd4290864e5b91",
+    "labels": [],
+    "modified_at": 1776671068.587977,
+    "name": null,
+    "options": {},
+    "original_name": "SSID",
+    "platform": "tplink",
+    "translation_key": "ssid",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_ssid"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.589274,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.hallway_2_device_time",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "b528d370fe80736bb1bb5a1b011c6f4e",
+    "labels": [],
+    "modified_at": 1776671068.589395,
+    "name": null,
+    "options": {},
+    "original_name": "Device time",
+    "platform": "tplink",
+    "translation_key": "device_time",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_device_time"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPMXJ477P9N9NH0H7KTRR449",
+    "config_subentry_id": null,
+    "created_at": 1776671068.590703,
+    "device_id": "da5588c951a51f82e70047a10044202a",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "switch.hallway_2_auto_update_enabled",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "eee259c7b2c3a35946689d2afbf44be8",
+    "labels": [],
+    "modified_at": 1776671068.591267,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Auto-update enabled",
+    "platform": "tplink",
+    "translation_key": "auto_update_enabled",
+    "unique_id": "802302D69926A26389CA8977046B1704248A9671_auto_update_enabled"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776721479.770548,
+    "device_id": "26a49a8cf0df95caff3be695f6f03c68",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "climate.panel_heater",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "57eb0f4386697bb0d89bdbba92291ce9",
+    "labels": [],
+    "modified_at": 1776724037.609061,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.0014083040f52014bd20"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776721654.938348,
+    "device_id": "30dc7b884b3d3fcfebd8db33a0a8dbd7",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.mirror_top",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ffa08ab2669968e05ac85936a14c24da",
+    "labels": [],
+    "modified_at": 1777434384.5904,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.eb18ddd323121703e37evkswitch_led"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1776723600.967782,
+    "device_id": "8bc255844112099ffc90eb4fa078e5e3",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.mirror_bottom",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "634e718e19e49a8e44c36bdaabf061f7",
+    "labels": [],
+    "modified_at": 1777434384.591052,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya",
+    "translation_key": null,
+    "unique_id": "tuya.eb98f5fb8643b11f9espc2switch_led"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "config_subentry_id": null,
+    "created_at": 1776724568.581626,
+    "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "climate.c6780cad",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2a7651972be80a357deeaba8820c24b3",
+    "labels": [],
+    "modified_at": 1776724640.709095,
+    "name": "Air Conditioner",
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "gree",
+    "translation_key": null,
+    "unique_id": "02005e010101"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "config_subentry_id": null,
+    "created_at": 1776724568.582454,
+    "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.c6780cad_panel_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "db83ebffc35c584ee758a5dc29089472",
+    "labels": [],
+    "modified_at": 1776724568.582708,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Panel light",
+    "platform": "gree",
+    "translation_key": "light",
+    "unique_id": "02005e010101_Panel Light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "config_subentry_id": null,
+    "created_at": 1776724568.582947,
+    "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.c6780cad_quiet_mode",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d9c7b3a9c71357903f687177a74e8bfc",
+    "labels": [],
+    "modified_at": 1776724568.583165,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Quiet mode",
+    "platform": "gree",
+    "translation_key": "quiet",
+    "unique_id": "02005e010101_Quiet"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "config_subentry_id": null,
+    "created_at": 1776724568.583393,
+    "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.c6780cad_fresh_air",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2ee29cb341c8ad7b472950085f7ed0f7",
+    "labels": [],
+    "modified_at": 1776724568.583607,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Fresh air",
+    "platform": "gree",
+    "translation_key": "fresh_air",
+    "unique_id": "02005e010101_Fresh Air"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "config_subentry_id": null,
+    "created_at": 1776724568.583846,
+    "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.c6780cad_xtra_fan",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "4fcaf8777a25e53916ed4b0b2ca76645",
+    "labels": [],
+    "modified_at": 1776724568.584062,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Xtra fan",
+    "platform": "gree",
+    "translation_key": "xfan",
+    "unique_id": "02005e010101_XFan"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "config_subentry_id": null,
+    "created_at": 1776724568.584288,
+    "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "switch.c6780cad_health_mode",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ca9ae812806cece0db5831fa9056f2dc",
+    "labels": [],
+    "modified_at": 1776724568.584344,
+    "name": null,
+    "options": {},
+    "original_name": "Health mode",
+    "platform": "gree",
+    "translation_key": "health_mode",
+    "unique_id": "02005e010101_Health mode"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZ1N66MX9THR2Z033AZ35K",
+    "config_subentry_id": null,
+    "created_at": 1776739734.775185,
+    "device_id": "6f5a7b08fef6bea519ee154a33953792",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "button.lounge_light_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "b20363b7e3da39908cc13ce8463f090e",
+    "labels": [],
+    "modified_at": 1776739734.775804,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Restart",
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0a:0a:0a_restart"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZ1N66MX9THR2Z033AZ35K",
+    "config_subentry_id": null,
+    "created_at": 1776739734.776213,
+    "device_id": "6f5a7b08fef6bea519ee154a33953792",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "button.lounge_light_identify",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a8a79c4836459725357f10e53d2759a1",
+    "labels": [],
+    "modified_at": 1776739734.776667,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Identify",
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0a:0a:0a_identify"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZ1N66MX9THR2Z033AZ35K",
+    "config_subentry_id": null,
+    "created_at": 1776739734.77954,
+    "device_id": "6f5a7b08fef6bea519ee154a33953792",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.lounge_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "97e06d0666d161015bff081522ca27a0",
+    "labels": [],
+    "modified_at": 1777434379.299847,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0a:0a:0a"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZ1N66MX9THR2Z033AZ35K",
+    "config_subentry_id": null,
+    "created_at": 1776739734.782068,
+    "device_id": "6f5a7b08fef6bea519ee154a33953792",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.lounge_light_rssi",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "6c4f52c1bd39ecb503db9d0e0b5f78d2",
+    "labels": [],
+    "modified_at": 1776739734.782195,
+    "name": null,
+    "options": {},
+    "original_name": "RSSI",
+    "platform": "lifx",
+    "translation_key": "rssi",
+    "unique_id": "02:00:5e:0a:0a:0a_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.225472,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.kitchen_light_1",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "896ce6fb4a1ae126fd0956f3d9424ae3",
+    "labels": [],
+    "modified_at": 1779391834.849123,
+    "name": "Kitchen light 1",
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tplink",
+    "translation_key": null,
+    "unique_id": "02005E030303"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.219284,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.kitchen_light_1_cloud_connection",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2b8dfe2a5272de09018ce5b35be425d7",
+    "labels": [],
+    "modified_at": 1776740556.300282,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Cloud connection",
+    "platform": "tplink",
+    "translation_key": "cloud_connection",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_cloud_connection"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.2204,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.kitchen_light_1_overheated",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "90c41af8caef95b4f339cbe2fa0bf782",
+    "labels": [],
+    "modified_at": 1776740556.3026,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Overheated",
+    "platform": "tplink",
+    "translation_key": "overheated",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_overheated"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.222009,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "button.kitchen_light_1_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7886d727c0a512a4ccae4ae0d42fd472",
+    "labels": [],
+    "modified_at": 1776740556.3047,
+    "name": null,
+    "options": {},
+    "original_name": "Restart",
+    "platform": "tplink",
+    "translation_key": "reboot",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_reboot"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.228121,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.kitchen_light_1_smooth_on",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "89a749c14d12a13316a86c9fbb48f25b",
+    "labels": [],
+    "modified_at": 1776740556.305406,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth on",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_on",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_smooth_transition_on"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.229227,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.kitchen_light_1_smooth_off",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d19a9be6fdaacbd9629f8e9e630deec7",
+    "labels": [],
+    "modified_at": 1776740556.30694,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Smooth off",
+    "platform": "tplink",
+    "translation_key": "smooth_transition_off",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_smooth_transition_off"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.232102,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.kitchen_light_1_light_preset",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7c28444c16d80faf79d9340bff46361e",
+    "labels": [],
+    "modified_at": 1776740556.310621,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Light preset",
+    "platform": "tplink",
+    "translation_key": "light_preset",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_light_preset"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.234295,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.kitchen_light_1_signal_level",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2e3eaa5f317797f275466966d10c5d0b",
+    "labels": [],
+    "modified_at": 1776740556.312859,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Signal level",
+    "platform": "tplink",
+    "translation_key": "signal_level",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_signal_level"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.235466,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.kitchen_light_1_signal_strength",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9172138bd46dbf85944c736d83686c93",
+    "labels": [],
+    "modified_at": 1776740556.315225,
+    "name": null,
+    "options": {},
+    "original_name": "Signal strength",
+    "platform": "tplink",
+    "translation_key": "rssi",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.235941,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.kitchen_light_1_ssid",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bba8ed649b06afbe21bf280b5cf61897",
+    "labels": [],
+    "modified_at": 1776740556.316932,
+    "name": null,
+    "options": {},
+    "original_name": "SSID",
+    "platform": "tplink",
+    "translation_key": "ssid",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_ssid"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.237382,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.kitchen_light_1_device_time",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9905fa4a577ea25e36913cb124cc5edd",
+    "labels": [],
+    "modified_at": 1776740556.318541,
+    "name": null,
+    "options": {},
+    "original_name": "Device time",
+    "platform": "tplink",
+    "translation_key": "device_time",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_device_time"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "config_subentry_id": null,
+    "created_at": 1776667628.238829,
+    "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "switch.kitchen_light_1_auto_update_enabled",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "badda7eab256ddbab9db2e4e9a882683",
+    "labels": [],
+    "modified_at": 1776740556.320948,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Auto-update enabled",
+    "platform": "tplink",
+    "translation_key": "auto_update_enabled",
+    "unique_id": "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB_auto_update_enabled"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZQKRRFT794DH7YG892QFHV",
+    "config_subentry_id": null,
+    "created_at": 1777033929.499671,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "stt.faster_whisper",
+    "has_entity_name": false,
+    "hidden_by": null,
+    "icon": null,
+    "id": "431fe32f34eab615d5dc61f1239d9e90",
+    "labels": [],
+    "modified_at": 1777033929.50017,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "faster-whisper",
+    "platform": "wyoming",
+    "translation_key": null,
+    "unique_id": "01KPZQKRRFT794DH7YG892QFHV-stt"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZQKTSTB8RS6YAZQA2DWGHJ",
+    "config_subentry_id": null,
+    "created_at": 1777033931.634548,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "tts.piper",
+    "has_entity_name": false,
+    "hidden_by": null,
+    "icon": null,
+    "id": "3ae872ab2deea7c53d55a34dd72e29c1",
+    "labels": [],
+    "modified_at": 1777033931.635028,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "piper",
+    "platform": "wyoming",
+    "translation_key": null,
+    "unique_id": "01KPZQKTSTB8RS6YAZQA2DWGHJ-tts"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.137905,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.iridium_assistant",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "6c784eea3072fb866aa70fd383cce8ff",
+    "labels": [],
+    "modified_at": 1777097432.002381,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Assistant",
+    "platform": "esphome",
+    "translation_key": "pipeline",
+    "unique_id": "02:00:5e:05:05:05-pipeline"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.138523,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.iridium_assistant_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9daea77772074633635a3e9bae070c36",
+    "labels": [],
+    "modified_at": 1777434379.403671,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Assistant 2",
+    "platform": "esphome",
+    "translation_key": "pipeline",
+    "unique_id": "02:00:5e:05:05:05-pipeline_2"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.138957,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.iridium_finished_speaking_detection",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d4a9eb4d77156d7dec6d6aaa87f0b6b0",
+    "labels": [],
+    "modified_at": 1777034426.139148,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Finished speaking detection",
+    "platform": "esphome",
+    "translation_key": "vad_sensitivity",
+    "unique_id": "02:00:5e:05:05:05-vad_sensitivity"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.139368,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.iridium_wake_word",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "14da1678b348d1a7fc9c6fc4f198c62c",
+    "labels": [],
+    "modified_at": 1779391834.760256,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wake word",
+    "platform": "esphome",
+    "translation_key": "wake_word",
+    "unique_id": "02:00:5e:05:05:05-wake_word"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.139893,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.iridium_wake_word_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "fe7a3e0f9071efb02396fa5628abdf33",
+    "labels": [],
+    "modified_at": 1779391834.760501,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wake word 2",
+    "platform": "esphome",
+    "translation_key": "wake_word",
+    "unique_id": "02:00:5e:05:05:05-wake_word_2"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.140669,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "switch.iridium_mute",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "881e667d963926cb7059e560a58325bb",
+    "labels": [],
+    "modified_at": 1777034426.140867,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mute",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-switch-mute"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.141068,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "switch.iridium_thinking_sound",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "301a80c0128361e96bd8c7e590cfed15",
+    "labels": [],
+    "modified_at": 1777034426.141244,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Thinking Sound",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-switch-thinking_sound"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.141711,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "media_player.iridium_media_player",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "801e9d16407759762f7a482802fcac41",
+    "labels": [],
+    "modified_at": 1777034426.141954,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Media Player",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-media_player-linux_voice_assistant_media_player"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.142375,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.iridium_wake_word_1_sensitivity",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "549a978111715f6c099b049c814fabd4",
+    "labels": [],
+    "modified_at": 1777034426.142576,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wake Word 1 Sensitivity",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-number-wake_word_1_sensitivity"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.142832,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.iridium_wake_word_2_sensitivity",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "46ff03d3a9da4411e6bc426a610fadd9",
+    "labels": [],
+    "modified_at": 1777034426.143014,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wake Word 2 Sensitivity",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-number-wake_word_2_sensitivity"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.143667,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.iridium_stop_word_sensitivity",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "837c0bdaef1580e502ba0c70ff2f5d61",
+    "labels": [],
+    "modified_at": 1777034426.143854,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Stop Word Sensitivity",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-number-stop_word_sensitivity"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.144056,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.iridium_mic_auto_gain",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e0de8a42a9f544b3eae08ca5a2ff540f",
+    "labels": [],
+    "modified_at": 1777034426.144234,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mic Auto Gain",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-number-mic_gain"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.144441,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "number.iridium_mic_volume",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f5f5cefd9ebd6cc63bda11314dc8d69e",
+    "labels": [],
+    "modified_at": 1777034426.144617,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mic Volume",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-number-mic_volume"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.144932,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.iridium_mic_noise_suppression",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "75083baabdcf21c26837608002ca9713",
+    "labels": [],
+    "modified_at": 1777034426.145116,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mic Noise Suppression",
+    "platform": "esphome",
+    "translation_key": null,
+    "unique_id": "02:00:5e:05:05:05-select-mic_noise"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "config_subentry_id": null,
+    "created_at": 1777034426.145583,
+    "device_id": "500d796f46b4a5a13e4af080164bbee1",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "assist_satellite.iridium_assist_satellite",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "3bafdcc695b898519d221bf28efcf52b",
+    "labels": [],
+    "modified_at": 1779391834.760738,
+    "name": "Iridium voice assist satellite",
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Assist satellite",
+    "platform": "esphome",
+    "translation_key": "assist_satellite",
+    "unique_id": "02:00:5e:05:05:05-assist_satellite"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777091257.450581,
+    "device_id": "a80e17400544d03c32973b79cd17f579",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.wifi_temperature_humidity_sensor_temperature",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "20de3d7266546df508cdba86b8508df9",
+    "labels": [],
+    "modified_at": 1777092071.870151,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 1
+      },
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Temperature",
+    "platform": "tuya",
+    "translation_key": "temperature",
+    "unique_id": "tuya.eb7da36c9c4d149965wfskva_temperature"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777091257.452181,
+    "device_id": "a80e17400544d03c32973b79cd17f579",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.wifi_temperature_humidity_sensor_humidity",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ca6fdd2a61c3b482f01444dcb3f82efb",
+    "labels": [],
+    "modified_at": 1777092071.87098,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Humidity",
+    "platform": "tuya",
+    "translation_key": "humidity",
+    "unique_id": "tuya.eb7da36c9c4d149965wfskva_humidity"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777091257.453278,
+    "device_id": "a80e17400544d03c32973b79cd17f579",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.wifi_temperature_humidity_sensor_battery",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "74576a7e78eca7a9634328306e48bc49",
+    "labels": [],
+    "modified_at": 1777092071.871637,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Battery",
+    "platform": "tuya",
+    "translation_key": "battery",
+    "unique_id": "tuya.eb7da36c9c4d149965wfskbattery_percentage"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQ1N12015M2XGWYJVDADDMWN",
+    "config_subentry_id": null,
+    "created_at": 1777098328.073317,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "wake_word.openwakeword",
+    "has_entity_name": false,
+    "hidden_by": null,
+    "icon": null,
+    "id": "24226600853574918ae7c091b763f9dc",
+    "labels": [],
+    "modified_at": 1777098328.073843,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "openwakeword",
+    "platform": "wyoming",
+    "translation_key": null,
+    "unique_id": "01KQ1N12015M2XGWYJVDADDMWN-wake_word"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQ2AMB3RGFJ0ER5RT6M02TZ7",
+    "config_subentry_id": null,
+    "created_at": 1777120980.128805,
+    "device_id": null,
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "tts.piper_2",
+    "has_entity_name": false,
+    "hidden_by": null,
+    "icon": null,
+    "id": "93e9e2695d0126cff652939c7cc8fbd8",
+    "labels": [],
+    "modified_at": 1777120980.129491,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "piper",
+    "platform": "wyoming",
+    "translation_key": null,
+    "unique_id": "01KQ2AMB3RGFJ0ER5RT6M02TZ7-tts"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.326336,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.cupboard_power_on_behavior",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7e5a3d4e738229b054ab0dfe6276b5fe",
+    "labels": [],
+    "modified_at": 1777434384.593125,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Power on behavior",
+    "platform": "tuya",
+    "translation_key": "relay_status",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszrelay_status"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.329291,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.cupboard_current",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "514ff128acf8a7f28f686fbc15336f57",
+    "labels": [],
+    "modified_at": 1777176673.911531,
+    "name": null,
+    "options": {
+      "sensor.private": {
+        "suggested_unit_of_measurement": "A"
+      }
+    },
+    "original_name": "Current",
+    "platform": "tuya",
+    "translation_key": "current",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszcur_current"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.32977,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.cupboard_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "5edf97cb26b4baba7c0617d265186bbd",
+    "labels": [],
+    "modified_at": 1777176673.911888,
+    "name": null,
+    "options": {},
+    "original_name": "Power",
+    "platform": "tuya",
+    "translation_key": "power",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszcur_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.33015,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": "integration",
+    "entity_category": null,
+    "entity_id": "sensor.cupboard_voltage",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "42b1a0a760375bc4ded45fcbf7a4a1a7",
+    "labels": [],
+    "modified_at": 1777176673.912162,
+    "name": null,
+    "options": {
+      "sensor.private": {
+        "suggested_unit_of_measurement": "V"
+      }
+    },
+    "original_name": "Voltage",
+    "platform": "tuya",
+    "translation_key": "voltage",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszcur_voltage"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.331536,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.cupboard_total_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e9a5711982d25125e3adaccf81970a25",
+    "labels": [],
+    "modified_at": 1777176673.912517,
+    "name": null,
+    "options": {
+      "sensor.private": {
+        "suggested_unit_of_measurement": "kWh"
+      },
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Total energy",
+    "platform": "tuya",
+    "translation_key": "total_energy",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszadd_ele"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.333225,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.cupboard_socket_1",
+    "has_entity_name": true,
+    "hidden_by": "integration",
+    "icon": null,
+    "id": "ae5ea026e8a545102f6ebe98bf91a30e",
+    "labels": [],
+    "modified_at": 1777189075.728788,
+    "name": "Neon lights",
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Socket 1",
+    "platform": "tuya",
+    "translation_key": "indexed_socket",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszswitch_1"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "config_subentry_id": null,
+    "created_at": 1777168803.334136,
+    "device_id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.cupboard_socket_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8975f8f17616da162f02d57ef55fe00e",
+    "labels": [],
+    "modified_at": 1777176673.917397,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Socket 2",
+    "platform": "tuya",
+    "translation_key": "indexed_socket",
+    "unique_id": "tuya.ebdab3cb40963c2fb2smszswitch_2"
+  },
+  {
+    "area_id": "lounge",
+    "categories": {},
+    "config_entry_id": "01KQ4BJER8X1KVY2TMJZNKTA1P",
+    "config_subentry_id": null,
+    "created_at": 1777189075.727474,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.cupboard_socket_1",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7fc111ae293053aa2173e9e823faa9a5",
+    "labels": [],
+    "modified_at": 1778026430.774248,
+    "name": "Neon lights",
+    "options": {
+      "conversation": {
+        "should_expose": true
+      },
+      "switch_as_x": {
+        "entity_id": "switch.cupboard_outlet_1",
+        "invert": false
+      }
+    },
+    "original_name": "Outlet 1",
+    "platform": "switch_as_x",
+    "translation_key": null,
+    "unique_id": "01KQ4BJER8X1KVY2TMJZNKTA1P"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KMVBME4DC321F3C8TNERK2TV",
+    "config_subentry_id": null,
+    "created_at": 1777434373.10245,
+    "device_id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.sun_solar_rising",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "1d807c776e424d1207f4f09914fdb1c4",
+    "labels": [],
+    "modified_at": 1777434373.102585,
+    "name": null,
+    "options": {},
+    "original_name": "Solar rising",
+    "platform": "sun",
+    "translation_key": "solar_rising",
+    "unique_id": "01KMVBME4DC321F3C8TNERK2TV-solar_rising"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNANYT57TWMWN35AF9F4R",
+    "config_subentry_id": null,
+    "created_at": 1777176677.8616,
+    "device_id": "c6ab65b76488f7aeacdaf04594a9ea41",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "lock.panel_heater_child_lock",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "65915dd843a137afce8bb8ab1cde3cfe",
+    "labels": [],
+    "modified_at": 1777502694.14786,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Child lock",
+    "platform": "tuya_local",
+    "translation_key": "child_lock",
+    "unique_id": "0014083040f52014bd20-lock_child_lock"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNANYT57TWMWN35AF9F4R",
+    "config_subentry_id": null,
+    "created_at": 1777176677.855588,
+    "device_id": "c6ab65b76488f7aeacdaf04594a9ea41",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "climate.panel_heater_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "acb8a62239fc00bf6bb5fc9b0e5b2d95",
+    "labels": [],
+    "modified_at": 1777502694.151508,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya_local",
+    "translation_key": "heater",
+    "unique_id": "0014083040f52014bd20-climate"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNANYT57TWMWN35AF9F4R",
+    "config_subentry_id": null,
+    "created_at": 1777176677.860416,
+    "device_id": "c6ab65b76488f7aeacdaf04594a9ea41",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "time.panel_heater_timer",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "21704ff10177ad1b943bfdee7a5bccaf",
+    "labels": [],
+    "modified_at": 1777502694.154751,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Timer",
+    "platform": "tuya_local",
+    "translation_key": "timer",
+    "unique_id": "0014083040f52014bd20-time_timer"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.725571,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.cupboard_current_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "947352bc2b45a6ab1f4e2b58938a8f62",
+    "labels": [],
+    "modified_at": 1777502712.726398,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Current",
+    "platform": "tuya_local",
+    "translation_key": null,
+    "unique_id": "ebdab3cb40963c2fb2smsz-sensor_current"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.726841,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.cupboard_power_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "5fe8cc643ba0ec1c4f104b50ecff167e",
+    "labels": [],
+    "modified_at": 1777502712.727324,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 1
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Power",
+    "platform": "tuya_local",
+    "translation_key": null,
+    "unique_id": "ebdab3cb40963c2fb2smsz-sensor_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.727712,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.cupboard_voltage_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "af8cfd886fef0c9a745a73cdee8f65a4",
+    "labels": [],
+    "modified_at": 1777502712.728089,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 1
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Voltage",
+    "platform": "tuya_local",
+    "translation_key": null,
+    "unique_id": "ebdab3cb40963c2fb2smsz-sensor_voltage"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.728715,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.cupboard_outlet_1",
+    "has_entity_name": true,
+    "hidden_by": "user",
+    "icon": null,
+    "id": "7b3178a515599dad16306888b4559b74",
+    "labels": [],
+    "modified_at": 1778026450.634429,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Outlet 1",
+    "platform": "tuya_local",
+    "translation_key": "outlet_x",
+    "unique_id": "ebdab3cb40963c2fb2smsz-switch_outlet_1"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.729348,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "switch.cupboard_outlet_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f4e797839fdf53f24994e40088c060be",
+    "labels": [],
+    "modified_at": 1777502712.729528,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Outlet 2",
+    "platform": "tuya_local",
+    "translation_key": "outlet_x",
+    "unique_id": "ebdab3cb40963c2fb2smsz-switch_outlet_2"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.737037,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "select.cupboard_initial_state",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "0e3edaae725a010e28a822a2632cb247",
+    "labels": [],
+    "modified_at": 1777502712.737413,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Initial state",
+    "platform": "tuya_local",
+    "translation_key": "initial_state",
+    "unique_id": "ebdab3cb40963c2fb2smsz-select_initial_state"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.737733,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": "integration",
+    "entity_category": "config",
+    "entity_id": "select.cupboard_light_mode",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "460ff017c9f270d5986e7e396f185b92",
+    "labels": [],
+    "modified_at": 1777502712.737767,
+    "name": null,
+    "options": {},
+    "original_name": "Light mode",
+    "platform": "tuya_local",
+    "translation_key": "light_mode",
+    "unique_id": "ebdab3cb40963c2fb2smsz-select_light_mode"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.741451,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "binary_sensor.cupboard_problem",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bb54b1465ba985bad8425ace9c04a686",
+    "labels": [],
+    "modified_at": 1777502712.741931,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Problem",
+    "platform": "tuya_local",
+    "translation_key": null,
+    "unique_id": "ebdab3cb40963c2fb2smsz-binary_sensor_problem"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.74895,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "lock.cupboard_child_lock",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e616de8bc550ee58774cfd764450930e",
+    "labels": [],
+    "modified_at": 1777502712.749459,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Child lock",
+    "platform": "tuya_local",
+    "translation_key": "child_lock",
+    "unique_id": "ebdab3cb40963c2fb2smsz-lock_child_lock"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.750283,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "time.cupboard_timer_1",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "3be40b05920d7a6c2cef30bf918e6798",
+    "labels": [],
+    "modified_at": 1777502712.750709,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Timer 1",
+    "platform": "tuya_local",
+    "translation_key": "timer_x",
+    "unique_id": "ebdab3cb40963c2fb2smsz-time_timer_1"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "config_subentry_id": null,
+    "created_at": 1777502712.75101,
+    "device_id": "a4630683fa231554398c833c74bc3a05",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "time.cupboard_timer_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "cb02bd19c46a1cd3e0d42f7d13fec9dc",
+    "labels": [],
+    "modified_at": 1777502712.751236,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Timer 2",
+    "platform": "tuya_local",
+    "translation_key": "timer_x",
+    "unique_id": "ebdab3cb40963c2fb2smsz-time_timer_2"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPP4K10BV3GN4CTGBAA7HC",
+    "config_subentry_id": null,
+    "created_at": 1777502720.817248,
+    "device_id": "8d5b1b9ca22905d1c753a8ba874e48a5",
+    "disabled_by": "config_entry",
+    "entity_category": "config",
+    "entity_id": "select.tv_light_scene",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "c98a9d4a6746b4330903c31c49b8d259",
+    "labels": [],
+    "modified_at": 1778887982.102037,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Scene",
+    "platform": "tuya_local",
+    "translation_key": "scene",
+    "unique_id": "eb98f5fb8643b11f9espc2-select_scene"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPP4K10BV3GN4CTGBAA7HC",
+    "config_subentry_id": null,
+    "created_at": 1777502720.82725,
+    "device_id": "8d5b1b9ca22905d1c753a8ba874e48a5",
+    "disabled_by": "config_entry",
+    "entity_category": null,
+    "entity_id": "light.tv_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "d268e1ef575c97db90fb3d7cf9477b98",
+    "labels": [],
+    "modified_at": 1778887982.102155,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya_local",
+    "translation_key": null,
+    "unique_id": "eb98f5fb8643b11f9espc2-light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPP4K10BV3GN4CTGBAA7HC",
+    "config_subentry_id": null,
+    "created_at": 1777502720.832759,
+    "device_id": "8d5b1b9ca22905d1c753a8ba874e48a5",
+    "disabled_by": "config_entry",
+    "entity_category": "config",
+    "entity_id": "time.tv_light_timer",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9e1b9c3a48288330de333667dcf25c92",
+    "labels": [],
+    "modified_at": 1778887982.102193,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Timer",
+    "platform": "tuya_local",
+    "translation_key": "timer",
+    "unique_id": "eb98f5fb8643b11f9espc2-time_timer"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDPP4K10BV3GN4CTGBAA7HC",
+    "config_subentry_id": null,
+    "created_at": 1777502720.833801,
+    "device_id": "8d5b1b9ca22905d1c753a8ba874e48a5",
+    "disabled_by": "integration",
+    "entity_category": "config",
+    "entity_id": "text.tv_light_scene",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a5252704ba8bcf2617d7e9b8f9a5c4c4",
+    "labels": [],
+    "modified_at": 1777502720.833838,
+    "name": null,
+    "options": {},
+    "original_name": "Scene",
+    "platform": "tuya_local",
+    "translation_key": "scene",
+    "unique_id": "eb98f5fb8643b11f9espc2-text_scene"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDR350QB0Z2XKKA72VHESKB",
+    "config_subentry_id": null,
+    "created_at": 1777504195.654407,
+    "device_id": "6d8086fa24ff779d9212d961dc1d33a2",
+    "disabled_by": "config_entry",
+    "entity_category": null,
+    "entity_id": "light.kitchen_light_2_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7b9808a2c5d6512ec920b5ea804f3651",
+    "labels": [],
+    "modified_at": 1778887982.105515,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "tuya_local",
+    "translation_key": null,
+    "unique_id": "7463034340f520c1cf42-light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDR350QB0Z2XKKA72VHESKB",
+    "config_subentry_id": null,
+    "created_at": 1777504195.667282,
+    "device_id": "6d8086fa24ff779d9212d961dc1d33a2",
+    "disabled_by": "config_entry",
+    "entity_category": "config",
+    "entity_id": "select.kitchen_light_2_scene",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "34989873ba53d15051e8bf3a4df64d45",
+    "labels": [],
+    "modified_at": 1778887982.105593,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Scene",
+    "platform": "tuya_local",
+    "translation_key": "scene",
+    "unique_id": "7463034340f520c1cf42-select_scene"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDR350QB0Z2XKKA72VHESKB",
+    "config_subentry_id": null,
+    "created_at": 1777504195.668602,
+    "device_id": "6d8086fa24ff779d9212d961dc1d33a2",
+    "disabled_by": "config_entry",
+    "entity_category": "config",
+    "entity_id": "time.kitchen_light_2_timer",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "fad4d4c4549a7cbfe3109b19e087589f",
+    "labels": [],
+    "modified_at": 1778887982.105626,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Timer",
+    "platform": "tuya_local",
+    "translation_key": "timer",
+    "unique_id": "7463034340f520c1cf42-time_timer"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQDR350QB0Z2XKKA72VHESKB",
+    "config_subentry_id": null,
+    "created_at": 1777504195.669156,
+    "device_id": "6d8086fa24ff779d9212d961dc1d33a2",
+    "disabled_by": "integration",
+    "entity_category": "config",
+    "entity_id": "text.kitchen_light_2_scene",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "310831337b8405fca842063d281a79f4",
+    "labels": [],
+    "modified_at": 1777504195.669188,
+    "name": null,
+    "options": {},
+    "original_name": "Scene",
+    "platform": "tuya_local",
+    "translation_key": "scene",
+    "unique_id": "7463034340f520c1cf42-text_scene"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1777506380.249865,
+    "device_id": "6eb699e9e7c773517d2ff81b5c1140fb",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_mirror_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "fbe6c22113e65d40b0a36f5aeeecd919",
+    "labels": [],
+    "modified_at": 1778575447.621104,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Mirror light",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_mirror_light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1777506380.251403,
+    "device_id": "51efbd75686ebfe852d1dee4bfedfd09",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_outside_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "10628bdf8d795f8776243163eebfdb02",
+    "labels": [],
+    "modified_at": 1778575494.411017,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Outside light",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_outside_light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1777506380.252549,
+    "device_id": "6b988a4fad43e785fcf4846f54c2d496",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_nook_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a7cbc974353c06caf352fdc6a4e54caf",
+    "labels": [],
+    "modified_at": 1778575526.262601,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Nook light",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_nook_light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1777506380.25408,
+    "device_id": "b95fe8006d71f69e3d28e34a77677375",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_hallway_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "3fdd522d62d1aabe87106de1366b6727",
+    "labels": [],
+    "modified_at": 1778575509.240322,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Hallway light",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_hallway_light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7GXHCX1NYK0RPEN729XEV",
+    "config_subentry_id": null,
+    "created_at": 1777520375.497542,
+    "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "button.conservatory_light_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f160db77a59afca8ab8863aeb30edb2b",
+    "labels": [],
+    "modified_at": 1777520375.497823,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Restart",
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0c:0c:0c_restart"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7GXHCX1NYK0RPEN729XEV",
+    "config_subentry_id": null,
+    "created_at": 1777520375.498002,
+    "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "button.conservatory_light_identify",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7f6756cbc9b39ef2112fdc0c626d17ce",
+    "labels": [],
+    "modified_at": 1777520375.49819,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Identify",
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0c:0c:0c_identify"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7GXHCX1NYK0RPEN729XEV",
+    "config_subentry_id": null,
+    "created_at": 1777520375.4986,
+    "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.conservatory_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ceb35741483dd547f9669894e7d80342",
+    "labels": [],
+    "modified_at": 1777520375.498849,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0c:0c:0c"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7GXHCX1NYK0RPEN729XEV",
+    "config_subentry_id": null,
+    "created_at": 1777520375.499356,
+    "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.conservatory_light_rssi",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "9d938c650b892f96914229f43cbc195d",
+    "labels": [],
+    "modified_at": 1777520375.499394,
+    "name": null,
+    "options": {},
+    "original_name": "RSSI",
+    "platform": "lifx",
+    "translation_key": "rssi",
+    "unique_id": "02:00:5e:0c:0c:0c_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7H1M2CCSNF2AG59T4B4FJ",
+    "config_subentry_id": null,
+    "created_at": 1777520379.544294,
+    "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "button.bedroom_light_restart",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "0c0b9650dc699e1afc0236e0ce58f31f",
+    "labels": [],
+    "modified_at": 1777520379.54451,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Restart",
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0e:0e:0e_restart"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7H1M2CCSNF2AG59T4B4FJ",
+    "config_subentry_id": null,
+    "created_at": 1777520379.544642,
+    "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+    "disabled_by": null,
+    "entity_category": "config",
+    "entity_id": "button.bedroom_light_identify",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "606025c15197695ed97f8251d97193b0",
+    "labels": [],
+    "modified_at": 1777520379.544763,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Identify",
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0e:0e:0e_identify"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7H1M2CCSNF2AG59T4B4FJ",
+    "config_subentry_id": null,
+    "created_at": 1777520379.545074,
+    "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.bedroom_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "34244f782a0ac5a8fbdc7a614f6f0760",
+    "labels": [],
+    "modified_at": 1777520379.545283,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": null,
+    "platform": "lifx",
+    "translation_key": null,
+    "unique_id": "02:00:5e:0e:0e:0e"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KQE7H1M2CCSNF2AG59T4B4FJ",
+    "config_subentry_id": null,
+    "created_at": 1777520379.545699,
+    "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+    "disabled_by": "integration",
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.bedroom_light_rssi",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a1d3ac4c16448049a7322d31a275a0c9",
+    "labels": [],
+    "modified_at": 1777520379.545735,
+    "name": null,
+    "options": {},
+    "original_name": "RSSI",
+    "platform": "lifx",
+    "translation_key": "rssi",
+    "unique_id": "02:00:5e:0e:0e:0e_rssi"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1778027584.697347,
+    "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8b8f08a84f82bb0459d02641b9518659",
+    "labels": [],
+    "modified_at": 1778027584.698042,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 1
+      },
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Temperature",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_lounge_sensor_temperature"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1778027584.726098,
+    "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "691fe7551488a0c34973b2ee954e9431",
+    "labels": [],
+    "modified_at": 1778027584.726485,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Humidity",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_lounge_sensor_humidity"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1778027584.730537,
+    "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.tuya_mobile_lounge_sensor_battery",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "c20c8b318e2718ff08a5e3b20b3ac996",
+    "labels": [],
+    "modified_at": 1778027584.731241,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Battery",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_lounge_sensor_battery"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1778887649.210857,
+    "device_id": "721e18ac16f30d26de95b887f8dcbab9",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_tv_light",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7a2d32f6f77417cabce468bb5d284d3c",
+    "labels": [],
+    "modified_at": 1778887649.211225,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "TV light",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_tv_light"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1778887649.215915,
+    "device_id": "ca7074c20cb779348a8ea9674780848a",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_kitchen_light_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "faefc282f79d3571d850dbad01d729fc",
+    "labels": [],
+    "modified_at": 1778887649.217168,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Kitchen light 2",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_kitchen_light_2"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1778887649.222217,
+    "device_id": "6a9096b17be1e3f1e56af53c4b3e833d",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "38e106a1eca0f875e2c536c04308b6eb",
+    "labels": [],
+    "modified_at": 1778887649.222466,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": true
+      }
+    },
+    "original_name": "Kitchen light 2 2",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_tuya_mobile_kitchen_light_2_2"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.215771,
+    "device_id": "a07c36525f134a0e5a5ab9ba3dfa0052",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_neon_lights_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "f5e20dacbd794453bda7f04a63f72c12",
+    "labels": [],
+    "modified_at": 1779146216.220154,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Neon Lights estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_neon_lights_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.225683,
+    "device_id": "a07c36525f134a0e5a5ab9ba3dfa0052",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_neon_lights_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ac95d276c7530a6b9708a2299c0ca63e",
+    "labels": [],
+    "modified_at": 1779146216.226347,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Neon Lights estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_neon_lights_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.248963,
+    "device_id": "a07c36525f134a0e5a5ab9ba3dfa0052",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_neon_lights_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2bf9d7e5133d0e1ce34e0c4a8bfb4c9d",
+    "labels": [],
+    "modified_at": 1779146216.249441,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Neon Lights rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_neon_lights_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.256933,
+    "device_id": "60f6b81ad830890cf6a760a6357503a1",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_lounge_lifx_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "88b971a3fc92ed480b418b1d238c2ea9",
+    "labels": [],
+    "modified_at": 1779146216.257332,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Lounge light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_lounge_lifx_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.27893,
+    "device_id": "60f6b81ad830890cf6a760a6357503a1",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_lounge_lifx_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ef204d434c02733525c38a287d2b2325",
+    "labels": [],
+    "modified_at": 1779146216.279416,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Lounge light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_lounge_lifx_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.284805,
+    "device_id": "60f6b81ad830890cf6a760a6357503a1",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_lounge_lifx_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "04c4537951ce9d90a2517188b75721c9",
+    "labels": [],
+    "modified_at": 1779146216.285633,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Lounge light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_lounge_lifx_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.313127,
+    "device_id": "1823a2e21d595466fe0891cb224efdc4",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_bedroom_lifx_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "da56cb9c0c63b6cdc085db015713f9eb",
+    "labels": [],
+    "modified_at": 1779146216.313751,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Bedroom light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_bedroom_lifx_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.324222,
+    "device_id": "1823a2e21d595466fe0891cb224efdc4",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_bedroom_lifx_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7246f1c0ea6a4ac80bb9bdb716a694f2",
+    "labels": [],
+    "modified_at": 1779146216.324886,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Bedroom light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_bedroom_lifx_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.328278,
+    "device_id": "1823a2e21d595466fe0891cb224efdc4",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_bedroom_lifx_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "4d939a4914f8baef5e77286890b08f88",
+    "labels": [],
+    "modified_at": 1779146216.328835,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Bedroom light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_bedroom_lifx_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.344964,
+    "device_id": "6b959320cbf7800916ca3578903dad91",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_conservatory_lifx_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "b91608b8fe63126a50247f3156557784",
+    "labels": [],
+    "modified_at": 1779146216.345693,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Conservatory light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_conservatory_lifx_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.351693,
+    "device_id": "6b959320cbf7800916ca3578903dad91",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_conservatory_lifx_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e251c856a4bafbc0e82fe90344312e53",
+    "labels": [],
+    "modified_at": 1779146216.352541,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Conservatory light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_conservatory_lifx_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.357122,
+    "device_id": "6b959320cbf7800916ca3578903dad91",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_conservatory_lifx_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "59099be52f4e2497f6a09482ca3188fb",
+    "labels": [],
+    "modified_at": 1779146216.357753,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Conservatory light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_conservatory_lifx_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.359874,
+    "device_id": "838a9451d625a7b80deb5d68e2c44e05",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_kitchen_tapo_l530_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "0ef071bd55e8f4c4cc171b2b62e78088",
+    "labels": [],
+    "modified_at": 1779146216.360503,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 1 estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tapo_l530_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.365306,
+    "device_id": "838a9451d625a7b80deb5d68e2c44e05",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_kitchen_tapo_l530_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "ade1449cc09d0b3060db3fc973b4368d",
+    "labels": [],
+    "modified_at": 1779146216.366296,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 1 estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tapo_l530_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.370894,
+    "device_id": "838a9451d625a7b80deb5d68e2c44e05",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_kitchen_tapo_l530_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2ecc21e15822e38689cb29d52b113f2b",
+    "labels": [],
+    "modified_at": 1779146216.371347,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 1 rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tapo_l530_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.373494,
+    "device_id": "4d278ef4e829a43a02537dc7b6560f52",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_hallway_tapo_l530_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "dc8d59e67bac86c09fa918f0e9ceb455",
+    "labels": [],
+    "modified_at": 1779146216.373997,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Hallway 2 estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_hallway_tapo_l530_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.377729,
+    "device_id": "4d278ef4e829a43a02537dc7b6560f52",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_hallway_tapo_l530_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "6d435811fb2324039592aaade1c068f8",
+    "labels": [],
+    "modified_at": 1779146216.378716,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Hallway 2 estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_hallway_tapo_l530_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.381338,
+    "device_id": "4d278ef4e829a43a02537dc7b6560f52",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_hallway_tapo_l530_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "aa927070b5f3fa6382f2fdbfb4aa8dd1",
+    "labels": [],
+    "modified_at": 1779146216.382034,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Hallway 2 rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_hallway_tapo_l530_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.392058,
+    "device_id": "6f2382f452b109f30b47073c09415d80",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_wardrobe_tapo_l530_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "1e0028db6249bae56fd1b476e9dcedd2",
+    "labels": [],
+    "modified_at": 1779146216.392841,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wardrobe estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_wardrobe_tapo_l530_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.395061,
+    "device_id": "6f2382f452b109f30b47073c09415d80",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_wardrobe_tapo_l530_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "1a028029f22ef94b058a34ace67c6ac7",
+    "labels": [],
+    "modified_at": 1779146216.395965,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wardrobe estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_wardrobe_tapo_l530_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.401305,
+    "device_id": "6f2382f452b109f30b47073c09415d80",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_wardrobe_tapo_l530_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "c8d820832a5a902f5dae9b77d872df34",
+    "labels": [],
+    "modified_at": 1779146216.401859,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Wardrobe rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_wardrobe_tapo_l530_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.404809,
+    "device_id": "4f44a0eb965dc30838e39b6e2b74693e",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_desk_tapo_l535_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "87c1192623904758c4b4d74cba2f62d8",
+    "labels": [],
+    "modified_at": 1779146216.405187,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Desk estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_desk_tapo_l535_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.415046,
+    "device_id": "4f44a0eb965dc30838e39b6e2b74693e",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_desk_tapo_l535_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "cbbf48b022e432d31fb5dd6d36b2120c",
+    "labels": [],
+    "modified_at": 1779146216.415757,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Desk estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_desk_tapo_l535_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.419307,
+    "device_id": "4f44a0eb965dc30838e39b6e2b74693e",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_desk_tapo_l535_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "0bee6cfdd2a6c937b219fb05968c3131",
+    "labels": [],
+    "modified_at": 1779146216.419694,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Desk rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_desk_tapo_l535_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.422092,
+    "device_id": "0d1a8d0531c4ef0ff8f7b9a95dac7a06",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_hallway_tuya_bulb_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "13c38412887df563d534bcb5e40ad22e",
+    "labels": [],
+    "modified_at": 1779146216.42244,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Hallway light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_hallway_tuya_bulb_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.424743,
+    "device_id": "0d1a8d0531c4ef0ff8f7b9a95dac7a06",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_hallway_tuya_bulb_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "88831433f5e3803fab5ddd66e51e13d7",
+    "labels": [],
+    "modified_at": 1779146216.425111,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Hallway light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_hallway_tuya_bulb_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.428315,
+    "device_id": "0d1a8d0531c4ef0ff8f7b9a95dac7a06",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_hallway_tuya_bulb_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "82f7f095909655d3d7355ec868deb4e6",
+    "labels": [],
+    "modified_at": 1779146216.428755,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Hallway light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_hallway_tuya_bulb_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.458954,
+    "device_id": "c9edc6c0df71b1034a50692e9dad0db7",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_nook_tuya_bulb_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e5de39c82543b0e5c119ee0958d18925",
+    "labels": [],
+    "modified_at": 1779146216.459492,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Nook light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_nook_tuya_bulb_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.462403,
+    "device_id": "c9edc6c0df71b1034a50692e9dad0db7",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_nook_tuya_bulb_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8eba38561bf8d2e242074c780f2bb921",
+    "labels": [],
+    "modified_at": 1779146216.462871,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Nook light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_nook_tuya_bulb_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.47066,
+    "device_id": "c9edc6c0df71b1034a50692e9dad0db7",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_nook_tuya_bulb_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8a6b8b7fb3d04ddc595ab48c6468150a",
+    "labels": [],
+    "modified_at": 1779146216.470965,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Nook light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_nook_tuya_bulb_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.472869,
+    "device_id": "ea9a19f93278943771b86504bc25246f",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_outside_tuya_bulb_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7f7c49b801e4b38dcbf3dd2a2ee0dbbf",
+    "labels": [],
+    "modified_at": 1779146216.473386,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Outside light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_outside_tuya_bulb_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.475024,
+    "device_id": "ea9a19f93278943771b86504bc25246f",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_outside_tuya_bulb_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "57b0922a7f33717c2a443118d23678b6",
+    "labels": [],
+    "modified_at": 1779146216.475588,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Outside light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_outside_tuya_bulb_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.478957,
+    "device_id": "ea9a19f93278943771b86504bc25246f",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_outside_tuya_bulb_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "66928c47606e6b6ca5cd378906328274",
+    "labels": [],
+    "modified_at": 1779146216.479354,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Outside light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_outside_tuya_bulb_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.482289,
+    "device_id": "31e4ca0c7c43cbd52bf62dbc56556f82",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_a_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "2b06d43a11f371a28f303d77da9f5826",
+    "labels": [],
+    "modified_at": 1779146216.482697,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 2 estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tuya_bulb_a_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.4868,
+    "device_id": "31e4ca0c7c43cbd52bf62dbc56556f82",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_a_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "e1042b1fa6da2fb4665fad8087aaa7bb",
+    "labels": [],
+    "modified_at": 1779146216.487173,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 2 estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tuya_bulb_a_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.489147,
+    "device_id": "31e4ca0c7c43cbd52bf62dbc56556f82",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_a_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "493fc0d69cbb371d301ab752cd37ced3",
+    "labels": [],
+    "modified_at": 1779146216.489433,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 2 rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tuya_bulb_a_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.491183,
+    "device_id": "a3cd9aa09cf61feb1baea623ddf5f0c3",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_b_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a824ac1ebf17f51443a88172109ea73b",
+    "labels": [],
+    "modified_at": 1779146216.491526,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 2 2 estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tuya_bulb_b_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.492361,
+    "device_id": "a3cd9aa09cf61feb1baea623ddf5f0c3",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_b_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a942f25d902dd1752d24762b19e5534e",
+    "labels": [],
+    "modified_at": 1779146216.492712,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 2 2 estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tuya_bulb_b_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.493951,
+    "device_id": "a3cd9aa09cf61feb1baea623ddf5f0c3",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_b_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7a5b8704ebfaa0ef7e02acdf5515d89f",
+    "labels": [],
+    "modified_at": 1779146216.494884,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Kitchen light 2 2 rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_kitchen_tuya_bulb_b_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.496913,
+    "device_id": "216b413fbc18d8b036ea6e9ed5d87278",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_mirror_flood_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "7189adcef4d252a11ebfc63917e0b9a2",
+    "labels": [],
+    "modified_at": 1779146216.497253,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mirror light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_mirror_flood_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.499119,
+    "device_id": "216b413fbc18d8b036ea6e9ed5d87278",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_mirror_flood_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "318a2ad14698311422527988d5494c9f",
+    "labels": [],
+    "modified_at": 1779146216.499545,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mirror light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_mirror_flood_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.50098,
+    "device_id": "216b413fbc18d8b036ea6e9ed5d87278",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_mirror_flood_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a6410e8f10e869c2d1a7ee97084e6cb9",
+    "labels": [],
+    "modified_at": 1779146216.501216,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Mirror light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_mirror_flood_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.502081,
+    "device_id": "b936e3c7aa8f9a5a701886b43248d59d",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_tv_flood_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "a74270b417c4057c318eed014d6ce835",
+    "labels": [],
+    "modified_at": 1779146216.502366,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "TV light estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_tv_flood_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.503998,
+    "device_id": "b936e3c7aa8f9a5a701886b43248d59d",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_tv_flood_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "4d8ae526e3cad99a607da904db28447c",
+    "labels": [],
+    "modified_at": 1779146216.50438,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "TV light estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_tv_flood_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.506271,
+    "device_id": "b936e3c7aa8f9a5a701886b43248d59d",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_tv_flood_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8d02668d10efd3b323b27c588d7e2eec",
+    "labels": [],
+    "modified_at": 1779146216.506662,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "TV light rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_tv_flood_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.507816,
+    "device_id": "587226e09c80e4dc8fe70a600d33f24d",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_panel_heater_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "21aee53547f5a783963fc846dfd62325",
+    "labels": [],
+    "modified_at": 1779146216.508101,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Panel Heater estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_panel_heater_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.509397,
+    "device_id": "587226e09c80e4dc8fe70a600d33f24d",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_panel_heater_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "abe729f740cb566ed1aa9da42e02794c",
+    "labels": [],
+    "modified_at": 1779146216.509783,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Panel Heater estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_panel_heater_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.511919,
+    "device_id": "587226e09c80e4dc8fe70a600d33f24d",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_panel_heater_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "5e213c1b008001a8222ceabdb5b94cb6",
+    "labels": [],
+    "modified_at": 1779146216.512867,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Panel Heater rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_panel_heater_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.516867,
+    "device_id": "49d0add0b2e9f719b8f71ef5dbb874ac",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_gree_aircon_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "79a25530f8b165515230b902ead6e64f",
+    "labels": [],
+    "modified_at": 1779146216.51721,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Air Conditioner estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_gree_aircon_estimated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.518111,
+    "device_id": "49d0add0b2e9f719b8f71ef5dbb874ac",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_gree_aircon_estimated_energy",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "76141a84dfbb0651fa4bcd8cadd44d48",
+    "labels": [],
+    "modified_at": 1779146216.518417,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 2
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Air Conditioner estimated energy",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_gree_aircon_estimated_energy"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.519708,
+    "device_id": "49d0add0b2e9f719b8f71ef5dbb874ac",
+    "disabled_by": null,
+    "entity_category": "diagnostic",
+    "entity_id": "sensor.nova_power_gree_aircon_rated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "bdb7716830aaf8973874ce642525207d",
+    "labels": [],
+    "modified_at": 1779146216.519993,
+    "name": null,
+    "options": {
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Air Conditioner rated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_gree_aircon_rated_power"
+  },
+  {
+    "area_id": null,
+    "categories": {},
+    "config_entry_id": "01KPJR5803CPVV5YK89P9FW6PT",
+    "config_subentry_id": null,
+    "created_at": 1779146216.520936,
+    "device_id": "ce85ad57b92e598b3c36326b212aee0f",
+    "disabled_by": null,
+    "entity_category": null,
+    "entity_id": "sensor.nova_power_home_estimated_power",
+    "has_entity_name": true,
+    "hidden_by": null,
+    "icon": null,
+    "id": "8e63e2d9283b38f629738dc5e834f43c",
+    "labels": [],
+    "modified_at": 1779146216.521235,
+    "name": null,
+    "options": {
+      "sensor": {
+        "suggested_display_precision": 0
+      },
+      "conversation": {
+        "should_expose": false
+      }
+    },
+    "original_name": "Nova Grid estimated power",
+    "platform": "mqtt",
+    "translation_key": null,
+    "unique_id": "nova_power_home_estimated_power"
+  }
+]
