@@ -1,0 +1,2802 @@
+{
+  "generatedAt": "2026-06-09T05:59:37.524Z",
+  "zones": [
+    {
+      "id": "everything",
+      "name": "Home",
+      "entities": [
+        {
+          "entity_id": "light.cupboard_socket_1",
+          "domain": "light",
+          "state": "on",
+          "name": "Neon lights",
+          "area_id": "lounge",
+          "device_id": "a4630683fa231554398c833c74bc3a05",
+          "attributes": {
+            "supported_color_modes": [
+              "onoff"
+            ],
+            "color_mode": "onoff",
+            "friendly_name": "Neon lights",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.conservatory_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Conservatory light",
+          "area_id": "conservatory",
+          "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+          "attributes": {
+            "min_color_temp_kelvin": 1500,
+            "max_color_temp_kelvin": 9000,
+            "min_mireds": 111,
+            "max_mireds": 666,
+            "effect_list": [
+              "effect_colorloop",
+              "effect_pulse",
+              "effect_stop"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": null,
+            "color_mode": "color_temp",
+            "brightness": 255,
+            "color_temp_kelvin": 6500,
+            "color_temp": 153,
+            "hs_color": [
+              49.231,
+              1.944
+            ],
+            "rgb_color": [
+              255,
+              254,
+              250
+            ],
+            "xy_color": [
+              0.326,
+              0.333
+            ],
+            "friendly_name": "Conservatory light",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.lounge_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Lounge light",
+          "area_id": "lounge",
+          "device_id": "6f5a7b08fef6bea519ee154a33953792",
+          "attributes": {
+            "min_color_temp_kelvin": 1500,
+            "max_color_temp_kelvin": 9000,
+            "min_mireds": 111,
+            "max_mireds": 666,
+            "effect_list": [
+              "effect_colorloop",
+              "effect_pulse",
+              "effect_stop"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": null,
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 1500,
+            "color_temp": 666,
+            "hs_color": [
+              25.471,
+              100
+            ],
+            "rgb_color": [
+              255,
+              108,
+              0
+            ],
+            "xy_color": [
+              0.635,
+              0.355
+            ],
+            "friendly_name": "Lounge light",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.bedroom_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Bedroom light",
+          "area_id": "bedroom",
+          "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+          "attributes": {
+            "min_color_temp_kelvin": 1500,
+            "max_color_temp_kelvin": 9000,
+            "min_mireds": 111,
+            "max_mireds": 666,
+            "effect_list": [
+              "effect_colorloop",
+              "effect_pulse",
+              "effect_stop"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": null,
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 1500,
+            "color_temp": 666,
+            "hs_color": [
+              25.471,
+              100
+            ],
+            "rgb_color": [
+              255,
+              108,
+              0
+            ],
+            "xy_color": [
+              0.635,
+              0.355
+            ],
+            "friendly_name": "Bedroom light",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.cupboard_outlet_2",
+          "domain": "switch",
+          "state": "off",
+          "name": "Outlet 2",
+          "area_id": "kitchen",
+          "device_id": "a4630683fa231554398c833c74bc3a05",
+          "attributes": {
+            "device_class": "outlet",
+            "friendly_name": "Cupboard Outlet 2"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.iridium_mute",
+          "domain": "switch",
+          "state": "off",
+          "name": "Mute",
+          "area_id": "lounge",
+          "device_id": "500d796f46b4a5a13e4af080164bbee1",
+          "attributes": {
+            "icon": "mdi:microphone-off",
+            "friendly_name": "Iridium Mute"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.iridium_thinking_sound",
+          "domain": "switch",
+          "state": "off",
+          "name": "Thinking Sound",
+          "area_id": "lounge",
+          "device_id": "500d796f46b4a5a13e4af080164bbee1",
+          "attributes": {
+            "icon": "mdi:music-note",
+            "friendly_name": "Iridium Thinking Sound"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.hallway_2",
+          "domain": "light",
+          "state": "on",
+          "name": "Hallway 2",
+          "area_id": "conservatory",
+          "device_id": "da5588c951a51f82e70047a10044202a",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Hallway 2",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.kitchen_light_1",
+          "domain": "light",
+          "state": "on",
+          "name": "Kitchen light 1",
+          "area_id": "kitchen",
+          "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Kitchen light 1",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_mirror_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Mirror light",
+          "area_id": "lounge",
+          "device_id": "6eb699e9e7c773517d2ff81b5c1140fb",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Mirror light Mirror light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_outside_light",
+          "domain": "light",
+          "state": "off",
+          "name": "Outside light",
+          "area_id": "outside",
+          "device_id": "51efbd75686ebfe852d1dee4bfedfd09",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "friendly_name": "Outside light Outside light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_nook_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Nook light",
+          "area_id": "kitchen",
+          "device_id": "6b988a4fad43e785fcf4846f54c2d496",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Nook light Nook light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_hallway_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Hallway light",
+          "area_id": "lounge",
+          "device_id": "b95fe8006d71f69e3d28e34a77677375",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Hallway light Hallway light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_tv_light",
+          "domain": "light",
+          "state": "on",
+          "name": "TV light",
+          "area_id": "lounge",
+          "device_id": "721e18ac16f30d26de95b887f8dcbab9",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "TV light TV light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_kitchen_light_2",
+          "domain": "light",
+          "state": "off",
+          "name": "Kitchen light 2",
+          "area_id": "kitchen",
+          "device_id": "ca7074c20cb779348a8ea9674780848a",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "friendly_name": "Kitchen light 2 Kitchen light 2",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+          "domain": "light",
+          "state": "on",
+          "name": "Kitchen light 2 2",
+          "area_id": "kitchen",
+          "device_id": "6a9096b17be1e3f1e56af53c4b3e833d",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Kitchen light 2 2 Kitchen light 2 2",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+          "domain": "sensor",
+          "state": "22.3",
+          "name": "Temperature",
+          "area_id": "lounge",
+          "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+          "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "friendly_name": "Lounge sensor Temperature"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+          "domain": "sensor",
+          "state": "51",
+          "name": "Humidity",
+          "area_id": "lounge",
+          "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+          "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "humidity",
+            "friendly_name": "Lounge sensor Humidity"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.wardrobe",
+          "domain": "light",
+          "state": "on",
+          "name": "Wardrobe",
+          "area_id": "bedroom",
+          "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Wardrobe",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.desk",
+          "domain": "light",
+          "state": "on",
+          "name": "Desk",
+          "area_id": "lounge",
+          "device_id": "e40f328958e64358f95b67ba009f7a75",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Desk",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.wifi_temperature_humidity_sensor_temperature",
+          "domain": "sensor",
+          "state": "unavailable",
+          "name": "Temperature",
+          "area_id": "lounge",
+          "device_id": "a80e17400544d03c32973b79cd17f579",
+          "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "Temperature",
+            "supported_features": 0,
+            "unit_of_measurement": "°C"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.wifi_temperature_humidity_sensor_humidity",
+          "domain": "sensor",
+          "state": "unavailable",
+          "name": "Humidity",
+          "area_id": "lounge",
+          "device_id": "a80e17400544d03c32973b79cd17f579",
+          "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "humidity",
+            "friendly_name": "Humidity",
+            "supported_features": 0,
+            "unit_of_measurement": "%"
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 15,
+        "switch": 3,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 4
+      },
+      "isOn": true,
+      "brightnessPct": 63
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "entities": [
+        {
+          "entity_id": "light.bedroom_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Bedroom light",
+          "area_id": "bedroom",
+          "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+          "attributes": {
+            "min_color_temp_kelvin": 1500,
+            "max_color_temp_kelvin": 9000,
+            "min_mireds": 111,
+            "max_mireds": 666,
+            "effect_list": [
+              "effect_colorloop",
+              "effect_pulse",
+              "effect_stop"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": null,
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 1500,
+            "color_temp": 666,
+            "hs_color": [
+              25.471,
+              100
+            ],
+            "rgb_color": [
+              255,
+              108,
+              0
+            ],
+            "xy_color": [
+              0.635,
+              0.355
+            ],
+            "friendly_name": "Bedroom light",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.wardrobe",
+          "domain": "light",
+          "state": "on",
+          "name": "Wardrobe",
+          "area_id": "bedroom",
+          "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Wardrobe",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 2,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "isOn": true,
+      "brightnessPct": 60
+    },
+    {
+      "id": "climate",
+      "name": "Climate",
+      "entities": [
+        {
+          "entity_id": "climate.c6780cad",
+          "domain": "climate",
+          "state": "off",
+          "name": "Air Conditioner",
+          "area_id": "climate",
+          "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+          "attributes": {
+            "hvac_modes": [
+              "auto",
+              "cool",
+              "dry",
+              "fan_only",
+              "heat",
+              "off"
+            ],
+            "min_temp": 8,
+            "max_temp": 30,
+            "target_temp_step": 1,
+            "fan_modes": [
+              "auto",
+              "low",
+              "medium low",
+              "medium",
+              "medium high",
+              "high"
+            ],
+            "preset_modes": [
+              "eco",
+              "away",
+              "boost",
+              "none",
+              "sleep"
+            ],
+            "swing_modes": [
+              "off",
+              "vertical",
+              "horizontal",
+              "both"
+            ],
+            "current_temperature": 22.3,
+            "temperature": 22,
+            "fan_mode": "low",
+            "preset_mode": "none",
+            "swing_mode": "vertical",
+            "friendly_name": "Air Conditioner",
+            "supported_features": 441
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.c6780cad_panel_light",
+          "domain": "switch",
+          "state": "on",
+          "name": "Panel light",
+          "area_id": "climate",
+          "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+          "attributes": {
+            "device_class": "switch",
+            "friendly_name": "Air Conditioner Panel light"
+          },
+          "isIllumination": true
+        },
+        {
+          "entity_id": "switch.c6780cad_quiet_mode",
+          "domain": "switch",
+          "state": "on",
+          "name": "Quiet mode",
+          "area_id": "climate",
+          "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+          "attributes": {
+            "device_class": "switch",
+            "friendly_name": "Air Conditioner Quiet mode"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.c6780cad_fresh_air",
+          "domain": "switch",
+          "state": "off",
+          "name": "Fresh air",
+          "area_id": "climate",
+          "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+          "attributes": {
+            "device_class": "switch",
+            "friendly_name": "Air Conditioner Fresh air"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.c6780cad_xtra_fan",
+          "domain": "switch",
+          "state": "off",
+          "name": "Xtra fan",
+          "area_id": "climate",
+          "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+          "attributes": {
+            "device_class": "switch",
+            "friendly_name": "Air Conditioner Xtra fan"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "climate.panel_heater_2",
+          "domain": "climate",
+          "state": "off",
+          "name": "Panel Heater",
+          "area_id": "climate",
+          "device_id": "c6ab65b76488f7aeacdaf04594a9ea41",
+          "attributes": {
+            "hvac_modes": [
+              "off",
+              "heat"
+            ],
+            "min_temp": 5,
+            "max_temp": 40,
+            "target_temp_step": 1,
+            "preset_modes": [
+              "eco",
+              "boost"
+            ],
+            "current_temperature": 20,
+            "temperature": 21,
+            "preset_mode": "boost",
+            "friendly_name": "Panel Heater",
+            "supported_features": 401
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 1,
+        "switch": 3,
+        "climate": 2,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "isOn": true,
+      "brightnessPct": 0
+    },
+    {
+      "id": "conservatory",
+      "name": "Conservatory",
+      "entities": [
+        {
+          "entity_id": "light.conservatory_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Conservatory light",
+          "area_id": "conservatory",
+          "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+          "attributes": {
+            "min_color_temp_kelvin": 1500,
+            "max_color_temp_kelvin": 9000,
+            "min_mireds": 111,
+            "max_mireds": 666,
+            "effect_list": [
+              "effect_colorloop",
+              "effect_pulse",
+              "effect_stop"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": null,
+            "color_mode": "color_temp",
+            "brightness": 255,
+            "color_temp_kelvin": 6500,
+            "color_temp": 153,
+            "hs_color": [
+              49.231,
+              1.944
+            ],
+            "rgb_color": [
+              255,
+              254,
+              250
+            ],
+            "xy_color": [
+              0.326,
+              0.333
+            ],
+            "friendly_name": "Conservatory light",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.hallway_2",
+          "domain": "light",
+          "state": "on",
+          "name": "Hallway 2",
+          "area_id": "conservatory",
+          "device_id": "da5588c951a51f82e70047a10044202a",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Hallway 2",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 2,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "isOn": true,
+      "brightnessPct": 80
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "entities": [
+        {
+          "entity_id": "switch.cupboard_outlet_2",
+          "domain": "switch",
+          "state": "off",
+          "name": "Outlet 2",
+          "area_id": "kitchen",
+          "device_id": "a4630683fa231554398c833c74bc3a05",
+          "attributes": {
+            "device_class": "outlet",
+            "friendly_name": "Cupboard Outlet 2"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.kitchen_light_1",
+          "domain": "light",
+          "state": "on",
+          "name": "Kitchen light 1",
+          "area_id": "kitchen",
+          "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Kitchen light 1",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_nook_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Nook light",
+          "area_id": "kitchen",
+          "device_id": "6b988a4fad43e785fcf4846f54c2d496",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Nook light Nook light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_kitchen_light_2",
+          "domain": "light",
+          "state": "off",
+          "name": "Kitchen light 2",
+          "area_id": "kitchen",
+          "device_id": "ca7074c20cb779348a8ea9674780848a",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "friendly_name": "Kitchen light 2 Kitchen light 2",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+          "domain": "light",
+          "state": "on",
+          "name": "Kitchen light 2 2",
+          "area_id": "kitchen",
+          "device_id": "6a9096b17be1e3f1e56af53c4b3e833d",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Kitchen light 2 2 Kitchen light 2 2",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 4,
+        "switch": 1,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "isOn": true,
+      "brightnessPct": 60
+    },
+    {
+      "id": "lounge",
+      "name": "Lounge",
+      "entities": [
+        {
+          "entity_id": "light.cupboard_socket_1",
+          "domain": "light",
+          "state": "on",
+          "name": "Neon lights",
+          "area_id": "lounge",
+          "device_id": "a4630683fa231554398c833c74bc3a05",
+          "attributes": {
+            "supported_color_modes": [
+              "onoff"
+            ],
+            "color_mode": "onoff",
+            "friendly_name": "Neon lights",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.lounge_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Lounge light",
+          "area_id": "lounge",
+          "device_id": "6f5a7b08fef6bea519ee154a33953792",
+          "attributes": {
+            "min_color_temp_kelvin": 1500,
+            "max_color_temp_kelvin": 9000,
+            "min_mireds": 111,
+            "max_mireds": 666,
+            "effect_list": [
+              "effect_colorloop",
+              "effect_pulse",
+              "effect_stop"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": null,
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 1500,
+            "color_temp": 666,
+            "hs_color": [
+              25.471,
+              100
+            ],
+            "rgb_color": [
+              255,
+              108,
+              0
+            ],
+            "xy_color": [
+              0.635,
+              0.355
+            ],
+            "friendly_name": "Lounge light",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.iridium_mute",
+          "domain": "switch",
+          "state": "off",
+          "name": "Mute",
+          "area_id": "lounge",
+          "device_id": "500d796f46b4a5a13e4af080164bbee1",
+          "attributes": {
+            "icon": "mdi:microphone-off",
+            "friendly_name": "Iridium Mute"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "switch.iridium_thinking_sound",
+          "domain": "switch",
+          "state": "off",
+          "name": "Thinking Sound",
+          "area_id": "lounge",
+          "device_id": "500d796f46b4a5a13e4af080164bbee1",
+          "attributes": {
+            "icon": "mdi:music-note",
+            "friendly_name": "Iridium Thinking Sound"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_mirror_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Mirror light",
+          "area_id": "lounge",
+          "device_id": "6eb699e9e7c773517d2ff81b5c1140fb",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Mirror light Mirror light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_hallway_light",
+          "domain": "light",
+          "state": "on",
+          "name": "Hallway light",
+          "area_id": "lounge",
+          "device_id": "b95fe8006d71f69e3d28e34a77677375",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "Hallway light Hallway light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.tuya_mobile_tv_light",
+          "domain": "light",
+          "state": "on",
+          "name": "TV light",
+          "area_id": "lounge",
+          "device_id": "721e18ac16f30d26de95b887f8dcbab9",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": "brightness",
+            "brightness": 153,
+            "friendly_name": "TV light TV light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+          "domain": "sensor",
+          "state": "22.3",
+          "name": "Temperature",
+          "area_id": "lounge",
+          "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+          "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "°C",
+            "device_class": "temperature",
+            "friendly_name": "Lounge sensor Temperature"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+          "domain": "sensor",
+          "state": "51",
+          "name": "Humidity",
+          "area_id": "lounge",
+          "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+          "attributes": {
+            "state_class": "measurement",
+            "unit_of_measurement": "%",
+            "device_class": "humidity",
+            "friendly_name": "Lounge sensor Humidity"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "light.desk",
+          "domain": "light",
+          "state": "on",
+          "name": "Desk",
+          "area_id": "lounge",
+          "device_id": "e40f328958e64358f95b67ba009f7a75",
+          "attributes": {
+            "min_color_temp_kelvin": 2500,
+            "max_color_temp_kelvin": 6500,
+            "min_mireds": 153,
+            "max_mireds": 400,
+            "effect_list": [
+              "Off",
+              "Party",
+              "Relax"
+            ],
+            "supported_color_modes": [
+              "color_temp",
+              "hs"
+            ],
+            "effect": "off",
+            "color_mode": "color_temp",
+            "brightness": 153,
+            "color_temp_kelvin": 2500,
+            "color_temp": 400,
+            "hs_color": [
+              28.874,
+              72.522
+            ],
+            "rgb_color": [
+              255,
+              159,
+              70
+            ],
+            "xy_color": [
+              0.546,
+              0.389
+            ],
+            "friendly_name": "Desk",
+            "supported_features": 36
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.wifi_temperature_humidity_sensor_temperature",
+          "domain": "sensor",
+          "state": "unavailable",
+          "name": "Temperature",
+          "area_id": "lounge",
+          "device_id": "a80e17400544d03c32973b79cd17f579",
+          "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "temperature",
+            "friendly_name": "Temperature",
+            "supported_features": 0,
+            "unit_of_measurement": "°C"
+          },
+          "isIllumination": false
+        },
+        {
+          "entity_id": "sensor.wifi_temperature_humidity_sensor_humidity",
+          "domain": "sensor",
+          "state": "unavailable",
+          "name": "Humidity",
+          "area_id": "lounge",
+          "device_id": "a80e17400544d03c32973b79cd17f579",
+          "attributes": {
+            "restored": true,
+            "state_class": "measurement",
+            "device_class": "humidity",
+            "friendly_name": "Humidity",
+            "supported_features": 0,
+            "unit_of_measurement": "%"
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 6,
+        "switch": 2,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 4
+      },
+      "isOn": true,
+      "brightnessPct": 60
+    },
+    {
+      "id": "outside",
+      "name": "Outside",
+      "entities": [
+        {
+          "entity_id": "light.tuya_mobile_outside_light",
+          "domain": "light",
+          "state": "off",
+          "name": "Outside light",
+          "area_id": "outside",
+          "device_id": "51efbd75686ebfe852d1dee4bfedfd09",
+          "attributes": {
+            "supported_color_modes": [
+              "brightness"
+            ],
+            "color_mode": null,
+            "brightness": null,
+            "friendly_name": "Outside light Outside light",
+            "supported_features": 0
+          },
+          "isIllumination": false
+        }
+      ],
+      "counts": {
+        "light": 1,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "isOn": false,
+      "brightnessPct": 0
+    },
+    {
+      "id": "network",
+      "name": "Network",
+      "entities": [],
+      "counts": {
+        "light": 0,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "isOn": false,
+      "brightnessPct": 0
+    }
+  ],
+  "entities": [
+    {
+      "entity_id": "light.cupboard_socket_1",
+      "domain": "light",
+      "state": "on",
+      "name": "Neon lights",
+      "area_id": "lounge",
+      "device_id": "a4630683fa231554398c833c74bc3a05",
+      "attributes": {
+        "supported_color_modes": [
+          "onoff"
+        ],
+        "color_mode": "onoff",
+        "friendly_name": "Neon lights",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.conservatory_light",
+      "domain": "light",
+      "state": "on",
+      "name": "Conservatory light",
+      "area_id": "conservatory",
+      "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+      "attributes": {
+        "min_color_temp_kelvin": 1500,
+        "max_color_temp_kelvin": 9000,
+        "min_mireds": 111,
+        "max_mireds": 666,
+        "effect_list": [
+          "effect_colorloop",
+          "effect_pulse",
+          "effect_stop"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": null,
+        "color_mode": "color_temp",
+        "brightness": 255,
+        "color_temp_kelvin": 6500,
+        "color_temp": 153,
+        "hs_color": [
+          49.231,
+          1.944
+        ],
+        "rgb_color": [
+          255,
+          254,
+          250
+        ],
+        "xy_color": [
+          0.326,
+          0.333
+        ],
+        "friendly_name": "Conservatory light",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.lounge_light",
+      "domain": "light",
+      "state": "on",
+      "name": "Lounge light",
+      "area_id": "lounge",
+      "device_id": "6f5a7b08fef6bea519ee154a33953792",
+      "attributes": {
+        "min_color_temp_kelvin": 1500,
+        "max_color_temp_kelvin": 9000,
+        "min_mireds": 111,
+        "max_mireds": 666,
+        "effect_list": [
+          "effect_colorloop",
+          "effect_pulse",
+          "effect_stop"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": null,
+        "color_mode": "color_temp",
+        "brightness": 153,
+        "color_temp_kelvin": 1500,
+        "color_temp": 666,
+        "hs_color": [
+          25.471,
+          100
+        ],
+        "rgb_color": [
+          255,
+          108,
+          0
+        ],
+        "xy_color": [
+          0.635,
+          0.355
+        ],
+        "friendly_name": "Lounge light",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.bedroom_light",
+      "domain": "light",
+      "state": "on",
+      "name": "Bedroom light",
+      "area_id": "bedroom",
+      "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+      "attributes": {
+        "min_color_temp_kelvin": 1500,
+        "max_color_temp_kelvin": 9000,
+        "min_mireds": 111,
+        "max_mireds": 666,
+        "effect_list": [
+          "effect_colorloop",
+          "effect_pulse",
+          "effect_stop"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": null,
+        "color_mode": "color_temp",
+        "brightness": 153,
+        "color_temp_kelvin": 1500,
+        "color_temp": 666,
+        "hs_color": [
+          25.471,
+          100
+        ],
+        "rgb_color": [
+          255,
+          108,
+          0
+        ],
+        "xy_color": [
+          0.635,
+          0.355
+        ],
+        "friendly_name": "Bedroom light",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "climate.c6780cad",
+      "domain": "climate",
+      "state": "off",
+      "name": "Air Conditioner",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "attributes": {
+        "hvac_modes": [
+          "auto",
+          "cool",
+          "dry",
+          "fan_only",
+          "heat",
+          "off"
+        ],
+        "min_temp": 8,
+        "max_temp": 30,
+        "target_temp_step": 1,
+        "fan_modes": [
+          "auto",
+          "low",
+          "medium low",
+          "medium",
+          "medium high",
+          "high"
+        ],
+        "preset_modes": [
+          "eco",
+          "away",
+          "boost",
+          "none",
+          "sleep"
+        ],
+        "swing_modes": [
+          "off",
+          "vertical",
+          "horizontal",
+          "both"
+        ],
+        "current_temperature": 22.3,
+        "temperature": 22,
+        "fan_mode": "low",
+        "preset_mode": "none",
+        "swing_mode": "vertical",
+        "friendly_name": "Air Conditioner",
+        "supported_features": 441
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.c6780cad_panel_light",
+      "domain": "switch",
+      "state": "on",
+      "name": "Panel light",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "attributes": {
+        "device_class": "switch",
+        "friendly_name": "Air Conditioner Panel light"
+      },
+      "isIllumination": true
+    },
+    {
+      "entity_id": "switch.c6780cad_quiet_mode",
+      "domain": "switch",
+      "state": "on",
+      "name": "Quiet mode",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "attributes": {
+        "device_class": "switch",
+        "friendly_name": "Air Conditioner Quiet mode"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.c6780cad_fresh_air",
+      "domain": "switch",
+      "state": "off",
+      "name": "Fresh air",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "attributes": {
+        "device_class": "switch",
+        "friendly_name": "Air Conditioner Fresh air"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.c6780cad_xtra_fan",
+      "domain": "switch",
+      "state": "off",
+      "name": "Xtra fan",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "attributes": {
+        "device_class": "switch",
+        "friendly_name": "Air Conditioner Xtra fan"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.cupboard_outlet_2",
+      "domain": "switch",
+      "state": "off",
+      "name": "Outlet 2",
+      "area_id": "kitchen",
+      "device_id": "a4630683fa231554398c833c74bc3a05",
+      "attributes": {
+        "device_class": "outlet",
+        "friendly_name": "Cupboard Outlet 2"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.iridium_mute",
+      "domain": "switch",
+      "state": "off",
+      "name": "Mute",
+      "area_id": "lounge",
+      "device_id": "500d796f46b4a5a13e4af080164bbee1",
+      "attributes": {
+        "icon": "mdi:microphone-off",
+        "friendly_name": "Iridium Mute"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.iridium_thinking_sound",
+      "domain": "switch",
+      "state": "off",
+      "name": "Thinking Sound",
+      "area_id": "lounge",
+      "device_id": "500d796f46b4a5a13e4af080164bbee1",
+      "attributes": {
+        "icon": "mdi:music-note",
+        "friendly_name": "Iridium Thinking Sound"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "climate.panel_heater_2",
+      "domain": "climate",
+      "state": "off",
+      "name": "Panel Heater",
+      "area_id": "climate",
+      "device_id": "c6ab65b76488f7aeacdaf04594a9ea41",
+      "attributes": {
+        "hvac_modes": [
+          "off",
+          "heat"
+        ],
+        "min_temp": 5,
+        "max_temp": 40,
+        "target_temp_step": 1,
+        "preset_modes": [
+          "eco",
+          "boost"
+        ],
+        "current_temperature": 20,
+        "temperature": 21,
+        "preset_mode": "boost",
+        "friendly_name": "Panel Heater",
+        "supported_features": 401
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.hallway_2",
+      "domain": "light",
+      "state": "on",
+      "name": "Hallway 2",
+      "area_id": "conservatory",
+      "device_id": "da5588c951a51f82e70047a10044202a",
+      "attributes": {
+        "min_color_temp_kelvin": 2500,
+        "max_color_temp_kelvin": 6500,
+        "min_mireds": 153,
+        "max_mireds": 400,
+        "effect_list": [
+          "Off",
+          "Party",
+          "Relax"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": "off",
+        "color_mode": "color_temp",
+        "brightness": 153,
+        "color_temp_kelvin": 2500,
+        "color_temp": 400,
+        "hs_color": [
+          28.874,
+          72.522
+        ],
+        "rgb_color": [
+          255,
+          159,
+          70
+        ],
+        "xy_color": [
+          0.546,
+          0.389
+        ],
+        "friendly_name": "Hallway 2",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.kitchen_light_1",
+      "domain": "light",
+      "state": "on",
+      "name": "Kitchen light 1",
+      "area_id": "kitchen",
+      "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+      "attributes": {
+        "min_color_temp_kelvin": 2500,
+        "max_color_temp_kelvin": 6500,
+        "min_mireds": 153,
+        "max_mireds": 400,
+        "effect_list": [
+          "Off",
+          "Party",
+          "Relax"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": "off",
+        "color_mode": "color_temp",
+        "brightness": 153,
+        "color_temp_kelvin": 2500,
+        "color_temp": 400,
+        "hs_color": [
+          28.874,
+          72.522
+        ],
+        "rgb_color": [
+          255,
+          159,
+          70
+        ],
+        "xy_color": [
+          0.546,
+          0.389
+        ],
+        "friendly_name": "Kitchen light 1",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_mirror_light",
+      "domain": "light",
+      "state": "on",
+      "name": "Mirror light",
+      "area_id": "lounge",
+      "device_id": "6eb699e9e7c773517d2ff81b5c1140fb",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": "brightness",
+        "brightness": 153,
+        "friendly_name": "Mirror light Mirror light",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_outside_light",
+      "domain": "light",
+      "state": "off",
+      "name": "Outside light",
+      "area_id": "outside",
+      "device_id": "51efbd75686ebfe852d1dee4bfedfd09",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": null,
+        "brightness": null,
+        "friendly_name": "Outside light Outside light",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_nook_light",
+      "domain": "light",
+      "state": "on",
+      "name": "Nook light",
+      "area_id": "kitchen",
+      "device_id": "6b988a4fad43e785fcf4846f54c2d496",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": "brightness",
+        "brightness": 153,
+        "friendly_name": "Nook light Nook light",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_hallway_light",
+      "domain": "light",
+      "state": "on",
+      "name": "Hallway light",
+      "area_id": "lounge",
+      "device_id": "b95fe8006d71f69e3d28e34a77677375",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": "brightness",
+        "brightness": 153,
+        "friendly_name": "Hallway light Hallway light",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_tv_light",
+      "domain": "light",
+      "state": "on",
+      "name": "TV light",
+      "area_id": "lounge",
+      "device_id": "721e18ac16f30d26de95b887f8dcbab9",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": "brightness",
+        "brightness": 153,
+        "friendly_name": "TV light TV light",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_kitchen_light_2",
+      "domain": "light",
+      "state": "off",
+      "name": "Kitchen light 2",
+      "area_id": "kitchen",
+      "device_id": "ca7074c20cb779348a8ea9674780848a",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": null,
+        "brightness": null,
+        "friendly_name": "Kitchen light 2 Kitchen light 2",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+      "domain": "light",
+      "state": "on",
+      "name": "Kitchen light 2 2",
+      "area_id": "kitchen",
+      "device_id": "6a9096b17be1e3f1e56af53c4b3e833d",
+      "attributes": {
+        "supported_color_modes": [
+          "brightness"
+        ],
+        "color_mode": "brightness",
+        "brightness": 153,
+        "friendly_name": "Kitchen light 2 2 Kitchen light 2 2",
+        "supported_features": 0
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+      "domain": "sensor",
+      "state": "22.3",
+      "name": "Temperature",
+      "area_id": "lounge",
+      "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "°C",
+        "device_class": "temperature",
+        "friendly_name": "Lounge sensor Temperature"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+      "domain": "sensor",
+      "state": "51",
+      "name": "Humidity",
+      "area_id": "lounge",
+      "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+      "attributes": {
+        "state_class": "measurement",
+        "unit_of_measurement": "%",
+        "device_class": "humidity",
+        "friendly_name": "Lounge sensor Humidity"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.wardrobe",
+      "domain": "light",
+      "state": "on",
+      "name": "Wardrobe",
+      "area_id": "bedroom",
+      "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+      "attributes": {
+        "min_color_temp_kelvin": 2500,
+        "max_color_temp_kelvin": 6500,
+        "min_mireds": 153,
+        "max_mireds": 400,
+        "effect_list": [
+          "Off",
+          "Party",
+          "Relax"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": "off",
+        "color_mode": "color_temp",
+        "brightness": 153,
+        "color_temp_kelvin": 2500,
+        "color_temp": 400,
+        "hs_color": [
+          28.874,
+          72.522
+        ],
+        "rgb_color": [
+          255,
+          159,
+          70
+        ],
+        "xy_color": [
+          0.546,
+          0.389
+        ],
+        "friendly_name": "Wardrobe",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.desk",
+      "domain": "light",
+      "state": "on",
+      "name": "Desk",
+      "area_id": "lounge",
+      "device_id": "e40f328958e64358f95b67ba009f7a75",
+      "attributes": {
+        "min_color_temp_kelvin": 2500,
+        "max_color_temp_kelvin": 6500,
+        "min_mireds": 153,
+        "max_mireds": 400,
+        "effect_list": [
+          "Off",
+          "Party",
+          "Relax"
+        ],
+        "supported_color_modes": [
+          "color_temp",
+          "hs"
+        ],
+        "effect": "off",
+        "color_mode": "color_temp",
+        "brightness": 153,
+        "color_temp_kelvin": 2500,
+        "color_temp": 400,
+        "hs_color": [
+          28.874,
+          72.522
+        ],
+        "rgb_color": [
+          255,
+          159,
+          70
+        ],
+        "xy_color": [
+          0.546,
+          0.389
+        ],
+        "friendly_name": "Desk",
+        "supported_features": 36
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.wifi_temperature_humidity_sensor_temperature",
+      "domain": "sensor",
+      "state": "unavailable",
+      "name": "Temperature",
+      "area_id": "lounge",
+      "device_id": "a80e17400544d03c32973b79cd17f579",
+      "attributes": {
+        "restored": true,
+        "state_class": "measurement",
+        "device_class": "temperature",
+        "friendly_name": "Temperature",
+        "supported_features": 0,
+        "unit_of_measurement": "°C"
+      },
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.wifi_temperature_humidity_sensor_humidity",
+      "domain": "sensor",
+      "state": "unavailable",
+      "name": "Humidity",
+      "area_id": "lounge",
+      "device_id": "a80e17400544d03c32973b79cd17f579",
+      "attributes": {
+        "restored": true,
+        "state_class": "measurement",
+        "device_class": "humidity",
+        "friendly_name": "Humidity",
+        "supported_features": 0,
+        "unit_of_measurement": "%"
+      },
+      "isIllumination": false
+    }
+  ],
+  "totals": {
+    "light": 16,
+    "switch": 6,
+    "climate": 2,
+    "fan": 0,
+    "cover": 0,
+    "humidifier": 0,
+    "sensor": 4
+  },
+  "lighting": {
+    "intensityThresholds": [
+      {
+        "name": "Neon Lights",
+        "thresholdPct": 50,
+        "entityIds": [
+          "light.cupboard_socket_1"
+        ]
+      }
+    ],
+    "entityPresets": [
+      {
+        "entityId": "light.conservatory_light",
+        "targetBrightnessPct": {
+          "daytime": 100,
+          "evening": 100
+        },
+        "colorTemperatureOverrideKelvin": {
+          "candlelight": 6500,
+          "daylight": 6500
+        }
+      }
+    ]
+  },
+  "router": {
+    "name": "NX620v",
+    "download": {
+      "entity_id": "sensor.nx620v_download_speed",
+      "value": 7.42942401604448,
+      "unit": "MB/s",
+      "display": "7.4 MB/s"
+    },
+    "upload": {
+      "entity_id": "sensor.nx620v_upload_speed",
+      "value": 0.105101190839092,
+      "unit": "MB/s",
+      "display": "0.1 MB/s"
+    },
+    "externalIp": "100.66.24.250",
+    "wanConnected": true,
+    "wanState": "Connected"
+  },
+  "sun": {
+    "entity_id": "sun.sun",
+    "state": "below_horizon",
+    "nextRising": "2026-06-09T19:29:59.245622+00:00",
+    "nextSetting": "2026-06-10T05:10:44.491761+00:00"
+  },
+  "weather": {
+    "entity_id": "weather.forecast_home",
+    "condition": "partlycloudy",
+    "temperature": 14.1,
+    "high": 14.1,
+    "low": 9.8,
+    "humidity": 69,
+    "windSpeed": 32,
+    "windUnit": "km/h",
+    "precipitation": 0,
+    "precipitationUnit": "mm",
+    "rainChancePct": 20,
+    "uvIndex": 0,
+    "maxUvIndex": 0,
+    "feelsLike": 7.5
+  },
+  "preferences": {
+    "aircon": {
+      "swingMode": "off",
+      "updatedAt": "2026-06-09T04:31:07.291Z",
+      "hvacMode": "cool",
+      "temperature": 22,
+      "fanMode": "low",
+      "quietMode": true,
+      "turboMode": false,
+      "autoMode": true,
+      "offTimerEndsAt": null
+    },
+    "theme": {
+      "selection": "auto",
+      "themes": {
+        "dark": {
+          "accent": {
+            "cursor": {
+              "x": 0.14599810757852905,
+              "y": 0.2453125544956752
+            },
+            "intensity": 20,
+            "rgb": [
+              231,
+              211,
+              85
+            ]
+          },
+          "highlight": {
+            "cursor": {
+              "x": 0.13315222820151282,
+              "y": 0
+            },
+            "intensity": 30,
+            "rgb": [
+              255,
+              204,
+              0
+            ]
+          },
+          "avatar": {
+            "gradientAlert": {
+              "cursor": {
+                "x": 0.07793998332612997,
+                "y": 0.2532144274030413
+              },
+              "intensity": 34,
+              "rgb": [
+                231,
+                156,
+                90
+              ]
+            },
+            "gradientCenter": {
+              "cursor": {
+                "x": 0.14500990501931962,
+                "y": 0.04888316563197544
+              },
+              "intensity": 56,
+              "rgb": [
+                249,
+                218,
+                16
+              ]
+            },
+            "gradientOuter": {
+              "cursor": {
+                "x": 0.134140279982181,
+                "y": 0
+              },
+              "intensity": 20,
+              "rgb": [
+                255,
+                204,
+                0
+              ]
+            },
+            "gymAlertThresholdHours": 46,
+            "gymNumberColor": {
+              "cursor": {
+                "x": 0.16971346121414269,
+                "y": 0
+              },
+              "intensity": 0,
+              "rgb": [
+                251,
+                255,
+                0
+              ]
+            },
+            "gymNumberOpacity": 39,
+            "lineColors": [
+              {
+                "cursor": {
+                  "x": 0.1282115169625482,
+                  "y": 0
+                },
+                "intensity": 26,
+                "rgb": [
+                  255,
+                  196,
+                  0
+                ]
+              },
+              {
+                "cursor": {
+                  "x": 0.14698615935919723,
+                  "y": 0
+                },
+                "intensity": 31,
+                "rgb": [
+                  255,
+                  225,
+                  0
+                ]
+              },
+              {
+                "cursor": {
+                  "x": 0.11734189192540956,
+                  "y": 0
+                },
+                "intensity": 29,
+                "rgb": [
+                  255,
+                  179,
+                  0
+                ]
+              }
+            ],
+            "lineOpacities": [
+              25,
+              30,
+              27
+            ],
+            "innerShadowOpacity": 0.25
+          },
+          "background": {
+            "cursor": {
+              "x": 0.1264798699450181,
+              "y": 0
+            },
+            "intensity": 9,
+            "rgb": [
+              255,
+              191,
+              0
+            ]
+          },
+          "backgroundEffect": {
+            "apexGlow": 0,
+            "falloffPower": 80,
+            "hueSpread": 100,
+            "peakIntensity": 260,
+            "textureScale": 150,
+            "textureUrl": "/api/background-texture?v=2026-06-08T06%3A10%3A05.574Z",
+            "warpAmplitude": 130
+          },
+          "border": {
+            "color": {
+              "cursor": {
+                "x": 0.1291995687432164,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                196,
+                0
+              ]
+            },
+            "enabled": true,
+            "opacity": 15
+          },
+          "map": {
+            "base": {
+              "cursor": {
+                "x": 0.7555470052584329,
+                "y": 1
+              },
+              "intensity": 10,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "water": {
+              "cursor": {
+                "x": 0.7593946389637041,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                140,
+                0,
+                255
+              ]
+            },
+            "land": {
+              "cursor": {
+                "x": 0.55,
+                "y": 0.94
+              },
+              "intensity": 14,
+              "rgb": [
+                217,
+                229,
+                229
+              ]
+            },
+            "buildingLow": {
+              "cursor": {
+                "x": 0.7427215595741953,
+                "y": 0
+              },
+              "intensity": 63,
+              "rgb": [
+                115,
+                0,
+                255
+              ]
+            },
+            "buildingHigh": {
+              "cursor": {
+                "x": 0.7433628318584072,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                115,
+                0,
+                255
+              ]
+            },
+            "roads": {
+              "cursor": {
+                "x": 0.7247659356162627,
+                "y": 0.4790372670807455
+              },
+              "intensity": 100,
+              "rgb": [
+                177,
+                154,
+                223
+              ]
+            },
+            "labels": {
+              "cursor": {
+                "x": 0.7305373861741696,
+                "y": 1
+              },
+              "intensity": 66,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "radarLow": {
+              "cursor": {
+                "x": 0.1598050532255996,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                242,
+                0
+              ]
+            },
+            "radarHigh": {
+              "cursor": {
+                "x": 0.2643324355521355,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                106,
+                255,
+                0
+              ]
+            }
+          },
+          "mapBuildingOpacity": 66,
+          "mapLabelSize": 150,
+          "mapSatellite": true,
+          "mapWater": {
+            "enabled": true,
+            "opacity": 10
+          },
+          "radarOpacity": 87,
+          "radarPaletteMode": "custom",
+          "taskGlowIntensity": 100,
+          "titleColors": {
+            "dark": {
+              "cursor": {
+                "x": 0.12524706006346117,
+                "y": 0.08816964285714286
+              },
+              "intensity": 13,
+              "rgb": [
+                244,
+                191,
+                31
+              ]
+            },
+            "light": {
+              "cursor": {
+                "x": 0.12228260316437417,
+                "y": 0.4738834926060268
+              },
+              "intensity": 87,
+              "rgb": [
+                224,
+                205,
+                154
+              ]
+            }
+          },
+          "titleTone": "auto"
+        },
+        "light": {
+          "accent": {
+            "cursor": {
+              "x": 0.14303365067944204,
+              "y": 0.2453125544956752
+            },
+            "intensity": 37,
+            "rgb": [
+              231,
+              209,
+              85
+            ]
+          },
+          "highlight": {
+            "cursor": {
+              "x": 0.12129455138370598,
+              "y": 0.11674063546316964
+            },
+            "intensity": 63,
+            "rgb": [
+              242,
+              189,
+              44
+            ]
+          },
+          "avatar": {
+            "gradientAlert": {
+              "cursor": {
+                "x": 0.09688238636560366,
+                "y": 0.13035665239606584
+              },
+              "intensity": 35,
+              "rgb": [
+                241,
+                161,
+                50
+              ]
+            },
+            "gradientCenter": {
+              "cursor": {
+                "x": 0.12524706006346117,
+                "y": 0.10145078386579241
+              },
+              "intensity": 74,
+              "rgb": [
+                244,
+                192,
+                37
+              ]
+            },
+            "gradientOuter": {
+              "cursor": {
+                "x": 0.11536548680699073,
+                "y": 0.1300217764718192
+              },
+              "intensity": 5,
+              "rgb": [
+                241,
+                180,
+                50
+              ]
+            },
+            "gymAlertThresholdHours": 46,
+            "gymNumberColor": {
+              "cursor": {
+                "x": 1,
+                "y": 1
+              },
+              "intensity": 0,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "gymNumberOpacity": 33,
+            "lineColors": [
+              {
+                "cursor": {
+                  "x": 0.11437743502632254,
+                  "y": 0
+                },
+                "intensity": 17,
+                "rgb": [
+                  255,
+                  174,
+                  0
+                ]
+              },
+              {
+                "cursor": {
+                  "x": 0.12425885750425177,
+                  "y": 0.02645056588309152
+                },
+                "intensity": 25,
+                "rgb": [
+                  251,
+                  191,
+                  9
+                ]
+              },
+              {
+                "cursor": {
+                  "x": 0.08572137015174427,
+                  "y": 0
+                },
+                "intensity": 23,
+                "rgb": [
+                  255,
+                  132,
+                  0
+                ]
+              }
+            ],
+            "lineOpacities": [
+              17,
+              23,
+              23
+            ],
+            "innerShadowOpacity": 0.25
+          },
+          "background": {
+            "cursor": {
+              "x": 0.13989724705012052,
+              "y": 0.3053572518484933
+            },
+            "intensity": 34,
+            "rgb": [
+              227,
+              207,
+              104
+            ]
+          },
+          "backgroundEffect": {
+            "apexGlow": 0,
+            "falloffPower": 80,
+            "hueSpread": 100,
+            "peakIntensity": 260,
+            "textureScale": 150,
+            "textureUrl": "/api/background-texture?v=2026-06-08T05%3A12%3A03.311Z",
+            "warpAmplitude": 130
+          },
+          "border": {
+            "color": {
+              "cursor": {
+                "x": 0.13611668510059982,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                208,
+                0
+              ]
+            },
+            "enabled": true,
+            "opacity": 19
+          },
+          "map": {
+            "base": {
+              "cursor": {
+                "x": 0.7555470052584329,
+                "y": 1
+              },
+              "intensity": 10,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "water": {
+              "cursor": {
+                "x": 0.7593946389637041,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                140,
+                0,
+                255
+              ]
+            },
+            "land": {
+              "cursor": {
+                "x": 0.55,
+                "y": 0.94
+              },
+              "intensity": 14,
+              "rgb": [
+                217,
+                229,
+                229
+              ]
+            },
+            "buildingLow": {
+              "cursor": {
+                "x": 0.7427215595741953,
+                "y": 0
+              },
+              "intensity": 63,
+              "rgb": [
+                115,
+                0,
+                255
+              ]
+            },
+            "buildingHigh": {
+              "cursor": {
+                "x": 0.7433628318584072,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                115,
+                0,
+                255
+              ]
+            },
+            "roads": {
+              "cursor": {
+                "x": 0.7247659356162627,
+                "y": 0.4790372670807455
+              },
+              "intensity": 100,
+              "rgb": [
+                177,
+                154,
+                223
+              ]
+            },
+            "labels": {
+              "cursor": {
+                "x": 0.7305373861741696,
+                "y": 1
+              },
+              "intensity": 66,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "radarLow": {
+              "cursor": {
+                "x": 0.1598050532255996,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                242,
+                0
+              ]
+            },
+            "radarHigh": {
+              "cursor": {
+                "x": 0.2643324355521355,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                106,
+                255,
+                0
+              ]
+            }
+          },
+          "mapBuildingOpacity": 66,
+          "mapLabelSize": 150,
+          "mapSatellite": true,
+          "mapWater": {
+            "enabled": true,
+            "opacity": 10
+          },
+          "radarOpacity": 87,
+          "radarPaletteMode": "custom",
+          "taskGlowIntensity": 100,
+          "titleColors": {
+            "dark": {
+              "cursor": {
+                "x": 0.7818660545503647,
+                "y": 0
+              },
+              "intensity": 0,
+              "rgb": [
+                174,
+                0,
+                255
+              ]
+            },
+            "light": {
+              "cursor": {
+                "x": 0.17564237501231672,
+                "y": 0.7453125544956752
+              },
+              "intensity": 93,
+              "rgb": [
+                229,
+                230,
+                214
+              ]
+            }
+          },
+          "titleTone": "auto"
+        }
+      }
+    },
+    "themeUpdatedAt": "2026-06-09T05:27:15.326Z",
+    "lighting": {
+      "adaptiveCandlelightZones": {
+        "everything": {
+          "enabled": true,
+          "lastSunState": "below_horizon",
+          "updatedAt": "2026-06-09T05:13:04.880Z"
+        },
+        "lounge": {
+          "enabled": true,
+          "lastSunState": "below_horizon",
+          "updatedAt": "2026-06-09T05:13:04.888Z"
+        },
+        "bedroom": {
+          "enabled": true,
+          "lastSunState": "below_horizon",
+          "updatedAt": "2026-06-09T05:13:04.895Z"
+        },
+        "conservatory": {
+          "enabled": false,
+          "updatedAt": "2026-05-30T11:04:34.117Z"
+        }
+      },
+      "updatedAt": "2026-06-09T05:13:04.899Z"
+    },
+    "watchface": {
+      "gymLastResetAt": "2026-06-06T11:35:00.000Z",
+      "updatedAt": "2026-06-09T05:00:08.202Z",
+      "idleTimeoutMs": 60000,
+      "daysSinceGym": 2
+    },
+    "panelHeater": {
+      "offTimerEndsAt": null,
+      "updatedAt": "2026-06-08T16:02:37.320Z"
+    }
+  },
+  "warnings": [],
+  "spectrumCursors": {}
+}

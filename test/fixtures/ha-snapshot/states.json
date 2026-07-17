@@ -1,0 +1,4118 @@
+[
+  {
+    "entity_id": "conversation.home_assistant",
+    "state": "2026-04-28T23:08:13.952586+00:00",
+    "attributes": {
+      "friendly_name": "Home Assistant",
+      "supported_features": 1
+    },
+    "last_changed": "2026-05-21T19:30:31.100791+00:00",
+    "last_reported": "2026-05-21T19:30:31.100791+00:00",
+    "last_updated": "2026-05-21T19:30:31.100791+00:00",
+    "context": {
+      "id": "01KS60971WRRVQ24NB58PB5A9H",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "event.backup_automatic_backup",
+    "state": "unknown",
+    "attributes": {
+      "event_types": [
+        "completed",
+        "failed",
+        "in_progress"
+      ],
+      "event_type": null,
+      "friendly_name": "Backup Automatic backup"
+    },
+    "last_changed": "2026-05-21T19:30:31.141155+00:00",
+    "last_reported": "2026-05-21T19:30:31.141155+00:00",
+    "last_updated": "2026-05-21T19:30:31.141155+00:00",
+    "context": {
+      "id": "01KS60973573Z6YASNWKSSER1N",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.backup_backup_manager_state",
+    "state": "idle",
+    "attributes": {
+      "options": [
+        "idle",
+        "create_backup",
+        "blocked",
+        "receive_backup",
+        "restore_backup"
+      ],
+      "device_class": "enum",
+      "friendly_name": "Backup Backup Manager state"
+    },
+    "last_changed": "2026-05-21T19:30:43.948191+00:00",
+    "last_reported": "2026-05-21T19:30:43.948191+00:00",
+    "last_updated": "2026-05-21T19:30:43.948191+00:00",
+    "context": {
+      "id": "01KS609KKC4QGW83D2G3Z6PGHP",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.backup_next_scheduled_automatic_backup",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Backup Next scheduled automatic backup"
+    },
+    "last_changed": "2026-05-21T19:30:31.141850+00:00",
+    "last_reported": "2026-05-21T19:30:43.948253+00:00",
+    "last_updated": "2026-05-21T19:30:31.141850+00:00",
+    "context": {
+      "id": "01KS609735Y9SXQXZZQTVFA9JB",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.backup_last_successful_automatic_backup",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Backup Last successful automatic backup"
+    },
+    "last_changed": "2026-05-21T19:30:31.141948+00:00",
+    "last_reported": "2026-05-21T19:30:43.948279+00:00",
+    "last_updated": "2026-05-21T19:30:31.141948+00:00",
+    "context": {
+      "id": "01KS609735WN39MXQDW9RRM8Y8",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.backup_last_attempted_automatic_backup",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Backup Last attempted automatic backup"
+    },
+    "last_changed": "2026-05-21T19:30:31.142049+00:00",
+    "last_reported": "2026-05-21T19:30:43.948300+00:00",
+    "last_updated": "2026-05-21T19:30:31.142049+00:00",
+    "context": {
+      "id": "01KS6097360QPWCDFMVV2Z1BW3",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "zone.home",
+    "state": "0",
+    "attributes": {
+      "latitude": -36.8509,
+      "longitude": 174.7645,
+      "radius": 100,
+      "passive": false,
+      "persons": [],
+      "editable": true,
+      "icon": "mdi:home",
+      "friendly_name": "Home"
+    },
+    "last_changed": "2026-05-21T19:30:31.412470+00:00",
+    "last_reported": "2026-05-21T19:30:31.412470+00:00",
+    "last_updated": "2026-05-21T19:30:31.412470+00:00",
+    "context": {
+      "id": "01KS6097BME8GSRG7JD71MDA8D",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "person.resident",
+    "state": "unknown",
+    "attributes": {
+      "editable": true,
+      "id": "resident",
+      "device_trackers": [],
+      "user_id": "359fbfd255ee42358a39adb2986cba2b",
+      "friendly_name": "Resident"
+    },
+    "last_changed": "2026-05-21T19:30:31.420383+00:00",
+    "last_reported": "2026-05-21T19:30:43.945884+00:00",
+    "last_updated": "2026-05-21T19:30:43.945884+00:00",
+    "context": {
+      "id": "01KS609KK9NMNKRXX8XNMXNHAZ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sun.sun",
+    "state": "below_horizon",
+    "attributes": {
+      "next_dawn": "2026-06-09T19:00:35.368015+00:00",
+      "next_dusk": "2026-06-10T05:40:08.223280+00:00",
+      "next_midnight": "2026-06-09T12:20:26+00:00",
+      "next_noon": "2026-06-10T00:20:25+00:00",
+      "next_rising": "2026-06-09T19:29:59.245622+00:00",
+      "next_setting": "2026-06-10T05:10:44.491761+00:00",
+      "elevation": -8.96,
+      "azimuth": 291.98,
+      "rising": false,
+      "friendly_name": "Sun"
+    },
+    "last_changed": "2026-06-09T05:12:50.193524+00:00",
+    "last_reported": "2026-06-09T05:56:12.323156+00:00",
+    "last_updated": "2026-06-09T05:56:12.323156+00:00",
+    "context": {
+      "id": "01KTNF7TD3NKB7TQK9SY4TSPV5",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.sun_next_dawn",
+    "state": "2026-06-09T19:00:35+00:00",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Sun Next dawn"
+    },
+    "last_changed": "2026-06-08T19:00:07.074438+00:00",
+    "last_reported": "2026-06-08T19:00:07.074438+00:00",
+    "last_updated": "2026-06-08T19:00:07.074438+00:00",
+    "context": {
+      "id": "01KTM9PFS28G9ZAF56XMWM4BVY",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.sun_next_dusk",
+    "state": "2026-06-10T05:40:08+00:00",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Sun Next dusk"
+    },
+    "last_changed": "2026-06-09T05:40:12.321073+00:00",
+    "last_reported": "2026-06-09T05:40:12.321073+00:00",
+    "last_updated": "2026-06-09T05:40:12.321073+00:00",
+    "context": {
+      "id": "01KTNEAGX1E8N3WD9647H0925A",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.sun_next_midnight",
+    "state": "2026-06-09T12:20:26+00:00",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Sun Next midnight"
+    },
+    "last_changed": "2026-06-08T12:20:14.002696+00:00",
+    "last_reported": "2026-06-08T12:20:14.002696+00:00",
+    "last_updated": "2026-06-08T12:20:14.002696+00:00",
+    "context": {
+      "id": "01KTKJT91J70Q1558C9CAHWRGN",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.sun_next_noon",
+    "state": "2026-06-10T00:20:25+00:00",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Sun Next noon"
+    },
+    "last_changed": "2026-06-09T00:20:13.002528+00:00",
+    "last_reported": "2026-06-09T00:20:13.002528+00:00",
+    "last_updated": "2026-06-09T00:20:13.002528+00:00",
+    "context": {
+      "id": "01KTMW0KJAP34CAWB6EMSRQ8B1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.sun_next_rising",
+    "state": "2026-06-09T19:29:59+00:00",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Sun Next rising"
+    },
+    "last_changed": "2026-06-08T19:29:29.364246+00:00",
+    "last_reported": "2026-06-08T19:29:29.364246+00:00",
+    "last_updated": "2026-06-08T19:29:29.364246+00:00",
+    "context": {
+      "id": "01KTMBC8RMJ2NB9G9YBY989N3F",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.sun_next_setting",
+    "state": "2026-06-10T05:10:44+00:00",
+    "attributes": {
+      "device_class": "timestamp",
+      "friendly_name": "Sun Next setting"
+    },
+    "last_changed": "2026-06-09T05:10:50.193560+00:00",
+    "last_reported": "2026-06-09T05:10:50.193560+00:00",
+    "last_updated": "2026-06-09T05:10:50.193560+00:00",
+    "context": {
+      "id": "01KTNCMR2HB2N1F86RD5V0PVH3",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "tts.google_translate_en_com",
+    "state": "unknown",
+    "attributes": {
+      "friendly_name": "Google Translate en com"
+    },
+    "last_changed": "2026-05-21T19:30:34.593093+00:00",
+    "last_reported": "2026-05-21T19:30:34.593093+00:00",
+    "last_updated": "2026-05-21T19:30:34.593093+00:00",
+    "context": {
+      "id": "01KS609AF1WBYEVD9CTBQP2P0A",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.cupboard_socket_1",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "onoff"
+      ],
+      "color_mode": "onoff",
+      "friendly_name": "Neon lights",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T01:47:24.229707+00:00",
+    "last_reported": "2026-06-09T01:47:24.229707+00:00",
+    "last_updated": "2026-06-09T01:47:24.229707+00:00",
+    "context": {
+      "id": "01KTN107T2951R9RN0DYVG1W57",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "button.conservatory_light_restart",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "restart",
+      "friendly_name": "Conservatory light Restart"
+    },
+    "last_changed": "2026-05-21T19:30:34.604652+00:00",
+    "last_reported": "2026-05-21T19:30:34.604652+00:00",
+    "last_updated": "2026-05-21T19:30:34.604652+00:00",
+    "context": {
+      "id": "01KS609AFC6C4JG1FRW5QAEFJQ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "button.conservatory_light_identify",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "identify",
+      "friendly_name": "Conservatory light Identify"
+    },
+    "last_changed": "2026-05-21T19:30:34.604843+00:00",
+    "last_reported": "2026-05-21T19:30:34.604843+00:00",
+    "last_updated": "2026-05-21T19:30:34.604843+00:00",
+    "context": {
+      "id": "01KS609AFC68QB6JBZ2MCRJ6N8",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.conservatory_light",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 1500,
+      "max_color_temp_kelvin": 9000,
+      "min_mireds": 111,
+      "max_mireds": 666,
+      "effect_list": [
+        "effect_colorloop",
+        "effect_pulse",
+        "effect_stop"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": null,
+      "color_mode": "color_temp",
+      "brightness": 255,
+      "color_temp_kelvin": 6500,
+      "color_temp": 153,
+      "hs_color": [
+        49.231,
+        1.944
+      ],
+      "rgb_color": [
+        255,
+        254,
+        250
+      ],
+      "xy_color": [
+        0.326,
+        0.333
+      ],
+      "friendly_name": "Conservatory light",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.187412+00:00",
+    "last_reported": "2026-06-09T02:32:51.518258+00:00",
+    "last_updated": "2026-06-09T02:32:51.518258+00:00",
+    "context": {
+      "id": "01KTN3KF7FCWBHAEPQVCPHD35F",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "button.lounge_light_restart",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "restart",
+      "friendly_name": "Lounge light Restart"
+    },
+    "last_changed": "2026-05-21T19:30:34.608510+00:00",
+    "last_reported": "2026-05-21T19:30:34.608510+00:00",
+    "last_updated": "2026-05-21T19:30:34.608510+00:00",
+    "context": {
+      "id": "01KS609AFGJP4WCZZBZ44V5GAA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "button.lounge_light_identify",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "identify",
+      "friendly_name": "Lounge light Identify"
+    },
+    "last_changed": "2026-05-21T19:30:34.608655+00:00",
+    "last_reported": "2026-05-21T19:30:34.608655+00:00",
+    "last_updated": "2026-05-21T19:30:34.608655+00:00",
+    "context": {
+      "id": "01KS609AFG93QY6EJ4YHVA3X7B",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.lounge_light",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 1500,
+      "max_color_temp_kelvin": 9000,
+      "min_mireds": 111,
+      "max_mireds": 666,
+      "effect_list": [
+        "effect_colorloop",
+        "effect_pulse",
+        "effect_stop"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": null,
+      "color_mode": "color_temp",
+      "brightness": 153,
+      "color_temp_kelvin": 1500,
+      "color_temp": 666,
+      "hs_color": [
+        25.471,
+        100
+      ],
+      "rgb_color": [
+        255,
+        108,
+        0
+      ],
+      "xy_color": [
+        0.635,
+        0.355
+      ],
+      "friendly_name": "Lounge light",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.185534+00:00",
+    "last_reported": "2026-06-09T05:13:04.869873+00:00",
+    "last_updated": "2026-06-09T05:13:04.869873+00:00",
+    "context": {
+      "id": "01KTNCRV8VV502TE87XE1E3D55",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "button.bedroom_light_restart",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "restart",
+      "friendly_name": "Bedroom light Restart"
+    },
+    "last_changed": "2026-05-21T19:30:34.609870+00:00",
+    "last_reported": "2026-05-21T19:30:34.609870+00:00",
+    "last_updated": "2026-05-21T19:30:34.609870+00:00",
+    "context": {
+      "id": "01KS609AFHMRZ1KTH8GT2THJ1X",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "button.bedroom_light_identify",
+    "state": "unknown",
+    "attributes": {
+      "device_class": "identify",
+      "friendly_name": "Bedroom light Identify"
+    },
+    "last_changed": "2026-05-21T19:30:34.610000+00:00",
+    "last_reported": "2026-05-21T19:30:34.610000+00:00",
+    "last_updated": "2026-05-21T19:30:34.610000+00:00",
+    "context": {
+      "id": "01KS609AFHPHXQKGVA49YAKXD5",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.bedroom_light",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 1500,
+      "max_color_temp_kelvin": 9000,
+      "min_mireds": 111,
+      "max_mireds": 666,
+      "effect_list": [
+        "effect_colorloop",
+        "effect_pulse",
+        "effect_stop"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": null,
+      "color_mode": "color_temp",
+      "brightness": 153,
+      "color_temp_kelvin": 1500,
+      "color_temp": 666,
+      "hs_color": [
+        25.471,
+        100
+      ],
+      "rgb_color": [
+        255,
+        108,
+        0
+      ],
+      "xy_color": [
+        0.635,
+        0.355
+      ],
+      "friendly_name": "Bedroom light",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.190328+00:00",
+    "last_reported": "2026-06-09T05:13:04.875672+00:00",
+    "last_updated": "2026-06-09T05:13:04.875672+00:00",
+    "context": {
+      "id": "01KTNCRV8VERHEQ7ABTPGXZE82",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "weather.forecast_home",
+    "state": "partlycloudy",
+    "attributes": {
+      "temperature": 14.1,
+      "dew_point": 8.6,
+      "temperature_unit": "°C",
+      "humidity": 69,
+      "cloud_coverage": 19.5,
+      "uv_index": 0,
+      "pressure": 1025.3,
+      "pressure_unit": "hPa",
+      "wind_bearing": 192.4,
+      "wind_speed": 32,
+      "wind_speed_unit": "km/h",
+      "visibility_unit": "km",
+      "precipitation_unit": "mm",
+      "attribution": "Weather forecast from met.no, delivered by the Norwegian Meteorological Institute.",
+      "friendly_name": "Climate",
+      "supported_features": 3
+    },
+    "last_changed": "2026-06-09T01:36:02.496121+00:00",
+    "last_reported": "2026-06-09T05:28:06.732400+00:00",
+    "last_updated": "2026-06-09T05:28:06.732400+00:00",
+    "context": {
+      "id": "01KTNDMCACVPZM4S1E59QYQ93C",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "climate.c6780cad",
+    "state": "off",
+    "attributes": {
+      "hvac_modes": [
+        "auto",
+        "cool",
+        "dry",
+        "fan_only",
+        "heat",
+        "off"
+      ],
+      "min_temp": 8,
+      "max_temp": 30,
+      "target_temp_step": 1,
+      "fan_modes": [
+        "auto",
+        "low",
+        "medium low",
+        "medium",
+        "medium high",
+        "high"
+      ],
+      "preset_modes": [
+        "eco",
+        "away",
+        "boost",
+        "none",
+        "sleep"
+      ],
+      "swing_modes": [
+        "off",
+        "vertical",
+        "horizontal",
+        "both"
+      ],
+      "current_temperature": 25,
+      "temperature": 22,
+      "fan_mode": "low",
+      "preset_mode": "none",
+      "swing_mode": "vertical",
+      "friendly_name": "Air Conditioner",
+      "supported_features": 441
+    },
+    "last_changed": "2026-06-09T04:22:11.384290+00:00",
+    "last_reported": "2026-06-09T04:49:07.388223+00:00",
+    "last_updated": "2026-06-09T04:49:07.388223+00:00",
+    "context": {
+      "id": "01KTNBCZSWZCKY1QZNKQ762M5Q",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.c6780cad_panel_light",
+    "state": "on",
+    "attributes": {
+      "device_class": "switch",
+      "friendly_name": "Air Conditioner Panel light"
+    },
+    "last_changed": "2026-06-06T11:04:20.174496+00:00",
+    "last_reported": "2026-06-06T11:04:20.174496+00:00",
+    "last_updated": "2026-06-06T11:04:20.174496+00:00",
+    "context": {
+      "id": "01KTE9NVY5J22P713GRBVP1TK6",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "switch.c6780cad_quiet_mode",
+    "state": "on",
+    "attributes": {
+      "device_class": "switch",
+      "friendly_name": "Air Conditioner Quiet mode"
+    },
+    "last_changed": "2026-06-09T01:59:36.418489+00:00",
+    "last_reported": "2026-06-09T01:59:36.418489+00:00",
+    "last_updated": "2026-06-09T01:59:36.418489+00:00",
+    "context": {
+      "id": "01KTN1PK71FK3BG9DCGHBSZY51",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "switch.c6780cad_fresh_air",
+    "state": "off",
+    "attributes": {
+      "device_class": "switch",
+      "friendly_name": "Air Conditioner Fresh air"
+    },
+    "last_changed": "2026-06-08T06:19:05.386764+00:00",
+    "last_reported": "2026-06-08T06:19:05.386764+00:00",
+    "last_updated": "2026-06-08T06:19:05.386764+00:00",
+    "context": {
+      "id": "01KTJY509893BJN60YJ35W6AWK",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "switch.c6780cad_xtra_fan",
+    "state": "off",
+    "attributes": {
+      "device_class": "switch",
+      "friendly_name": "Air Conditioner Xtra fan"
+    },
+    "last_changed": "2026-06-01T21:55:46.978310+00:00",
+    "last_reported": "2026-06-01T21:55:46.978310+00:00",
+    "last_updated": "2026-06-01T21:55:46.978310+00:00",
+    "context": {
+      "id": "01KT2JZ3MF0W8ARWJSRHG13TMN",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "todo.shopping_list",
+    "state": "0",
+    "attributes": {
+      "friendly_name": "Shopping List",
+      "supported_features": 15
+    },
+    "last_changed": "2026-05-21T19:30:34.634960+00:00",
+    "last_reported": "2026-05-21T19:30:34.634960+00:00",
+    "last_updated": "2026-05-21T19:30:34.634960+00:00",
+    "context": {
+      "id": "01KS609AGAN0PM0HXAEY5X90BQ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "media_player.kitchen_speaker",
+    "state": "off",
+    "attributes": {
+      "device_class": "speaker",
+      "friendly_name": "Kitchen speaker",
+      "supported_features": 152461
+    },
+    "last_changed": "2026-06-08T14:29:40.808824+00:00",
+    "last_reported": "2026-06-08T14:29:40.808824+00:00",
+    "last_updated": "2026-06-08T14:29:40.808824+00:00",
+    "context": {
+      "id": "01KTKT79T8A05K8WTXXNE3FKHG",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "media_player.lounge_display",
+    "state": "off",
+    "attributes": {
+      "friendly_name": "Lounge Display",
+      "supported_features": 152461
+    },
+    "last_changed": "2026-06-08T14:52:38.563602+00:00",
+    "last_reported": "2026-06-08T14:52:38.563602+00:00",
+    "last_updated": "2026-06-08T14:52:38.563602+00:00",
+    "context": {
+      "id": "01KTKVHB93PFYFGEB0DT1SCDC8",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "lock.cupboard_child_lock",
+    "state": "unknown",
+    "attributes": {
+      "friendly_name": "Cupboard Child lock",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-05T00:56:28.830551+00:00",
+    "last_reported": "2026-06-05T00:56:28.830551+00:00",
+    "last_updated": "2026-06-05T00:56:28.830551+00:00",
+    "context": {
+      "id": "01KTAMG4CYRVSBYNRCK956CYG5",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.cupboard_problem",
+    "state": "off",
+    "attributes": {
+      "fault_code": 0,
+      "device_class": "problem",
+      "friendly_name": "Cupboard Problem"
+    },
+    "last_changed": "2026-06-05T00:56:28.830829+00:00",
+    "last_reported": "2026-06-07T23:55:04.168872+00:00",
+    "last_updated": "2026-06-07T23:55:04.168872+00:00",
+    "context": {
+      "id": "01KTJ85V38EJ5CHDF0HVPESF6E",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "time.cupboard_timer_1",
+    "state": "00:00:00",
+    "attributes": {
+      "friendly_name": "Cupboard Timer 1"
+    },
+    "last_changed": "2026-06-05T00:56:28.830987+00:00",
+    "last_reported": "2026-06-05T00:56:28.830987+00:00",
+    "last_updated": "2026-06-05T00:56:28.830987+00:00",
+    "context": {
+      "id": "01KTAMG4CYARXT4M88J7CE4AFQ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "time.cupboard_timer_2",
+    "state": "00:00:00",
+    "attributes": {
+      "friendly_name": "Cupboard Timer 2"
+    },
+    "last_changed": "2026-06-05T00:56:28.831177+00:00",
+    "last_reported": "2026-06-05T00:56:28.831177+00:00",
+    "last_updated": "2026-06-05T00:56:28.831177+00:00",
+    "context": {
+      "id": "01KTAMG4CZ26Z6MTQ3BPK0Z7SG",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.cupboard_initial_state",
+    "state": "off",
+    "attributes": {
+      "options": [
+        "on",
+        "off",
+        "memory"
+      ],
+      "friendly_name": "Cupboard Initial state"
+    },
+    "last_changed": "2026-06-05T00:56:28.831396+00:00",
+    "last_reported": "2026-06-05T00:56:28.831396+00:00",
+    "last_updated": "2026-06-05T00:56:28.831396+00:00",
+    "context": {
+      "id": "01KTAMG4CZTEPAGN4VR2J5E8E3",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.cupboard_current_2",
+    "state": "207",
+    "attributes": {
+      "state_class": "measurement",
+      "calibration": 12974,
+      "unit_of_measurement": "mA",
+      "device_class": "current",
+      "friendly_name": "Cupboard Current"
+    },
+    "last_changed": "2026-06-09T05:47:59.371984+00:00",
+    "last_reported": "2026-06-09T05:47:59.371984+00:00",
+    "last_updated": "2026-06-09T05:47:59.371984+00:00",
+    "context": {
+      "id": "01KTNERS0BQFPSEWRB46R6SHA0",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.cupboard_power_2",
+    "state": "25.5",
+    "attributes": {
+      "state_class": "measurement",
+      "calibration": 6796,
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Cupboard Power"
+    },
+    "last_changed": "2026-06-09T04:47:58.827371+00:00",
+    "last_reported": "2026-06-09T04:47:58.827371+00:00",
+    "last_updated": "2026-06-09T04:47:58.827371+00:00",
+    "context": {
+      "id": "01KTNBAWVB43AXJYMGZS16JSVA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.cupboard_voltage_2",
+    "state": "238.0",
+    "attributes": {
+      "state_class": "measurement",
+      "calibration": 542,
+      "unit_of_measurement": "V",
+      "device_class": "voltage",
+      "friendly_name": "Cupboard Voltage"
+    },
+    "last_changed": "2026-06-09T05:47:59.372444+00:00",
+    "last_reported": "2026-06-09T05:47:59.372444+00:00",
+    "last_updated": "2026-06-09T05:47:59.372444+00:00",
+    "context": {
+      "id": "01KTNERS0CYX3E8QV0B585YNYB",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.cupboard_outlet_1",
+    "state": "on",
+    "attributes": {
+      "add_ele": 13,
+      "factory_test": 1,
+      "ele_calibration": 6130,
+      "device_class": "outlet",
+      "friendly_name": "Cupboard Outlet 1"
+    },
+    "last_changed": "2026-06-09T01:47:24.228763+00:00",
+    "last_reported": "2026-06-09T04:37:46.268664+00:00",
+    "last_updated": "2026-06-09T04:37:46.268664+00:00",
+    "context": {
+      "id": "01KTNAR6MW667BPZ0AH66WX16W",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.cupboard_outlet_2",
+    "state": "off",
+    "attributes": {
+      "device_class": "outlet",
+      "friendly_name": "Cupboard Outlet 2"
+    },
+    "last_changed": "2026-06-05T00:56:28.832640+00:00",
+    "last_reported": "2026-06-05T00:56:28.832640+00:00",
+    "last_updated": "2026-06-05T00:56:28.832640+00:00",
+    "context": {
+      "id": "01KTAMG4D04NWH45G3GFMP6REA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "media_player.bedroom_speaker",
+    "state": "off",
+    "attributes": {
+      "device_class": "speaker",
+      "friendly_name": "Bedroom speaker",
+      "supported_features": 152461
+    },
+    "last_changed": "2026-06-08T23:37:59.939410+00:00",
+    "last_reported": "2026-06-08T23:37:59.939410+00:00",
+    "last_updated": "2026-06-08T23:37:59.939410+00:00",
+    "context": {
+      "id": "01KTMSK9W3RDF8JC4BYBA9T2XD",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.iridium_assistant",
+    "state": "Nova",
+    "attributes": {
+      "options": [
+        "preferred",
+        "Nova"
+      ],
+      "friendly_name": "Iridium Assistant"
+    },
+    "last_changed": "2026-05-21T19:30:34.716759+00:00",
+    "last_reported": "2026-05-21T19:30:34.716759+00:00",
+    "last_updated": "2026-05-21T19:30:34.716759+00:00",
+    "context": {
+      "id": "01KS609AJWRAKZCQD1DC7KQ0X4",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.iridium_assistant_2",
+    "state": "Nova",
+    "attributes": {
+      "options": [
+        "preferred",
+        "Nova"
+      ],
+      "friendly_name": "Iridium Assistant 2"
+    },
+    "last_changed": "2026-05-21T19:30:34.716922+00:00",
+    "last_reported": "2026-05-21T19:30:34.716922+00:00",
+    "last_updated": "2026-05-21T19:30:34.716922+00:00",
+    "context": {
+      "id": "01KS609AJWHKP2ZN4VE4G37KXA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.iridium_finished_speaking_detection",
+    "state": "relaxed",
+    "attributes": {
+      "options": [
+        "default",
+        "relaxed",
+        "aggressive"
+      ],
+      "friendly_name": "Iridium Finished speaking detection"
+    },
+    "last_changed": "2026-05-21T19:30:34.717082+00:00",
+    "last_reported": "2026-05-21T19:30:34.717082+00:00",
+    "last_updated": "2026-05-21T19:30:34.717082+00:00",
+    "context": {
+      "id": "01KS609AJX56DZ4NNVKHT15RRP",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.iridium_wake_word",
+    "state": "Hey Nova",
+    "attributes": {
+      "options": [
+        "no_wake_word",
+        "Alexa",
+        "Choo Choo Homie",
+        "Hey Home Assistant",
+        "Hey Jarvis",
+        "Hey Mycroft",
+        "Hey Nova",
+        "Okay Computer",
+        "Okay Nabu",
+        "hey_luna"
+      ],
+      "friendly_name": "Iridium Wake word"
+    },
+    "last_changed": "2026-05-21T19:30:34.760382+00:00",
+    "last_reported": "2026-05-21T19:30:34.760219+00:00",
+    "last_updated": "2026-05-21T19:30:34.760382+00:00",
+    "context": {
+      "id": "01KS609AM8C9195NTRXEWQVJPJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.iridium_wake_word_2",
+    "state": "no_wake_word",
+    "attributes": {
+      "options": [
+        "no_wake_word",
+        "Alexa",
+        "Choo Choo Homie",
+        "Hey Home Assistant",
+        "Hey Jarvis",
+        "Hey Mycroft",
+        "Hey Nova",
+        "Okay Computer",
+        "Okay Nabu",
+        "hey_luna"
+      ],
+      "friendly_name": "Iridium Wake word 2"
+    },
+    "last_changed": "2026-05-21T19:30:34.760570+00:00",
+    "last_reported": "2026-05-21T19:30:34.760485+00:00",
+    "last_updated": "2026-05-21T19:30:34.760570+00:00",
+    "context": {
+      "id": "01KS609AM8F5CA0HPHV2SCA5F7",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "media_player.iridium_media_player",
+    "state": "idle",
+    "attributes": {
+      "volume_level": 1,
+      "is_volume_muted": false,
+      "device_class": "speaker",
+      "friendly_name": "Iridium Media Player",
+      "supported_features": 1200653
+    },
+    "last_changed": "2026-05-21T19:30:34.762479+00:00",
+    "last_reported": "2026-05-21T19:30:34.762479+00:00",
+    "last_updated": "2026-05-21T19:30:34.762479+00:00",
+    "context": {
+      "id": "01KS609AMAAR32Z2N8294PSKVS",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.iridium_mic_noise_suppression",
+    "state": "Off",
+    "attributes": {
+      "options": [
+        "Off",
+        "Low",
+        "Medium",
+        "High",
+        "Max"
+      ],
+      "icon": "mdi:waveform",
+      "friendly_name": "Iridium Mic Noise Suppression"
+    },
+    "last_changed": "2026-05-21T19:30:34.763023+00:00",
+    "last_reported": "2026-05-21T19:30:34.763023+00:00",
+    "last_updated": "2026-05-21T19:30:34.763023+00:00",
+    "context": {
+      "id": "01KS609AMBZDWHAHJMW0WGXV4D",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.iridium_mute",
+    "state": "off",
+    "attributes": {
+      "icon": "mdi:microphone-off",
+      "friendly_name": "Iridium Mute"
+    },
+    "last_changed": "2026-06-01T22:01:27.399513+00:00",
+    "last_reported": "2026-06-01T22:01:27.399513+00:00",
+    "last_updated": "2026-06-01T22:01:27.399513+00:00",
+    "context": {
+      "id": "01KT2K9G2WB7T1AZ0P4BGHQCRX",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "switch.iridium_thinking_sound",
+    "state": "off",
+    "attributes": {
+      "icon": "mdi:music-note",
+      "friendly_name": "Iridium Thinking Sound"
+    },
+    "last_changed": "2026-06-01T22:01:27.399860+00:00",
+    "last_reported": "2026-06-01T22:01:27.399860+00:00",
+    "last_updated": "2026-06-01T22:01:27.399860+00:00",
+    "context": {
+      "id": "01KT2K9G2W26T010FYVS8B7ERZ",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "number.iridium_wake_word_1_sensitivity",
+    "state": "0.7",
+    "attributes": {
+      "min": 0,
+      "max": 1,
+      "step": 0.001,
+      "mode": "box",
+      "friendly_name": "Iridium Wake Word 1 Sensitivity"
+    },
+    "last_changed": "2026-05-21T19:30:34.762765+00:00",
+    "last_reported": "2026-05-21T19:30:34.762765+00:00",
+    "last_updated": "2026-05-21T19:30:34.762765+00:00",
+    "context": {
+      "id": "01KS609AMA4MCC8Y289X5H62RK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.iridium_wake_word_2_sensitivity",
+    "state": "0.7",
+    "attributes": {
+      "min": 0,
+      "max": 1,
+      "step": 0.001,
+      "mode": "box",
+      "friendly_name": "Iridium Wake Word 2 Sensitivity"
+    },
+    "last_changed": "2026-05-21T19:30:34.762831+00:00",
+    "last_reported": "2026-05-21T19:30:34.762831+00:00",
+    "last_updated": "2026-05-21T19:30:34.762831+00:00",
+    "context": {
+      "id": "01KS609AMAZSWX4NC9F6R9BEFS",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.iridium_stop_word_sensitivity",
+    "state": "0.5",
+    "attributes": {
+      "min": 0,
+      "max": 1,
+      "step": 0.001,
+      "mode": "box",
+      "icon": "mdi:hand-back-left",
+      "friendly_name": "Iridium Stop Word Sensitivity"
+    },
+    "last_changed": "2026-05-21T19:30:34.762885+00:00",
+    "last_reported": "2026-05-21T19:30:34.762885+00:00",
+    "last_updated": "2026-05-21T19:30:34.762885+00:00",
+    "context": {
+      "id": "01KS609AMARP80GGNR4H0M841Z",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.iridium_mic_auto_gain",
+    "state": "0.0",
+    "attributes": {
+      "min": 0,
+      "max": 31,
+      "step": 1,
+      "mode": "auto",
+      "icon": "mdi:microphone-plus",
+      "friendly_name": "Iridium Mic Auto Gain"
+    },
+    "last_changed": "2026-05-21T19:30:34.762935+00:00",
+    "last_reported": "2026-05-21T19:30:34.762935+00:00",
+    "last_updated": "2026-05-21T19:30:34.762935+00:00",
+    "context": {
+      "id": "01KS609AMA5DCEFZWZ1NEARSCT",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.iridium_mic_volume",
+    "state": "100.0",
+    "attributes": {
+      "min": 1,
+      "max": 100,
+      "step": 1,
+      "mode": "auto",
+      "icon": "mdi:microphone-settings",
+      "friendly_name": "Iridium Mic Volume"
+    },
+    "last_changed": "2026-05-21T19:30:34.763086+00:00",
+    "last_reported": "2026-05-21T19:30:34.763086+00:00",
+    "last_updated": "2026-05-21T19:30:34.763086+00:00",
+    "context": {
+      "id": "01KS609AMBH83VMMG5RV8YPPEA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "assist_satellite.iridium_assist_satellite",
+    "state": "idle",
+    "attributes": {
+      "friendly_name": "Iridium voice assist satellite",
+      "supported_features": 3
+    },
+    "last_changed": "2026-05-21T19:30:34.760816+00:00",
+    "last_reported": "2026-05-21T19:30:34.760722+00:00",
+    "last_updated": "2026-05-21T19:30:34.760816+00:00",
+    "context": {
+      "id": "01KS609AM8A8GCSCYRQMM55454",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "time.panel_heater_timer",
+    "state": "00:00:00",
+    "attributes": {
+      "friendly_name": "Panel Heater Timer"
+    },
+    "last_changed": "2026-06-04T13:39:29.169520+00:00",
+    "last_reported": "2026-06-04T13:39:29.169520+00:00",
+    "last_updated": "2026-06-04T13:39:29.169520+00:00",
+    "context": {
+      "id": "01KT9DRGRHD3K6X7N8V0G2HTED",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "lock.panel_heater_child_lock",
+    "state": "unlocked",
+    "attributes": {
+      "friendly_name": "Panel Heater Child lock",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-04T13:39:29.169699+00:00",
+    "last_reported": "2026-06-04T13:39:29.169699+00:00",
+    "last_updated": "2026-06-04T13:39:29.169699+00:00",
+    "context": {
+      "id": "01KT9DRGRHEBBMH84S6M91FC93",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "climate.panel_heater_2",
+    "state": "off",
+    "attributes": {
+      "hvac_modes": [
+        "off",
+        "heat"
+      ],
+      "min_temp": 5,
+      "max_temp": 40,
+      "target_temp_step": 1,
+      "preset_modes": [
+        "eco",
+        "boost"
+      ],
+      "current_temperature": 20,
+      "temperature": 21,
+      "preset_mode": "boost",
+      "friendly_name": "Panel Heater",
+      "supported_features": 401
+    },
+    "last_changed": "2026-06-08T16:02:37.518952+00:00",
+    "last_reported": "2026-06-09T02:10:08.227187+00:00",
+    "last_updated": "2026-06-09T02:10:08.227187+00:00",
+    "context": {
+      "id": "01KTN29W73REZF0AKG9DEXP6D1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.hallway_2_cloud_connection",
+    "state": "on",
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Hallway 2 Cloud connection"
+    },
+    "last_changed": "2026-06-06T13:21:02.095521+00:00",
+    "last_reported": "2026-06-06T13:21:02.095521+00:00",
+    "last_updated": "2026-06-06T13:21:02.095521+00:00",
+    "context": {
+      "id": "01KTEHG5MF9FBYYAAHZSBGA6HK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.hallway_2_overheated",
+    "state": "off",
+    "attributes": {
+      "device_class": "problem",
+      "friendly_name": "Hallway 2 Overheated"
+    },
+    "last_changed": "2026-06-06T13:21:02.095685+00:00",
+    "last_reported": "2026-06-06T13:21:02.095685+00:00",
+    "last_updated": "2026-06-06T13:21:02.095685+00:00",
+    "context": {
+      "id": "01KTEHG5MF7P4ZX6GBYWB41806",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.hallway_2",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 2500,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 400,
+      "effect_list": [
+        "Off",
+        "Party",
+        "Relax"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": "off",
+      "color_mode": "color_temp",
+      "brightness": 153,
+      "color_temp_kelvin": 2500,
+      "color_temp": 400,
+      "hs_color": [
+        28.874,
+        72.522
+      ],
+      "rgb_color": [
+        255,
+        159,
+        70
+      ],
+      "xy_color": [
+        0.546,
+        0.389
+      ],
+      "friendly_name": "Hallway 2",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.405566+00:00",
+    "last_reported": "2026-06-09T05:13:05.154282+00:00",
+    "last_updated": "2026-06-09T05:13:05.154282+00:00",
+    "context": {
+      "id": "01KTNCRV8VQ3SEA604P78TS79B",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "number.hallway_2_smooth_on",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Hallway 2 Smooth on"
+    },
+    "last_changed": "2026-06-06T13:21:02.096050+00:00",
+    "last_reported": "2026-06-06T13:21:02.096050+00:00",
+    "last_updated": "2026-06-06T13:21:02.096050+00:00",
+    "context": {
+      "id": "01KTEHG5MGERNM0R00Z9J7DTQP",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.hallway_2_smooth_off",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Hallway 2 Smooth off"
+    },
+    "last_changed": "2026-06-06T13:21:02.096121+00:00",
+    "last_reported": "2026-06-06T13:21:02.096121+00:00",
+    "last_updated": "2026-06-06T13:21:02.096121+00:00",
+    "context": {
+      "id": "01KTEHG5MGE7PM1T28ED7VWGY4",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.hallway_2_light_preset",
+    "state": "Not set",
+    "attributes": {
+      "options": [
+        "Not set",
+        "Light preset 1",
+        "Light preset 2",
+        "Light preset 3",
+        "Light preset 4",
+        "Light preset 5",
+        "Light preset 6",
+        "Light preset 7"
+      ],
+      "friendly_name": "Hallway 2 Light preset"
+    },
+    "last_changed": "2026-06-06T13:21:02.096210+00:00",
+    "last_reported": "2026-06-06T13:21:02.096210+00:00",
+    "last_updated": "2026-06-06T13:21:02.096210+00:00",
+    "context": {
+      "id": "01KTEHG5MGZ86AS5JW6YE0Z2J8",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.hallway_2_signal_level",
+    "state": "3",
+    "attributes": {
+      "state_class": "measurement",
+      "friendly_name": "Hallway 2 Signal level"
+    },
+    "last_changed": "2026-06-06T13:21:02.096301+00:00",
+    "last_reported": "2026-06-06T13:21:02.096301+00:00",
+    "last_updated": "2026-06-06T13:21:02.096301+00:00",
+    "context": {
+      "id": "01KTEHG5MGJ8T113WJ9B4CTXQ1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.hallway_2_auto_update_enabled",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Hallway 2 Auto-update enabled"
+    },
+    "last_changed": "2026-06-06T13:21:02.096381+00:00",
+    "last_reported": "2026-06-06T13:21:02.096381+00:00",
+    "last_updated": "2026-06-06T13:21:02.096381+00:00",
+    "context": {
+      "id": "01KTEHG5MG06HWHYADY6K289N6",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.kitchen_light_1_cloud_connection",
+    "state": "on",
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Kitchen light 1 Cloud connection"
+    },
+    "last_changed": "2026-05-31T12:11:30.703066+00:00",
+    "last_reported": "2026-05-31T12:11:30.703066+00:00",
+    "last_updated": "2026-05-31T12:11:30.703066+00:00",
+    "context": {
+      "id": "01KSYZ4J0FE44SRDQRYDTHXSPE",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.kitchen_light_1_overheated",
+    "state": "off",
+    "attributes": {
+      "device_class": "problem",
+      "friendly_name": "Kitchen light 1 Overheated"
+    },
+    "last_changed": "2026-05-31T12:10:35.746933+00:00",
+    "last_reported": "2026-05-31T12:10:35.746933+00:00",
+    "last_updated": "2026-05-31T12:10:35.746933+00:00",
+    "context": {
+      "id": "01KSYZ2WB25417HBS0A09DCH55",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.kitchen_light_1",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 2500,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 400,
+      "effect_list": [
+        "Off",
+        "Party",
+        "Relax"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": "off",
+      "color_mode": "color_temp",
+      "brightness": 153,
+      "color_temp_kelvin": 2500,
+      "color_temp": 400,
+      "hs_color": [
+        28.874,
+        72.522
+      ],
+      "rgb_color": [
+        255,
+        159,
+        70
+      ],
+      "xy_color": [
+        0.546,
+        0.389
+      ],
+      "friendly_name": "Kitchen light 1",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.448142+00:00",
+    "last_reported": "2026-06-09T05:13:05.095153+00:00",
+    "last_updated": "2026-06-09T05:13:05.095153+00:00",
+    "context": {
+      "id": "01KTNCRV8VXJE27011AJ1M1P47",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "number.kitchen_light_1_smooth_on",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Kitchen light 1 Smooth on"
+    },
+    "last_changed": "2026-05-31T12:10:35.747460+00:00",
+    "last_reported": "2026-05-31T12:10:35.747460+00:00",
+    "last_updated": "2026-05-31T12:10:35.747460+00:00",
+    "context": {
+      "id": "01KSYZ2WB36X8F0PYEFTV4W0EK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.kitchen_light_1_smooth_off",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Kitchen light 1 Smooth off"
+    },
+    "last_changed": "2026-05-31T12:10:35.747576+00:00",
+    "last_reported": "2026-05-31T12:10:35.747576+00:00",
+    "last_updated": "2026-05-31T12:10:35.747576+00:00",
+    "context": {
+      "id": "01KSYZ2WB3YN58PTZE0SEJ8NFW",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.kitchen_light_1_light_preset",
+    "state": "Not set",
+    "attributes": {
+      "options": [
+        "Not set",
+        "Light preset 1",
+        "Light preset 2",
+        "Light preset 3",
+        "Light preset 4",
+        "Light preset 5",
+        "Light preset 6",
+        "Light preset 7"
+      ],
+      "friendly_name": "Kitchen light 1 Light preset"
+    },
+    "last_changed": "2026-05-31T12:10:35.747734+00:00",
+    "last_reported": "2026-05-31T12:10:35.747734+00:00",
+    "last_updated": "2026-05-31T12:10:35.747734+00:00",
+    "context": {
+      "id": "01KSYZ2WB3P7VP9WQWJ5KSFJ3A",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.kitchen_light_1_signal_level",
+    "state": "3",
+    "attributes": {
+      "state_class": "measurement",
+      "friendly_name": "Kitchen light 1 Signal level"
+    },
+    "last_changed": "2026-05-31T12:10:35.747883+00:00",
+    "last_reported": "2026-05-31T12:10:35.747883+00:00",
+    "last_updated": "2026-05-31T12:10:35.747883+00:00",
+    "context": {
+      "id": "01KSYZ2WB3N3YXW2GMKE1HEAJA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.kitchen_light_1_auto_update_enabled",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Kitchen light 1 Auto-update enabled"
+    },
+    "last_changed": "2026-05-31T12:10:35.747992+00:00",
+    "last_reported": "2026-05-31T12:10:35.747992+00:00",
+    "last_updated": "2026-05-31T12:10:35.747992+00:00",
+    "context": {
+      "id": "01KSYZ2WB35S5HD4EAZYRTCMNJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.nx620v_wan_status",
+    "state": "on",
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "NX620v WAN status"
+    },
+    "last_changed": "2026-05-21T19:30:34.910783+00:00",
+    "last_reported": "2026-05-21T21:44:34.689509+00:00",
+    "last_updated": "2026-05-21T19:30:34.910783+00:00",
+    "context": {
+      "id": "01KS609ARYBMA15P7NK7PPT78T",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nx620v_external_ip",
+    "state": "100.66.24.250",
+    "attributes": {
+      "friendly_name": "NX620v External IP"
+    },
+    "last_changed": "2026-05-21T19:30:34.911941+00:00",
+    "last_reported": "2026-05-21T21:44:34.689630+00:00",
+    "last_updated": "2026-05-21T19:30:34.911941+00:00",
+    "context": {
+      "id": "01KS609ARZ4RNDRVV2QGM9A8QP",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nx620v_download_speed",
+    "state": "7.42942401604448",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "MB/s",
+      "device_class": "data_rate",
+      "friendly_name": "NX620v Download speed"
+    },
+    "last_changed": "2026-06-09T05:59:34.749226+00:00",
+    "last_reported": "2026-06-09T05:59:34.749226+00:00",
+    "last_updated": "2026-06-09T05:59:34.749226+00:00",
+    "context": {
+      "id": "01KTNFE02XEDY4XW39DJ0H6V68",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nx620v_upload_speed",
+    "state": "0.105101190839092",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "MB/s",
+      "device_class": "data_rate",
+      "friendly_name": "NX620v Upload speed"
+    },
+    "last_changed": "2026-06-09T05:59:34.749458+00:00",
+    "last_reported": "2026-06-09T05:59:34.749458+00:00",
+    "last_updated": "2026-06-09T05:59:34.749458+00:00",
+    "context": {
+      "id": "01KTNFE02X49M01R442VDKPW23",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_mirror_light",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 153,
+      "friendly_name": "Mirror light Mirror light",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T01:47:24.365389+00:00",
+    "last_reported": "2026-06-09T05:13:04.947052+00:00",
+    "last_updated": "2026-06-09T05:13:04.947052+00:00",
+    "context": {
+      "id": "01KTNCRV91HZHVA38XXGB4BX33",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_outside_light",
+    "state": "off",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": null,
+      "brightness": null,
+      "friendly_name": "Outside light Outside light",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T02:38:17.055219+00:00",
+    "last_reported": "2026-06-09T02:38:17.055219+00:00",
+    "last_updated": "2026-06-09T02:38:17.055219+00:00",
+    "context": {
+      "id": "01KTN3XDEZN842R6QJ475D5TK4",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_nook_light",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 153,
+      "friendly_name": "Nook light Nook light",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T01:47:24.702407+00:00",
+    "last_reported": "2026-06-09T05:13:04.954508+00:00",
+    "last_updated": "2026-06-09T05:13:04.954508+00:00",
+    "context": {
+      "id": "01KTNCRV917XPZRBFAVZRMW0CQ",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_hallway_light",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 153,
+      "friendly_name": "Hallway light Hallway light",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T01:47:24.703545+00:00",
+    "last_reported": "2026-06-09T05:13:05.340891+00:00",
+    "last_updated": "2026-06-09T05:13:05.340891+00:00",
+    "context": {
+      "id": "01KTNCRV921QPJ06WQA0C99WWZ",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_tv_light",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 153,
+      "friendly_name": "TV light TV light",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T01:47:25.175046+00:00",
+    "last_reported": "2026-06-09T05:13:05.347649+00:00",
+    "last_updated": "2026-06-09T05:13:05.347649+00:00",
+    "context": {
+      "id": "01KTNCRV92CAV83G7V3SED6R6D",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_kitchen_light_2",
+    "state": "off",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": null,
+      "brightness": null,
+      "friendly_name": "Kitchen light 2 Kitchen light 2",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T02:32:59.059509+00:00",
+    "last_reported": "2026-06-09T02:32:59.059509+00:00",
+    "last_updated": "2026-06-09T02:32:59.059509+00:00",
+    "context": {
+      "id": "01KTN3KPXKKXY2XC2JNCT1578K",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+    "state": "on",
+    "attributes": {
+      "supported_color_modes": [
+        "brightness"
+      ],
+      "color_mode": "brightness",
+      "brightness": 153,
+      "friendly_name": "Kitchen light 2 2 Kitchen light 2 2",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-09T01:47:25.569779+00:00",
+    "last_reported": "2026-06-09T05:13:05.727151+00:00",
+    "last_updated": "2026-06-09T05:13:05.727151+00:00",
+    "context": {
+      "id": "01KTNCRV922FH5WJHX185FB182",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+    "state": "22.3",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "°C",
+      "device_class": "temperature",
+      "friendly_name": "Lounge sensor Temperature"
+    },
+    "last_changed": "2026-06-09T05:52:16.900683+00:00",
+    "last_reported": "2026-06-09T05:52:16.900683+00:00",
+    "last_updated": "2026-06-09T05:52:16.900683+00:00",
+    "context": {
+      "id": "01KTNF0MG4MC59HYJMC2M660NP",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+    "state": "51",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "%",
+      "device_class": "humidity",
+      "friendly_name": "Lounge sensor Humidity"
+    },
+    "last_changed": "2026-06-09T04:32:47.338705+00:00",
+    "last_reported": "2026-06-09T04:32:47.338705+00:00",
+    "last_updated": "2026-06-09T04:32:47.338705+00:00",
+    "context": {
+      "id": "01KTNAF2QAYD55PR8CHGN08SEK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.tuya_mobile_lounge_sensor_battery",
+    "state": "40",
+    "attributes": {
+      "state_class": "measurement",
+      "unit_of_measurement": "%",
+      "device_class": "battery",
+      "friendly_name": "Lounge sensor Battery"
+    },
+    "last_changed": "2026-06-08T23:12:41.214839+00:00",
+    "last_reported": "2026-06-08T23:12:41.214839+00:00",
+    "last_updated": "2026-06-08T23:12:41.214839+00:00",
+    "context": {
+      "id": "01KTMR4YQY58X14GBQT2YM485M",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_neon_lights_estimated_power",
+    "state": "30.3",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "manual",
+      "entity_id": "light.cupboard_socket_1",
+      "kwh_total": 7.6938,
+      "rated_watts": 30,
+      "source": "User supplied: 0.03 kW",
+      "watts": 30.3,
+      "zone": "Lounge",
+      "aliases": [
+        "light.cupboard_socket_1",
+        "switch.cupboard_outlet_1",
+        "switch.cupboard_socket_1"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Neon Lights Neon Lights estimated power"
+    },
+    "last_changed": "2026-06-09T01:47:33.022498+00:00",
+    "last_reported": "2026-06-09T05:58:40.014568+00:00",
+    "last_updated": "2026-06-09T05:58:40.014568+00:00",
+    "context": {
+      "id": "01KTNFCAMESZCCRFRYC09YHK87",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_neon_lights_estimated_energy",
+    "state": "7.6938",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "manual",
+      "entity_id": "light.cupboard_socket_1",
+      "kwh_total": 7.6938,
+      "rated_watts": 30,
+      "source": "User supplied: 0.03 kW",
+      "watts": 30.3,
+      "zone": "Lounge",
+      "aliases": [
+        "light.cupboard_socket_1",
+        "switch.cupboard_outlet_1",
+        "switch.cupboard_socket_1"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Neon Lights Neon Lights estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.014483+00:00",
+    "last_reported": "2026-06-09T05:58:40.014483+00:00",
+    "last_updated": "2026-06-09T05:58:40.014483+00:00",
+    "context": {
+      "id": "01KTNFCAME7QC5PQYQD8P0ER1R",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_neon_lights_rated_power",
+    "state": "30",
+    "attributes": {
+      "confidence": "manual",
+      "entity_id": "light.cupboard_socket_1",
+      "kwh_total": 7.6938,
+      "rated_watts": 30,
+      "source": "User supplied: 0.03 kW",
+      "watts": 30.3,
+      "zone": "Lounge",
+      "aliases": [
+        "light.cupboard_socket_1",
+        "switch.cupboard_outlet_1",
+        "switch.cupboard_socket_1"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Neon Lights Neon Lights rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.869549+00:00",
+    "last_reported": "2026-06-09T05:58:40.014264+00:00",
+    "last_updated": "2026-06-09T05:58:40.014264+00:00",
+    "context": {
+      "id": "01KTNFCAME2Q1GYD77FEX4QFJ1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_lounge_lifx_estimated_power",
+    "state": "7.64",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.lounge_light",
+      "kwh_total": 2.8494,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 7.64,
+      "zone": "Lounge",
+      "aliases": [
+        "light.lounge_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Lounge light Lounge light estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.413212+00:00",
+    "last_reported": "2026-06-09T05:58:40.084949+00:00",
+    "last_updated": "2026-06-09T05:58:40.084949+00:00",
+    "context": {
+      "id": "01KTNFCAPM2370C9J73YF8TZCD",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_lounge_lifx_estimated_energy",
+    "state": "2.8494",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.lounge_light",
+      "kwh_total": 2.8494,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 7.64,
+      "zone": "Lounge",
+      "aliases": [
+        "light.lounge_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Lounge light Lounge light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.085286+00:00",
+    "last_reported": "2026-06-09T05:58:40.085286+00:00",
+    "last_updated": "2026-06-09T05:58:40.085286+00:00",
+    "context": {
+      "id": "01KTNFCAPNBT1H9QBX97RAV2D2",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_lounge_lifx_rated_power",
+    "state": "15.5",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.lounge_light",
+      "kwh_total": 2.8494,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 7.64,
+      "zone": "Lounge",
+      "aliases": [
+        "light.lounge_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Lounge light Lounge light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.869893+00:00",
+    "last_reported": "2026-06-09T05:58:40.085185+00:00",
+    "last_updated": "2026-06-09T05:58:40.085185+00:00",
+    "context": {
+      "id": "01KTNFCAPNFKMBDQ9DA5FYJBZJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_bedroom_lifx_estimated_power",
+    "state": "7.64",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.bedroom_light",
+      "kwh_total": 2.7617,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 7.64,
+      "zone": "Bedroom",
+      "aliases": [
+        "light.bedroom_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Bedroom light Bedroom light estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.410360+00:00",
+    "last_reported": "2026-06-09T05:58:40.082879+00:00",
+    "last_updated": "2026-06-09T05:58:40.082879+00:00",
+    "context": {
+      "id": "01KTNFCAPJ4QDPGN4ZVAX2HGQ3",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_bedroom_lifx_estimated_energy",
+    "state": "2.7617",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.bedroom_light",
+      "kwh_total": 2.7617,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 7.64,
+      "zone": "Bedroom",
+      "aliases": [
+        "light.bedroom_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Bedroom light Bedroom light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.082717+00:00",
+    "last_reported": "2026-06-09T05:58:40.082717+00:00",
+    "last_updated": "2026-06-09T05:58:40.082717+00:00",
+    "context": {
+      "id": "01KTNFCAPJ74C4R0WCK8VZV2WR",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_bedroom_lifx_rated_power",
+    "state": "15.5",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.bedroom_light",
+      "kwh_total": 2.7617,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 7.64,
+      "zone": "Bedroom",
+      "aliases": [
+        "light.bedroom_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Bedroom light Bedroom light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.870237+00:00",
+    "last_reported": "2026-06-09T05:58:40.082449+00:00",
+    "last_updated": "2026-06-09T05:58:40.082449+00:00",
+    "context": {
+      "id": "01KTNFCAPJE3WGT85THKWEJBGH",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_conservatory_lifx_estimated_power",
+    "state": "15.65",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.conservatory_light",
+      "kwh_total": 2.9518,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 15.65,
+      "zone": "Conservatory",
+      "aliases": [
+        "light.conservatory_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Conservatory light Conservatory light estimated power"
+    },
+    "last_changed": "2026-06-09T01:47:33.060829+00:00",
+    "last_reported": "2026-06-09T05:58:40.015949+00:00",
+    "last_updated": "2026-06-09T05:58:40.015949+00:00",
+    "context": {
+      "id": "01KTNFCAMFGZW1MZ3D2Q9FDH2A",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_conservatory_lifx_estimated_energy",
+    "state": "2.9518",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.conservatory_light",
+      "kwh_total": 2.9518,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 15.65,
+      "zone": "Conservatory",
+      "aliases": [
+        "light.conservatory_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Conservatory light Conservatory light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.015865+00:00",
+    "last_reported": "2026-06-09T05:58:40.015865+00:00",
+    "last_updated": "2026-06-09T05:58:40.015865+00:00",
+    "context": {
+      "id": "01KTNFCAMF69V7RXAMK7TDR9TR",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_conservatory_lifx_rated_power",
+    "state": "15.5",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.conservatory_light",
+      "kwh_total": 2.9518,
+      "rated_watts": 15.5,
+      "source": "LIFX A21 1600lm specification",
+      "watts": 15.65,
+      "zone": "Conservatory",
+      "aliases": [
+        "light.conservatory_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Conservatory light Conservatory light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.870568+00:00",
+    "last_reported": "2026-06-09T05:58:40.015723+00:00",
+    "last_updated": "2026-06-09T05:58:40.015723+00:00",
+    "context": {
+      "id": "01KTNFCAMFKQVQ4WYENFTMCWBZ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tapo_l530_estimated_power",
+    "state": "4.94",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.kitchen_light_1",
+      "kwh_total": 1.769,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.kitchen_light_1"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Kitchen light 1 Kitchen light 1 estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.426711+00:00",
+    "last_reported": "2026-06-09T05:58:40.105252+00:00",
+    "last_updated": "2026-06-09T05:58:40.105252+00:00",
+    "context": {
+      "id": "01KTNFCAQ9KHJJC8A1ABW106KK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tapo_l530_estimated_energy",
+    "state": "1.769",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.kitchen_light_1",
+      "kwh_total": 1.769,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.kitchen_light_1"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Kitchen light 1 Kitchen light 1 estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.105520+00:00",
+    "last_reported": "2026-06-09T05:58:40.105520+00:00",
+    "last_updated": "2026-06-09T05:58:40.105520+00:00",
+    "context": {
+      "id": "01KTNFCAQ9QAE6TFVPR3NZJ5RC",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tapo_l530_rated_power",
+    "state": "8.8",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.kitchen_light_1",
+      "kwh_total": 1.769,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.kitchen_light_1"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Kitchen light 1 Kitchen light 1 rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.871187+00:00",
+    "last_reported": "2026-06-09T05:58:40.105643+00:00",
+    "last_updated": "2026-06-09T05:58:40.105643+00:00",
+    "context": {
+      "id": "01KTNFCAQ94810JRKXBN0MHATJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_hallway_tapo_l530_estimated_power",
+    "state": "4.94",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.hallway_2",
+      "kwh_total": 1.7137,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Conservatory",
+      "aliases": [
+        "light.hallway_2"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Hallway 2 Hallway 2 estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.425214+00:00",
+    "last_reported": "2026-06-09T05:58:40.100318+00:00",
+    "last_updated": "2026-06-09T05:58:40.100318+00:00",
+    "context": {
+      "id": "01KTNFCAQ492XBE7R41CYN8338",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_hallway_tapo_l530_estimated_energy",
+    "state": "1.7137",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.hallway_2",
+      "kwh_total": 1.7137,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Conservatory",
+      "aliases": [
+        "light.hallway_2"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Hallway 2 Hallway 2 estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.100458+00:00",
+    "last_reported": "2026-06-09T05:58:40.100458+00:00",
+    "last_updated": "2026-06-09T05:58:40.100458+00:00",
+    "context": {
+      "id": "01KTNFCAQ4BR1JQBP9WMCMNFR0",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_hallway_tapo_l530_rated_power",
+    "state": "8.8",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.hallway_2",
+      "kwh_total": 1.7137,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Conservatory",
+      "aliases": [
+        "light.hallway_2"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Hallway 2 Hallway 2 rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.871483+00:00",
+    "last_reported": "2026-06-09T05:58:40.100049+00:00",
+    "last_updated": "2026-06-09T05:58:40.100049+00:00",
+    "context": {
+      "id": "01KTNFCAQ48GVX9X6ZKM80MJ6M",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_wardrobe_tapo_l530_estimated_power",
+    "state": "4.94",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.wardrobe",
+      "kwh_total": 0.9555,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Bedroom",
+      "aliases": [
+        "light.wardrobe"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Wardrobe Wardrobe estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.427364+00:00",
+    "last_reported": "2026-06-09T05:58:40.109424+00:00",
+    "last_updated": "2026-06-09T05:58:40.109424+00:00",
+    "context": {
+      "id": "01KTNFCAQDA2CW920FW9B8HCEK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_wardrobe_tapo_l530_estimated_energy",
+    "state": "0.9555",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.wardrobe",
+      "kwh_total": 0.9555,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Bedroom",
+      "aliases": [
+        "light.wardrobe"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Wardrobe Wardrobe estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.109089+00:00",
+    "last_reported": "2026-06-09T05:58:40.109089+00:00",
+    "last_updated": "2026-06-09T05:58:40.109089+00:00",
+    "context": {
+      "id": "01KTNFCAQDSARA0PNWW9JKN3J0",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_wardrobe_tapo_l530_rated_power",
+    "state": "8.8",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.wardrobe",
+      "kwh_total": 0.9555,
+      "rated_watts": 8.8,
+      "source": "TP-Link Tapo L530 specification",
+      "watts": 4.94,
+      "zone": "Bedroom",
+      "aliases": [
+        "light.wardrobe"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Wardrobe Wardrobe rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.871803+00:00",
+    "last_reported": "2026-06-09T05:58:40.109322+00:00",
+    "last_updated": "2026-06-09T05:58:40.109322+00:00",
+    "context": {
+      "id": "01KTNFCAQDJ48C1CJSDKAB8GFA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_desk_tapo_l535_estimated_power",
+    "state": "4.84",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.desk",
+      "kwh_total": 1.7208,
+      "rated_watts": 8.6,
+      "source": "TP-Link Tapo L535E specification",
+      "watts": 4.84,
+      "zone": "Lounge",
+      "aliases": [
+        "light.desk"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Desk Desk estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.429916+00:00",
+    "last_reported": "2026-06-09T05:58:40.112624+00:00",
+    "last_updated": "2026-06-09T05:58:40.112624+00:00",
+    "context": {
+      "id": "01KTNFCAQG7XJJAGZ9CQVKF1CC",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_desk_tapo_l535_estimated_energy",
+    "state": "1.7208",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.desk",
+      "kwh_total": 1.7208,
+      "rated_watts": 8.6,
+      "source": "TP-Link Tapo L535E specification",
+      "watts": 4.84,
+      "zone": "Lounge",
+      "aliases": [
+        "light.desk"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Desk Desk estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.112537+00:00",
+    "last_reported": "2026-06-09T05:58:40.112537+00:00",
+    "last_updated": "2026-06-09T05:58:40.112537+00:00",
+    "context": {
+      "id": "01KTNFCAQG8FAKN842ZZ9QR8VX",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_desk_tapo_l535_rated_power",
+    "state": "8.6",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.desk",
+      "kwh_total": 1.7208,
+      "rated_watts": 8.6,
+      "source": "TP-Link Tapo L535E specification",
+      "watts": 4.84,
+      "zone": "Lounge",
+      "aliases": [
+        "light.desk"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Desk Desk rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.872118+00:00",
+    "last_reported": "2026-06-09T05:58:40.112377+00:00",
+    "last_updated": "2026-06-09T05:58:40.112377+00:00",
+    "context": {
+      "id": "01KTNFCAQGW2FRYKK3H9PHCGGK",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_hallway_tuya_bulb_estimated_power",
+    "state": "6.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_hallway_light",
+      "kwh_total": 2.1902,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_hallway_light",
+        "light.hallway_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Hallway light Hallway light estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.417778+00:00",
+    "last_reported": "2026-06-09T05:58:40.094838+00:00",
+    "last_updated": "2026-06-09T05:58:40.094838+00:00",
+    "context": {
+      "id": "01KTNFCAPYZ84GMTT4B1C5MQ0V",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_hallway_tuya_bulb_estimated_energy",
+    "state": "2.1902",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_hallway_light",
+      "kwh_total": 2.1902,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_hallway_light",
+        "light.hallway_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Hallway light Hallway light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.095068+00:00",
+    "last_reported": "2026-06-09T05:58:40.095068+00:00",
+    "last_updated": "2026-06-09T05:58:40.095068+00:00",
+    "context": {
+      "id": "01KTNFCAPZ5S8H05HGSXCMVFCB",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_hallway_tuya_bulb_rated_power",
+    "state": "10",
+    "attributes": {
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_hallway_light",
+      "kwh_total": 2.1902,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_hallway_light",
+        "light.hallway_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Hallway light Hallway light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.872502+00:00",
+    "last_reported": "2026-06-09T05:58:40.095169+00:00",
+    "last_updated": "2026-06-09T05:58:40.095169+00:00",
+    "context": {
+      "id": "01KTNFCAPZQJF4WN333RPK19WX",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_nook_tuya_bulb_estimated_power",
+    "state": "6.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_nook_light",
+      "kwh_total": 2.2002,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_nook_light",
+        "light.nook_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Nook light Nook light estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.419938+00:00",
+    "last_reported": "2026-06-09T05:58:40.097489+00:00",
+    "last_updated": "2026-06-09T05:58:40.097489+00:00",
+    "context": {
+      "id": "01KTNFCAQ11W9BM9DVQ0QH4YAT",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_nook_tuya_bulb_estimated_energy",
+    "state": "2.2002",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_nook_light",
+      "kwh_total": 2.2002,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_nook_light",
+        "light.nook_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Nook light Nook light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.097399+00:00",
+    "last_reported": "2026-06-09T05:58:40.097399+00:00",
+    "last_updated": "2026-06-09T05:58:40.097399+00:00",
+    "context": {
+      "id": "01KTNFCAQ12DSE8WED7GWPNBCV",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_nook_tuya_bulb_rated_power",
+    "state": "10",
+    "attributes": {
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_nook_light",
+      "kwh_total": 2.2002,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_nook_light",
+        "light.nook_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Nook light Nook light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.872982+00:00",
+    "last_reported": "2026-06-09T05:58:40.097263+00:00",
+    "last_updated": "2026-06-09T05:58:40.097263+00:00",
+    "context": {
+      "id": "01KTNFCAQ1AN58CEYSMNBZMX3J",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_outside_tuya_bulb_estimated_power",
+    "state": "0.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_outside_light",
+      "kwh_total": 0.0961,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 0.5,
+      "zone": "Outside",
+      "aliases": [
+        "light.tuya_mobile_outside_light",
+        "light.outside_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Outside light Outside light estimated power"
+    },
+    "last_changed": "2026-06-09T02:39:03.131871+00:00",
+    "last_reported": "2026-06-09T05:21:40.817586+00:00",
+    "last_updated": "2026-06-09T05:21:40.817586+00:00",
+    "context": {
+      "id": "01KTND8KEHJ2VVEJ2A6J920REZ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_outside_tuya_bulb_estimated_energy",
+    "state": "0.0961",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_outside_light",
+      "kwh_total": 0.0961,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 0.5,
+      "zone": "Outside",
+      "aliases": [
+        "light.tuya_mobile_outside_light",
+        "light.outside_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Outside light Outside light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:21:40.817379+00:00",
+    "last_reported": "2026-06-09T05:21:40.817379+00:00",
+    "last_updated": "2026-06-09T05:21:40.817379+00:00",
+    "context": {
+      "id": "01KTND8KEHB2HCH8HSGHA6225V",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_outside_tuya_bulb_rated_power",
+    "state": "10",
+    "attributes": {
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_outside_light",
+      "kwh_total": 0.0961,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 0.5,
+      "zone": "Outside",
+      "aliases": [
+        "light.tuya_mobile_outside_light",
+        "light.outside_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Outside light Outside light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.873372+00:00",
+    "last_reported": "2026-06-09T05:21:40.817706+00:00",
+    "last_updated": "2026-06-09T05:21:40.817706+00:00",
+    "context": {
+      "id": "01KTND8KEHPQ0ZAQSAY70CHY2K",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_a_estimated_power",
+    "state": "0.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_kitchen_light_2",
+      "kwh_total": 0.0008,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 0.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_kitchen_light_2",
+        "light.kitchen_light_2"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Kitchen light 2 Kitchen light 2 estimated power"
+    },
+    "last_changed": "2026-06-08T23:37:03.050486+00:00",
+    "last_reported": "2026-06-08T23:37:03.050486+00:00",
+    "last_updated": "2026-06-08T23:37:03.050486+00:00",
+    "context": {
+      "id": "01KTMSHJAA59GPSJCNNGCPFDAA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_a_estimated_energy",
+    "state": "0.0008",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_kitchen_light_2",
+      "kwh_total": 0.0008,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 0.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_kitchen_light_2",
+        "light.kitchen_light_2"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Kitchen light 2 Kitchen light 2 estimated energy"
+    },
+    "last_changed": "2026-06-04T12:32:54.048226+00:00",
+    "last_reported": "2026-06-08T23:37:03.049824+00:00",
+    "last_updated": "2026-06-08T23:37:03.049824+00:00",
+    "context": {
+      "id": "01KTMSHJA9NCJ8HMN4ABNJF29Z",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_a_rated_power",
+    "state": "10",
+    "attributes": {
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_kitchen_light_2",
+      "kwh_total": 0.0008,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 0.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_kitchen_light_2",
+        "light.kitchen_light_2"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Kitchen light 2 Kitchen light 2 rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.873667+00:00",
+    "last_reported": "2026-06-08T23:37:03.050329+00:00",
+    "last_updated": "2026-06-08T23:37:03.050329+00:00",
+    "context": {
+      "id": "01KTMSHJAAQ6TE57KM5PFE0FFS",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_b_estimated_power",
+    "state": "6.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+      "kwh_total": 2.2003,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_kitchen_light_2_2",
+        "light.kitchen_light_2_2"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Kitchen light 2 2 Kitchen light 2 2 estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.418607+00:00",
+    "last_reported": "2026-06-09T05:58:40.095864+00:00",
+    "last_updated": "2026-06-09T05:58:40.095864+00:00",
+    "context": {
+      "id": "01KTNFCAPZXN3TQZA077MGA5DJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_b_estimated_energy",
+    "state": "2.2003",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+      "kwh_total": 2.2003,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_kitchen_light_2_2",
+        "light.kitchen_light_2_2"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Kitchen light 2 2 Kitchen light 2 2 estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.095990+00:00",
+    "last_reported": "2026-06-09T05:58:40.095990+00:00",
+    "last_updated": "2026-06-09T05:58:40.095990+00:00",
+    "context": {
+      "id": "01KTNFCAPZ7GTFAFQ58PESFP66",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_kitchen_tuya_bulb_b_rated_power",
+    "state": "10",
+    "attributes": {
+      "confidence": "assumed",
+      "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+      "kwh_total": 2.2003,
+      "rated_watts": 10,
+      "source": "User supplied: Kogan RGB bulbs are 9-10W",
+      "watts": 6.5,
+      "zone": "Kitchen",
+      "aliases": [
+        "light.tuya_mobile_kitchen_light_2_2",
+        "light.kitchen_light_2_2"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Kitchen light 2 2 Kitchen light 2 2 rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.874018+00:00",
+    "last_reported": "2026-06-09T05:58:40.096101+00:00",
+    "last_updated": "2026-06-09T05:58:40.096101+00:00",
+    "context": {
+      "id": "01KTNFCAQ0Y01MJ1H1QANK9N2R",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_mirror_flood_estimated_power",
+    "state": "12.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.tuya_mobile_mirror_light",
+      "kwh_total": 4.225,
+      "rated_watts": 20,
+      "source": "HA device model: Kogan SmarterHome 20W flood light",
+      "watts": 12.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_mirror_light",
+        "light.mirror_top"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Mirror light Mirror light estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.397947+00:00",
+    "last_reported": "2026-06-09T05:58:40.064782+00:00",
+    "last_updated": "2026-06-09T05:58:40.064782+00:00",
+    "context": {
+      "id": "01KTNFCAP0C1Z799021X1NGS3R",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_mirror_flood_estimated_energy",
+    "state": "4.225",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.tuya_mobile_mirror_light",
+      "kwh_total": 4.225,
+      "rated_watts": 20,
+      "source": "HA device model: Kogan SmarterHome 20W flood light",
+      "watts": 12.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_mirror_light",
+        "light.mirror_top"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Mirror light Mirror light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.064562+00:00",
+    "last_reported": "2026-06-09T05:58:40.064562+00:00",
+    "last_updated": "2026-06-09T05:58:40.064562+00:00",
+    "context": {
+      "id": "01KTNFCAP05DSRWWXFRATN142W",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_mirror_flood_rated_power",
+    "state": "20",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.tuya_mobile_mirror_light",
+      "kwh_total": 4.225,
+      "rated_watts": 20,
+      "source": "HA device model: Kogan SmarterHome 20W flood light",
+      "watts": 12.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_mirror_light",
+        "light.mirror_top"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Mirror light Mirror light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.874337+00:00",
+    "last_reported": "2026-06-09T05:58:40.064879+00:00",
+    "last_updated": "2026-06-09T05:58:40.064879+00:00",
+    "context": {
+      "id": "01KTNFCAP0KCFSSXMGCNN4BR37",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_tv_flood_estimated_power",
+    "state": "12.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "light.tuya_mobile_tv_light",
+      "kwh_total": 4.2249,
+      "rated_watts": 20,
+      "source": "HA device model: Kogan SmarterHome 20W flood light",
+      "watts": 12.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_tv_light",
+        "light.mirror_bottom",
+        "light.tv_light"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "TV light TV light estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.402022+00:00",
+    "last_reported": "2026-06-09T05:58:40.073555+00:00",
+    "last_updated": "2026-06-09T05:58:40.073555+00:00",
+    "context": {
+      "id": "01KTNFCAP9AVR78HZDNHG18ACA",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_tv_flood_estimated_energy",
+    "state": "4.2249",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "light.tuya_mobile_tv_light",
+      "kwh_total": 4.2249,
+      "rated_watts": 20,
+      "source": "HA device model: Kogan SmarterHome 20W flood light",
+      "watts": 12.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_tv_light",
+        "light.mirror_bottom",
+        "light.tv_light"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "TV light TV light estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.073945+00:00",
+    "last_reported": "2026-06-09T05:58:40.073945+00:00",
+    "last_updated": "2026-06-09T05:58:40.073945+00:00",
+    "context": {
+      "id": "01KTNFCAP9MSM862YKE1VBMVE5",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_tv_flood_rated_power",
+    "state": "20",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "light.tuya_mobile_tv_light",
+      "kwh_total": 4.2249,
+      "rated_watts": 20,
+      "source": "HA device model: Kogan SmarterHome 20W flood light",
+      "watts": 12.5,
+      "zone": "Lounge",
+      "aliases": [
+        "light.tuya_mobile_tv_light",
+        "light.mirror_bottom",
+        "light.tv_light"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "TV light TV light rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.874839+00:00",
+    "last_reported": "2026-06-09T05:58:40.074129+00:00",
+    "last_updated": "2026-06-09T05:58:40.074129+00:00",
+    "context": {
+      "id": "01KTNFCAPAY5WSFD4QE9YFBKGJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_panel_heater_estimated_power",
+    "state": "1.5",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "assumed",
+      "entity_id": "climate.panel_heater_2",
+      "kwh_total": 80.261,
+      "rated_watts": 2000,
+      "source": "User supplied: probably 2kW",
+      "watts": 1.5,
+      "zone": "Climate",
+      "aliases": [
+        "climate.panel_heater_2",
+        "climate.panel_heater"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Panel Heater Panel Heater estimated power"
+    },
+    "last_changed": "2026-06-08T16:03:32.772926+00:00",
+    "last_reported": "2026-06-09T05:55:40.282642+00:00",
+    "last_updated": "2026-06-09T05:55:40.282642+00:00",
+    "context": {
+      "id": "01KTNF6V3T80TJR56PHT7PKCJN",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_panel_heater_estimated_energy",
+    "state": "80.261",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "assumed",
+      "entity_id": "climate.panel_heater_2",
+      "kwh_total": 80.261,
+      "rated_watts": 2000,
+      "source": "User supplied: probably 2kW",
+      "watts": 1.5,
+      "zone": "Climate",
+      "aliases": [
+        "climate.panel_heater_2",
+        "climate.panel_heater"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Panel Heater Panel Heater estimated energy"
+    },
+    "last_changed": "2026-06-09T05:55:40.282240+00:00",
+    "last_reported": "2026-06-09T05:55:40.282240+00:00",
+    "last_updated": "2026-06-09T05:55:40.282240+00:00",
+    "context": {
+      "id": "01KTNF6V3TH6NKEK4RGPDNPYA2",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_panel_heater_rated_power",
+    "state": "2000",
+    "attributes": {
+      "confidence": "assumed",
+      "entity_id": "climate.panel_heater_2",
+      "kwh_total": 80.261,
+      "rated_watts": 2000,
+      "source": "User supplied: probably 2kW",
+      "watts": 1.5,
+      "zone": "Climate",
+      "aliases": [
+        "climate.panel_heater_2",
+        "climate.panel_heater"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Panel Heater Panel Heater rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.875180+00:00",
+    "last_reported": "2026-06-09T05:55:40.282491+00:00",
+    "last_updated": "2026-06-09T05:55:40.282491+00:00",
+    "context": {
+      "id": "01KTNF6V3TQ3H15AZPK4458MMM",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_gree_aircon_estimated_power",
+    "state": "15",
+    "attributes": {
+      "state_class": "measurement",
+      "confidence": "high",
+      "entity_id": "climate.c6780cad",
+      "kwh_total": 101.4125,
+      "rated_watts": 1520,
+      "source": "Gree Bora GWH18AAD-K6DNA1D specification and unit label",
+      "watts": 15,
+      "zone": "Climate",
+      "aliases": [
+        "climate.c6780cad"
+      ],
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Air Conditioner Air Conditioner estimated power"
+    },
+    "last_changed": "2026-06-09T04:22:33.176491+00:00",
+    "last_reported": "2026-06-09T05:58:40.049761+00:00",
+    "last_updated": "2026-06-09T05:58:40.049761+00:00",
+    "context": {
+      "id": "01KTNFCANHM013H5QB35CR9B9D",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_gree_aircon_estimated_energy",
+    "state": "101.4125",
+    "attributes": {
+      "state_class": "total_increasing",
+      "confidence": "high",
+      "entity_id": "climate.c6780cad",
+      "kwh_total": 101.4125,
+      "rated_watts": 1520,
+      "source": "Gree Bora GWH18AAD-K6DNA1D specification and unit label",
+      "watts": 15,
+      "zone": "Climate",
+      "aliases": [
+        "climate.c6780cad"
+      ],
+      "unit_of_measurement": "kWh",
+      "device_class": "energy",
+      "friendly_name": "Air Conditioner Air Conditioner estimated energy"
+    },
+    "last_changed": "2026-06-09T05:58:40.049448+00:00",
+    "last_reported": "2026-06-09T05:58:40.049448+00:00",
+    "last_updated": "2026-06-09T05:58:40.049448+00:00",
+    "context": {
+      "id": "01KTNFCANHXQAZMVDTFHXFV8N1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_gree_aircon_rated_power",
+    "state": "1520",
+    "attributes": {
+      "confidence": "high",
+      "entity_id": "climate.c6780cad",
+      "kwh_total": 101.4125,
+      "rated_watts": 1520,
+      "source": "Gree Bora GWH18AAD-K6DNA1D specification and unit label",
+      "watts": 15,
+      "zone": "Climate",
+      "aliases": [
+        "climate.c6780cad"
+      ],
+      "unit_of_measurement": "W",
+      "friendly_name": "Air Conditioner Air Conditioner rated power"
+    },
+    "last_changed": "2026-05-21T19:30:35.875521+00:00",
+    "last_reported": "2026-06-09T05:58:40.049670+00:00",
+    "last_updated": "2026-06-09T05:58:40.049670+00:00",
+    "context": {
+      "id": "01KTNFCANHJH5YVG4ZBKHMVH51",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.nova_power_home_estimated_power",
+    "state": "860.2",
+    "attributes": {
+      "state_class": "measurement",
+      "cost_per_hour_nzd": 0.384,
+      "kwh_total": 219.227,
+      "rate_c_per_kwh": 29.46,
+      "tariff_period": "peak",
+      "watts": 860.2,
+      "unit_of_measurement": "W",
+      "device_class": "power",
+      "friendly_name": "Nova Grid Nova Grid estimated power"
+    },
+    "last_changed": "2026-06-09T05:14:33.444709+00:00",
+    "last_reported": "2026-06-09T05:58:40.118411+00:00",
+    "last_updated": "2026-06-09T05:58:40.118411+00:00",
+    "context": {
+      "id": "01KTNFCAQP5CFKPN1MR3BM6BJR",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "media_player.home_theatre",
+    "state": "playing",
+    "attributes": {
+      "media_content_type": "music",
+      "media_duration": 229,
+      "media_position": 0,
+      "media_position_updated_at": "2026-06-09T05:58:03.989858+00:00",
+      "media_title": "Pygmy Love Song",
+      "media_artist": "Francis Bebey",
+      "media_album_name": "African Electronic Music 1975 - 1982",
+      "app_id": "com.apple.TVMusic",
+      "app_name": "Music",
+      "shuffle": true,
+      "repeat": "off",
+      "entity_picture": "/api/media_player_proxy/media_player.home_theatre?token=9e948c5c6874583a601a56997ff28f7d5d5dbabc5ba69a54067b3d61fbab0ec1&cache=https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/18/8a/f4/188af42b-6c01-6fca-1fbc-737aaf71dbd7/5055373557854.png/{w}x{h}bb.jpg",
+      "friendly_name": "Home Theatre",
+      "supported_features": 450487
+    },
+    "last_changed": "2026-06-09T04:30:56.566248+00:00",
+    "last_reported": "2026-06-09T05:58:03.990306+00:00",
+    "last_updated": "2026-06-09T05:58:03.990306+00:00",
+    "context": {
+      "id": "01KTNFB7EPMJG3HA1R37S7CQDE",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "remote.home_theatre",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Home Theatre",
+      "supported_features": 0
+    },
+    "last_changed": "2026-06-07T13:11:38.020605+00:00",
+    "last_reported": "2026-06-07T13:11:38.020605+00:00",
+    "last_updated": "2026-06-07T13:11:38.020605+00:00",
+    "context": {
+      "id": "01KTH3BNS4Y3NJCWMCB7JN73ER",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.hallway_light",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "min_color_temp_kelvin": 2000,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 500,
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.942432+00:00",
+    "last_reported": "2026-05-21T19:30:43.942432+00:00",
+    "last_updated": "2026-05-21T19:30:43.942432+00:00",
+    "context": {
+      "id": "01KS609KK6J3H64P2DZWM5MYTB",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.nook_light",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "min_color_temp_kelvin": 2000,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 500,
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.942497+00:00",
+    "last_reported": "2026-05-21T19:30:43.942497+00:00",
+    "last_updated": "2026-05-21T19:30:43.942497+00:00",
+    "context": {
+      "id": "01KS609KK693QGR1FGRY3BCY88",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.outside_light",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "min_color_temp_kelvin": 2000,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 500,
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.942525+00:00",
+    "last_reported": "2026-05-21T19:30:43.942525+00:00",
+    "last_updated": "2026-05-21T19:30:43.942525+00:00",
+    "context": {
+      "id": "01KS609KK6T9SA3SF244F63DDJ",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.kitchen_light_2",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "min_color_temp_kelvin": 2000,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 500,
+      "supported_color_modes": [
+        "color_temp"
+      ],
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.942549+00:00",
+    "last_reported": "2026-05-21T19:30:43.942549+00:00",
+    "last_updated": "2026-05-21T19:30:43.942549+00:00",
+    "context": {
+      "id": "01KS609KK6VFQX6WMBWY1VG2CD",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.wardrobe_cloud_connection",
+    "state": "on",
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Wardrobe Cloud connection"
+    },
+    "last_changed": "2026-06-02T08:49:46.769377+00:00",
+    "last_reported": "2026-06-02T08:49:46.769377+00:00",
+    "last_updated": "2026-06-02T08:49:46.769377+00:00",
+    "context": {
+      "id": "01KT3RCKRHS4J884ZGWBKHZFER",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.wardrobe_overheated",
+    "state": "off",
+    "attributes": {
+      "device_class": "problem",
+      "friendly_name": "Wardrobe Overheated"
+    },
+    "last_changed": "2026-06-02T08:49:21.347549+00:00",
+    "last_reported": "2026-06-02T08:49:21.347549+00:00",
+    "last_updated": "2026-06-02T08:49:21.347549+00:00",
+    "context": {
+      "id": "01KT3RBTY3J2XEMY8DAHVT4VZM",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.wardrobe",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 2500,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 400,
+      "effect_list": [
+        "Off",
+        "Party",
+        "Relax"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": "off",
+      "color_mode": "color_temp",
+      "brightness": 153,
+      "color_temp_kelvin": 2500,
+      "color_temp": 400,
+      "hs_color": [
+        28.874,
+        72.522
+      ],
+      "rgb_color": [
+        255,
+        159,
+        70
+      ],
+      "xy_color": [
+        0.546,
+        0.389
+      ],
+      "friendly_name": "Wardrobe",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.432267+00:00",
+    "last_reported": "2026-06-09T05:13:05.149686+00:00",
+    "last_updated": "2026-06-09T05:13:05.149686+00:00",
+    "context": {
+      "id": "01KTNCRV92335FDW6CANW8BF5T",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "number.wardrobe_smooth_on",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Wardrobe Smooth on"
+    },
+    "last_changed": "2026-06-02T08:49:21.347945+00:00",
+    "last_reported": "2026-06-02T08:49:21.347945+00:00",
+    "last_updated": "2026-06-02T08:49:21.347945+00:00",
+    "context": {
+      "id": "01KT3RBTY30Y2WYHVBWV60E621",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.wardrobe_smooth_off",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Wardrobe Smooth off"
+    },
+    "last_changed": "2026-06-02T08:49:21.348062+00:00",
+    "last_reported": "2026-06-02T08:49:21.348062+00:00",
+    "last_updated": "2026-06-02T08:49:21.348062+00:00",
+    "context": {
+      "id": "01KT3RBTY46WV6KXASZNHQ6ANP",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.wardrobe_light_preset",
+    "state": "Not set",
+    "attributes": {
+      "options": [
+        "Not set",
+        "Light preset 1",
+        "Light preset 2",
+        "Light preset 3",
+        "Light preset 4",
+        "Light preset 5",
+        "Light preset 6",
+        "Light preset 7"
+      ],
+      "friendly_name": "Wardrobe Light preset"
+    },
+    "last_changed": "2026-06-02T08:49:21.348181+00:00",
+    "last_reported": "2026-06-02T08:49:21.348181+00:00",
+    "last_updated": "2026-06-02T08:49:21.348181+00:00",
+    "context": {
+      "id": "01KT3RBTY4JV6S0X5WNTMKPQ5X",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.wardrobe_signal_level",
+    "state": "3",
+    "attributes": {
+      "state_class": "measurement",
+      "friendly_name": "Wardrobe Signal level"
+    },
+    "last_changed": "2026-06-02T08:49:21.348312+00:00",
+    "last_reported": "2026-06-02T08:49:21.348312+00:00",
+    "last_updated": "2026-06-02T08:49:21.348312+00:00",
+    "context": {
+      "id": "01KT3RBTY49B1QPX2SC4790QRF",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.wardrobe_auto_update_enabled",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Wardrobe Auto-update enabled"
+    },
+    "last_changed": "2026-06-02T08:49:21.348412+00:00",
+    "last_reported": "2026-06-02T08:49:21.348412+00:00",
+    "last_updated": "2026-06-02T08:49:21.348412+00:00",
+    "context": {
+      "id": "01KT3RBTY4HY1YRNEVBZGTXX71",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.desk_cloud_connection",
+    "state": "on",
+    "attributes": {
+      "device_class": "connectivity",
+      "friendly_name": "Desk Cloud connection"
+    },
+    "last_changed": "2026-06-06T06:07:32.247067+00:00",
+    "last_reported": "2026-06-06T06:07:32.247067+00:00",
+    "last_updated": "2026-06-06T06:07:32.247067+00:00",
+    "context": {
+      "id": "01KTDRPDCQSNRC3Q62MMDZJRW3",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "binary_sensor.desk_overheated",
+    "state": "off",
+    "attributes": {
+      "device_class": "problem",
+      "friendly_name": "Desk Overheated"
+    },
+    "last_changed": "2026-06-06T06:07:32.247249+00:00",
+    "last_reported": "2026-06-06T06:07:32.247249+00:00",
+    "last_updated": "2026-06-06T06:07:32.247249+00:00",
+    "context": {
+      "id": "01KTDRPDCQMMRV4HH55FGT3PCT",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.desk",
+    "state": "on",
+    "attributes": {
+      "min_color_temp_kelvin": 2500,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 400,
+      "effect_list": [
+        "Off",
+        "Party",
+        "Relax"
+      ],
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "effect": "off",
+      "color_mode": "color_temp",
+      "brightness": 153,
+      "color_temp_kelvin": 2500,
+      "color_temp": 400,
+      "hs_color": [
+        28.874,
+        72.522
+      ],
+      "rgb_color": [
+        255,
+        159,
+        70
+      ],
+      "xy_color": [
+        0.546,
+        0.389
+      ],
+      "friendly_name": "Desk",
+      "supported_features": 36
+    },
+    "last_changed": "2026-06-09T01:47:24.863758+00:00",
+    "last_reported": "2026-06-09T05:13:05.615092+00:00",
+    "last_updated": "2026-06-09T05:13:05.615092+00:00",
+    "context": {
+      "id": "01KTNCRV93DVKRV47GR8FXHWYW",
+      "parent_id": null,
+      "user_id": "359fbfd255ee42358a39adb2986cba2b"
+    }
+  },
+  {
+    "entity_id": "number.desk_smooth_on",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Desk Smooth on"
+    },
+    "last_changed": "2026-06-06T06:07:32.247580+00:00",
+    "last_reported": "2026-06-06T06:07:32.247580+00:00",
+    "last_updated": "2026-06-06T06:07:32.247580+00:00",
+    "context": {
+      "id": "01KTDRPDCQY834R5Z75NHBS11R",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "number.desk_smooth_off",
+    "state": "1",
+    "attributes": {
+      "min": 0,
+      "max": 60,
+      "step": 1,
+      "mode": "box",
+      "friendly_name": "Desk Smooth off"
+    },
+    "last_changed": "2026-06-06T06:07:32.247649+00:00",
+    "last_reported": "2026-06-06T06:07:32.247649+00:00",
+    "last_updated": "2026-06-06T06:07:32.247649+00:00",
+    "context": {
+      "id": "01KTDRPDCQ2V0A14WX4R2SKJA1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.desk_light_preset",
+    "state": "Not set",
+    "attributes": {
+      "options": [
+        "Not set",
+        "Light preset 1",
+        "Light preset 2",
+        "Light preset 3",
+        "Light preset 4",
+        "Light preset 5",
+        "Light preset 6",
+        "Light preset 7"
+      ],
+      "friendly_name": "Desk Light preset"
+    },
+    "last_changed": "2026-06-06T06:07:32.247756+00:00",
+    "last_reported": "2026-06-06T06:07:32.247756+00:00",
+    "last_updated": "2026-06-06T06:07:32.247756+00:00",
+    "context": {
+      "id": "01KTDRPDCQ5NKGV992Z0Y94FB5",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.desk_signal_level",
+    "state": "3",
+    "attributes": {
+      "state_class": "measurement",
+      "friendly_name": "Desk Signal level"
+    },
+    "last_changed": "2026-06-06T06:07:32.247854+00:00",
+    "last_reported": "2026-06-06T06:07:32.247854+00:00",
+    "last_updated": "2026-06-06T06:07:32.247854+00:00",
+    "context": {
+      "id": "01KTDRPDCQX6H883NQBMRCPFP1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.desk_auto_update_enabled",
+    "state": "on",
+    "attributes": {
+      "friendly_name": "Desk Auto-update enabled"
+    },
+    "last_changed": "2026-06-06T06:07:32.247950+00:00",
+    "last_reported": "2026-06-06T06:07:32.247950+00:00",
+    "last_updated": "2026-06-06T06:07:32.247950+00:00",
+    "context": {
+      "id": "01KTDRPDCQC8Z6TYQ57BC2T1CY",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "climate.panel_heater",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "hvac_modes": [
+        "off",
+        "heat"
+      ],
+      "min_temp": 5,
+      "max_temp": 40,
+      "target_temp_step": 1,
+      "supported_features": 385
+    },
+    "last_changed": "2026-05-21T19:30:43.943063+00:00",
+    "last_reported": "2026-05-21T19:30:43.943063+00:00",
+    "last_updated": "2026-05-21T19:30:43.943063+00:00",
+    "context": {
+      "id": "01KS609KK7XAC91VDS7F21TB6V",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.mirror_top",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "min_color_temp_kelvin": 2000,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 500,
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943090+00:00",
+    "last_reported": "2026-05-21T19:30:43.943090+00:00",
+    "last_updated": "2026-05-21T19:30:43.943090+00:00",
+    "context": {
+      "id": "01KS609KK79ETFDNSGAG3BRD7Q",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "light.mirror_bottom",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "min_color_temp_kelvin": 2000,
+      "max_color_temp_kelvin": 6500,
+      "min_mireds": 153,
+      "max_mireds": 500,
+      "supported_color_modes": [
+        "color_temp",
+        "hs"
+      ],
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943112+00:00",
+    "last_reported": "2026-05-21T19:30:43.943112+00:00",
+    "last_updated": "2026-05-21T19:30:43.943112+00:00",
+    "context": {
+      "id": "01KS609KK77S8THM8PXSXA3H6Q",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "stt.faster_whisper",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "friendly_name": "faster-whisper",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943162+00:00",
+    "last_reported": "2026-05-21T19:30:43.943162+00:00",
+    "last_updated": "2026-05-21T19:30:43.943162+00:00",
+    "context": {
+      "id": "01KS609KK7K71ZCBSN33718P6D",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "tts.piper",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "friendly_name": "piper",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943188+00:00",
+    "last_reported": "2026-05-21T19:30:43.943188+00:00",
+    "last_updated": "2026-05-21T19:30:43.943188+00:00",
+    "context": {
+      "id": "01KS609KK7HBGE9V57BMBM6V27",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.wifi_temperature_humidity_sensor_temperature",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "state_class": "measurement",
+      "device_class": "temperature",
+      "friendly_name": "Temperature",
+      "supported_features": 0,
+      "unit_of_measurement": "°C"
+    },
+    "last_changed": "2026-05-21T19:30:43.943218+00:00",
+    "last_reported": "2026-05-21T19:30:43.943218+00:00",
+    "last_updated": "2026-05-21T19:30:43.943218+00:00",
+    "context": {
+      "id": "01KS609KK7VTE1KCH4R0ZVSVG1",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.wifi_temperature_humidity_sensor_humidity",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "state_class": "measurement",
+      "device_class": "humidity",
+      "friendly_name": "Humidity",
+      "supported_features": 0,
+      "unit_of_measurement": "%"
+    },
+    "last_changed": "2026-05-21T19:30:43.943243+00:00",
+    "last_reported": "2026-05-21T19:30:43.943243+00:00",
+    "last_updated": "2026-05-21T19:30:43.943243+00:00",
+    "context": {
+      "id": "01KS609KK74DPM2BXVF70N3QE4",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.wifi_temperature_humidity_sensor_battery",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "state_class": "measurement",
+      "device_class": "battery",
+      "friendly_name": "Battery",
+      "supported_features": 0,
+      "unit_of_measurement": "%"
+    },
+    "last_changed": "2026-05-21T19:30:43.943264+00:00",
+    "last_reported": "2026-05-21T19:30:43.943264+00:00",
+    "last_updated": "2026-05-21T19:30:43.943264+00:00",
+    "context": {
+      "id": "01KS609KK73W4DZ1AS5QCS0DJ8",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "wake_word.openwakeword",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "friendly_name": "openwakeword",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943285+00:00",
+    "last_reported": "2026-05-21T19:30:43.943285+00:00",
+    "last_updated": "2026-05-21T19:30:43.943285+00:00",
+    "context": {
+      "id": "01KS609KK7KQZ0SKNMKY3PFHE5",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "tts.piper_2",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "friendly_name": "piper",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943306+00:00",
+    "last_reported": "2026-05-21T19:30:43.943306+00:00",
+    "last_updated": "2026-05-21T19:30:43.943306+00:00",
+    "context": {
+      "id": "01KS609KK7X7PMT6TXGSEYMDHN",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "select.cupboard_power_on_behavior",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "options": [
+        "power_off",
+        "power_on",
+        "last"
+      ],
+      "friendly_name": "Power on behavior",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943326+00:00",
+    "last_reported": "2026-05-21T19:30:43.943326+00:00",
+    "last_updated": "2026-05-21T19:30:43.943326+00:00",
+    "context": {
+      "id": "01KS609KK71WK22D2AN1BPR6V0",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "sensor.cupboard_total_energy",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "state_class": "total_increasing",
+      "device_class": "energy",
+      "friendly_name": "Total energy",
+      "supported_features": 0,
+      "unit_of_measurement": "kWh"
+    },
+    "last_changed": "2026-05-21T19:30:43.943351+00:00",
+    "last_reported": "2026-05-21T19:30:43.943351+00:00",
+    "last_updated": "2026-05-21T19:30:43.943351+00:00",
+    "context": {
+      "id": "01KS609KK7TKPVCB4YWZGZ5BT2",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.cupboard_socket_1",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "device_class": "outlet",
+      "friendly_name": "Neon lights",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943372+00:00",
+    "last_reported": "2026-05-21T19:30:43.943372+00:00",
+    "last_updated": "2026-05-21T19:30:43.943372+00:00",
+    "context": {
+      "id": "01KS609KK7P074092XGTVR4RRN",
+      "parent_id": null,
+      "user_id": null
+    }
+  },
+  {
+    "entity_id": "switch.cupboard_socket_2",
+    "state": "unavailable",
+    "attributes": {
+      "restored": true,
+      "device_class": "outlet",
+      "friendly_name": "Socket 2",
+      "supported_features": 0
+    },
+    "last_changed": "2026-05-21T19:30:43.943392+00:00",
+    "last_reported": "2026-05-21T19:30:43.943392+00:00",
+    "last_updated": "2026-05-21T19:30:43.943392+00:00",
+    "context": {
+      "id": "01KS609KK78GV55SMY5NSD4MXY",
+      "parent_id": null,
+      "user_id": null
+    }
+  }
+]

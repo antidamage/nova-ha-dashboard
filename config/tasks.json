@@ -1,0 +1,19 @@
+{
+  "tasks": {
+    "iCloud": {
+      "caldavUrl": "https://caldav.icloud.com",
+      "defaultSyncDays": 7,
+      "calendars": [],
+      "reminders": [],
+      "syncIntervalMs": 300000,
+      "defaultReminderDurationMs": 1800000,
+      "authBackoffMs": 3600000
+    },
+    "alertAudio": {
+      "fileName": "task-reminder.mp3",
+      "maxBytes": 10485760,
+      "alertWindowMs": 5000,
+      "repeatMs": 300000
+    }
+  }
+}

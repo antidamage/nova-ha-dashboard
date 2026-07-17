@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Launch the Brave kiosk with a SINGLE fresh dashboard tab.
+#
+# Brave defaults to "restore last session", so after any crash/kill it reopens
+# every previously-open tab -- including crashed ones. Over repeated
+# crash -> relaunch cycles this accumulates N copies of the dashboard (each with
+# its own SSE stream + timers), compounding GPU/memory pressure and the hangs.
+# This wrapper wipes the session-restore state and marks a clean exit before
+# starting Brave, so a relaunch is always exactly one tab. Called by the
+# brave-nova autostart unit (login) and by brave-kiosk-guard (recovery).
+#
+# The dashboard backend is PARAMETERIZED: ~/.config/nova-kiosk/backend.env sets
+# NOVA_BACKEND_URL (default http://127.0.0.1/ = the local hosting role). The
+# CDP probe reads the same file, so flipping that one line moves the whole
+# kiosk between backends.
+set -u
+
+BACKEND_ENV="$HOME/.config/nova-kiosk/backend.env"
+# shellcheck disable=SC1090
+[ -f "$BACKEND_ENV" ] && . "$BACKEND_ENV"
+NOVA_BACKEND_URL="${NOVA_BACKEND_URL:-http://127.0.0.1/}"
+
+PROFILE="$HOME/snap/brave/current/.config/BraveSoftware/Brave-Browser"
+DEF="$PROFILE/Default"
+
+# Clear a stale profile lock. SingletonLock is a symlink named "<hostname>-<pid>";
+# Brave refuses to start (silently, exit 0 -- it cannot draw its message box in
+# the kiosk session) if that hostname is not the current one, believing another
+# COMPUTER holds the profile. A host rename once orphaned the
+# lock exactly this way and left the guard relaunching into nothing. With no
+# brave process running, any lock is by definition stale.
+if ! pgrep -x brave >/dev/null 2>&1; then
+  rm -f "$PROFILE/SingletonLock" "$PROFILE/SingletonCookie" "$PROFILE/SingletonSocket" 2>/dev/null
+fi
+
+# Drop tab/session restore artifacts.
+rm -f "$DEF/Current Session" "$DEF/Current Tabs" "$DEF/Last Session" "$DEF/Last Tabs" 2>/dev/null
+rm -rf "$DEF/Sessions" 2>/dev/null
+
+# Mark the last exit clean and pin startup to NTP so only the URL arg opens.
+if [ -f "$DEF/Preferences" ]; then
+  python3 - "$DEF/Preferences" <<'PY' 2>/dev/null || true
+import json, os, sys
+p = sys.argv[1]
+try:
+    d = json.load(open(p))
+except Exception:
+    sys.exit(0)
+d.setdefault('profile', {})['exit_type'] = 'Normal'
+d['profile']['exited_cleanly'] = True
+d.setdefault('session', {})['restore_on_startup'] = 5  # 5 = New Tab Page (no restore)
+tmp = p + '.kiosk.tmp'
+json.dump(d, open(tmp, 'w'))
+os.replace(tmp, p)
+PY
+fi
+
+exec /snap/bin/brave --remote-debugging-port=9223 --remote-allow-origins=* "$NOVA_BACKEND_URL"

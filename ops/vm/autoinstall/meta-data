@@ -1,0 +1,3 @@
+# NoCloud requires this file to exist; instance identity is fine as defaults.
+instance-id: nova-vm-001
+local-hostname: nova-vm

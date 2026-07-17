@@ -1,0 +1,32 @@
+#cloud-config
+# Ubuntu 24.04 autoinstall seed for the nova-vm appliance (NoCloud datasource).
+# Pack this dir onto a small seed ISO (see ops/vm/README.md) and boot the
+# Ubuntu Server installer with it attached. Password login is disabled — the
+# SSH key below is the only way in (matches nova's convention).
+autoinstall:
+  version: 1
+  locale: en_NZ.UTF-8
+  timezone: Pacific/Auckland
+  identity:
+    hostname: nova-vm
+    username: antidamage
+    # Locked password hash: console login disabled, SSH key only.
+    password: "*"
+  ssh:
+    install-server: true
+    allow-pw: false
+    authorized-keys:
+      # PASTE the contents of the deploy key's .pub here before building the
+      # seed ISO (kept out of git on purpose; key name: PRIVATEREF.md#2.2).
+      - "REPLACE_WITH_SSH_PUBKEY"
+  storage:
+    layout:
+      name: direct
+  packages:
+    - avahi-daemon
+    - git
+    - rsync
+    - curl
+    - jq
+  late-commands:
+    - curtin in-target -- systemctl enable avahi-daemon ssh

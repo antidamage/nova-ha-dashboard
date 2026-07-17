@@ -1,0 +1,52 @@
+{
+  "homeAssistant": {
+    "weatherEntityId": "weather.forecast_home",
+    "sunEntityId": "sun.sun",
+    "router": {
+      "name": "Router",
+      "wanStatusEntityId": "binary_sensor.router_wan_status",
+      "externalIpEntityId": "sensor.router_external_ip",
+      "downloadSpeedEntityId": "sensor.router_download_speed",
+      "uploadSpeedEntityId": "sensor.router_upload_speed"
+    },
+    "novaAssistSatelliteEntityId": "assist_satellite.home_assist_satellite",
+    "climateAreaNames": ["climate", "heating"],
+    "networkZoneId": "network",
+    "everythingExcludedEntityIds": [],
+    "classification": {
+      "illuminationLabels": ["nova_illumination"],
+      "hiddenLabels": ["nova_hidden"],
+      "environmentLabels": ["nova_environment"],
+      "forceIlluminationEntityIds": [],
+      "forceHiddenEntityIds": [],
+      "environmentSensorEntityIds": [],
+      "environmentSensorExcludeEntityIds": []
+    }
+  },
+  "dashboard": {
+    "defaultZoneId": "everything",
+    "specialZones": {
+      "power": {
+        "id": "power",
+        "name": "Power"
+      },
+      "tasks": {
+        "id": "tasks",
+        "name": "Reminders"
+      }
+    }
+  },
+  "mapWeather": {
+    "center": {
+      "lat": 0,
+      "lng": 0
+    }
+  },
+  "power": {
+    "timeZone": "Pacific/Auckland",
+    "billing": {
+      "startDay": 1,
+      "endDay": 31
+    }
+  }
+}

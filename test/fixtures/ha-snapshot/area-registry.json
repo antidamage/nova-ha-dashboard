@@ -1,0 +1,93 @@
+[
+  {
+    "aliases": [],
+    "area_id": "kitchen",
+    "floor_id": null,
+    "humidity_entity_id": null,
+    "icon": "mdi:stove",
+    "labels": [],
+    "name": "Kitchen",
+    "picture": null,
+    "temperature_entity_id": null,
+    "created_at": 1774745354.041235,
+    "modified_at": 1774745354.041237
+  },
+  {
+    "aliases": [],
+    "area_id": "bedroom",
+    "floor_id": null,
+    "humidity_entity_id": null,
+    "icon": "mdi:bed",
+    "labels": [],
+    "name": "Bedroom",
+    "picture": null,
+    "temperature_entity_id": null,
+    "created_at": 1774745354.041322,
+    "modified_at": 1774745354.041324
+  },
+  {
+    "aliases": [],
+    "area_id": "lounge",
+    "floor_id": null,
+    "humidity_entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+    "icon": "mdi:sofa",
+    "labels": [],
+    "name": "Lounge",
+    "picture": null,
+    "temperature_entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+    "created_at": 1774766181.237419,
+    "modified_at": 1778027632.25361
+  },
+  {
+    "aliases": [],
+    "area_id": "outside",
+    "floor_id": null,
+    "humidity_entity_id": null,
+    "icon": "mdi:ceiling-light",
+    "labels": [],
+    "name": "Outside",
+    "picture": null,
+    "temperature_entity_id": null,
+    "created_at": 1776635925.705479,
+    "modified_at": 1776635925.705485
+  },
+  {
+    "aliases": [],
+    "area_id": "conservatory",
+    "floor_id": null,
+    "humidity_entity_id": null,
+    "icon": "mdi:wardrobe",
+    "labels": [],
+    "name": "Conservatory",
+    "picture": null,
+    "temperature_entity_id": null,
+    "created_at": 1776635960.225496,
+    "modified_at": 1776635960.225502
+  },
+  {
+    "aliases": [],
+    "area_id": "climate",
+    "floor_id": null,
+    "humidity_entity_id": null,
+    "icon": "mdi:thermometer",
+    "labels": [],
+    "name": "Climate",
+    "picture": null,
+    "temperature_entity_id": null,
+    "created_at": 1776724133.026474,
+    "modified_at": 1776724133.026479
+  },
+  {
+    "aliases": [],
+    "area_id": "network",
+    "floor_id": null,
+    "humidity_entity_id": null,
+    "icon": "mdi:wan",
+    "labels": [],
+    "name": "Network",
+    "picture": null,
+    "temperature_entity_id": null,
+    "created_at": 1776730304.443328,
+    "modified_at": 1776730304.443335
+  }
+]

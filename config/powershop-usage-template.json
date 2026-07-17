@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "timezone": "Pacific/Auckland",
+  "overnightWindow": {
+    "start": "00:00",
+    "end": "06:30"
+  },
+  "login": {
+    "url": "https://app.powershop.nz/login",
+    "emailSelectors": [
+      "input[type=\"email\"]",
+      "input[name=\"email\"]",
+      "input[autocomplete=\"email\"]",
+      "input[placeholder*=\"email\" i]"
+    ],
+    "passwordSelectors": [
+      "input[type=\"password\"]",
+      "input[name=\"password\"]",
+      "input[autocomplete=\"current-password\"]"
+    ],
+    "continueButtonNames": [
+      "Continue",
+      "Log in",
+      "Login",
+      "Sign in"
+    ],
+    "mfaTextPatterns": [
+      "multi-factor",
+      "two-factor",
+      "temporary login code",
+      "enter login code",
+      "login code",
+      "check your email",
+      "verification code",
+      "enter the code",
+      "authenticator"
+    ]
+  },
+  "pages": [
+    {
+      "name": "hourlyCost",
+      "expectedField": "costNzd",
+      "urlTemplate": "https://app.powershop.nz/dashboard/usage/trends?usagePeriod=HOUR_INTERVAL&startOn={{date}}&endOn={{date}}&usageType=cost"
+    },
+    {
+      "name": "hourlyUsage",
+      "expectedField": "kwh",
+      "optional": true,
+      "urlTemplate": "https://app.powershop.nz/dashboard/usage/trends?usagePeriod=HOUR_INTERVAL&startOn={{date}}&endOn={{date}}&usageType=usage"
+    },
+    {
+      "name": "hourlyConsumption",
+      "expectedField": "kwh",
+      "optional": true,
+      "urlTemplate": "https://app.powershop.nz/dashboard/usage/trends?usagePeriod=HOUR_INTERVAL&startOn={{date}}&endOn={{date}}&usageType=consumption"
+    },
+    {
+      "name": "meterReadings",
+      "expectedField": "meterReading",
+      "optional": true,
+      "urlTemplate": "https://app.powershop.nz/dashboard/usage/meter-readings"
+    }
+  ],
+  "network": {
+    "includeUrlPatterns": [
+      "usage",
+      "trend",
+      "meter",
+      "reading",
+      "graphql",
+      "account"
+    ],
+    "excludeUrlPatterns": [
+      "google-analytics",
+      "datadoghq",
+      "browser-intake",
+      "cloudflareinsights",
+      "firebaseinstallations",
+      "firebaseremoteconfig"
+    ],
+    "maxBodyChars": 200000
+  },
+  "jsonFields": {
+    "date": [
+      "date",
+      "day",
+      "startOn",
+      "startDate",
+      "intervalStart",
+      "readAt",
+      "readingDate"
+    ],
+    "kwh": [
+      "kwh",
+      "kWh",
+      "usage",
+      "usageKwh",
+      "usage_kwh",
+      "consumption",
+      "consumptionKwh",
+      "energy",
+      "valueKwh"
+    ],
+    "costNzd": [
+      "cost",
+      "costNzd",
+      "costNZD",
+      "usageCost",
+      "totalCost",
+      "dollars",
+      "amount"
+    ],
+    "meterReading": [
+      "reading",
+      "meterReading",
+      "meter_reading",
+      "registerReading",
+      "value"
+    ]
+  },
+  "textPatterns": [
+    {
+      "field": "costNzd",
+      "pattern": "(?:cost|spent|usage cost|total)[^$0-9]{0,24}\\$\\s*([0-9]+(?:\\.[0-9]+)?)"
+    },
+    {
+      "field": "kwh",
+      "pattern": "([0-9]+(?:\\.[0-9]+)?)\\s*kWh"
+    }
+  ],
+  "output": {
+    "latestFile": "latest.json",
+    "dailyDirectory": "daily",
+    "rawDirectory": "raw"
+  }
+}

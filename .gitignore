@@ -1,0 +1,55 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# test artifacts
+coverage/
+e2e-report/
+e2e-results/
+pwres.json
+
+# production
+build/
+dist/
+
+# local env
+.env
+.env*.local
+# Private household network/machine/PII reference — never commit or publish.
+PRIVATEREF.md
+config/common.local.json
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.next-dev-*.log
+.next-dev-*.err.log
+.next-start-*.log
+.next-start-*.err.log
+
+# local tooling artifacts
+.codex/
+.cache/
+.tmp/
+.playwright-cli/
+output/
+data/*.json
+data/camera/
+data/gymmaster/
+data/managed-computer-keys/
+data/managed-desktop-known-hosts/
+data/nova-voice-tls/
+data/terrain-fetches/
+data/*-sleep-token.txt
+data/wallpapers/
+__pycache__/
+*.pyc
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

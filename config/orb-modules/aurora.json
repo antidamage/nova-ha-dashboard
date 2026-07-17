@@ -1,0 +1,88 @@
+{
+  "formatVersion": 1,
+  "id": "aurora",
+  "name": "Aurora",
+  "description": "Slow translucent light curtains drifting over a dark core.",
+  "alertPulsePeriod": 2.0,
+  "layers": [
+    {
+      "id": "night-sky",
+      "type": "disc",
+      "stops": [
+        { "at": 0, "color": { "theme": "gradientCenter", "alpha": 0.35 } },
+        { "at": 1, "color": { "hex": "#000000" } }
+      ]
+    },
+    {
+      "id": "curtains",
+      "type": "arcField",
+      "blend": "additive",
+      "clip": true,
+      "glow": 0.4,
+      "count": 12,
+      "radiusMin": 0.3,
+      "radiusMax": 0.9,
+      "ringJitter": 0.06,
+      "widthMin": 0.06,
+      "widthMax": 0.14,
+      "colors": [
+        { "theme": "line1", "alpha": 0.55 },
+        { "theme": "line2", "alpha": 0.55 },
+        { "theme": "line3", "alpha": 0.55 }
+      ],
+      "idleSweepMin": 0.08,
+      "idleSweepMax": 0.25,
+      "loadSweep": 0.6,
+      "speedMin": 0.01,
+      "speedMax": 0.04,
+      "loadSpeed": 0.2,
+      "sweepEase": 0.5,
+      "velocityEase": 0.5,
+      "resampleMin": 2.0,
+      "resampleJitter": 2.0
+    },
+    {
+      "id": "horizon-glow",
+      "type": "disc",
+      "blend": "screen",
+      "clip": true,
+      "center": { "x": 0, "y": 0.45 },
+      "radius": 0.8,
+      "scaleY": 0.5,
+      "stops": [
+        { "at": 0, "color": { "theme": "gradientOuter", "alpha": 0.4, "alertTheme": "gradientAlert" } },
+        { "at": 1, "color": { "theme": "gradientOuter", "alpha": 0 } }
+      ]
+    },
+    {
+      "id": "rim",
+      "type": "ring",
+      "radius": 0.99,
+      "width": 0.014,
+      "color": { "hex": "#ffffff", "alpha": 0.08 },
+      "glow": 0.3
+    },
+    {
+      "id": "bevel-shadow",
+      "type": "ring",
+      "radius": 0.94,
+      "width": 0.05,
+      "color": { "theme": "innerShadow" },
+      "glow": 0.3
+    },
+    {
+      "id": "alert-flare",
+      "type": "disc",
+      "blend": "additive",
+      "clip": true,
+      "center": { "x": 0, "y": -0.55 },
+      "radius": 0.5,
+      "scaleY": 0.55,
+      "pulse": { "period": 2.0, "min": 0, "max": 0.85, "alertOnly": true },
+      "stops": [
+        { "at": 0, "color": { "theme": "gradientAlert" } },
+        { "at": 1, "color": { "theme": "gradientAlert", "alpha": 0 } }
+      ]
+    }
+  ]
+}

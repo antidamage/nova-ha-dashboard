@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- LaunchDaemon: run nova-vm (dashboard host, 192.168.8.14) headless at BOOT,
+     with no user logged in. Replaces the old ~/Library/LaunchAgents utmctl
+     agent, which only ran inside a login session and caused the 2026-07-15
+     four-hour outage (indium rebooted to the login window; VM never started).
+
+     Install: sudo bash ops/vm/install-headless-nova-vm.sh   (see README §7)
+     Destination: /Library/LaunchDaemons/nz.co.skull.nova-vm.plist
+
+     KeepAlive: qemu crash or guest poweroff => relaunch. nova-vm is an
+     appliance; intentional stop is `sudo launchctl bootout system/nz.co.skull.nova-vm`
+     (wrapper turns SIGTERM into a clean guest ACPI shutdown).
+     ExitTimeOut 120 gives the wrapper time to do that at host shutdown. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>nz.co.skull.nova-vm</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/Shared/nova-vm/run-nova-vm.sh</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>20</integer>
+  <key>ExitTimeOut</key><integer>120</integer>
+  <key>StandardOutPath</key><string>/Users/Shared/nova-vm/log/qemu.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/Shared/nova-vm/log/qemu.err.log</string>
+</dict>
+</plist>

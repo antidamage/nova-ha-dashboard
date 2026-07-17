@@ -1,0 +1,29 @@
+# Runtime image for the Nova dashboard container.
+#
+# Identical Node runtime to the stock base (so `npm start` and the deploy's
+# staging build stay byte-for-byte compatible) plus the userspace needed for
+# hardware (VAAPI) video encoding on the host's AMD Radeon iGPU:
+#   - ffmpeg            full Debian build: libx264 (software fallback) AND h264_vaapi
+#   - mesa-va-drivers   radeonsi_drv_video.so (the actual VCN encode driver)
+#   - libva2/libva-drm2 VAAPI runtime that ffmpeg dlopens
+#
+# The kernel-side amdgpu driver + VCN firmware live on the host; the container
+# only needs this userspace plus rw access to /dev/dri/renderD128 (granted by the
+# systemd unit's `--device`). Build on the host:
+#
+#   docker build -t nova-ha-dashboard:vaapi -f ops/Dockerfile.vaapi ops/
+#
+# Base is Debian *trixie* (not bookworm) on purpose: bookworm's mesa 22.3 has a
+# VCN JPEG-decode bug that mangles the MS2109's 4:2:2 MJPEG into a half-width,
+# horizontally duplicated frame. Trixie's mesa 25.x decodes it correctly, which is
+# what makes hardware DECODE (NOVA_CAMERA_OUTSIDE_HWACCEL=vaapi) usable. Node major
+# is identical (20), so the deploy's bookworm build artifacts run here unchanged.
+FROM node:20-trixie-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ffmpeg \
+      mesa-va-drivers \
+      libva2 \
+      libva-drm2 \
+ && rm -rf /var/lib/apt/lists/*

@@ -1,0 +1,196 @@
+{
+  "aircon": {
+    "swingMode": "off",
+    "updatedAt": "2026-04-29T03:50:32.179Z",
+    "hvacMode": "cool",
+    "temperature": 22,
+    "fanMode": "low",
+    "quietMode": true,
+    "turboMode": false,
+    "autoMode": true
+  },
+  "theme": {
+    "accent": {
+      "cursor": {
+        "x": 0.26181474480151234,
+        "y": 1
+      },
+      "intensity": 20,
+      "rgb": [
+        255,
+        255,
+        255
+      ]
+    },
+    "highlight": {
+      "cursor": {
+        "x": 0.7741439015005772,
+        "y": 0
+      },
+      "intensity": 46,
+      "rgb": [
+        162,
+        0,
+        255
+      ]
+    },
+    "background": {
+      "cursor": {
+        "x": 0.55,
+        "y": 0.93
+      },
+      "intensity": 11,
+      "rgb": [
+        231,
+        244,
+        250
+      ]
+    },
+    "border": {
+      "color": {
+        "cursor": {
+          "x": 0.7019533711405167,
+          "y": 1
+        },
+        "intensity": 100,
+        "rgb": [
+          255,
+          255,
+          255
+        ]
+      },
+      "enabled": true,
+      "opacity": 19
+    },
+    "map": {
+      "base": {
+        "cursor": {
+          "x": 0.7555470052584329,
+          "y": 1
+        },
+        "intensity": 10,
+        "rgb": [
+          255,
+          255,
+          255
+        ]
+      },
+      "water": {
+        "cursor": {
+          "x": 0.7593946389637041,
+          "y": 0
+        },
+        "intensity": 100,
+        "rgb": [
+          140,
+          0,
+          255
+        ]
+      },
+      "land": {
+        "cursor": {
+          "x": 0.55,
+          "y": 0.94
+        },
+        "intensity": 14,
+        "rgb": [
+          217,
+          229,
+          229
+        ]
+      },
+      "buildingLow": {
+        "cursor": {
+          "x": 0.7427215595741953,
+          "y": 0
+        },
+        "intensity": 63,
+        "rgb": [
+          115,
+          0,
+          255
+        ]
+      },
+      "buildingHigh": {
+        "cursor": {
+          "x": 0.7433628318584072,
+          "y": 0
+        },
+        "intensity": 100,
+        "rgb": [
+          115,
+          0,
+          255
+        ]
+      },
+      "roads": {
+        "cursor": {
+          "x": 0.7247659356162627,
+          "y": 0.4790372670807455
+        },
+        "intensity": 100,
+        "rgb": [
+          177,
+          154,
+          223
+        ]
+      },
+      "labels": {
+        "cursor": {
+          "x": 0.7305373861741696,
+          "y": 1
+        },
+        "intensity": 66,
+        "rgb": [
+          255,
+          255,
+          255
+        ]
+      },
+      "radarLow": {
+        "cursor": {
+          "x": 0.5,
+          "y": 0
+        },
+        "intensity": 100,
+        "rgb": [
+          40,
+          243,
+          255
+        ]
+      },
+      "radarHigh": {
+        "cursor": {
+          "x": 0.5,
+          "y": 1
+        },
+        "intensity": 100,
+        "rgb": [
+          255,
+          255,
+          255
+        ]
+      }
+    },
+    "mapBuildingOpacity": 66,
+    "mapLabelSize": 150,
+    "mapSatellite": true,
+    "mapWater": {
+      "enabled": true,
+      "opacity": 10
+    },
+    "radarOpacity": 87,
+    "radarPaletteMode": "spectrum",
+    "titleTone": "auto"
+  },
+  "themeUpdatedAt": "2026-04-29T03:36:40.842Z",
+  "lighting": {
+    "adaptiveCandlelightZones": {
+      "everything": {
+        "enabled": false,
+        "updatedAt": "2026-05-12T01:03:08.415Z"
+      }
+    },
+    "updatedAt": "2026-05-12T01:03:08.617Z"
+  }
+}

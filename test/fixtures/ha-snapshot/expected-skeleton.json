@@ -1,0 +1,440 @@
+{
+  "zones": [
+    {
+      "id": "everything",
+      "name": "Home",
+      "special": null,
+      "counts": {
+        "light": 15,
+        "switch": 3,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 4
+      },
+      "entityIds": [
+        "light.cupboard_socket_1",
+        "light.conservatory_light",
+        "light.lounge_light",
+        "light.bedroom_light",
+        "switch.cupboard_outlet_2",
+        "switch.iridium_mute",
+        "switch.iridium_thinking_sound",
+        "light.hallway_2",
+        "light.kitchen_light_1",
+        "light.tuya_mobile_mirror_light",
+        "light.tuya_mobile_outside_light",
+        "light.tuya_mobile_nook_light",
+        "light.tuya_mobile_hallway_light",
+        "light.tuya_mobile_tv_light",
+        "light.tuya_mobile_kitchen_light_2",
+        "light.tuya_mobile_kitchen_light_2_2",
+        "sensor.tuya_mobile_lounge_sensor_temperature",
+        "sensor.tuya_mobile_lounge_sensor_humidity",
+        "light.wardrobe",
+        "light.desk",
+        "sensor.wifi_temperature_humidity_sensor_temperature",
+        "sensor.wifi_temperature_humidity_sensor_humidity"
+      ]
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "special": null,
+      "counts": {
+        "light": 2,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "entityIds": [
+        "light.bedroom_light",
+        "light.wardrobe"
+      ]
+    },
+    {
+      "id": "climate",
+      "name": "Climate",
+      "special": null,
+      "counts": {
+        "light": 1,
+        "switch": 3,
+        "climate": 2,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "entityIds": [
+        "climate.c6780cad",
+        "switch.c6780cad_panel_light",
+        "switch.c6780cad_quiet_mode",
+        "switch.c6780cad_fresh_air",
+        "switch.c6780cad_xtra_fan",
+        "climate.panel_heater_2"
+      ]
+    },
+    {
+      "id": "conservatory",
+      "name": "Conservatory",
+      "special": null,
+      "counts": {
+        "light": 2,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "entityIds": [
+        "light.conservatory_light",
+        "light.hallway_2"
+      ]
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "special": null,
+      "counts": {
+        "light": 4,
+        "switch": 1,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "entityIds": [
+        "switch.cupboard_outlet_2",
+        "light.kitchen_light_1",
+        "light.tuya_mobile_nook_light",
+        "light.tuya_mobile_kitchen_light_2",
+        "light.tuya_mobile_kitchen_light_2_2"
+      ]
+    },
+    {
+      "id": "lounge",
+      "name": "Lounge",
+      "special": null,
+      "counts": {
+        "light": 6,
+        "switch": 2,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 4
+      },
+      "entityIds": [
+        "light.cupboard_socket_1",
+        "light.lounge_light",
+        "switch.iridium_mute",
+        "switch.iridium_thinking_sound",
+        "light.tuya_mobile_mirror_light",
+        "light.tuya_mobile_hallway_light",
+        "light.tuya_mobile_tv_light",
+        "sensor.tuya_mobile_lounge_sensor_temperature",
+        "sensor.tuya_mobile_lounge_sensor_humidity",
+        "light.desk",
+        "sensor.wifi_temperature_humidity_sensor_temperature",
+        "sensor.wifi_temperature_humidity_sensor_humidity"
+      ]
+    },
+    {
+      "id": "outside",
+      "name": "Outside",
+      "special": null,
+      "counts": {
+        "light": 1,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "entityIds": [
+        "light.tuya_mobile_outside_light"
+      ]
+    },
+    {
+      "id": "network",
+      "name": "Network",
+      "special": null,
+      "counts": {
+        "light": 0,
+        "switch": 0,
+        "climate": 0,
+        "fan": 0,
+        "cover": 0,
+        "humidifier": 0,
+        "sensor": 0
+      },
+      "entityIds": []
+    }
+  ],
+  "entities": [
+    {
+      "entity_id": "climate.c6780cad",
+      "domain": "climate",
+      "name": "Air Conditioner",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "climate.panel_heater_2",
+      "domain": "climate",
+      "name": "Panel Heater",
+      "area_id": "climate",
+      "device_id": "c6ab65b76488f7aeacdaf04594a9ea41",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.bedroom_light",
+      "domain": "light",
+      "name": "Bedroom light",
+      "area_id": "bedroom",
+      "device_id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.conservatory_light",
+      "domain": "light",
+      "name": "Conservatory light",
+      "area_id": "conservatory",
+      "device_id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.cupboard_socket_1",
+      "domain": "light",
+      "name": "Neon lights",
+      "area_id": "lounge",
+      "device_id": "a4630683fa231554398c833c74bc3a05",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.desk",
+      "domain": "light",
+      "name": "Desk",
+      "area_id": "lounge",
+      "device_id": "e40f328958e64358f95b67ba009f7a75",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.hallway_2",
+      "domain": "light",
+      "name": "Hallway 2",
+      "area_id": "conservatory",
+      "device_id": "da5588c951a51f82e70047a10044202a",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.kitchen_light_1",
+      "domain": "light",
+      "name": "Kitchen light 1",
+      "area_id": "kitchen",
+      "device_id": "4ad408a9e482e5948f011fdc45d686b0",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.lounge_light",
+      "domain": "light",
+      "name": "Lounge light",
+      "area_id": "lounge",
+      "device_id": "6f5a7b08fef6bea519ee154a33953792",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_hallway_light",
+      "domain": "light",
+      "name": "Hallway light",
+      "area_id": "lounge",
+      "device_id": "b95fe8006d71f69e3d28e34a77677375",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_kitchen_light_2",
+      "domain": "light",
+      "name": "Kitchen light 2",
+      "area_id": "kitchen",
+      "device_id": "ca7074c20cb779348a8ea9674780848a",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_kitchen_light_2_2",
+      "domain": "light",
+      "name": "Kitchen light 2 2",
+      "area_id": "kitchen",
+      "device_id": "6a9096b17be1e3f1e56af53c4b3e833d",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_mirror_light",
+      "domain": "light",
+      "name": "Mirror light",
+      "area_id": "lounge",
+      "device_id": "6eb699e9e7c773517d2ff81b5c1140fb",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_nook_light",
+      "domain": "light",
+      "name": "Nook light",
+      "area_id": "kitchen",
+      "device_id": "6b988a4fad43e785fcf4846f54c2d496",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_outside_light",
+      "domain": "light",
+      "name": "Outside light",
+      "area_id": "outside",
+      "device_id": "51efbd75686ebfe852d1dee4bfedfd09",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.tuya_mobile_tv_light",
+      "domain": "light",
+      "name": "TV light",
+      "area_id": "lounge",
+      "device_id": "721e18ac16f30d26de95b887f8dcbab9",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "light.wardrobe",
+      "domain": "light",
+      "name": "Wardrobe",
+      "area_id": "bedroom",
+      "device_id": "a12f9c5eea96efc4fd2a8c8663300008",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.tuya_mobile_lounge_sensor_humidity",
+      "domain": "sensor",
+      "name": "Humidity",
+      "area_id": "lounge",
+      "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.tuya_mobile_lounge_sensor_temperature",
+      "domain": "sensor",
+      "name": "Temperature",
+      "area_id": "lounge",
+      "device_id": "0f289b04baaecdc985a3e916f40c2a74",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.wifi_temperature_humidity_sensor_humidity",
+      "domain": "sensor",
+      "name": "Humidity",
+      "area_id": "lounge",
+      "device_id": "a80e17400544d03c32973b79cd17f579",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "sensor.wifi_temperature_humidity_sensor_temperature",
+      "domain": "sensor",
+      "name": "Temperature",
+      "area_id": "lounge",
+      "device_id": "a80e17400544d03c32973b79cd17f579",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.c6780cad_fresh_air",
+      "domain": "switch",
+      "name": "Fresh air",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.c6780cad_panel_light",
+      "domain": "switch",
+      "name": "Panel light",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "isIllumination": true
+    },
+    {
+      "entity_id": "switch.c6780cad_quiet_mode",
+      "domain": "switch",
+      "name": "Quiet mode",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.c6780cad_xtra_fan",
+      "domain": "switch",
+      "name": "Xtra fan",
+      "area_id": "climate",
+      "device_id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.cupboard_outlet_2",
+      "domain": "switch",
+      "name": "Outlet 2",
+      "area_id": "kitchen",
+      "device_id": "a4630683fa231554398c833c74bc3a05",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.iridium_mute",
+      "domain": "switch",
+      "name": "Mute",
+      "area_id": "lounge",
+      "device_id": "500d796f46b4a5a13e4af080164bbee1",
+      "isIllumination": false
+    },
+    {
+      "entity_id": "switch.iridium_thinking_sound",
+      "domain": "switch",
+      "name": "Thinking Sound",
+      "area_id": "lounge",
+      "device_id": "500d796f46b4a5a13e4af080164bbee1",
+      "isIllumination": false
+    }
+  ],
+  "totals": {
+    "light": 16,
+    "switch": 6,
+    "climate": 2,
+    "fan": 0,
+    "cover": 0,
+    "humidifier": 0,
+    "sensor": 4
+  },
+  "lighting": {
+    "intensityThresholds": [
+      {
+        "name": "Neon Lights",
+        "thresholdPct": 50,
+        "entityIds": [
+          "light.cupboard_socket_1"
+        ]
+      }
+    ],
+    "entityPresets": [
+      {
+        "entityId": "light.conservatory_light",
+        "targetBrightnessPct": {
+          "daytime": 100,
+          "evening": 100
+        },
+        "colorTemperatureOverrideKelvin": {
+          "candlelight": 6500,
+          "daylight": 6500
+        }
+      }
+    ]
+  }
+}

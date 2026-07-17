@@ -1,0 +1,410 @@
+#!/usr/bin/env bash
+#
+# nova-release — host-side self-updater for the Nova HA Dashboard.
+#
+# Owns the dangerous half of the update flow so the containerised app never has
+# to rebuild or restart itself. The app only writes request files into
+# data/update/control/; this script fetches from GitHub, builds the new version
+# OUT-OF-LINE, atomically re-points the live symlink farm, restarts the
+# container, health-gates the result, and auto-rolls-back on failure.
+#
+# Runs entirely as the unprivileged app owner (no sudo): it restarts the app
+# with `docker stop` (the systemd unit has Restart=always) and is triggered by a
+# per-minute user cron running `nova-release process`.
+#
+# Layout — everything lives INSIDE the fixed bind-mount root the unit already
+# mounts (/opt/nova-ha-dashboard -> /app), because the unit can't be changed:
+#
+#   /opt/nova-ha-dashboard/        <- bind-mounted to /app, workdir for `npm start`
+#     .env.local                   <- REAL, shared secret (unit's --env-file target)
+#     data/                        <- REAL, shared runtime state (config, prefs)
+#       update/{state.json,control/}   updater <-> app channel
+#     repo/                        <- git clone, only ever fetched
+#     releases/<ts>-<sha>/         <- full build (tracked files + node_modules + .next)
+#       .nova-sha .nova-deployed-at
+#     releases/.current .previous  <- pointer files (release basenames)
+#     bin/nova-release             <- this script
+#     .next public package.json config app lib ...  <- SYMLINKS into the active release
+#
+# The "switch" repoints those symlinks and restarts. Rollback repoints them back
+# to the previous release — no rebuild. Config/secrets are real and shared, so a
+# bad build can never corrupt them.
+#
+set -euo pipefail
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+
+APP_ROOT="${NOVA_APP_ROOT:-/opt/nova-ha-dashboard}"
+REPO_DIR="$APP_ROOT/repo"
+RELEASES_DIR="$APP_ROOT/releases"
+DATA_DIR="$APP_ROOT/data"
+UPDATE_DIR="$DATA_DIR/update"
+STATE_FILE="$UPDATE_DIR/state.json"
+CONTROL_DIR="$UPDATE_DIR/control"
+CURRENT_PTR="$RELEASES_DIR/.current"
+PREVIOUS_PTR="$RELEASES_DIR/.previous"
+LOCK_FILE="$APP_ROOT/.nova-release.lock"
+
+REPO_URL="${NOVA_REPO_URL:-https://github.com/antidamage/nova-ha-dashboard.git}"
+BRANCH="${NOVA_UPDATE_BRANCH:-main}"
+CONTAINER="${NOVA_CONTAINER:-nova-ha-dashboard}"
+BUILD_IMAGE="${NOVA_BUILD_IMAGE:-node:20-bookworm-slim}"
+HEALTH_URL="${NOVA_HEALTH_URL:-http://127.0.0.1/api/version}"
+HEALTH_TIMEOUT="${NOVA_HEALTH_TIMEOUT:-120}"
+KEEP_RELEASES="${NOVA_KEEP_RELEASES:-3}"    # current + 2 prior
+MIN_FREE_MB="${NOVA_MIN_FREE_MB:-3000}"
+
+# Top-level names that are REAL shared state and must never be turned into
+# release symlinks or moved into a release.
+SHARED_NAMES=".env.local data releases repo bin .nova-release.lock"
+
+log() { printf '[nova-release] %s\n' "$*" >&2; }
+is_shared() { case " $SHARED_NAMES " in *" $1 "*) return 0;; *) return 1;; esac; }
+
+# ---------------------------------------------------------------------------
+# pointers + sha helpers
+# ---------------------------------------------------------------------------
+get_current()  { cat "$CURRENT_PTR" 2>/dev/null || echo ""; }
+get_previous() { cat "$PREVIOUS_PTR" 2>/dev/null || echo ""; }
+set_current()  { printf '%s' "$1" > "$CURRENT_PTR"; }
+set_previous() { printf '%s' "$1" > "$PREVIOUS_PTR"; }
+release_sha()  { cat "$RELEASES_DIR/$1/.nova-sha" 2>/dev/null || echo ""; }
+release_built(){ cat "$RELEASES_DIR/$1/.nova-deployed-at" 2>/dev/null || echo ""; }
+
+# ---------------------------------------------------------------------------
+# state.json — written only by this script; the app reads it.
+# ---------------------------------------------------------------------------
+json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
+write_state() {  # write_state <phase> <message>
+  local phase="$1" message="$2"
+  mkdir -p "$UPDATE_DIR"
+  local now cur prev cur_sha prev_sha can_rollback=false deployed=""
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  cur="$(get_current)"; prev="$(get_previous)"
+  cur_sha="$( [ -n "$cur" ] && release_sha "$cur" || echo "" )"
+  prev_sha="$( [ -n "$prev" ] && release_sha "$prev" || echo "" )"
+  deployed="$( [ -n "$cur" ] && release_built "$cur" || echo "" )"
+  if [ -n "$prev" ] && [ -d "$RELEASES_DIR/$prev" ] && [ "$prev" != "$cur" ]; then
+    can_rollback=true
+  fi
+
+  local releases_json="" first=1 dir base
+  if [ -d "$RELEASES_DIR" ]; then
+    while IFS= read -r dir; do
+      base="$(basename "${dir%/}")"
+      [ -d "$RELEASES_DIR/$base" ] || continue
+      local iscur=false isprev=false
+      [ "$base" = "$cur" ]  && iscur=true
+      [ "$base" = "$prev" ] && isprev=true
+      [ $first -eq 0 ] && releases_json+=","
+      first=0
+      releases_json+="{\"sha\":\"$(json_escape "$(release_sha "$base")")\",\"builtAt\":\"$(json_escape "$(release_built "$base")")\",\"current\":$iscur,\"previous\":$isprev}"
+    done < <(ls -1dt "$RELEASES_DIR"/*/ 2>/dev/null)
+  fi
+
+  local tmp="$STATE_FILE.tmp.$$"
+  cat > "$tmp" <<EOF
+{
+  "schema": 1,
+  "currentSha": "$(json_escape "$cur_sha")",
+  "currentRef": "$(json_escape "$BRANCH")",
+  "deployedAt": "$(json_escape "$deployed")",
+  "previousSha": "$(json_escape "$prev_sha")",
+  "phase": "$(json_escape "$phase")",
+  "phaseMessage": "$(json_escape "$message")",
+  "phaseAt": "$now",
+  "canRollback": $can_rollback,
+  "releases": [$releases_json]
+}
+EOF
+  mv -f "$tmp" "$STATE_FILE"
+  log "$phase: $message"
+}
+fail_state() { write_state "failed" "$1"; }
+
+# ---------------------------------------------------------------------------
+# symlink farm: make APP_ROOT serve a release; clean dangling links.
+# ---------------------------------------------------------------------------
+activate() {  # activate <release-basename>
+  local rel="$1" dir="$RELEASES_DIR/$1" item base
+  [ -d "$dir" ] || { log "release $rel missing"; return 1; }
+  for item in "$dir"/* "$dir"/.[!.]*; do
+    [ -e "$item" ] || continue
+    base="$(basename "$item")"
+    is_shared "$base" && continue
+    if [ -e "$APP_ROOT/$base" ] && [ ! -L "$APP_ROOT/$base" ]; then
+      rm -rf "$APP_ROOT/$base"
+    fi
+    ln -sfn "releases/$rel/$base" "$APP_ROOT/$base"
+  done
+  # Drop symlinks whose target no longer exists (entries gone in this release).
+  for item in "$APP_ROOT"/* "$APP_ROOT"/.[!.]*; do
+    [ -L "$item" ] && [ ! -e "$item" ] && rm -f "$item"
+  done
+  return 0
+}
+
+restart_container() {
+  # No sudo: stop the container and let the unit's Restart=always re-run
+  # ExecStart, which re-reads the (now repointed) symlink farm.
+  # Tag the restart into the monitoring event stream first (no-op when the
+  # monitoring agent isn't installed) so self-update restarts stay attributed.
+  if [ -x /usr/local/bin/nova-event ]; then
+    /usr/local/bin/nova-event --service nova-ha-dashboard --source updater \
+      --event restart-for-release --detail "release=$(get_current || echo unknown)" \
+      >/dev/null 2>&1 || true
+  fi
+  docker stop "$CONTAINER" >/dev/null 2>&1 || true
+}
+
+health_ok() {
+  local deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  return 1
+}
+
+free_mb() { df -Pm "$APP_ROOT" | awk 'NR==2 {print $4}'; }
+
+# ---------------------------------------------------------------------------
+# build a release dir from a sha (no activation).
+# ---------------------------------------------------------------------------
+build_release() {  # build_release <sha> -> echoes release basename on success
+  local sha="$1" short ts rel dir
+  short="$(printf '%s' "$sha" | cut -c1-7)"
+  ts="$(date -u +%Y%m%dT%H%M%S)"
+  rel="${ts}-${short}"
+  dir="$RELEASES_DIR/$rel"
+  rm -rf "$dir"; mkdir -p "$dir"
+  git -C "$REPO_DIR" archive "$sha" | tar -x -C "$dir"
+  printf '%s' "$sha" > "$dir/.nova-sha"
+  # Build as the invoking (unprivileged) user so release files stay owned by us
+  # and can be pruned later; HOME=/app keeps npm's cache inside the release.
+  local as_user="--user $(id -u):$(id -g)"
+  # Send build output to stderr; this function's stdout is the release name only.
+  if ! docker run --rm $as_user -e HOME=/app -v "$dir":/app -w /app "$BUILD_IMAGE" npm ci >&2; then
+    rm -rf "$dir"; return 1
+  fi
+  if ! docker run --rm $as_user -e HOME=/app -e NEXT_TELEMETRY_DISABLED=1 -e NOVA_DASHBOARD_SHA="$sha" \
+        -v "$dir":/app -w /app "$BUILD_IMAGE" npm run build >&2; then
+    rm -rf "$dir"; return 1
+  fi
+  printf '%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$dir/.nova-deployed-at"
+  printf '%s' "$rel"
+}
+
+# ---------------------------------------------------------------------------
+# prune: keep N most recent releases; never delete current/previous.
+# ---------------------------------------------------------------------------
+do_prune() {
+  [ -d "$RELEASES_DIR" ] || return 0
+  local cur prev idx=0 dir base
+  cur="$(get_current)"; prev="$(get_previous)"
+  while IFS= read -r dir; do
+    base="$(basename "${dir%/}")"
+    [ -d "$RELEASES_DIR/$base" ] || continue
+    idx=$((idx + 1))
+    [ "$base" = "$cur" ] || [ "$base" = "$prev" ] && continue
+    if [ "$idx" -gt "$KEEP_RELEASES" ]; then
+      log "pruning old release $base"
+      rm -rf "$RELEASES_DIR/$base"
+    fi
+  done < <(ls -1dt "$RELEASES_DIR"/*/ 2>/dev/null)
+}
+
+# ---------------------------------------------------------------------------
+# apply: build branch HEAD (or requested sha) and switch with health gate.
+# ---------------------------------------------------------------------------
+do_apply() {
+  local requested="${1:-}"
+  write_state "checking" "Fetching latest from origin/$BRANCH"
+  git -C "$REPO_DIR" fetch --prune origin "$BRANCH"
+  local target; target="$(git -C "$REPO_DIR" rev-parse "origin/$BRANCH")"
+  [ -n "$requested" ] && [ "$requested" != "$target" ] && \
+    log "requested $requested differs from branch HEAD $target; using HEAD"
+
+  local cur cur_sha; cur="$(get_current)"; cur_sha="$( [ -n "$cur" ] && release_sha "$cur" || echo "" )"
+  if [ "$target" = "$cur_sha" ]; then
+    write_state "success" "Already up to date ($(printf '%s' "$target" | cut -c1-7))"
+    return 0
+  fi
+
+  do_prune
+  if [ "$(free_mb)" -lt "$MIN_FREE_MB" ]; then
+    fail_state "Not enough disk space to build a new release"; return 1
+  fi
+
+  local short; short="$(printf '%s' "$target" | cut -c1-7)"
+  write_state "building" "Building ${short}"
+  local rel; if ! rel="$(build_release "$target")"; then
+    fail_state "Build failed for ${short}"; return 1
+  fi
+
+  write_state "restarting" "Switching to ${short}"
+  [ -n "$cur" ] && set_previous "$cur"
+  activate "$rel"
+  set_current "$rel"
+  restart_container
+
+  write_state "verifying" "Verifying ${short}"
+  if health_ok; then
+    do_prune
+    write_state "success" "Updated to ${short}"
+    return 0
+  fi
+
+  log "health check failed; rolling back"
+  if [ -n "$cur" ] && [ -d "$RELEASES_DIR/$cur" ]; then
+    activate "$cur"; set_current "$cur"; restart_container
+    if health_ok; then
+      write_state "rolledback" "Update ${short} failed health check; rolled back to previous version"
+    else
+      fail_state "Update ${short} failed AND rollback did not come up healthy"
+    fi
+  else
+    fail_state "Update ${short} failed and no previous release to roll back to"
+  fi
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# activate-release: switch to an already-built release by name, with health
+# gate + rollback to previous. Used for manual pinning and recovery.
+# ---------------------------------------------------------------------------
+do_activate() {
+  local rel="${1:-}"
+  [ -n "$rel" ] && [ -d "$RELEASES_DIR/$rel" ] || { fail_state "release '$rel' not found"; return 1; }
+  local cur short; cur="$(get_current)"; short="$(release_sha "$rel" | cut -c1-7)"
+  write_state "restarting" "Activating ${short:-$rel}"
+  [ -n "$cur" ] && [ "$cur" != "$rel" ] && set_previous "$cur"
+  activate "$rel"; set_current "$rel"; restart_container
+  write_state "verifying" "Verifying ${short:-$rel}"
+  if health_ok; then
+    do_prune; write_state "success" "Activated ${short:-$rel}"; return 0
+  fi
+  local prev; prev="$(get_previous)"
+  if [ -n "$prev" ] && [ -d "$RELEASES_DIR/$prev" ] && [ "$prev" != "$rel" ]; then
+    activate "$prev"; set_current "$prev"; restart_container
+    if health_ok; then write_state "rolledback" "Activation of ${short:-$rel} failed; rolled back"; else
+      fail_state "Activation of ${short:-$rel} failed AND rollback unhealthy"; fi
+  else
+    fail_state "Activation of ${short:-$rel} failed and no previous release"
+  fi
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# rollback: switch current <-> previous (no rebuild).
+# ---------------------------------------------------------------------------
+do_rollback() {
+  local cur prev; cur="$(get_current)"; prev="$(get_previous)"
+  if [ -z "$prev" ] || [ ! -d "$RELEASES_DIR/$prev" ] || [ "$prev" = "$cur" ]; then
+    fail_state "No previous version available to roll back to"; return 1
+  fi
+  write_state "restarting" "Reinstalling previous version ($(release_sha "$prev" | cut -c1-7))"
+  activate "$prev"; set_current "$prev"; set_previous "$cur"; restart_container
+  write_state "verifying" "Verifying previous version"
+  if health_ok; then
+    write_state "success" "Reinstalled previous version"
+  else
+    activate "$cur"; set_current "$cur"; set_previous "$prev"; restart_container
+    fail_state "Previous version did not come up healthy; restored current"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# process: drain queued control requests (driven by per-minute cron).
+# ---------------------------------------------------------------------------
+do_process() {
+  mkdir -p "$CONTROL_DIR"
+  local req action sha
+  while :; do
+    req="$(ls -1tr "$CONTROL_DIR"/*.json 2>/dev/null | head -n1 || true)"
+    [ -n "$req" ] || break
+    action="$(grep -o '"action"[[:space:]]*:[[:space:]]*"[^"]*"' "$req" | head -n1 | sed 's/.*"\([^"]*\)"$/\1/')"
+    sha="$(grep -o '"sha"[[:space:]]*:[[:space:]]*"[0-9a-fA-F]*"' "$req" | head -n1 | sed 's/.*"\([^"]*\)"$/\1/' || true)"
+    rm -f "$req"
+    case "$action" in
+      apply)    do_apply "$sha" || true ;;
+      rollback) do_rollback || true ;;
+      *)        log "unknown action '$action'" ;;
+    esac
+  done
+}
+
+# ---------------------------------------------------------------------------
+# migrate: one-time conversion of a flat install into the releases layout.
+# Builds the first release out-of-line, then during the restart window snapshots
+# the old flat app into a bootstrap release (rollback target) and switches.
+# ---------------------------------------------------------------------------
+do_migrate() {
+  mkdir -p "$RELEASES_DIR" "$CONTROL_DIR" "$APP_ROOT/bin"
+  if [ ! -d "$REPO_DIR/.git" ]; then
+    write_state "checking" "Cloning $REPO_URL"
+    git clone --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"
+  else
+    git -C "$REPO_DIR" fetch --prune origin "$BRANCH"
+  fi
+  local target short rel; target="$(git -C "$REPO_DIR" rev-parse "origin/$BRANCH")"
+  short="$(printf '%s' "$target" | cut -c1-7)"
+
+  write_state "building" "Building first release ${short}"
+  if ! rel="$(build_release "$target")"; then
+    fail_state "Initial build failed"; return 1
+  fi
+
+  # Snapshot the running flat app as a bootstrap rollback target, then switch.
+  # The mv + activate are fast (renames within one filesystem); a single restart
+  # afterwards gives a clean boot onto the new release.
+  local boot="bootstrap-$(date -u +%Y%m%dT%H%M%S)"
+  write_state "restarting" "Switching to releases layout (${short})"
+  mkdir -p "$RELEASES_DIR/$boot"
+  printf '%s' "bootstrap" > "$RELEASES_DIR/$boot/.nova-sha"
+  printf '%s' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$RELEASES_DIR/$boot/.nova-deployed-at"
+  local item base
+  for item in "$APP_ROOT"/* "$APP_ROOT"/.[!.]*; do
+    [ -e "$item" ] || continue
+    base="$(basename "$item")"
+    is_shared "$base" && continue
+    [ -L "$item" ] && { rm -f "$item"; continue; }   # stray symlink, drop
+    mv "$item" "$RELEASES_DIR/$boot/$base"
+  done
+  set_previous "$boot"
+  activate "$rel"
+  set_current "$rel"
+  restart_container
+
+  write_state "verifying" "Verifying ${short}"
+  if health_ok; then
+    do_prune
+    write_state "success" "Migrated to releases layout (${short})"
+  else
+    log "new release unhealthy; rolling back to bootstrap snapshot"
+    activate "$boot"; set_current "$boot"; set_previous "$rel"; restart_container
+    if health_ok; then
+      write_state "rolledback" "Migration build failed health check; restored prior install"
+    else
+      fail_state "Migration failed AND bootstrap restore unhealthy — manual check needed"
+    fi
+  fi
+}
+
+with_lock() {
+  exec 9>"$LOCK_FILE"
+  flock -n 9 || { log "another nova-release run holds the lock; exiting"; exit 0; }
+  "$@"
+}
+
+cmd="${1:-process}"; shift || true
+case "$cmd" in
+  process)  with_lock do_process ;;
+  apply)    with_lock do_apply "${1:-}" ;;
+  activate) with_lock do_activate "${1:-}" ;;
+  rollback) with_lock do_rollback ;;
+  prune)    with_lock do_prune ;;
+  migrate)  with_lock do_migrate ;;
+  status)   cat "$STATE_FILE" 2>/dev/null || echo '{}' ;;
+  *) echo "usage: nova-release {process|apply [sha]|activate <rel>|rollback|prune|migrate|status}" >&2; exit 2 ;;
+esac

@@ -1,0 +1,2164 @@
+[
+  {
+    "area_id": "outside",
+    "configuration_url": null,
+    "config_entries": [
+      "01KMVBME4DC321F3C8TNERK2TV"
+    ],
+    "config_entries_subentries": {
+      "01KMVBME4DC321F3C8TNERK2TV": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774739667.090898,
+    "disabled_by": null,
+    "entry_type": "service",
+    "hw_version": null,
+    "id": "9b33acdb9b86a11bef98f6b2233cef00",
+    "identifiers": [
+      [
+        "sun",
+        "01KMVBME4DC321F3C8TNERK2TV"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": null,
+    "model": null,
+    "model_id": null,
+    "modified_at": 1777092318.790993,
+    "name_by_user": null,
+    "name": "Sun",
+    "primary_config_entry": "01KMVBME4DC321F3C8TNERK2TV",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KMVBMEEJDTWY4SACXE19KKPA"
+    ],
+    "config_entries_subentries": {
+      "01KMVBMEEJDTWY4SACXE19KKPA": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "bluetooth",
+        "02:00:5E:09:09:09"
+      ]
+    ],
+    "created_at": 1774739667.411138,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "ffb57beff385c1ddc55833bdd5bf117f",
+    "identifiers": [],
+    "labels": [],
+    "manufacturer": "Liteon Technology Corporation",
+    "model": "Unknown",
+    "model_id": null,
+    "modified_at": 1774739667.411235,
+    "name_by_user": null,
+    "name": "hci0 (02:00:5E:09:09:09)",
+    "primary_config_entry": "01KMVBMEEJDTWY4SACXE19KKPA",
+    "serial_number": null,
+    "sw_version": "Unknown",
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": "homeassistant://config/backup",
+    "config_entries": [
+      "01KMVBMEF7ERCS5HZBVEZQVZVQ"
+    ],
+    "config_entries_subentries": {
+      "01KMVBMEF7ERCS5HZBVEZQVZVQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774739667.488278,
+    "disabled_by": null,
+    "entry_type": "service",
+    "hw_version": null,
+    "id": "bcc26a8aa26773ec37dbae90d5ae3005",
+    "identifiers": [
+      [
+        "backup",
+        "backup_manager"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Home Assistant",
+    "model": "Home Assistant Backup",
+    "model_id": null,
+    "modified_at": 1777434372.14264,
+    "name_by_user": null,
+    "name": "Backup",
+    "primary_config_entry": "01KMVBMEF7ERCS5HZBVEZQVZVQ",
+    "serial_number": null,
+    "sw_version": "2025.12.3",
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KMVBMHXGPG2EP3Z4A9C7FNK2"
+    ],
+    "config_entries_subentries": {
+      "01KMVBMHXGPG2EP3Z4A9C7FNK2": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774739671.088952,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "7d3faf100224e77b9b6f9ccf998d57f2",
+    "identifiers": [
+      [
+        "cast",
+        "e24c9debe489a8430a374c089ae78f5b"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Google Inc.",
+    "model": "Google Nest Mini",
+    "model_id": null,
+    "modified_at": 1774766126.257271,
+    "name_by_user": "Kitchen speaker",
+    "name": "Kitchen speaker",
+    "primary_config_entry": "01KMVBMHXGPG2EP3Z4A9C7FNK2",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "bedroom",
+    "configuration_url": null,
+    "config_entries": [
+      "01KMVBMHXGPG2EP3Z4A9C7FNK2"
+    ],
+    "config_entries_subentries": {
+      "01KMVBMHXGPG2EP3Z4A9C7FNK2": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774739671.116894,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "7239b2381f6cb3a0fbbae31c326dc46b",
+    "identifiers": [
+      [
+        "cast",
+        "71044d1deb568fa25e49a6be8d41f66f"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Google Inc.",
+    "model": "Google Home",
+    "model_id": null,
+    "modified_at": 1774766150.317871,
+    "name_by_user": null,
+    "name": "Bedroom speaker",
+    "primary_config_entry": "01KMVBMHXGPG2EP3Z4A9C7FNK2",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KMVBMHXGPG2EP3Z4A9C7FNK2"
+    ],
+    "config_entries_subentries": {
+      "01KMVBMHXGPG2EP3Z4A9C7FNK2": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774739671.125277,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "f97fb27a6a2274675d0a6abc491f0452",
+    "identifiers": [
+      [
+        "cast",
+        "cd333f429fb306e7ca61cc285005ba5c"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Google Inc.",
+    "model": "Google Nest Hub",
+    "model_id": null,
+    "modified_at": 1774766183.422183,
+    "name_by_user": null,
+    "name": "Lounge Display",
+    "primary_config_entry": "01KMVBMHXGPG2EP3Z4A9C7FNK2",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KMVH2NS58X9R652SNTXPEW26"
+    ],
+    "config_entries_subentries": {
+      "01KMVH2NS58X9R652SNTXPEW26": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774745376.594529,
+    "disabled_by": null,
+    "entry_type": "service",
+    "hw_version": null,
+    "id": "a1da44351721f42eef28d27ea23fea90",
+    "identifiers": [
+      [
+        "google_translate",
+        "01KMVH2NS58X9R652SNTXPEW26"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Google",
+    "model": "Google Translate TTS",
+    "model_id": null,
+    "modified_at": 1774745376.594606,
+    "name_by_user": null,
+    "name": "Google Translate en com",
+    "primary_config_entry": "01KMVH2NS58X9R652SNTXPEW26",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "outside",
+    "configuration_url": "https://www.met.no/en",
+    "config_entries": [
+      "01KMVH2NSY6YEZ3KVN77X3MGKZ"
+    ],
+    "config_entries_subentries": {
+      "01KMVH2NSY6YEZ3KVN77X3MGKZ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1774745378.513033,
+    "disabled_by": null,
+    "entry_type": "service",
+    "hw_version": null,
+    "id": "29300b7611d4555b757531e3125fd5e2",
+    "identifiers": [
+      [
+        "met",
+        "01KMVH2NSY6YEZ3KVN77X3MGKZ"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Met.no",
+    "model": "Forecast",
+    "model_id": null,
+    "modified_at": 1777092245.928117,
+    "name_by_user": null,
+    "name": "Forecast",
+    "primary_config_entry": "01KMVH2NSY6YEZ3KVN77X3MGKZ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "network",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJPKVN1RSKRF38P2HB31SNJ"
+    ],
+    "config_entries_subentries": {
+      "01KPJPKVN1RSKRF38P2HB31SNJ": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:08:08:08"
+      ],
+      [
+        "upnp",
+        "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37"
+      ]
+    ],
+    "created_at": 1776596676.291935,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "fdd100c457f3c96577b820e7fe98a674",
+    "identifiers": [
+      [
+        "upnp",
+        "uuid:9f0865b3-f5da-4ad5-85b7-7404637fdf37::urn:schemas-upnp-org:device:InternetGatewayDevice:1"
+      ],
+      [
+        "upnp_host",
+        "192.168.0.1"
+      ],
+      [
+        "upnp_serial_number",
+        "1.0"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link",
+    "model": "NX620v",
+    "model_id": null,
+    "modified_at": 1779391833.857243,
+    "name_by_user": null,
+    "name": "NX620v",
+    "primary_config_entry": "01KPJPKVN1RSKRF38P2HB31SNJ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR3KWZ48YMF0RH8DD88TW5"
+    ],
+    "config_entries_subentries": {
+      "01KPJR3KWZ48YMF0RH8DD88TW5": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:06:06:06"
+      ]
+    ],
+    "created_at": 1776598241.413854,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "cc72231f9777bd47ba67885f49eac9b1",
+    "identifiers": [
+      [
+        "apple_tv",
+        "02:00:5E:06:06:06"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Apple",
+    "model": "Apple TV 4K",
+    "model_id": null,
+    "modified_at": 1779199203.063498,
+    "name_by_user": "Home Theatre",
+    "name": "Home Theatre (1485)",
+    "primary_config_entry": "01KPJR3KWZ48YMF0RH8DD88TW5",
+    "serial_number": null,
+    "sw_version": "26.5",
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776635887.993252,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "7caa3f3cedb00dfd81cd939c1dfa9abf",
+    "identifiers": [
+      [
+        "tuya",
+        "eb63ee9f6ed5641813otkh"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "",
+    "model_id": "3fzigtc0fuptzsim",
+    "modified_at": 1777434384.592005,
+    "name_by_user": null,
+    "name": "Hallway light",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "outside",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776635887.993459,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "57892289131947023adefbdc0bcdf37a",
+    "identifiers": [
+      [
+        "tuya",
+        "eb6408ejprootjpg"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Smart lock_003_005_S (unsupported)",
+    "model_id": "imoyyty9",
+    "modified_at": 1776635966.81372,
+    "name_by_user": null,
+    "name": "Front Door",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "bedroom",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776639746.491916,
+    "disabled_by": "user",
+    "entry_type": null,
+    "hw_version": null,
+    "id": "bc77976c5a8b5378b01307d2e742df27",
+    "identifiers": [
+      [
+        "tuya",
+        "eb44363901d4b846bb6puq"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "",
+    "model_id": "3fzigtc0fuptzsim",
+    "modified_at": 1777520373.31937,
+    "name_by_user": null,
+    "name": "Bedroom light",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776653953.26694,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "18b1ad0f7c85fe7b67b407bfb1b32f0a",
+    "identifiers": [
+      [
+        "tuya",
+        "ebd488e9bc91b96f97zzyj"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "",
+    "model_id": "3fzigtc0fuptzsim",
+    "modified_at": 1777434384.591788,
+    "name_by_user": null,
+    "name": "Nook light",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "outside",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776653987.477329,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "daa4e76cc35b0daccd0463ec9bee350b",
+    "identifiers": [
+      [
+        "tuya",
+        "ebba11ab62ce79b372u95t"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "",
+    "model_id": "3fzigtc0fuptzsim",
+    "modified_at": 1777434384.592388,
+    "name_by_user": null,
+    "name": "Outside light",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776635887.992506,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "04ab522938ae46219a50d201fc720ec9",
+    "identifiers": [
+      [
+        "tuya",
+        "7463034340f520c1cf42"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Smart Bulb",
+    "model_id": "bwwka5jg2vadhw7x",
+    "modified_at": 1777434384.591317,
+    "name_by_user": null,
+    "name": "Kitchen light 2",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "bedroom",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPMTA4BXJ8N9T61FJVNEMJBE"
+    ],
+    "config_entries_subentries": {
+      "01KPMTA4BXJ8N9T61FJVNEMJBE": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:02:02:02"
+      ]
+    ],
+    "created_at": 1776667669.945601,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": "3.0",
+    "id": "a12f9c5eea96efc4fd2a8c8663300008",
+    "identifiers": [
+      [
+        "tplink",
+        "8023B81E8453CE124DFAE9EE432D51E0248A01D6"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link",
+    "model": "L530",
+    "model_id": null,
+    "modified_at": 1776667778.780615,
+    "name_by_user": null,
+    "name": "Wardrobe",
+    "primary_config_entry": "01KPMTA4BXJ8N9T61FJVNEMJBE",
+    "serial_number": null,
+    "sw_version": "1.4.2 Build 260113 Rel.172011",
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPMTAEZ71NW8PVNB26MW0ZR4"
+    ],
+    "config_entries_subentries": {
+      "01KPMTAEZ71NW8PVNB26MW0ZR4": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:07:07:07"
+      ]
+    ],
+    "created_at": 1776667671.788596,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": "3.0",
+    "id": "e40f328958e64358f95b67ba009f7a75",
+    "identifiers": [
+      [
+        "tplink",
+        "8023E4625E7BD739B9734812C6FE6C56241F37F7"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link",
+    "model": "L535",
+    "model_id": null,
+    "modified_at": 1776670690.967309,
+    "name_by_user": null,
+    "name": "Desk",
+    "primary_config_entry": "01KPMTAEZ71NW8PVNB26MW0ZR4",
+    "serial_number": null,
+    "sw_version": "1.4.1 Build 251016 Rel.204554",
+    "via_device_id": null
+  },
+  {
+    "area_id": "conservatory",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPMXJ477P9N9NH0H7KTRR449"
+    ],
+    "config_entries_subentries": {
+      "01KPMXJ477P9N9NH0H7KTRR449": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:04:04:04"
+      ]
+    ],
+    "created_at": 1776671068.570533,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": "3.0",
+    "id": "da5588c951a51f82e70047a10044202a",
+    "identifiers": [
+      [
+        "tplink",
+        "802302D69926A26389CA8977046B1704248A9671"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link",
+    "model": "L530",
+    "model_id": null,
+    "modified_at": 1776671095.519445,
+    "name_by_user": null,
+    "name": "Hallway 2",
+    "primary_config_entry": "01KPMXJ477P9N9NH0H7KTRR449",
+    "serial_number": null,
+    "sw_version": "1.4.2 Build 260113 Rel.172011",
+    "via_device_id": null
+  },
+  {
+    "area_id": "climate",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776721479.770081,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "26a49a8cf0df95caff3be695f6f03c68",
+    "identifiers": [
+      [
+        "tuya",
+        "0014083040f52014bd20"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Panel heater",
+    "model_id": "ynjanlglr4qa6dxf",
+    "modified_at": 1777434384.587421,
+    "name_by_user": null,
+    "name": "Panel Heater",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776721654.93796,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "30dc7b884b3d3fcfebd8db33a0a8dbd7",
+    "identifiers": [
+      [
+        "tuya",
+        "eb18ddd323121703e37evk"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Kogan\u001fSmarterHome™\u001f20W\u001fRGB + CCT\u001fLED\u001fFlood\u001fLight",
+    "model_id": "tmpt6tc1yswdaq2q",
+    "modified_at": 1777434384.590133,
+    "name_by_user": null,
+    "name": "Mirror light",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1776723600.967379,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "8bc255844112099ffc90eb4fa078e5e3",
+    "identifiers": [
+      [
+        "tuya",
+        "eb98f5fb8643b11f9espc2"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Kogan\u001fSmarterHome™\u001f20W\u001fRGB + CCT\u001fLED\u001fFlood\u001fLight",
+    "model_id": "tmpt6tc1yswdaq2q",
+    "modified_at": 1777434384.590944,
+    "name_by_user": null,
+    "name": "TV light",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "climate",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPPGJTDQ5NS25T3AZMY3P16T"
+    ],
+    "config_entries_subentries": {
+      "01KPPGJTDQ5NS25T3AZMY3P16T": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:01:01:01"
+      ]
+    ],
+    "created_at": 1776724568.58135,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "4d42b4e33db2cdd32f2b49bb48cd2661",
+    "identifiers": [
+      [
+        "gree",
+        "02005e010101"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Gree",
+    "model": null,
+    "model_id": null,
+    "modified_at": 1776724640.702357,
+    "name_by_user": "Air Conditioner",
+    "name": "c6780cad",
+    "primary_config_entry": "01KPPGJTDQ5NS25T3AZMY3P16T",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPPZ1N66MX9THR2Z033AZ35K"
+    ],
+    "config_entries_subentries": {
+      "01KPPZ1N66MX9THR2Z033AZ35K": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:0b:0b:0b"
+      ]
+    ],
+    "created_at": 1776739734.774824,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6f5a7b08fef6bea519ee154a33953792",
+    "identifiers": [
+      [
+        "lifx",
+        "02:00:5e:0a:0a:0a"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "LIFX",
+    "model": "LIFX A21 1600lm Intl",
+    "model_id": null,
+    "modified_at": 1776767643.278472,
+    "name_by_user": null,
+    "name": "Lounge light",
+    "primary_config_entry": "01KPPZ1N66MX9THR2Z033AZ35K",
+    "serial_number": null,
+    "sw_version": "4.112",
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPPZRH9P8D7RZEHEDR1C19TB"
+    ],
+    "config_entries_subentries": {
+      "01KPPZRH9P8D7RZEHEDR1C19TB": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:03:03:03"
+      ]
+    ],
+    "created_at": 1776667628.21887,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": "3.0",
+    "id": "4ad408a9e482e5948f011fdc45d686b0",
+    "identifiers": [
+      [
+        "tplink",
+        "80231B4BD2AEE2E6643512CC0C906D8B248BDDBB"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link",
+    "model": "L530",
+    "model_id": null,
+    "modified_at": 1776740492.600556,
+    "name_by_user": "Kitchen light 1",
+    "name": "Kitchen light 1",
+    "primary_config_entry": "01KPPZRH9P8D7RZEHEDR1C19TB",
+    "serial_number": null,
+    "sw_version": "1.4.2 Build 260113 Rel.172011",
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPZR2XR0Q4PT761S45HDJXA4"
+    ],
+    "config_entries_subentries": {
+      "01KPZR2XR0Q4PT761S45HDJXA4": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:05:05:05"
+      ]
+    ],
+    "created_at": 1777034426.129732,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "500d796f46b4a5a13e4af080164bbee1",
+    "identifiers": [],
+    "labels": [],
+    "manufacturer": "Open Home Foundation",
+    "model": "Linux Voice Assistant",
+    "model_id": null,
+    "modified_at": 1777092278.939164,
+    "name_by_user": null,
+    "name": "Iridium",
+    "primary_config_entry": "01KPZR2XR0Q4PT761S45HDJXA4",
+    "serial_number": null,
+    "sw_version": "1.1.10 (ESPHome 42.7.0)",
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777091257.450215,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "a80e17400544d03c32973b79cd17f579",
+    "identifiers": [
+      [
+        "tuya",
+        "eb7da36c9c4d149965wfsk"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "WIFI Temperature Humidity Sensor",
+    "model_id": "kerdtowolkik1r6m",
+    "modified_at": 1777434384.593879,
+    "name_by_user": null,
+    "name": "Lounge sensor",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPKW0CNK663QWCFGPTSBV5PQ"
+    ],
+    "config_entries_subentries": {
+      "01KPKW0CNK663QWCFGPTSBV5PQ": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777168803.32592,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "ebb9eeeb81014db6eb57530d0b320fdb",
+    "identifiers": [
+      [
+        "tuya",
+        "ebdab3cb40963c2fb2smsz"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "PC193HA",
+    "model_id": "raloxfjscxzfivwe",
+    "modified_at": 1778026430.792523,
+    "name_by_user": null,
+    "name": "Cupboard",
+    "primary_config_entry": "01KPKW0CNK663QWCFGPTSBV5PQ",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "climate",
+    "configuration_url": null,
+    "config_entries": [
+      "01KQDPNANYT57TWMWN35AF9F4R"
+    ],
+    "config_entries_subentries": {
+      "01KQDPNANYT57TWMWN35AF9F4R": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777176677.855031,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "c6ab65b76488f7aeacdaf04594a9ea41",
+    "identifiers": [
+      [
+        "tuya_local",
+        "0014083040f52014bd20"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan / Goldair",
+    "model": "Glass panel heater",
+    "model_id": null,
+    "modified_at": 1777503798.544091,
+    "name_by_user": null,
+    "name": "Panel Heater",
+    "primary_config_entry": "01KQDPNANYT57TWMWN35AF9F4R",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KQDPNWJDP05Z6V74BJQ15X65"
+    ],
+    "config_entries_subentries": {
+      "01KQDPNWJDP05Z6V74BJQ15X65": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777502712.725209,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "a4630683fa231554398c833c74bc3a05",
+    "identifiers": [
+      [
+        "tuya_local",
+        "ebdab3cb40963c2fb2smsz"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Deltaco",
+    "model": "SH-P02",
+    "model_id": null,
+    "modified_at": 1778026430.786062,
+    "name_by_user": null,
+    "name": "Cupboard",
+    "primary_config_entry": "01KQDPNWJDP05Z6V74BJQ15X65",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KQDPP4K10BV3GN4CTGBAA7HC"
+    ],
+    "config_entries_subentries": {
+      "01KQDPP4K10BV3GN4CTGBAA7HC": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777502720.816517,
+    "disabled_by": "config_entry",
+    "entry_type": null,
+    "hw_version": null,
+    "id": "8d5b1b9ca22905d1c753a8ba874e48a5",
+    "identifiers": [
+      [
+        "tuya_local",
+        "eb98f5fb8643b11f9espc2"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Nedis",
+    "model": null,
+    "model_id": null,
+    "modified_at": 1778887982.101888,
+    "name_by_user": null,
+    "name": "TV light",
+    "primary_config_entry": "01KQDPP4K10BV3GN4CTGBAA7HC",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KQDR350QB0Z2XKKA72VHESKB"
+    ],
+    "config_entries_subentries": {
+      "01KQDR350QB0Z2XKKA72VHESKB": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777504195.653841,
+    "disabled_by": "config_entry",
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6d8086fa24ff779d9212d961dc1d33a2",
+    "identifiers": [
+      [
+        "tuya_local",
+        "7463034340f520c1cf42"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Nedis",
+    "model": null,
+    "model_id": null,
+    "modified_at": 1778887982.105392,
+    "name_by_user": null,
+    "name": "Kitchen light 2",
+    "primary_config_entry": "01KQDR350QB0Z2XKKA72VHESKB",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777506380.249582,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6eb699e9e7c773517d2ff81b5c1140fb",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_eb18ddd323121703e37evk"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778575477.230056,
+    "name_by_user": null,
+    "name": "Mirror light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "outside",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777506380.251292,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "51efbd75686ebfe852d1dee4bfedfd09",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_ebba11ab62ce79b372u95t"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778575493.456938,
+    "name_by_user": null,
+    "name": "Outside light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777506380.252445,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6b988a4fad43e785fcf4846f54c2d496",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_ebd488e9bc91b96f97zzyj"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778575525.511884,
+    "name_by_user": null,
+    "name": "Nook light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1777506380.253939,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "b95fe8006d71f69e3d28e34a77677375",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_eb63ee9f6ed5641813otkh"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778575508.379787,
+    "name_by_user": null,
+    "name": "Hallway light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "conservatory",
+    "configuration_url": null,
+    "config_entries": [
+      "01KQE7GXHCX1NYK0RPEN729XEV"
+    ],
+    "config_entries_subentries": {
+      "01KQE7GXHCX1NYK0RPEN729XEV": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:0d:0d:0d"
+      ]
+    ],
+    "created_at": 1777520375.497365,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "f92a53e9ae9dda032c9c3cccf725f6e7",
+    "identifiers": [
+      [
+        "lifx",
+        "02:00:5e:0c:0c:0c"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "LIFX",
+    "model": "LIFX A21 1600lm Intl",
+    "model_id": null,
+    "modified_at": 1777520375.497406,
+    "name_by_user": null,
+    "name": "Conservatory light",
+    "primary_config_entry": "01KQE7GXHCX1NYK0RPEN729XEV",
+    "serial_number": null,
+    "sw_version": "4.112",
+    "via_device_id": null
+  },
+  {
+    "area_id": "bedroom",
+    "configuration_url": null,
+    "config_entries": [
+      "01KQE7H1M2CCSNF2AG59T4B4FJ"
+    ],
+    "config_entries_subentries": {
+      "01KQE7H1M2CCSNF2AG59T4B4FJ": [
+        null
+      ]
+    },
+    "connections": [
+      [
+        "mac",
+        "02:00:5e:0f:0f:0f"
+      ]
+    ],
+    "created_at": 1777520379.544135,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "4741bf0a999ef2aa7df9d09a45cbbd5b",
+    "identifiers": [
+      [
+        "lifx",
+        "02:00:5e:0e:0e:0e"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "LIFX",
+    "model": "LIFX A21 1600lm Intl",
+    "model_id": null,
+    "modified_at": 1777520379.544182,
+    "name_by_user": null,
+    "name": "Bedroom light",
+    "primary_config_entry": "01KQE7H1M2CCSNF2AG59T4B4FJ",
+    "serial_number": null,
+    "sw_version": "4.112",
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1778027584.697036,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "0f289b04baaecdc985a3e916f40c2a74",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_eb7da36c9c4d149965wfsk"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778027632.246313,
+    "name_by_user": null,
+    "name": "Lounge sensor",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "lounge",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1778887649.210634,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "721e18ac16f30d26de95b887f8dcbab9",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_eb98f5fb8643b11f9espc2"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778887982.113384,
+    "name_by_user": null,
+    "name": "TV light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1778887649.215801,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "ca7074c20cb779348a8ea9674780848a",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_7463034340f520c1cf42"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778887982.115813,
+    "name_by_user": null,
+    "name": "Kitchen light 2",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": "kitchen",
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1778887649.222115,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6a9096b17be1e3f1e56af53c4b3e833d",
+    "identifiers": [
+      [
+        "mqtt",
+        "tuya_mobile_eb44363901d4b846bb6puq"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Tuya",
+    "model": "Mobile cloud bridge",
+    "model_id": null,
+    "modified_at": 1778887982.1189,
+    "name_by_user": null,
+    "name": "Kitchen light 2 2",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.213127,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "a07c36525f134a0e5a5ab9ba3dfa0052",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_neon_lights"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Nova",
+    "model": "Estimated power model",
+    "model_id": null,
+    "modified_at": 1779146216.214506,
+    "name_by_user": null,
+    "name": "Neon Lights",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.256775,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "60f6b81ad830890cf6a760a6357503a1",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_lounge_lifx"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "LIFX",
+    "model": "A21 1600lm",
+    "model_id": null,
+    "modified_at": 1779146216.256825,
+    "name_by_user": null,
+    "name": "Lounge light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.312963,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "1823a2e21d595466fe0891cb224efdc4",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_bedroom_lifx"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "LIFX",
+    "model": "A21 1600lm",
+    "model_id": null,
+    "modified_at": 1779146216.313012,
+    "name_by_user": null,
+    "name": "Bedroom light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.344735,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6b959320cbf7800916ca3578903dad91",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_conservatory_lifx"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "LIFX",
+    "model": "A21 1600lm",
+    "model_id": null,
+    "modified_at": 1779146216.344803,
+    "name_by_user": null,
+    "name": "Conservatory light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.359676,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "838a9451d625a7b80deb5d68e2c44e05",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_kitchen_tapo_l530"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link Tapo",
+    "model": "L530",
+    "model_id": null,
+    "modified_at": 1779146216.359732,
+    "name_by_user": null,
+    "name": "Kitchen light 1",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.373289,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "4d278ef4e829a43a02537dc7b6560f52",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_hallway_tapo_l530"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link Tapo",
+    "model": "L530",
+    "model_id": null,
+    "modified_at": 1779146216.373349,
+    "name_by_user": null,
+    "name": "Hallway 2",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.391834,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "6f2382f452b109f30b47073c09415d80",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_wardrobe_tapo_l530"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link Tapo",
+    "model": "L530",
+    "model_id": null,
+    "modified_at": 1779146216.391914,
+    "name_by_user": null,
+    "name": "Wardrobe",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.404674,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "4f44a0eb965dc30838e39b6e2b74693e",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_desk_tapo_l535"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "TP-Link Tapo",
+    "model": "L535E",
+    "model_id": null,
+    "modified_at": 1779146216.404717,
+    "name_by_user": null,
+    "name": "Desk",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.421963,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "0d1a8d0531c4ef0ff8f7b9a95dac7a06",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_hallway_tuya_bulb"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "RGB bulb",
+    "model_id": null,
+    "modified_at": 1779146216.422007,
+    "name_by_user": null,
+    "name": "Hallway light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.458805,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "c9edc6c0df71b1034a50692e9dad0db7",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_nook_tuya_bulb"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "RGB bulb",
+    "model_id": null,
+    "modified_at": 1779146216.458854,
+    "name_by_user": null,
+    "name": "Nook light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.472724,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "ea9a19f93278943771b86504bc25246f",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_outside_tuya_bulb"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "RGB bulb",
+    "model_id": null,
+    "modified_at": 1779146216.472773,
+    "name_by_user": null,
+    "name": "Outside light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.481963,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "31e4ca0c7c43cbd52bf62dbc56556f82",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_kitchen_tuya_bulb_a"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "RGB bulb",
+    "model_id": null,
+    "modified_at": 1779146216.48201,
+    "name_by_user": null,
+    "name": "Kitchen light 2",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.491071,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "a3cd9aa09cf61feb1baea623ddf5f0c3",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_kitchen_tuya_bulb_b"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "RGB bulb",
+    "model_id": null,
+    "modified_at": 1779146216.491102,
+    "name_by_user": null,
+    "name": "Kitchen light 2 2",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.496799,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "216b413fbc18d8b036ea6e9ed5d87278",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_mirror_flood"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "20W RGB + CCT LED Flood Light",
+    "model_id": null,
+    "modified_at": 1779146216.496834,
+    "name_by_user": null,
+    "name": "Mirror light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.501981,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "b936e3c7aa8f9a5a701886b43248d59d",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_tv_flood"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan SmarterHome / Tuya",
+    "model": "20W RGB + CCT LED Flood Light",
+    "model_id": null,
+    "modified_at": 1779146216.502013,
+    "name_by_user": null,
+    "name": "TV light",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.507706,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "587226e09c80e4dc8fe70a600d33f24d",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_panel_heater"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Kogan / Goldair",
+    "model": "Glass panel heater",
+    "model_id": null,
+    "modified_at": 1779146216.507741,
+    "name_by_user": null,
+    "name": "Panel Heater",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.516752,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "49d0add0b2e9f719b8f71ef5dbb874ac",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_gree_aircon"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Gree",
+    "model": "GWH18AAD-K6DNA1D/I",
+    "model_id": null,
+    "modified_at": 1779146216.516786,
+    "name_by_user": null,
+    "name": "Air Conditioner",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  },
+  {
+    "area_id": null,
+    "configuration_url": null,
+    "config_entries": [
+      "01KPJR5803CPVV5YK89P9FW6PT"
+    ],
+    "config_entries_subentries": {
+      "01KPJR5803CPVV5YK89P9FW6PT": [
+        null
+      ]
+    },
+    "connections": [],
+    "created_at": 1779146216.520836,
+    "disabled_by": null,
+    "entry_type": null,
+    "hw_version": null,
+    "id": "ce85ad57b92e598b3c36326b212aee0f",
+    "identifiers": [
+      [
+        "mqtt",
+        "nova_power_home"
+      ]
+    ],
+    "labels": [],
+    "manufacturer": "Nova",
+    "model": "Estimated power model",
+    "model_id": null,
+    "modified_at": 1779146216.520869,
+    "name_by_user": null,
+    "name": "Nova Grid",
+    "primary_config_entry": "01KPJR5803CPVV5YK89P9FW6PT",
+    "serial_number": null,
+    "sw_version": null,
+    "via_device_id": null
+  }
+]

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nova Dashboard Management"
+  short_description: "Configure and manage Nova Dashboard through MCP"
+  default_prompt: "Use $nova-dashboard-management to configure, validate, or manage my Nova Home Assistant dashboard."

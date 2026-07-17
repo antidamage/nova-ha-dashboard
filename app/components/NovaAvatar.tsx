@@ -1,0 +1,488 @@
+"use client";
+
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { appliedThemeRgb, useDeviceTheme, type SunThemeStatus, type ThemeStorageValue } from "./accentColor";
+import type { NovaAvatarTheme } from "./avatarThemeModel";
+import { resolveOrbModuleSettings } from "../../lib/orb-modules";
+import { readExperienceFeatures, useExperienceFeature } from "./dashboard/experienceModeSetting";
+import { sampleVoiceSpeechEnvelope, useVoiceSpeechPhase } from "./dashboard/voiceSpeech";
+import { buildOrbPalette, useOrbModule } from "./orbModules";
+import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
+import { useAgentName } from "./AgentNameContext";
+
+type LoadResponse = {
+  cpu: number;
+  net: number;
+  gpu: number;
+  listening: boolean;
+  load: number;
+};
+
+type WatchfaceResponse = {
+  watchface?: {
+    gymAlertThresholdHours?: number;
+    gymLastResetAt?: string;
+  };
+};
+
+// Default rendered size in CSS pixels; callers can override via the `size`
+// prop (e.g. the 150 px config preview).
+const SIZE = 128;
+
+// The orb's radius as a fraction of the canvas size. Module layers use unit
+// space where 1.0 = this radius, so the canvas keeps a small margin for glow
+// spill from layers that extend slightly past the rim.
+const ORB_RADIUS_FRACTION = 0.48;
+
+const POLL_MS = 100;
+const MS_PER_HOUR = 60 * 60 * 1000;
+const GYM_COUNTER_POLL_MS = 5 * 60 * 1000;
+const LOAD_EASE = 1.0; // ease toward server-reported load
+
+// While the voice agent speaks, the canvas backing store is rendered at a
+// higher resolution so the CSS-scaled centred orb stays crisp.
+const SPEECH_RESOLUTION_BOOST = 2;
+// The return migration must outlast the CSS transition (globals.css).
+const SPEECH_RETURN_FALLBACK_MS = 600;
+
+/** How large the speaking orb should be relative to the viewport. */
+function speechScaleFor(viewportWidth: number, viewportHeight: number, size: number) {
+  const target = Math.min(viewportWidth, viewportHeight) * 0.45;
+  return Math.max(1.3, Math.min(3, target / size));
+}
+
+function hoursSinceGymReset(lastTappedAt: number, now: number) {
+  const elapsed = Math.max(0, now - lastTappedAt);
+  return Math.max(0, Math.floor(elapsed / MS_PER_HOUR));
+}
+
+function msUntilNextGymHour(lastTappedAt: number, now: number) {
+  const elapsed = Math.max(0, now - lastTappedAt);
+  const currentHours = Math.floor(elapsed / MS_PER_HOUR);
+  const nextAt = lastTappedAt + (currentHours + 1) * MS_PER_HOUR;
+  return Math.max(1000, Math.min(MS_PER_HOUR, nextAt - now + 50));
+}
+
+function millisFromIso(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function readSharedGymSettings() {
+  const response = await fetch("/api/watchface", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Watchface settings request failed: ${response.status}`);
+  }
+  const data = await response.json() as WatchfaceResponse;
+  const threshold = Number(data.watchface?.gymAlertThresholdHours);
+  return {
+    gymAlertThresholdHours: Number.isFinite(threshold) ? threshold : null,
+    gymLastResetAt: millisFromIso(data.watchface?.gymLastResetAt),
+  };
+}
+
+function percentRatio(value: number | undefined) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(0, Math.min(1, parsed / 100));
+}
+
+type NovaAvatarProps = {
+  size?: number;
+  forceVisible?: boolean;
+  forceGymAlert?: boolean;
+  className?: string;
+  scrollScaleDistance?: number;
+  scrollScaleMin?: number;
+  themeOverride?: NovaAvatarTheme;
+  // Server-rendered theme so the canvas paints the saved colours on its very
+  // first frame. The orb is a canvas driven purely by React state, so unlike
+  // the rest of the UI it cannot be seeded by the synchronous head-bootstrap
+  // (which only sets CSS variables). Without this it falls back to the
+  // compiled-in default theme until the async /api/theme fetch lands — the
+  // "wrong colour on first load" flash. Null in demo mode / when unset.
+  initialTheme?: ThemeStorageValue | null;
+  // Server-known sun status so an "auto" theme selection resolves the correct
+  // dark/light variant on the first render (SSR included) instead of the
+  // hour-of-day guess. Null when the server has no state snapshot yet.
+  initialSun?: SunThemeStatus | null;
+};
+
+// Status-orb feature gate: when the status orb is turned off the visual never
+// mounts, so none of its hooks run — no theme/orb-module fetches, no 100 ms
+// load poll, no gym-counter poll, no canvas animation loop. SSR still emits
+// the markup (the server can't see localStorage); the head bootstrap in
+// layout.tsx hides it via CSS (html[data-nova-lite] / html[data-nova-no-orb])
+// before first paint and this gate unmounts it right after hydration. Config
+// previews pass forceVisible and are never suppressed.
+export default function NovaAvatar(props: NovaAvatarProps) {
+  const showOrb = useExperienceFeature("statusOrb");
+  const speechPhase = useVoiceSpeechPhase();
+  if (!props.forceVisible && !showOrb) {
+    // The voice agent's speaking orb appears on EVERY connected client, orb
+    // feature setting included: while speech is live a centred speech-only
+    // orb mounts (fading in/out in place instead of migrating), then unmounts
+    // completely so opted-out devices pay nothing when Nova is quiet.
+    if (speechPhase === "idle") {
+      return null;
+    }
+    return <NovaAvatarVisual {...props} speechOnly />;
+  }
+  return <NovaAvatarVisual {...props} />;
+}
+
+function NovaAvatarVisual({
+  size = SIZE,
+  forceVisible = false,
+  forceGymAlert = false,
+  className,
+  scrollScaleDistance = 300,
+  scrollScaleMin = 0.5,
+  themeOverride,
+  initialTheme,
+  initialSun,
+  speechOnly = false,
+}: NovaAvatarProps & { speechOnly?: boolean }) {
+  const { agentName } = useAgentName();
+  const pathname = usePathname();
+  const hidden = forceVisible ? false : (pathname?.startsWith("/config") ?? false);
+  // Voice-agent speaking state: "speaking" migrates the orb to the viewport
+  // centre and pulses the alert colour to the consonant envelope; "ending"
+  // runs the return migration. Config previews (forceVisible) never react.
+  const speechPhase = useVoiceSpeechPhase();
+  const speechActive = !forceVisible && speechPhase !== "idle";
+  // The parent gate's setting-sync effect runs AFTER this component's own
+  // effects on the hydration commit (child effects fire first), so an
+  // opted-out device would still start the pollers for one tick. Reading the
+  // stored setting synchronously keeps even that first fetch/frame from
+  // happening; the gate then unmounts the component for good. This must stay
+  // out of the rendered output (hidden) — SSR can't see localStorage, so
+  // using it there would break hydration.
+  // speechOnly instances exist PRECISELY on opted-out devices, so the opt-out
+  // must not disable their pollers/animation for the short speech window.
+  const orbOptedOut = !forceVisible && !speechOnly && !readExperienceFeatures().statusOrb;
+
+  const { activeVariant, theme: deviceTheme, themeReady, themeSource } = useDeviceTheme(initialTheme ?? undefined, initialSun ?? undefined);
+  const theme = themeOverride ?? deviceTheme.avatar;
+  // Two-pass hydration guard — the actual fix for the long-standing "gym number
+  // is transparent (a translucent black) after a reload" bug. The host div sets
+  // suppressHydrationWarning because its theme-derived output comes from a
+  // client-only localStorage read the server can't see, and the page is
+  // force-static so the server prerenders the digit transparent (themeReady
+  // false, no data/ dir at build). On a *warm* reload the client's first render
+  // instead computes themeReady=true from the warm shared-theme cache — a
+  // mismatch. Because of suppressHydrationWarning React keeps the stale server
+  // DOM AND treats the client's (correct) values as its committed baseline, so
+  // no later state change ever diffs the digit back into view: it stays
+  // transparent forever even though the React state is perfect. (A cold load
+  // works only because its first render also computes false, matching the
+  // server, so the later false->true flip is a real diff that repaints.)
+  //
+  // Starting `hydrated` false makes the first client render match the server
+  // (transparent), then flipping it in a mount effect guarantees a genuine
+  // false->true transition React must reconcile — forcing the saved gym colour
+  // to actually paint. Overrides (config preview) are unaffected.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const gymColorReady = themeOverride !== undefined || (hydrated && themeReady);
+
+  // The active theme names the orb module to draw with; the hook resolves it
+  // against built-ins + host-deployed module files, falling back to classic.
+  const orbModule = useOrbModule(theme.orbModule);
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [gymLastResetAt, setGymLastResetAt] = useState<number | null>(null);
+  const [gymAlertThresholdHours, setGymAlertThresholdHours] = useState<number | null>(null);
+  const [gymNow, setGymNow] = useState(0);
+  // Mutable references — avoid re-creating the animation loop on data tick.
+  const targetLoadRef = useRef(0);
+  const currentLoadRef = useRef(0);
+  const gymAlertActiveRef = useRef(forceGymAlert);
+  const themeRef = useRef<NovaAvatarTheme>(theme);
+  themeRef.current = theme;
+  // Read by the draw loop each frame without retriggering the effect.
+  const speechEnabledRef = useRef(!forceVisible);
+  speechEnabledRef.current = !forceVisible;
+  // The renderer holds the module's arcField animation state; it is swapped
+  // (and the animation restarted) only when the module itself changes. Theme
+  // color edits flow through the per-frame palette without touching it.
+  const rendererRef = useRef<OrbRenderer | null>(null);
+  if (rendererRef.current?.module !== orbModule) {
+    rendererRef.current = createOrbRenderer(orbModule);
+  }
+
+  useEffect(() => {
+    if (hidden || orbOptedOut) return;
+
+    let alive = true;
+    const loadSharedCounter = async () => {
+      try {
+        const settings = await readSharedGymSettings();
+        if (!alive) {
+          return;
+        }
+        setGymAlertThresholdHours(settings.gymAlertThresholdHours);
+        setGymLastResetAt(settings.gymLastResetAt);
+        setGymNow(Date.now());
+      } catch (error) {
+        console.error("[nova-dashboard] failed to sync gym counter", error);
+      }
+    };
+
+    void loadSharedCounter();
+    const id = window.setInterval(loadSharedCounter, GYM_COUNTER_POLL_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [hidden, orbOptedOut]);
+
+  useEffect(() => {
+    if (hidden || gymLastResetAt === null) return;
+
+    const id = window.setTimeout(() => {
+      setGymNow(Date.now());
+    }, msUntilNextGymHour(gymLastResetAt, gymNow || Date.now()));
+
+    return () => window.clearTimeout(id);
+  }, [gymLastResetAt, gymNow, hidden]);
+
+  useEffect(() => {
+    if (hidden || orbOptedOut) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const r = await fetch("/api/nova-load", { cache: "no-store" });
+        if (!r.ok) return;
+        const data = (await r.json()) as LoadResponse;
+        if (!alive) return;
+        const load = Math.max(0, Math.min(1, Number(data.load) || 0));
+        targetLoadRef.current = load;
+      } catch {
+        // ignore — keep previous target
+      }
+    };
+    tick();
+    const id = setInterval(tick, POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [hidden, orbOptedOut]);
+
+  // Animation loop. All drawing is delegated to the module renderer: this
+  // effect only owns the canvas surface, the load easing, and frame timing.
+  // While the voice agent speaks the backing store is boosted so the
+  // CSS-scaled centred orb stays crisp (the restart keeps arc state — the
+  // renderer instance lives in a ref).
+  const resolutionBoost = speechActive ? SPEECH_RESOLUTION_BOOST : 1;
+  useEffect(() => {
+    if (hidden || orbOptedOut) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1) * resolutionBoost;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    let raf = 0;
+    let lastTs = performance.now();
+
+    const draw = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTs) / 1000);
+      lastTs = now;
+
+      // ease load toward target
+      const tgt = targetLoadRef.current;
+      currentLoadRef.current += (tgt - currentLoadRef.current) * Math.min(1, dt * LOAD_EASE);
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.clearRect(0, 0, size, size);
+
+      // Render the active module. The palette and module settings are rebuilt
+      // from the live theme every frame so config edits appear on the very
+      // next frame.
+      const renderer = rendererRef.current;
+      if (renderer) {
+        // Voice speech drives the alert machinery directly: the consonant
+        // envelope replaces the gym-alert oscillation for as long as a
+        // speech session is live (sampleVoiceSpeechEnvelope returns null
+        // otherwise, restoring normal gym-alert behaviour).
+        let alertActive = gymAlertActiveRef.current;
+        let alertPulseOverride: number | undefined;
+        if (speechEnabledRef.current) {
+          const envelope = sampleVoiceSpeechEnvelope(now, renderer.module.alertPulsePeriod);
+          if (envelope !== null) {
+            alertActive = true;
+            alertPulseOverride = envelope;
+          }
+        }
+        renderer.render(ctx, {
+          centerX: size / 2,
+          centerY: size / 2,
+          radiusPx: size * ORB_RADIUS_FRACTION,
+          palette: buildOrbPalette(themeRef.current),
+          load: currentLoadRef.current,
+          alertActive,
+          alertPulseOverride,
+          nowMs: now,
+          dtSec: dt,
+          settings: resolveOrbModuleSettings(
+            renderer.module,
+            themeRef.current.orbModuleSettings[renderer.module.id],
+          ),
+        });
+      }
+
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [size, hidden, orbOptedOut, resolutionBoost]);
+
+  useEffect(() => {
+    if (hidden || forceVisible) return;
+    const host = hostRef.current;
+    if (!host) return;
+    const distance = Math.max(1, scrollScaleDistance);
+    const minScale = Math.max(0, Math.min(1, scrollScaleMin));
+    const onScroll = () => {
+      const y = typeof window !== "undefined" ? window.scrollY || 0 : 0;
+      const t = Math.min(1, Math.max(0, y / distance));
+      const scale = 1 + (minScale - 1) * t;
+      host.style.setProperty("--nova-avatar-scale", scale.toFixed(4));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [hidden, forceVisible, scrollScaleDistance, scrollScaleMin]);
+
+  // Voice speech migration: on "speaking" the fixed host animates from its
+  // resting spot to the viewport centre and enlarges; on "ending"/"idle" it
+  // animates back. The travel is expressed as CSS variables consumed by the
+  // .nova-avatar-speaking transform (globals.css) so lite mode's
+  // instant-transition blanket rule applies automatically. speechOnly hosts
+  // are already centred by their own class and only fade.
+  useEffect(() => {
+    if (hidden || forceVisible || speechOnly) return;
+    const host = hostRef.current;
+    if (!host) return;
+    if (speechPhase === "speaking") {
+      // Anchor = the transform origin (top centre), which scroll scaling
+      // cannot move — so the measurement is stable mid-animation.
+      const rect = host.getBoundingClientRect();
+      const anchorX = rect.left + rect.width / 2;
+      const anchorY = rect.top;
+      const scale = speechScaleFor(window.innerWidth, window.innerHeight, size);
+      host.style.setProperty("--nova-avatar-speech-x", `${window.innerWidth / 2 - anchorX}px`);
+      host.style.setProperty("--nova-avatar-speech-y", `${window.innerHeight / 2 - (scale * size) / 2 - anchorY}px`);
+      host.style.setProperty("--nova-avatar-speech-scale", scale.toFixed(4));
+      host.classList.remove("nova-avatar-returning");
+      host.classList.add("nova-avatar-speaking");
+      return;
+    }
+    if (!host.classList.contains("nova-avatar-speaking")) return;
+    // Return journey: the transient .nova-avatar-returning class carries the
+    // transition (the base rule must stay transition-free so scroll scaling
+    // never lags), removed once the orb lands.
+    host.classList.add("nova-avatar-returning");
+    host.classList.remove("nova-avatar-speaking");
+    const land = () => host.classList.remove("nova-avatar-returning");
+    const timer = window.setTimeout(land, SPEECH_RETURN_FALLBACK_MS);
+    host.addEventListener("transitionend", land, { once: true });
+    return () => {
+      window.clearTimeout(timer);
+      host.removeEventListener("transitionend", land);
+    };
+  }, [speechPhase, hidden, forceVisible, speechOnly, size]);
+
+  // speechOnly fade-in: the host mounts already at the viewport centre, so
+  // the visible class is added one frame later for the opacity transition to
+  // actually run.
+  const [speechOnlyVisible, setSpeechOnlyVisible] = useState(false);
+  useEffect(() => {
+    if (!speechOnly) return;
+    const host = hostRef.current;
+    if (host) {
+      host.style.setProperty(
+        "--nova-avatar-speech-scale",
+        speechScaleFor(window.innerWidth, window.innerHeight, size).toFixed(4),
+      );
+    }
+    if (speechPhase === "speaking") {
+      const raf = requestAnimationFrame(() => setSpeechOnlyVisible(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setSpeechOnlyVisible(false);
+  }, [speechOnly, speechPhase, size]);
+
+  if (hidden) return null;
+
+  const gymHours = gymLastResetAt === null ? 0 : hoursSinceGymReset(gymLastResetAt, gymNow || Date.now());
+  gymAlertActiveRef.current = forceGymAlert || gymHours >= (gymAlertThresholdHours ?? theme.gymAlertThresholdHours);
+  const gymRgb = appliedThemeRgb(theme.gymNumberColor);
+  const gymOpacity = percentRatio(theme.gymNumberOpacity);
+  const gymCounterStyle = {
+    color: gymColorReady ? `rgba(${gymRgb[0]}, ${gymRgb[1]}, ${gymRgb[2]}, ${gymOpacity})` : "transparent",
+  };
+  // speechOnly hosts use their own class so the data-nova-no-orb / lite CSS
+  // that hides .nova-avatar-host (and the body padding it reserves) never
+  // applies to the transient speaking orb.
+  const hostClass = speechOnly
+    ? `nova-avatar-visual nova-avatar-speech-host${speechOnlyVisible ? " nova-avatar-speech-visible" : ""}`
+    : className ? `nova-avatar-visual ${className}` : "nova-avatar-visual nova-avatar-host";
+  const hostStyle = {
+    "--nova-avatar-instance-size": `${size}px`,
+    width: size,
+    height: size,
+  } as CSSProperties;
+  const gymCounterLabel = gymLastResetAt === null
+    ? "Hours since last gym visit: no scraped visit found yet."
+    : `Hours since last gym visit: ${gymHours}.`;
+
+  return (
+    // suppressHydrationWarning: the data-nova-avatar-* attributes derive from
+    // useDeviceTheme, which deliberately reads the localStorage shared-theme
+    // cache synchronously on the client to avoid a wrong-colour first frame.
+    // When the server had no theme to SSR (demo mode / fresh install) the
+    // first client render legitimately differs from the server markup, and
+    // the state-driven re-render corrects the attributes immediately.
+    <div
+      ref={hostRef}
+      className={hostClass}
+      aria-label={`${agentName} avatar`}
+      suppressHydrationWarning
+      data-demo-tooltip-title="Status Orb"
+      data-demo-tooltip="Shows gym attendance and host server load."
+      data-nova-avatar-gym-number-color={gymRgb.join(" ")}
+      data-nova-avatar-gym-number-opacity={theme.gymNumberOpacity}
+      data-nova-avatar-theme-ready={gymColorReady ? "true" : "false"}
+      data-nova-avatar-theme-source={themeOverride === undefined ? themeSource : "override"}
+      data-nova-avatar-variant={themeOverride === undefined ? activeVariant : "override"}
+      role="group"
+      style={hostStyle}
+    >
+      <canvas
+        ref={canvasRef}
+        aria-hidden="true"
+        className="nova-avatar-canvas"
+        style={{ width: size, height: size }}
+      />
+      <div
+        className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}
+        style={gymCounterStyle}
+        aria-label={gymCounterLabel}
+        suppressHydrationWarning
+      >
+        {gymHours}
+      </div>
+    </div>
+  );
+}

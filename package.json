@@ -1,0 +1,51 @@
+{
+  "name": "nova-ha-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "build:demo": "node scripts/build-demo.mjs",
+    "start": "next start --hostname 0.0.0.0",
+    "package:skills": "node scripts/package-agent-skills.mjs",
+    "test": "npm run test:unit && npm run test:aircon && npm run package:skills",
+    "test:unit": "vitest run",
+    "test:aircon": "tsc -p tsconfig.aircon-test.json && node --test .tmp/aircon-tests/lib/aircon-control.test.js",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@radix-ui/react-slider": "latest",
+    "@radix-ui/react-tooltip": "latest",
+    "@types/ssh2": "^1.15.5",
+    "hls.js": "^1.6.16",
+    "ical.js": "^2.2.1",
+    "lucide-react": "latest",
+    "maplibre-gl": "^5.24.0",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "sharp": "^0.34.5",
+    "ssh2": "^1.17.0",
+    "tsdav": "^2.2.0",
+    "ws": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/postcss": "latest",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/ws": "latest",
+    "@vitest/coverage-v8": "^4.1.6",
+    "jsdom": "^29.1.1",
+    "playwright-core": "^1.60.0",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vitest": "^4.1.6"
+  }
+}

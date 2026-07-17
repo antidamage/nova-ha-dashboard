@@ -1,0 +1,22 @@
+[Unit]
+Description=Nova Home Assistant Dashboard
+After=network-online.target docker.service homeassistant.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+ExecStartPre=-/usr/bin/docker rm -f nova-ha-dashboard
+ExecStartPre=-/usr/bin/v4l2-ctl -d /dev/v4l/by-id/usb-MACROSILICON_AV_TO_USB2.0_20200909-video-index0 --set-ctrl=brightness=26,contrast=140,saturation=150,hue=0,backlight_compensation=0
+# Image nova-ha-dashboard:vaapi = node:20-bookworm-slim + ffmpeg + mesa-va-drivers
+# (built from ops/Dockerfile.vaapi). --device passes the AMD render node rw for
+# hardware (VAAPI) H.264 encoding; --group-add 992 is the host `render` gid. The
+# c 81:* cgroup rule stays for the v4l capture device. Falls back to software x264
+# automatically unless NOVA_CAMERA_OUTSIDE_ENCODER=vaapi is set in .env.local.
+ExecStart=/usr/bin/docker run --rm --name nova-ha-dashboard --network host --device-cgroup-rule "c 81:* rwm" --device /dev/dri/renderD128 --group-add 992 -v /dev:/host-dev:ro --env-file /opt/nova-ha-dashboard/.env.local -e NODE_ENV=production -e PORT=80 -v /opt/nova-ha-dashboard:/app -w /app nova-ha-dashboard:vaapi npm start
+ExecStop=/usr/bin/docker stop nova-ha-dashboard
+
+[Install]
+WantedBy=multi-user.target
