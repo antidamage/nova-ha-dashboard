@@ -13,6 +13,8 @@ export type VoiceTranscriptEvent = {
   role: VoiceTranscriptRole;
   text: string;
   agentName?: string;
+  /** Recognized local speaker-profile name for user turns. */
+  speakerName?: string;
   kind?: VoiceTranscriptKind;
   wakeWords?: string[];
   /** Legacy runtime field retained while older transcript events age out. */
@@ -28,6 +30,7 @@ export type VoiceTranscriptReplaceInput = {
   text: string;
   at: string;
   kind?: VoiceTranscriptKind;
+  speakerName?: string;
 };
 
 // Server-generated transcript ids are uuid hex; anything else is ignored so a
@@ -88,6 +91,7 @@ export function parseVoiceTranscriptInput(
   const at = Number.isNaN(suppliedAt.getTime()) ? now : suppliedAt;
   const id = optionalTranscriptId(source.id);
   const agentName = optionalLabel(source.agentName);
+  const speakerName = optionalLabel(source.speakerName);
   const kind = optionalKind(source.kind);
   const wakeWords = optionalWords(source.wakeWords);
   const wakeWord = optionalLabel(source.wakeWord);
@@ -99,6 +103,7 @@ export function parseVoiceTranscriptInput(
     text,
     ...(id ? { id } : {}),
     ...(agentName ? { agentName } : {}),
+    ...(speakerName ? { speakerName } : {}),
     ...(kind ? { kind } : {}),
     ...(wakeWords ? { wakeWords } : {}),
     ...(wakeWord ? { wakeWord } : {}),
@@ -129,7 +134,14 @@ export function parseVoiceTranscriptReplaceInput(
   const suppliedAt = typeof source.at === "string" ? new Date(source.at) : now;
   const at = Number.isNaN(suppliedAt.getTime()) ? now : suppliedAt;
   const kind = optionalKind(source.kind);
-  return { replacesId, text, at: at.toISOString(), ...(kind ? { kind } : {}) };
+  const speakerName = optionalLabel(source.speakerName);
+  return {
+    replacesId,
+    text,
+    at: at.toISOString(),
+    ...(kind ? { kind } : {}),
+    ...(speakerName ? { speakerName } : {}),
+  };
 }
 
 function displayAgentName(value: string): string {
@@ -188,7 +200,7 @@ export function formatVoiceTranscriptParts(
   // %u% is empty on agent lines and %a% is empty on user lines. Substituted
   // in a single pass so replacement values are never re-scanned for tokens.
   const substitutions: Record<string, string> = {
-    "%u%": entry.role === "user" ? "USER" : "",
+    "%u%": entry.role === "user" ? (entry.speakerName || "USER") : "",
     "%a%": entry.role === "user"
       ? ""
       : displayAgentName(entry.agentName || fallbackAgentName).toLocaleUpperCase(),

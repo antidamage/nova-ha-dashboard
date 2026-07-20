@@ -43,6 +43,7 @@ describe("VoiceTranscriptPanel", () => {
               at: "2026-07-17T00:42:37.000Z",
               role: "user",
               text: "Turn it on",
+              speakerName: "Adeline",
             }],
           },
       ok: true,
@@ -58,10 +59,10 @@ describe("VoiceTranscriptPanel", () => {
     render(<VoiceTranscriptPanel />);
 
     const userLine = await findTranscriptLine(/╰─ Turn it on$/);
-    expect(userLine.textContent).toMatch(/╭─\[ USER ➤ .* ➤ \[EXCHANGE\] \]\n/);
+    expect(userLine.textContent).toMatch(/╭─\[ Adeline ➤ .* ➤ \[EXCHANGE\] \]\n/);
     expect(userLine.textContent).not.toContain(":37");
     expect(userLine).toHaveClass("voice-transcript-line--user");
-    expect(userLine.querySelector(".voice-transcript-meta")?.textContent).toMatch(/USER/);
+    expect(userLine.querySelector(".voice-transcript-meta")?.textContent).toMatch(/Adeline/);
     expect(userLine.querySelector(".voice-transcript-meta")).toHaveClass("voice-transcript-meta--user");
 
     act(() => {

@@ -12,6 +12,7 @@ describe("voice transcript API", () => {
         role: "user",
         text,
         agentName: "Bandit",
+        speakerName: "Adeline",
         roomId: "lounge",
       }),
       headers: { "Content-Type": "application/json" },
@@ -19,9 +20,12 @@ describe("voice transcript API", () => {
     }));
 
     expect(response.status).toBe(200);
-    const posted = await response.json() as { transcript: { id: string; text: string } };
+    const posted = await response.json() as {
+      transcript: { id: string; text: string; speakerName?: string };
+    };
     expect(posted.transcript.id).toBeTruthy();
     expect(posted.transcript.text).toBe(text);
+    expect(posted.transcript.speakerName).toBe("Adeline");
 
     const snapshot = await GET();
     const body = await snapshot.json() as { transcripts: Array<{ id: string; text: string }> };
@@ -39,6 +43,34 @@ describe("voice transcript API", () => {
     }));
 
     expect(response.status).toBe(400);
+  });
+
+  it("upgrades an existing user line with a newly recognized profile name", async () => {
+    const id = crypto.randomUUID();
+    const at = new Date(Date.now() - 30_000).toISOString();
+    const initial = await POST(new Request("http://nova.test/api/voice/transcript", {
+      body: JSON.stringify({ id, at, role: "user", text: "My name is Adeline" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    }));
+    expect(initial.status).toBe(200);
+
+    const replacement = await POST(new Request("http://nova.test/api/voice/transcript", {
+      body: JSON.stringify({
+        replacesId: id,
+        at: new Date().toISOString(),
+        role: "user",
+        text: "My name is Adeline",
+        speakerName: "Adeline",
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    }));
+
+    expect(replacement.status).toBe(200);
+    expect(await replacement.json()).toMatchObject({
+      transcript: { id, speakerName: "Adeline" },
+    });
   });
 
   it("clears the shared transcript snapshot", async () => {

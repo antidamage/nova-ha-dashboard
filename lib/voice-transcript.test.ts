@@ -13,6 +13,7 @@ describe("voice transcript", () => {
       role: "assistant",
       text: "  The lounge light is on.  ",
       agentName: "Beemo",
+      speakerName: "Adeline",
       wakeWords: ["beemo", "bimo"],
       satelliteId: "indium",
     })).toEqual({
@@ -20,6 +21,7 @@ describe("voice transcript", () => {
       role: "assistant",
       text: "The lounge light is on.",
       agentName: "Beemo",
+      speakerName: "Adeline",
       wakeWords: ["beemo", "bimo"],
       satelliteId: "indium",
     });
@@ -27,7 +29,13 @@ describe("voice transcript", () => {
 
   it("formats both roles as decorated box lines with minute precision", () => {
     const at = "2026-07-17T00:42:37.000Z";
-    const user: VoiceTranscriptEvent = { id: "turn-1", at, role: "user", text: "Turn it on" };
+    const user: VoiceTranscriptEvent = {
+      id: "turn-1",
+      at,
+      role: "user",
+      text: "Turn it on",
+      speakerName: "Adeline",
+    };
     const assistant: VoiceTranscriptEvent = {
       id: "turn-2",
       at,
@@ -49,7 +57,7 @@ describe("voice transcript", () => {
       + ` ${weekday} ${hour}:${pad(date.getMinutes())}${meridiem}`;
 
     expect(formatVoiceTranscriptLine(user)).toBe(
-      `╭─[ USER ➤ ${stamp} ➤ [EXCHANGE] ]\n╰─ Turn it on`,
+      `╭─[ Adeline ➤ ${stamp} ➤ [EXCHANGE] ]\n╰─ Turn it on`,
     );
     expect(formatVoiceTranscriptLine(assistant)).toBe(
       `╭─[ BEEMO ➤ ${stamp} ➤ [COMMAND] ]\n╰─ Done`,
@@ -120,12 +128,14 @@ describe("voice transcript", () => {
       text: "The judge is gonna take the same thing",
       at: "2026-07-17T00:43:00.000Z",
       kind: "command",
+      speakerName: "Adeline",
     });
     expect(replace).toEqual({
       replacesId: "3f2a4b1c9d8e7f60",
       text: "The judge is gonna take the same thing",
       at: "2026-07-17T00:43:00.000Z",
       kind: "command",
+      speakerName: "Adeline",
     });
     expect(() => parseVoiceTranscriptReplaceInput({ text: "hello" })).toThrow(/replacesId/);
     expect(() =>
