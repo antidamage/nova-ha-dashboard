@@ -344,6 +344,7 @@ export function replaceVoiceTranscript(
   text: string,
   at: string,
   kind?: VoiceTranscriptKind,
+  speakerName?: string,
 ): VoiceTranscriptEvent | null {
   const entry = store.voiceTranscripts.find((item) => item.id === replacesId);
   if (!entry) {
@@ -353,6 +354,9 @@ export function replaceVoiceTranscript(
   entry.at = at;
   if (kind) {
     entry.kind = kind;
+  }
+  if (speakerName) {
+    entry.speakerName = speakerName;
   }
   broadcast(sseEvent("voice-transcript-replaced", JSON.stringify(entry)));
   return { ...entry };
