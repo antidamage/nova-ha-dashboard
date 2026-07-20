@@ -74,4 +74,17 @@ describe("dashboard preferences", () => {
     expect(stored.voice?.speechRate).toBe(115);
     expect(stored.voice?.updatedAt).toBeTruthy();
   });
+
+  it("merges Agent loop controls without dropping independent bounds", async () => {
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await Promise.all([
+      mergeDashboardPreferences({ agent: { ralphLoopMaxIterations: 12 } }),
+      mergeDashboardPreferences({ agent: { ralphLoopFailureSeconds: 6 } }),
+    ]);
+    const stored = await readDashboardPreferences();
+
+    expect(stored.agent?.ralphLoopMaxIterations).toBe(12);
+    expect(stored.agent?.ralphLoopFailureSeconds).toBe(6);
+    expect(stored.agent?.updatedAt).toBeTruthy();
+  });
 });

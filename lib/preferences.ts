@@ -68,6 +68,14 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    if (next.agent) {
+      merged.agent = {
+        ...(current.agent ?? {}),
+        ...withoutUndefined(next.agent as Record<string, unknown>),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     if (next.voice) {
       merged.voice = {
         ...(current.voice ?? {}),

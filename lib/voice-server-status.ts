@@ -11,6 +11,7 @@ export type VoiceServerHealth = {
     stt?: { ok?: boolean };
     tts?: { ok?: boolean };
     noiseSuppression?: { ok?: boolean };
+    speakerRecognition?: { ok?: boolean; enabled?: boolean };
     satellitePipelines?: number;
   };
 };
@@ -44,6 +45,9 @@ export function voiceServerServiceRows(health: VoiceServerHealth | undefined): V
   ];
   if (audio.noiseSuppression !== undefined) {
     rows.push({ label: "Noise suppression", ok: audio.noiseSuppression?.ok === true });
+  }
+  if (audio.speakerRecognition?.enabled === true) {
+    rows.push({ label: "Speaker recognition", ok: audio.speakerRecognition.ok === true });
   }
   return rows;
 }

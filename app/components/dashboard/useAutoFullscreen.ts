@@ -7,6 +7,7 @@ const AUTO_FULLSCREEN_CHECK_INTERVAL_MS = 60 * 1000;
 
 const WINDOW_FULLSCREEN_CHECK_EVENTS = [
   "focus",
+  "load",
   "online",
   "orientationchange",
   "pageshow",

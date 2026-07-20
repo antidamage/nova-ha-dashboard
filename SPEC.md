@@ -542,6 +542,13 @@ variables, so they retint with the active theme.
 - Disabled: the thumb becomes an outlined rectangle in the border colour filled
   with the background colour, and the back-fill is dropped, leaving only the
   background-filled, border-outlined track.
+- Config-page sliders have a strict save-on-release contract. Every
+  `SliderControlPanel` requires separate `onPreview` and `onCommit` callbacks:
+  drag ticks may update local visual state only, while release sends exactly one
+  persistence request. Config sliders must never send network writes during a
+  drag. Live interactive commands are reserved for dashboard controls.
+- While a control is active, and for six seconds after release, dashboard and
+  config reconciliation polling/pushes cannot replace its local value.
 
 ## 11. Navigation and Zones
 
@@ -1739,6 +1746,12 @@ Apple TV implementation (`nova-appletv-dashboard/.../OrbModules.swift`):
 
 ## 24. API Contract
 
+The Voice Infrastructure configuration includes a live `speakerRecognitionEnabled` switch
+and an authenticated speaker-profile manager proxied to Iridium. Operators can inspect named,
+pending, and provisional templates; edit names/pronouns; reassign or delete a template; and
+delete a person with all associated templates. Biometric vectors never enter dashboard state
+or browser responses.
+
 All routes are under `app/api`.
 
 State and realtime:
@@ -2195,6 +2208,12 @@ behavior unless explicitly changed:
   inference host and is not an automatic dashboard fallback target. Voice
   preferences remain durable on Nova under `/api/voice`; a change sends Iridium
   a collection signal, and Iridium fetches and applies the complete contract.
+- Non-voice/non-personality runtime controls live in a separate Agent accordion.
+  The Agent contract is durable under `/api/agent` and is included when Iridium
+  collects `/api/voice`. Its Ralph Wiggum verification loop is enabled by
+  default and exposes a maximum state-check count, pause between checks, and
+  wall-clock failure deadline. A smart-home mutation is sent once; only
+  authoritative state reads repeat, stopping at whichever bound is reached first.
 - Voice satellites are managed computers with the `voiceSatellite` capability;
   no machine is named in code. The config Voice Agent section lists each one
   with live status from Iridium's satellite registry (`/api/voice/satellites`)
@@ -2202,6 +2221,23 @@ behavior unless explicitly changed:
   satellite service on that host over the managed-computer SSH channel
   (macOS LaunchAgent kickstart with bootstrap fallback; Linux user service
   restart). The relaunched satellite reconnects to Iridium on its own.
+- The Voice Infrastructure accordion opens with a system-wide voice killswitch
+  ("Voice enabled"), a single master on/off written to the shared
+  `systemVoiceEnabled` voice setting (POSTed to `/api/voice`, then pulled by
+  Iridium). When off, Iridium drops every microphone frame and closes the open
+  conversation, disabling voice for the whole household until it is turned back
+  on; the default is on and only an explicit `false` disables it. This is the
+  shared host-backed switch, distinct from the per-device browser voice-input
+  toggle in Voice Agent config.
+- Voice Infrastructure also exposes a shared Satellite noise gate switch. It
+  defaults on and is part of the `/api/voice` contract as
+  `satelliteNoiseGateEnabled`; Iridium pushes changes over the already-open
+  native satellite sockets. Off is an explicit diagnostic bypass that makes
+  each enabled native satellite transmit every captured 20 ms frame, while on
+  keeps silence local and sends probable speech with protected pre-roll/tail.
+- The per-satellite voice killswitch defaults Nocturnium off so a fresh/reset
+  config processes only Indium. An explicit toggle can still enable Nocturnium
+  or disable Indium without stopping either supervised process.
 - The config page carries an always-visible voice-server status readout at the
   top: the dashboard probes Iridium's `/health` over mTLS via
   `/api/voice/server-status`, and the readout polls that endpoint every five
@@ -2212,11 +2248,32 @@ behavior unless explicitly changed:
   noise-suppression sidecar when reported. The readout is hidden in demo mode.
 - Iridium posts accepted user speech and spoken replies to
   `/api/voice/transcript`. A standalone accordion on the main dashboard shows the bounded, live
-  two-sided transcript with minute-precision dates and `User:` / current
-  wake-word labels; new lines share the dashboard SSE stream. The panel can be
+  two-sided transcript; new lines share the dashboard SSE stream. The panel can be
   collapsed, and its Clear action erases the server snapshot and broadcasts
   the reset to every open dashboard. Voice Agent config does not contain the
-  transcript display.
+  transcript display. Each entry renders as a two-line box decoration: a
+  templated header line and a fixed `╰─ ` body lead-in before the message
+  text. The header comes from the editable `transcriptTemplate` voice
+  setting (Transcript decoration field at the bottom of Voice Agent config,
+  with a live two-line preview; clearing the field restores the stock
+  decoration, `╭─[ %u%%a% ➤ %d% %t% ➤ [%m%] ]`). Template tokens: `%u%`
+  substitutes `USER` on user lines and empty on agent lines; `%a%` the
+  upper-cased current agent name on agent lines and empty on user lines
+  (speaker labels carry no emojis); unknown `%x%`-style tokens render
+  literally. The remaining tokens: `%d%` is the locale-independent local
+  date `2026-07-18 Sat`; `%t%` the minute-precision local time `10:59am`;
+  and `%m%` the turn mode, reading `COMMAND` when the turn executed or
+  shadowed a dashboard command and `EXCHANGE` otherwise (the voice server
+  tags command turns, upgrading the displayed line in place once
+  interpretation completes). Box glyphs and header share the meta
+  styling — user prefixes render dimmed, agent prefixes in the highlight
+  colour with a soft glow and an italicised body — so the two speakers are
+  distinguishable at a glance. The log renders as a CRT screen: a scanline
+  texture tinted by the transcript background colour (overlay-blended, with
+  opacity and pitch scale sliders in the Transcript Background theme
+  widget), a text glow (intensity and size sliders in the Transcript Text
+  theme widget), and a static curved-glass gloss overlay inside a subtle
+  bezel frame.
 - The Outside camera normally uses the physical MacroSilicon S-Video capture
   feed; the generated signal test remains available as an explicit or
   device-absent fallback.

@@ -16,6 +16,7 @@ import {
   MAX_VOICE_TRANSCRIPTS,
   VOICE_TRANSCRIPT_RETENTION_MS,
   type VoiceTranscriptEvent,
+  type VoiceTranscriptKind,
 } from "./voice-transcript";
 import {
   adaptiveLightBrightnessPctForEntity,
@@ -342,6 +343,7 @@ export function replaceVoiceTranscript(
   replacesId: string,
   text: string,
   at: string,
+  kind?: VoiceTranscriptKind,
 ): VoiceTranscriptEvent | null {
   const entry = store.voiceTranscripts.find((item) => item.id === replacesId);
   if (!entry) {
@@ -349,6 +351,9 @@ export function replaceVoiceTranscript(
   }
   entry.text = text;
   entry.at = at;
+  if (kind) {
+    entry.kind = kind;
+  }
   broadcast(sseEvent("voice-transcript-replaced", JSON.stringify(entry)));
   return { ...entry };
 }

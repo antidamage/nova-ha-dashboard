@@ -12,7 +12,23 @@ vi.mock("./sharedDashboardEvents", () => ({
   },
 }));
 
+import { AgentNameProvider } from "./AgentNameContext";
 import { VoiceTranscriptPanel } from "./VoiceTranscriptPanel";
+
+// A transcript entry renders as a two-line box: a decorated header <span>
+// ("╭─[ USER ➤ <date/time> ➤ [KIND] ]"), a newline, and a "╰─ " body
+// lead-in before the message text. RTL's default text matcher only looks at
+// direct text-node children (see "text is broken up by multiple elements" in
+// its own error message), so match on the full textContent of the <p> line.
+function findTranscriptLine(pattern: RegExp) {
+  return screen.findByText((_, element) =>
+    element?.tagName.toLowerCase() === "p" && pattern.test(element.textContent ?? ""));
+}
+
+function queryTranscriptLine(pattern: RegExp) {
+  return screen.queryByText((_, element) =>
+    element?.tagName.toLowerCase() === "p" && pattern.test(element.textContent ?? ""));
+}
 
 describe("VoiceTranscriptPanel", () => {
   beforeEach(() => {
@@ -38,11 +54,15 @@ describe("VoiceTranscriptPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows dated user and custom agent-name lines without seconds", async () => {
+  it("shows decorated user and custom agent-name lines without seconds", async () => {
     render(<VoiceTranscriptPanel />);
 
-    const userLine = await screen.findByText(/User: Turn it on$/);
+    const userLine = await findTranscriptLine(/╰─ Turn it on$/);
+    expect(userLine.textContent).toMatch(/╭─\[ USER ➤ .* ➤ \[EXCHANGE\] \]\n/);
     expect(userLine.textContent).not.toContain(":37");
+    expect(userLine).toHaveClass("voice-transcript-line--user");
+    expect(userLine.querySelector(".voice-transcript-meta")?.textContent).toMatch(/USER/);
+    expect(userLine.querySelector(".voice-transcript-meta")).toHaveClass("voice-transcript-meta--user");
 
     act(() => {
       stream.handlers["voice-transcript"]?.(new MessageEvent("voice-transcript", {
@@ -52,17 +72,60 @@ describe("VoiceTranscriptPanel", () => {
           role: "assistant",
           text: "Done",
           agentName: "Jarvis",
+          kind: "command",
         }),
       }));
     });
 
-    const assistantLine = await screen.findByText(/Jarvis: Done$/);
+    // JARVIS (not the Nova fallback) guards the formatter call site passing
+    // the live agent name in the new two-argument signature.
+    const assistantLine = await findTranscriptLine(/╰─ Done$/);
+    expect(assistantLine.textContent).toMatch(/╭─\[ JARVIS ➤ .* ➤ \[COMMAND\] \]\n/);
+    // Newest-first: the later assistant turn renders above the earlier user turn.
+    expect(assistantLine.compareDocumentPosition(userLine) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
     expect(assistantLine.textContent).not.toContain(":12");
+    expect(assistantLine).toHaveClass("voice-transcript-line--assistant");
+    expect(assistantLine.querySelector(".voice-transcript-meta")).toHaveClass("voice-transcript-meta--assistant");
+  });
+
+  it("applies a custom decoration template from the shared voice settings", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) =>
+      url === "/api/voice"
+        ? {
+            ok: true,
+            json: async () => ({
+              voice: { agentName: "Nova", transcriptTemplate: "<%m%> %u%%a% @ %t%" },
+            }),
+          }
+        : {
+            ok: true,
+            json: async () => ({
+              transcripts: [{
+                id: "user-1",
+                at: "2026-07-17T00:42:37.000Z",
+                role: "user",
+                text: "Turn it on",
+              }],
+            }),
+          }));
+
+    render(
+      <AgentNameProvider initialName="Nova">
+        <VoiceTranscriptPanel />
+      </AgentNameProvider>,
+    );
+
+    const userLine = await findTranscriptLine(/╰─ Turn it on$/);
+    // The provider fetches /api/voice after mount, so the custom decoration
+    // lands on a re-render; wait for it rather than asserting immediately.
+    await waitFor(() =>
+      expect(userLine.textContent).toMatch(/^<EXCHANGE> USER @ \d{1,2}:\d{2}(am|pm)\n/));
   });
 
   it("collapses the log and clears the shared history", async () => {
     render(<VoiceTranscriptPanel />);
-    await screen.findByText(/User: Turn it on$/);
+    await findTranscriptLine(/╰─ Turn it on$/);
 
     const accordion = screen.getByRole("button", { name: /Live transcript/ });
     expect(accordion).toHaveAttribute("aria-expanded", "true");
@@ -89,11 +152,12 @@ describe("VoiceTranscriptPanel", () => {
         }),
       }));
     });
-    await screen.findByText(/Bandit: Back again$/);
+    const banditLine = await findTranscriptLine(/╰─ Back again$/);
+    expect(banditLine.textContent).toContain("BANDIT");
 
     act(() => {
       stream.handlers["voice-transcript-cleared"]?.(new MessageEvent("voice-transcript-cleared"));
     });
-    expect(screen.queryByText(/Bandit: Back again$/)).not.toBeInTheDocument();
+    expect(queryTranscriptLine(/╰─ Back again$/)).not.toBeInTheDocument();
   });
 });

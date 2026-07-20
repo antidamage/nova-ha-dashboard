@@ -4,7 +4,7 @@ import { ChevronDown, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   MAX_VOICE_TRANSCRIPTS,
-  formatVoiceTranscriptLine,
+  formatVoiceTranscriptParts,
   type VoiceTranscriptEvent,
 } from "../../lib/voice-transcript";
 import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
@@ -26,7 +26,7 @@ function mergeTranscripts(
 }
 
 export function VoiceTranscriptPanel() {
-  const { agentName } = useAgentName();
+  const { agentName, transcriptTemplate } = useAgentName();
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEvent[]>([]);
   const [open, setOpen] = useState(true);
   const [clearing, setClearing] = useState(false);
@@ -79,16 +79,20 @@ export function VoiceTranscriptPanel() {
 
   useEffect(() => {
     if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
+      logRef.current.scrollTop = 0;
     }
   }, [transcripts.length]);
 
+  // Rendered newest-first; storage stays oldest-first so retention trimming
+  // in mergeTranscripts keeps dropping the oldest entries.
   const lines = useMemo(
-    () => transcripts.map((entry) => ({
-      id: entry.id,
-      text: formatVoiceTranscriptLine(entry, undefined, agentName),
-    })),
-    [agentName, transcripts],
+    () => transcripts
+      .map((entry) => ({
+        id: entry.id,
+        ...formatVoiceTranscriptParts(entry, agentName, transcriptTemplate),
+      }))
+      .reverse(),
+    [agentName, transcriptTemplate, transcripts],
   );
 
   const clearTranscript = async () => {
@@ -138,17 +142,33 @@ export function VoiceTranscriptPanel() {
 
       {open ? (
         <div id={bodyId} className="grid gap-2 border-t border-cyan-300/20 p-3">
-          <div
-            ref={logRef}
-            role="log"
-            aria-live="polite"
-            className="voice-transcript-log overflow-y-auto border border-cyan-300/30 p-3 leading-relaxed"
-          >
-            {lines.length ? (
-              lines.map((line) => <p key={line.id} className="whitespace-pre-wrap break-words">{line.text}</p>)
-            ) : (
-              <p className="text-neutral-600">Waiting for a voice turn from Iridium...</p>
-            )}
+          <div className="voice-transcript-screen">
+            <div
+              ref={logRef}
+              role="log"
+              aria-live="polite"
+              className="voice-transcript-log overflow-y-auto p-3 leading-relaxed"
+            >
+              {lines.length ? (
+                lines.map((line) => (
+                  <p
+                    key={line.id}
+                    className={`voice-transcript-line voice-transcript-line--${line.role} whitespace-pre-wrap break-words`}
+                  >
+                    <span className={`voice-transcript-meta voice-transcript-meta--${line.role}`}>
+                      {line.prefix}
+                    </span>
+                    {"\n"}
+                    <span className={`voice-transcript-meta voice-transcript-meta--${line.role}`}>
+                      {line.bodyPrefix}
+                    </span>
+                    {line.text}
+                  </p>
+                ))
+              ) : (
+                <p className="text-neutral-600">Waiting for a voice turn from Iridium...</p>
+              )}
+            </div>
           </div>
           {clearError ? <p role="alert" className="text-xs font-semibold text-red-200">{clearError}</p> : null}
         </div>

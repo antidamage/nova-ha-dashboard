@@ -11,9 +11,9 @@ import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
 import { loadSharedConfig, readSharedConfigCache, saveSharedConfig } from "./sharedConfigCache";
 import { SystemControlConfig } from "./SystemControlConfig";
 import { CameraConfig } from "./CameraConfig";
+import { UserDataConfig } from "./UserDataConfig";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
-import { VoiceServerStatus } from "./VoiceServerStatus";
 
 function stringify(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -198,11 +198,11 @@ export function ConfigWorkspace({ children, updateSection }: { children: ReactNo
           </button>
         </nav>
 
-        <VoiceServerStatus />
-
         {children}
 
         <CameraConfig />
+
+        <UserDataConfig />
 
         <ConfigAccordion title="Secrets" icon={<KeyRound className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
           <div className="panel-corner panel-corner-left" />

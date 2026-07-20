@@ -43,28 +43,32 @@ describe("useAutoFullscreen", () => {
     setVisibilityState("visible");
   });
 
-  it("checks fullscreen on mount, common events, and a minute interval", async () => {
+  it("checks fullscreen on mount, page load, common events, and a minute interval", async () => {
     render(<AutoFullscreenHarness />);
 
     expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(1);
     await flushFullscreenRequest();
 
-    window.dispatchEvent(new Event("focus"));
+    window.dispatchEvent(new Event("load"));
     expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(2);
     await flushFullscreenRequest();
 
-    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("focus"));
     expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(3);
     await flushFullscreenRequest();
 
-    document.dispatchEvent(new Event("click"));
+    document.dispatchEvent(new Event("visibilitychange"));
     expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(4);
+    await flushFullscreenRequest();
+
+    document.dispatchEvent(new Event("click"));
+    expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(5);
     await flushFullscreenRequest();
 
     act(() => {
       vi.advanceTimersByTime(60 * 1000);
     });
-    expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(5);
+    expect(requestDashboardFullscreenMock).toHaveBeenCalledTimes(6);
   });
 
   it("does not request fullscreen when the setting is disabled", () => {

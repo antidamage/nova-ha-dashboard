@@ -114,7 +114,7 @@ export function DashboardClimateConfig({ initialSettings }: { initialSettings?: 
         step={1}
         value={timerIncrementMinutes}
         valueText={`${timerIncrementMinutes}m`}
-        onChange={setTimerIncrementMinutes}
+        onPreview={setTimerIncrementMinutes}
         onCommit={commitTimerIncrementMinutes}
       />
     </ConfigAccordion>

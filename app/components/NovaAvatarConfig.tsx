@@ -27,6 +27,7 @@ type AvatarSlot =
   | "gradientCenter"
   | "gradientOuter"
   | "gymNumber"
+  | "voiceGlow"
   | "line0"
   | "line1"
   | "line2";
@@ -38,6 +39,7 @@ const AVATAR_SLOTS: AvatarSlotChoice[] = [
   { slot: "gradientOuter", label: "Gradient Outer", detail: "Outer falloff" },
   { slot: "gymNumber", label: "Status Orb Label", detail: "Counter colour" },
   { slot: "gradientAlert", label: "Alert", detail: "Gym overdue pulse" },
+  { slot: "voiceGlow", label: "Voice Glow", detail: "Listening halo" },
   { slot: "line0", label: "Line 1", detail: "First arc colour" },
   { slot: "line1", label: "Line 2", detail: "Second arc colour" },
   { slot: "line2", label: "Line 3", detail: "Third arc colour" },
@@ -46,12 +48,14 @@ const AVATAR_SLOTS: AvatarSlotChoice[] = [
 function NovaOpacity({
   color,
   label,
-  onChange,
+  onCommit,
+  onPreview,
   value,
 }: {
   color: ThemeColorValue;
   label: string;
-  onChange: (value: number) => void;
+  onCommit: (value: number) => void;
+  onPreview: (value: number) => void;
   value: number;
 }) {
   const displayRgb = appliedThemeRgb(color);
@@ -69,7 +73,8 @@ function NovaOpacity({
       step={1}
       value={value}
       valueText={`${value}%`}
-      onChange={onChange}
+      onPreview={onPreview}
+      onCommit={onCommit}
     />
   );
 }
@@ -226,6 +231,7 @@ function readSlot(theme: NovaAvatarTheme, slot: AvatarSlot): ThemeColorValue {
   if (slot === "gradientCenter") return theme.gradientCenter;
   if (slot === "gradientOuter") return theme.gradientOuter;
   if (slot === "gymNumber") return theme.gymNumberColor;
+  if (slot === "voiceGlow") return theme.voiceGlowColor;
   if (slot === "line0") return theme.lineColors[0];
   if (slot === "line1") return theme.lineColors[1];
   return theme.lineColors[2];
@@ -248,18 +254,21 @@ type NovaAvatarConfigProps = {
   embedded?: boolean;
   initialTheme?: Partial<NovaAvatarTheme> | null;
   onThemeChange?: (theme: NovaAvatarTheme) => void;
+  onThemePreview?: (theme: NovaAvatarTheme) => void;
   theme?: Partial<NovaAvatarTheme> | null;
 };
 
 type NovaAvatarConfigViewProps = {
   embedded: boolean;
   onThemeChange?: (theme: NovaAvatarTheme) => void;
+  onThemePreview?: (theme: NovaAvatarTheme) => void;
   theme: NovaAvatarTheme;
 };
 
 function NovaAvatarConfigView({
   embedded,
   onThemeChange,
+  onThemePreview,
   theme,
 }: NovaAvatarConfigViewProps) {
   const { agentName } = useAgentName();
@@ -267,6 +276,9 @@ function NovaAvatarConfigView({
     const normalized = normalizeNovaAvatarTheme(next);
     onThemeChange?.(normalized);
   }, [onThemeChange]);
+  const previewTheme = useCallback((next: NovaAvatarTheme) => {
+    onThemePreview?.(normalizeNovaAvatarTheme(next));
+  }, [onThemePreview]);
   const [activeSlot, setActiveSlot] = useState<AvatarSlot | null>(null);
 
   // The active module's declared sliders ("Module options"). Values come from
@@ -277,9 +289,9 @@ function NovaAvatarConfigView({
     activeModule,
     theme.orbModuleSettings[activeModule.id],
   );
-  const writeModuleSetting = useCallback(
+  const moduleSettingTheme = useCallback(
     (settingId: string, value: number) => {
-      setTheme({
+      return {
         ...theme,
         orbModuleSettings: {
           ...theme.orbModuleSettings,
@@ -288,28 +300,27 @@ function NovaAvatarConfigView({
             [settingId]: value,
           },
         },
-      });
+      };
     },
-    [activeModule.id, setTheme, theme],
+    [activeModule.id, theme],
   );
 
-  const writeSlot = useCallback(
+  const slotTheme = useCallback(
     (slot: AvatarSlot, value: ThemeColorValue) => {
       if (slot === "gradientCenter") {
-        setTheme({ ...theme, gradientCenter: value });
-        return;
+        return { ...theme, gradientCenter: value };
       }
       if (slot === "gradientOuter") {
-        setTheme({ ...theme, gradientOuter: value });
-        return;
+        return { ...theme, gradientOuter: value };
       }
       if (slot === "gradientAlert") {
-        setTheme({ ...theme, gradientAlert: value });
-        return;
+        return { ...theme, gradientAlert: value };
       }
       if (slot === "gymNumber") {
-        setTheme({ ...theme, gymNumberColor: value });
-        return;
+        return { ...theme, gymNumberColor: value };
+      }
+      if (slot === "voiceGlow") {
+        return { ...theme, voiceGlowColor: value };
       }
 
       const index = slot === "line0" ? 0 : slot === "line1" ? 1 : 2;
@@ -319,20 +330,19 @@ function NovaAvatarConfigView({
         theme.lineColors[2],
       ];
       nextLines[index] = value;
-      setTheme({ ...theme, lineColors: nextLines });
+      return { ...theme, lineColors: nextLines };
     },
-    [setTheme, theme],
+    [theme],
   );
 
-  const writeOpacity = useCallback(
+  const opacityTheme = useCallback(
     (slot: AvatarSlot, opacity: number) => {
       if (slot === "gymNumber") {
-        setTheme({ ...theme, gymNumberOpacity: opacity });
-        return;
+        return { ...theme, gymNumberOpacity: opacity };
       }
 
       const index = lineIndexForSlot(slot);
-      if (index === null) return;
+      if (index === null) return theme;
 
       const nextOpacities: NovaAvatarTheme["lineOpacities"] = [
         theme.lineOpacities[0],
@@ -340,9 +350,9 @@ function NovaAvatarConfigView({
         theme.lineOpacities[2],
       ];
       nextOpacities[index] = opacity;
-      setTheme({ ...theme, lineOpacities: nextOpacities });
+      return { ...theme, lineOpacities: nextOpacities };
     },
-    [setTheme, theme],
+    [theme],
   );
   const selectSlot = useCallback((slot: AvatarSlot) => {
     setActiveSlot((current) => (current === slot ? null : slot));
@@ -361,26 +371,30 @@ function NovaAvatarConfigView({
         detail={choice.detail}
         label={choice.label}
         rgb={rgb}
-        summary={opacity === null ? `rgb ${rgb.join(" ")}` : `rgb ${rgb.join(" ")} / ${opacity}%`}
         swatchOpacity={opacity === null ? undefined : Math.max(0.18, opacity / 100)}
         onToggle={() => selectSlot(choice.slot)}
       >
         <ColorSpectrum
           label={choice.label}
           value={value}
-          onChange={(next) => writeSlot(choice.slot, next)}
+          onPreview={(next) => {
+            previewTheme(slotTheme(choice.slot, next));
+          }}
+          onCommit={(next) => setTheme(slotTheme(choice.slot, next))}
         />
         <ColorIntensitySlider
           label={choice.label}
           value={value}
-          onChange={(next) => writeSlot(choice.slot, next)}
+          onPreview={(next) => previewTheme(slotTheme(choice.slot, next))}
+          onCommit={(next) => setTheme(slotTheme(choice.slot, next))}
         />
         {opacity !== null ? (
           <NovaOpacity
             color={value}
             label={choice.label}
             value={opacity}
-            onChange={(next) => writeOpacity(choice.slot, next)}
+            onPreview={(next) => previewTheme(opacityTheme(choice.slot, next))}
+            onCommit={(next) => setTheme(opacityTheme(choice.slot, next))}
           />
         ) : null}
       </ColorWidget>
@@ -427,7 +441,8 @@ function NovaAvatarConfigView({
                   step={decl.step}
                   value={value}
                   valueText={`${value}`}
-                  onChange={(next) => writeModuleSetting(decl.id, next)}
+                  onPreview={(next) => previewTheme(moduleSettingTheme(decl.id, next))}
+                  onCommit={(next) => setTheme(moduleSettingTheme(decl.id, next))}
                 />
               );
             })}
@@ -437,27 +452,22 @@ function NovaAvatarConfigView({
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Background gradient</h3>
-        <div className="theme-widget-grid grid gap-3">
+        <div className="theme-widget-flow">
           {AVATAR_SLOTS.slice(0, 2).map(renderWidget)}
         </div>
       </div>
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Line colors</h3>
-        <div className="theme-widget-grid grid gap-3">
-          {AVATAR_SLOTS.slice(4).map(renderWidget)}
+        <div className="theme-widget-flow">
+          {AVATAR_SLOTS.slice(5).map(renderWidget)}
         </div>
       </div>
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Status Orb Info</h3>
-        <div className="grid gap-3">
-          <div className="theme-widget-grid grid gap-3">
-            {AVATAR_SLOTS.slice(2, 3).map(renderWidget)}
-          </div>
-          <div className="theme-widget-grid grid gap-3">
-            {AVATAR_SLOTS.slice(3, 4).map(renderWidget)}
-          </div>
+        <div className="theme-widget-flow">
+          {AVATAR_SLOTS.slice(2, 5).map(renderWidget)}
         </div>
       </div>
     </section>
@@ -483,6 +493,7 @@ function LegacyStandaloneNovaAvatarConfig({ initialTheme }: Pick<NovaAvatarConfi
       embedded={false}
       theme={shared.theme}
       onThemeChange={shared.setTheme}
+      onThemePreview={shared.previewTheme}
     />
   );
 }
@@ -491,6 +502,7 @@ export function NovaAvatarConfig({
   embedded = false,
   initialTheme,
   onThemeChange,
+  onThemePreview,
   theme: controlledTheme,
 }: NovaAvatarConfigProps) {
   if (!embedded && controlledTheme === undefined && onThemeChange === undefined) {
@@ -502,6 +514,7 @@ export function NovaAvatarConfig({
       embedded={embedded}
       theme={normalizeNovaAvatarTheme(controlledTheme ?? initialTheme ?? DEFAULT_NOVA_AVATAR_THEME)}
       onThemeChange={onThemeChange}
+      onThemePreview={onThemePreview}
     />
   );
 }

@@ -13,6 +13,15 @@ export async function register() {
   const { startUpdateScheduler } = await import("./lib/update-scheduler");
   startUpdateScheduler();
 
+  // Browser voice-satellite bridge (mTLS relay to Iridium). No-op until a
+  // dashboard server certificate is configured, so it stays inert on HTTP.
+  try {
+    const { startVoiceSatelliteBridge } = await import("./lib/voice-satellite-bridge");
+    await startVoiceSatelliteBridge();
+  } catch (error) {
+    console.error("[voice-bridge] failed to start", error);
+  }
+
   // Start camera DVR recorders at boot so the rolling two-hour window begins
   // buffering immediately, rather than only when someone opens the panel.
   // The recorders pause while the host updater runs (the encoder and the

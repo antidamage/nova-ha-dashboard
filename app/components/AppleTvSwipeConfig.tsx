@@ -9,6 +9,7 @@ import {
   type AppleTvSwipeSettings,
 } from "../../lib/appletv-swipe";
 import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { useSettingCooldown } from "./useSettingCooldown";
 
 // Per-knob presentation: label, the readout suffix, and a one-line "what this
 // does" caption shown under the slider. Order here is the order on screen.
@@ -71,11 +72,14 @@ export function AppleTvSwipeConfig({
   const [settings, setSettings] = useState<AppleTvSwipeSettings>(() =>
     normalizeAppleTvSwipe(initialSettings ?? APPLETV_SWIPE_DEFAULTS),
   );
-  // Guards the load poll from clobbering a value the user is mid-drag on.
+  // Guards the load poll from clobbering a value the user is mid-drag on
+  // (draggingRef) and for a few seconds after release (the cooldown), so the
+  // slider can't rubber-band back before the commit round-trips.
   const draggingRef = useRef(false);
+  const { isCoolingDown, markInteraction } = useSettingCooldown();
 
   const load = useCallback(async () => {
-    if (draggingRef.current) {
+    if (draggingRef.current || isCoolingDown()) {
       return;
     }
     try {
@@ -84,13 +88,13 @@ export function AppleTvSwipeConfig({
         throw new Error(`Layout settings request failed: ${response.status}`);
       }
       const data = (await response.json()) as { layout?: { swipe?: Partial<AppleTvSwipeSettings> } };
-      if (!draggingRef.current) {
+      if (!draggingRef.current && !isCoolingDown()) {
         setSettings(normalizeAppleTvSwipe(data.layout?.swipe ?? APPLETV_SWIPE_DEFAULTS));
       }
     } catch (error) {
       console.error("[nova-dashboard] failed to load Apple TV swipe settings", error);
     }
-  }, []);
+  }, [isCoolingDown]);
 
   useEffect(() => {
     void load();
@@ -102,6 +106,7 @@ export function AppleTvSwipeConfig({
 
   const commitField = useCallback(async (key: keyof AppleTvSwipeSettings, value: number) => {
     draggingRef.current = false;
+    markInteraction();
     const next = normalizeAppleTvSwipe({ ...settings, [key]: value });
     setSettings(next);
     try {
@@ -120,7 +125,7 @@ export function AppleTvSwipeConfig({
     } catch (error) {
       console.error("[nova-dashboard] failed to update Apple TV swipe settings", error);
     }
-  }, [settings]);
+  }, [markInteraction, settings]);
 
   return (
     <ConfigAccordion
@@ -155,8 +160,9 @@ export function AppleTvSwipeConfig({
                 step={range.step}
                 value={value}
                 valueText={field.unit === "swipes" ? `${value}×` : `${value} ${field.unit}`}
-                onChange={(next) => {
+                onPreview={(next) => {
                   draggingRef.current = true;
+                  markInteraction();
                   setSettings((current) => ({ ...current, [field.key]: next }));
                 }}
                 onCommit={(next) => void commitField(field.key, next)}

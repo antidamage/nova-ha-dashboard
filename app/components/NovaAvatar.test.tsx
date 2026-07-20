@@ -122,6 +122,8 @@ describe("NovaAvatar", () => {
     const host = await screen.findByRole("group", { name: "Nova avatar" });
     await waitFor(() => {
       expect(host.querySelector(".nova-avatar-gym-counter")).toHaveClass("nova-avatar-gym-counter-speech-hidden");
+      expect(host.querySelector(".nova-avatar-voice-glow")).toHaveClass("is-visible");
+      expect(host).toHaveAttribute("data-nova-avatar-voice", "active");
     });
 
     mockSpeechPhase = "idle";
@@ -129,6 +131,8 @@ describe("NovaAvatar", () => {
 
     await waitFor(() => {
       expect(host.querySelector(".nova-avatar-gym-counter")).not.toHaveClass("nova-avatar-gym-counter-speech-hidden");
+      expect(host.querySelector(".nova-avatar-voice-glow")).not.toHaveClass("is-visible");
+      expect(host).not.toHaveAttribute("data-nova-avatar-voice");
     });
   });
 

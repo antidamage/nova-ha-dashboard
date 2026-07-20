@@ -1,0 +1,43 @@
+{
+	auto_https off
+	admin off
+}
+
+# Keep the browser satellite on the same HTTPS origin as the dashboard. The
+# bridge still performs its own TLS internally, but that certificate never
+# reaches household browsers; Caddy terminates the public connection and
+# forwards the WebSocket over loopback.
+(nova_routes) {
+	@voice path /voice-satellite
+	handle @voice {
+		reverse_proxy https://127.0.0.1:8767 {
+			transport http {
+				# The upstream is loopback-only from Caddy's perspective and uses
+				# the household certificate, whose names intentionally do not
+				# include 127.0.0.1.
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:80
+	}
+}
+
+# Canonical household URL. Caddy asks the local Tailscale daemon for this
+# publicly trusted certificate and renews it automatically.
+https://nova.tuatara-dory.ts.net:443 {
+	tls {
+		get_certificate tailscale
+	}
+	import nova_routes
+}
+
+# LAN fallbacks remain available for already-enrolled household-CA devices.
+# They are not the documented browser-voice URL because new devices would need
+# the private CA installed before getUserMedia is available.
+https://nova.local:443, https://nova:443, https://nova-vm:443, https://192.168.8.14:443, https://100.66.54.105:443 {
+	tls /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.crt /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.key
+	import nova_routes
+}

@@ -2,8 +2,8 @@
 
 import { Loader2, Power, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
-import { createPortal } from "react-dom";
 import { ConfigAccordion } from "./ConfigControls";
+import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { SystemBlocker } from "./SystemBlocker";
 import { beginExplicitBlocker, endExplicitBlocker } from "./systemBlockerState";
@@ -183,21 +183,6 @@ export function SystemControlConfig() {
     setPending(null);
   }, [busy]);
 
-  // Tapping outside the box, pressing Escape, or confirming all dismiss it; keep
-  // the keyboard path working so the dialog is not a touch-only trap.
-  useEffect(() => {
-    if (!pending) {
-      return;
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        close();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pending, close]);
-
   const fire = useCallback(async (target: SystemTarget) => {
     const config = targets[target];
     setBusy(true);
@@ -276,21 +261,16 @@ export function SystemControlConfig() {
         {message ? <p className="text-sm font-semibold text-cyan-200">{message}</p> : null}
       </div>
 
-      {pending && activeConfig && copy && typeof document !== "undefined"
-        ? createPortal(
-        <div
-          className="system-confirm-overlay"
-          role="presentation"
-          onClick={close}
-        >
-          <div
-            className="system-confirm-card"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="system-confirm-title"
-            aria-describedby="system-confirm-body"
-            onClick={(event) => event.stopPropagation()}
-          >
+      <ModalOverlay
+        open={Boolean(pending && activeConfig && copy)}
+        onClose={close}
+        dialogRole="alertdialog"
+        ariaLabelledBy="system-confirm-title"
+        ariaDescribedBy="system-confirm-body"
+        className="system-confirm-card"
+      >
+        {pending && activeConfig && copy ? (
+          <>
             <span className="system-stripe system-stripe-top" aria-hidden="true" />
             <span className="system-stripe system-stripe-bottom" aria-hidden="true" />
             <p className="system-confirm-step">
@@ -312,11 +292,9 @@ export function SystemControlConfig() {
               </button>
             </div>
             <p className="system-confirm-dismiss-hint">Tap anywhere outside this box to cancel.</p>
-          </div>
-        </div>,
-            document.body,
-          )
-        : null}
+          </>
+        ) : null}
+      </ModalOverlay>
 
       {blocking ? (
         <SystemBlocker title={targets[blocking].blockerTitle} body={targets[blocking].blockerBody} />

@@ -7,6 +7,7 @@ import type { NovaAvatarTheme } from "./avatarThemeModel";
 import { resolveOrbModuleSettings } from "../../lib/orb-modules";
 import { readExperienceFeatures, useExperienceFeature } from "./dashboard/experienceModeSetting";
 import { sampleVoiceSpeechEnvelope, useVoiceSpeechPhase } from "./dashboard/voiceSpeech";
+import { markInput as markVoiceInput, useVoiceMode } from "./dashboard/voiceMode";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
 import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
 import { useAgentName } from "./AgentNameContext";
@@ -155,6 +156,15 @@ function NovaAvatarVisual({
   // runs the return migration. Config previews (forceVisible) never react.
   const speechPhase = useVoiceSpeechPhase();
   const speechActive = !forceVisible && speechPhase !== "idle";
+  // Voice-mode state drives the listening glow and the virtual-load pin. Config
+  // previews (forceVisible) and the transient speech-only orb never react to it.
+  const voice = useVoiceMode();
+  const voiceInteractive = !forceVisible && !speechOnly;
+  const conversationActive = voiceInteractive && voice.conversationActive;
+  // Speech activity is shared by the dashboard event stream, regardless of
+  // which device is playing the reply. Keep the existing local listening glow
+  // and also show it whenever Nova is speaking on any satellite or browser.
+  const voiceGlowActive = conversationActive || speechActive;
   // The parent gate's setting-sync effect runs AFTER this component's own
   // effects on the hydration commit (child effects fire first), so an
   // opted-out device would still start the pollers for one tick. Reading the
@@ -208,6 +218,12 @@ function NovaAvatarVisual({
   // Read by the draw loop each frame without retriggering the effect.
   const speechEnabledRef = useRef(!forceVisible);
   speechEnabledRef.current = !forceVisible;
+  // While a voice conversation is live this device pins the orb's virtual load
+  // to 100; the draw loop eases toward it and eases back to the real server
+  // load once the conversation ends. Kept in a ref so it's read per-frame
+  // without restarting the animation loop.
+  const voicePinRef = useRef(false);
+  voicePinRef.current = conversationActive;
   // The renderer holds the module's arcField animation state; it is swapped
   // (and the animation restarted) only when the module itself changes. Theme
   // color edits flow through the per-frame palette without touching it.
@@ -299,8 +315,9 @@ function NovaAvatarVisual({
       const dt = Math.min(0.05, (now - lastTs) / 1000);
       lastTs = now;
 
-      // ease load toward target
-      const tgt = targetLoadRef.current;
+      // ease load toward target — a live voice conversation pins it to 100,
+      // otherwise it tracks the server-reported load.
+      const tgt = voicePinRef.current ? 1 : targetLoadRef.current;
       currentLoadRef.current += (tgt - currentLoadRef.current) * Math.min(1, dt * LOAD_EASE);
 
       ctx.globalCompositeOperation = "source-over";
@@ -403,6 +420,18 @@ function NovaAvatarVisual({
     };
   }, [speechPhase, hidden, forceVisible, speechOnly, size]);
 
+  // Reset the voice idle timer at the END of agent speech: while Nova speaks the
+  // turn is held open, and when speech finishes the follow-up window restarts.
+  const prevSpeechPhaseRef = useRef(speechPhase);
+  const voiceActive = voice.active;
+  useEffect(() => {
+    const prev = prevSpeechPhaseRef.current;
+    prevSpeechPhaseRef.current = speechPhase;
+    if (voiceInteractive && voiceActive && prev !== "idle" && speechPhase === "idle") {
+      markVoiceInput();
+    }
+  }, [speechPhase, voiceInteractive, voiceActive]);
+
   // speechOnly fade-in: the host mounts already at the viewport centre, so
   // the visible class is added one frame later for the opacity transition to
   // actually run.
@@ -432,14 +461,29 @@ function NovaAvatarVisual({
   const gymCounterStyle = {
     color: gymColorReady ? `rgba(${gymRgb[0]}, ${gymRgb[1]}, ${gymRgb[2]}, ${gymOpacity})` : "transparent",
   };
+  // Tapping the orb starts/stops a push-to-talk turn on non-always-on native
+  // devices. Custom-input and always-on devices are inert (see useVoiceMode).
+  const orbTappable = voiceInteractive && voice.tappable;
+  // When the orb is enlarged mid-speech, a full-screen catcher lets a tap
+  // anywhere stand the turn down (only while it is genuinely enlarged, so it
+  // never blocks the dashboard during quiet listening).
+  const showTapAnywhere = orbTappable && conversationActive && speechActive;
   // speechOnly hosts use their own class so the data-nova-no-orb / lite CSS
   // that hides .nova-avatar-host (and the body padding it reserves) never
   // applies to the transient speaking orb.
-  const hostClass = speechOnly
-    ? `nova-avatar-visual nova-avatar-speech-host${speechOnlyVisible ? " nova-avatar-speech-visible" : ""}`
-    : className ? `nova-avatar-visual ${className}` : "nova-avatar-visual nova-avatar-host";
+  const hostClass = [
+    "nova-avatar-visual",
+    speechOnly
+      ? `nova-avatar-speech-host${speechOnlyVisible ? " nova-avatar-speech-visible" : ""}`
+      : className ?? "nova-avatar-host",
+    orbTappable ? "nova-avatar-tappable" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const voiceGlowRgb = appliedThemeRgb(theme.voiceGlowColor);
   const hostStyle = {
     "--nova-avatar-instance-size": `${size}px`,
+    "--nova-avatar-voice-glow": `${voiceGlowRgb[0]}, ${voiceGlowRgb[1]}, ${voiceGlowRgb[2]}`,
     width: size,
     height: size,
   } as CSSProperties;
@@ -448,12 +492,21 @@ function NovaAvatarVisual({
     : `Hours since last gym visit: ${gymHours}.`;
 
   return (
-    // suppressHydrationWarning: the data-nova-avatar-* attributes derive from
-    // useDeviceTheme, which deliberately reads the localStorage shared-theme
-    // cache synchronously on the client to avoid a wrong-colour first frame.
-    // When the server had no theme to SSR (demo mode / fresh install) the
-    // first client render legitimately differs from the server markup, and
-    // the state-driven re-render corrects the attributes immediately.
+    <>
+      {showTapAnywhere ? (
+        <button
+          type="button"
+          className="nova-avatar-tap-anywhere"
+          aria-label={`Stop talking to ${agentName}`}
+          onClick={voice.endTurn}
+        />
+      ) : null}
+    {/* suppressHydrationWarning: the data-nova-avatar-* attributes derive from
+        useDeviceTheme, which deliberately reads the localStorage shared-theme
+        cache synchronously on the client to avoid a wrong-colour first frame.
+        When the server had no theme to SSR (demo mode / fresh install) the
+        first client render legitimately differs from the server markup, and
+        the state-driven re-render corrects the attributes immediately. */}
     <div
       ref={hostRef}
       className={hostClass}
@@ -466,9 +519,15 @@ function NovaAvatarVisual({
       data-nova-avatar-theme-ready={gymColorReady ? "true" : "false"}
       data-nova-avatar-theme-source={themeOverride === undefined ? themeSource : "override"}
       data-nova-avatar-variant={themeOverride === undefined ? activeVariant : "override"}
+      data-nova-avatar-voice={voiceGlowActive ? "active" : undefined}
       role="group"
       style={hostStyle}
+      onClick={orbTappable ? voice.toggleTap : undefined}
     >
+      <div
+        className={`nova-avatar-voice-glow${voiceGlowActive ? " is-visible" : ""}`}
+        aria-hidden="true"
+      />
       <canvas
         ref={canvasRef}
         aria-hidden="true"
@@ -484,5 +543,6 @@ function NovaAvatarVisual({
         {gymHours}
       </div>
     </div>
+    </>
   );
 }

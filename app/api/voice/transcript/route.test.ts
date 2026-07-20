@@ -4,9 +4,11 @@ import { DELETE, GET, POST } from "./route";
 describe("voice transcript API", () => {
   it("accepts an Iridium line and includes it in the bounded snapshot", async () => {
     const text = `Turn on the lounge light ${crypto.randomUUID()}`;
+    // A recent timestamp: a hard-coded date silently ages past the 24-hour
+    // retention window and the snapshot assertion starts failing.
     const response = await POST(new Request("http://nova.test/api/voice/transcript", {
       body: JSON.stringify({
-        at: "2026-07-17T00:42:37Z",
+        at: new Date(Date.now() - 60_000).toISOString(),
         role: "user",
         text,
         agentName: "Bandit",
