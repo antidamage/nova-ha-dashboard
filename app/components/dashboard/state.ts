@@ -6,6 +6,7 @@ import type { EntityActionInput } from "../../../lib/aircon-control";
 import { isClimateEntityOn, stringListAttribute } from "../../../lib/aircon-control";
 import { isEntitySuppressedByIntensity } from "../../../lib/lighting-thresholds";
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
+import { isControlInteractionCoolingDown } from "../controlInteractionCooldown";
 import { emitClientEvent } from "./emitClientEvent";
 import { adaptiveCandlelightSpectrum } from "./lighting";
 import {
@@ -95,12 +96,15 @@ export function useDashboardState() {
 
   // True while a user-initiated command cooldown is still active. Callers that fetch a
   // server snapshot outside of `refresh` must check this before calling `setData`.
-  const isPollingPaused = useCallback(() => Date.now() < pollingPausedUntil.current, []);
+  const isPollingPaused = useCallback(
+    () => isControlInteractionCoolingDown() || Date.now() < pollingPausedUntil.current,
+    [],
+  );
 
   const refresh = useCallback(async ({ force = false }: { force?: boolean } = {}) => {
     // Cooldown guard — see POLLING COOLDOWN CONTRACT above. `force` is only for explicit
     // user-driven refreshes that should bypass the cooldown.
-    if (!force && Date.now() < pollingPausedUntil.current) {
+    if (isControlInteractionCoolingDown() || (!force && Date.now() < pollingPausedUntil.current)) {
       return null;
     }
     if (force) {
@@ -111,7 +115,7 @@ export function useDashboardState() {
     setStatus((current) => (current === "idle" ? "loading" : current));
     const payload = await fetchDashboardStateSnapshot();
     markSnapshotArrived();
-    if (!force && pollingPausedUntil.current > requestStartedAt) {
+    if (isControlInteractionCoolingDown() || (!force && pollingPausedUntil.current > requestStartedAt)) {
       setStatus("idle");
       return null;
     }
@@ -133,7 +137,7 @@ export function useDashboardState() {
       if (loadInFlight) {
         return;
       }
-      if (!force && Date.now() < pollingPausedUntil.current) {
+      if (isControlInteractionCoolingDown() || (!force && Date.now() < pollingPausedUntil.current)) {
         return;
       }
       if (force) {
@@ -148,7 +152,7 @@ export function useDashboardState() {
         const requestStartedAt = Date.now();
         const payload = await fetchDashboardStateSnapshot();
         markSnapshotArrived();
-        if (!force && pollingPausedUntil.current > requestStartedAt) {
+        if (isControlInteractionCoolingDown() || (!force && pollingPausedUntil.current > requestStartedAt)) {
           return;
         }
         if (alive) {
@@ -224,7 +228,7 @@ export function useDashboardState() {
         markSnapshotArrived();
         // SSE-pushed snapshots also honour the command cooldown (POLLING COOLDOWN CONTRACT
         // above): a server push right after a user command still carries HA's stale state.
-        if (Date.now() < pollingPausedUntil.current) {
+        if (isControlInteractionCoolingDown() || Date.now() < pollingPausedUntil.current) {
           return;
         }
 

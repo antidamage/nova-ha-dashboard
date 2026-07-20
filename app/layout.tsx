@@ -4,6 +4,7 @@ import { DemoTooltipLayer } from "./components/DemoTooltipLayer";
 import { ExperienceModeModal } from "./components/ExperienceModeModal";
 import { AgentNameProvider } from "./components/AgentNameContext";
 import NovaAvatar from "./components/NovaAvatar";
+import BrowserVoiceSatellite from "./components/dashboard/BrowserVoiceSatellite";
 import { SystemActivityBlocker } from "./components/SystemActivityBlocker";
 import { TouchClickGuard } from "./components/TouchClickGuard";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
@@ -515,6 +516,7 @@ try {
           <TouchClickGuard />
           <ExperienceModeModal />
           <NovaAvatar size={200} initialTheme={initialOrbTheme} initialSun={initialSun} />
+          <BrowserVoiceSatellite />
           <DemoTooltipLayer />
           <SystemActivityBlocker />
           {children}

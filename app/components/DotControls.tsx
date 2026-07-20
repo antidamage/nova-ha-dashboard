@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiteMode } from "./dashboard/experienceModeSetting";
+import {
+  beginControlInteraction,
+  CONTROL_INTERACTION_COOLDOWN_MS,
+  endControlInteraction,
+  markControlInteraction,
+} from "./controlInteractionCooldown";
 
 type Rgb = [number, number, number];
 type DotColor = Rgb | string;
@@ -96,9 +102,14 @@ function isBottomGestureBlindSpot(event: React.PointerEvent<HTMLElement>) {
 function useRemoteEasedNumber(target: number) {
   const lite = useLiteMode();
   const [displayValue, setDisplayValue] = useState(target);
+  const [releaseRevision, setReleaseRevision] = useState(0);
   const displayValueRef = useRef(target);
+  const latestTargetRef = useRef(target);
   const localInteractionRef = useRef(false);
+  const remoteHoldUntilRef = useRef(0);
+  const releaseTimerRef = useRef<number | null>(null);
   const animationRef = useRef<number | null>(null);
+  latestTargetRef.current = target;
 
   const cancelAnimation = useCallback(() => {
     if (animationRef.current !== null) {
@@ -118,7 +129,12 @@ function useRemoteEasedNumber(target: number) {
 
   const setLocalValue = useCallback(
     (next: number) => {
+      if (releaseTimerRef.current !== null) {
+        window.clearTimeout(releaseTimerRef.current);
+        releaseTimerRef.current = null;
+      }
       localInteractionRef.current = true;
+      remoteHoldUntilRef.current = Number.POSITIVE_INFINITY;
       setImmediate(next);
     },
     [setImmediate],
@@ -128,29 +144,38 @@ function useRemoteEasedNumber(target: number) {
     (next: number) => {
       setImmediate(next);
       localInteractionRef.current = false;
+      remoteHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
+      if (releaseTimerRef.current !== null) {
+        window.clearTimeout(releaseTimerRef.current);
+      }
+      releaseTimerRef.current = window.setTimeout(() => {
+        releaseTimerRef.current = null;
+        setReleaseRevision((current) => current + 1);
+      }, CONTROL_INTERACTION_COOLDOWN_MS);
     },
     [setImmediate],
   );
 
   useEffect(() => {
-    if (localInteractionRef.current) {
-      displayValueRef.current = target;
-      setDisplayValue(target);
+    // Incoming state is never allowed to move a slider during a gesture or the
+    // six-second release cooldown. The latest target is reconciled afterwards.
+    if (localInteractionRef.current || Date.now() < remoteHoldUntilRef.current) {
       return;
     }
 
     cancelAnimation();
     const start = displayValueRef.current;
-    if (lite || Math.abs(target - start) < 0.01) {
-      displayValueRef.current = target;
-      setDisplayValue(target);
+    const nextTarget = latestTargetRef.current;
+    if (lite || Math.abs(nextTarget - start) < 0.01) {
+      displayValueRef.current = nextTarget;
+      setDisplayValue(nextTarget);
       return;
     }
 
     const startedAt = performance.now();
     const animate = (now: number) => {
       const progress = clamp((now - startedAt) / REMOTE_EASE_MS, 0, 1);
-      const next = start + (target - start) * easeOut(progress);
+      const next = start + (nextTarget - start) * easeOut(progress);
       displayValueRef.current = next;
       setDisplayValue(next);
 
@@ -158,17 +183,22 @@ function useRemoteEasedNumber(target: number) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
         animationRef.current = null;
-        displayValueRef.current = target;
-        setDisplayValue(target);
+        displayValueRef.current = nextTarget;
+        setDisplayValue(nextTarget);
       }
     };
 
     animationRef.current = requestAnimationFrame(animate);
-  }, [cancelAnimation, lite, target]);
+  }, [cancelAnimation, lite, releaseRevision, target]);
 
-  useEffect(() => cancelAnimation, [cancelAnimation]);
+  useEffect(() => () => {
+    cancelAnimation();
+    if (releaseTimerRef.current !== null) {
+      window.clearTimeout(releaseTimerRef.current);
+    }
+  }, [cancelAnimation]);
 
-  return { displayValue, releaseLocalValue, setLocalValue };
+  return { displayValue, releaseLocalValue, releaseRevision, setLocalValue };
 }
 
 // Animates a 2D cursor toward target, snapping during local drag and easing on remote changes.
@@ -288,18 +318,28 @@ export function DotLineControl({
   const padRef = useRef<HTMLDivElement | null>(null);
   const commitValueRef = useRef(value);
   const draggingRef = useRef(false);
+  const incomingValueHoldUntilRef = useRef(0);
   const [interacting, setInteracting] = useState(false);
   const [lineWidth, setLineWidth] = useState(0);
-  const { displayValue, releaseLocalValue, setLocalValue } = useRemoteEasedNumber(value);
+  const { displayValue, releaseLocalValue, releaseRevision, setLocalValue } = useRemoteEasedNumber(value);
   const range = Math.max(step, max - min);
   const displayRatio = clamp((displayValue - min) / range, 0, 1);
   // Thumb centre is inset by half its width so it never overflows the track ends;
   // the accent back-fill (when enabled) stops at that centre.
   const thumbCenterPx = insetPixel(displayRatio, lineWidth, RECT_THUMB_WIDTH_PX / 2);
 
+  useEffect(() => () => {
+    if (draggingRef.current) {
+      draggingRef.current = false;
+      endControlInteraction();
+    }
+  }, []);
+
   useEffect(() => {
-    commitValueRef.current = value;
-  }, [value]);
+    if (!draggingRef.current && Date.now() >= incomingValueHoldUntilRef.current) {
+      commitValueRef.current = value;
+    }
+  }, [releaseRevision, value]);
 
   useEffect(() => {
     const pad = padRef.current;
@@ -355,6 +395,8 @@ export function DotLineControl({
     }
 
     draggingRef.current = false;
+    endControlInteraction();
+    incomingValueHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
     setInteracting(false);
     releaseLocalValue(commitValueRef.current);
     onCommit?.(commitValueRef.current);
@@ -363,8 +405,10 @@ export function DotLineControl({
   const keyStep = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>, next: number) => {
       event.preventDefault();
+      markControlInteraction();
       const stepped = roundToStep(next);
       setControlValue(stepped);
+      incomingValueHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
       releaseLocalValue(stepped);
       onCommit?.(stepped);
     },
@@ -406,8 +450,10 @@ export function DotLineControl({
         if (disabled) {
           return;
         }
-        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        beginControlInteraction();
         draggingRef.current = true;
+        incomingValueHoldUntilRef.current = Number.POSITIVE_INFINITY;
         setInteracting(true);
         pick(event);
       }}

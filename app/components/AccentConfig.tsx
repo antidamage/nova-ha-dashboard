@@ -48,6 +48,14 @@ import {
   ThemeStorageValue,
   ThemeTitleTone,
   ThemeVariant,
+  VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX,
+  VOICE_TRANSCRIPT_GLOW_INTENSITY_MIN,
+  VOICE_TRANSCRIPT_GLOW_SIZE_MAX,
+  VOICE_TRANSCRIPT_GLOW_SIZE_MIN,
+  VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX,
+  VOICE_TRANSCRIPT_SCANLINE_OPACITY_MIN,
+  VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX,
+  VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN,
   appliedThemeRgb,
   setDocumentThemeOverride,
   CONTROL_SOUND_FILE_MAX_BYTES,
@@ -92,6 +100,7 @@ import {
   type TaskReminderAudioStatus,
 } from "./tasks/task-audio-client";
 import { playControlSound } from "./dashboard/controlSound";
+import { VoiceInputDeviceGroup } from "./VoiceInputDeviceGroup";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useExperienceFeatures } from "./dashboard/experienceModeSetting";
@@ -258,11 +267,13 @@ function clamp(value: number, min: number, max: number) {
 function BorderOpacity({
   border,
   color,
-  onChange,
+  onCommit,
+  onPreview,
 }: {
   border: ThemeBorderValue;
   color: [number, number, number];
-  onChange: (border: ThemeBorderValue) => void;
+  onCommit: (border: ThemeBorderValue) => void;
+  onPreview: (border: ThemeBorderValue) => void;
 }) {
   return (
     <SliderControlPanel
@@ -277,7 +288,8 @@ function BorderOpacity({
       step={1}
       value={border.opacity}
       valueText={`${border.opacity}%`}
-      onChange={(opacity) => onChange({ ...border, opacity })}
+      onPreview={(opacity) => onPreview({ ...border, opacity })}
+      onCommit={(opacity) => onCommit({ ...border, opacity })}
     />
   );
 }
@@ -332,12 +344,14 @@ function BorderToggle({
 function ThemeSelectionControl({
   accentColor,
   highlightColor,
-  onChange,
+  onCommit,
+  onPreview,
   value,
 }: {
   accentColor: [number, number, number];
   highlightColor: [number, number, number];
-  onChange: (value: ThemeSelection) => void;
+  onCommit: (value: ThemeSelection) => void;
+  onPreview: (value: ThemeSelection) => void;
   value: ThemeSelection;
 }) {
   const activeIndex = Math.max(0, THEME_SELECTIONS.findIndex((selection) => selection === value));
@@ -355,7 +369,8 @@ function ThemeSelectionControl({
       step={1}
       value={activeIndex}
       valueText={activeLabel}
-      onChange={(index) => onChange(THEME_SELECTIONS[Math.round(index)] ?? "dark")}
+      onPreview={(index) => onPreview(THEME_SELECTIONS[Math.round(index)] ?? "dark")}
+      onCommit={(index) => onCommit(THEME_SELECTIONS[Math.round(index)] ?? "dark")}
       markers={THEME_SELECTIONS.map((selection, index) => ({
         active: selection === value,
         label: THEME_SELECTION_LABELS[selection],
@@ -417,11 +432,13 @@ function WaterToggle({
 
 function WaterOpacity({
   color,
-  onChange,
+  onCommit,
+  onPreview,
   water,
 }: {
   color: [number, number, number];
-  onChange: (water: ThemeMapLayerValue) => void;
+  onCommit: (water: ThemeMapLayerValue) => void;
+  onPreview: (water: ThemeMapLayerValue) => void;
   water: ThemeMapLayerValue;
 }) {
   const opacity = clamp(Math.round(Number(water.opacity)), 0, 100);
@@ -439,18 +456,21 @@ function WaterOpacity({
       step={1}
       value={opacity}
       valueText={`${opacity}%`}
-      onChange={(nextOpacity) => onChange({ ...water, opacity: nextOpacity })}
+      onPreview={(nextOpacity) => onPreview({ ...water, opacity: nextOpacity })}
+      onCommit={(nextOpacity) => onCommit({ ...water, opacity: nextOpacity })}
     />
   );
 }
 
 function MapLabelSizeControl({
   color,
-  onChange,
+  onCommit,
+  onPreview,
   value,
 }: {
   color: [number, number, number];
-  onChange: (value: number) => void;
+  onCommit: (value: number) => void;
+  onPreview: (value: number) => void;
   value: number;
 }) {
   const labelSize = clamp(Math.round(Number(value)), MAP_LABEL_SIZE_MIN, MAP_LABEL_SIZE_MAX);
@@ -467,7 +487,8 @@ function MapLabelSizeControl({
       step={50}
       value={labelSize}
       valueText={`${labelSize}%`}
-      onChange={onChange}
+      onPreview={onPreview}
+      onCommit={onCommit}
       markers={[
         { active: labelSize === MAP_LABEL_SIZE_MIN, label: "Min", value: MAP_LABEL_SIZE_MIN },
         { active: labelSize === MAP_LABEL_SIZE_DEFAULT, label: "Default", value: MAP_LABEL_SIZE_DEFAULT },
@@ -480,12 +501,14 @@ function MapLabelSizeControl({
 function BuildingOpacityControl({
   highColor,
   lowColor,
-  onChange,
+  onCommit,
+  onPreview,
   value,
 }: {
   highColor: [number, number, number];
   lowColor: [number, number, number];
-  onChange: (value: number) => void;
+  onCommit: (value: number) => void;
+  onPreview: (value: number) => void;
   value: number;
 }) {
   const opacity = clamp(Math.round(Number(value)), MAP_BUILDING_OPACITY_MIN, MAP_BUILDING_OPACITY_MAX);
@@ -503,7 +526,8 @@ function BuildingOpacityControl({
       step={1}
       value={opacity}
       valueText={`${opacity}%`}
-      onChange={onChange}
+      onPreview={onPreview}
+      onCommit={onCommit}
       markers={[
         { active: opacity === MAP_BUILDING_OPACITY_DEFAULT, label: "Default", value: MAP_BUILDING_OPACITY_DEFAULT },
         { active: opacity === MAP_BUILDING_OPACITY_MAX, label: "Max", value: MAP_BUILDING_OPACITY_MAX },
@@ -516,12 +540,14 @@ function TitleToneControl({
   accentColor,
   highlightColor,
   value,
-  onChange,
+  onCommit,
+  onPreview,
 }: {
   accentColor: [number, number, number];
   highlightColor: [number, number, number];
   value: ThemeTitleTone;
-  onChange: (value: ThemeTitleTone) => void;
+  onCommit: (value: ThemeTitleTone) => void;
+  onPreview: (value: ThemeTitleTone) => void;
 }) {
   const activeIndex = Math.max(0, TITLE_TONES.findIndex((tone) => tone.value === value));
   const activeLabel = TITLE_TONES[activeIndex]?.label ?? "Auto";
@@ -538,7 +564,8 @@ function TitleToneControl({
       step={1}
       value={activeIndex}
       valueText={activeLabel}
-      onChange={(index) => onChange(TITLE_TONES[Math.round(index)]?.value ?? "auto")}
+      onPreview={(index) => onPreview(TITLE_TONES[Math.round(index)]?.value ?? "auto")}
+      onCommit={(index) => onCommit(TITLE_TONES[Math.round(index)]?.value ?? "auto")}
       markers={TITLE_TONES.map((tone, index) => ({
         active: tone.value === value,
         label: tone.label,
@@ -552,12 +579,14 @@ function RadarPaletteModeControl({
   highColor,
   lowColor,
   value,
-  onChange,
+  onCommit,
+  onPreview,
 }: {
   highColor: [number, number, number];
   lowColor: [number, number, number];
   value: RadarPaletteMode;
-  onChange: (value: RadarPaletteMode) => void;
+  onCommit: (value: RadarPaletteMode) => void;
+  onPreview: (value: RadarPaletteMode) => void;
 }) {
   const activeIndex = Math.max(0, RADAR_PALETTE_MODES.findIndex((mode) => mode.value === value));
   const activeLabel = RADAR_PALETTE_MODES[activeIndex]?.label ?? "Spectrum";
@@ -574,7 +603,8 @@ function RadarPaletteModeControl({
       step={1}
       value={activeIndex}
       valueText={activeLabel}
-      onChange={(index) => onChange(RADAR_PALETTE_MODES[Math.round(index)]?.value ?? "spectrum")}
+      onPreview={(index) => onPreview(RADAR_PALETTE_MODES[Math.round(index)]?.value ?? "spectrum")}
+      onCommit={(index) => onCommit(RADAR_PALETTE_MODES[Math.round(index)]?.value ?? "spectrum")}
       markers={RADAR_PALETTE_MODES.map((mode, index) => ({
         active: mode.value === value,
         label: mode.label,
@@ -592,12 +622,14 @@ function RadarOpacityControl({
   highColor,
   lowColor,
   value,
-  onChange,
+  onCommit,
+  onPreview,
 }: {
   highColor: [number, number, number];
   lowColor: [number, number, number];
   value: number;
-  onChange: (value: number) => void;
+  onCommit: (value: number) => void;
+  onPreview: (value: number) => void;
 }) {
   const opacity = normalizeRadarOpacity(value);
 
@@ -613,20 +645,23 @@ function RadarOpacityControl({
       step={1}
       value={opacity}
       valueText={`${opacity}%`}
-      onChange={(nextValue) => onChange(nextValue)}
+      onPreview={(nextValue) => onPreview(nextValue)}
+      onCommit={(nextValue) => onCommit(nextValue)}
     />
   );
 }
 
 function TaskGlowIntensityControl({
   color,
-  onChange,
+  onCommit,
   onPreview,
+  onReleased,
   value,
 }: {
   color: [number, number, number];
-  onChange: (value: number) => void;
-  onPreview: () => void;
+  onCommit: (value: number) => void;
+  onPreview: (value: number) => void;
+  onReleased: () => void;
   value: number;
 }) {
   const intensity = normalizeTaskGlowIntensity(value);
@@ -644,8 +679,11 @@ function TaskGlowIntensityControl({
       step={10}
       value={intensity}
       valueText={`${intensity}%`}
-      onChange={(nextValue) => onChange(normalizeTaskGlowIntensity(nextValue))}
-      onCommit={onPreview}
+      onPreview={(nextValue) => onPreview(normalizeTaskGlowIntensity(nextValue))}
+      onCommit={(nextValue) => {
+        onCommit(normalizeTaskGlowIntensity(nextValue));
+        onReleased();
+      }}
       markers={[
         { active: intensity === TASK_GLOW_INTENSITY_DEFAULT, label: "Default", value: TASK_GLOW_INTENSITY_DEFAULT },
         { active: intensity === TASK_GLOW_INTENSITY_MAX, label: "Max", value: TASK_GLOW_INTENSITY_MAX },
@@ -666,10 +704,12 @@ function readFileAsDataUrl(file: File) {
 function ControlSoundConfig({
   color,
   onChange,
+  onPreview,
   value,
 }: {
   color: [number, number, number];
   onChange: (value: ControlSoundSettings) => void;
+  onPreview: (value: ControlSoundSettings) => void;
   value: ControlSoundSettings;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -774,8 +814,11 @@ function ControlSoundConfig({
         step={5}
         value={settings.volume}
         valueText={`${settings.volume}%`}
-        onChange={(volume) => onChange({ ...settings, volume: Math.round(volume) })}
-        onCommit={(volume) => playControlSound({ volume: Math.round(volume) })}
+        onPreview={(volume) => onPreview({ ...settings, volume: Math.round(volume) })}
+        onCommit={(volume) => {
+          onChange({ ...settings, volume: Math.round(volume) });
+          playControlSound({ volume: Math.round(volume) });
+        }}
         markers={[
           { active: settings.volume === CONTROL_SOUND_VOLUME_DEFAULT, label: "Default", value: CONTROL_SOUND_VOLUME_DEFAULT },
         ]}
@@ -846,11 +889,13 @@ function BackgroundTextureControl({
   accentColor,
   highlightColor,
   onChange,
+  onPreview,
   value,
 }: {
   accentColor: [number, number, number];
   highlightColor: [number, number, number];
   onChange: (value: FluidBackgroundSettings) => void;
+  onPreview: (value: FluidBackgroundSettings) => void;
   value: FluidBackgroundSettings;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -982,7 +1027,8 @@ function BackgroundTextureControl({
         step={0.01}
         value={value.textureScale}
         valueText={`${(value.textureScale / 100).toFixed(2)}x`}
-        onChange={(textureScale) => onChange({ ...valueRef.current, textureScale })}
+        onPreview={(textureScale) => onPreview({ ...valueRef.current, textureScale })}
+        onCommit={(textureScale) => onChange({ ...valueRef.current, textureScale })}
       />
     </div>
   );
@@ -1152,11 +1198,13 @@ function BackgroundEffectControls({
   accentColor,
   highlightColor,
   onChange,
+  onPreview,
   value,
 }: {
   accentColor: [number, number, number];
   highlightColor: [number, number, number];
   onChange: (value: FluidBackgroundSettings) => void;
+  onPreview: (value: FluidBackgroundSettings) => void;
   value: FluidBackgroundSettings;
 }) {
   return (
@@ -1166,6 +1214,7 @@ function BackgroundEffectControls({
         highlightColor={highlightColor}
         value={value}
         onChange={onChange}
+        onPreview={onPreview}
       />
       {BACKGROUND_EFFECT_CONTROLS.map((control) => {
         const currentValue = value[control.key];
@@ -1185,7 +1234,8 @@ function BackgroundEffectControls({
             step={control.step}
             value={currentValue}
             valueText={displayValue}
-            onChange={(nextValue) => onChange({ ...value, [control.key]: nextValue })}
+            onPreview={(nextValue) => onPreview({ ...value, [control.key]: nextValue })}
+            onCommit={(nextValue) => onChange({ ...value, [control.key]: nextValue })}
             markers={[
               { active: currentValue === control.defaultValue, label: "Default", value: control.defaultValue },
               { active: currentValue === control.max, label: "Max", value: control.max },
@@ -1422,32 +1472,32 @@ export function AccentConfig({
   const radarLowRgb = appliedThemeRgb(theme.map.radarLow);
   const radarHighRgb = appliedThemeRgb(theme.map.radarHigh);
 
-  const setTheme = useCallback((nextTheme: DeviceTheme) => {
-    setThemeVariant(editingVariant, nextTheme);
+  const setTheme = useCallback((nextTheme: DeviceTheme, options: { persist?: boolean } = {}) => {
+    setThemeVariant(editingVariant, nextTheme, options);
   }, [editingVariant, setThemeVariant]);
 
-  const setThemeColor = useCallback((slot: ThemeConfigColorSlot, value: ThemeColorValue) => {
-    setTheme({ ...theme, [slot]: value });
+  const setThemeColor = useCallback((slot: ThemeConfigColorSlot, value: ThemeColorValue, options: { persist?: boolean } = {}) => {
+    setTheme({ ...theme, [slot]: value }, options);
   }, [setTheme, theme]);
 
-  const updateSlotColor = (slot: ThemeConfigSlot, value: ThemeColorValue) => {
+  const updateSlotColor = (slot: ThemeConfigSlot, value: ThemeColorValue, options: { persist?: boolean } = {}) => {
     if (slot === "border") {
-      setTheme({ ...theme, border: { ...theme.border, color: value } });
+      setTheme({ ...theme, border: { ...theme.border, color: value } }, options);
       return;
     }
     if (isTitleConfigSlot(slot)) {
-      setTheme({ ...theme, titleColors: { ...theme.titleColors, [titleSlotKey(slot)]: value } });
+      setTheme({ ...theme, titleColors: { ...theme.titleColors, [titleSlotKey(slot)]: value } }, options);
       return;
     }
     if (isVoiceTranscriptConfigSlot(slot)) {
-      setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, [voiceTranscriptSlotKey(slot)]: value } });
+      setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, [voiceTranscriptSlotKey(slot)]: value } }, options);
       return;
     }
     if (isMapConfigSlot(slot)) {
-      setTheme({ ...theme, map: { ...theme.map, [mapSlotKey(slot)]: value } });
+      setTheme({ ...theme, map: { ...theme.map, [mapSlotKey(slot)]: value } }, options);
       return;
     }
-    setThemeColor(slot, value);
+    setThemeColor(slot, value, options);
   };
 
   const swapAccentHighlight = () => {
@@ -1555,16 +1605,16 @@ export function AccentConfig({
     });
   }, []);
 
-  const updateBorder = (border: ThemeBorderValue) => {
-    setTheme({ ...theme, border });
+  const updateBorder = (border: ThemeBorderValue, options: { persist?: boolean } = {}) => {
+    setTheme({ ...theme, border }, options);
   };
 
-  const updateMapWater = (mapWater: ThemeMapLayerValue) => {
-    setTheme({ ...theme, mapWater });
+  const updateMapWater = (mapWater: ThemeMapLayerValue, options: { persist?: boolean } = {}) => {
+    setTheme({ ...theme, mapWater }, options);
   };
 
-  const updateStatusOrb = useCallback((avatar: NovaAvatarTheme) => {
-    setTheme({ ...theme, avatar });
+  const updateStatusOrb = useCallback((avatar: NovaAvatarTheme, options: { persist?: boolean } = {}) => {
+    setTheme({ ...theme, avatar }, options);
   }, [setTheme, theme]);
 
   const stopTaskAudioPreview = useCallback(() => {
@@ -1658,14 +1708,6 @@ export function AccentConfig({
     const isBuilding = choice.slot === "map.buildingLow" || choice.slot === "map.buildingHigh";
     const isLabels = choice.slot === "map.labels";
     const isWater = choice.slot === "map.water";
-    const summary = choice.slot === "border" && !theme.border.enabled
-      ? "line default"
-      : isWater
-        ? theme.mapWater.enabled
-          ? `rgb ${rgb.join(" ")} / ${theme.mapWater.opacity}%`
-          : "water disabled"
-        : `rgb ${rgb.join(" ")}`;
-
     return (
       <ColorWidget
         key={choice.slot}
@@ -1673,7 +1715,6 @@ export function AccentConfig({
         detail={choice.detail}
         label={choice.label}
         rgb={rgb}
-        summary={summary}
         swatchOpacity={isWater ? (theme.mapWater.enabled ? Math.max(0.18, theme.mapWater.opacity / 100) : 0.24) : undefined}
         onToggle={() => selectSlot(choice.slot)}
         onCopyColor={() => copyColorForSlot(choice.slot)}
@@ -1692,13 +1733,24 @@ export function AccentConfig({
             onChange={(enabled) => updateMapWater({ ...theme.mapWater, enabled })}
           />
         ) : null}
-        <ColorSpectrum label={choice.label} value={value} onChange={(nextValue) => updateSlotColor(choice.slot, nextValue)} />
-        <ColorIntensitySlider label={choice.label} value={value} onChange={(nextValue) => updateSlotColor(choice.slot, nextValue)} />
+        <ColorSpectrum
+          label={choice.label}
+          value={value}
+          onPreview={(nextValue) => updateSlotColor(choice.slot, nextValue, { persist: false })}
+          onCommit={(nextValue) => updateSlotColor(choice.slot, nextValue)}
+        />
+        <ColorIntensitySlider
+          label={choice.label}
+          value={value}
+          onPreview={(nextValue) => updateSlotColor(choice.slot, nextValue, { persist: false })}
+          onCommit={(nextValue) => updateSlotColor(choice.slot, nextValue)}
+        />
         {isLabels ? (
           <MapLabelSizeControl
             color={labelRgb}
             value={theme.mapLabelSize}
-            onChange={(mapLabelSize) => setTheme({ ...theme, mapLabelSize })}
+            onPreview={(mapLabelSize) => setTheme({ ...theme, mapLabelSize }, { persist: false })}
+            onCommit={(mapLabelSize) => setTheme({ ...theme, mapLabelSize })}
           />
         ) : null}
         {isBuilding ? (
@@ -1706,14 +1758,89 @@ export function AccentConfig({
             lowColor={buildingLowRgb}
             highColor={buildingHighRgb}
             value={theme.mapBuildingOpacity}
-            onChange={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity })}
+            onPreview={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity }, { persist: false })}
+            onCommit={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity })}
           />
         ) : null}
         {isWater ? (
-          <WaterOpacity water={theme.mapWater} color={waterRgb} onChange={updateMapWater} />
+          <WaterOpacity
+            water={theme.mapWater}
+            color={waterRgb}
+            onPreview={(mapWater) => updateMapWater(mapWater, { persist: false })}
+            onCommit={updateMapWater}
+          />
         ) : null}
         {choice.slot === "border" ? (
-          <BorderOpacity border={theme.border} color={borderRgb} onChange={updateBorder} />
+          <BorderOpacity
+            border={theme.border}
+            color={borderRgb}
+            onPreview={(border) => updateBorder(border, { persist: false })}
+            onCommit={updateBorder}
+          />
+        ) : null}
+        {choice.slot === "voiceTranscript.text" ? (
+          <>
+            <SliderControlPanel
+              activeColor={rgb}
+              ariaLabel="Transcript text glow intensity"
+              ariaValueText={`${theme.voiceTranscriptColors.glowIntensity}%`}
+              color={rgb}
+              label="Glow Intensity"
+              max={VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX}
+              min={VOICE_TRANSCRIPT_GLOW_INTENSITY_MIN}
+              step={1}
+              value={theme.voiceTranscriptColors.glowIntensity}
+              valueText={`${theme.voiceTranscriptColors.glowIntensity}%`}
+              onPreview={(glowIntensity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowIntensity } }, { persist: false })}
+              onCommit={(glowIntensity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowIntensity } })}
+            />
+            <SliderControlPanel
+              activeColor={rgb}
+              ariaLabel="Transcript text glow size"
+              ariaValueText={`${theme.voiceTranscriptColors.glowSize}px`}
+              color={rgb}
+              label="Glow Size"
+              max={VOICE_TRANSCRIPT_GLOW_SIZE_MAX}
+              min={VOICE_TRANSCRIPT_GLOW_SIZE_MIN}
+              step={1}
+              value={theme.voiceTranscriptColors.glowSize}
+              valueText={`${theme.voiceTranscriptColors.glowSize}px`}
+              onPreview={(glowSize) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowSize } }, { persist: false })}
+              onCommit={(glowSize) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowSize } })}
+            />
+          </>
+        ) : null}
+        {choice.slot === "voiceTranscript.background" ? (
+          <>
+            <SliderControlPanel
+              activeColor={rgb}
+              ariaLabel="Transcript scanline opacity"
+              ariaValueText={`${theme.voiceTranscriptColors.scanlineOpacity}%`}
+              color={rgb}
+              label="Scanline Opacity"
+              max={VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX}
+              min={VOICE_TRANSCRIPT_SCANLINE_OPACITY_MIN}
+              step={1}
+              value={theme.voiceTranscriptColors.scanlineOpacity}
+              valueText={`${theme.voiceTranscriptColors.scanlineOpacity}%`}
+              onPreview={(scanlineOpacity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineOpacity } }, { persist: false })}
+              onCommit={(scanlineOpacity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineOpacity } })}
+            />
+            <SliderControlPanel
+              activeColor={rgb}
+              ariaLabel="Transcript scanline scale"
+              ariaValueText={`${theme.voiceTranscriptColors.scanlineScale}%`}
+              color={rgb}
+              label="Scanline Scale"
+              max={VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX}
+              min={VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN}
+              step={5}
+              value={theme.voiceTranscriptColors.scanlineScale}
+              valueText={`${theme.voiceTranscriptColors.scanlineScale}%`}
+              onPreview={(scanlineScale) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineScale } }, { persist: false })}
+              onCommit={(scanlineScale) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineScale } })}
+            />
+          </>
         ) : null}
       </ColorWidget>
     );
@@ -1745,6 +1872,7 @@ export function AccentConfig({
           </div>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">This Device</h2>
+            <VoiceInputDeviceGroup agentName={agentName} />
             <CheckboxRow
               checked={autoFullscreen}
               label="Auto Fullscreen"
@@ -1807,7 +1935,8 @@ export function AccentConfig({
             accentColor={accentRgb}
             highlightColor={highlightRgb}
             value={themeSet.selection}
-            onChange={setThemeSelection}
+            onPreview={(selection) => setThemeSelection(selection, { persist: false })}
+            onCommit={setThemeSelection}
           />
           <ThemeVariantTabs value={editingVariant} onChange={setEditingVariant} />
 
@@ -1829,19 +1958,20 @@ export function AccentConfig({
             ))}
           >
             <div className="grid gap-3">
-              <div className="theme-widget-grid grid gap-3">
+              <div className="theme-widget-flow">
                 {THEME_SLOTS.map(renderWidget)}
               </div>
-              <div className="theme-widget-grid grid gap-3">
+              <div className="theme-widget-flow">
                 {VOICE_TRANSCRIPT_THEME_SLOTS.map(renderWidget)}
               </div>
               <TitleToneControl
                 accentColor={accentRgb}
                 highlightColor={highlightRgb}
                 value={theme.titleTone}
-                onChange={(titleTone) => setTheme({ ...theme, titleTone })}
+                onPreview={(titleTone) => setTheme({ ...theme, titleTone }, { persist: false })}
+                onCommit={(titleTone) => setTheme({ ...theme, titleTone })}
               />
-              <div className="theme-widget-grid grid gap-3">
+              <div className="theme-widget-flow">
                 {TITLE_THEME_SLOTS.map(renderWidget)}
               </div>
             </div>
@@ -1862,6 +1992,7 @@ export function AccentConfig({
                 sliderColor={accentRgb}
                 sliderActiveColor={highlightRgb}
                 onChange={(font) => setTheme({ ...theme, font })}
+                onPreview={(font) => setTheme({ ...theme, font }, { persist: false })}
               />
               <FontControl
                 label="Clock Font"
@@ -1871,6 +2002,7 @@ export function AccentConfig({
                 sliderColor={accentRgb}
                 sliderActiveColor={highlightRgb}
                 onChange={(clockFont) => setTheme({ ...theme, clockFont })}
+                onPreview={(clockFont) => setTheme({ ...theme, clockFont }, { persist: false })}
               />
               <FontControl
                 label="Status Orb Label"
@@ -1880,6 +2012,7 @@ export function AccentConfig({
                 sliderColor={accentRgb}
                 sliderActiveColor={highlightRgb}
                 onChange={(gymFont) => setTheme({ ...theme, gymFont })}
+                onPreview={(gymFont) => setTheme({ ...theme, gymFont }, { persist: false })}
               />
               <FontControl
                 label="Voice Transcript"
@@ -1889,6 +2022,7 @@ export function AccentConfig({
                 sliderColor={accentRgb}
                 sliderActiveColor={highlightRgb}
                 onChange={(transcriptFont) => setTheme({ ...theme, transcriptFont })}
+                onPreview={(transcriptFont) => setTheme({ ...theme, transcriptFont }, { persist: false })}
               />
             </div>
           </ConfigAccordion>
@@ -1903,6 +2037,7 @@ export function AccentConfig({
               embedded
               theme={theme.avatar}
               onThemeChange={updateStatusOrb}
+              onThemePreview={(avatar) => updateStatusOrb(avatar, { persist: false })}
             />
           </ConfigAccordion>
 
@@ -1921,6 +2056,7 @@ export function AccentConfig({
               highlightColor={highlightRgb}
               value={theme.backgroundEffect}
               onChange={(backgroundEffect) => setTheme({ ...theme, backgroundEffect })}
+              onPreview={(backgroundEffect) => setTheme({ ...theme, backgroundEffect }, { persist: false })}
             />
           </ConfigAccordion>
 
@@ -1937,23 +2073,25 @@ export function AccentConfig({
                 detail={theme.mapSatellite ? "Tinted satellite imagery covers the map ground plane" : "Map ground uses the flat base and land use colours"}
                 onChange={(mapSatellite) => setTheme({ ...theme, mapSatellite })}
               />
-              <div className="theme-widget-grid grid gap-3">
+              <div className="theme-widget-flow">
                 {MAP_THEME_SLOTS.map(renderWidget)}
               </div>
               <RadarPaletteModeControl
                 lowColor={radarLowRgb}
                 highColor={radarHighRgb}
                 value={theme.radarPaletteMode}
-                onChange={(radarPaletteMode) => setTheme({ ...theme, radarPaletteMode })}
+                onPreview={(radarPaletteMode) => setTheme({ ...theme, radarPaletteMode }, { persist: false })}
+                onCommit={(radarPaletteMode) => setTheme({ ...theme, radarPaletteMode })}
               />
               <RadarOpacityControl
                 lowColor={radarLowRgb}
                 highColor={radarHighRgb}
                 value={theme.radarOpacity ?? RADAR_OPACITY_DEFAULT}
-                onChange={(radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) })}
+                onPreview={(radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) }, { persist: false })}
+                onCommit={(radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) })}
               />
               {theme.radarPaletteMode === "custom" ? (
-                <div className="theme-widget-grid grid gap-3">
+                <div className="theme-widget-flow">
                   {RADAR_THEME_SLOTS.map(renderWidget)}
                 </div>
               ) : null}
@@ -1970,8 +2108,9 @@ export function AccentConfig({
               <TaskGlowIntensityControl
                 color={highlightRgb}
                 value={theme.taskGlowIntensity ?? TASK_GLOW_INTENSITY_DEFAULT}
-                onChange={(taskGlowIntensity) => setTheme({ ...theme, taskGlowIntensity })}
-                onPreview={previewTaskGlow}
+                onPreview={(taskGlowIntensity) => setTheme({ ...theme, taskGlowIntensity }, { persist: false })}
+                onCommit={(taskGlowIntensity) => setTheme({ ...theme, taskGlowIntensity })}
+                onReleased={previewTaskGlow}
               />
               <TaskReminderAudioControl onStatusChange={setTaskReminderAudioExists} />
             </div>
@@ -1987,6 +2126,7 @@ export function AccentConfig({
               color={highlightRgb}
               value={theme.controlSound}
               onChange={(controlSound) => setTheme({ ...theme, controlSound })}
+              onPreview={(controlSound) => setTheme({ ...theme, controlSound }, { persist: false })}
             />
           </ConfigAccordion>
             </ConfigAccordion>

@@ -238,9 +238,48 @@ export type WatchfacePreferences = {
   updatedAt?: string;
 };
 
+export type AgentPreferences = {
+  /** Enable bounded post-action state polling (the Ralph Wiggum loop). */
+  ralphLoopEnabled?: boolean;
+  /** Maximum authoritative state refreshes after the immediate response. */
+  ralphLoopMaxIterations?: number;
+  /** Pause between state refreshes. */
+  ralphLoopSleepMs?: number;
+  /** Wall-clock deadline after which an unverified action is reported as failed. */
+  ralphLoopFailureSeconds?: number;
+  updatedAt?: string;
+};
+
 export type VoicePreferences = {
-  /** User-facing name of the voice agent. */
+  /** User-facing display name of the voice agent (emoji/symbols allowed). */
   agentName?: string;
+  /**
+   * Optional plain-text pronunciation of the agent name, used by the voice
+   * service for the spoken/ASR-facing identity. Empty means "use the display
+   * name".
+   */
+  agentNamePronunciation?: string;
+  /**
+   * System-wide voice killswitch. When false, the voice runtime drops all
+   * microphone audio and closes any open conversation, disabling voice for the
+   * entire household until it is turned back on. Defaults to true.
+   */
+  systemVoiceEnabled?: boolean;
+  /** Learn local voice templates and personalize turns for recognized household members. */
+  speakerRecognitionEnabled?: boolean;
+  /**
+   * Per-satellite killswitch: satellite ids that are individually switched off.
+   * The voice server drops their microphone frames while they are listed, so one
+   * satellite can be silenced (e.g. while testing other devices) without stopping
+   * its process. An explicit empty list enables every satellite; absent defaults
+   * to Nocturnium disabled so only the primary Indium mic is processed.
+   */
+  disabledSatellites?: string[];
+  /**
+   * Run the lightweight activity/noise gate on native satellites before they
+   * transmit audio. Disable temporarily to stream every frame for diagnostics.
+   */
+  satelliteNoiseGateEnabled?: boolean;
   speaker?: "Ryan" | "Aiden" | "Vivian" | "Serena" | "Uncle_Fu" | "Dylan" | "Eric" | "Ono_Anna" | "Sohee";
   language?: "Auto" | "English" | "Chinese" | "Japanese" | "Korean" | "German" | "French" | "Russian" | "Portuguese" | "Spanish" | "Italian";
   accent?: "voice-native" | "new-zealand" | "australian" | "british" | "american" | "irish" | "scottish";
@@ -250,6 +289,14 @@ export type VoicePreferences = {
   emotionMirroring?: number;
   /** LLM sampling temperature for spoken-response rendering (0 = deterministic). */
   temperature?: number;
+  /** Chance (0-1) that a conversational reply is rendered as two to four sentences. */
+  longResponseProbability?: number;
+  /**
+   * Maximum spoken-word length of a verified command acknowledgement (0-10). The
+   * actual length is rolled per reply as a random value in [0, this]; zero means
+   * a silent acknowledgement.
+   */
+  commandReplyMaxWords?: number;
   /** Spoken wake words and common speech-recognition variants. */
   wakeWords?: string[];
   /** Legacy single wake word; migrated into wakeWords when read. */
@@ -268,10 +315,32 @@ export type VoicePreferences = {
   ttsPrerollMs?: number;
   /** Milliseconds of audio per steady-state frame sent to satellites. */
   ttsFrameMs?: number;
+  /** Transcript header decoration template (%u%/%a%/%d%/%t%/%m% tokens). */
+  transcriptTemplate?: string;
+  /**
+   * The agent's third-person pronouns in three forms (subjective/objective/
+   * possessive), passed to the language model so it refers to itself correctly.
+   * Part of a saved voice personality.
+   */
+  pronouns?: {
+    subjective?: string;
+    objective?: string;
+    possessive?: string;
+  };
+  /**
+   * Speech affectations: deterministic quirks the voice service applies to the
+   * finished reply text (dashboard checkboxes). Part of a saved voice
+   * personality.
+   */
+  affectations?: {
+    /** Drop first- and second-person pronouns from spoken replies. */
+    pronounDrop?: boolean;
+  };
   updatedAt?: string;
 };
 
 export type DashboardPreferences = {
+  agent?: AgentPreferences;
   aircon?: AirconPreferences;
   lighting?: LightingPreferences;
   panelHeater?: PanelHeaterPreferences;
@@ -281,6 +350,9 @@ export type DashboardPreferences = {
   themeLibraryUpdatedAt?: string;
   watchface?: WatchfacePreferences;
   voice?: VoicePreferences;
+  /** Host-backed library of saved voice personalities ({version, activeId, entries}). */
+  voicePersonalityLibrary?: Record<string, unknown>;
+  voicePersonalityLibraryUpdatedAt?: string;
   update?: UpdatePreferences;
   layout?: LayoutPreferences;
 };

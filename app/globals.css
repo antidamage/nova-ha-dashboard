@@ -276,17 +276,164 @@ html[data-nova-lite] body.task-glow-preview::after {
   opacity: 0;
 }
 
+/* ==== VOICE LISTENING GLOW ================================================
+   While this device owns a live voice conversation a coloured halo sits behind
+   the orb: it fades in and grows from behind the orb, then pulses rhythmically
+   while visible, and shrinks/fades out when the conversation ends. It is a DOM
+   element (not a canvas layer) because it extends ~25% past the orb's outer
+   ring — beyond the canvas bounds. Colour comes from the theme's Voice Glow
+   slot via --nova-avatar-voice-glow. */
+.nova-avatar-voice-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--nova-avatar-instance-size, 128px) * 1.25);
+  height: calc(var(--nova-avatar-instance-size, 128px) * 1.25);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.55);
+  background: radial-gradient(
+    circle at center,
+    rgba(var(--nova-avatar-voice-glow, 60, 220, 240), 0.55) 0%,
+    rgba(var(--nova-avatar-voice-glow, 60, 220, 240), 0.28) 42%,
+    rgba(var(--nova-avatar-voice-glow, 60, 220, 240), 0) 72%
+  );
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+/* The 0.5s animation delay lets the grow-in transition play before the pulse
+   takes over; the pulse keeps the centring translate so it never drifts. */
+.nova-avatar-voice-glow.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  animation: nova-voice-glow-pulse 2.4s ease-in-out 0.5s infinite;
+}
+
+@keyframes nova-voice-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+/* Non-always-on native devices: the orb is a tap-to-talk target. */
+.nova-avatar-host.nova-avatar-tappable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* When the orb is enlarged mid-speech, a tap anywhere stands the turn down.
+   Sits just under the enlarged orb (z-index 4000) so the orb itself still
+   toggles, but the rest of the screen becomes a stop-listening target. */
+.nova-avatar-tap-anywhere {
+  position: fixed;
+  inset: 0;
+  z-index: 3999;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .voice-transcript-panel {
   background: var(--cyber-panel);
 }
 
+/* The CRT "screen": bezel frame around the log plus a curved-glass gloss
+   overlay. The gloss lives on the non-scrolling wrapper so it stays put while
+   the log content scrolls beneath it. */
+.voice-transcript-screen {
+  position: relative;
+  border: 3px solid rgb(0 0 0 / 0.55);
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 1px rgb(var(--cyber-border-rgb) / 0.35),
+    0 1px 3px rgb(0 0 0 / 0.4);
+  overflow: hidden;
+}
+
+.voice-transcript-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: inherit;
+  background:
+    /* Bright arc across the top implying curved glass. */
+    radial-gradient(120% 90% at 50% -25%, rgb(255 255 255 / 0.13) 0%, rgb(255 255 255 / 0.045) 38%, transparent 56%),
+    /* Soft falloff towards the bottom of the tube. */
+    radial-gradient(140% 120% at 50% 132%, rgb(0 0 0 / 0.2) 0%, transparent 55%),
+    /* Corner vignette so the flat panel reads as a recessed tube. */
+    radial-gradient(closest-side at 50% 50%, transparent 78%, rgb(0 0 0 / 0.3) 100%);
+}
+
 .voice-transcript-log {
-  background: var(--cyber-voice-transcript-bg, var(--cyber-panel));
+  background-color: var(--cyber-voice-transcript-bg, var(--cyber-panel));
+  /* CRT scanlines tinted by the transcript background selection, blended with
+     the panel colour; opacity and pitch come from the theme sliders. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(var(--cyber-voice-transcript-scanline-rgb, 255 255 255) / var(--cyber-voice-transcript-scanline-opacity, 0.18)) 0,
+    rgb(var(--cyber-voice-transcript-scanline-rgb, 255 255 255) / var(--cyber-voice-transcript-scanline-opacity, 0.18)) calc(1px * var(--cyber-voice-transcript-scanline-scale, 1)),
+    transparent calc(1px * var(--cyber-voice-transcript-scanline-scale, 1)),
+    transparent calc(3px * var(--cyber-voice-transcript-scanline-scale, 1))
+  );
+  background-blend-mode: overlay;
   color: var(--cyber-voice-transcript-text, var(--cyber-line));
+  text-shadow: 0 0 var(--cyber-voice-transcript-glow-size, 8px)
+    rgb(var(--cyber-voice-transcript-text-rgb, var(--cyber-line-rgb)) / var(--cyber-voice-transcript-glow-alpha, 0.45));
   font-family: var(--cyber-transcript, var(--cyber-display));
   font-weight: var(--cyber-transcript-weight, 500);
   font-size: calc(0.875rem * var(--cyber-transcript-scale, 1));
-  max-height: 10lh;
+  max-height: 40lh;
+  min-height: 20lh;
+  /* Still scrollable; a visible scrollbar track breaks the CRT-glass illusion. */
+  scrollbar-width: none;
+}
+
+.voice-transcript-log::-webkit-scrollbar {
+  display: none;
+}
+
+.voice-transcript-meta {
+  font-weight: 700;
+  color: var(--cyber-highlight);
+  letter-spacing: 0.02em;
+  /* Box-drawing glyphs misalign when slanted by the italic body style. */
+  font-style: normal;
+}
+
+/* User lines read as plain log entries: dimmer prefix, upright body text. */
+.voice-transcript-meta--user {
+  color: color-mix(in srgb, var(--cyber-voice-transcript-text, var(--cyber-line)) 70%, #ffffff);
+}
+
+.voice-transcript-line--user {
+  font-style: normal;
+  padding-bottom: 1.0lh;
+}
+
+/* Agent lines are the "voice" in the transcript: full highlight colour on
+   the prefix, a soft glow, and an italicised body so a scan of the log can
+   tell speakers apart without rereading the "User:"/agent-name prefix. */
+.voice-transcript-meta--assistant {
+  color: var(--cyber-highlight);
+  text-shadow: 0 0 8px rgb(var(--cyber-highlight-rgb) / 0.45);
+}
+
+.voice-transcript-line--assistant {
+  font-style: normal;
+  padding-bottom: 1.0lh;
 }
 
 .current-task-bar {
@@ -1310,6 +1457,98 @@ a.update-banner-button {
   border-color: rgb(148 163 184 / 0.28) !important;
 }
 
+/* Compact, static theme spectrum. This intentionally does not share any of
+ * the animated dot treatment used by the live lighting-zone picker. */
+.config-color-picker {
+  height: 132px;
+  min-height: 132px;
+  cursor: crosshair;
+  border: 1px solid rgb(var(--cyber-line-rgb) / 0.72);
+  background: #111318;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+.config-color-picker-spectrum {
+  background:
+    linear-gradient(to bottom, transparent 0%, rgb(245 245 245) 100%),
+    linear-gradient(to right, #ff0000 0%, #ffff00 16.67%, #00ff00 33.33%, #00ffff 50%, #0000ff 66.67%, #ff00ff 83.33%, #ff0000 100%);
+}
+
+.config-color-picker::before,
+.config-color-picker::after {
+  position: absolute;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  content: "";
+  border-color: rgb(255 255 255 / 0.8);
+}
+
+.config-color-picker::before {
+  top: 6px;
+  left: 6px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.config-color-picker::after {
+  right: 6px;
+  bottom: 6px;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+}
+
+.config-color-picker-reticle {
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #fff;
+  outline: 2px solid #101116;
+  box-shadow: 0 0 0 4px rgb(var(--cyber-line-rgb) / 0.82), 0 0 14px rgb(255 255 255 / 0.85);
+  clip-path: polygon(0 0, 35% 0, 50% 15%, 65% 0, 100% 0, 100% 35%, 85% 50%, 100% 65%, 100% 100%, 65% 100%, 50% 85%, 35% 100%, 0 100%, 0 65%, 15% 50%, 0 35%);
+}
+
+.config-color-picker-reticle-dragging {
+  box-shadow: 0 0 0 4px rgb(var(--cyber-line-rgb) / 1), 0 0 20px rgb(255 255 255 / 1);
+}
+
+.config-color-picker-disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  filter: grayscale(1);
+}
+
+.config-color-editor {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .config-color-editor {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .config-color-editor > * {
+    min-width: 0;
+  }
+
+  .config-color-editor .intensity-panel {
+    padding: 12px;
+  }
+
+  .config-color-editor .intensity-panel > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .config-color-editor .config-slider-value {
+    font-size: 1.5rem;
+    text-align: left;
+  }
+}
+
 /*
  * Rectangular slider — the global draggable-control style shared by every linear
  * control (light brightness, aircon fan speed, camera processing, theme sliders).
@@ -1674,10 +1913,11 @@ a.update-banner-button {
 
 .theme-display-card {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
-  min-height: 116px;
+  gap: 10px;
+  min-height: 76px;
+  padding: 10px !important;
   color: var(--cyber-title-on-bg) !important;
 }
 
@@ -1732,6 +1972,46 @@ a.update-banner-button {
   min-width: 0;
 }
 
+/* Collapsed colour chips run left-to-right and wrap naturally at the edge. */
+.theme-widget-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.theme-colour-popover {
+  width: min(100%, 620px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--cyber-cyan);
+  background: var(--cyber-panel);
+  box-shadow: 0 0 36px rgb(var(--cyber-cyan-rgb) / 0.28);
+}
+
+.theme-colour-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.theme-colour-popover-close {
+  border: 1px solid var(--cyber-border-dim);
+  padding: 7px 10px;
+  color: var(--cyber-line);
+  font-family: var(--cyber-mono);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+/* A colour editor reads top-to-bottom: spectrum first, then its sliders. */
+.theme-colour-popover .config-color-editor {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @keyframes theme-inline-editor-reveal {
   from {
     max-height: 0;
@@ -1744,8 +2024,8 @@ a.update-banner-button {
 
 .theme-display-swatch {
   display: block;
-  height: 76px;
-  width: 76px;
+  height: 44px;
+  width: 44px;
   border-color: rgb(var(--cyber-line-rgb) / 0.55) !important;
   box-shadow: inset 0 0 0 6px var(--cyber-panel);
 }
@@ -1764,7 +2044,7 @@ a.update-banner-button {
 }
 
 .theme-display-label {
-  font-size: 1.1rem;
+  font-size: clamp(0.72rem, 2vw, 0.9rem);
   line-height: 1;
 }
 
@@ -1772,23 +2052,17 @@ a.update-banner-button {
 .cyber-checkbox-row .zone-title-bar {
   width: max-content;
   max-width: 100%;
-  padding: 5px 12px 4px 14px;
+  padding: 4px 8px 3px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .theme-display-detail {
   color: var(--cyber-muted);
   font-family: var(--cyber-mono);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
-}
-
-.theme-display-rgb {
-  color: var(--cyber-text);
-  font-family: var(--cyber-mono);
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* --- Per-widget colour copy / paste actions ----------------------------- */
@@ -1848,6 +2122,18 @@ a.update-banner-button {
   color: var(--cyber-title-on-bg);
   text-align: left;
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+/* Swatch-less variant (e.g. the voice personality picker): no leading colour
+   swatch, so drop that column and let the name use the full width instead of
+   being squeezed into the 44px/34px swatch slot (which truncated names to a
+   couple of characters). */
+.cyber-select-trigger.cyber-select-trigger-plain {
+  grid-template-columns: minmax(0, 1fr) 24px;
+}
+
+.cyber-select-option.cyber-select-option-plain {
+  grid-template-columns: minmax(0, 1fr) 18px;
 }
 
 .cyber-select-trigger:hover,
@@ -2246,6 +2532,53 @@ a.update-banner-button {
   border-color: var(--cyber-cyan);
   background: var(--cyber-cyan);
   color: var(--cyber-title-on-cyan);
+}
+
+/* Compact themed checkbox for multi-option lists (e.g. voice affectations):
+   a visually-hidden native input drives a styled box sibling, mirroring the
+   .power-mode-toggle mechanism and the .cyber-checkbox look at list scale. */
+.cyber-mini-checkbox-input {
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
+.cyber-mini-checkbox {
+  display: flex;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--cyber-border-strong);
+  background: rgb(var(--cyber-line-rgb) / 0.08);
+  color: var(--cyber-title-on-cyan);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.cyber-mini-checkbox > svg {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.cyber-mini-checkbox-input:checked + .cyber-mini-checkbox {
+  border-color: var(--cyber-cyan);
+  background: var(--cyber-cyan);
+}
+
+.cyber-mini-checkbox-input:checked + .cyber-mini-checkbox > svg {
+  opacity: 1;
+}
+
+.cyber-mini-checkbox-input:focus-visible + .cyber-mini-checkbox {
+  outline: 2px solid var(--cyber-cyan);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3931,11 +4264,13 @@ a.update-banner-button {
   color: color-mix(in srgb, var(--cyber-highlight) 68%, #ffffff);
 }
 
-/* Full-screen confirm overlay; tapping the backdrop dismisses it. */
+/* Shared portal-backed modal layer. It deliberately sits above every dashboard
+   overlay and darkens/blocks the whole page; tapping the backdrop dismisses. */
+.modal-overlay,
 .system-confirm-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1300;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;

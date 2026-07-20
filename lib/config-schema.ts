@@ -73,6 +73,10 @@ const NovaAvatarConfigSchema = z.object({
   // existing config files stay valid; without it zod's strip mode would drop
   // the field whenever the legacy config.dashboard.avatar path round-trips.
   orbModuleSettings: z.record(z.string(), z.record(z.string(), z.number())).optional(),
+  // Colour of the voice-listening glow behind the orb. Optional for the same
+  // round-trip reason as orbModuleSettings above (the authoritative per-variant
+  // theme avatar carries it via normalizeNovaAvatarTheme).
+  voiceGlowColor: ThemeColorValueSchema.optional(),
 });
 
 export const DashboardConfigSchema = z.object({

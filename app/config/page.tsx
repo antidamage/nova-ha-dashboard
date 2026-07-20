@@ -3,6 +3,7 @@ import { readDashboardConfig, readDefaultDashboardConfig } from "../../lib/dashb
 import { readDashboardPreferences } from "../../lib/preferences";
 import { themeResponseValue } from "../../lib/theme-values";
 import { AccentConfig } from "../components/AccentConfig";
+import { AgentConfig } from "../components/AgentConfig";
 import { AgentNameConfig } from "../components/AgentNameConfig";
 import { AppleTvSwipeConfig } from "../components/AppleTvSwipeConfig";
 import { ConfigWorkspace } from "../components/ConfigWorkspace";
@@ -12,6 +13,7 @@ import { ManagedComputersConfig } from "../components/ManagedComputersConfig";
 import { UpdateConfig } from "../components/UpdateConfig";
 import { WaveshareWatchfaceConfig } from "../components/WaveshareWatchfaceConfig";
 import { VoiceConfig } from "../components/VoiceConfig";
+import { VoiceInfrastructureConfig } from "../components/VoiceInfrastructureConfig";
 import type { ThemeStorageValue } from "../components/accentColor";
 
 const THEME_COOKIE_NAME = "nova.dashboard.accent.v1";
@@ -50,9 +52,11 @@ export default async function ConfigPage() {
       }
     >
       <AgentNameConfig />
+      <AgentConfig initialSettings={sharedPreferences?.agent ?? null} />
       <AccentConfig
         initialTheme={initialTheme}
       />
+      <VoiceInfrastructureConfig initialSettings={sharedPreferences?.voice ?? null} />
       <VoiceConfig initialSettings={sharedPreferences?.voice ?? null} />
       <GymCounterConfig initialSettings={initialWatchface} />
       <DashboardClimateConfig initialSettings={dashboardConfig.dashboard.aircon} />

@@ -7,6 +7,10 @@ import {
 } from "./avatarThemeModel";
 import { setActiveControlSound } from "./dashboard/controlSound";
 import {
+  isControlInteractionCoolingDown,
+  markControlInteraction,
+} from "./controlInteractionCooldown";
+import {
   DEFAULT_CLOCK_FONT_ID,
   DEFAULT_THEME_FONT_ID,
   normalizeThemeFontId,
@@ -40,6 +44,10 @@ export type ThemeTitleColors = {
 
 export type ThemeVoiceTranscriptColors = {
   background: ThemeColorValue;
+  glowIntensity: number;
+  glowSize: number;
+  scanlineOpacity: number;
+  scanlineScale: number;
   text: ThemeColorValue;
 };
 
@@ -202,6 +210,21 @@ const DEFAULT_THEME_SCOPE: ThemeConfigScope = "shared";
 const DEFAULT_THEME_SELECTION: ThemeSelection = "auto";
 const SHARED_THEME_POLL_MS = 30 * 1000;
 const SHARED_THEME_WRITE_DEBOUNCE_MS = 250;
+const SHARED_THEME_WRITE_RETRY_MS = 1000;
+
+// After the user edits a theme value (e.g. dragging a colour spectrum or an
+// intensity/opacity slider) we hold off the background shared-theme refresh for
+// this long. The 30s poll fetches /api/theme over the network, and until the
+// debounced write below has landed that response still carries the pre-edit
+// colour — applying it mid-drag snapped the swatch back (the "colour"
+// rubber-band). Six seconds comfortably covers the debounced write plus the
+// server round-trip, matching the config-side useSettingCooldown contract.
+function pauseThemePolling() {
+  markControlInteraction();
+}
+function isThemePollingPaused() {
+  return isControlInteractionCoolingDown();
+}
 export const THEME_SELECTIONS: ThemeSelection[] = ["dark", "light", "auto"];
 export const THEME_VARIANTS: ThemeVariant[] = ["dark", "light"];
 export const RADAR_OPACITY_DEFAULT = 87;
@@ -234,6 +257,19 @@ export const FLUID_BACKGROUND_WARP_AMPLITUDE_MIN = 40;
 export const FLUID_BACKGROUND_TEXTURE_SCALE_DEFAULT = 100;
 export const FLUID_BACKGROUND_TEXTURE_SCALE_MAX = 500;
 export const FLUID_BACKGROUND_TEXTURE_SCALE_MIN = 25;
+export const VOICE_TRANSCRIPT_GLOW_INTENSITY_DEFAULT = 45;
+export const VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX = 100;
+export const VOICE_TRANSCRIPT_GLOW_INTENSITY_MIN = 0;
+export const VOICE_TRANSCRIPT_GLOW_SIZE_DEFAULT = 8;
+export const VOICE_TRANSCRIPT_GLOW_SIZE_MAX = 32;
+export const VOICE_TRANSCRIPT_GLOW_SIZE_MIN = 0;
+export const VOICE_TRANSCRIPT_SCANLINE_OPACITY_DEFAULT = 18;
+export const VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX = 100;
+export const VOICE_TRANSCRIPT_SCANLINE_OPACITY_MIN = 0;
+// Percentage scale of the scanline pitch (100 = 1px line / 3px period).
+export const VOICE_TRANSCRIPT_SCANLINE_SCALE_DEFAULT = 100;
+export const VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX = 300;
+export const VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN = 50;
 export const CONTROL_SOUND_VOLUME_DEFAULT = 60;
 export const CONTROL_SOUND_VOLUME_MAX = 100;
 export const CONTROL_SOUND_VOLUME_MIN = 0;
@@ -284,6 +320,11 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
       rgb: [255, 0, 81],
     },
     gymNumberOpacity: 100,
+    voiceGlowColor: {
+      cursor: { x: 0.53, y: 0 },
+      intensity: 100,
+      rgb: [60, 220, 240],
+    },
     lineColors: [
       {
         cursor: { x: 0.1282115169625482, y: 0 },
@@ -414,6 +455,10 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
       intensity: 15,
       rgb: [227, 196, 109],
     },
+    glowIntensity: VOICE_TRANSCRIPT_GLOW_INTENSITY_DEFAULT,
+    glowSize: VOICE_TRANSCRIPT_GLOW_SIZE_DEFAULT,
+    scanlineOpacity: VOICE_TRANSCRIPT_SCANLINE_OPACITY_DEFAULT,
+    scanlineScale: VOICE_TRANSCRIPT_SCANLINE_SCALE_DEFAULT,
     text: {
       cursor: { x: 0.12228260316437417, y: 0.4738834926060268 },
       intensity: 87,
@@ -456,6 +501,11 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
       rgb: [255, 0, 81],
     },
     gymNumberOpacity: 100,
+    voiceGlowColor: {
+      cursor: { x: 0.53, y: 0 },
+      intensity: 100,
+      rgb: [60, 220, 240],
+    },
     lineColors: [
       {
         cursor: { x: 0.11437743502632254, y: 0 },
@@ -586,6 +636,10 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
       intensity: 34,
       rgb: [225, 206, 122],
     },
+    glowIntensity: VOICE_TRANSCRIPT_GLOW_INTENSITY_DEFAULT,
+    glowSize: VOICE_TRANSCRIPT_GLOW_SIZE_DEFAULT,
+    scanlineOpacity: VOICE_TRANSCRIPT_SCANLINE_OPACITY_DEFAULT,
+    scanlineScale: VOICE_TRANSCRIPT_SCANLINE_SCALE_DEFAULT,
     text: {
       cursor: { x: 0.17564237501231672, y: 0.7453125544956752 },
       intensity: 93,
@@ -865,6 +919,10 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     titleTone,
     voiceTranscriptColors: {
       background: normalizeColor(value?.voiceTranscriptColors?.background, DEFAULT_THEME.voiceTranscriptColors.background),
+      glowIntensity: normalizeNumber(value?.voiceTranscriptColors?.glowIntensity, VOICE_TRANSCRIPT_GLOW_INTENSITY_DEFAULT, VOICE_TRANSCRIPT_GLOW_INTENSITY_MIN, VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX),
+      glowSize: normalizeNumber(value?.voiceTranscriptColors?.glowSize, VOICE_TRANSCRIPT_GLOW_SIZE_DEFAULT, VOICE_TRANSCRIPT_GLOW_SIZE_MIN, VOICE_TRANSCRIPT_GLOW_SIZE_MAX),
+      scanlineOpacity: normalizeNumber(value?.voiceTranscriptColors?.scanlineOpacity, VOICE_TRANSCRIPT_SCANLINE_OPACITY_DEFAULT, VOICE_TRANSCRIPT_SCANLINE_OPACITY_MIN, VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX),
+      scanlineScale: normalizeNumber(value?.voiceTranscriptColors?.scanlineScale, VOICE_TRANSCRIPT_SCANLINE_SCALE_DEFAULT, VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN, VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX),
       text: normalizeColor(value?.voiceTranscriptColors?.text, DEFAULT_THEME.voiceTranscriptColors.text),
     },
   };
@@ -1035,8 +1093,19 @@ function applyCssBackground(rgb: [number, number, number]) {
 
 function applyCssVoiceTranscript(colors: ThemeVoiceTranscriptColors) {
   const root = document.documentElement;
-  root.style.setProperty("--cyber-voice-transcript-bg", rgbCss(appliedThemeRgb(colors.background)));
-  root.style.setProperty("--cyber-voice-transcript-text", rgbCss(appliedThemeRgb(colors.text)));
+  const background = appliedThemeRgb(colors.background);
+  const text = appliedThemeRgb(colors.text);
+  root.style.setProperty("--cyber-voice-transcript-bg", rgbCss(background));
+  root.style.setProperty("--cyber-voice-transcript-text", rgbCss(text));
+  root.style.setProperty("--cyber-voice-transcript-text-rgb", `${text[0]} ${text[1]} ${text[2]}`);
+  // The scanline tint uses the raw selected hue (not intensity-scaled) so the
+  // texture stays visible over a very dark applied background.
+  const tint = colors.background.rgb;
+  root.style.setProperty("--cyber-voice-transcript-scanline-rgb", `${tint[0]} ${tint[1]} ${tint[2]}`);
+  root.style.setProperty("--cyber-voice-transcript-scanline-opacity", (colors.scanlineOpacity / 100).toFixed(3));
+  root.style.setProperty("--cyber-voice-transcript-scanline-scale", (colors.scanlineScale / 100).toFixed(3));
+  root.style.setProperty("--cyber-voice-transcript-glow-alpha", (colors.glowIntensity / 100).toFixed(3));
+  root.style.setProperty("--cyber-voice-transcript-glow-size", `${colors.glowSize}px`);
 }
 
 function luminance(rgb: [number, number, number]) {
@@ -1271,9 +1340,7 @@ async function readSharedThemeSet(fallback: ThemeStorageValue | null | undefined
   }
 
   const data = await response.json() as { theme?: ThemeStorageValue | null };
-  const normalized = normalizeThemeSet(data.theme ?? fallback, fallback);
-  writeSharedThemeCache(normalized);
-  return normalized;
+  return normalizeThemeSet(data.theme ?? fallback, fallback);
 }
 
 async function readSunStatus() {
@@ -1361,6 +1428,7 @@ function flushSharedThemeWrite() {
   const nextThemeSet = pendingSharedThemeWrite;
   pendingSharedThemeWrite = null;
   sharedThemeWriteInFlight = true;
+  let retryDelay = SHARED_THEME_WRITE_DEBOUNCE_MS;
 
   void writeSharedTheme(nextThemeSet)
     .then((persistedThemeSet) => {
@@ -1370,11 +1438,17 @@ function flushSharedThemeWrite() {
     })
     .catch((error) => {
       console.error("[nova-dashboard] failed to update shared dashboard theme", error);
+      // Never discard the user's newest local choice on a transient write
+      // failure. Keep it authoritative, retry it, and extend the poll hold so a
+      // 30s GET cannot reapply the older server copy in the meantime.
+      pendingSharedThemeWrite ??= nextThemeSet;
+      retryDelay = SHARED_THEME_WRITE_RETRY_MS;
+      pauseThemePolling();
     })
     .finally(() => {
       sharedThemeWriteInFlight = false;
       if (pendingSharedThemeWrite) {
-        queueSharedThemeFlush();
+        queueSharedThemeFlush(retryDelay);
       }
     });
 }
@@ -1472,6 +1546,9 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     writeThemeCookie(normalized);
 
     if (options.persist) {
+      // A user edit: suppress the background shared-theme poll for a few seconds
+      // so an in-flight fetch can't overwrite the value being adjusted.
+      pauseThemePolling();
       if (themeScopeRef.current === "shared") {
         writeSharedThemeCache(normalized);
         scheduleSharedThemeWrite(normalized);
@@ -1495,7 +1572,13 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     }
   }, []);
 
-  const loadTheme = useCallback(async (requestedScope: ThemeConfigScope = readThemeScope()) => {
+  const loadTheme = useCallback(async (
+    requestedScope: ThemeConfigScope = readThemeScope(),
+    options: { background?: boolean } = {},
+  ) => {
+    if (options.background && isThemePollingPaused()) {
+      return;
+    }
     const nextScope = normalizeThemeScope(requestedScope);
     const fallback = initialTheme ?? DEFAULT_THEME_SET;
     themeScopeRef.current = nextScope;
@@ -1506,10 +1589,25 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
         ? await readSharedThemeSet(fallback)
         : readLocalThemeSet(fallback);
       const source: ThemeSource = nextScope === "shared" ? "api-theme" : "local-storage";
+      if (options.background && isThemePollingPaused()) {
+        setThemeReady(true);
+        return;
+      }
       const nextSun = nextThemeSet.selection === "auto"
         ? await readSunStatus().catch(() => sunStatusRef.current)
         : sunStatusRef.current;
 
+      // A background poll whose fetch was already in flight when the user started
+      // editing must not clobber the in-progress edit — skip applying the value
+      // we just read (the debounced write reconciles the server and cache).
+      if (options.background && isThemePollingPaused()) {
+        setThemeReady(true);
+        return;
+      }
+
+      if (nextScope === "shared") {
+        writeSharedThemeCache(nextThemeSet);
+      }
       sunStatusRef.current = nextSun;
       applyThemeSet(nextThemeSet, { source, sun: nextSun });
       writeThemeScopeCookie(nextScope);
@@ -1528,6 +1626,10 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
         event.key !== THEME_SCOPE_STORAGE_KEY &&
         event.key !== SHARED_THEME_STORAGE_KEY
       ) {
+        return;
+      }
+
+      if (isThemePollingPaused()) {
         return;
       }
 
@@ -1558,6 +1660,9 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
       setThemeReady(true);
     };
     const onSunChange = (event: Event) => {
+      if (isThemePollingPaused()) {
+        return;
+      }
       const nextSun = event instanceof CustomEvent ? event.detail as SunThemeStatus | null : null;
       sunStatusRef.current = nextSun;
       if (themeSetRef.current.selection === "auto") {
@@ -1584,13 +1689,17 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     }
 
     const interval = window.setInterval(() => {
-      void loadTheme("shared");
+      // Don't poll over the top of a value the user is actively editing.
+      if (isThemePollingPaused()) {
+        return;
+      }
+      void loadTheme("shared", { background: true });
     }, SHARED_THEME_POLL_MS);
 
     return () => window.clearInterval(interval);
   }, [loadTheme, themeScope]);
 
-  const setTheme = useCallback((next: DeviceTheme) => {
+  const setTheme = useCallback((next: DeviceTheme, options: { persist?: boolean } = {}) => {
     const normalized = normalizeTheme(next);
     applyThemeSet({
       ...themeSetRef.current,
@@ -1598,10 +1707,10 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
         ...themeSetRef.current.themes,
         [activeVariantRef.current]: normalized,
       },
-    }, { persist: true, source: "set" });
+    }, { persist: options.persist ?? true, source: "set" });
   }, [applyThemeSet]);
 
-  const setThemeVariant = useCallback((variant: ThemeVariant, next: DeviceTheme) => {
+  const setThemeVariant = useCallback((variant: ThemeVariant, next: DeviceTheme, options: { persist?: boolean } = {}) => {
     const normalizedVariant = normalizeThemeVariant(variant);
     applyThemeSet({
       ...themeSetRef.current,
@@ -1609,22 +1718,26 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
         ...themeSetRef.current.themes,
         [normalizedVariant]: normalizeTheme(next),
       },
-    }, { persist: true, source: "set" });
+    }, { persist: options.persist ?? true, source: "set" });
   }, [applyThemeSet]);
 
   const setThemeSet = useCallback((next: ThemeStorageValue) => {
     applyThemeSet(next, { persist: true, source: "set" });
   }, [applyThemeSet]);
 
-  const setThemeSelection = useCallback((nextSelection: ThemeSelection) => {
+  const setThemeSelection = useCallback((
+    nextSelection: ThemeSelection,
+    options: { persist?: boolean } = {},
+  ) => {
     const selection = normalizeThemeSelection(nextSelection);
     const nextThemeSet = {
       ...themeSetRef.current,
       selection,
     };
 
-    if (selection !== "auto") {
-      applyThemeSet(nextThemeSet, { persist: true, source: "set" });
+    const persist = options.persist ?? true;
+    if (selection !== "auto" || !persist) {
+      applyThemeSet(nextThemeSet, { persist, source: "set" });
       return;
     }
 

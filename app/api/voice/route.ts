@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeAgentSettings } from "../../../lib/agent-settings";
 import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/iridium-voice-settings";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import { listVoiceSatelliteComputers } from "../../../lib/voice-satellite-reconnect";
@@ -26,6 +27,7 @@ export async function GET() {
   try {
     const preferences = await readDashboardPreferences();
     return NextResponse.json({
+      agent: normalizeAgentSettings(preferences.agent),
       voice: {
         ...normalizeVoiceSettings(preferences.voice),
         satelliteRooms: await satelliteRoomAssignments(),

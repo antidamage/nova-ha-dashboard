@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const body: unknown = await request.json();
     if (body && typeof body === "object" && "replacesId" in body) {
       const replace = parseVoiceTranscriptReplaceInput(body);
-      const replaced = replaceVoiceTranscript(replace.replacesId, replace.text, replace.at);
+      const replaced = replaceVoiceTranscript(replace.replacesId, replace.text, replace.at, replace.kind);
       if (replaced) {
         return NextResponse.json({ ok: true, transcript: replaced });
       }

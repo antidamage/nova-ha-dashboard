@@ -181,6 +181,7 @@ function formatOffset(offset: number): string {
 export function FontControl({
   label,
   onChange,
+  onPreview,
   preview,
   sample,
   sliderActiveColor,
@@ -189,6 +190,7 @@ export function FontControl({
 }: {
   label: string;
   onChange: (next: ThemeFontSetting) => void;
+  onPreview: (next: ThemeFontSetting) => void;
   preview: string;
   /** Live preview text rendered in the chosen font/weight/size so every slider has a
    *  visible effect even when the real usage (clock, numbers, gym orb) is off-screen. */
@@ -225,7 +227,8 @@ export function FontControl({
         step={THEME_FONT_WEIGHT_STEP}
         value={value.weight}
         valueText={String(value.weight)}
-        onChange={(weight) => onChange({ ...value, weight: Math.round(weight / THEME_FONT_WEIGHT_STEP) * THEME_FONT_WEIGHT_STEP })}
+        onPreview={(weight) => onPreview({ ...value, weight: Math.round(weight / THEME_FONT_WEIGHT_STEP) * THEME_FONT_WEIGHT_STEP })}
+        onCommit={(weight) => onChange({ ...value, weight: Math.round(weight / THEME_FONT_WEIGHT_STEP) * THEME_FONT_WEIGHT_STEP })}
       />
       <SliderControlPanel
         activeColor={sliderActiveColor}
@@ -244,7 +247,8 @@ export function FontControl({
         step={1}
         value={value.sizeOffset}
         valueText={formatOffset(value.sizeOffset)}
-        onChange={(offset) => onChange({ ...value, sizeOffset: Math.round(offset) })}
+        onPreview={(offset) => onPreview({ ...value, sizeOffset: Math.round(offset) })}
+        onCommit={(offset) => onChange({ ...value, sizeOffset: Math.round(offset) })}
       />
     </div>
   );

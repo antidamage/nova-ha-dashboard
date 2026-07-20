@@ -10,6 +10,7 @@ const healthyPayload = {
     stt: { ok: true },
     tts: { ok: true },
     noiseSuppression: { ok: true },
+    speakerRecognition: { ok: true, enabled: true },
     satellitePipelines: 2,
   },
 };
@@ -23,6 +24,7 @@ describe("voiceServerServiceRows", () => {
       { label: "Text to speech", ok: true },
       { label: "Dashboard link", ok: true },
       { label: "Noise suppression", ok: true },
+      { label: "Speaker recognition", ok: true },
     ]);
   });
 

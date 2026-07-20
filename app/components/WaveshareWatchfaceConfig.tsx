@@ -3,6 +3,7 @@
 import { Cpu } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { useSettingCooldown } from "./useSettingCooldown";
 
 type WatchfaceSettings = {
   idleTimeoutMs?: number;
@@ -26,8 +27,13 @@ function minutesFromMs(value: unknown) {
 
 export function WaveshareWatchfaceConfig({ initialSettings }: { initialSettings?: WatchfaceSettings | null }) {
   const [idleMinutes, setIdleMinutes] = useState(() => minutesFromMs(initialSettings?.idleTimeoutMs));
+  // Don't let the 30s poll overwrite the slider while (or just after) it's used.
+  const { isCoolingDown, markInteraction } = useSettingCooldown();
 
   const load = useCallback(async () => {
+    if (isCoolingDown()) {
+      return;
+    }
     try {
       const response = await fetch("/api/watchface", { cache: "no-store" });
       if (!response.ok) {
@@ -35,11 +41,13 @@ export function WaveshareWatchfaceConfig({ initialSettings }: { initialSettings?
       }
       const data = await response.json() as { watchface?: WatchfaceSettings };
       const next = data.watchface ?? {};
-      setIdleMinutes(minutesFromMs(next.idleTimeoutMs));
+      if (!isCoolingDown()) {
+        setIdleMinutes(minutesFromMs(next.idleTimeoutMs));
+      }
     } catch (error) {
       console.error("[nova-dashboard] failed to load watchface settings", error);
     }
-  }, []);
+  }, [isCoolingDown]);
 
   useEffect(() => {
     void load();
@@ -50,6 +58,7 @@ export function WaveshareWatchfaceConfig({ initialSettings }: { initialSettings?
   }, [load]);
 
   const commitIdleMinutes = useCallback(async (minutes: number) => {
+    markInteraction();
     const normalized = clamp(Math.round(minutes), MIN_IDLE_MINUTES, MAX_IDLE_MINUTES);
     setIdleMinutes(normalized);
     try {
@@ -68,7 +77,7 @@ export function WaveshareWatchfaceConfig({ initialSettings }: { initialSettings?
     } catch (error) {
       console.error("[nova-dashboard] failed to update watchface settings", error);
     }
-  }, []);
+  }, [markInteraction]);
 
   return (
     <ConfigAccordion title="Hardware Assistant" icon={<Cpu className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
@@ -87,7 +96,10 @@ export function WaveshareWatchfaceConfig({ initialSettings }: { initialSettings?
           step={1}
           value={idleMinutes}
           valueText={`${idleMinutes}m`}
-          onChange={setIdleMinutes}
+          onPreview={(value) => {
+            markInteraction();
+            setIdleMinutes(value);
+          }}
           onCommit={commitIdleMinutes}
         />
       </div>

@@ -9,6 +9,7 @@ import {
   normalizeGymAlertThresholdHours,
 } from "../../lib/watchface-preferences";
 import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { useSettingCooldown } from "./useSettingCooldown";
 
 type GymCounterSettings = {
   gymAlertThresholdHours?: number;
@@ -20,19 +21,26 @@ function thresholdFromSettings(value: unknown) {
 
 export function GymCounterConfig({ initialSettings }: { initialSettings?: GymCounterSettings | null }) {
   const [thresholdHours, setThresholdHours] = useState(() => thresholdFromSettings(initialSettings?.gymAlertThresholdHours));
+  // Don't let the 30s poll overwrite the slider while (or just after) it's used.
+  const { isCoolingDown, markInteraction } = useSettingCooldown();
 
   const load = useCallback(async () => {
+    if (isCoolingDown()) {
+      return;
+    }
     try {
       const response = await fetch("/api/watchface", { cache: "no-store" });
       if (!response.ok) {
         throw new Error(`Gym counter settings request failed: ${response.status}`);
       }
       const data = await response.json() as { watchface?: GymCounterSettings };
-      setThresholdHours(thresholdFromSettings(data.watchface?.gymAlertThresholdHours));
+      if (!isCoolingDown()) {
+        setThresholdHours(thresholdFromSettings(data.watchface?.gymAlertThresholdHours));
+      }
     } catch (error) {
       console.error("[nova-dashboard] failed to load gym counter settings", error);
     }
-  }, []);
+  }, [isCoolingDown]);
 
   useEffect(() => {
     void load();
@@ -43,6 +51,7 @@ export function GymCounterConfig({ initialSettings }: { initialSettings?: GymCou
   }, [load]);
 
   const commitThresholdHours = useCallback(async (hours: number) => {
+    markInteraction();
     const normalized = normalizeGymAlertThresholdHours(hours);
     setThresholdHours(normalized);
     try {
@@ -61,7 +70,7 @@ export function GymCounterConfig({ initialSettings }: { initialSettings?: GymCou
     } catch (error) {
       console.error("[nova-dashboard] failed to update gym counter settings", error);
     }
-  }, []);
+  }, [markInteraction]);
 
   return (
     <ConfigAccordion title="Status Orb Info" icon={<Dumbbell className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
@@ -80,7 +89,10 @@ export function GymCounterConfig({ initialSettings }: { initialSettings?: GymCou
           step={1}
           value={thresholdHours}
           valueText={`${thresholdHours}h`}
-          onChange={setThresholdHours}
+          onPreview={(value) => {
+            markInteraction();
+            setThresholdHours(value);
+          }}
           onCommit={commitThresholdHours}
         />
       </div>

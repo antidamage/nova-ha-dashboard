@@ -13,6 +13,12 @@ export type NovaAvatarTheme = {
   gymAlertThresholdHours: number;
   gymNumberColor: AvatarThemeColorValue;
   gymNumberOpacity: number;
+  // Colour of the voice-listening glow ring that fades in behind the status orb
+  // while this device owns an active voice conversation (see NovaAvatar). Unlike
+  // the other orb colours this one skins a DOM element behind the canvas rather
+  // than a canvas layer, so it is also surfaced as the --nova-avatar-voice-glow
+  // CSS var; it is included in the renderer palette for cross-platform parity.
+  voiceGlowColor: AvatarThemeColorValue;
   lineColors: [AvatarThemeColorValue, AvatarThemeColorValue, AvatarThemeColorValue];
   lineOpacities: [number, number, number];
   // Opacity (0..1) of the orb's dark inner bevel shadow. Shared config only —
@@ -59,6 +65,11 @@ export const DEFAULT_NOVA_AVATAR_THEME: NovaAvatarTheme = {
   },
   gymNumberOpacity: 50,
   gymAlertThresholdHours: 46,
+  voiceGlowColor: {
+    cursor: { x: 0.53, y: 0 },
+    intensity: 100,
+    rgb: [60, 220, 240],
+  },
   lineColors: [
     { cursor: { x: 0.63, y: 0 }, intensity: 100, rgb: [80, 130, 255] },
     { cursor: { x: 0.79, y: 0 }, intensity: 100, rgb: [180, 95, 240] },
@@ -158,6 +169,7 @@ export function normalizeNovaAvatarTheme(value: unknown): NovaAvatarTheme {
     gymAlertThresholdHours: normalizeGymAlertThresholdHours(v.gymAlertThresholdHours),
     gymNumberColor: normalizeColor(v.gymNumberColor, DEFAULT_NOVA_AVATAR_THEME.gymNumberColor),
     gymNumberOpacity: normalizeOpacity(v.gymNumberOpacity, DEFAULT_NOVA_AVATAR_THEME.gymNumberOpacity),
+    voiceGlowColor: normalizeColor(v.voiceGlowColor, DEFAULT_NOVA_AVATAR_THEME.voiceGlowColor),
     lineColors: [
       normalizeColor(lines[0], DEFAULT_NOVA_AVATAR_THEME.lineColors[0]),
       normalizeColor(lines[1], DEFAULT_NOVA_AVATAR_THEME.lineColors[1]),

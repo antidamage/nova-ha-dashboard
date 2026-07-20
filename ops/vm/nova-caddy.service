@@ -1,0 +1,14 @@
+[Unit]
+Description=Caddy TLS front for Nova dashboard and browser voice
+After=network-online.target tailscaled.service nova-ha-dashboard.service
+Wants=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+ExecReload=/usr/local/bin/caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile --force
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

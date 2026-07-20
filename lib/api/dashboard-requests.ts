@@ -177,6 +177,17 @@ export function parseThemeLibraryUpdateRequest(value: unknown) {
   return { library };
 }
 
+export function parseVoicePersonalityLibraryUpdateRequest(value: unknown) {
+  const body = requestRecord(value);
+  const library = recordValue(body.library);
+
+  if (!library) {
+    throw new Error("Voice personality library must be an object");
+  }
+
+  return { library };
+}
+
 export function parseAirconTimerUpdateRequest(value: unknown) {
   const body = requestRecord(value);
   const offTimerEndsAt = body.offTimerEndsAt;

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfigAccordion } from "./ConfigControls";
 import { classNames } from "./dashboard/shared";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import { useSettingCooldown } from "./useSettingCooldown";
 
 type UpdateStatus = {
   channel: { repo: string; branch: string };
@@ -49,6 +50,9 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
   const [rollingBack, setRollingBack] = useState(false);
   const [applying, setApplying] = useState(false);
   const timerRef = useRef<number | null>(null);
+  // Guard the Auto-Update toggle from being reverted by the 30s poll for a few
+  // seconds after the user flips it (same rubber-band guard as the sliders).
+  const { isCoolingDown, markInteraction } = useSettingCooldown();
 
   const applyStatus = useCallback((next: UpdateStatus) => {
     setStatus(next);
@@ -56,16 +60,21 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
   }, []);
 
   const load = useCallback(async () => {
+    if (isCoolingDown()) {
+      return;
+    }
     try {
       const response = await fetch("/api/update", { cache: "no-store" });
       if (!response.ok) {
         return;
       }
-      applyStatus((await response.json()) as UpdateStatus);
+      if (!isCoolingDown()) {
+        applyStatus((await response.json()) as UpdateStatus);
+      }
     } catch {
       // endpoint absent or offline — leave last known state.
     }
-  }, [applyStatus]);
+  }, [applyStatus, isCoolingDown]);
 
   useEffect(() => {
     void load();
@@ -157,6 +166,7 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
   }, [applyStatus]);
 
   const toggleAutoUpdate = useCallback(async () => {
+    markInteraction();
     const next = !autoUpdate;
     setAutoUpdate(next); // optimistic
     try {
@@ -173,7 +183,7 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
     } catch {
       setAutoUpdate(!next);
     }
-  }, [autoUpdate, applyStatus]);
+  }, [autoUpdate, applyStatus, markInteraction]);
 
   const busy = status?.busy ?? false;
   const updateAvailable = status?.updateAvailable ?? false;

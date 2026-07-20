@@ -25,25 +25,78 @@ describe("voice transcript", () => {
     });
   });
 
-  it("formats both roles with a date and minute precision", () => {
-    const common = { id: "turn-1", at: "2026-07-17T00:42:37.000Z" };
-    const user: VoiceTranscriptEvent = { ...common, role: "user", text: "Turn it on" };
+  it("formats both roles as decorated box lines with minute precision", () => {
+    const at = "2026-07-17T00:42:37.000Z";
+    const user: VoiceTranscriptEvent = { id: "turn-1", at, role: "user", text: "Turn it on" };
     const assistant: VoiceTranscriptEvent = {
-      ...common,
       id: "turn-2",
+      at,
       role: "assistant",
       text: "Done",
       agentName: "Beemo",
+      kind: "command",
     };
 
-    expect(formatVoiceTranscriptLine(user, "en-NZ")).toBe("17 Jul 2026, 12:42 pm User: Turn it on");
-    expect(formatVoiceTranscriptLine(assistant, "en-NZ")).toBe("17 Jul 2026, 12:42 pm Beemo: Done");
-    expect(formatVoiceTranscriptLine(assistant, "en-NZ")).not.toContain(":37");
+    // The header timestamp renders in the viewer's local time, so build the
+    // expected stamp from the same local date parts instead of hard-coding a
+    // zone — this test previously flaked on hosts outside NZ time.
+    const date = new Date(at);
+    const pad = (part: number) => String(part).padStart(2, "0");
+    const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
+    const hour = date.getHours() % 12 || 12;
+    const meridiem = date.getHours() < 12 ? "am" : "pm";
+    const stamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+      + ` ${weekday} ${hour}:${pad(date.getMinutes())}${meridiem}`;
+
+    expect(formatVoiceTranscriptLine(user)).toBe(
+      `╭─[ USER ➤ ${stamp} ➤ [EXCHANGE] ]\n╰─ Turn it on`,
+    );
+    expect(formatVoiceTranscriptLine(assistant)).toBe(
+      `╭─[ BEEMO ➤ ${stamp} ➤ [COMMAND] ]\n╰─ Done`,
+    );
+    expect(formatVoiceTranscriptLine(assistant)).not.toContain(":37");
+  });
+
+  it("substitutes custom template variables per role and leaves unknown tokens alone", () => {
+    const at = "2026-07-17T00:42:37.000Z";
+    const user: VoiceTranscriptEvent = { id: "turn-1", at, role: "user", text: "Turn it on" };
+    const assistant: VoiceTranscriptEvent = {
+      id: "turn-2",
+      at,
+      role: "assistant",
+      text: "Done",
+      agentName: "Beemo",
+      kind: "command",
+    };
+
+    // Same local-time construction as above so the test passes in any zone.
+    const date = new Date(at);
+    const pad = (part: number) => String(part).padStart(2, "0");
+    const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
+    const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${weekday}`;
+    const hour = date.getHours() % 12 || 12;
+    const meridiem = date.getHours() < 12 ? "am" : "pm";
+    const time = `${hour}:${pad(date.getMinutes())}${meridiem}`;
+
+    const template = "%m% | %d% | %t% | %u%%a% %x%";
+    expect(formatVoiceTranscriptLine(user, "Nova", template)).toBe(
+      `EXCHANGE | ${day} | ${time} | USER %x%\n╰─ Turn it on`,
+    );
+    expect(formatVoiceTranscriptLine(assistant, "Nova", template)).toBe(
+      `COMMAND | ${day} | ${time} | BEEMO %x%\n╰─ Done`,
+    );
   });
 
   it("rejects empty text and unknown roles", () => {
     expect(() => parseVoiceTranscriptInput({ role: "system", text: "hello" })).toThrow(/role/);
     expect(() => parseVoiceTranscriptInput({ role: "user", text: "  " })).toThrow(/text/);
+  });
+
+  it("keeps a valid kind and drops an unknown one", () => {
+    expect(parseVoiceTranscriptInput({ role: "user", text: "hello", kind: "command" }).kind)
+      .toBe("command");
+    expect(parseVoiceTranscriptInput({ role: "user", text: "hello", kind: "banter" }).kind)
+      .toBeUndefined();
   });
 
   it("keeps a valid supplied id and drops a malformed one", () => {
@@ -66,11 +119,13 @@ describe("voice transcript", () => {
       replacesId: "3f2a4b1c9d8e7f60",
       text: "The judge is gonna take the same thing",
       at: "2026-07-17T00:43:00.000Z",
+      kind: "command",
     });
     expect(replace).toEqual({
       replacesId: "3f2a4b1c9d8e7f60",
       text: "The judge is gonna take the same thing",
       at: "2026-07-17T00:43:00.000Z",
+      kind: "command",
     });
     expect(() => parseVoiceTranscriptReplaceInput({ text: "hello" })).toThrow(/replacesId/);
     expect(() =>

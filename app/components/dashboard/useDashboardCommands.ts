@@ -20,9 +20,18 @@ export type ApplyEntityActionsOptions = {
   silent?: boolean;
 };
 
-const ENTITY_COMMAND_HOLD_MS = 2000;
+// Every user command holds the poll/SSE cooldown (see the POLLING COOLDOWN
+// CONTRACT in state.ts) for at least six seconds after the control is used, so a
+// snapshot that still carries HA's pre-change value cannot snap the control back
+// (the "rubber-band"). Slower devices (Tuya climate, cloud-bridged switches) can
+// take several seconds to echo the new state; the previous 2s/5s holds expired
+// before that and let the reconcile poll clobber the optimistic value. Lights
+// already hold 10s (LIGHT_COMMAND_POLL_HOLD_MS). The reconcile poll fires at
+// hold + 100ms, so it lands just after the window — the first snapshot we accept
+// is the one that already reflects the command.
+const ENTITY_COMMAND_HOLD_MS = 6000;
 const ENTITY_COMMAND_POLL_DELAYS_MS = [ENTITY_COMMAND_HOLD_MS + 100] as const;
-const CLIMATE_COMMAND_HOLD_MS = 5000;
+const CLIMATE_COMMAND_HOLD_MS = 6000;
 const CLIMATE_COMMAND_POLL_DELAYS_MS = [CLIMATE_COMMAND_HOLD_MS + 100] as const;
 
 type RefreshDashboardState = (options?: { force?: boolean }) => Promise<DashboardState | null>;

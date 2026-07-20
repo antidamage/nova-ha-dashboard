@@ -4,12 +4,16 @@ export const VOICE_TRANSCRIPT_RETENTION_MS = 24 * 60 * 60 * 1_000;
 
 export type VoiceTranscriptRole = "user" | "assistant";
 
+/** Whether a turn executed/shadowed a dashboard command or was conversational. */
+export type VoiceTranscriptKind = "command" | "exchange";
+
 export type VoiceTranscriptEvent = {
   id: string;
   at: string;
   role: VoiceTranscriptRole;
   text: string;
   agentName?: string;
+  kind?: VoiceTranscriptKind;
   wakeWords?: string[];
   /** Legacy runtime field retained while older transcript events age out. */
   wakeWord?: string;
@@ -23,6 +27,7 @@ export type VoiceTranscriptReplaceInput = {
   replacesId: string;
   text: string;
   at: string;
+  kind?: VoiceTranscriptKind;
 };
 
 // Server-generated transcript ids are uuid hex; anything else is ignored so a
@@ -39,6 +44,10 @@ function optionalLabel(value: unknown): string | undefined {
   }
   const label = value.trim().slice(0, 64);
   return label || undefined;
+}
+
+function optionalKind(value: unknown): VoiceTranscriptKind | undefined {
+  return value === "command" || value === "exchange" ? value : undefined;
 }
 
 function optionalWords(value: unknown): string[] | undefined {
@@ -79,6 +88,7 @@ export function parseVoiceTranscriptInput(
   const at = Number.isNaN(suppliedAt.getTime()) ? now : suppliedAt;
   const id = optionalTranscriptId(source.id);
   const agentName = optionalLabel(source.agentName);
+  const kind = optionalKind(source.kind);
   const wakeWords = optionalWords(source.wakeWords);
   const wakeWord = optionalLabel(source.wakeWord);
   const satelliteId = optionalLabel(source.satelliteId);
@@ -89,6 +99,7 @@ export function parseVoiceTranscriptInput(
     text,
     ...(id ? { id } : {}),
     ...(agentName ? { agentName } : {}),
+    ...(kind ? { kind } : {}),
     ...(wakeWords ? { wakeWords } : {}),
     ...(wakeWord ? { wakeWord } : {}),
     ...(satelliteId ? { satelliteId } : {}),
@@ -117,7 +128,8 @@ export function parseVoiceTranscriptReplaceInput(
   }
   const suppliedAt = typeof source.at === "string" ? new Date(source.at) : now;
   const at = Number.isNaN(suppliedAt.getTime()) ? now : suppliedAt;
-  return { replacesId, text, at: at.toISOString() };
+  const kind = optionalKind(source.kind);
+  return { replacesId, text, at: at.toISOString(), ...(kind ? { kind } : {}) };
 }
 
 function displayAgentName(value: string): string {
@@ -125,20 +137,74 @@ function displayAgentName(value: string): string {
   return `${agentName.charAt(0).toLocaleUpperCase()}${agentName.slice(1)}`;
 }
 
+export type VoiceTranscriptLineParts = {
+  /** "╭─[ <SPEAKER> ➤ <local date/time> ➤ [COMMAND|EXCHANGE] ]" header line. */
+  prefix: string;
+  /** "╰─ " lead-in for the message body line. */
+  bodyPrefix: string;
+  text: string;
+  role: VoiceTranscriptRole;
+};
+
+const TRANSCRIPT_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export const VOICE_TRANSCRIPT_BODY_PREFIX = "╰─ ";
+
+/**
+ * Header decoration template. Tokens: %u% — the user speaker label (only on
+ * user lines), %a% — the agent speaker label (only on agent lines), %d% —
+ * date, %t% — time, %m% — COMMAND/EXCHANGE. The default reproduces the
+ * original hard-coded decoration exactly.
+ */
+export const DEFAULT_TRANSCRIPT_TEMPLATE = "╭─[ %u%%a% ➤ %d% %t% ➤ [%m%] ]";
+
+// "2026-07-18 Sat" / "2:57pm" in the viewer's local time. Built by hand (not
+// Intl) so the layout is identical on every host regardless of locale data.
+function transcriptDate(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    + ` ${TRANSCRIPT_WEEKDAYS[date.getDay()]}`;
+}
+
+function transcriptTime(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  const hour = date.getHours() % 12 || 12;
+  const meridiem = date.getHours() < 12 ? "am" : "pm";
+  return `${hour}:${pad(date.getMinutes())}${meridiem}`;
+}
+
+// Split out from formatVoiceTranscriptLine so the decorated header can be
+// wrapped in its own element and styled independently of the message body —
+// a plain concatenated string has no DOM node for CSS to target. The role is
+// threaded through too, so the renderer can style user vs. agent lines
+// differently instead of both looking identical.
+export function formatVoiceTranscriptParts(
+  entry: VoiceTranscriptEvent,
+  fallbackAgentName = "Nova",
+  template = DEFAULT_TRANSCRIPT_TEMPLATE,
+): VoiceTranscriptLineParts {
+  const date = new Date(entry.at);
+  // One template serves both roles, so the speaker tokens are conditional:
+  // %u% is empty on agent lines and %a% is empty on user lines. Substituted
+  // in a single pass so replacement values are never re-scanned for tokens.
+  const substitutions: Record<string, string> = {
+    "%u%": entry.role === "user" ? "USER" : "",
+    "%a%": entry.role === "user"
+      ? ""
+      : displayAgentName(entry.agentName || fallbackAgentName).toLocaleUpperCase(),
+    "%d%": transcriptDate(date),
+    "%t%": transcriptTime(date),
+    "%m%": entry.kind === "command" ? "COMMAND" : "EXCHANGE",
+  };
+  const prefix = template.replace(/%[uadtm]%/g, (token) => substitutions[token] ?? token);
+  return { prefix, bodyPrefix: VOICE_TRANSCRIPT_BODY_PREFIX, text: entry.text, role: entry.role };
+}
+
 export function formatVoiceTranscriptLine(
   entry: VoiceTranscriptEvent,
-  locale?: Intl.LocalesArgument,
   fallbackAgentName = "Nova",
+  template = DEFAULT_TRANSCRIPT_TEMPLATE,
 ): string {
-  const timestamp = new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(entry.at));
-  const speaker = entry.role === "user"
-    ? "User"
-    : displayAgentName(entry.agentName || fallbackAgentName);
-  return `${timestamp} ${speaker}: ${entry.text}`;
+  const { prefix, bodyPrefix, text } = formatVoiceTranscriptParts(entry, fallbackAgentName, template);
+  return `${prefix}\n${bodyPrefix}${text}`;
 }

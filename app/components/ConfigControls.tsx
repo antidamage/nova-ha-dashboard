@@ -8,7 +8,9 @@ import {
   type ThemeColorValue,
 } from "./accentColor";
 import { configAccordionKey, getAccordionOpen, setAccordionOpen } from "./configUiState";
-import { DotLineControl, DotSpectrumControl } from "./DotControls";
+import { ConfigColorPicker } from "./ConfigColorPicker";
+import { DotLineControl } from "./DotControls";
+import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
 type DotLineMarker = { active?: boolean; label: string; value: number };
@@ -102,25 +104,27 @@ export function ConfigAccordion({
 
 export function ColorSpectrum({
   label,
-  onChange,
+  onCommit,
+  onPreview,
   value,
 }: {
   label: string;
-  onChange: (value: ThemeColorValue) => void;
+  onCommit: (value: ThemeColorValue) => void;
+  onPreview: (value: ThemeColorValue) => void;
   value: ThemeColorValue;
 }) {
   const displayRgb = appliedThemeRgb(value);
 
   return (
     <div>
-      <DotSpectrumControl
+      <ConfigColorPicker
         ariaLabel={`${label} color spectrum`}
         cursor={value.cursor}
         demoTooltipTitle={`${label} Spectrum`}
         demoTooltip="Drag to tune this theme colour."
-        intensity={value.intensity}
         rgbAtPosition={themeRgbAtPosition}
-        onChange={(cursor, rgb) => onChange({ ...value, cursor, rgb })}
+        onChange={(cursor, rgb) => onPreview({ ...value, cursor, rgb })}
+        onCommit={(cursor, rgb) => onCommit({ ...value, cursor, rgb })}
       />
       <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-neutral-300">
         <span className="uppercase text-fuchsia-200">{label}</span>
@@ -142,8 +146,8 @@ export function SliderControlPanel({
   markers,
   max,
   min,
-  onChange,
   onCommit,
+  onPreview,
   step,
   value,
   valueText,
@@ -161,12 +165,15 @@ export function SliderControlPanel({
   markers?: DotLineMarker[];
   max: number;
   min: number;
-  onChange: (value: number) => void;
-  onCommit?: (value: number) => void;
+  onCommit: (value: number) => void;
+  onPreview: (value: number) => void;
   step: number;
   value: number;
   valueText: ReactNode;
 }) {
+  // Config contract: onPreview is local UI state only; onCommit is the single
+  // persistence boundary fired by DotLineControl on pointer/key release. Keeping
+  // both required makes save-on-drag wiring a compile-time error at every use.
   return (
     <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
       <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_112px] md:items-center">
@@ -187,7 +194,7 @@ export function SliderControlPanel({
             fill={fill}
             intensity={intensity}
             markers={markers}
-            onChange={onChange}
+            onChange={onPreview}
             onCommit={onCommit}
           />
         </div>
@@ -201,11 +208,13 @@ export function SliderControlPanel({
 
 export function ColorIntensitySlider({
   label,
-  onChange,
+  onCommit,
+  onPreview,
   value,
 }: {
   label: string;
-  onChange: (value: ThemeColorValue) => void;
+  onCommit: (value: ThemeColorValue) => void;
+  onPreview: (value: ThemeColorValue) => void;
   value: ThemeColorValue;
 }) {
   return (
@@ -220,7 +229,8 @@ export function ColorIntensitySlider({
       step={1}
       value={value.intensity}
       valueText={`${value.intensity}%`}
-      onChange={(intensity) => onChange({ ...value, intensity })}
+      onPreview={(intensity) => onPreview({ ...value, intensity })}
+      onCommit={(intensity) => onCommit({ ...value, intensity })}
     />
   );
 }
@@ -235,7 +245,6 @@ export function ColorWidget({
   onToggle,
   pasteColorDisabled,
   rgb,
-  summary,
   swatchOpacity,
 }: {
   active: boolean;
@@ -247,14 +256,14 @@ export function ColorWidget({
   onToggle: () => void;
   pasteColorDisabled?: boolean;
   rgb: [number, number, number];
-  summary: string;
   swatchOpacity?: number;
 }) {
   return (
-    <div className={`theme-widget-cell grid gap-3 ${active ? "theme-widget-cell-active" : ""}`}>
+    <div className={`theme-widget-cell ${active ? "theme-widget-cell-active" : ""}`}>
       <button
         type="button"
-        aria-pressed={active}
+        aria-expanded={active}
+        aria-haspopup="dialog"
         className={`theme-display-card border p-4 text-left ${active ? "theme-display-card-active" : ""}`}
         onClick={onToggle}
       >
@@ -268,13 +277,22 @@ export function ColorWidget({
         <span className="theme-display-copy">
           <span className="theme-display-label zone-title-bar">{label}</span>
           <span className="theme-display-detail">{detail}</span>
-          <span className="theme-display-rgb">{summary}</span>
         </span>
       </button>
 
-      {active ? (
-        <div className="theme-inline-editor-reveal">
-          <div className="theme-inline-editor grid gap-4 border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <ModalOverlay
+        open={active}
+        onClose={onToggle}
+        ariaLabel={`${label} colour picker`}
+        className="theme-colour-popover"
+      >
+            <header className="theme-colour-popover-header">
+              <span className="theme-display-label zone-title-bar">{label}</span>
+              <button type="button" className="theme-colour-popover-close" aria-label={`Close ${label} colour picker`} onClick={onToggle}>
+                Close
+              </button>
+            </header>
+            <div className="theme-inline-editor grid gap-4 border border-cyan-300/30 bg-neutral-900/80 p-4">
             {onCopyColor || onPasteColor ? (
               <div className="theme-widget-actions">
                 {onCopyColor ? (
@@ -304,10 +322,9 @@ export function ColorWidget({
                 ) : null}
               </div>
             ) : null}
-            {children}
-          </div>
-        </div>
-      ) : null}
+            <div className="config-color-editor">{children}</div>
+            </div>
+      </ModalOverlay>
     </div>
   );
 }
