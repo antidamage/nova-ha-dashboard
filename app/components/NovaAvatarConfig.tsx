@@ -226,6 +226,29 @@ function OrbModuleSelect({
   );
 }
 
+// The numeric "Liquid glass" sliders, in display order. `enabled` is handled
+// separately as the group's master switch.
+type GlassSliderKey =
+  | "displace"
+  | "curvature"
+  | "smoothness"
+  | "clarity"
+  | "gloss"
+  | "reflection"
+  | "drift"
+  | "shadow";
+
+const GLASS_SLIDERS: { key: GlassSliderKey; label: string; description: string }[] = [
+  { key: "displace", label: "Refraction", description: "How hard the glass bends the page behind the whole orb" },
+  { key: "curvature", label: "Curvature", description: "Gentle bulge through to a sharp lens edge" },
+  { key: "smoothness", label: "Melt", description: "Liquid softening of the refraction" },
+  { key: "clarity", label: "Clarity", description: "How clear the orb centre goes so the refraction reads through" },
+  { key: "gloss", label: "Gloss", description: "Key-light highlight fading in from the top edge" },
+  { key: "reflection", label: "Reflection", description: "Silver-room reflection fading in from the rim" },
+  { key: "drift", label: "Drift", description: "How far the reflection flows as the orb moves" },
+  { key: "shadow", label: "Shadow", description: "Depth of the shadow the orb casts" },
+];
+
 function readSlot(theme: NovaAvatarTheme, slot: AvatarSlot): ThemeColorValue {
   if (slot === "gradientAlert") return theme.gradientAlert;
   if (slot === "gradientCenter") return theme.gradientCenter;
@@ -303,6 +326,16 @@ function NovaAvatarConfigView({
       };
     },
     [activeModule.id, theme],
+  );
+
+  // "Liquid glass" overlay knobs live on the theme (they apply over any orb
+  // module), so they update the theme's `glass` block directly.
+  const glassNumberTheme = useCallback(
+    (key: GlassSliderKey, value: number) => ({
+      ...theme,
+      glass: { ...theme.glass, [key]: value },
+    }),
+    [theme],
   );
 
   const slotTheme = useCallback(
@@ -449,6 +482,59 @@ function NovaAvatarConfigView({
           </div>
         </div>
       ) : null}
+
+      <div className="nova-avatar-cfg-group">
+        <h3 className="nova-avatar-cfg-group-title">Liquid glass</h3>
+        <div className="grid gap-1.5">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={theme.glass.enabled}
+            aria-label={`Turn the liquid glass overlay ${theme.glass.enabled ? "off" : "on"}`}
+            className={`cyber-checkbox-row border p-4 text-left ${theme.glass.enabled ? "cyber-checkbox-row-active" : ""}`}
+            onClick={() => setTheme({ ...theme, glass: { ...theme.glass, enabled: !theme.glass.enabled } })}
+          >
+            <span
+              className={`cyber-checkbox ${theme.glass.enabled ? "cyber-checkbox-checked" : ""}`}
+              aria-hidden="true"
+            >
+              {theme.glass.enabled ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
+            </span>
+            <span className="grid min-w-0 gap-1">
+              <span className="theme-display-label zone-title-bar">Glass overlay</span>
+              <span className="theme-display-detail">
+                {theme.glass.enabled
+                  ? "On: refraction, silver-room reflection, gloss and cast shadow"
+                  : "Off: flat orb, no glass treatment"}
+              </span>
+            </span>
+          </button>
+        </div>
+        {theme.glass.enabled ? (
+          <div className="grid gap-3">
+            {GLASS_SLIDERS.map((slider) => {
+              const value = theme.glass[slider.key];
+              return (
+                <SliderControlPanel
+                  key={slider.key}
+                  ariaLabel={`${slider.label} — ${slider.description}`}
+                  ariaValueText={`${value}`}
+                  color={appliedThemeRgb(theme.gradientOuter)}
+                  intensity={100}
+                  label={slider.label}
+                  max={100}
+                  min={0}
+                  step={1}
+                  value={value}
+                  valueText={`${value}`}
+                  onPreview={(next) => previewTheme(glassNumberTheme(slider.key, next))}
+                  onCommit={(next) => setTheme(glassNumberTheme(slider.key, next))}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Background gradient</h3>
