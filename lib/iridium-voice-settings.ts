@@ -504,3 +504,77 @@ export function cancelIridiumAgentGoal(goalId: string, reason: string) {
     { method: "POST", body: { reason } },
   );
 }
+
+export type AgentAutomation = {
+  id: string;
+  owner_id: string;
+  summary: string;
+  trigger: Record<string, unknown>;
+  proposed_actions: Array<Record<string, unknown>>;
+  simulation?: Record<string, unknown> | null;
+  state: "draft" | "simulated" | "approved" | "active" | "paused" | "rolled_back" | "failed";
+  monitor_failures: number;
+};
+
+export type ProactiveIntervention = {
+  id: string;
+  reason_code: string;
+  reason_detail: string;
+  channel: "voice" | "dashboard" | "notification";
+  status: string;
+  feedback?: "accepted" | "dismissed" | "redundant" | "annoying" | null;
+  created_at: string;
+};
+
+export async function fetchIridiumAgentAutomations(): Promise<AgentAutomation[] | null> {
+  const payload = await fetchIridiumJson("/v1/agent/automations", "agent automations");
+  return payload && Array.isArray((payload as { automations?: unknown }).automations)
+    ? (payload as { automations: AgentAutomation[] }).automations
+    : null;
+}
+
+export async function fetchIridiumProactiveInterventions(): Promise<ProactiveIntervention[] | null> {
+  const payload = await fetchIridiumJson(
+    "/v1/agent/proactive-interventions",
+    "proactive interventions",
+  );
+  return payload && Array.isArray((payload as { interventions?: unknown }).interventions)
+    ? (payload as { interventions: ProactiveIntervention[] }).interventions
+    : null;
+}
+
+export function createIridiumAgentAutomation(
+  ownerId: string,
+  draft: Record<string, unknown>,
+) {
+  return requestIridiumJson(
+    `/v1/agent/automations?owner_id=${encodeURIComponent(ownerId)}`,
+    "agent automation draft",
+    { method: "POST", body: draft },
+  );
+}
+
+export function transitionIridiumAgentAutomation(
+  automationId: string,
+  action: "simulate" | "approve" | "activate" | "rollback",
+  ownerId?: string,
+) {
+  const body = action === "simulate" ? undefined : { owner_id: ownerId };
+  return requestIridiumJson(
+    `/v1/agent/automations/${encodeURIComponent(automationId)}/${action}`,
+    `agent automation ${action}`,
+    { method: "POST", body },
+  );
+}
+
+export function feedbackIridiumProactiveIntervention(
+  interventionId: string,
+  ownerId: string,
+  outcome: "accepted" | "dismissed" | "redundant" | "annoying",
+) {
+  return requestIridiumJson(
+    `/v1/agent/proactive-interventions/${encodeURIComponent(interventionId)}/feedback`,
+    "proactive intervention feedback",
+    { method: "POST", body: { owner_id: ownerId, outcome } },
+  );
+}
