@@ -148,6 +148,8 @@ export function SliderControlPanel({
   min,
   onCommit,
   onPreview,
+  snapTolerance,
+  snapValue,
   step,
   value,
   valueText,
@@ -167,6 +169,10 @@ export function SliderControlPanel({
   min: number;
   onCommit: (value: number) => void;
   onPreview: (value: number) => void;
+  /** Magnetic zone around `snapValue`, in value units. */
+  snapTolerance?: number;
+  /** A fixed value (e.g. the default) the slider snaps to on drag. */
+  snapValue?: number;
   step: number;
   value: number;
   valueText: ReactNode;
@@ -194,6 +200,8 @@ export function SliderControlPanel({
             fill={fill}
             intensity={intensity}
             markers={markers}
+            snapTolerance={snapTolerance}
+            snapValue={snapValue}
             onChange={onPreview}
             onCommit={onCommit}
           />

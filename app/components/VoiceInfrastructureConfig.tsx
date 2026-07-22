@@ -4,6 +4,7 @@ import { Check, Power, PowerOff, RadioTower, RefreshCw, Satellite } from "lucide
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   VOICE_SETTINGS_RANGES,
+  WEB_BACKENDS,
   normalizeVoiceSettings,
   type VoiceSettings,
 } from "../../lib/voice-settings";
@@ -263,8 +264,72 @@ function SatellitePanel() {
 }
 
 type SyncResult = { ok: boolean; error?: string };
-type PipelineKey = "conversationIdleSeconds" | "ttsPrerollMs" | "ttsFrameMs";
-type PipelineSettingKey = PipelineKey | "satelliteNoiseGateEnabled" | "speakerRecognitionEnabled";
+type PipelineKey =
+  | "conversationIdleSeconds"
+  | "ttsPrerollMs"
+  | "ttsFrameMs"
+  | "webAnswerMaxSentences"
+  | "speakerMatchThreshold"
+  | "speakerMatchMargin"
+  | "speakerClusterThreshold"
+  | "speakerConversationMatchThreshold";
+type PipelineSettingKey =
+  | PipelineKey
+  | "satelliteNoiseGateEnabled"
+  | "speakerRecognitionEnabled"
+  | "webAccessEnabled"
+  | "webBackend";
+
+type SpeakerMatchKey =
+  | "speakerMatchThreshold"
+  | "speakerMatchMargin"
+  | "speakerClusterThreshold"
+  | "speakerConversationMatchThreshold";
+
+// The four speaker-matching sliders, rendered from one list so their notes,
+// default markers, and snap targets stay in lock-step with lib/voice-settings.
+// Order runs from the knob that most directly fixes "a new profile every time"
+// (cluster) down to the fine within-conversation tolerance.
+const SPEAKER_MATCH_SLIDERS: {
+  key: SpeakerMatchKey;
+  label: string;
+  color: [number, number, number];
+  note: string;
+}[] = [
+  {
+    key: "speakerClusterThreshold",
+    label: "New-profile threshold",
+    color: [130, 200, 255],
+    note:
+      "How similar a new capture must be to fold into one of your existing unnamed voice "
+      + "profiles instead of starting another. Lower this first if the system keeps making a "
+      + "fresh profile for you across different mics and distances.",
+  },
+  {
+    key: "speakerMatchThreshold",
+    label: "Recognition threshold",
+    color: [120, 230, 180],
+    note:
+      "How close a voice must be to count as an already-known person. Lower recognizes you more "
+      + "readily from farther away or off-axis; set too low it can start confusing similar voices.",
+  },
+  {
+    key: "speakerMatchMargin",
+    label: "Decision margin",
+    color: [255, 200, 90],
+    note:
+      "How far the best-matching person must lead the runner-up before a match is trusted. Lower "
+      + "still decides when two people score alike; raise it if household members get mixed up.",
+  },
+  {
+    key: "speakerConversationMatchThreshold",
+    label: "Conversation hold",
+    color: [200, 160, 255],
+    note:
+      "How much a voice can drift and still be treated as the same speaker within one open "
+      + "conversation. Deliberately loose; lower tolerates more movement mid-exchange.",
+  },
+];
 
 // System-wide voice killswitch. A single master on/off for the whole household:
 // when off, Iridium drops every microphone frame and closes the open
@@ -457,11 +522,16 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
     return () => window.clearInterval(id);
   }, [load]);
 
-  const commit = useCallback(async (key: PipelineSettingKey, value: number | boolean) => {
+  const commit = useCallback(async (key: PipelineSettingKey, value: number | boolean | string) => {
     markInteraction();
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
-    if (key !== "satelliteNoiseGateEnabled" && key !== "speakerRecognitionEnabled") {
+    if (
+      key !== "satelliteNoiseGateEnabled"
+      && key !== "speakerRecognitionEnabled"
+      && key !== "webAccessEnabled"
+      && key !== "webBackend"
+    ) {
       draggingRef.current.delete(key);
     }
     setSettings((current) => ({ ...current, [key]: value }));
@@ -584,6 +654,110 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       </div>
 
       <div className="grid gap-1.5">
+        <p className="mt-2 text-xs font-black uppercase text-neutral-400">Web access</p>
+        <MomentaryFeedbackButton
+          type="button"
+          role="switch"
+          aria-checked={settings.webAccessEnabled}
+          className={`cyber-checkbox-row border p-4 text-left ${
+            settings.webAccessEnabled ? "cyber-checkbox-row-active" : ""
+          }`}
+          onClick={() => void commit("webAccessEnabled", !settings.webAccessEnabled)}
+        >
+          <span
+            className={`cyber-checkbox ${
+              settings.webAccessEnabled ? "cyber-checkbox-checked" : ""
+            }`}
+            aria-hidden="true"
+          >
+            {settings.webAccessEnabled ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
+          </span>
+          <span className="grid min-w-0 gap-1">
+            <span className="theme-display-label zone-title-bar">Look things up online</span>
+            <span className="theme-display-detail">
+              {settings.webAccessEnabled
+                ? `On: when a request needs current or external facts, ${agentName} rewrites it into a query and answers from the web`
+                : `Off: ${agentName} answers only from on-device knowledge and household state`}
+            </span>
+          </span>
+        </MomentaryFeedbackButton>
+        <p className="px-1 text-xs leading-snug text-neutral-500">
+          The only feature that sends anything off your local network: just the rewritten search
+          query (never audio, {agentName}&apos;s personality, or household state), and only on a
+          wake-word or follow-up turn. The web API key lives on the voice server, never in the
+          dashboard.
+        </p>
+      </div>
+
+      {settings.webAccessEnabled ? (
+        <>
+          {WEB_BACKENDS.length > 1 ? (
+            <div className="grid gap-1.5">
+              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                Answer source
+              </p>
+              <div role="radiogroup" aria-label="Web answer source" className="grid gap-1.5">
+                {WEB_BACKENDS.map((option) => {
+                  const active = settings.webBackend === option.value;
+                  return (
+                    <MomentaryFeedbackButton
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`cyber-checkbox-row border p-4 text-left ${
+                        active ? "cyber-checkbox-row-active" : ""
+                      }`}
+                      onClick={() => void commit("webBackend", option.value)}
+                    >
+                      <span
+                        className={`cyber-checkbox ${active ? "cyber-checkbox-checked" : ""}`}
+                        aria-hidden="true"
+                      >
+                        {active ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
+                      </span>
+                      <span className="grid min-w-0 gap-1">
+                        <span className="theme-display-label zone-title-bar">{option.label}</span>
+                        <span className="theme-display-detail">{option.detail}</span>
+                      </span>
+                    </MomentaryFeedbackButton>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid gap-1.5">
+            <SliderControlPanel
+              ariaLabel="Web answer length"
+              ariaValueText={`${settings.webAnswerMaxSentences} sentences`}
+              color={[120, 180, 255]}
+              intensity={100}
+              label="Web answer length"
+              max={VOICE_SETTINGS_RANGES.webAnswerMaxSentences.max}
+              min={VOICE_SETTINGS_RANGES.webAnswerMaxSentences.min}
+              step={VOICE_SETTINGS_RANGES.webAnswerMaxSentences.step}
+              value={settings.webAnswerMaxSentences}
+              valueText={`${settings.webAnswerMaxSentences} sentence${
+                settings.webAnswerMaxSentences === 1 ? "" : "s"
+              }`}
+              onPreview={(webAnswerMaxSentences) => {
+                draggingRef.current.add("webAnswerMaxSentences");
+                markInteraction();
+                setSettings((current) => ({ ...current, webAnswerMaxSentences }));
+              }}
+              onCommit={(webAnswerMaxSentences) =>
+                void commit("webAnswerMaxSentences", webAnswerMaxSentences)}
+            />
+            <p className="px-1 text-xs leading-snug text-neutral-500">
+              How long a spoken web answer may run. Device control replies stay terse; this only
+              lengthens answers {agentName} looks up online.
+            </p>
+          </div>
+        </>
+      ) : null}
+
+      <div className="grid gap-1.5">
         <SliderControlPanel
           ariaLabel="Conversation window"
           ariaValueText={`${settings.conversationIdleSeconds} seconds`}
@@ -658,6 +832,51 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
           trades a little network overhead for smoother pacing.
         </p>
       </div>
+
+      <div className="grid gap-1.5">
+        <p className="mt-2 text-xs font-black uppercase text-neutral-400">Speaker matching</p>
+        <p className="px-1 text-xs leading-snug text-neutral-500">
+          How readily {agentName} treats a voice as an already-known person. These are cosine-similarity
+          thresholds (0–1) on the local TitaNet voice embeddings. Loosen them when one person is being
+          split into a new profile across different microphones, rooms, and distances; tighten them if
+          different people start getting mixed up. The tick on each slider marks the default — drag near
+          it to snap back.
+        </p>
+      </div>
+
+      {SPEAKER_MATCH_SLIDERS.map((slider) => {
+        const range = VOICE_SETTINGS_RANGES[slider.key];
+        const current = settings[slider.key];
+        return (
+          <div key={slider.key} className="grid gap-1.5">
+            <SliderControlPanel
+              ariaLabel={slider.label}
+              ariaValueText={current.toFixed(2)}
+              color={slider.color}
+              intensity={100}
+              label={slider.label}
+              max={range.max}
+              min={range.min}
+              step={range.step}
+              markers={[{
+                value: range.default,
+                label: `default ${range.default.toFixed(2)}`,
+                active: current === range.default,
+              }]}
+              snapValue={range.default}
+              value={current}
+              valueText={current.toFixed(2)}
+              onPreview={(next) => {
+                draggingRef.current.add(slider.key);
+                markInteraction();
+                setSettings((currentSettings) => ({ ...currentSettings, [slider.key]: next }));
+              }}
+              onCommit={(next) => void commit(slider.key, next)}
+            />
+            <p className="px-1 text-xs leading-snug text-neutral-500">{slider.note}</p>
+          </div>
+        );
+      })}
 
       {message ? (
         <p

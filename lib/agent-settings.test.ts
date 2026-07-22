@@ -16,11 +16,19 @@ describe("agent settings", () => {
       ralphLoopFailureSeconds: 999,
       ralphLoopMaxIterations: 0,
       ralphLoopSleepMs: 549,
+      ralphLoopThinkingThresholdMs: 99999,
+      ralphLoopLlmVerifyEnabled: false,
+      ralphLoopLlmVerifyMinIntervalMs: -50,
+      ralphLoopLlmConfirmTimeoutSeconds: 999,
     })).toMatchObject({
       ralphLoopEnabled: false,
       ralphLoopFailureSeconds: 30,
       ralphLoopMaxIterations: 1,
       ralphLoopSleepMs: 500,
+      ralphLoopThinkingThresholdMs: 8000,
+      ralphLoopLlmVerifyEnabled: false,
+      ralphLoopLlmVerifyMinIntervalMs: 0,
+      ralphLoopLlmConfirmTimeoutSeconds: 10,
     });
   });
 
@@ -30,6 +38,18 @@ describe("agent settings", () => {
     });
     expect(parseAgentSettingsUpdate({ ralphLoopEnabled: false })).toEqual({
       ralphLoopEnabled: false,
+    });
+    expect(parseAgentSettingsUpdate({ ralphLoopThinkingThresholdMs: 3100 })).toEqual({
+      ralphLoopThinkingThresholdMs: 3000,
+    });
+    expect(parseAgentSettingsUpdate({ ralphLoopLlmVerifyEnabled: false })).toEqual({
+      ralphLoopLlmVerifyEnabled: false,
+    });
+    expect(parseAgentSettingsUpdate({ ralphLoopLlmVerifyMinIntervalMs: 1900 })).toEqual({
+      ralphLoopLlmVerifyMinIntervalMs: 2000,
+    });
+    expect(parseAgentSettingsUpdate({ ralphLoopLlmConfirmTimeoutSeconds: 4.3 })).toEqual({
+      ralphLoopLlmConfirmTimeoutSeconds: 4.5,
     });
     expect(() => parseAgentSettingsUpdate({ ralphLoopEnabled: "yes" })).toThrow(
       "must be true or false",

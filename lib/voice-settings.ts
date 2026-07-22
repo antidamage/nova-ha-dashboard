@@ -37,6 +37,14 @@ export const VOICE_ACCENTS = [
   { value: "scottish", label: "Scottish" },
 ] as const;
 
+// Offered web-answer backends. Google (Gemini) is deliberately excluded by
+// household policy; the voice service still supports a "gemini" backend in code
+// for anyone with billing, but it is never offered here.
+export const WEB_BACKENDS = [
+  { value: "brave", label: "Brave Search (browser)", detail: "Scrapes Brave Search in a headless browser — Google-tier answers, keyless, non-Google. Best quality." },
+  { value: "local", label: "DuckDuckGo (keyless)", detail: "Lightweight fallback — no browser, quicker to start, but rougher answers." },
+] as const;
+
 export const VOICE_EMOTIONS = [
   { value: "natural", label: "Natural" },
   { value: "calm", label: "Calm" },
@@ -51,6 +59,7 @@ export type VoiceSpeaker = (typeof VOICE_SPEAKERS)[number]["value"];
 export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number]["value"];
 export type VoiceAccent = (typeof VOICE_ACCENTS)[number]["value"];
 export type VoiceEmotion = (typeof VOICE_EMOTIONS)[number]["value"];
+export type WebBackend = (typeof WEB_BACKENDS)[number]["value"];
 
 // The agent's third-person pronouns, in the three forms the language model is
 // told to use for itself. Each form is stored (and labelled) by its grammatical
@@ -112,9 +121,12 @@ export type VoiceSettings = Required<
     | "satelliteNoiseGateEnabled"
     | "speaker" | "language" | "accent" | "speechRate"
     | "pitch" | "emotion" | "emotionMirroring" | "temperature" | "longResponseProbability"
-    | "commandReplyMaxWords"
+    | "commandReplyMinWords" | "commandReplyMaxWords"
+    | "webAccessEnabled" | "webBackend" | "webAnswerMaxSentences"
     | "wakeWords" | "wakePrefixes" | "volumeDay" | "volumeNight" | "personality"
     | "conversationIdleSeconds" | "ttsPrerollMs" | "ttsFrameMs" | "transcriptTemplate"
+    | "speakerMatchThreshold" | "speakerMatchMargin" | "speakerClusterThreshold"
+    | "speakerConversationMatchThreshold"
   >
   // `pronouns` and `affectations` are picked out of the loose `VoicePreferences`
   // shape and restated with the strict types the settings always normalize to.
@@ -138,6 +150,7 @@ export const VOICE_PERSONALITY_FIELDS = [
   "emotionMirroring",
   "temperature",
   "longResponseProbability",
+  "commandReplyMinWords",
   "commandReplyMaxWords",
   "pronouns",
   "affectations",
@@ -186,7 +199,13 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   emotionMirroring: 100,
   temperature: 0,
   longResponseProbability: 0,
+  commandReplyMinWords: 0,
   commandReplyMaxWords: 3,
+  // Web access is off by default; it is the only feature that sends any text
+  // off the local network, so it is opt-in.
+  webAccessEnabled: false,
+  webBackend: "brave",
+  webAnswerMaxSentences: 2,
   wakeWords: ["beemo", "bimo", "bemo", "beamo", "bmo"],
   wakePrefixes: "hey ok okay hi hello yo oi",
   volumeDay: 100,
@@ -198,6 +217,12 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   // be moved back up from here if pacing deficits show up in /health.
   ttsPrerollMs: 400,
   ttsFrameMs: 100,
+  // Speaker-matching thresholds — same values the voice service has always used
+  // by default, so exposing the controls changes nothing until they are moved.
+  speakerMatchThreshold: 0.65,
+  speakerMatchMargin: 0.03,
+  speakerClusterThreshold: 0.6,
+  speakerConversationMatchThreshold: 0.35,
   transcriptTemplate: DEFAULT_TRANSCRIPT_TEMPLATE,
   // Neutral default so a fresh install refers to the agent with they/them
   // rather than assuming a gender.
@@ -212,18 +237,28 @@ export const VOICE_SETTINGS_RANGES = {
   emotionMirroring: { min: 0, max: 200, step: 10 },
   temperature: { min: 0, max: 5, step: 0.1 },
   longResponseProbability: { min: 0, max: 1, step: 0.05 },
+  commandReplyMinWords: { min: 0, max: 10, step: 1 },
   commandReplyMaxWords: { min: 0, max: 10, step: 1 },
+  webAnswerMaxSentences: { min: 1, max: 5, step: 1, default: 2 },
   volumeDay: { min: 0, max: 100, step: 5 },
   volumeNight: { min: 0, max: 100, step: 5 },
   conversationIdleSeconds: { min: 10, max: 300, step: 5 },
   ttsPrerollMs: { min: 20, max: 2000, step: 10 },
   ttsFrameMs: { min: 20, max: 200, step: 10 },
+  // Cosine-similarity thresholds (0-1). Ranges are the sensible operating band
+  // plus a little extra headroom at each end. `default` is fixed to the stock
+  // value so the UI can mark it and snap to it.
+  speakerMatchThreshold: { min: 0.3, max: 0.95, step: 0.01, default: 0.65 },
+  speakerMatchMargin: { min: 0, max: 0.3, step: 0.01, default: 0.03 },
+  speakerClusterThreshold: { min: 0.3, max: 0.95, step: 0.01, default: 0.6 },
+  speakerConversationMatchThreshold: { min: 0.1, max: 0.9, step: 0.01, default: 0.35 },
 } as const;
 
 const SPEAKERS = new Set<string>(VOICE_SPEAKERS.map(({ value }) => value));
 const LANGUAGES = new Set<string>(VOICE_LANGUAGES.map(({ value }) => value));
 const ACCENTS = new Set<string>(VOICE_ACCENTS.map(({ value }) => value));
 const EMOTIONS = new Set<string>(VOICE_EMOTIONS.map(({ value }) => value));
+const WEB_BACKEND_SET = new Set<string>(WEB_BACKENDS.map(({ value }) => value));
 
 function recordValue(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -399,12 +434,30 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
       VOICE_SETTINGS_RANGES.longResponseProbability.max,
       VOICE_SETTINGS_RANGES.longResponseProbability.step,
     ),
+    commandReplyMinWords: storedNumber(
+      source.commandReplyMinWords,
+      VOICE_SETTINGS_DEFAULTS.commandReplyMinWords,
+      VOICE_SETTINGS_RANGES.commandReplyMinWords.min,
+      VOICE_SETTINGS_RANGES.commandReplyMinWords.max,
+      VOICE_SETTINGS_RANGES.commandReplyMinWords.step,
+    ),
     commandReplyMaxWords: storedNumber(
       source.commandReplyMaxWords,
       VOICE_SETTINGS_DEFAULTS.commandReplyMaxWords,
       VOICE_SETTINGS_RANGES.commandReplyMaxWords.min,
       VOICE_SETTINGS_RANGES.commandReplyMaxWords.max,
       VOICE_SETTINGS_RANGES.commandReplyMaxWords.step,
+    ),
+    // Only an explicit true enables web access; anything else keeps it off, so a
+    // partial/legacy preferences blob never silently opens outbound web calls.
+    webAccessEnabled: source.webAccessEnabled === true,
+    webBackend: storedChoice(source.webBackend, WEB_BACKEND_SET, VOICE_SETTINGS_DEFAULTS.webBackend),
+    webAnswerMaxSentences: storedNumber(
+      source.webAnswerMaxSentences,
+      VOICE_SETTINGS_DEFAULTS.webAnswerMaxSentences,
+      VOICE_SETTINGS_RANGES.webAnswerMaxSentences.min,
+      VOICE_SETTINGS_RANGES.webAnswerMaxSentences.max,
+      VOICE_SETTINGS_RANGES.webAnswerMaxSentences.step,
     ),
     wakeWords: normalizedWakeWords(source.wakeWords, source.wakeWord),
     wakePrefixes:
@@ -453,6 +506,34 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
       VOICE_SETTINGS_RANGES.ttsFrameMs.max,
       VOICE_SETTINGS_RANGES.ttsFrameMs.step,
     ),
+    speakerMatchThreshold: storedNumber(
+      source.speakerMatchThreshold,
+      VOICE_SETTINGS_DEFAULTS.speakerMatchThreshold,
+      VOICE_SETTINGS_RANGES.speakerMatchThreshold.min,
+      VOICE_SETTINGS_RANGES.speakerMatchThreshold.max,
+      VOICE_SETTINGS_RANGES.speakerMatchThreshold.step,
+    ),
+    speakerMatchMargin: storedNumber(
+      source.speakerMatchMargin,
+      VOICE_SETTINGS_DEFAULTS.speakerMatchMargin,
+      VOICE_SETTINGS_RANGES.speakerMatchMargin.min,
+      VOICE_SETTINGS_RANGES.speakerMatchMargin.max,
+      VOICE_SETTINGS_RANGES.speakerMatchMargin.step,
+    ),
+    speakerClusterThreshold: storedNumber(
+      source.speakerClusterThreshold,
+      VOICE_SETTINGS_DEFAULTS.speakerClusterThreshold,
+      VOICE_SETTINGS_RANGES.speakerClusterThreshold.min,
+      VOICE_SETTINGS_RANGES.speakerClusterThreshold.max,
+      VOICE_SETTINGS_RANGES.speakerClusterThreshold.step,
+    ),
+    speakerConversationMatchThreshold: storedNumber(
+      source.speakerConversationMatchThreshold,
+      VOICE_SETTINGS_DEFAULTS.speakerConversationMatchThreshold,
+      VOICE_SETTINGS_RANGES.speakerConversationMatchThreshold.min,
+      VOICE_SETTINGS_RANGES.speakerConversationMatchThreshold.max,
+      VOICE_SETTINGS_RANGES.speakerConversationMatchThreshold.step,
+    ),
     // Unlike personality, a cleared ("") template means "back to stock": an
     // empty decoration would render invisible headers, so it falls back.
     transcriptTemplate:
@@ -479,6 +560,7 @@ export function voicePersonalitySubset(settings: VoiceSettings): VoicePersonalit
     emotionMirroring: settings.emotionMirroring,
     temperature: settings.temperature,
     longResponseProbability: settings.longResponseProbability,
+    commandReplyMinWords: settings.commandReplyMinWords,
     commandReplyMaxWords: settings.commandReplyMaxWords,
     pronouns: { ...settings.pronouns },
     affectations: { ...settings.affectations },
@@ -506,6 +588,7 @@ export function voicePersonalitySignature(set: VoicePersonalitySet): string {
     set.emotionMirroring,
     set.temperature,
     set.longResponseProbability,
+    set.commandReplyMinWords,
     set.commandReplyMaxWords,
     set.pronouns.subjective,
     set.pronouns.objective,
@@ -723,10 +806,22 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
       "longResponseProbability",
       VOICE_SETTINGS_RANGES.longResponseProbability,
     ),
+    commandReplyMinWords: updateNumber(
+      source,
+      "commandReplyMinWords",
+      VOICE_SETTINGS_RANGES.commandReplyMinWords,
+    ),
     commandReplyMaxWords: updateNumber(
       source,
       "commandReplyMaxWords",
       VOICE_SETTINGS_RANGES.commandReplyMaxWords,
+    ),
+    webAccessEnabled: updateBoolean(source, "webAccessEnabled"),
+    webBackend: updateChoice(source, "webBackend", WEB_BACKEND_SET),
+    webAnswerMaxSentences: updateNumber(
+      source,
+      "webAnswerMaxSentences",
+      VOICE_SETTINGS_RANGES.webAnswerMaxSentences,
     ),
     wakeWords: updateWakeWords(source),
     wakePrefixes: updatePattern(source, "wakePrefixes", WAKE_PREFIXES_PATTERN),
@@ -740,6 +835,26 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     ),
     ttsPrerollMs: updateNumber(source, "ttsPrerollMs", VOICE_SETTINGS_RANGES.ttsPrerollMs),
     ttsFrameMs: updateNumber(source, "ttsFrameMs", VOICE_SETTINGS_RANGES.ttsFrameMs),
+    speakerMatchThreshold: updateNumber(
+      source,
+      "speakerMatchThreshold",
+      VOICE_SETTINGS_RANGES.speakerMatchThreshold,
+    ),
+    speakerMatchMargin: updateNumber(
+      source,
+      "speakerMatchMargin",
+      VOICE_SETTINGS_RANGES.speakerMatchMargin,
+    ),
+    speakerClusterThreshold: updateNumber(
+      source,
+      "speakerClusterThreshold",
+      VOICE_SETTINGS_RANGES.speakerClusterThreshold,
+    ),
+    speakerConversationMatchThreshold: updateNumber(
+      source,
+      "speakerConversationMatchThreshold",
+      VOICE_SETTINGS_RANGES.speakerConversationMatchThreshold,
+    ),
     // "" is accepted here so a cleared input persists and normalizes back to
     // the stock decoration on the next read.
     transcriptTemplate: updateText(source, "transcriptTemplate", TRANSCRIPT_TEMPLATE_MAX_LENGTH),

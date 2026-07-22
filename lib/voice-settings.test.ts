@@ -267,6 +267,35 @@ describe("voice settings", () => {
       "must be true or false",
     );
   });
+
+  it("keeps web access off by default and only honours an explicit true", () => {
+    expect(normalizeVoiceSettings(null).webAccessEnabled).toBe(false);
+    expect(normalizeVoiceSettings({ webAccessEnabled: true }).webAccessEnabled).toBe(true);
+    // A missing or non-boolean value must never silently open outbound web calls.
+    expect(normalizeVoiceSettings({ webAccessEnabled: "yes" as unknown as boolean }).webAccessEnabled)
+      .toBe(false);
+    expect(parseVoiceSettingsUpdate({ webAccessEnabled: true })).toEqual({ webAccessEnabled: true });
+    expect(() => parseVoiceSettingsUpdate({ webAccessEnabled: "on" })).toThrow(/must be true or false/);
+  });
+
+  it("defaults the web backend to brave and rejects non-offered backends", () => {
+    expect(normalizeVoiceSettings(null).webBackend).toBe("brave");
+    expect(normalizeVoiceSettings({ webBackend: "local" }).webBackend).toBe("local");
+    // Google is not offered: any non-offered stored value migrates to the default.
+    expect(normalizeVoiceSettings({ webBackend: "gemini" }).webBackend).toBe("brave");
+    expect(parseVoiceSettingsUpdate({ webBackend: "brave" })).toEqual({ webBackend: "brave" });
+    expect(parseVoiceSettingsUpdate({ webBackend: "local" })).toEqual({ webBackend: "local" });
+    expect(() => parseVoiceSettingsUpdate({ webBackend: "gemini" }))
+      .toThrow("Unsupported voice webBackend");
+  });
+
+  it("clamps the web answer length to 1-5 sentences", () => {
+    expect(normalizeVoiceSettings(null).webAnswerMaxSentences).toBe(2);
+    expect(normalizeVoiceSettings({ webAnswerMaxSentences: 0 }).webAnswerMaxSentences).toBe(1);
+    expect(normalizeVoiceSettings({ webAnswerMaxSentences: 99 }).webAnswerMaxSentences).toBe(5);
+    expect(parseVoiceSettingsUpdate({ webAnswerMaxSentences: 4 }))
+      .toEqual({ webAnswerMaxSentences: 4 });
+  });
 });
 
 describe("voice personality subset", () => {
@@ -276,6 +305,7 @@ describe("voice personality subset", () => {
       "accent",
       "affectations",
       "commandReplyMaxWords",
+      "commandReplyMinWords",
       "emotion",
       "emotionMirroring",
       "language",
