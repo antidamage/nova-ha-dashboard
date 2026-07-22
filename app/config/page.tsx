@@ -4,6 +4,7 @@ import { readDashboardPreferences } from "../../lib/preferences";
 import { themeResponseValue } from "../../lib/theme-values";
 import { AccentConfig } from "../components/AccentConfig";
 import { AgentConfig } from "../components/AgentConfig";
+import { AgentAdministration } from "../components/AgentAdministration";
 import { AgentNameConfig } from "../components/AgentNameConfig";
 import { AppleTvSwipeConfig } from "../components/AppleTvSwipeConfig";
 import { ConfigWorkspace } from "../components/ConfigWorkspace";
@@ -53,6 +54,7 @@ export default async function ConfigPage() {
     >
       <AgentNameConfig />
       <AgentConfig initialSettings={sharedPreferences?.agent ?? null} />
+      <AgentAdministration />
       <AccentConfig
         initialTheme={initialTheme}
       />
