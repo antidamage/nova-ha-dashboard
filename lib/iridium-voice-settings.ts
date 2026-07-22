@@ -222,7 +222,7 @@ type IridiumJsonResult = { payload: unknown } | { error: string; status?: number
 async function requestIridiumJson(
   requestPath: string,
   label: string,
-  options: { method?: "GET" | "PATCH" | "DELETE"; body?: unknown } = {},
+  options: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
 ): Promise<IridiumJsonResult> {
   let url: URL;
   try {
@@ -401,4 +401,68 @@ export function iridiumVoiceHostLabel(): string {
   } catch {
     return "voice server";
   }
+}
+
+export type AgentAdministrationPayload = {
+  goals: Array<Record<string, unknown> & { id: string; status: string; summary: string }>;
+  plans: Array<Record<string, unknown> & { id: string; status: string; goal_id: string }>;
+  executions: Array<Record<string, unknown> & { id: string; status: string }>;
+  grants: Array<Record<string, unknown> & {
+    id: string;
+    grantee_id: string;
+    capability: string;
+    active: boolean;
+    target_scope: string[];
+    expires_at?: string | null;
+  }>;
+  identities: Array<Record<string, unknown> & {
+    person_id: string;
+    role: "owner" | "recognized_household" | "guest";
+  }>;
+  audit: Array<Record<string, unknown> & {
+    id: string;
+    actor_id: string;
+    action: string;
+    object_type: string;
+    object_id: string;
+    created_at: string;
+  }>;
+  auditTotal: number;
+};
+
+export async function fetchIridiumAgentAdministration(): Promise<AgentAdministrationPayload | null> {
+  const payload = await fetchIridiumJson("/v1/agent/administration", "agent administration");
+  if (!payload || !Array.isArray((payload as AgentAdministrationPayload).goals)) return null;
+  return payload as AgentAdministrationPayload;
+}
+
+export function setIridiumAgentIdentityRole(personId: string, role: string) {
+  return requestIridiumJson(
+    `/v1/agent/identities/${encodeURIComponent(personId)}`,
+    "agent identity role update",
+    { method: "PUT", body: { role } },
+  );
+}
+
+export function createIridiumDelegationGrant(grant: Record<string, unknown>) {
+  return requestIridiumJson("/v1/agent/grants", "delegation grant creation", {
+    method: "POST",
+    body: grant,
+  });
+}
+
+export function revokeIridiumDelegationGrant(grantId: string) {
+  return requestIridiumJson(
+    `/v1/agent/grants/${encodeURIComponent(grantId)}`,
+    "delegation grant revocation",
+    { method: "DELETE" },
+  );
+}
+
+export function cancelIridiumAgentGoal(goalId: string, reason: string) {
+  return requestIridiumJson(
+    `/v1/agent/goals/${encodeURIComponent(goalId)}/cancel`,
+    "durable goal cancellation",
+    { method: "POST", body: { reason } },
+  );
 }
