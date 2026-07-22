@@ -420,6 +420,9 @@ export type AgentAdministrationPayload = {
     role: "owner" | "recognized_household" | "guest";
   }>;
   research: AgentResearch[];
+  briefingSchedules: AgentBriefingSchedule[];
+  briefings: AgentBriefing[];
+  subscriptions: AgentEventSubscription[];
   audit: Array<Record<string, unknown> & {
     id: string;
     actor_id: string;
@@ -444,6 +447,23 @@ export type AgentResearch = {
   error?: string | null;
   created_at: string;
   completed_at?: string | null;
+};
+
+export type AgentBriefingSchedule = {
+  id: string; owner_id: string; period: "morning" | "evening";
+  local_time: string; timezone: string; enabled: boolean; last_local_date?: string | null;
+};
+
+export type AgentBriefing = {
+  id: string; owner_id: string; period: "morning" | "evening"; local_date: string;
+  summary: string; agenda: Array<Record<string, unknown>>;
+  conflicts: Array<Record<string, unknown>>; preparation_prompts: string[];
+};
+
+export type AgentEventSubscription = {
+  id: string; owner_id: string; summary: string; event_kind: string;
+  match: Record<string, unknown>; active: boolean; one_shot: boolean;
+  trigger_count: number; triggered_at?: string | null;
 };
 
 export async function fetchIridiumAgentAdministration(): Promise<AgentAdministrationPayload | null> {
