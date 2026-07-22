@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AgentAdministrationPayload,
+  AgentMemory,
   SpeakerProfilesPayload,
 } from "../../lib/iridium-voice-settings";
 
@@ -17,6 +18,15 @@ async function administrationAction(body: Record<string, unknown>) {
   if (!response.ok) throw new Error(`Administration request failed (${response.status})`);
 }
 
+async function memoryAction(body: Record<string, unknown>) {
+  const response = await fetch("/api/voice/memories", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Memory request failed (${response.status})`);
+}
+
 function csv(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -24,6 +34,7 @@ function csv(value: string) {
 export function AgentAdministration() {
   const [administration, setAdministration] = useState<AgentAdministrationPayload | null>(null);
   const [profiles, setProfiles] = useState<SpeakerProfilesPayload | null>(null);
+  const [memories, setMemories] = useState<AgentMemory[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [granteeId, setGranteeId] = useState("");
@@ -41,13 +52,15 @@ export function AgentAdministration() {
 
   const refresh = useCallback(async () => {
     try {
-      const [adminResponse, profileResponse] = await Promise.all([
+      const [adminResponse, profileResponse, memoryResponse] = await Promise.all([
         fetch("/api/voice/administration", { cache: "no-store" }),
         fetch("/api/voice/speaker-profiles", { cache: "no-store" }),
+        fetch("/api/voice/memories", { cache: "no-store" }),
       ]);
       if (!adminResponse.ok || !profileResponse.ok) throw new Error("Voice administration unavailable");
       const admin = await adminResponse.json() as AgentAdministrationPayload;
       const people = await profileResponse.json() as SpeakerProfilesPayload;
+      if (memoryResponse.ok) setMemories(((await memoryResponse.json()) as { memories: AgentMemory[] }).memories);
       setAdministration(admin);
       setProfiles(people);
       setGranteeId((current) => current || people.profiles[0]?.id || "");
@@ -191,6 +204,14 @@ export function AgentAdministration() {
             <div key={event.id} className="rounded-xl bg-white/5 p-3 text-xs"><strong>{event.action}</strong> {event.object_type}<p className="break-all text-neutral-500">{event.object_id} · {event.actor_id}</p></div>
           ))}</div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-bold uppercase tracking-wide text-neutral-400">Selective conversational memory</h3><div className="flex gap-2"><button disabled={busy} className="rounded-lg border border-white/15 px-3 py-1 text-sm" onClick={() => void run(() => memoryAction({ action: "consolidate" }))}>Consolidate</button><button disabled={busy} className="rounded-lg border border-white/15 px-3 py-1 text-sm" onClick={() => void run(() => memoryAction({ action: "backup" }))}>Backup and verify</button></div></div>
+        <p className="mt-1 text-xs text-neutral-500">Only durable, non-routine facts are retained. Pin, correct, or forget them here.</p>
+        <div className="mt-2 max-h-72 space-y-2 overflow-auto">{memories.map((memory) => (
+          <div key={memory.id} className="rounded-xl bg-white/5 p-3 text-sm"><div className="flex justify-between gap-2"><strong>{memory.memory_type.replace("_", " ")}</strong><span className="text-xs text-neutral-500">{memory.pinned ? "Pinned" : ""}</span></div><p>{memory.text}</p><p className="mt-1 text-xs text-neutral-500">{memory.owner_id ?? "household"} · {new Date(memory.created_at).toLocaleDateString()}</p><div className="mt-2 flex flex-wrap gap-3"><button disabled={busy} className="text-cyan-300" onClick={() => void run(() => memoryAction({ action: "update", memoryId: memory.id, update: { pinned: !memory.pinned } }))}>{memory.pinned ? "Unpin" : "Pin"}</button><button disabled={busy} className="text-cyan-300" onClick={() => { const text = window.prompt("Correct this memory", memory.text); if (text?.trim()) void run(() => memoryAction({ action: "update", memoryId: memory.id, update: { text: text.trim() } })); }}>Correct</button><button disabled={busy} className="text-cyan-300" onClick={() => { const value = window.prompt("Expiry (ISO date-time, blank to leave unchanged)", memory.expires_at ?? ""); if (value?.trim()) void run(() => memoryAction({ action: "update", memoryId: memory.id, update: { expires_at: new Date(value).toISOString() } })); }}>Expiry</button><button disabled={busy} className="text-red-300" onClick={() => void run(() => memoryAction({ action: "forget", memoryId: memory.id }))}>Forget</button></div></div>
+        ))}{!memories.length ? <p className="text-sm text-neutral-500">No saved conversational memories yet.</p> : null}</div>
       </div>
     </section>
   );
