@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  DEFAULT_NOVA_GLASS_SETTINGS,
   normalizeNovaAvatarTheme,
   type NovaAvatarTheme,
 } from "./avatarThemeModel";
@@ -346,6 +347,7 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     innerShadowOpacity: 0.5,
     orbModule: "classic",
     orbModuleSettings: {},
+    glass: DEFAULT_NOVA_GLASS_SETTINGS,
   },
   background: {
     cursor: { x: 0.12327065494504236, y: 0.3238836015973772 },
@@ -527,6 +529,7 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     innerShadowOpacity: 0.5,
     orbModule: "classic",
     orbModuleSettings: {},
+    glass: DEFAULT_NOVA_GLASS_SETTINGS,
   },
   background: {
     cursor: { x: 0.1351284825413904, y: 0.3667411804199219 },

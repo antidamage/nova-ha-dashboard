@@ -6,6 +6,56 @@ export type AvatarThemeColorValue = {
   rgb: [number, number, number];
 };
 
+/**
+ * "Liquid glass" overlay settings for the status orb. These drive a DOM/SVG
+ * layer that sits on top of the canvas orb (see NovaOrbGlass): an SVG
+ * `feDisplacementMap` refracts the orb like a curved lens, a screen-blended
+ * "silver room with overhead lights" reflection pans across it as the orb
+ * moves on the page, and a gloss highlight + drop shadow sell the volume.
+ *
+ * The effect is DOM-only (SVG filters + blend modes), so unlike the orb
+ * modules it has no tvOS counterpart — the Apple TV renderer simply never
+ * draws it. Every knob is a 0-100 magnitude except `enabled`; the renderer
+ * maps them to concrete pixel/filter values, so the stored model stays a set
+ * of plain, hand-editable percentages.
+ */
+export type NovaGlassSettings = {
+  /** Master switch for the whole glass overlay. */
+  enabled: boolean;
+  /** backdrop-filter displacement scale — how far the lens refracts the page
+   *  behind the orb (the whole disc refracts, artist "liquid glass" style). */
+  displace: number;
+  /** How tightly the bend concentrates toward the rim (lens curvature). */
+  curvature: number;
+  /** Gaussian blur on the displacement map — the "liquid"/melt softness. */
+  smoothness: number;
+  /** How see-through the orb core is — fades the canvas graphics toward the
+   *  centre so the refraction reads through a mostly-clear middle. */
+  clarity: number;
+  /** Strength of the specular gloss highlight, fading in from the top edge. */
+  gloss: number;
+  /** Depth of the drop shadow cast beneath the orb. */
+  shadow: number;
+  /** Opacity of the silver-room reflection, fading in from the rim. */
+  reflection: number;
+  /** How far the reflection pans as the orb moves / the pointer sweeps. */
+  drift: number;
+};
+
+export const DEFAULT_NOVA_GLASS_SETTINGS: NovaGlassSettings = {
+  enabled: true,
+  // "Max refraction" default: a bold, obvious background bend with a sharp
+  // fisheye rim. Every value is user-tunable in the Status Orb config.
+  displace: 85,
+  curvature: 78,
+  smoothness: 30,
+  clarity: 60,
+  gloss: 50,
+  shadow: 50,
+  reflection: 55,
+  drift: 60,
+};
+
 export type NovaAvatarTheme = {
   gradientAlert: AvatarThemeColorValue;
   gradientCenter: AvatarThemeColorValue;
@@ -37,6 +87,10 @@ export type NovaAvatarTheme = {
   // (resolveOrbModuleSettings in lib/orb-modules.ts) so this model stays
   // dependency-free.
   orbModuleSettings: Record<string, Record<string, number>>;
+  // "Liquid glass" overlay tuning (see NovaGlassSettings). Applies over any
+  // orb module, so it lives on the theme rather than in a module's per-module
+  // settings. DOM/SVG-only; no tvOS counterpart.
+  glass: NovaGlassSettings;
 };
 
 // Cursor positions chosen so the spectrum's HSL math yields roughly the
@@ -79,6 +133,7 @@ export const DEFAULT_NOVA_AVATAR_THEME: NovaAvatarTheme = {
   innerShadowOpacity: 0.5,
   orbModule: "classic",
   orbModuleSettings: {},
+  glass: DEFAULT_NOVA_GLASS_SETTINGS,
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -158,6 +213,28 @@ function normalizeOrbModuleSettings(value: unknown): Record<string, Record<strin
   return result;
 }
 
+// Each glass knob is a 0-100 magnitude; `enabled` gates the whole overlay.
+// A missing block yields the defaults so existing saved themes light the
+// glass up on first load without a migration.
+export function normalizeNovaGlassSettings(value: unknown): NovaGlassSettings {
+  const v = (value ?? {}) as Partial<NovaGlassSettings>;
+  const pct = (raw: unknown, fallback: number) => {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 100) : fallback;
+  };
+  return {
+    enabled: typeof v.enabled === "boolean" ? v.enabled : DEFAULT_NOVA_GLASS_SETTINGS.enabled,
+    displace: pct(v.displace, DEFAULT_NOVA_GLASS_SETTINGS.displace),
+    curvature: pct(v.curvature, DEFAULT_NOVA_GLASS_SETTINGS.curvature),
+    smoothness: pct(v.smoothness, DEFAULT_NOVA_GLASS_SETTINGS.smoothness),
+    clarity: pct(v.clarity, DEFAULT_NOVA_GLASS_SETTINGS.clarity),
+    gloss: pct(v.gloss, DEFAULT_NOVA_GLASS_SETTINGS.gloss),
+    shadow: pct(v.shadow, DEFAULT_NOVA_GLASS_SETTINGS.shadow),
+    reflection: pct(v.reflection, DEFAULT_NOVA_GLASS_SETTINGS.reflection),
+    drift: pct(v.drift, DEFAULT_NOVA_GLASS_SETTINGS.drift),
+  };
+}
+
 export function normalizeNovaAvatarTheme(value: unknown): NovaAvatarTheme {
   const v = (value ?? {}) as Partial<NovaAvatarTheme>;
   const lines = Array.isArray(v.lineColors) ? v.lineColors : [];
@@ -183,5 +260,6 @@ export function normalizeNovaAvatarTheme(value: unknown): NovaAvatarTheme {
     innerShadowOpacity: normalizeInnerShadowOpacity(v.innerShadowOpacity),
     orbModule: normalizeOrbModuleId(v.orbModule),
     orbModuleSettings: normalizeOrbModuleSettings(v.orbModuleSettings),
+    glass: normalizeNovaGlassSettings(v.glass),
   };
 }

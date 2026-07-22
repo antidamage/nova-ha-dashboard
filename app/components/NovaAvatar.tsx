@@ -1,11 +1,18 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { appliedThemeRgb, useDeviceTheme, type SunThemeStatus, type ThemeStorageValue } from "./accentColor";
 import type { NovaAvatarTheme } from "./avatarThemeModel";
 import { resolveOrbModuleSettings } from "../../lib/orb-modules";
-import { readExperienceFeatures, useExperienceFeature } from "./dashboard/experienceModeSetting";
+import { readExperienceFeatures, useExperienceFeature, useLiteMode } from "./dashboard/experienceModeSetting";
+import {
+  NovaOrbGlassFilter,
+  NovaOrbGlassLayers,
+  glassBoxShadow,
+  glassCanvasMask,
+  glassCanvasOpacity,
+} from "./NovaOrbGlass";
 import { sampleVoiceSpeechEnvelope, useVoiceSpeechPhase } from "./dashboard/voiceSpeech";
 import { markInput as markVoiceInput, useVoiceMode } from "./dashboard/voiceMode";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
@@ -203,6 +210,17 @@ function NovaAvatarVisual({
   // The active theme names the orb module to draw with; the hook resolves it
   // against built-ins + host-deployed module files, falling back to classic.
   const orbModule = useOrbModule(theme.orbModule);
+
+  // "Liquid glass" overlay (SVG displacement + silver-room reflection + gloss;
+  // see NovaOrbGlass). Each mount gets a unique filter id so multiple orbs
+  // (dashboard + config preview) don't collide on one <filter>. The reflection
+  // drift only runs when it can actually be seen and lite mode allows motion.
+  const glass = theme.glass;
+  const lite = useLiteMode();
+  const rawFilterId = useId();
+  const glassFilterId = `nova-orb-glass-${rawFilterId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const glassEnabled = glass.enabled;
+  const glassDriftActive = glassEnabled && !lite && glass.reflection > 0 && glass.drift > 0;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -486,6 +504,34 @@ function NovaAvatarVisual({
     "--nova-avatar-voice-glow": `${voiceGlowRgb[0]}, ${voiceGlowRgb[1]}, ${voiceGlowRgb[2]}`,
     width: size,
     height: size,
+    // With glass OFF there is no disc box-shadow, so restore the classic host
+    // drop-shadow. With glass ON the host must carry NO filter (it would kill
+    // the backdrop-filter refraction) — the disc's box-shadow covers the cast.
+    ...(glassEnabled ? {} : { filter: "drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55))" }),
+  } as CSSProperties;
+  // The refraction is a backdrop-filter on the glass disc; a `filter` on any
+  // ancestor would silently disable it, so the cast shadow lives on the disc
+  // as a box-shadow (see NovaOrbGlass.glassBoxShadow) and the host carries no
+  // filter. The disc sits BEHIND the canvas and in front of the voice glow.
+  const glassDiscStyle = glassEnabled
+    ? ({
+        backdropFilter: `url(#${glassFilterId})`,
+        WebkitBackdropFilter: `url(#${glassFilterId})`,
+        boxShadow: glassBoxShadow(glass),
+      } as CSSProperties)
+    : undefined;
+  const glassCanvasMaskValue = glassEnabled ? glassCanvasMask(glass) : undefined;
+  const canvasStyle = {
+    width: size,
+    height: size,
+    ...(glassEnabled
+      ? {
+          opacity: glassCanvasOpacity(glass),
+          ...(glassCanvasMaskValue
+            ? { maskImage: glassCanvasMaskValue, WebkitMaskImage: glassCanvasMaskValue }
+            : {}),
+        }
+      : {}),
   } as CSSProperties;
   const gymCounterLabel = gymLastResetAt === null
     ? "Hours since last gym visit: no scraped visit found yet."
@@ -528,12 +574,24 @@ function NovaAvatarVisual({
         className={`nova-avatar-voice-glow${voiceGlowActive ? " is-visible" : ""}`}
         aria-hidden="true"
       />
+      {/* Liquid glass sits BEHIND the orb canvas and in front of the voice
+          glow: a clear disc whose backdrop-filter refracts the page behind the
+          whole orb, with the silver-room reflection + gloss fading in from the
+          rim. The canvas (below) is dialled clear toward its centre so the
+          refraction reads through the middle; the gym counter stays on top and
+          sharp. */}
+      {glassEnabled ? (
+        <div className="nova-orb-glass" style={glassDiscStyle} aria-hidden="true">
+          <NovaOrbGlassLayers glass={glass} hostRef={hostRef} active={glassDriftActive} />
+        </div>
+      ) : null}
       <canvas
         ref={canvasRef}
         aria-hidden="true"
         className="nova-avatar-canvas"
-        style={{ width: size, height: size }}
+        style={canvasStyle}
       />
+      {glassEnabled ? <NovaOrbGlassFilter filterId={glassFilterId} glass={glass} /> : null}
       <div
         className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}
         style={gymCounterStyle}

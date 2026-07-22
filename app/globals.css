@@ -186,7 +186,9 @@ html[data-nova-lite] body.task-glow-preview::after {
   height: var(--nova-avatar-size);
   z-index: 1000;
   pointer-events: none;
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55));
+  /* NB: no `filter` here. The orb's cast shadow is a box-shadow on the glass
+     disc instead — a `filter` on this ancestor would make the orb a backdrop
+     root and silently disable the glass backdrop-filter refraction. */
   will-change: transform;
 }
 
@@ -222,7 +224,7 @@ html[data-nova-lite] body.task-glow-preview::after {
   transform: translate(-50%, -50%) scale(var(--nova-avatar-speech-scale, 2));
   z-index: 4000;
   pointer-events: none;
-  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55));
+  /* No `filter` — see .nova-avatar-host; the shadow rides the glass disc. */
   opacity: 0;
   transition: opacity 0.25s ease;
   will-change: opacity;
@@ -237,7 +239,95 @@ html[data-nova-lite] body.task-glow-preview::after {
   border-radius: 50%;
   pointer-events: none;
   position: relative;
+  z-index: 2;
+}
+
+/* ==== LIQUID GLASS OVERLAY ================================================
+   A clear disc that sits BEHIND the orb canvas (z-index 1) and in front of the
+   voice glow (z-index 0). Its backdrop-filter (set inline in NovaAvatar as
+   `url(#...)`) refracts the page behind the WHOLE orb — the artist "liquid
+   glass" lens. The canvas above is dialled clear toward its centre (clarity),
+   so the refraction reads through the middle while the graphics survive at the
+   rim. The reflection + gloss children fade in from the edges. See
+   NovaOrbGlass.tsx. IMPORTANT: nothing in the orb's ancestry may set `filter`,
+   which would make this a backdrop root and kill the refraction. */
+.nova-orb-glass {
+  position: absolute;
+  inset: 0;
   z-index: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The filter <svg> paints nothing itself; keep it out of layout/flow. */
+.nova-orb-glass-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Lite mode: drop the GPU-heavy backdrop refraction (the blanket lite rule
+   neutralises backdrop-filter via `backdrop-filter: none`, but the inline
+   style would still win, so override it explicitly). The reflection/gloss
+   gradients stay — they're cheap — just no refraction and no drift (drift is
+   JS-gated by lite mode in NovaAvatar). */
+html[data-nova-lite] .nova-orb-glass {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Silver-room reflection: a screen-blended pane of "overhead lights in a grey
+   room" that only adds highlights (screen drops the dark floor), panned by
+   --nova-orb-refl-x/y as the orb moves / the pointer sweeps, and masked so it
+   fades in from the rim and leaves the centre clear. */
+.nova-orb-reflection {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  z-index: 2;
+  --nova-orb-refl-x: 0px;
+  --nova-orb-refl-y: 0px;
+  -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 24%, #000 82%);
+  mask-image: radial-gradient(circle at 50% 46%, transparent 24%, #000 82%);
+}
+
+.nova-orb-reflection-room {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 178%;
+  height: 178%;
+  transform: translate(-50%, -50%)
+    translate(var(--nova-orb-refl-x, 0px), var(--nova-orb-refl-y, 0px));
+  background:
+    radial-gradient(130% 60% at 50% -18%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 46%),
+    radial-gradient(34% 9% at 27% 15%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(34% 9% at 70% 19%, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(70% 7% at 50% 39%, rgba(200, 214, 224, 0.5) 0%, rgba(200, 214, 224, 0) 78%),
+    linear-gradient(180deg, #cfd6dd 0%, #aab3bb 40%, #6c757d 58%, #3c4249 100%);
+}
+
+/* Gloss: the fixed key-light highlight over the top plus a bright crescent at
+   the very top rim. Screen-blended so it only brightens; masked to the upper
+   rim so it fades in from the edge and stays off the clear centre. */
+.nova-orb-gloss {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  z-index: 3;
+  background:
+    radial-gradient(52% 40% at 34% 16%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 64%),
+    radial-gradient(92% 26% at 50% 2%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 68%);
+  -webkit-mask-image: radial-gradient(circle at 50% 44%, transparent 30%, #000 78%);
+  mask-image: radial-gradient(circle at 50% 44%, transparent 30%, #000 78%);
 }
 
 .nova-avatar-gym-counter {
