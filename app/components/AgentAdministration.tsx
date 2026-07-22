@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AgentAdministrationPayload,
+  AgentAutomation,
   AgentMemory,
+  ProactiveIntervention,
   SpeakerProfilesPayload,
 } from "../../lib/iridium-voice-settings";
 
@@ -27,6 +29,15 @@ async function memoryAction(body: Record<string, unknown>) {
   if (!response.ok) throw new Error(`Memory request failed (${response.status})`);
 }
 
+async function automationAction(body: Record<string, unknown>) {
+  const response = await fetch("/api/voice/automations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(`Automation request failed (${response.status})`);
+}
+
 function csv(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
 }
@@ -35,6 +46,8 @@ export function AgentAdministration() {
   const [administration, setAdministration] = useState<AgentAdministrationPayload | null>(null);
   const [profiles, setProfiles] = useState<SpeakerProfilesPayload | null>(null);
   const [memories, setMemories] = useState<AgentMemory[]>([]);
+  const [automations, setAutomations] = useState<AgentAutomation[]>([]);
+  const [interventions, setInterventions] = useState<ProactiveIntervention[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [granteeId, setGranteeId] = useState("");
@@ -49,21 +62,37 @@ export function AgentAdministration() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [notifyOnUse, setNotifyOnUse] = useState(true);
+  const [automationOwnerId, setAutomationOwnerId] = useState("");
+  const [automationId, setAutomationId] = useState("");
+  const [automationSummary, setAutomationSummary] = useState("");
+  const [automationEventKind, setAutomationEventKind] = useState("device_health");
+  const [automationChannel, setAutomationChannel] = useState("dashboard");
+  const [automationMessage, setAutomationMessage] = useState("");
 
   const refresh = useCallback(async () => {
     try {
-      const [adminResponse, profileResponse, memoryResponse] = await Promise.all([
+      const [adminResponse, profileResponse, memoryResponse, automationResponse] = await Promise.all([
         fetch("/api/voice/administration", { cache: "no-store" }),
         fetch("/api/voice/speaker-profiles", { cache: "no-store" }),
         fetch("/api/voice/memories", { cache: "no-store" }),
+        fetch("/api/voice/automations", { cache: "no-store" }),
       ]);
       if (!adminResponse.ok || !profileResponse.ok) throw new Error("Voice administration unavailable");
       const admin = await adminResponse.json() as AgentAdministrationPayload;
       const people = await profileResponse.json() as SpeakerProfilesPayload;
       if (memoryResponse.ok) setMemories(((await memoryResponse.json()) as { memories: AgentMemory[] }).memories);
+      if (automationResponse.ok) {
+        const automationPayload = await automationResponse.json() as {
+          automations: AgentAutomation[];
+          interventions: ProactiveIntervention[];
+        };
+        setAutomations(automationPayload.automations);
+        setInterventions(automationPayload.interventions);
+      }
       setAdministration(admin);
       setProfiles(people);
       setGranteeId((current) => current || people.profiles[0]?.id || "");
+      setAutomationOwnerId((current) => current || admin.identities.find((identity) => identity.role === "owner")?.person_id || "");
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Voice administration unavailable");
@@ -115,6 +144,23 @@ export function AgentAdministration() {
     setExpiresAt("");
     setMaxUses("");
     setMaxAmount("");
+  }
+
+  async function createAutomation() {
+    if (!automationOwnerId || !automationId.trim() || !automationSummary.trim()) return;
+    await automationAction({
+      action: "draft",
+      ownerId: automationOwnerId,
+      draft: {
+        id: automationId.trim(),
+        summary: automationSummary.trim(),
+        trigger: { kind: automationEventKind },
+        proposed_actions: [{ channel: automationChannel, message: automationMessage.trim() || automationSummary.trim() }],
+      },
+    });
+    setAutomationId("");
+    setAutomationSummary("");
+    setAutomationMessage("");
   }
 
   return (
@@ -218,6 +264,46 @@ export function AgentAdministration() {
         <div className="mt-2 max-h-72 space-y-2 overflow-auto">{memories.map((memory) => (
           <div key={memory.id} className="rounded-xl bg-white/5 p-3 text-sm"><div className="flex justify-between gap-2"><strong>{memory.memory_type.replace("_", " ")}</strong><span className="text-xs text-neutral-500">{memory.pinned ? "Pinned" : ""}</span></div><p>{memory.text}</p><p className="mt-1 text-xs text-neutral-500">{memory.owner_id ?? "household"} · {new Date(memory.created_at).toLocaleDateString()}</p><div className="mt-2 flex flex-wrap gap-3"><button disabled={busy} className="text-cyan-300" onClick={() => void run(() => memoryAction({ action: "update", memoryId: memory.id, update: { pinned: !memory.pinned } }))}>{memory.pinned ? "Unpin" : "Pin"}</button><button disabled={busy} className="text-cyan-300" onClick={() => { const text = window.prompt("Correct this memory", memory.text); if (text?.trim()) void run(() => memoryAction({ action: "update", memoryId: memory.id, update: { text: text.trim() } })); }}>Correct</button><button disabled={busy} className="text-cyan-300" onClick={() => { const value = window.prompt("Expiry (ISO date-time, blank to leave unchanged)", memory.expires_at ?? ""); if (value?.trim()) void run(() => memoryAction({ action: "update", memoryId: memory.id, update: { expires_at: new Date(value).toISOString() } })); }}>Expiry</button><button disabled={busy} className="text-red-300" onClick={() => void run(() => memoryAction({ action: "forget", memoryId: memory.id }))}>Forget</button></div></div>
         ))}{!memories.length ? <p className="text-sm text-neutral-500">No saved conversational memories yet.</p> : null}</div>
+      </div>
+
+      <div className="mt-6">
+        <h3 className="text-sm font-bold uppercase tracking-wide text-neutral-400">Proactive home automations</h3>
+        <p className="mt-1 text-xs text-neutral-500">Automations first simulate and require an assigned owner to approve and activate. Active rules produce reviewable voice, dashboard, or notification proposals; they do not silently control devices.</p>
+        <div className="mt-3 grid gap-2 rounded-2xl bg-white/5 p-3 sm:grid-cols-2 xl:grid-cols-3">
+          <select className="rounded-lg bg-neutral-900 p-2" value={automationOwnerId} onChange={(event) => setAutomationOwnerId(event.target.value)}>
+            <option value="">Choose assigned owner</option>
+            {administration?.identities.filter((identity) => identity.role === "owner").map((identity) => <option key={identity.person_id} value={identity.person_id}>{identity.person_id}</option>)}
+          </select>
+          <input className="rounded-lg bg-neutral-900 p-2" placeholder="Rule id, e.g. energy-watch" value={automationId} onChange={(event) => setAutomationId(event.target.value)} />
+          <input className="rounded-lg bg-neutral-900 p-2" placeholder="What this rule does" value={automationSummary} onChange={(event) => setAutomationSummary(event.target.value)} />
+          <select className="rounded-lg bg-neutral-900 p-2" value={automationEventKind} onChange={(event) => setAutomationEventKind(event.target.value)}>
+            <option value="device_health">Device health event</option><option value="energy">Energy event</option><option value="occupancy">Occupancy event</option><option value="ha_state">Household state event</option>
+          </select>
+          <select className="rounded-lg bg-neutral-900 p-2" value={automationChannel} onChange={(event) => setAutomationChannel(event.target.value)}>
+            <option value="dashboard">Dashboard proposal</option><option value="voice">Voice proposal</option><option value="notification">Notification proposal</option>
+          </select>
+          <input className="rounded-lg bg-neutral-900 p-2" placeholder="Optional concise message" value={automationMessage} onChange={(event) => setAutomationMessage(event.target.value)} />
+          <button disabled={busy || !automationOwnerId || !automationId.trim() || !automationSummary.trim()} className="rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-black disabled:opacity-40" onClick={() => void run(createAutomation)}>Draft automation</button>
+        </div>
+        <div className="mt-3 space-y-2">{automations.map((automation) => (
+          <div key={automation.id} className="rounded-xl bg-white/5 p-3 text-sm">
+            <div className="flex flex-wrap justify-between gap-2"><strong>{automation.summary}</strong><span className="text-xs uppercase text-neutral-400">{automation.state}</span></div>
+            <p className="mt-1 text-xs text-neutral-500">{automation.owner_id} · event: {String(automation.trigger.kind ?? "unknown")} · {automation.proposed_actions.length} proposal{automation.proposed_actions.length === 1 ? "" : "s"}</p>
+            {automation.simulation ? <p className="mt-1 text-xs text-cyan-200">Simulation: {automation.simulation.safe === true ? "safe" : "needs review"}; {String(automation.simulation.proposedActionCount ?? 0)} proposed action(s).</p> : null}
+            <div className="mt-2 flex flex-wrap gap-3">
+              {automation.state === "draft" || automation.state === "simulated" ? <button disabled={busy} className="text-cyan-300" onClick={() => void run(() => automationAction({ action: "simulate", automationId: automation.id }))}>Simulate</button> : null}
+              {automation.state === "simulated" ? <button disabled={busy} className="text-cyan-300" onClick={() => void run(() => automationAction({ action: "approve", automationId: automation.id, ownerId: automation.owner_id }))}>Approve</button> : null}
+              {automation.state === "approved" ? <button disabled={busy} className="text-cyan-300" onClick={() => void run(() => automationAction({ action: "activate", automationId: automation.id, ownerId: automation.owner_id }))}>Activate</button> : null}
+              {["active", "paused", "failed"].includes(automation.state) ? <button disabled={busy} className="text-red-300" onClick={() => void run(() => automationAction({ action: "rollback", automationId: automation.id, ownerId: automation.owner_id }))}>Roll back</button> : null}
+            </div>
+          </div>
+        ))}{!automations.length ? <p className="text-sm text-neutral-500">No automation drafts yet.</p> : null}</div>
+        <div className="mt-4">
+          <h4 className="text-xs font-bold uppercase tracking-wide text-neutral-400">Proactive feedback</h4>
+          <div className="mt-2 space-y-2">{interventions.map((intervention) => (
+            <div key={intervention.id} className="rounded-xl bg-white/5 p-3 text-sm"><strong>{intervention.reason_detail}</strong><p className="text-xs text-neutral-500">{intervention.channel} · {intervention.status}{intervention.feedback ? ` · ${intervention.feedback}` : ""}</p>{!intervention.feedback ? <div className="mt-2 flex flex-wrap gap-3">{(["accepted", "dismissed", "redundant", "annoying"] as const).map((outcome) => <button key={outcome} disabled={busy || !automationOwnerId} className={outcome === "annoying" ? "text-red-300" : "text-cyan-300"} onClick={() => void run(() => automationAction({ action: "feedback", interventionId: intervention.id, ownerId: automationOwnerId, outcome }))}>{outcome}</button>)}</div> : null}</div>
+          ))}{!interventions.length ? <p className="text-sm text-neutral-500">No proactive interventions recorded yet.</p> : null}</div>
+        </div>
       </div>
     </section>
   );
