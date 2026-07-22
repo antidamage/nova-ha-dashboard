@@ -419,6 +419,7 @@ export type AgentAdministrationPayload = {
     person_id: string;
     role: "owner" | "recognized_household" | "guest";
   }>;
+  research: AgentResearch[];
   audit: Array<Record<string, unknown> & {
     id: string;
     actor_id: string;
@@ -428,6 +429,21 @@ export type AgentAdministrationPayload = {
     created_at: string;
   }>;
   auditTotal: number;
+};
+
+export type AgentResearch = {
+  id: string;
+  owner_id: string;
+  query: string;
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
+  spoken_summary?: string | null;
+  detail: Record<string, unknown>;
+  citations: string[];
+  uncertainty: "low" | "medium" | "high";
+  backend?: string | null;
+  error?: string | null;
+  created_at: string;
+  completed_at?: string | null;
 };
 
 export async function fetchIridiumAgentAdministration(): Promise<AgentAdministrationPayload | null> {
