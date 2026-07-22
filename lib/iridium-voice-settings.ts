@@ -308,6 +308,13 @@ export type SpeakerProfileSummary = {
   id: string;
   displayName: string;
   pronouns?: string | null;
+  speechPreferences?: {
+    language: string;
+    speech_rate: number;
+    delivery_mode: "auto" | "normal" | "whisper";
+    accessibility_pacing: boolean;
+    pronunciations: Record<string, string>;
+  };
   createdAt: string;
   updatedAt: string;
   templates: SpeakerTemplateSummary[];
@@ -327,7 +334,11 @@ export async function fetchIridiumSpeakerProfiles(): Promise<SpeakerProfilesPayl
 
 export async function updateIridiumSpeakerProfile(
   personId: string,
-  update: { displayName?: string; pronouns?: string | null },
+  update: {
+    displayName?: string;
+    pronouns?: string | null;
+    speechPreferences?: NonNullable<SpeakerProfileSummary["speechPreferences"]>;
+  },
 ): Promise<IridiumJsonResult> {
   return requestIridiumJson(
     `${SPEAKER_PROFILES_PATH}/${encodeURIComponent(personId)}`,
@@ -335,6 +346,9 @@ export async function updateIridiumSpeakerProfile(
     { method: "PATCH", body: {
       ...(update.displayName === undefined ? {} : { display_name: update.displayName }),
       ...(update.pronouns === undefined ? {} : { pronouns: update.pronouns }),
+      ...(update.speechPreferences === undefined
+        ? {}
+        : { speech_preferences: update.speechPreferences }),
     } },
   );
 }

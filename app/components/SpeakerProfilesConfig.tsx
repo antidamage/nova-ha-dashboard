@@ -13,6 +13,14 @@ const identityDateFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
+const DEFAULT_SPEECH_PREFERENCES = {
+  language: "Auto",
+  speech_rate: 100,
+  delivery_mode: "auto" as const,
+  accessibility_pacing: false,
+  pronunciations: {} as Record<string, string>,
+};
+
 function relativeLastSeen(value: string, nowMs: number | null): string {
   const timestamp = new Date(value).getTime();
   if (!Number.isFinite(timestamp)) return "Last seen unknown";
@@ -111,11 +119,29 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
 }) {
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [pronouns, setPronouns] = useState(profile.pronouns ?? "");
+  const initialSpeech = profile.speechPreferences ?? DEFAULT_SPEECH_PREFERENCES;
+  const [language, setLanguage] = useState(initialSpeech.language);
+  const [speechRate, setSpeechRate] = useState(initialSpeech.speech_rate);
+  const [deliveryMode, setDeliveryMode] = useState(initialSpeech.delivery_mode);
+  const [accessibilityPacing, setAccessibilityPacing] = useState(
+    initialSpeech.accessibility_pacing,
+  );
+  const [pronunciations, setPronunciations] = useState(
+    Object.entries(initialSpeech.pronunciations)
+      .map(([source, spoken]) => `${source} = ${spoken}`).join("\n"),
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDisplayName(profile.displayName);
     setPronouns(profile.pronouns ?? "");
+    const speech = profile.speechPreferences ?? DEFAULT_SPEECH_PREFERENCES;
+    setLanguage(speech.language);
+    setSpeechRate(speech.speech_rate);
+    setDeliveryMode(speech.delivery_mode);
+    setAccessibilityPacing(speech.accessibility_pacing);
+    setPronunciations(Object.entries(speech.pronunciations)
+      .map(([source, spoken]) => `${source} = ${spoken}`).join("\n"));
   }, [profile]);
 
   const save = async () => {
@@ -125,7 +151,23 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
       const response = await fetch(`/api/voice/speaker-profiles/${encodeURIComponent(profile.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: displayName.trim(), pronouns: pronouns.trim() }),
+        body: JSON.stringify({
+          displayName: displayName.trim(),
+          pronouns: pronouns.trim(),
+          speechPreferences: {
+            language,
+            speech_rate: speechRate,
+            delivery_mode: deliveryMode,
+            accessibility_pacing: accessibilityPacing,
+            pronunciations: Object.fromEntries(pronunciations.split("\n").flatMap((line) => {
+              const separator = line.indexOf("=");
+              if (separator < 1) return [];
+              const source = line.slice(0, separator).trim();
+              const spoken = line.slice(separator + 1).trim();
+              return source && spoken ? [[source, spoken]] : [];
+            })),
+          },
+        }),
       });
       if (!response.ok) throw new Error(`Profile update failed: ${response.status}`);
       await onSaved();
@@ -165,6 +207,60 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
           <Save className="mr-1 inline h-4 w-4" aria-hidden="true" /> Save
         </button>
       </div>
+      <div className="grid gap-2 md:grid-cols-3">
+        <label className="grid gap-1 text-xs text-neutral-400">
+          Spoken language
+          <select
+            className="border border-neutral-700 bg-black/40 px-2 py-1.5 text-sm text-neutral-100"
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+          >
+            {["Auto", "English", "Chinese", "Japanese", "Korean", "German", "French", "Russian", "Portuguese", "Spanish", "Italian"].map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs text-neutral-400">
+          Delivery
+          <select
+            className="border border-neutral-700 bg-black/40 px-2 py-1.5 text-sm text-neutral-100"
+            value={deliveryMode}
+            onChange={(event) => setDeliveryMode(event.target.value as typeof deliveryMode)}
+          >
+            <option value="auto">Auto (quiet at night)</option>
+            <option value="normal">Normal</option>
+            <option value="whisper">Whisper</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs text-neutral-400">
+          Pace: {speechRate}%
+          <input
+            type="range"
+            min={70}
+            max={130}
+            step={5}
+            value={speechRate}
+            onChange={(event) => setSpeechRate(Number(event.target.value))}
+          />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-xs text-neutral-300">
+        <input
+          type="checkbox"
+          checked={accessibilityPacing}
+          onChange={(event) => setAccessibilityPacing(event.target.checked)}
+        />
+        Clear accessibility pacing and deliberate word boundaries
+      </label>
+      <label className="grid gap-1 text-xs text-neutral-400">
+        Pronunciation dictionary (one “written = spoken” entry per line)
+        <textarea
+          className="min-h-20 border border-neutral-700 bg-black/40 px-2 py-1.5 font-mono text-sm text-neutral-100"
+          value={pronunciations}
+          placeholder="Ngā = Ngar"
+          onChange={(event) => setPronunciations(event.target.value)}
+        />
+      </label>
       <p className="text-xs text-neutral-500">
         {profile.templates.length} associated recorded identit{profile.templates.length === 1 ? "y" : "ies"}
       </p>
