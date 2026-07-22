@@ -8,6 +8,11 @@ import {
   warmWeatherCache,
 } from "./ha";
 import { emitDashboardEvent } from "./event-spool";
+import {
+  appendHouseholdEvent,
+  appendTaskSnapshotEvents,
+  normalizedHaStateChange,
+} from "./household-events";
 import { isIcloudEnabled, logIcloudDisabledOnce, readIcloudConfig } from "./icloud-config";
 import { ensurePowerMonitorStarted } from "./power";
 import { readDashboardConfigSync } from "./dashboard-config";
@@ -48,6 +53,7 @@ type DashboardEventStore = {
   buildPollTimer: ReturnType<typeof setInterval> | null;
   clients: Set<DashboardEventClient>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
+  householdEventBackboneStarted: boolean;
   haStateChangeTimer: ReturnType<typeof setTimeout> | null;
   haStateChangeUnsubscribe: (() => void) | null;
   haStateChangeReconnectTimer: ReturnType<typeof setTimeout> | null;
@@ -90,6 +96,7 @@ const store =
     buildPollTimer: null,
     clients: new Set<DashboardEventClient>(),
     heartbeatTimer: null,
+    householdEventBackboneStarted: false,
     haStateChangeTimer: null,
     haStateChangeUnsubscribe: null,
     haStateChangeReconnectTimer: null,
@@ -126,6 +133,7 @@ store.haStateChangeUnsubscribe ??= null;
 store.haStateChangeReconnectTimer ??= null;
 store.haStateChangeReconnectAttempts ??= 0;
 store.haHealthStatus ??= "ok";
+store.householdEventBackboneStarted ??= false;
 store.icloudSyncTimer ??= null;
 store.icloudSyncing ??= false;
 store.latestSun ??= null;
@@ -276,6 +284,9 @@ export function publishDashboardError(message: string) {
 export function publishTasks(tasks: Task[]) {
   store.latestTasksJson = JSON.stringify({ tasks });
   broadcastTask(sseEvent("tasks", store.latestTasksJson));
+  void appendTaskSnapshotEvents(tasks).catch((error) => {
+    console.error("[nova-dashboard] Failed to persist normalized task events", { error });
+  });
 }
 
 export function publishTaskDismiss(taskId: string) {
@@ -745,9 +756,12 @@ function startHaStateChangeSubscription() {
 
   try {
     store.haStateChangeUnsubscribe = subscribeHaStateChanges(
-      (entityId) => {
+      (entityId, change) => {
         // Any successful event means the socket is healthy again — reset backoff.
         store.haStateChangeReconnectAttempts = 0;
+        void appendHouseholdEvent(normalizedHaStateChange(change)).catch((error) => {
+          console.error("[nova-dashboard] Failed to persist normalized HA event", { error });
+        });
         if (entityMayAffectDashboard(entityId)) {
           scheduleDashboardStatePoll();
         }
@@ -991,7 +1005,11 @@ function startDashboardEventPoller() {
 }
 
 function stopDashboardEventPollerIfIdle() {
-  if (store.clients.size > 0 || store.taskClients.size > 0) {
+  if (
+    store.householdEventBackboneStarted
+    || store.clients.size > 0
+    || store.taskClients.size > 0
+  ) {
     return;
   }
 
@@ -1040,6 +1058,20 @@ function stopDashboardEventPollerIfIdle() {
     clearInterval(store.icloudSyncTimer);
     store.icloudSyncTimer = null;
   }
+}
+
+export function ensureHouseholdEventBackboneStarted() {
+  if (store.householdEventBackboneStarted) {
+    return;
+  }
+  store.householdEventBackboneStarted = true;
+  startDashboardEventPoller();
+  void import("./tasks")
+    .then(({ readTasks }) => readTasks())
+    .then((tasks) => appendTaskSnapshotEvents(tasks))
+    .catch((error) => {
+      console.error("[nova-dashboard] Failed to seed normalized task events", { error });
+    });
 }
 
 export function subscribeDashboardEvents() {

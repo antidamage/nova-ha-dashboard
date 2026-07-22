@@ -14,6 +14,7 @@ The dashboard is configured through a portable, versioned JSON schema. Shipped d
 - Includes live colour selection, brightness control, router status, and a digital clock.
 - Excludes special-case devices, such as the outside light, from broad inside/everything actions.
 - Polls and refreshes local state so multiple open dashboard clients stay reasonably current.
+- Publishes an authenticated, persistent cursor feed of normalized household events for Nova Voice.
 
 ## Local Development
 
@@ -75,7 +76,8 @@ The app expects Home Assistant connection settings from environment variables:
 - `HA_URL`: Home Assistant base URL, defaulting to `http://127.0.0.1:8123`.
 - `HA_TOKEN`: a Home Assistant long-lived access token.
 - `NOVA_DASHBOARD_CONFIG`: optional runtime config path, defaulting to `data/dashboard-config.json`.
-- `NOVA_DASHBOARD_MCP_TOKEN`: bearer token required for MCP POST calls when MCP auth is enabled.
+- `NOVA_DASHBOARD_MCP_TOKEN`: bearer token for MCP calls and the server-to-server household event feed.
+- `NOVA_DASHBOARD_HOUSEHOLD_EVENTS`: optional normalized event-spool path, defaulting to `data/household-events.jsonl`.
 - `NOVA_VOICE_IRIDIUM_URL`: Nova Voice base URL (deployed value: see `PRIVATEREF.md#1.3`).
 - `ICLOUD_USERNAME`: optional Apple ID email for CalDAV Calendar/Reminders sync.
 - `ICLOUD_APP_PASSWORD`: optional Apple app-specific password for CalDAV sync.

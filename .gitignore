@@ -39,6 +39,7 @@ pnpm-debug.log*
 .playwright-cli/
 output/
 data/*.json
+data/*.jsonl
 data/camera/
 data/gymmaster/
 data/managed-computer-keys/
