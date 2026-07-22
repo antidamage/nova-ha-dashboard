@@ -436,6 +436,44 @@ export async function fetchIridiumAgentAdministration(): Promise<AgentAdministra
   return payload as AgentAdministrationPayload;
 }
 
+export type AgentMemory = {
+  id: string;
+  text: string;
+  memory_type: string;
+  owner_id?: string | null;
+  pinned: boolean;
+  needs_confirmation: boolean;
+  created_at: string;
+  expires_at?: string | null;
+};
+
+export async function fetchIridiumAgentMemories(): Promise<AgentMemory[] | null> {
+  const payload = await fetchIridiumJson("/v1/agent/memories", "agent memories");
+  return payload && Array.isArray((payload as { memories?: unknown }).memories)
+    ? (payload as { memories: AgentMemory[] }).memories
+    : null;
+}
+
+export function updateIridiumAgentMemory(memoryId: string, body: Record<string, unknown>) {
+  return requestIridiumJson(`/v1/agent/memories/${encodeURIComponent(memoryId)}`, "agent memory update", {
+    method: "PATCH", body,
+  });
+}
+
+export function forgetIridiumAgentMemory(memoryId: string) {
+  return requestIridiumJson(`/v1/agent/memories/${encodeURIComponent(memoryId)}`, "forget agent memory", {
+    method: "DELETE",
+  });
+}
+
+export function backupIridiumAgentMemories() {
+  return requestIridiumJson("/v1/agent/memories/backup", "agent memory backup", { method: "POST" });
+}
+
+export function consolidateIridiumAgentMemories() {
+  return requestIridiumJson("/v1/agent/memories/consolidate", "agent memory consolidation", { method: "POST" });
+}
+
 export function setIridiumAgentIdentityRole(personId: string, role: string) {
   return requestIridiumJson(
     `/v1/agent/identities/${encodeURIComponent(personId)}`,
