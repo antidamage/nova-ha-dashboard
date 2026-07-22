@@ -204,8 +204,15 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const [snapshotMessage, setSnapshotMessage] = useState<string | null>(null);
   const [confirmSnapshot, setConfirmSnapshot] = useState(false);
 
+  // "No signal": a real (non-demo) feed that isn't recording and has no live
+  // stream — the capture device is absent. Computed here so the placeholder clock
+  // can be suppressed in that state (we show a plain "No signal", never a clock).
+  const offline = !DEMO_MODE && status !== null && !status.recording && !streamReady;
+  // The canvas clock is only a warming-up/demo placeholder — never a stand-in for
+  // a missing camera. Suppress it when offline so the panel reads "No signal".
   const showPlaceholder = DEMO_MODE || !streamReady;
-  useCanvasClock(canvasRef, showPlaceholder);
+  const showPlaceholderClock = showPlaceholder && !offline;
+  useCanvasClock(canvasRef, showPlaceholderClock);
 
   // Poll backend status (live mode only — the static demo has no API).
   useEffect(() => {
@@ -497,7 +504,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // While following live the player constantly re-seeks, which fires transient
   // pause/play events; treat live as "playing" so the control icon stays stable.
   const showAsPlaying = isLive || playing;
-  const offline = !DEMO_MODE && status !== null && !status.recording && !streamReady;
 
   return (
     <section className={classNames("camera-panel", className)}>
@@ -517,7 +523,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           muted
           autoPlay
         />
-        <canvas ref={canvasRef} className={classNames("camera-canvas", !showPlaceholder && "hidden")} />
+        <canvas ref={canvasRef} className={classNames("camera-canvas", !showPlaceholderClock && "hidden")} />
 
         <div className={classNames("camera-live-pill", isLive ? "is-live" : "is-rewound")}>
           <span className="camera-live-dot" />

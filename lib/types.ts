@@ -247,6 +247,33 @@ export type AgentPreferences = {
   ralphLoopSleepMs?: number;
   /** Wall-clock deadline after which an unverified action is reported as failed. */
   ralphLoopFailureSeconds?: number;
+  /**
+   * A loop still polling past this many milliseconds prints a single
+   * "*Thinking*" marker to the voice transcript (non-verbal, never spoken) so
+   * anyone watching the dashboard knows a slow device is still being
+   * confirmed rather than assuming the turn stalled.
+   */
+  ralphLoopThinkingThresholdMs?: number;
+  /**
+   * Let a small JSON-only LLM pass judge whether the observed device state
+   * satisfies the turn's objective once the cheap deterministic check has not
+   * yet succeeded. Its verdict is authoritative for ending the loop early or
+   * explaining a partial failure. Disabling it falls back to the original
+   * purely deterministic polling behaviour.
+   */
+  ralphLoopLlmVerifyEnabled?: boolean;
+  /**
+   * Minimum spacing between LLM confirmation calls within one turn's loop, no
+   * matter how many devices are pending, so a slow multi-item confirmation
+   * cannot flood the local LLM with a call per poll.
+   */
+  ralphLoopLlmVerifyMinIntervalMs?: number;
+  /**
+   * Hard cutoff for a single LLM confirmation call, in seconds. A slow or
+   * hanging LLM backend can never make the loop run past the failure deadline
+   * by more than this fixed budget.
+   */
+  ralphLoopLlmConfirmTimeoutSeconds?: number;
   updatedAt?: string;
 };
 
@@ -292,11 +319,28 @@ export type VoicePreferences = {
   /** Chance (0-1) that a conversational reply is rendered as two to four sentences. */
   longResponseProbability?: number;
   /**
-   * Maximum spoken-word length of a verified command acknowledgement (0-10). The
-   * actual length is rolled per reply as a random value in [0, this]; zero means
-   * a silent acknowledgement.
+   * Spoken-word length of a verified command acknowledgement is rolled per
+   * reply as a random value in [commandReplyMinWords, commandReplyMaxWords]
+   * (0-10 each). Zero at both ends means a silent acknowledgement; raising
+   * the minimum guarantees an audible reply every time — useful during
+   * development, when silent success is easy to mistake for no response.
    */
+  commandReplyMinWords?: number;
   commandReplyMaxWords?: number;
+  /**
+   * Let the agent look things up online when a request needs current or external
+   * information. Default off — this is the only feature that sends any text off
+   * the local network (the rewritten query only), so it is opt-in.
+   */
+  webAccessEnabled?: boolean;
+  /**
+   * Which backend answers a web lookup. "brave" scrapes Brave Search in a
+   * headless browser (Google-tier, keyless, non-Google); "local" is keyless
+   * DuckDuckGo + on-device summarize; "gemini" is retained in code only.
+   */
+  webBackend?: "brave" | "local" | "gemini";
+  /** How many sentences a spoken web answer may run (1-5). */
+  webAnswerMaxSentences?: number;
   /** Spoken wake words and common speech-recognition variants. */
   wakeWords?: string[];
   /** Legacy single wake word; migrated into wakeWords when read. */
@@ -315,6 +359,19 @@ export type VoicePreferences = {
   ttsPrerollMs?: number;
   /** Milliseconds of audio per steady-state frame sent to satellites. */
   ttsFrameMs?: number;
+  /**
+   * Speaker-matching tuning — TitaNet cosine similarity thresholds (0-1) that
+   * control how fuzzy voice recognition is across mics, rooms, and distances.
+   * Defaults mirror the voice service's historical env values.
+   */
+  /** Min cosine to accept a turn as a known person. Lower = recognizes more readily. */
+  speakerMatchThreshold?: number;
+  /** Required lead of the best match over the runner-up before it is trusted. */
+  speakerMatchMargin?: number;
+  /** Min cosine to merge a capture into an existing unnamed profile vs. making a new one. */
+  speakerClusterThreshold?: number;
+  /** Min cosine to keep the same speaker across one open conversation's follow-up turns. */
+  speakerConversationMatchThreshold?: number;
   /** Transcript header decoration template (%u%/%a%/%d%/%t%/%m% tokens). */
   transcriptTemplate?: string;
   /**

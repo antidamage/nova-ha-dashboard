@@ -4,8 +4,12 @@ export const VOICE_TRANSCRIPT_RETENTION_MS = 24 * 60 * 60 * 1_000;
 
 export type VoiceTranscriptRole = "user" | "assistant";
 
-/** Whether a turn executed/shadowed a dashboard command or was conversational. */
-export type VoiceTranscriptKind = "command" | "exchange";
+/**
+ * Whether a turn executed/shadowed a dashboard command, was conversational, or
+ * is a non-spoken "*Thinking*" marker posted while a device-verification loop
+ * is still polling (see nova-voice's bounded wiggum loop).
+ */
+export type VoiceTranscriptKind = "command" | "exchange" | "thinking";
 
 export type VoiceTranscriptEvent = {
   id: string;
@@ -50,7 +54,9 @@ function optionalLabel(value: unknown): string | undefined {
 }
 
 function optionalKind(value: unknown): VoiceTranscriptKind | undefined {
-  return value === "command" || value === "exchange" ? value : undefined;
+  return value === "command" || value === "exchange" || value === "thinking"
+    ? value
+    : undefined;
 }
 
 function optionalWords(value: unknown): string[] | undefined {
@@ -206,7 +212,11 @@ export function formatVoiceTranscriptParts(
       : displayAgentName(entry.agentName || fallbackAgentName).toLocaleUpperCase(),
     "%d%": transcriptDate(date),
     "%t%": transcriptTime(date),
-    "%m%": entry.kind === "command" ? "COMMAND" : "EXCHANGE",
+    "%m%": entry.kind === "command"
+      ? "COMMAND"
+      : entry.kind === "thinking"
+        ? "THINKING"
+        : "EXCHANGE",
   };
   const prefix = template.replace(/%[uadtm]%/g, (token) => substitutions[token] ?? token);
   return { prefix, bodyPrefix: VOICE_TRANSCRIPT_BODY_PREFIX, text: entry.text, role: entry.role };

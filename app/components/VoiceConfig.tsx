@@ -955,6 +955,39 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
 
         <div className="grid gap-1.5">
           <SliderControlPanel
+            ariaLabel="Command reply minimum words"
+            ariaValueText={
+              settings.commandReplyMinWords === 0
+                ? "no minimum"
+                : `at least ${settings.commandReplyMinWords} words`
+            }
+            color={[240, 160, 60]}
+            intensity={100}
+            label="Command reply minimum length"
+            max={VOICE_SETTINGS_RANGES.commandReplyMinWords.max}
+            min={VOICE_SETTINGS_RANGES.commandReplyMinWords.min}
+            step={VOICE_SETTINGS_RANGES.commandReplyMinWords.step}
+            value={settings.commandReplyMinWords}
+            valueText={
+              settings.commandReplyMinWords === 0 ? "None" : `≥${settings.commandReplyMinWords}`
+            }
+            onPreview={(commandReplyMinWords) => {
+              draggingRef.current.add("commandReplyMinWords");
+              setSettings((current) => ({ ...current, commandReplyMinWords }));
+            }}
+            onCommit={(commandReplyMinWords) =>
+              void commit("commandReplyMinWords", commandReplyMinWords)
+            }
+          />
+          <p className="px-1 text-xs leading-snug text-neutral-500">
+            Guarantees every command acknowledgement is at least this many words — raise above 0
+            to stop silent completions, which are easy to mistake for no response during
+            development. 0 allows the occasional silent confirmation.
+          </p>
+        </div>
+
+        <div className="grid gap-1.5">
+          <SliderControlPanel
             ariaLabel="Command reply maximum words"
             ariaValueText={
               settings.commandReplyMaxWords === 0
@@ -963,7 +996,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
             }
             color={[240, 160, 60]}
             intensity={100}
-            label="Command reply length"
+            label="Command reply maximum length"
             max={VOICE_SETTINGS_RANGES.commandReplyMaxWords.max}
             min={VOICE_SETTINGS_RANGES.commandReplyMaxWords.min}
             step={VOICE_SETTINGS_RANGES.commandReplyMaxWords.step}
@@ -983,7 +1016,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           />
           <p className="px-1 text-xs leading-snug text-neutral-500">
             Maximum spoken words when confirming a command; the actual length is rolled randomly
-            from 0 to this each time. 0 makes command confirmations silent.
+            between the minimum above and this each time.
           </p>
         </div>
 

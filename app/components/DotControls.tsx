@@ -290,6 +290,8 @@ export function DotLineControl({
   min = 0,
   onChange,
   onCommit,
+  snapTolerance,
+  snapValue,
   step = 1,
   value,
 }: {
@@ -312,6 +314,12 @@ export function DotLineControl({
   min?: number;
   onChange: (value: number) => void;
   onCommit?: (value: number) => void;
+  /** Magnetic zone around `snapValue` (in value units). When a pointer drag lands
+   *  within it, the value snaps exactly to `snapValue`. Defaults to a couple of
+   *  steps / ~3% of the range so a fixed default marker is easy to settle on. */
+  snapTolerance?: number;
+  /** A fixed value the slider magnetically snaps to on drag (e.g. the default). */
+  snapValue?: number;
   step?: number;
   value: number;
 }) {
@@ -377,6 +385,13 @@ export function DotLineControl({
     [onChange, roundToStep, setLocalValue],
   );
 
+  // Magnetic snap zone around a fixed value (e.g. the default marker). Defaults
+  // to whichever is larger of two steps or 3% of the range, so a single-value
+  // target is comfortable to settle on without making the rest of the track feel
+  // sticky.
+  const effectiveSnapTolerance =
+    snapTolerance ?? Math.max(step * 2, range * 0.03);
+
   const pick = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (disabled || !padRef.current) {
@@ -384,9 +399,14 @@ export function DotLineControl({
       }
 
       const rect = padRef.current.getBoundingClientRect();
-      setControlValue(min + ((event.clientX - rect.left) / rect.width) * range);
+      const raw = min + ((event.clientX - rect.left) / rect.width) * range;
+      const snapped =
+        snapValue !== undefined && Math.abs(raw - snapValue) <= effectiveSnapTolerance
+          ? snapValue
+          : raw;
+      setControlValue(snapped);
     },
-    [disabled, min, range, setControlValue],
+    [disabled, effectiveSnapTolerance, min, range, setControlValue, snapValue],
   );
 
   const commit = useCallback(() => {

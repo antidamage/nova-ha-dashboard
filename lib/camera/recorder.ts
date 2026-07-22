@@ -186,6 +186,24 @@ function cameraIngestionEnabled(camera: CameraConfig): boolean {
 }
 
 /**
+ * Master switch for the synthetic "demo clock" fallback. When the capture device
+ * is absent, the recorder USED to always fabricate a testsrc/clock test pattern
+ * so the panel showed something. On a real, owner-facing host that just reads as
+ * a fake "test stream" sitting where the camera should be — misleading when the
+ * grabber is simply unplugged. So the fallback is now OFF by default: an absent
+ * device shows a plain "No signal" state instead. It stays available for the
+ * static demo build and for dev boxes that want a placeholder, via
+ * `NOVA_CAMERA_DEMO_CLOCK` (1/true/on) or `NEXT_PUBLIC_NOVA_DEMO_MODE=true`.
+ */
+function demoClockFallbackEnabled(): boolean {
+  if (process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true") {
+    return true;
+  }
+  const flag = process.env.NOVA_CAMERA_DEMO_CLOCK?.trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "on";
+}
+
+/**
  * The demo clock overlay uses ffmpeg's `drawtext`, which needs a real font file
  * (we point at one explicitly so it works even on hosts without fontconfig, e.g.
  * Windows dev boxes). Resolves an env override, then common per-platform fonts.
@@ -525,6 +543,20 @@ function spawnFfmpeg(state: RecorderState) {
   reapStrayEncoders(camera);
   const source = resolveSource(camera);
   state.source = source;
+
+  // Capture device absent and the synthetic-clock fallback is disabled (the
+  // default on a real host): don't fabricate a test pattern. Any running clock
+  // was just killed + reaped above, so we go idle — no child, no restart timer —
+  // and the status surface reports "device absent" so the panel shows "No
+  // signal". We stay armed: the supervisor (and ensureRecorder on the next poll)
+  // respawns the instant the device is plugged back in.
+  if (source === "demo-clock" && !demoClockFallbackEnabled()) {
+    state.child = null;
+    state.deviceState = "device-absent";
+    state.statusReason = "capture device not present; feed offline (synthetic clock disabled)";
+    return;
+  }
+
   const [launchBin, ...launchPrefixArgs] = ffmpegLaunchPrefix();
   const child = spawn(launchBin, [...launchPrefixArgs, ...ffmpegArgs(camera, source)], {
     stdio: ["ignore", "ignore", "pipe"],
@@ -985,8 +1017,17 @@ export async function recorderStatus(camera: CameraConfig): Promise<RecorderStat
     deviceState = "unavailable";
     statusReason = "no ffmpeg on this host";
   } else if (!recording) {
-    deviceState = "stopped";
-    statusReason = "recorder not running";
+    // Two ways to be "not recording": genuinely stopped (ingestion disabled), or
+    // armed-but-idle because the device is absent and the synthetic-clock
+    // fallback is off. Distinguish them so the panel/config UI show "No signal"
+    // for the latter instead of an ambiguous "recorder not running".
+    if (state && !state.stopped && !deviceConnected) {
+      deviceState = "device-absent";
+      statusReason = "capture device not present (unplugged or not enumerated); feed offline";
+    } else {
+      deviceState = "stopped";
+      statusReason = "recorder not running";
+    }
   } else if (healthy) {
     deviceState = "streaming";
     statusReason = "streaming the capture device";

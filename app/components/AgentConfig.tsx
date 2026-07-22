@@ -199,6 +199,105 @@ export function AgentConfig({ initialSettings }: { initialSettings?: AgentPrefer
             Wall-clock safety bound. The loop stops at whichever limit is reached first.
           </p>
         </div>
+
+        <div className="grid gap-1.5">
+          <SliderControlPanel
+            ariaLabel="Thinking marker threshold"
+            ariaValueText={`${settings.ralphLoopThinkingThresholdMs} milliseconds`}
+            color={[190, 140, 255]}
+            intensity={100}
+            label="Thinking marker threshold"
+            max={AGENT_SETTINGS_RANGES.ralphLoopThinkingThresholdMs.max}
+            min={AGENT_SETTINGS_RANGES.ralphLoopThinkingThresholdMs.min}
+            step={AGENT_SETTINGS_RANGES.ralphLoopThinkingThresholdMs.step}
+            value={settings.ralphLoopThinkingThresholdMs}
+            valueText={`${settings.ralphLoopThinkingThresholdMs}ms`}
+            onPreview={(value) => stageNumber("ralphLoopThinkingThresholdMs", value)}
+            onCommit={(value) => void commit("ralphLoopThinkingThresholdMs", value)}
+          />
+          <p className="px-1 text-xs leading-snug text-neutral-500">
+            A loop still polling past this long prints one non-verbal &quot;*Thinking*&quot;
+            marker to the voice transcript, once per turn, never spoken aloud.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={settings.ralphLoopLlmVerifyEnabled}
+          className={`cyber-checkbox-row w-full border p-4 text-left ${
+            settings.ralphLoopLlmVerifyEnabled ? "cyber-checkbox-row-active" : ""
+          }`}
+          onClick={() =>
+            void commit("ralphLoopLlmVerifyEnabled", !settings.ralphLoopLlmVerifyEnabled)
+          }
+        >
+          <span
+            className={`cyber-checkbox ${
+              settings.ralphLoopLlmVerifyEnabled ? "cyber-checkbox-checked" : ""
+            }`}
+            aria-hidden="true"
+          >
+            {settings.ralphLoopLlmVerifyEnabled ? (
+              <Check className="h-5 w-5" strokeWidth={3.5} />
+            ) : null}
+          </span>
+          <span className="grid min-w-0 gap-1">
+            <span className="theme-display-label zone-title-bar">LLM confirmation</span>
+            <span className="theme-display-detail">
+              When the quick state check has not yet succeeded, ask a small JSON-only model
+              pass whether the observed state already satisfies the request (never spoken).
+              Off falls back to the original state-only checks.
+            </span>
+          </span>
+        </button>
+
+        <div
+          className={`grid gap-1.5 ${settings.ralphLoopLlmVerifyEnabled ? "" : "opacity-50"}`}
+        >
+          <SliderControlPanel
+            ariaLabel="LLM confirmation minimum interval"
+            ariaValueText={`${settings.ralphLoopLlmVerifyMinIntervalMs} milliseconds`}
+            color={[255, 110, 190]}
+            intensity={100}
+            label="LLM confirmation spacing"
+            max={AGENT_SETTINGS_RANGES.ralphLoopLlmVerifyMinIntervalMs.max}
+            min={AGENT_SETTINGS_RANGES.ralphLoopLlmVerifyMinIntervalMs.min}
+            step={AGENT_SETTINGS_RANGES.ralphLoopLlmVerifyMinIntervalMs.step}
+            value={settings.ralphLoopLlmVerifyMinIntervalMs}
+            valueText={`${settings.ralphLoopLlmVerifyMinIntervalMs}ms`}
+            onPreview={(value) => stageNumber("ralphLoopLlmVerifyMinIntervalMs", value)}
+            onCommit={(value) => void commit("ralphLoopLlmVerifyMinIntervalMs", value)}
+          />
+          <p className="px-1 text-xs leading-snug text-neutral-500">
+            Minimum spacing between LLM confirmation calls within one turn, however many
+            devices are pending. Zero allows a call on every poll.
+          </p>
+        </div>
+
+        <div
+          className={`grid gap-1.5 ${settings.ralphLoopLlmVerifyEnabled ? "" : "opacity-50"}`}
+        >
+          <SliderControlPanel
+            ariaLabel="LLM confirmation call timeout"
+            ariaValueText={`${settings.ralphLoopLlmConfirmTimeoutSeconds} seconds`}
+            color={[255, 90, 90]}
+            intensity={100}
+            label="LLM confirmation hard cutoff"
+            max={AGENT_SETTINGS_RANGES.ralphLoopLlmConfirmTimeoutSeconds.max}
+            min={AGENT_SETTINGS_RANGES.ralphLoopLlmConfirmTimeoutSeconds.min}
+            step={AGENT_SETTINGS_RANGES.ralphLoopLlmConfirmTimeoutSeconds.step}
+            value={settings.ralphLoopLlmConfirmTimeoutSeconds}
+            valueText={`${settings.ralphLoopLlmConfirmTimeoutSeconds}s`}
+            onPreview={(value) => stageNumber("ralphLoopLlmConfirmTimeoutSeconds", value)}
+            onCommit={(value) => void commit("ralphLoopLlmConfirmTimeoutSeconds", value)}
+          />
+          <p className="px-1 text-xs leading-snug text-neutral-500">
+            Maximum time a single LLM confirmation call may take. A slow or hung call is
+            abandoned after this long so the loop can never run past its failure deadline by
+            more than this bound.
+          </p>
+        </div>
       </div>
 
       {message ? (
