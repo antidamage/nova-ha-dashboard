@@ -86,10 +86,9 @@ export default function BrowserVoiceSatellite() {
           capturePolicy: alwaysOn ? "always" : "push-to-talk",
         },
         {
-          onClose: () => {
-            satelliteRef.current = null;
-          },
+          onClose: (reason) => console.warn("[browser-satellite] reconnecting", reason),
           onError: (error) => console.error("[browser-satellite]", error),
+          onStateChange: (state) => console.info("[browser-satellite]", state),
         },
       );
       satelliteRef.current = satellite;

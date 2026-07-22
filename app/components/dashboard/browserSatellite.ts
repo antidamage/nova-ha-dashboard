@@ -36,7 +36,19 @@ export type BrowserSatelliteCallbacks = {
   onPlaybackDone?: () => void;
   onClose?: (reason: string) => void;
   onError?: (error: unknown) => void;
+  onStateChange?: (state: BrowserSatelliteState) => void;
 };
+
+export type BrowserSatelliteState =
+  | "starting"
+  | "connecting"
+  | "connected"
+  | "recovering"
+  | "stopped";
+
+export function browserSatelliteReconnectDelay(attempt: number): number {
+  return Math.min(30_000, 500 * 2 ** Math.max(0, Math.min(attempt, 6)));
+}
 
 export class BrowserSatellite {
   private socket: WebSocket | null = null;
@@ -50,7 +62,15 @@ export class BrowserSatellite {
   private pending: number[] = []; // accumulated 16 kHz samples awaiting a full frame
   private playbackSampleRate = TARGET_SAMPLE_RATE;
   private playbackTime = 0;
-  private stopped = false;
+  private activePlaybackId: string | null = null;
+  private playbackStartedSent = false;
+  private playbackFinishTimer: ReturnType<typeof setTimeout> | null = null;
+  private scheduledSources = new Set<AudioBufferSourceNode>();
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private captureRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempt = 0;
+  private generation = 0;
+  private stopped = true;
 
   constructor(
     private readonly url: string,
@@ -59,22 +79,13 @@ export class BrowserSatellite {
   ) {}
 
   async start(): Promise<void> {
+    if (!this.stopped) return;
     this.stopped = false;
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-
-    this.socket = new WebSocket(this.url);
-    this.socket.binaryType = "arraybuffer";
-    this.socket.addEventListener("open", () => this.sendHello());
-    this.socket.addEventListener("message", (event) => this.onMessage(event));
-    this.socket.addEventListener("close", (event) => {
-      this.callbacks.onClose?.(event.reason || `code ${event.code}`);
-      this.teardownAudio();
-    });
-    this.socket.addEventListener("error", (event) => this.callbacks.onError?.(event));
-
-    await this.startCapture();
+    this.callbacks.onStateChange?.("starting");
+    window.addEventListener("online", this.onOnline);
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    await this.acquireCapture();
+    this.connectSocket();
   }
 
   /** Push-to-talk: ask the server to treat the next segment as wake-initiated. */
@@ -84,11 +95,77 @@ export class BrowserSatellite {
 
   stop(): void {
     this.stopped = true;
-    this.teardownAudio();
+    this.generation += 1;
+    this.clearRecoveryTimers();
+    window.removeEventListener("online", this.onOnline);
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
+    this.teardownCapture();
+    this.cancelPlayback(false);
+    if (this.playbackCtx) {
+      void this.playbackCtx.close();
+      this.playbackCtx = null;
+    }
     if (this.socket && this.socket.readyState <= WebSocket.OPEN) {
       this.socket.close(1000, "client stop");
     }
     this.socket = null;
+    this.callbacks.onStateChange?.("stopped");
+  }
+
+  private readonly onOnline = (): void => {
+    this.resumeAudio();
+    this.scheduleReconnect(true);
+  };
+
+  private readonly onVisibilityChange = (): void => {
+    if (document.visibilityState !== "visible") return;
+    this.resumeAudio();
+    if (!this.stream?.getAudioTracks().some((track) => track.readyState === "live")) {
+      void this.recoverCapture();
+    }
+    this.scheduleReconnect(true);
+  };
+
+  private connectSocket(): void {
+    if (
+      this.stopped ||
+      this.socket?.readyState === WebSocket.OPEN ||
+      this.socket?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
+    const generation = ++this.generation;
+    const socket = new WebSocket(this.url);
+    this.socket = socket;
+    socket.binaryType = "arraybuffer";
+    this.callbacks.onStateChange?.(this.reconnectAttempt ? "recovering" : "connecting");
+    socket.addEventListener("open", () => {
+      if (this.stopped || generation !== this.generation || this.socket !== socket) return;
+      this.reconnectAttempt = 0;
+      this.callbacks.onStateChange?.("connected");
+      this.sendHello();
+    });
+    socket.addEventListener("message", (event) => {
+      if (generation === this.generation && this.socket === socket) this.onMessage(event);
+    });
+    socket.addEventListener("close", (event) => {
+      if (generation !== this.generation || this.socket !== socket) return;
+      this.socket = null;
+      this.callbacks.onClose?.(event.reason || `code ${event.code}`);
+      this.scheduleReconnect();
+    });
+    socket.addEventListener("error", (event) => this.callbacks.onError?.(event));
+  }
+
+  private scheduleReconnect(immediate = false): void {
+    if (this.stopped || this.socket?.readyState === WebSocket.OPEN) return;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    const delay = immediate ? 0 : browserSatelliteReconnectDelay(this.reconnectAttempt++);
+    this.callbacks.onStateChange?.("recovering");
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connectSocket();
+    }, delay);
   }
 
   private sendHello(): void {
@@ -106,7 +183,7 @@ export class BrowserSatellite {
         echoCancellation: true,
         noiseSuppression: true,
         automaticGainControl: true,
-        playbackEvents: false,
+        playbackEvents: true,
       },
     });
   }
@@ -140,19 +217,53 @@ export class BrowserSatellite {
         this.callbacks.onHelloAck?.();
         break;
       case "playback":
+        this.beginPlayback(String(message.playbackId || ""));
         this.playbackSampleRate = Number(message.sampleRate) || TARGET_SAMPLE_RATE;
-        this.playbackTime = 0;
         this.callbacks.onPlaybackStart?.();
         break;
       case "playback_done":
-        this.callbacks.onPlaybackDone?.();
+        this.completePlayback(String(message.playbackId || ""));
         break;
       case "playback_cancel":
-        this.cancelPlayback();
-        this.callbacks.onPlaybackDone?.();
+        if (message.playbackId === this.activePlaybackId) {
+          this.cancelPlayback(true);
+          this.callbacks.onPlaybackDone?.();
+        }
         break;
       default:
         break;
+    }
+  }
+
+  private async acquireCapture(): Promise<void> {
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    for (const track of this.stream.getAudioTracks()) {
+      track.addEventListener("ended", this.onCaptureEnded, { once: true });
+    }
+    await this.startCapture();
+  }
+
+  private readonly onCaptureEnded = (): void => {
+    if (!this.stopped) void this.recoverCapture();
+  };
+
+  private async recoverCapture(): Promise<void> {
+    if (this.stopped || this.captureRetryTimer) return;
+    this.callbacks.onStateChange?.("recovering");
+    this.teardownCapture();
+    try {
+      await this.acquireCapture();
+    } catch (error) {
+      this.callbacks.onError?.(error);
+      if (!this.stopped) {
+        const delay = browserSatelliteReconnectDelay(this.reconnectAttempt++);
+        this.captureRetryTimer = setTimeout(() => {
+          this.captureRetryTimer = null;
+          void this.recoverCapture();
+        }, delay);
+      }
     }
   }
 
@@ -219,10 +330,16 @@ export class BrowserSatellite {
     const node = ctx.createBufferSource();
     node.buffer = audioBuffer;
     node.connect(ctx.destination);
+    this.scheduledSources.add(node);
+    node.addEventListener("ended", () => this.scheduledSources.delete(node), { once: true });
     const now = ctx.currentTime;
     const startAt = Math.max(now, this.playbackTime);
     node.start(startAt);
     this.playbackTime = startAt + audioBuffer.duration;
+    if (!this.playbackStartedSent && this.activePlaybackId) {
+      this.playbackStartedSent = true;
+      this.sendControl({ type: "playback_started", playbackId: this.activePlaybackId });
+    }
   }
 
   private ensurePlaybackCtx(): AudioContext {
@@ -235,15 +352,65 @@ export class BrowserSatellite {
     return this.playbackCtx;
   }
 
-  private cancelPlayback(): void {
-    if (this.playbackCtx) {
-      void this.playbackCtx.close();
-      this.playbackCtx = null;
+  private beginPlayback(playbackId: string): void {
+    if (this.activePlaybackId && this.activePlaybackId !== playbackId) {
+      this.cancelPlayback(true);
     }
+    this.activePlaybackId = playbackId || null;
+    this.playbackStartedSent = false;
     this.playbackTime = 0;
   }
 
-  private teardownAudio(): void {
+  private completePlayback(playbackId: string): void {
+    if (!playbackId || playbackId !== this.activePlaybackId) return;
+    if (this.playbackFinishTimer) clearTimeout(this.playbackFinishTimer);
+    const ctx = this.playbackCtx;
+    const delayMs = ctx ? Math.max(0, (this.playbackTime - ctx.currentTime) * 1000) : 0;
+    this.playbackFinishTimer = setTimeout(() => {
+      this.playbackFinishTimer = null;
+      if (this.activePlaybackId !== playbackId) return;
+      this.sendControl({ type: "playback_finished", playbackId });
+      this.activePlaybackId = null;
+      this.callbacks.onPlaybackDone?.();
+    }, delayMs);
+  }
+
+  private cancelPlayback(report: boolean): void {
+    const playbackId = this.activePlaybackId;
+    if (this.playbackFinishTimer) {
+      clearTimeout(this.playbackFinishTimer);
+      this.playbackFinishTimer = null;
+    }
+    for (const node of this.scheduledSources) {
+      try {
+        node.stop();
+        node.disconnect();
+      } catch {
+        // already ended
+      }
+    }
+    this.scheduledSources.clear();
+    if (report && playbackId) {
+      this.sendControl({ type: "playback_cancelled", playbackId });
+    }
+    this.activePlaybackId = null;
+    this.playbackStartedSent = false;
+    this.playbackTime = 0;
+  }
+
+  private resumeAudio(): void {
+    if (this.captureCtx?.state === "suspended") void this.captureCtx.resume();
+    if (this.playbackCtx?.state === "suspended") void this.playbackCtx.resume();
+  }
+
+  private clearRecoveryTimers(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    if (this.captureRetryTimer) clearTimeout(this.captureRetryTimer);
+    this.reconnectTimer = null;
+    this.captureRetryTimer = null;
+  }
+
+  private teardownCapture(): void {
     try {
       this.worklet?.disconnect();
       this.source?.disconnect();
@@ -256,7 +423,6 @@ export class BrowserSatellite {
       void this.captureCtx.close();
       this.captureCtx = null;
     }
-    this.cancelPlayback();
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
     this.pending = [];
