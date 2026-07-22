@@ -356,7 +356,17 @@ export async function haWs<T>(
   });
 }
 
-export function subscribeHaStateChanges(onChange: (entityId: string) => void, onError?: (error: Error) => void) {
+export type HaStateChangeEvent = {
+  contextId?: string;
+  entityId: string;
+  oldState?: HaState | null;
+  newState?: HaState | null;
+};
+
+export function subscribeHaStateChanges(
+  onChange: (entityId: string, change: HaStateChangeEvent) => void,
+  onError?: (error: Error) => void,
+) {
   if (!HA_TOKEN) {
     throw new Error("HA_TOKEN is not configured");
   }
@@ -380,7 +390,14 @@ export function subscribeHaStateChanges(onChange: (entityId: string) => void, on
 
   ws.on("message", (data) => {
     let message: {
-      event?: { data?: { entity_id?: unknown } };
+      event?: {
+        context?: { id?: unknown };
+        data?: {
+          entity_id?: unknown;
+          old_state?: HaState | null;
+          new_state?: HaState | null;
+        };
+      };
       id?: number;
       success?: boolean;
       type?: string;
@@ -418,7 +435,13 @@ export function subscribeHaStateChanges(onChange: (entityId: string) => void, on
     if (message.type === "event") {
       const entityId = message.event?.data?.entity_id;
       if (typeof entityId === "string") {
-        onChange(entityId);
+        const contextId = message.event?.context?.id;
+        onChange(entityId, {
+          entityId,
+          ...(typeof contextId === "string" ? { contextId } : {}),
+          oldState: message.event?.data?.old_state,
+          newState: message.event?.data?.new_state,
+        });
       }
     }
   });
