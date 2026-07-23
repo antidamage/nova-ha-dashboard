@@ -27,6 +27,14 @@ describe("lite mode contract", () => {
     expect(globalsCss).toMatch(/html\[data-nova-lite\]\s+\.nova-avatar-host\s*\{[^}]*display:\s*none/);
   });
 
+  it("globals.css forces instant scroll on lite devices (the blanket kill-switch does not cover scroll-behavior)", () => {
+    // scroll-behavior: smooth is opt-out for lite and reduced-motion — the
+    // wheel-momentum engine self-gates, but the CSS jump-smoothing needs an
+    // explicit override since the html[data-nova-lite] * rule never touches it.
+    expect(globalsCss).toMatch(/html\[data-nova-lite\]\s*\{[^}]*scroll-behavior:\s*auto/);
+    expect(globalsCss).toMatch(/prefers-reduced-motion:\s*reduce[\s\S]{0,80}scroll-behavior:\s*auto/);
+  });
+
   it("layout.tsx head bootstrap seeds data-nova-lite from the experience-mode key pre-paint", () => {
     expect(layoutSource).toContain('localStorage.getItem("nova.dashboard.experienceMode.v1")');
     expect(layoutSource).toContain('toggleAttribute("data-nova-lite"');

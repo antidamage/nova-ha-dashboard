@@ -80,7 +80,7 @@ export function WaveshareWatchfaceConfig({ initialSettings }: { initialSettings?
   }, [markInteraction]);
 
   return (
-    <ConfigAccordion title="Hardware Assistant" icon={<Cpu className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+    <ConfigAccordion id="hardware-assistant" title="Hardware Assistant" icon={<Cpu className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
       <div className="panel-corner panel-corner-left" />
       <div className="panel-corner panel-corner-right" />
 

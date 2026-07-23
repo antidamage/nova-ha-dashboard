@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { DeviceTheme } from "./accentColor";
+import { DEFAULT_THEME_SET, type DeviceTheme } from "./accentColor";
 import {
   ConfigPreviewBackground,
   ConfigPreviewBackgroundProvider,
@@ -10,7 +10,9 @@ import {
 import { writeExperienceFeatures } from "./dashboard/experienceModeSetting";
 
 vi.mock("./FluidBackground", () => ({
-  FluidBackground: () => <div data-testid="fluid-background" />,
+  FluidBackground: ({ theme }: { theme: DeviceTheme }) => (
+    <div data-testid="fluid-background" data-accent={theme.accent?.rgb.join(",") ?? "published"} />
+  ),
 }));
 
 const previewTheme = {} as DeviceTheme;
@@ -39,6 +41,43 @@ describe("ConfigPreviewBackground", () => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-nova-lite");
     document.documentElement.removeAttribute("data-nova-no-orb");
+  });
+
+  it("renders the currently selected dashboard theme before the editor mounts", () => {
+    const lightTheme = {
+      ...DEFAULT_THEME_SET.themes.light,
+      accent: { ...DEFAULT_THEME_SET.themes.light.accent, rgb: [12, 34, 56] as [number, number, number] },
+    };
+
+    render(
+      <ConfigPreviewBackgroundProvider
+        initialTheme={{ selection: "light", themes: { light: lightTheme } }}
+      >
+        <ConfigPreviewBackground />
+      </ConfigPreviewBackgroundProvider>,
+    );
+
+    expect(screen.getByTestId("fluid-background")).toHaveAttribute("data-accent", "12,34,56");
+  });
+
+  it("keeps the latest theme visible when the editor releases its preview", async () => {
+    function PublishThenRelease() {
+      const preview = useConfigPreviewBackground();
+      useEffect(() => {
+        preview?.setPreviewTheme(previewTheme);
+        preview?.setPreviewTheme(null);
+      }, [preview]);
+      return null;
+    }
+
+    render(
+      <ConfigPreviewBackgroundProvider initialTheme={DEFAULT_THEME_SET}>
+        <PublishThenRelease />
+        <ConfigPreviewBackground />
+      </ConfigPreviewBackgroundProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("fluid-background")).toBeInTheDocument());
   });
 
   it("does not mount the shader preview when the device background feature is disabled", async () => {

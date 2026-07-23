@@ -8,6 +8,7 @@ import { isEntitySuppressedByIntensity } from "../../../lib/lighting-thresholds"
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
 import { isControlInteractionCoolingDown } from "../controlInteractionCooldown";
 import { emitClientEvent } from "./emitClientEvent";
+import { arePageUpdatesPaused, subscribePageUpdatePause } from "./pageUpdatePause";
 import { adaptiveCandlelightSpectrum } from "./lighting";
 import {
   clamp,
@@ -54,6 +55,29 @@ export function useDashboardState() {
   // watchdog below; seeded with mount time so a fresh page gets the full grace
   // period before it may conclude it is wedged.
   const lastSnapshotAt = useRef(Date.now());
+  const hasDashboardData = useRef(false);
+  const pendingScrollSnapshot = useRef<DashboardState | null>(null);
+
+  // Server updates are non-urgent during a scroll. Keep receiving them so the
+  // connection stays healthy, but collapse them to the newest snapshot and
+  // avoid a large dashboard reconciliation on the input-critical path.
+  const commitServerSnapshot = useCallback((payload: DashboardState) => {
+    if (arePageUpdatesPaused() && hasDashboardData.current) {
+      pendingScrollSnapshot.current = payload;
+      return;
+    }
+    pendingScrollSnapshot.current = null;
+    hasDashboardData.current = true;
+    setData(payload);
+  }, []);
+
+  useEffect(() => subscribePageUpdatePause((paused) => {
+    if (paused || !pendingScrollSnapshot.current) return;
+    const payload = pendingScrollSnapshot.current;
+    pendingScrollSnapshot.current = null;
+    hasDashboardData.current = true;
+    setData(payload);
+  }), []);
 
   // Every real device doubles as an outage probe: when a snapshot finally lands
   // after a long gap, report how long the client was cut off. These attributed
@@ -119,7 +143,7 @@ export function useDashboardState() {
       setStatus("idle");
       return null;
     }
-    setData(payload);
+    commitServerSnapshot(payload);
     setError(null);
     setStatus("idle");
     return payload;
@@ -156,7 +180,7 @@ export function useDashboardState() {
           return;
         }
         if (alive) {
-          setData(payload);
+          commitServerSnapshot(payload);
           setError(null);
           setStatus("idle");
         }
@@ -234,7 +258,7 @@ export function useDashboardState() {
 
         try {
           const payload = JSON.parse(event.data) as DashboardState;
-          setData(payload);
+          commitServerSnapshot(payload);
           setError(null);
           setStatus("idle");
         } catch (err) {

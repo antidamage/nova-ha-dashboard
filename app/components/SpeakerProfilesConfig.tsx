@@ -1,7 +1,7 @@
 "use client";
 
-import { RefreshCw, Save, Trash2, Users } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { RefreshCw, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   SpeakerProfileSummary,
   SpeakerProfilesPayload,
@@ -131,6 +131,9 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
       .map(([source, spoken]) => `${source} = ${spoken}`).join("\n"),
   );
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const saveVersionRef = useRef(0);
 
   useEffect(() => {
     setDisplayName(profile.displayName);
@@ -144,22 +147,44 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
       .map(([source, spoken]) => `${source} = ${spoken}`).join("\n"));
   }, [profile]);
 
-  const save = async () => {
-    if (!displayName.trim() || saving) return;
+  type EditorValues = {
+    displayName: string;
+    pronouns: string;
+    language: string;
+    speechRate: number;
+    deliveryMode: typeof deliveryMode;
+    accessibilityPacing: boolean;
+    pronunciations: string;
+  };
+
+  const save = (overrides: Partial<EditorValues> = {}) => {
+    const values: EditorValues = {
+      displayName,
+      pronouns,
+      language,
+      speechRate,
+      deliveryMode,
+      accessibilityPacing,
+      pronunciations,
+      ...overrides,
+    };
+    if (!values.displayName.trim()) return;
+    const version = ++saveVersionRef.current;
     setSaving(true);
-    try {
+    setSaveError(null);
+    saveQueueRef.current = saveQueueRef.current.catch(() => undefined).then(async () => {
       const response = await fetch(`/api/voice/speaker-profiles/${encodeURIComponent(profile.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          displayName: displayName.trim(),
-          pronouns: pronouns.trim(),
+          displayName: values.displayName.trim(),
+          pronouns: values.pronouns.trim(),
           speechPreferences: {
-            language,
-            speech_rate: speechRate,
-            delivery_mode: deliveryMode,
-            accessibility_pacing: accessibilityPacing,
-            pronunciations: Object.fromEntries(pronunciations.split("\n").flatMap((line) => {
+            language: values.language,
+            speech_rate: values.speechRate,
+            delivery_mode: values.deliveryMode,
+            accessibility_pacing: values.accessibilityPacing,
+            pronunciations: Object.fromEntries(values.pronunciations.split("\n").flatMap((line) => {
               const separator = line.indexOf("=");
               if (separator < 1) return [];
               const source = line.slice(0, separator).trim();
@@ -170,10 +195,13 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
         }),
       });
       if (!response.ok) throw new Error(`Profile update failed: ${response.status}`);
-      await onSaved();
-    } finally {
-      setSaving(false);
-    }
+      if (version === saveVersionRef.current) await onSaved();
+    }).catch((error) => {
+      if (version === saveVersionRef.current) setSaveError(error instanceof Error ? error.message : "Profile update failed");
+    }).finally(() => {
+      if (version === saveVersionRef.current) setSaving(false);
+    });
+    return saveQueueRef.current;
   };
 
   return (
@@ -186,6 +214,8 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
             value={displayName}
             maxLength={80}
             onChange={(event) => setDisplayName(event.target.value)}
+            onBlur={() => void save()}
+            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
           />
         </label>
         <label className="grid gap-1 text-xs text-neutral-400">
@@ -196,16 +226,13 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
             maxLength={80}
             placeholder="she/her, they/them…"
             onChange={(event) => setPronouns(event.target.value)}
+            onBlur={() => void save()}
+            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
           />
         </label>
-        <button
-          type="button"
-          disabled={saving || !displayName.trim()}
-          className="self-end rounded border border-cyan-700 px-3 py-2 text-cyan-200 disabled:opacity-50"
-          onClick={() => void save()}
-        >
-          <Save className="mr-1 inline h-4 w-4" aria-hidden="true" /> Save
-        </button>
+        <span className={`self-end pb-2 text-xs ${saveError ? "text-red-300" : "text-neutral-500"}`} role="status">
+          {saveError ?? (saving ? "Saving…" : "Changes save automatically")}
+        </span>
       </div>
       <div className="grid gap-2 md:grid-cols-3">
         <label className="grid gap-1 text-xs text-neutral-400">
@@ -213,7 +240,7 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
           <select
             className="border border-neutral-700 bg-black/40 px-2 py-1.5 text-sm text-neutral-100"
             value={language}
-            onChange={(event) => setLanguage(event.target.value)}
+            onChange={(event) => { const next = event.target.value; setLanguage(next); void save({ language: next }); }}
           >
             {["Auto", "English", "Chinese", "Japanese", "Korean", "German", "French", "Russian", "Portuguese", "Spanish", "Italian"].map((item) => (
               <option key={item} value={item}>{item}</option>
@@ -225,7 +252,7 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
           <select
             className="border border-neutral-700 bg-black/40 px-2 py-1.5 text-sm text-neutral-100"
             value={deliveryMode}
-            onChange={(event) => setDeliveryMode(event.target.value as typeof deliveryMode)}
+            onChange={(event) => { const next = event.target.value as typeof deliveryMode; setDeliveryMode(next); void save({ deliveryMode: next }); }}
           >
             <option value="auto">Auto (quiet at night)</option>
             <option value="normal">Normal</option>
@@ -241,6 +268,8 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
             step={5}
             value={speechRate}
             onChange={(event) => setSpeechRate(Number(event.target.value))}
+            onPointerUp={() => void save()}
+            onKeyUp={() => void save()}
           />
         </label>
       </div>
@@ -248,7 +277,7 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
         <input
           type="checkbox"
           checked={accessibilityPacing}
-          onChange={(event) => setAccessibilityPacing(event.target.checked)}
+          onChange={(event) => { const next = event.target.checked; setAccessibilityPacing(next); void save({ accessibilityPacing: next }); }}
         />
         Clear accessibility pacing and deliberate word boundaries
       </label>
@@ -259,6 +288,10 @@ function ProfileEditor({ profile, onSaved, onDeleteProfile }: {
           value={pronunciations}
           placeholder="Ngā = Ngar"
           onChange={(event) => setPronunciations(event.target.value)}
+          onBlur={() => void save()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) event.currentTarget.blur();
+          }}
         />
       </label>
       <p className="text-xs text-neutral-500">

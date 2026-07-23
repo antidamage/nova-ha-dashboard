@@ -6,6 +6,7 @@ import { AgentNameProvider } from "./components/AgentNameContext";
 import NovaAvatar from "./components/NovaAvatar";
 import BrowserVoiceSatellite from "./components/dashboard/BrowserVoiceSatellite";
 import { SystemActivityBlocker } from "./components/SystemActivityBlocker";
+import { SmoothScrollController } from "./components/SmoothScrollController";
 import { TouchClickGuard } from "./components/TouchClickGuard";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
 import { getLatestDashboardSun } from "../lib/dashboard-events";
@@ -224,6 +225,10 @@ try {
   }
   document.documentElement.toggleAttribute("data-nova-lite", experienceLite);
   document.documentElement.toggleAttribute("data-nova-no-orb", !experienceOrbOn);
+  document.documentElement.toggleAttribute(
+    "data-nova-hide-orb-info",
+    localStorage.getItem("nova.dashboard.statusOrbInfo.v1") === "false"
+  );
 
   var themeKey = "nova.dashboard.accent.v1";
   var sharedThemeKey = "nova.dashboard.sharedAccent.v1";
@@ -514,6 +519,7 @@ try {
       <body>
         <AgentNameProvider initialName={initialAgentName}>
           <TouchClickGuard />
+          <SmoothScrollController />
           <ExperienceModeModal />
           <NovaAvatar size={200} initialTheme={initialOrbTheme} initialSun={initialSun} />
           <BrowserVoiceSatellite />

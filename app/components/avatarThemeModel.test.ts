@@ -16,7 +16,7 @@ describe("normalizeNovaGlassSettings", () => {
     const glass = normalizeNovaGlassSettings({
       enabled: false,
       displace: 240,
-      curvature: -30,
+      refractPower: -30,
       smoothness: 51.7,
       gloss: 12,
       shadow: 0,
@@ -26,7 +26,7 @@ describe("normalizeNovaGlassSettings", () => {
     expect(glass).toEqual({
       enabled: false,
       displace: 100,
-      curvature: 0,
+      refractPower: 0,
       smoothness: 52,
       clarity: DEFAULT_NOVA_GLASS_SETTINGS.clarity,
       gloss: 12,
@@ -40,11 +40,11 @@ describe("normalizeNovaGlassSettings", () => {
     const glass = normalizeNovaGlassSettings({
       enabled: "yes" as unknown as boolean,
       displace: Number.NaN,
-      curvature: "x" as unknown as number,
+      refractPower: "x" as unknown as number,
     });
     expect(glass.enabled).toBe(DEFAULT_NOVA_GLASS_SETTINGS.enabled);
     expect(glass.displace).toBe(DEFAULT_NOVA_GLASS_SETTINGS.displace);
-    expect(glass.curvature).toBe(DEFAULT_NOVA_GLASS_SETTINGS.curvature);
+    expect(glass.refractPower).toBe(DEFAULT_NOVA_GLASS_SETTINGS.refractPower);
   });
 });
 

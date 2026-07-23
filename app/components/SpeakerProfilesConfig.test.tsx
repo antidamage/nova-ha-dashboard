@@ -82,4 +82,18 @@ describe("SpeakerProfilesConfig", () => {
       "Delete all 2 recorded voice identities?",
     ));
   });
+
+  it("autosaves profile fields without an explicit save button", async () => {
+    render(<SpeakerProfilesConfig />);
+
+    const name = await screen.findByLabelText("Name");
+    fireEvent.change(name, { target: { value: "Adeline" } });
+    fireEvent.blur(name);
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      "/api/voice/speaker-profiles/person-addie",
+      expect.objectContaining({ method: "PATCH" }),
+    ));
+    expect(screen.queryByRole("button", { name: /^save$/i })).not.toBeInTheDocument();
+  });
 });

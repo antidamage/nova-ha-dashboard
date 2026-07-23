@@ -23,28 +23,54 @@ const secrets = {
   powershop: { emailConfigured: false, enabled: false, passwordConfigured: false },
 };
 
+const updateStatus = {
+  channel: { repo: "nova/dashboard", branch: "main" },
+  currentShortSha: null,
+  deployedAt: null,
+  latestShortSha: null,
+  latestMessage: null,
+  updateAvailable: false,
+  autoUpdate: true,
+  canRollback: false,
+  previousSha: null,
+  phase: "idle",
+  phaseMessage: null,
+  lastCheckedAt: null,
+  checkOk: true,
+  checkError: null,
+  busy: false,
+};
+
 describe("ConfigWorkspace", () => {
   afterEach(() => {
+    window.sessionStorage.clear();
+    window.history.replaceState({}, "", "/config");
     vi.clearAllMocks();
     vi.unstubAllGlobals();
   });
 
   it("loads config, hides raw JSON, and shows secret setup status in the secrets accordion", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      json: async () => ({ config, secrets }),
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+      json: async () => url === "/api/update" ? updateStatus : { config, secrets },
       ok: true,
     })));
 
-    render(<ConfigWorkspace><div>Theme tools</div></ConfigWorkspace>);
+    const { container } = render(<ConfigWorkspace />);
 
-    await waitFor(() => expect(screen.getByText("Theme tools")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: /^identity$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/choose what you want to configure/i)).not.toBeInTheDocument();
+    expect(container.querySelector(".config-layout-categories-closed")).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalledWith("/api/config", expect.anything());
+    fireEvent.click(screen.getByRole("button", { name: /^assistant/i }));
+    expect(await screen.findByRole("button", { name: /^identity$/i })).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /validate/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /back to dashboard/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /cancel configuration/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /save configuration/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /secrets/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^system & data/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^secrets$/i }));
 
     expect(await screen.findByText("HA_TOKEN")).toBeInTheDocument();
   });
@@ -58,15 +84,16 @@ describe("ConfigWorkspace", () => {
         };
       }
       return {
-        json: async () => ({ config, secrets }),
+        json: async () => url === "/api/update" ? updateStatus : { config, secrets },
         ok: true,
       };
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<ConfigWorkspace><div>Theme tools</div></ConfigWorkspace>);
+    render(<ConfigWorkspace />);
 
-    await screen.findByText("Theme tools");
+    fireEvent.click(screen.getByRole("button", { name: /^assistant/i }));
+    await screen.findByRole("button", { name: /^identity$/i });
     fireEvent.click(screen.getByRole("button", { name: /back to dashboard/i }));
 
     expect(routerPush).toHaveBeenCalledWith("/");
@@ -84,15 +111,16 @@ describe("ConfigWorkspace", () => {
         };
       }
       return {
-        json: async () => ({ config, secrets }),
+        json: async () => url === "/api/update" ? updateStatus : { config, secrets },
         ok: true,
       };
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<ConfigWorkspace><div /></ConfigWorkspace>);
+    render(<ConfigWorkspace />);
 
-    fireEvent.click(screen.getByRole("button", { name: /config import\/export/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^system & data/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /config import\/export/i }));
     const file = new File([JSON.stringify(imported)], "dashboard-config.json", { type: "application/json" });
     fireEvent.change(screen.getByLabelText("Config import file"), { target: { files: [file] } });
 

@@ -47,8 +47,8 @@ function normalizeProcessing(value: Partial<Processing> | null | undefined): Pro
   };
 }
 
-function Setting({ label, min, max, step, value, onChange }: {
-  label: string; min: number; max: number; step: number; value: number; onChange: (value: number) => void;
+function Setting({ label, min, max, step, value, onChange, onCommit }: {
+  label: string; min: number; max: number; step: number; value: number; onChange: (value: number) => void; onCommit: (value: number) => void;
 }) {
   return (
     <div className="grid gap-2 border border-cyan-300/20 bg-neutral-900/70 p-3">
@@ -64,6 +64,7 @@ function Setting({ label, min, max, step, value, onChange }: {
         value={value}
         fill
         onChange={onChange}
+        onCommit={onCommit}
       />
     </div>
   );
@@ -84,6 +85,8 @@ export function CameraConfig() {
   const [videoHostBusy, setVideoHostBusy] = useState(false);
   const [videoHostMessage, setVideoHostMessage] = useState<string | null>(null);
   const [message, setMessage] = useState("Loading camera settings...");
+  const processingQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const processingVersionRef = useRef(0);
   const [status, setStatus] = useState<CameraStatus | null>(null);
   // Double-confirm modal for the destructive re-init (like System Power).
   const [confirmStage, setConfirmStage] = useState<0 | 1 | 2>(0);
@@ -276,14 +279,25 @@ export function CameraConfig() {
     };
   }, [saved, videoHostUrl]);
 
-  const save = async () => {
+  const save = (nextValue: Processing) => {
+    const version = ++processingVersionRef.current;
     setMessage("Applying camera processing...");
-    const response = await fetch(cameraUrl("outside", "settings", videoHostUrl), {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value),
+    processingQueueRef.current = processingQueueRef.current.catch(() => undefined).then(async () => {
+      const response = await fetch(cameraUrl("outside", "settings", videoHostUrl), {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nextValue),
+      });
+      if (!response.ok) {
+        if (version === processingVersionRef.current) setMessage("Failed to save camera settings");
+        return;
+      }
+      const processing = normalizeProcessing(await response.json() as Partial<Processing>);
+      if (version === processingVersionRef.current) {
+        setValue(processing);
+        setSaved(processing);
+        setMessage("Saved automatically. Preview reconnecting...");
+      }
     });
-    if (!response.ok) { setMessage("Failed to save camera settings"); return; }
-    const processing = normalizeProcessing(await response.json() as Partial<Processing>);
-    setValue(processing); setSaved(processing); setMessage("Saved. Preview reconnecting...");
+    return processingQueueRef.current;
   };
 
   // Persist the video host pointer to nova config (always same-origin — nova owns
@@ -317,7 +331,7 @@ export function CameraConfig() {
   };
 
   return (
-    <ConfigAccordion title="Camera" icon={<Camera className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+    <ConfigAccordion id="camera" title="Camera" icon={<Camera className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
         <div className="grid gap-3">
           <div className="grid gap-2 border border-cyan-300/20 bg-neutral-900/70 p-3">
@@ -332,19 +346,15 @@ export function CameraConfig() {
                 value={videoHostDraft}
                 disabled={DEMO_MODE || videoHostBusy}
                 onChange={(event) => setVideoHostDraft(event.target.value)}
+                onBlur={() => {
+                  if (videoHostDraft.trim() !== videoHostUrl.trim()) void saveVideoHost();
+                }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") void saveVideoHost();
+                  if (event.key === "Enter") event.currentTarget.blur();
                 }}
                 className="min-w-0 flex-1 border border-cyan-300/30 bg-neutral-950/80 px-2 py-1.5 font-mono text-sm text-neutral-100 outline-none focus:border-cyan-300/70"
               />
-              <button
-                type="button"
-                className="config-page-button"
-                disabled={DEMO_MODE || videoHostBusy || videoHostDraft.trim() === videoHostUrl.trim()}
-                onClick={() => void saveVideoHost()}
-              >
-                {videoHostBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-              </button>
+              {videoHostBusy ? <Loader2 className="h-4 w-4 animate-spin text-cyan-200" aria-label="Saving video host" /> : null}
             </div>
             <span className="text-xs text-neutral-400">
               {videoHostMessage ??
@@ -381,12 +391,11 @@ export function CameraConfig() {
             </span>
           </div>
 
-          <Setting label="Brightness" min={-1} max={1} step={0.01} value={value.brightness} onChange={(brightness) => setValue({ ...value, brightness })} />
-          <Setting label="Contrast" min={0} max={2} step={0.01} value={value.contrast} onChange={(contrast) => setValue({ ...value, contrast })} />
-          <Setting label="Sharpness" min={0} max={5} step={0.1} value={value.sharpness} onChange={(sharpness) => setValue({ ...value, sharpness })} />
+          <Setting label="Brightness" min={-1} max={1} step={0.01} value={value.brightness} onChange={(brightness) => setValue({ ...value, brightness })} onCommit={(brightness) => void save({ ...value, brightness })} />
+          <Setting label="Contrast" min={0} max={2} step={0.01} value={value.contrast} onChange={(contrast) => setValue({ ...value, contrast })} onCommit={(contrast) => void save({ ...value, contrast })} />
+          <Setting label="Sharpness" min={0} max={5} step={0.1} value={value.sharpness} onChange={(sharpness) => setValue({ ...value, sharpness })} onCommit={(sharpness) => void save({ ...value, sharpness })} />
           <div className="flex items-center gap-3">
-            <button type="button" className="config-page-button" onClick={() => void save()}>Apply</button>
-            <button type="button" className="config-page-button" onClick={() => setValue(FALLBACK)}>Reset</button>
+            <button type="button" className="config-page-button" onClick={() => { setValue(FALLBACK); void save(FALLBACK); }}>Reset</button>
             <span className="text-sm text-neutral-400">{message}</span>
           </div>
 

@@ -89,19 +89,52 @@ function glassDriftPx(glass: NovaGlassSettings) {
 // ---------------------------------------------------------------------------
 
 /**
- * Build a radial "lens" displacement map as a data URL.
+ * Map the 0-100 "Refraction curve" knob to the *dome fullness* `q` of the
+ * modelled spherical glass surface — how much of a full hemisphere the disc
+ * spans. The rim of the disc sits at polar angle `asin(q)` on the sphere, so:
+ *
+ *   - q → 0   : an almost-flat pane. The surface slope stays gentle and nearly
+ *               linear across the whole disc, so the background barely bends.
+ *   - q → 1   : a near-full hemisphere. The slope runs away toward the rim, so
+ *               refraction piles up into a thick, fisheye glass edge.
+ *
+ * This is what makes the slider *visibly* do something end to end: unlike the
+ * old power-exponent (which always pinned the rim at full magnitude and only
+ * reshuffled the interior rings), changing q moves both the distribution AND
+ * the peak strength of the refraction.
+ */
+export function refractDomeFullness(refractPower: number) {
+  return 0.15 + 0.84 * (clamp(refractPower, 0, 100) / 100);
+}
+
+/**
+ * Radial refraction magnitude (0..1) at disc-radius fraction `r` for a curved
+ * glass surface of dome fullness `q`. Models the lateral ray shift through a
+ * spherical cap as proportional to the local surface slope: a point at radius
+ * `r` sits at sphere angle `asin(q·r)`, whose slope is `tan` of that angle,
+ * i.e. `q·r / sqrt(1 - (q·r)²)`. Apex (`r=0`) is flat → 0; the slope climbs
+ * toward the rim and, for a full dome, saturates into a hard refracting edge.
+ * Clamped to 1 so a near-hemisphere reads as a thick glassy rim band rather
+ * than a single blown-out pixel ring.
+ */
+export function refractMagnitude(r: number, q: number) {
+  const s = q * Math.min(1, r);
+  return clamp(s / Math.sqrt(Math.max(1e-6, 1 - s * s)), 0, 1);
+}
+
+/**
+ * Build a concentric "lens" displacement map as a data URL.
  *
  * feDisplacementMap shifts each source pixel by `scale * (channel/255 - 0.5)`,
- * reading X from the red channel and Y from the green. So a neutral pixel is
- * (128, 128): no shift. We ramp red horizontally and green vertically from the
- * centre outward, with an ease that concentrates the change toward the rim —
- * exactly the surface-normal field of a convex lens, which is why the orb's
- * content compresses and bends at its edge like real glass.
- *
- * `curvature` (0-100) picks the ease exponent: 0 ≈ a gentle linear bulge,
- * 100 ≈ a flat centre with a sharp meniscus at the rim.
+ * reading X from the red channel and Y from the green (128 = no shift). Here
+ * the displacement is purely RADIAL — every pixel is pushed straight out along
+ * its radius — so the iso-displacement contours are concentric circles. The
+ * per-ring magnitude follows the surface slope of a modelled glass dome (see
+ * `refractMagnitude`): flat at the apex and accumulating toward the rim, so the
+ * "Refraction curve" knob (dome fullness) reshapes how strongly each concentric
+ * ring bends the backdrop. `scale` (the Refraction knob) supplies the peak px.
  */
-export function buildLensDisplacementMap(curvature: number, res = 128): string {
+export function buildLensDisplacementMap(refractPower: number, res = 128): string {
   if (typeof document === "undefined") return "";
   const canvas = document.createElement("canvas");
   canvas.width = res;
@@ -111,20 +144,26 @@ export function buildLensDisplacementMap(curvature: number, res = 128): string {
   const image = ctx.createImageData(res, res);
   const data = image.data;
   const half = res / 2;
-  const exponent = 1.15 + (clamp(curvature, 0, 100) / 100) * 2.6; // 1.15 .. 3.75
+  const q = refractDomeFullness(refractPower);
   for (let y = 0; y < res; y += 1) {
     const ny = (y + 0.5 - half) / half; // -1 .. 1
     for (let x = 0; x < res; x += 1) {
       const nx = (x + 0.5 - half) / half; // -1 .. 1
-      const dist = Math.hypot(nx, ny);
+      const r = Math.hypot(nx, ny);
       // Neutralise the square corners so only the disc bends; fade the ramp
       // out in a thin band just past the unit circle to avoid a hard ring.
-      const edge = dist <= 1 ? 1 : Math.max(0, 1 - (dist - 1) / 0.28);
-      const rampX = Math.sign(nx) * Math.pow(Math.min(1, Math.abs(nx)), exponent) * edge;
-      const rampY = Math.sign(ny) * Math.pow(Math.min(1, Math.abs(ny)), exponent) * edge;
+      const edge = r <= 1 ? 1 : Math.max(0, 1 - (r - 1) / 0.28);
       const idx = (y * res + x) * 4;
-      data[idx] = clamp(128 + rampX * 127, 0, 255); // R -> X displacement
-      data[idx + 1] = clamp(128 + rampY * 127, 0, 255); // G -> Y displacement
+      if (r < 1e-4) {
+        data[idx] = 128;
+        data[idx + 1] = 128;
+      } else {
+        // Accumulated surface slope of the glass dome at this ring; the unit
+        // radial direction spreads it into concentric contours.
+        const magnitude = refractMagnitude(r, q) * edge;
+        data[idx] = clamp(128 + (nx / r) * magnitude * 127, 0, 255); // R -> X
+        data[idx + 1] = clamp(128 + (ny / r) * magnitude * 127, 0, 255); // G -> Y
+      }
       data[idx + 2] = 128; // B unused
       data[idx + 3] = 255;
     }
@@ -150,7 +189,7 @@ export function NovaOrbGlassFilter({
   filterId: string;
   glass: NovaGlassSettings;
 }) {
-  const map = useMemo(() => buildLensDisplacementMap(glass.curvature), [glass.curvature]);
+  const map = useMemo(() => buildLensDisplacementMap(glass.refractPower), [glass.refractPower]);
   const scale = glassDisplaceScale(glass);
   const blur = glassMapBlur(glass);
 

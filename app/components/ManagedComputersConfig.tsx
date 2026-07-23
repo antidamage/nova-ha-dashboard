@@ -1,7 +1,7 @@
 "use client";
 
-import { Laptop, MonitorSmartphone, Moon, Plus, Power, Satellite, Save, Trash2, UploadCloud } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Laptop, MonitorSmartphone, Moon, Plus, Power, Satellite, Trash2, UploadCloud } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ConfigAccordion } from "./ConfigControls";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import {
@@ -49,16 +49,26 @@ function newComputer(): ManagedComputerFormValue {
 function Field({
   label,
   onChange,
+  onCommit,
   value,
 }: {
   label: string;
   onChange: (value: string) => void;
+  onCommit: () => void;
   value: string;
 }) {
   return (
     <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
       <span>{label}</span>
-      <input className="cyber-text-input" value={value} onChange={(event) => onChange(event.target.value)} />
+      <input
+        className="cyber-text-input"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+      />
     </label>
   );
 }
@@ -118,10 +128,16 @@ export function ManagedComputersConfig() {
   const [computers, setComputers] = useState<ManagedComputerFormValue[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const computersRef = useRef<ManagedComputerFormValue[]>([]);
+  const requestedSaveRef = useRef(0);
+  const completedSaveRef = useRef(0);
+  const savingRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
-      setComputers(await loadManagedComputers());
+      const loaded = await loadManagedComputers();
+      computersRef.current = loaded;
+      setComputers(loaded);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to load managed computers");
     }
@@ -131,22 +147,48 @@ export function ManagedComputersConfig() {
     void load();
   }, [load]);
 
-  const update = (id: string, updater: (computer: ManagedComputerFormValue) => ManagedComputerFormValue) => {
-    setComputers((current) => current.map((computer) => (computer.id === id ? updater(computer) : computer)));
+  const replaceComputers = (next: ManagedComputerFormValue[]) => {
+    computersRef.current = next;
+    setComputers(next);
   };
 
-  const save = async () => {
-    setBusy(true);
-    setMessage(null);
+  const update = (index: number, updater: (computer: ManagedComputerFormValue) => ManagedComputerFormValue) => {
+    replaceComputers(computersRef.current.map((computer, currentIndex) => currentIndex === index ? updater(computer) : computer));
+  };
+
+  const flushSaves = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     try {
-      const saved = await saveManagedComputers(computers);
-      setComputers(saved);
-      setMessage("Managed computers saved");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to save managed computers");
+      while (completedSaveRef.current < requestedSaveRef.current) {
+        const version = requestedSaveRef.current;
+        const snapshot = computersRef.current;
+        setMessage("Saving managed computers…");
+        try {
+          const saved = await saveManagedComputers(snapshot);
+          completedSaveRef.current = version;
+          if (version === requestedSaveRef.current) {
+            replaceComputers(saved);
+            setMessage("Managed computers saved automatically");
+          }
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "Failed to save managed computers");
+          break;
+        }
+      }
     } finally {
-      setBusy(false);
+      savingRef.current = false;
     }
+  };
+
+  const persist = () => {
+    requestedSaveRef.current += 1;
+    void flushSaves();
+  };
+
+  const updateAndPersist = (index: number, updater: (computer: ManagedComputerFormValue) => ManagedComputerFormValue) => {
+    update(index, updater);
+    persist();
   };
 
   const applyNow = async () => {
@@ -165,6 +207,7 @@ export function ManagedComputersConfig() {
 
   return (
     <ConfigAccordion
+      id="managed-computers"
       title="Managed Computers"
       icon={<MonitorSmartphone className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
       className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl"
@@ -173,18 +216,15 @@ export function ManagedComputersConfig() {
           <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Apply desktop wallpapers" disabled={busy} onClick={applyNow}>
             <UploadCloud className="h-5 w-5" />
           </MomentaryFeedbackButton>
-          <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Save managed computers" disabled={busy} onClick={save}>
-            <Save className="h-5 w-5" />
-          </MomentaryFeedbackButton>
         </>
       )}
     >
       <div className="panel-corner panel-corner-left" />
       <div className="panel-corner panel-corner-right" />
       <div className="grid gap-3">
-        {computers.map((computer) => {
+        {computers.map((computer, index) => {
           return (
-            <div key={computer.id} className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+            <div key={index} className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
               <div className="grid gap-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -195,44 +235,48 @@ export function ManagedComputersConfig() {
                     type="button"
                     className="icon-link text-red-200"
                     aria-label={`Remove ${computer.name}`}
-                    onClick={() => setComputers((current) => current.filter((item) => item.id !== computer.id))}
+                    onClick={() => {
+                      replaceComputers(computersRef.current.filter((_, currentIndex) => currentIndex !== index));
+                      persist();
+                    }}
                   >
                     <Trash2 className="h-5 w-5" />
                   </MomentaryFeedbackButton>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="ID" value={computer.id} onChange={(id) => update(computer.id, (item) => ({ ...item, id }))} />
-                  <Field label="Name" value={computer.name} onChange={(name) => update(computer.id, (item) => ({ ...item, name }))} />
-                  <Field label="Address" value={computer.address} onChange={(address) => update(computer.id, (item) => ({ ...item, address }))} />
-                  <Field label="Username" value={computer.username} onChange={(username) => update(computer.id, (item) => ({ ...item, username }))} />
+                  <Field label="ID" value={computer.id} onChange={(id) => update(index, (item) => ({ ...item, id }))} onCommit={persist} />
+                  <Field label="Name" value={computer.name} onChange={(name) => update(index, (item) => ({ ...item, name }))} onCommit={persist} />
+                  <Field label="Address" value={computer.address} onChange={(address) => update(index, (item) => ({ ...item, address }))} onCommit={persist} />
+                  <Field label="Username" value={computer.username} onChange={(username) => update(index, (item) => ({ ...item, username }))} onCommit={persist} />
                   <Field
                     label="MAC address (for wake)"
                     value={computer.macAddress}
-                    onChange={(macAddress) => update(computer.id, (item) => ({ ...item, macAddress }))}
+                    onChange={(macAddress) => update(index, (item) => ({ ...item, macAddress }))}
+                    onCommit={persist}
                   />
                   <SelectField
                     label="Platform"
                     options={PLATFORMS}
                     value={computer.platform}
-                    onChange={(platform) => update(computer.id, (item) => ({ ...item, platform }))}
+                    onChange={(platform) => updateAndPersist(index, (item) => ({ ...item, platform }))}
                   />
                   <SelectField
                     label="Orientation"
                     options={ORIENTATIONS}
                     value={computer.orientation}
-                    onChange={(orientation) => update(computer.id, (item) => ({ ...item, orientation }))}
+                    onChange={(orientation) => updateAndPersist(index, (item) => ({ ...item, orientation }))}
                   />
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <ToggleButton checked={computer.enabled} onChange={(enabled) => update(computer.id, (item) => ({ ...item, enabled }))}>
+                  <ToggleButton checked={computer.enabled} onChange={(enabled) => updateAndPersist(index, (item) => ({ ...item, enabled }))}>
                     Enabled
                   </ToggleButton>
                   <ToggleButton
                     checked={computer.capabilities.wallpaper}
                     onChange={(wallpaper) =>
-                      update(computer.id, (item) => ({
+                      updateAndPersist(index, (item) => ({
                         ...item,
                         capabilities: { ...item.capabilities, wallpaper },
                       }))}
@@ -241,7 +285,7 @@ export function ManagedComputersConfig() {
                   </ToggleButton>
                   <ToggleButton
                     checked={computer.capabilities.sleep}
-                    onChange={(sleep) => update(computer.id, (item) => ({ ...item, capabilities: { ...item.capabilities, sleep } }))}
+                    onChange={(sleep) => updateAndPersist(index, (item) => ({ ...item, capabilities: { ...item.capabilities, sleep } }))}
                   >
                     <span className="inline-flex items-center gap-2">
                       <Moon className="h-4 w-4" />
@@ -250,7 +294,7 @@ export function ManagedComputersConfig() {
                   </ToggleButton>
                   <ToggleButton
                     checked={computer.capabilities.wake}
-                    onChange={(wake) => update(computer.id, (item) => ({ ...item, capabilities: { ...item.capabilities, wake } }))}
+                    onChange={(wake) => updateAndPersist(index, (item) => ({ ...item, capabilities: { ...item.capabilities, wake } }))}
                   >
                     <span className="inline-flex items-center gap-2">
                       <Power className="h-4 w-4" />
@@ -260,7 +304,7 @@ export function ManagedComputersConfig() {
                   <ToggleButton
                     checked={computer.capabilities.voiceSatellite}
                     onChange={(voiceSatellite) =>
-                      update(computer.id, (item) => ({
+                      updateAndPersist(index, (item) => ({
                         ...item,
                         capabilities: { ...item.capabilities, voiceSatellite },
                       }))}
@@ -277,7 +321,11 @@ export function ManagedComputersConfig() {
                   <textarea
                     className="cyber-text-input min-h-20"
                     value={computer.hostKey}
-                    onChange={(event) => update(computer.id, (item) => ({ ...item, hostKey: event.target.value }))}
+                    onChange={(event) => update(index, (item) => ({ ...item, hostKey: event.target.value }))}
+                    onBlur={persist}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) event.currentTarget.blur();
+                    }}
                   />
                 </label>
 
@@ -295,7 +343,10 @@ export function ManagedComputersConfig() {
         <MomentaryFeedbackButton
           type="button"
           className="config-page-button justify-center"
-          onClick={() => setComputers((current) => [...current, newComputer()])}
+          onClick={() => {
+            replaceComputers([...computersRef.current, newComputer()]);
+            persist();
+          }}
         >
           <Plus className="h-5 w-5" />
           Add Computer

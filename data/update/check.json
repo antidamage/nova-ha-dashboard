@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-07-22T15:00:02.407Z",
+  "checkedAt": "2026-07-23T00:52:31.969Z",
   "ok": true,
   "branch": "main",
-  "latestSha": "1f78150731fe5c55afd8ac52464eec5e8d37d2ab",
-  "latestMessage": "feat(agent): complete M1-02 household event feed",
-  "latestCommittedAt": "2026-07-22T10:43:40Z"
+  "latestSha": "2a1e6879dbac1ffb201d12a4ec2d2fed07899fde",
+  "latestMessage": "Add glass refraction layer to the status orb",
+  "latestCommittedAt": "2026-07-22T15:06:39Z"
 }

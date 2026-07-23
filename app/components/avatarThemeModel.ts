@@ -25,8 +25,12 @@ export type NovaGlassSettings = {
   /** backdrop-filter displacement scale — how far the lens refracts the page
    *  behind the orb (the whole disc refracts, artist "liquid glass" style). */
   displace: number;
-  /** How tightly the bend concentrates toward the rim (lens curvature). */
-  curvature: number;
+  /** Curvature of the modelled glass dome (0-100), driving how the concentric
+   *  refraction rings accumulate. Low is a near-flat pane whose slope stays
+   *  gentle across the disc; high is a near-full hemisphere whose slope runs
+   *  away toward the rim, piling refraction into a thick fisheye edge. See
+   *  refractDomeFullness / refractMagnitude in NovaOrbGlass. */
+  refractPower: number;
   /** Gaussian blur on the displacement map — the "liquid"/melt softness. */
   smoothness: number;
   /** How see-through the orb core is — fades the canvas graphics toward the
@@ -47,7 +51,7 @@ export const DEFAULT_NOVA_GLASS_SETTINGS: NovaGlassSettings = {
   // "Max refraction" default: a bold, obvious background bend with a sharp
   // fisheye rim. Every value is user-tunable in the Status Orb config.
   displace: 85,
-  curvature: 78,
+  refractPower: 50,
   smoothness: 30,
   clarity: 60,
   gloss: 50,
@@ -225,7 +229,7 @@ export function normalizeNovaGlassSettings(value: unknown): NovaGlassSettings {
   return {
     enabled: typeof v.enabled === "boolean" ? v.enabled : DEFAULT_NOVA_GLASS_SETTINGS.enabled,
     displace: pct(v.displace, DEFAULT_NOVA_GLASS_SETTINGS.displace),
-    curvature: pct(v.curvature, DEFAULT_NOVA_GLASS_SETTINGS.curvature),
+    refractPower: pct(v.refractPower, DEFAULT_NOVA_GLASS_SETTINGS.refractPower),
     smoothness: pct(v.smoothness, DEFAULT_NOVA_GLASS_SETTINGS.smoothness),
     clarity: pct(v.clarity, DEFAULT_NOVA_GLASS_SETTINGS.clarity),
     gloss: pct(v.gloss, DEFAULT_NOVA_GLASS_SETTINGS.gloss),

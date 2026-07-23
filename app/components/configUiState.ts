@@ -8,6 +8,7 @@ const STORAGE_KEY = "nova-config-ui";
 const TTL_MS = 5 * 60 * 1000;
 
 type ConfigUiState = {
+  activeCategory?: string | null;
   updatedAt: number;
   open: Record<string, boolean>;
   scrollTop: number;
@@ -31,6 +32,7 @@ function readFresh(): ConfigUiState | null {
       return null;
     }
     return {
+      activeCategory: typeof parsed.activeCategory === "string" ? parsed.activeCategory : null,
       updatedAt: parsed.updatedAt,
       open: parsed.open && typeof parsed.open === "object" ? parsed.open : {},
       scrollTop: Number(parsed.scrollTop) || 0,
@@ -70,6 +72,15 @@ export function setAccordionOpen(key: string, open: boolean) {
 export function setConfigScroll(scrollTop: number) {
   const state = readFresh() ?? { updatedAt: Date.now(), open: {}, scrollTop: 0 };
   write({ ...state, scrollTop });
+}
+
+export function getActiveConfigCategory(): string | null {
+  return readFresh()?.activeCategory ?? null;
+}
+
+export function setActiveConfigCategory(activeCategory: string | null) {
+  const state = readFresh() ?? { updatedAt: Date.now(), open: {}, scrollTop: 0 };
+  write({ ...state, activeCategory });
 }
 
 /** Stable persistence key for an accordion from its id or title. */
