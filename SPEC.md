@@ -2505,6 +2505,17 @@ must declare its lite behavior.
   lite device — no machine-specific code. Reload scroll-restore
   (`useScrollRestore.ts`, `ConfigWorkspace.tsx`) pins its `scrollTo` to
   `behavior: "auto"` so it is never animated by the smooth default.
+- **Click-and-drag scroll**: `useClickDragScroll` (also mounted via
+  `SmoothScrollController`) lets **mouse** users press anywhere and drag to pan
+  the window scroll on both the dashboard and `/config`, mirroring the native
+  touch drag — touch is left untouched (mouse events only). A 5px movement
+  threshold keeps ordinary clicks working (buttons/links still activate; a real
+  drag suppresses the trailing click and any native link/image drag). Form
+  fields, `[role="slider"]`, contenteditable, the maplibre map, inner scroll
+  regions, and `data-nova-no-drag-scroll` opt-outs are skipped. It is a direct
+  1:1 input (no easing/animation), so it is not gated by lite or reduced-motion;
+  it uses `scrollBy({ behavior: "auto" })` so the smooth default never animates a
+  drag frame.
 - **Task glow**: the inset blur stacks are flattened via CSS overrides on the
   consuming rules (the `--task-glow-*` vars are inline styles on `<html>`, so
   the vars themselves cannot be overridden from a stylesheet).
