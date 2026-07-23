@@ -80,29 +80,12 @@ body {
   min-height: 100%;
   background: var(--background);
   color: var(--foreground);
-  /* Smooth every page-level *jump* (anchor/hash nav, arrow & Page/Home/End keys,
-     and any programmatic window.scrollTo without an explicit behavior). Wheel
-     easing is handled separately by the JS momentum engine (useSmoothWheelScroll);
-     touch stays native. Lite mode and prefers-reduced-motion fall back to `auto`
-     below — the blanket lite kill-switch does NOT cover scroll-behavior. Reload
-     scroll-restore opts back into `auto` explicitly (useScrollRestore.ts,
-     ConfigWorkspace.tsx) so it never animates a long jump. */
-  scroll-behavior: smooth;
+  /* Scrolling is native (instant). The smooth-scroll feature — CSS
+     `scroll-behavior: smooth` plus the JS wheel-momentum engine — was removed;
+     page-level jumps (anchor/hash nav, keys, programmatic scrollTo) land
+     instantly, and the mouse hand-tool pan (useClickDragScroll) is direct. */
   scrollbar-width: none;          /* Hides scrollbar for Firefox */
   -ms-overflow-style: none;       /* Hides scrollbar for IE and older Edge */
-}
-
-/* Instant jumps for lite devices and reduced-motion users. Kept beside the
-   html,body rule (not in the lite kill-switch block) because the blanket rule
-   only neutralises animation/transition/backdrop-filter, never scroll-behavior. */
-html[data-nova-lite] {
-  scroll-behavior: auto;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
 }
 
 /* During active scrolling, CSS animation work joins the canvas/WebGL and React

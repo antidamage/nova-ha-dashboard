@@ -164,27 +164,34 @@ export function buildLensDisplacementMap(
   const half = res / 2;
   const q = refractDomeFullness(refractPower);
   const layerRadius = concentricLayerRadius(layerIndex, layerCount);
-  const rimFade = 0.12;
+  // Fraction of THIS lens's own radius over which the refraction eases back to
+  // neutral (128). This is the crux of making the recursive stack read as one
+  // smooth glass ball: `refractMagnitude` RISES to its maximum right at the rim
+  // (localRadius = 1), so without an ease the layer peaks at full strength and
+  // is then hard-cut to zero just outside its radius. Stacking N such layers
+  // lands N concentric displacement discontinuities on top of one another,
+  // which the browser renders as hard chevron seams around a dead, undisplaced
+  // core. Easing each layer smoothly to neutral at its own rim lets the nested
+  // lenses overlap and compound into one continuous refraction instead.
+  const rimEase = 0.24;
   for (let y = 0; y < res; y += 1) {
     const ny = (y + 0.5 - half) / half; // -1 .. 1
     for (let x = 0; x < res; x += 1) {
       const nx = (x + 0.5 - half) / half; // -1 .. 1
       const r = Math.hypot(nx, ny);
-      // Neutralise the square corners and everything outside this layer. The
-      // short fade prevents each nested circle from becoming a harsh seam.
-      const edge = r <= 1 ? 1 : Math.max(0, 1 - (r - 1) / 0.28);
-      const layerEdge = r <= layerRadius
-        ? 1
-        : Math.max(0, 1 - (r - layerRadius) / rimFade);
       const idx = (y * res + x) * 4;
-      if (r < 1e-4) {
+      // Position within THIS nested lens: 0 at the centre, 1 at its own rim.
+      // At/outside the rim the layer is neutral so it only bends its own disc;
+      // successively smaller inner layers pile more refraction toward the core,
+      // and each compounds the warp handed down from the layer before it.
+      const localRadius = r / Math.max(1e-6, layerRadius);
+      if (r < 1e-4 || localRadius >= 1) {
         data[idx] = 128;
         data[idx + 1] = 128;
       } else {
-        // Each stage models a smaller spherical cap. Feeding the output into
-        // the next stage compounds the refraction across the glass ball.
-        const localRadius = r / Math.max(1e-6, layerRadius);
-        const magnitude = refractMagnitude(localRadius, q) * edge * layerEdge;
+        const ease = clamp((1 - localRadius) / rimEase, 0, 1);
+        const rimWindow = ease * ease * (3 - 2 * ease); // smoothstep -> 0 at rim
+        const magnitude = refractMagnitude(localRadius, q) * rimWindow;
         data[idx] = clamp(128 + (nx / r) * magnitude * 127, 0, 255); // R -> X
         data[idx + 1] = clamp(128 + (ny / r) * magnitude * 127, 0, 255); // G -> Y
       }
@@ -312,10 +319,41 @@ export function NovaOrbGlassFilter({
         >
           {lensMaps.length === CONCENTRIC_LENS_LAYER_COUNT ? (
             <>
+              {/* Image transform (localStretch zoom / vertical flip) runs FIRST,
+                  reshaping the raw backdrop, and the lens layers then refract that
+                  already-transformed image. Order matters: chaining this
+                  large-scale (size*2) pass AFTER the lens instead wiped the lens
+                  warp back out — Chromium loses the accumulated fine displacement
+                  when a much larger displacement is applied on top, so the glass
+                  refraction "disappeared" the moment a non-zero localStretch/flip
+                  theme loaded. Running it before the lens keeps both. */}
+              {transformActive && transformMap ? (
+                <>
+                  <feImage
+                    href={transformMap}
+                    x="-10%"
+                    y="-10%"
+                    width="120%"
+                    height="120%"
+                    preserveAspectRatio="none"
+                    result="imageTransformMap"
+                  />
+                  <feDisplacementMap
+                    in="SourceGraphic"
+                    in2="imageTransformMap"
+                    scale={size * 2}
+                    xChannelSelector="R"
+                    yChannelSelector="G"
+                    result="glassBackdropSource"
+                  />
+                </>
+              ) : null}
               {lensMaps.map((lensMap, layerIndex) => {
                 const mapId = `lensMap-${layerIndex}`;
                 const softMapId = `lensMapSoft-${layerIndex}`;
                 const warpId = `lensWarp-${layerIndex}`;
+                const baseSource =
+                  transformActive && transformMap ? "glassBackdropSource" : "SourceGraphic";
                 return (
                   <Fragment key={layerIndex}>
                     <feImage
@@ -330,7 +368,7 @@ export function NovaOrbGlassFilter({
                     />
                     <feGaussianBlur in={mapId} stdDeviation={blur} result={softMapId} />
                     <feDisplacementMap
-                      in={layerIndex === 0 ? "SourceGraphic" : `lensWarp-${layerIndex - 1}`}
+                      in={layerIndex === 0 ? baseSource : `lensWarp-${layerIndex - 1}`}
                       in2={softMapId}
                       scale={scale * concentricLayerScale(layerIndex)}
                       xChannelSelector="R"
@@ -340,26 +378,6 @@ export function NovaOrbGlassFilter({
                   </Fragment>
                 );
               })}
-              {transformActive && transformMap ? (
-                <>
-                  <feImage
-                    href={transformMap}
-                    x="-10%"
-                    y="-10%"
-                    width="120%"
-                    height="120%"
-                    preserveAspectRatio="none"
-                    result="imageTransformMap"
-                  />
-                  <feDisplacementMap
-                    in={`lensWarp-${CONCENTRIC_LENS_LAYER_COUNT - 1}`}
-                    in2="imageTransformMap"
-                    scale={size * 2}
-                    xChannelSelector="R"
-                    yChannelSelector="G"
-                  />
-                </>
-              ) : null}
             </>
           ) : (
             <feOffset in="SourceGraphic" dx="0" dy="0" />

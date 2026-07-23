@@ -108,8 +108,7 @@ export function useClickDragScroll(): void {
 
       const dy = event.clientY - lastY;
       lastY = event.clientY;
-      // Instant — never inherit `scroll-behavior: smooth` (globals.css), which
-      // would animate and lag every drag frame.
+      // Explicit instant scroll: the drag is a direct 1:1 input, never eased.
       window.scrollBy({ top: -dy, left: 0, behavior: "auto" });
       event.preventDefault();
     };
