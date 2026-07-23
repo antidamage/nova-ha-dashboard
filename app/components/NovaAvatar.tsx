@@ -221,7 +221,16 @@ function NovaAvatarVisual({
   const glass = theme.glass;
   const lite = useLiteMode();
   const rawFilterId = useId();
-  const glassFilterId = `nova-orb-glass-${rawFilterId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  // Chromium caches backdrop-filter URL references aggressively. Include every
+  // filter-shaping value in the id so slider/checkbox edits force a rebuild.
+  const glassFilterId = [
+    `nova-orb-glass-${rawFilterId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
+    glass.displace,
+    glass.refractPower,
+    glass.smoothness,
+    glass.localStretch + 100,
+    glass.flipVertical ? 1 : 0,
+  ].join("-");
   const glassEnabled = glass.enabled;
   const glassDriftActive = glassEnabled && !lite && glass.reflection > 0 && glass.drift > 0;
 
@@ -600,7 +609,7 @@ function NovaAvatarVisual({
         className="nova-avatar-canvas"
         style={canvasStyle}
       />
-      {glassEnabled ? <NovaOrbGlassFilter filterId={glassFilterId} glass={glass} /> : null}
+      {glassEnabled ? <NovaOrbGlassFilter filterId={glassFilterId} glass={glass} size={size} /> : null}
       {forceVisible || statusOrbInfoVisible ? (
         <div
           className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}

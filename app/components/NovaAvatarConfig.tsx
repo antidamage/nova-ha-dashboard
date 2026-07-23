@@ -230,6 +230,7 @@ function OrbModuleSelect({
 // separately as the group's master switch.
 type GlassSliderKey =
   | "displace"
+  | "localStretch"
   | "refractPower"
   | "smoothness"
   | "clarity"
@@ -240,6 +241,7 @@ type GlassSliderKey =
 
 const GLASS_SLIDERS: { key: GlassSliderKey; label: string; description: string }[] = [
   { key: "displace", label: "Refraction", description: "How hard the glass bends the page behind the whole orb" },
+  { key: "localStretch", label: "Background size", description: "Actual size change of the background sampled through the glass: negative shrinks, positive enlarges" },
   { key: "refractPower", label: "Refraction curve", description: "Curvature of the glass dome — low is a near-flat pane, high piles refraction into a thick fisheye rim" },
   { key: "smoothness", label: "Melt", description: "Liquid softening of the refraction" },
   { key: "clarity", label: "Clarity", description: "How clear the orb centre goes so the refraction reads through" },
@@ -523,7 +525,7 @@ function NovaAvatarConfigView({
                   intensity={100}
                   label={slider.label}
                   max={100}
-                  min={0}
+                  min={slider.key === "localStretch" ? -100 : 0}
                   step={1}
                   value={value}
                   valueText={`${value}`}
@@ -532,6 +534,25 @@ function NovaAvatarConfigView({
                 />
               );
             })}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={theme.glass.flipVertical}
+              aria-label="Flip the refracted image vertically"
+              className={`cyber-checkbox-row border p-4 text-left ${theme.glass.flipVertical ? "cyber-checkbox-row-active" : ""}`}
+              onClick={() => setTheme({ ...theme, glass: { ...theme.glass, flipVertical: !theme.glass.flipVertical } })}
+            >
+              <span
+                className={`cyber-checkbox ${theme.glass.flipVertical ? "cyber-checkbox-checked" : ""}`}
+                aria-hidden="true"
+              >
+                {theme.glass.flipVertical ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
+              </span>
+              <span className="grid min-w-0 gap-1">
+                <span className="theme-display-label zone-title-bar">Flip vertically</span>
+                <span className="theme-display-detail">Reverse the vertical refraction direction for a glass-ball effect</span>
+              </span>
+            </button>
           </div>
         ) : null}
       </div>

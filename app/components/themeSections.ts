@@ -21,7 +21,7 @@ export const THEME_SECTION_LABELS: Record<ThemeSectionKind, string> = {
 // ever read and write these keys, so unrelated controls in a section are left
 // untouched and cross-section pastes are impossible.
 const SECTION_FIELDS: Record<ThemeSectionKind, ReadonlyArray<keyof DeviceTheme>> = {
-  themeColours: ["accent", "highlight", "background", "border", "titleColors", "titleTone", "voiceTranscriptColors"],
+  themeColours: ["accent", "highlight", "background", "border", "titleColors", "clockColor", "titleTone", "voiceTranscriptColors"],
   typography: ["font", "clockFont"],
   background: ["backgroundEffect", "desktopWallpaper"],
   map: [
