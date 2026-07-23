@@ -16,6 +16,8 @@ describe("normalizeNovaGlassSettings", () => {
     const glass = normalizeNovaGlassSettings({
       enabled: false,
       displace: 240,
+      localStretch: -130,
+      flipVertical: true,
       refractPower: -30,
       smoothness: 51.7,
       gloss: 12,
@@ -26,6 +28,8 @@ describe("normalizeNovaGlassSettings", () => {
     expect(glass).toEqual({
       enabled: false,
       displace: 100,
+      localStretch: -100,
+      flipVertical: true,
       refractPower: 0,
       smoothness: 52,
       clarity: DEFAULT_NOVA_GLASS_SETTINGS.clarity,
@@ -44,6 +48,8 @@ describe("normalizeNovaGlassSettings", () => {
     });
     expect(glass.enabled).toBe(DEFAULT_NOVA_GLASS_SETTINGS.enabled);
     expect(glass.displace).toBe(DEFAULT_NOVA_GLASS_SETTINGS.displace);
+    expect(glass.localStretch).toBe(DEFAULT_NOVA_GLASS_SETTINGS.localStretch);
+    expect(glass.flipVertical).toBe(DEFAULT_NOVA_GLASS_SETTINGS.flipVertical);
     expect(glass.refractPower).toBe(DEFAULT_NOVA_GLASS_SETTINGS.refractPower);
   });
 });

@@ -264,6 +264,7 @@ try {
   var mapSatellite = !(stored && stored.mapSatellite === false);
   var titleTone = stored && stored.titleTone ? stored.titleTone : "auto";
   var titleColors = stored && stored.titleColors ? stored.titleColors : null;
+  var clockColor = stored && stored.clockColor ? stored.clockColor : null;
   var fontStacks = ${fontStacksJson};
   var defaultFontId = "${DEFAULT_THEME_FONT_ID}";
   var defaultClockFontId = "${DEFAULT_CLOCK_FONT_ID}";
@@ -373,14 +374,16 @@ try {
     document.documentElement.style.setProperty("--cyber-panel", rgbCss(mix(rgb, [0, 0, 0], 0.16)));
     document.documentElement.style.setProperty("--cyber-panel-soft", rgbCss(mix(rgb, [255, 255, 255], 0.07)));
   };
-  var setTitleTone = function (tone, accentRgb, highlightRgb, backgroundRgb, colors) {
+  var setTitleTone = function (tone, accentRgb, highlightRgb, backgroundRgb, clockColorValue, colors) {
     document.documentElement.style.setProperty("--cyber-title-on-line", titleColor(tone, accentRgb, false));
     document.documentElement.style.setProperty("--cyber-title-on-cyan", titleColor(tone, highlightRgb, false));
     document.documentElement.style.setProperty("--cyber-title-on-highlight", titleColor(tone, highlightRgb, false));
+    var titleSlot = titleColorSlot(tone, backgroundRgb, true);
     var clockTextFill = titleColor(tone, backgroundRgb, true);
     document.documentElement.style.setProperty("--cyber-title-on-bg", clockTextFill);
     document.documentElement.style.setProperty("--cyber-clock-text-fill", clockTextFill);
-    var titleSlot = titleColorSlot(tone, backgroundRgb, true);
+    var fallbackClockColor = titleSlot === "dark" ? applied(colors && colors.dark, [42, 0, 61]) : applied(colors && colors.light, [173, 173, 173]);
+    document.documentElement.style.setProperty("--cyber-clock-color", rgbCss(applied(clockColorValue, fallbackClockColor)));
     var clockFill = titleSlot === "dark" ? applied(colors && colors.dark, [42, 0, 61]) : applied(colors && colors.light, [173, 173, 173]);
     document.documentElement.style.setProperty("--cyber-title-on-clock-fill", titleColor("auto", clockFill, false));
   };
@@ -469,6 +472,7 @@ try {
     var mapSatellite = !(themeValue.mapSatellite === false);
     var titleTone = themeValue.titleTone ? themeValue.titleTone : "auto";
     var titleColors = themeValue.titleColors ? themeValue.titleColors : null;
+    var clockColor = themeValue.clockColor ? themeValue.clockColor : null;
     document.cookie = themeKey + "=" + encodeURIComponent(JSON.stringify(sourceThemeValue)) + "; Path=/; Max-Age=31536000; SameSite=Lax";
     localStorage.setItem(themeScope === "shared" ? sharedThemeKey : themeKey, JSON.stringify(sourceThemeValue));
     var accentRgb = applied(accent, [51, 51, 51]);
@@ -479,7 +483,7 @@ try {
     setBorder(border, accentRgb);
     setBackground(backgroundRgb);
     setTitleColors(titleColors);
-    setTitleTone(titleTone, accentRgb, highlightRgb, backgroundRgb, titleColors);
+    setTitleTone(titleTone, accentRgb, highlightRgb, backgroundRgb, clockColor, titleColors);
     setMap(map);
     document.documentElement.style.setProperty("--cyber-map-radar-mode", radarPaletteMode);
     setMapBuildingOpacity(mapBuildingOpacity);

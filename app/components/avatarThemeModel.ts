@@ -17,7 +17,8 @@ export type AvatarThemeColorValue = {
  * modules it has no tvOS counterpart — the Apple TV renderer simply never
  * draws it. Every knob is a 0-100 magnitude except `enabled`; the renderer
  * maps them to concrete pixel/filter values, so the stored model stays a set
- * of plain, hand-editable percentages.
+ * of plain, hand-editable percentages. `localStretch` is the one signed
+ * exception: it ranges from -100 to 100 around a neutral zero.
  */
 export type NovaGlassSettings = {
   /** Master switch for the whole glass overlay. */
@@ -25,6 +26,11 @@ export type NovaGlassSettings = {
   /** backdrop-filter displacement scale — how far the lens refracts the page
    *  behind the orb (the whole disc refracts, artist "liquid glass" style). */
   displace: number;
+  /** Signed local radial size change of the refracted image (-100..100).
+   * 0 is neutral, +100 doubles the local size, -100 collapses it. */
+  localStretch: number;
+  /** Reverse the displacement map's vertical refraction direction. */
+  flipVertical: boolean;
   /** Curvature of the modelled glass dome (0-100), driving how the concentric
    *  refraction rings accumulate. Low is a near-flat pane whose slope stays
    *  gentle across the disc; high is a near-full hemisphere whose slope runs
@@ -51,6 +57,8 @@ export const DEFAULT_NOVA_GLASS_SETTINGS: NovaGlassSettings = {
   // "Max refraction" default: a bold, obvious background bend with a sharp
   // fisheye rim. Every value is user-tunable in the Status Orb config.
   displace: 85,
+  localStretch: 0,
+  flipVertical: false,
   refractPower: 50,
   smoothness: 30,
   clarity: 60,
@@ -229,6 +237,12 @@ export function normalizeNovaGlassSettings(value: unknown): NovaGlassSettings {
   return {
     enabled: typeof v.enabled === "boolean" ? v.enabled : DEFAULT_NOVA_GLASS_SETTINGS.enabled,
     displace: pct(v.displace, DEFAULT_NOVA_GLASS_SETTINGS.displace),
+    localStretch: Number.isFinite(Number(v.localStretch))
+      ? clamp(Math.round(Number(v.localStretch)), -100, 100)
+      : DEFAULT_NOVA_GLASS_SETTINGS.localStretch,
+    flipVertical: typeof v.flipVertical === "boolean"
+      ? v.flipVertical
+      : DEFAULT_NOVA_GLASS_SETTINGS.flipVertical,
     refractPower: pct(v.refractPower, DEFAULT_NOVA_GLASS_SETTINGS.refractPower),
     smoothness: pct(v.smoothness, DEFAULT_NOVA_GLASS_SETTINGS.smoothness),
     clarity: pct(v.clarity, DEFAULT_NOVA_GLASS_SETTINGS.clarity),

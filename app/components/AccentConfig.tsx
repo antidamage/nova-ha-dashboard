@@ -124,7 +124,7 @@ type ThemeConfigColorSlot = ThemeColorSlot | "background";
 type MapConfigSlot = `map.${MapThemeColorSlot}`;
 type TitleConfigSlot = "title.light" | "title.dark";
 type VoiceTranscriptConfigSlot = "voiceTranscript.background" | "voiceTranscript.text";
-type ThemeConfigSlot = ThemeConfigColorSlot | "border" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
+type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "clockColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
 type ThemeSlotChoice = { slot: ThemeConfigSlot; label: string; detail: string };
 
 const THEME_SLOTS: ThemeSlotChoice[] = [
@@ -153,6 +153,8 @@ const TITLE_THEME_SLOTS: ThemeSlotChoice[] = [
   { slot: "title.light", label: "Title Light", detail: "Light text tone" },
   { slot: "title.dark", label: "Title Dark", detail: "Dark text tone" },
 ];
+
+const CLOCK_THEME_SLOT: ThemeSlotChoice = { slot: "clockColor", label: "Clock Colour", detail: "Clock readout" };
 
 const VOICE_TRANSCRIPT_THEME_SLOTS: ThemeSlotChoice[] = [
   { slot: "voiceTranscript.background", label: "Transcript Background", detail: "Panel surface" },
@@ -1388,6 +1390,9 @@ function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): ThemeColo
   if (slot === "border") {
     return theme.border.color;
   }
+  if (slot === "clockColor") {
+    return theme.clockColor;
+  }
   if (isTitleConfigSlot(slot)) {
     return theme.titleColors[titleSlotKey(slot)];
   }
@@ -1497,6 +1502,10 @@ export function AccentConfig({
   const updateSlotColor = (slot: ThemeConfigSlot, value: ThemeColorValue, options: { persist?: boolean } = {}) => {
     if (slot === "border") {
       setTheme({ ...theme, border: { ...theme.border, color: value } }, options);
+      return;
+    }
+    if (slot === "clockColor") {
+      setTheme({ ...theme, clockColor: value }, options);
       return;
     }
     if (isTitleConfigSlot(slot)) {
@@ -1870,21 +1879,6 @@ export function AccentConfig({
         <div className="panel-corner panel-corner-right" />
         <div className="grid gap-4">
           <div className="grid gap-3">
-            <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
-            <ThemeLibraryControl
-              activeId={library.library.activeId}
-              dirty={dirty}
-              entries={library.library.entries}
-              onLoad={loadThemeFromLibrary}
-              onSaveChanges={() => library.saveChanges(themeSet)}
-              onSaveAs={(name) => library.saveAs(name, themeSet)}
-              onRename={(id, name) => library.rename(id, name)}
-              onDuplicate={(id) => library.duplicate(id)}
-              onDelete={(id) => library.remove(id)}
-            />
-            {library.error ? <p className="theme-library-error">{library.error}</p> : null}
-          </div>
-          <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">This Device</h2>
             <VoiceInputDeviceGroup agentName={agentName} />
             <CheckboxRow
@@ -1969,6 +1963,21 @@ export function AccentConfig({
               />
             ) : null}
           </div>
+          <div className="grid gap-3">
+            <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
+            <ThemeLibraryControl
+              activeId={library.library.activeId}
+              dirty={dirty}
+              entries={library.library.entries}
+              onLoad={loadThemeFromLibrary}
+              onSaveChanges={() => library.saveChanges(themeSet)}
+              onSaveAs={(name) => library.saveAs(name, themeSet)}
+              onRename={(id, name) => library.rename(id, name)}
+              onDuplicate={(id) => library.duplicate(id)}
+              onDelete={(id) => library.remove(id)}
+            />
+            {library.error ? <p className="theme-library-error">{library.error}</p> : null}
+          </div>
         </div>
       </section>
 
@@ -2023,6 +2032,7 @@ export function AccentConfig({
               <div className="theme-widget-flow">
                 {TITLE_THEME_SLOTS.map(renderWidget)}
               </div>
+              {renderWidget(CLOCK_THEME_SLOT)}
             </div>
           </ConfigAccordion>
 

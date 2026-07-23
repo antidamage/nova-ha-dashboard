@@ -52,6 +52,7 @@
   --cyber-title-on-highlight: var(--cyber-title-on-cyan);
   --cyber-title-on-bg: var(--cyber-title-light);
   --cyber-clock-text-fill: var(--cyber-title-on-bg);
+  --cyber-clock-color: var(--cyber-title-on-bg);
   --cyber-title-on-clock-fill: var(--cyber-title-dark);
   --cyber-title-glow-bg: color-mix(in srgb, var(--cyber-title-on-bg) 28%, transparent);
   --cyber-title-glow-line: color-mix(in srgb, var(--cyber-title-on-line) 28%, transparent);
@@ -1583,6 +1584,7 @@ a.update-banner-button {
 /* Compact, static theme spectrum. This intentionally does not share any of
  * the animated dot treatment used by the live lighting-zone picker. */
 .config-color-picker {
+  border-radius: 10px;
   height: 132px;
   min-height: 132px;
   cursor: crosshair;
@@ -3169,6 +3171,7 @@ a.update-banner-button {
 .dashboard-shell .clock-subtime {
   font-family: var(--cyber-clock);
   font-weight: var(--cyber-clock-weight, 900);
+  color: var(--cyber-clock-color) !important;
 }
 
 .outside-control-grid {

@@ -5,9 +5,9 @@
 // The orb itself is a 2D canvas (see NovaAvatar + orbRenderer). This module
 // adds the DOM/SVG glass treatment that sits on top of it:
 //
-//   1. An SVG `feDisplacementMap` driven by a generated radial "lens" normal
-//      map, applied (by NovaAvatar) to the wrapper that holds the canvas +
-//      these layers, so the whole orb refracts like a curved piece of glass.
+//   1. A chained SVG `feDisplacementMap` stack driven by generated concentric
+//      lens maps. Each smaller circular stage compounds the previous stage,
+//      so the backdrop bends through a layered glass-ball profile.
 //   2. A screen-blended reflection of a grey/silver room with overhead lights
 //      that pans across the orb as it moves on the page / the pointer sweeps —
 //      the give-away that you're looking at a shiny convex surface.
@@ -19,7 +19,7 @@
 // `glass` block (NovaGlassSettings), 0-100 magnitudes mapped to concrete
 // filter/pixel values by the small helpers below.
 
-import { type CSSProperties, type RefObject, useEffect, useMemo, useRef } from "react";
+import { Fragment, type CSSProperties, type RefObject, useEffect, useRef, useState } from "react";
 import type { NovaGlassSettings } from "./avatarThemeModel";
 
 function clamp(value: number, min: number, max: number) {
@@ -88,6 +88,19 @@ function glassDriftPx(glass: NovaGlassSettings) {
 // Displacement (lens normal) map
 // ---------------------------------------------------------------------------
 
+export const CONCENTRIC_LENS_LAYER_COUNT = 8;
+
+/** Radius of each nested glass layer, in orb-radius units. */
+export function concentricLayerRadius(layerIndex: number, layerCount = CONCENTRIC_LENS_LAYER_COUNT) {
+  const index = clamp(Math.round(layerIndex), 0, Math.max(0, layerCount - 1));
+  return 1 - (index / Math.max(1, layerCount)) * 0.7;
+}
+
+/** Keep compounding visible without allowing the stack to become a hard smear. */
+export function concentricLayerScale(layerIndex: number, layerCount = CONCENTRIC_LENS_LAYER_COUNT) {
+  return 0.22 + (Math.max(0, layerCount - 1 - layerIndex) / Math.max(1, layerCount)) * 0.16;
+}
+
 /**
  * Map the 0-100 "Refraction curve" knob to the *dome fullness* `q` of the
  * modelled spherical glass surface — how much of a full hemisphere the disc
@@ -123,7 +136,7 @@ export function refractMagnitude(r: number, q: number) {
 }
 
 /**
- * Build a concentric "lens" displacement map as a data URL.
+ * Build one nested circular "lens" displacement map as a data URL.
  *
  * feDisplacementMap shifts each source pixel by `scale * (channel/255 - 0.5)`,
  * reading X from the red channel and Y from the green (128 = no shift). Here
@@ -134,7 +147,12 @@ export function refractMagnitude(r: number, q: number) {
  * "Refraction curve" knob (dome fullness) reshapes how strongly each concentric
  * ring bends the backdrop. `scale` (the Refraction knob) supplies the peak px.
  */
-export function buildLensDisplacementMap(refractPower: number, res = 128): string {
+export function buildLensDisplacementMap(
+  refractPower: number,
+  layerIndex = 0,
+  layerCount = CONCENTRIC_LENS_LAYER_COUNT,
+  res = 128,
+): string {
   if (typeof document === "undefined") return "";
   const canvas = document.createElement("canvas");
   canvas.width = res;
@@ -145,26 +163,89 @@ export function buildLensDisplacementMap(refractPower: number, res = 128): strin
   const data = image.data;
   const half = res / 2;
   const q = refractDomeFullness(refractPower);
+  const layerRadius = concentricLayerRadius(layerIndex, layerCount);
+  const rimFade = 0.12;
   for (let y = 0; y < res; y += 1) {
     const ny = (y + 0.5 - half) / half; // -1 .. 1
     for (let x = 0; x < res; x += 1) {
       const nx = (x + 0.5 - half) / half; // -1 .. 1
       const r = Math.hypot(nx, ny);
-      // Neutralise the square corners so only the disc bends; fade the ramp
-      // out in a thin band just past the unit circle to avoid a hard ring.
+      // Neutralise the square corners and everything outside this layer. The
+      // short fade prevents each nested circle from becoming a harsh seam.
       const edge = r <= 1 ? 1 : Math.max(0, 1 - (r - 1) / 0.28);
+      const layerEdge = r <= layerRadius
+        ? 1
+        : Math.max(0, 1 - (r - layerRadius) / rimFade);
       const idx = (y * res + x) * 4;
       if (r < 1e-4) {
         data[idx] = 128;
         data[idx + 1] = 128;
       } else {
-        // Accumulated surface slope of the glass dome at this ring; the unit
-        // radial direction spreads it into concentric contours.
-        const magnitude = refractMagnitude(r, q) * edge;
+        // Each stage models a smaller spherical cap. Feeding the output into
+        // the next stage compounds the refraction across the glass ball.
+        const localRadius = r / Math.max(1e-6, layerRadius);
+        const magnitude = refractMagnitude(localRadius, q) * edge * layerEdge;
         data[idx] = clamp(128 + (nx / r) * magnitude * 127, 0, 255); // R -> X
         data[idx + 1] = clamp(128 + (ny / r) * magnitude * 127, 0, 255); // G -> Y
       }
       data[idx + 2] = 128; // B unused
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+/**
+ * Return the source-coordinate offset needed to resize and optionally invert
+ * the backdrop inside the orb. Coordinates are normalised around the disc
+ * centre (-1..1). An apparent image scale S samples source coordinate p/S;
+ * vertical inversion samples -y/S. -100% is clamped close to zero because an
+ * exact zero-sized image has no finite inverse sampling transform.
+ */
+export function imageTransformDisplacement(
+  nx: number,
+  ny: number,
+  localStretch: number,
+  flipVertical: boolean,
+) {
+  const imageScale = Math.max(0.05, 1 + clamp(localStretch, -100, 100) / 100);
+  const sourceX = nx / imageScale;
+  const sourceY = (flipVertical ? -ny : ny) / imageScale;
+  return { dx: sourceX - nx, dy: sourceY - ny };
+}
+
+/** Build the second displacement map that performs the actual image resize. */
+export function buildImageTransformMap(
+  localStretch: number,
+  flipVertical: boolean,
+  res = 128,
+): string {
+  if (typeof document === "undefined") return "";
+  const canvas = document.createElement("canvas");
+  canvas.width = res;
+  canvas.height = res;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  const image = ctx.createImageData(res, res);
+  const data = image.data;
+  const half = res / 2;
+  for (let y = 0; y < res; y += 1) {
+    const ny = (y + 0.5 - half) / half;
+    for (let x = 0; x < res; x += 1) {
+      const nx = (x + 0.5 - half) / half;
+      const idx = (y * res + x) * 4;
+      if (Math.hypot(nx, ny) <= 1) {
+        const { dx, dy } = imageTransformDisplacement(nx, ny, localStretch, flipVertical);
+        // The filter uses scale=2*orbSize. A normalised delta of 1 is one
+        // radius, therefore it occupies one quarter of the channel range.
+        data[idx] = clamp(Math.round(127.5 + dx * 63.75), 0, 255);
+        data[idx + 1] = clamp(Math.round(127.5 + dy * 63.75), 0, 255);
+      } else {
+        data[idx] = 128;
+        data[idx + 1] = 128;
+      }
+      data[idx + 2] = 128;
       data[idx + 3] = 255;
     }
   }
@@ -185,11 +266,34 @@ export function buildLensDisplacementMap(refractPower: number, res = 128): strin
 export function NovaOrbGlassFilter({
   filterId,
   glass,
+  size,
 }: {
   filterId: string;
   glass: NovaGlassSettings;
+  size: number;
 }) {
-  const map = useMemo(() => buildLensDisplacementMap(glass.refractPower), [glass.refractPower]);
+  // Map generation requires a browser canvas. Generating in useMemo during
+  // SSR leaves the hydrated filter permanently on its no-op fallback, so do
+  // it after mount and regenerate whenever the shaping controls change.
+  const [lensMaps, setLensMaps] = useState<string[]>([]);
+  const [transformMap, setTransformMap] = useState("");
+  const transformActive = glass.localStretch !== 0 || glass.flipVertical;
+  useEffect(() => {
+    setLensMaps(
+      Array.from({ length: CONCENTRIC_LENS_LAYER_COUNT }, (_, layerIndex) =>
+        buildLensDisplacementMap(
+          glass.refractPower,
+          layerIndex,
+          CONCENTRIC_LENS_LAYER_COUNT,
+        ),
+      ),
+    );
+  }, [glass.refractPower]);
+  useEffect(() => {
+    setTransformMap(
+      transformActive ? buildImageTransformMap(glass.localStretch, glass.flipVertical) : "",
+    );
+  }, [glass.localStretch, glass.flipVertical, transformActive]);
   const scale = glassDisplaceScale(glass);
   const blur = glassMapBlur(glass);
 
@@ -206,25 +310,56 @@ export function NovaOrbGlassFilter({
           height="120%"
           colorInterpolationFilters="sRGB"
         >
-          {map ? (
+          {lensMaps.length === CONCENTRIC_LENS_LAYER_COUNT ? (
             <>
-              <feImage
-                href={map}
-                x="-10%"
-                y="-10%"
-                width="120%"
-                height="120%"
-                preserveAspectRatio="none"
-                result="lensMap"
-              />
-              <feGaussianBlur in="lensMap" stdDeviation={blur} result="lensMapSoft" />
-              <feDisplacementMap
-                in="SourceGraphic"
-                in2="lensMapSoft"
-                scale={scale}
-                xChannelSelector="R"
-                yChannelSelector="G"
-              />
+              {lensMaps.map((lensMap, layerIndex) => {
+                const mapId = `lensMap-${layerIndex}`;
+                const softMapId = `lensMapSoft-${layerIndex}`;
+                const warpId = `lensWarp-${layerIndex}`;
+                return (
+                  <Fragment key={layerIndex}>
+                    <feImage
+                      key={`${mapId}-image`}
+                      href={lensMap}
+                      x="-10%"
+                      y="-10%"
+                      width="120%"
+                      height="120%"
+                      preserveAspectRatio="none"
+                      result={mapId}
+                    />
+                    <feGaussianBlur in={mapId} stdDeviation={blur} result={softMapId} />
+                    <feDisplacementMap
+                      in={layerIndex === 0 ? "SourceGraphic" : `lensWarp-${layerIndex - 1}`}
+                      in2={softMapId}
+                      scale={scale * concentricLayerScale(layerIndex)}
+                      xChannelSelector="R"
+                      yChannelSelector="G"
+                      result={warpId}
+                    />
+                  </Fragment>
+                );
+              })}
+              {transformActive && transformMap ? (
+                <>
+                  <feImage
+                    href={transformMap}
+                    x="-10%"
+                    y="-10%"
+                    width="120%"
+                    height="120%"
+                    preserveAspectRatio="none"
+                    result="imageTransformMap"
+                  />
+                  <feDisplacementMap
+                    in={`lensWarp-${CONCENTRIC_LENS_LAYER_COUNT - 1}`}
+                    in2="imageTransformMap"
+                    scale={size * 2}
+                    xChannelSelector="R"
+                    yChannelSelector="G"
+                  />
+                </>
+              ) : null}
             </>
           ) : (
             <feOffset in="SourceGraphic" dx="0" dy="0" />

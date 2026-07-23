@@ -114,7 +114,7 @@ export function ConfigColorPicker({
       data-demo-tooltip-title={demoTooltipTitle}
       data-demo-tooltip={demoTooltip}
       tabIndex={disabled ? -1 : 0}
-      className={`config-color-picker relative w-full touch-none select-none overflow-hidden outline-none ${disabled ? "config-color-picker-disabled" : ""}`}
+      className={`config-color-picker dashboard-spectrum-selector relative w-full touch-none select-none overflow-hidden outline-none ${disabled ? "config-color-picker-disabled" : ""}`}
       onPointerDown={(event) => {
         if (disabled) return;
         event.currentTarget.setPointerCapture?.(event.pointerId);

@@ -153,6 +153,7 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   background: ThemeColorValue;
   backgroundEffect: FluidBackgroundSettings;
   border: ThemeBorderValue;
+  clockColor: ThemeColorValue;
   clockFont: ThemeFontSetting;
   controlSound: ControlSoundSettings;
   desktopWallpaper: DesktopWallpaperSettings;
@@ -376,6 +377,11 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     enabled: true,
     opacity: 15,
   },
+  clockColor: {
+    cursor: { x: 0.12228260316437417, y: 0.4738834926060268 },
+    intensity: 87,
+    rgb: [224, 205, 154],
+  },
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
   controlSound: { ...DEFAULT_CONTROL_SOUND },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
@@ -557,6 +563,11 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     },
     enabled: true,
     opacity: 19,
+  },
+  clockColor: {
+    cursor: { x: 0.7818660545503647, y: 0 },
+    intensity: 0,
+    rgb: [174, 0, 255],
   },
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
   controlSound: { ...DEFAULT_CONTROL_SOUND },
@@ -876,13 +887,19 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     rgb: [217, 233, 242],
   }) ? undefined : mapValue?.water;
   const roadsValue = mapValue?.roads ?? mapValue?.majorRoads ?? mapValue?.minorRoads;
+  const background = normalizeColor(value?.background, DEFAULT_THEME.background);
+  const titleColors = {
+    dark: normalizeColor(value?.titleColors?.dark, DEFAULT_THEME.titleColors.dark),
+    light: normalizeColor(value?.titleColors?.light, DEFAULT_THEME.titleColors.light),
+  };
 
   return {
     accent: normalizeColor(storedAccent, DEFAULT_THEME.accent),
     highlight: normalizeColor(value?.highlight, DEFAULT_THEME.highlight),
     avatar: normalizeThemeAvatar(value?.avatar),
-    background: normalizeColor(value?.background, DEFAULT_THEME.background),
+    background,
     backgroundEffect: normalizeFluidBackgroundSettings(value?.backgroundEffect),
+    clockColor: normalizeColor(value?.clockColor, titleColors[titleColorSlotFor(titleTone, appliedThemeRgb(background), true)]),
     clockFont: normalizeThemeFontSetting(value?.clockFont, DEFAULT_CLOCK_FONT_ID, DEFAULT_CLOCK_FONT_SETTING.weight),
     controlSound: normalizeControlSound(value?.controlSound),
     desktopWallpaper: normalizeDesktopWallpaperSettings(value?.desktopWallpaper),
@@ -916,8 +933,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     radarPaletteMode: normalizeRadarPaletteMode(value?.radarPaletteMode),
     taskGlowIntensity: normalizeTaskGlowIntensity(value?.taskGlowIntensity),
     titleColors: {
-      dark: normalizeColor(value?.titleColors?.dark, DEFAULT_THEME.titleColors.dark),
-      light: normalizeColor(value?.titleColors?.light, DEFAULT_THEME.titleColors.light),
+      ...titleColors,
     },
     titleTone,
     voiceTranscriptColors: {
@@ -1149,6 +1165,7 @@ function applyCssTitleTone(
   accent: [number, number, number],
   highlight: [number, number, number],
   background: [number, number, number],
+  clockColor: ThemeColorValue,
   titleColors: ThemeTitleColors,
 ) {
   const root = document.documentElement;
@@ -1158,6 +1175,7 @@ function applyCssTitleTone(
   const clockTextFill = titleColorFor(tone, background, true);
   root.style.setProperty("--cyber-title-on-bg", clockTextFill);
   root.style.setProperty("--cyber-clock-text-fill", clockTextFill);
+  root.style.setProperty("--cyber-clock-color", rgbCss(appliedThemeRgb(clockColor)));
 
   const titleColorSlot = titleColorSlotFor(tone, background, true);
   const clockFill = appliedThemeRgb(titleColors[titleColorSlot]);
@@ -1236,7 +1254,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssBorder(normalized.border, accent);
   applyCssBackground(background);
   applyCssTitleColors(normalized.titleColors);
-  applyCssTitleTone(normalized.titleTone, accent, highlight, background, normalized.titleColors);
+  applyCssTitleTone(normalized.titleTone, accent, highlight, background, normalized.clockColor, normalized.titleColors);
   applyCssVoiceTranscript(normalized.voiceTranscriptColors);
   applyCssMap(normalized.map);
   applyCssMapBuildingOpacity(normalized.mapBuildingOpacity);
