@@ -2489,23 +2489,14 @@ must declare its lite behavior.
 - **Dot controls**: the remote-easing rAF loops in `DotControls.tsx` are
   skipped when the device is in full lite (all four off, `useLiteMode()`);
   values snap to target.
-- **Smooth scrolling**: a separate per-device preference (localStorage
-  `nova.dashboard.smoothScroll.v1`, owned by
-  `app/components/dashboard/smoothScrollSetting.ts`, exposed as a fifth "This
-  Device" `CheckboxRow` "Smooth Scrolling"). It is layered: CSS
-  `scroll-behavior: smooth` eases page-level *jumps* (anchor/hash, arrow &
-  Page/Home/End keys, programmatic `scrollTo`), and the JS wheel-momentum engine
-  (`useSmoothWheelScroll`, mounted once via `SmoothScrollController` in the root
-  layout) eases the **mouse wheel** only — touch and scrollbar drag stay native.
-  Effective on/off is `pref && !lite && !reducedMotion`: the engine registers no
-  listeners in lite or under `prefers-reduced-motion`, and the CSS falls back to
-  `scroll-behavior: auto` for both (see the kill-switch contract note). Rich:
-  eased wheel + smooth jumps. Lite / reduced-motion: native wheel + instant
-  jumps. The low-power kiosk gets native scrolling for free as the archetypal
-  lite device — no machine-specific code. Reload scroll-restore
-  (`useScrollRestore.ts`, `ConfigWorkspace.tsx`) pins its `scrollTo` to
-  `behavior: "auto"` so it is never animated by the smooth default.
-- **Click-and-drag scroll**: `useClickDragScroll` (also mounted via
+- **Scrolling**: native/instant on every device. The former smooth-scroll
+  feature — the CSS `scroll-behavior: smooth` default plus the JS wheel-momentum
+  engine (`useSmoothWheelScroll`) and its per-device "Smooth Scrolling" toggle
+  and speed slider — was removed. Page-level jumps (anchor/hash, keys,
+  programmatic `scrollTo`) now land instantly, so reload scroll-restore
+  (`useScrollRestore.ts`, `ConfigWorkspace.tsx`) no longer needs to fight a
+  smooth default.
+- **Click-and-drag scroll**: `useClickDragScroll` (mounted via
   `SmoothScrollController`) lets **mouse** users press anywhere and drag to pan
   the window scroll on both the dashboard and `/config`, mirroring the native
   touch drag — touch is left untouched (mouse events only). A 5px movement
@@ -2513,9 +2504,7 @@ must declare its lite behavior.
   drag suppresses the trailing click and any native link/image drag). Form
   fields, `[role="slider"]`, contenteditable, the maplibre map, inner scroll
   regions, and `data-nova-no-drag-scroll` opt-outs are skipped. It is a direct
-  1:1 input (no easing/animation), so it is not gated by lite or reduced-motion;
-  it uses `scrollBy({ behavior: "auto" })` so the smooth default never animates a
-  drag frame.
+  1:1 input (no easing/animation), so it is not gated by lite or reduced-motion.
 - **Task glow**: the inset blur stacks are flattened via CSS overrides on the
   consuming rules (the `--task-glow-*` vars are inline styles on `<html>`, so
   the vars themselves cannot be overridden from a stylesheet).
@@ -2533,9 +2522,5 @@ must declare its lite behavior.
   decoration.
 - `box-shadow` is deliberately not blanket-killed (panel borders depend on
   it); only the task-glow stacks are flattened individually.
-- `scroll-behavior` is **not** covered by the blanket rule, so the smooth-scroll
-  default carries a dedicated `html[data-nova-lite] { scroll-behavior: auto }`
-  override plus a `@media (prefers-reduced-motion: reduce)` fallback in
-  `globals.css`, both asserted by the contract test.
 - `app/liteMode.contract.test.ts` greps these contracts in source and fails
   with a pointer here if they are refactored away.

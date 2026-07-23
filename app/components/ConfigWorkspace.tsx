@@ -227,8 +227,7 @@ export function ConfigWorkspace({
     if (!state || state.scrollTop <= 0) {
       return;
     }
-    // Instant restore — `scroll-behavior: smooth` (globals.css) would otherwise
-    // animate this jump on every return to /config.
+    // Explicit instant restore so the jump never animates on return to /config.
     const id = window.setTimeout(() => window.scrollTo({ top: state.scrollTop, behavior: "auto" }), 300);
     return () => window.clearTimeout(id);
   }, [activeCategory]);

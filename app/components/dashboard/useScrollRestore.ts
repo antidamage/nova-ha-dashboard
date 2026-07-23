@@ -90,8 +90,7 @@ export function useScrollRestore(ready: boolean) {
       raf = 0;
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       if (maxScroll >= target) {
-        // Restore must be instant: `scroll-behavior: smooth` (globals.css) would
-        // otherwise animate a long visible scroll on every reload.
+        // Restore is an explicit instant jump so it never animates on reload.
         window.scrollTo({ top: target, behavior: "auto" });
         finish();
         return;

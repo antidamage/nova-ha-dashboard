@@ -104,12 +104,6 @@ import { playControlSound } from "./dashboard/controlSound";
 import { VoiceInputDeviceGroup } from "./VoiceInputDeviceGroup";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
-import {
-  SMOOTH_SCROLL_SPEED_MAX,
-  SMOOTH_SCROLL_SPEED_MIN,
-  useSmoothScrollSetting,
-  useSmoothScrollSpeedSetting,
-} from "./dashboard/smoothScrollSetting";
 import { useExperienceFeatures } from "./dashboard/experienceModeSetting";
 import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { NovaAvatarConfig } from "./NovaAvatarConfig";
@@ -1473,8 +1467,6 @@ export function AccentConfig({
   const [autoFullscreen, setAutoFullscreen] = useAutoFullscreenSetting();
   useAutoFullscreen(autoFullscreen);
   const [experienceFeatures, setExperienceFeature] = useExperienceFeatures();
-  const [smoothScroll, setSmoothScroll] = useSmoothScrollSetting();
-  const [smoothScrollSpeed, setSmoothScrollSpeed] = useSmoothScrollSpeedSetting();
   const [statusOrbInfoVisible, setStatusOrbInfoVisible] = useStatusOrbInfoSetting();
   const [activeSlot, setActiveSlot] = useState<ThemeConfigSlot | null>(selectedConfigWidgetFromStorage);
   const [taskReminderAudioExists, setTaskReminderAudioExists] = useState(false);
@@ -1937,31 +1929,6 @@ export function AccentConfig({
               }
               onChange={(checked) => setExperienceFeature("worldMap", checked)}
             />
-            <CheckboxRow
-              checked={smoothScroll}
-              label="Smooth Scrolling"
-              detail={
-                smoothScroll
-                  ? "Eases the mouse wheel — automatically off in lite mode or reduced-motion"
-                  : "Wheel scrolls instantly; anchors and keys still ease unless reduced-motion"
-              }
-              onChange={setSmoothScroll}
-            />
-            {smoothScroll ? (
-              <SliderControlPanel
-                ariaLabel="Smooth scroll speed"
-                ariaValueText={`${smoothScrollSpeed.toFixed(2)}x`}
-                color={[120, 130, 255]}
-                label="Smooth Scroll Speed"
-                max={SMOOTH_SCROLL_SPEED_MAX}
-                min={SMOOTH_SCROLL_SPEED_MIN}
-                step={0.01}
-                value={smoothScrollSpeed}
-                valueText={`${smoothScrollSpeed.toFixed(2)}x`}
-                onPreview={setSmoothScrollSpeed}
-                onCommit={setSmoothScrollSpeed}
-              />
-            ) : null}
           </div>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
