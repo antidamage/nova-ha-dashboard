@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { setPageUpdatesPaused } from "./dashboard/pageUpdatePause";
+import { useClickDragScroll } from "./dashboard/useClickDragScroll";
 import { useSmoothWheelScroll } from "./dashboard/useSmoothWheelScroll";
 
 const SCROLL_IDLE_MS = 140;
@@ -30,5 +31,6 @@ function usePauseUpdatesWhileScrolling() {
 export function SmoothScrollController() {
   usePauseUpdatesWhileScrolling();
   useSmoothWheelScroll();
+  useClickDragScroll();
   return null;
 }
