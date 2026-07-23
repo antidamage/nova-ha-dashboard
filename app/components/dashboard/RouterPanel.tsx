@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RouterStatus } from "../../../lib/types";
 import { classNames, clamp } from "./shared";
 import { DesktopSleepPanel } from "./DesktopSleepPanel";
+import { arePageUpdatesPaused } from "./pageUpdatePause";
 
 export function RouterPanel({
   desktopSleepBusy = false,
@@ -29,7 +30,7 @@ export function RouterPanel({
     let alive = true;
 
     const load = async () => {
-      if (polling.current || document.hidden) {
+      if (polling.current || document.hidden || arePageUpdatesPaused()) {
         return;
       }
 
@@ -37,7 +38,7 @@ export function RouterPanel({
       try {
         const response = await fetch("/api/router", { cache: "no-store" });
         const payload = await response.json();
-        if (alive && response.ok) {
+        if (alive && response.ok && !arePageUpdatesPaused()) {
           setRouter(payload as RouterStatus);
         }
       } catch {

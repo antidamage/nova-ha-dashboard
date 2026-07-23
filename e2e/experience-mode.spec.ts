@@ -86,6 +86,48 @@ test.describe("experience mode", () => {
     await expect(page.locator(".fluid-background")).toHaveCount(0);
   });
 
+  test.describe("smooth scrolling", () => {
+    // Force a known reduced-motion state so the rich assertions are deterministic
+    // regardless of the runner's OS/browser default.
+    test.use({ reducedMotion: "no-preference" });
+
+    async function wheelIsHijacked(page: import("@playwright/test").Page): Promise<boolean> {
+      // The engine calls preventDefault on a page-level vertical wheel; a native
+      // (disabled) page leaves it uncancelled.
+      return page.evaluate(() => {
+        const event = new WheelEvent("wheel", { deltaY: 120, cancelable: true, bubbles: true });
+        document.body.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+    }
+
+    test("rich devices ease jumps via CSS and hijack the wheel via the engine", async ({ page }) => {
+      await seedExperienceMode(page, "rich");
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+      await neutralizeTaskAlerts(page);
+
+      const behavior = await page.evaluate(
+        () => getComputedStyle(document.documentElement).scrollBehavior,
+      );
+      expect(behavior).toBe("smooth");
+      expect(await wheelIsHijacked(page)).toBe(true);
+    });
+
+    test("lite devices fall back to instant jumps and native wheel", async ({ page }) => {
+      await seedExperienceMode(page, "lite");
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+      await neutralizeTaskAlerts(page);
+
+      const behavior = await page.evaluate(
+        () => getComputedStyle(document.documentElement).scrollBehavior,
+      );
+      expect(behavior).toBe("auto");
+      expect(await wheelIsHijacked(page)).toBe(false);
+    });
+  });
+
   test("lite devices show the static map placeholder instead of the live map", async ({ page }) => {
     await seedExperienceMode(page, "lite");
     await page.goto("/", { waitUntil: "domcontentloaded" });

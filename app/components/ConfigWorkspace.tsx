@@ -1,19 +1,37 @@
 "use client";
 
-import { ArrowDownUp, ArrowLeft, Download, KeyRound, ShieldAlert, Upload } from "lucide-react";
+import { ArrowDownUp, ArrowLeft, AudioLines, Bot, Database, Download, KeyRound, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SecretSetupStatus } from "../../lib/config-schema";
+import type { DashboardConfig } from "../../lib/config-schema";
+import type { AppleTvSwipeSettings } from "../../lib/appletv-swipe";
+import type { AgentPreferences, VoicePreferences, WatchfacePreferences } from "../../lib/types";
+import type { SunThemeStatus, ThemeStorageValue } from "./accentColor";
 import { ConfigAccordion } from "./ConfigControls";
-import { getConfigUiState, setConfigScroll } from "./configUiState";
+import { getActiveConfigCategory, getConfigUiState, setActiveConfigCategory, setConfigScroll } from "./configUiState";
 import { ConfigPreviewBackground, ConfigPreviewBackgroundProvider } from "./ConfigPreviewBackground";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
 import { loadSharedConfig, readSharedConfigCache, saveSharedConfig } from "./sharedConfigCache";
 import { SystemControlConfig } from "./SystemControlConfig";
-import { CameraConfig } from "./CameraConfig";
-import { UserDataConfig } from "./UserDataConfig";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
+
+const AccentConfig = dynamic(() => import("./AccentConfig").then((module) => module.AccentConfig));
+const AgentAdministration = dynamic(() => import("./AgentAdministration").then((module) => module.AgentAdministration));
+const AgentConfig = dynamic(() => import("./AgentConfig").then((module) => module.AgentConfig));
+const AgentNameConfig = dynamic(() => import("./AgentNameConfig").then((module) => module.AgentNameConfig));
+const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((module) => module.AppleTvSwipeConfig));
+const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
+const DashboardClimateConfig = dynamic(() => import("./DashboardClimateConfig").then((module) => module.DashboardClimateConfig));
+const GymCounterConfig = dynamic(() => import("./GymCounterConfig").then((module) => module.GymCounterConfig));
+const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
+const UpdateConfig = dynamic(() => import("./UpdateConfig").then((module) => module.UpdateConfig));
+const UserDataConfig = dynamic(() => import("./UserDataConfig").then((module) => module.UserDataConfig));
+const VoiceConfig = dynamic(() => import("./VoiceConfig").then((module) => module.VoiceConfig));
+const VoiceInfrastructureConfig = dynamic(() => import("./VoiceInfrastructureConfig").then((module) => module.VoiceInfrastructureConfig));
+const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfig").then((module) => module.WaveshareWatchfaceConfig));
 
 function stringify(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -52,6 +70,51 @@ function StatusPill({ ok }: { ok: boolean }) {
   );
 }
 
+export type ConfigCategoryId = "assistant" | "voice-people" | "appearance-dashboard" | "devices" | "system-data";
+
+const CONFIG_CATEGORIES: Array<{
+  id: ConfigCategoryId;
+  label: string;
+  detail: string;
+  icon: typeof Bot;
+}> = [
+  { id: "assistant", label: "Assistant", detail: "Identity, runtime and authority", icon: Bot },
+  { id: "voice-people", label: "Voice & People", detail: "Speech, satellites and household voices", icon: AudioLines },
+  { id: "appearance-dashboard", label: "Appearance & Dashboard", detail: "Theme, status and interaction", icon: Palette },
+  { id: "devices", label: "Devices", detail: "Computers, camera and hardware", icon: MonitorSmartphone },
+  { id: "system-data", label: "System & Data", detail: "Secrets, transfer, updates and power", icon: Database },
+];
+
+const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
+  agent: "assistant",
+  assistant: "assistant",
+  authority: "assistant",
+  identity: "assistant",
+  voice: "voice-people",
+  "voice-infrastructure": "voice-people",
+  "voice-people": "voice-people",
+  "user-data": "voice-people",
+  appearance: "appearance-dashboard",
+  "appearance-dashboard": "appearance-dashboard",
+  "status-orb-info": "appearance-dashboard",
+  climate: "appearance-dashboard",
+  "appletv-swipe": "appearance-dashboard",
+  devices: "devices",
+  "managed-computers": "devices",
+  "hardware-assistant": "devices",
+  camera: "devices",
+  "system-data": "system-data",
+  secrets: "system-data",
+  "config-transfer": "system-data",
+  updates: "system-data",
+  system: "system-data",
+};
+
+function categoryFromHash(): ConfigCategoryId | null {
+  if (typeof window === "undefined") return null;
+  return HASH_CATEGORY[window.location.hash.replace(/^#/, "")] ?? null;
+}
+
 function ToolbarButton({
   children,
   disabled,
@@ -73,12 +136,33 @@ function ToolbarButton({
   );
 }
 
-export function ConfigWorkspace({ children, updateSection }: { children: ReactNode; updateSection?: ReactNode }) {
+export function ConfigWorkspace({
+  initialAgentSettings,
+  initialAircon,
+  initialAutoUpdate,
+  initialSwipe,
+  initialSun,
+  initialTheme,
+  initialVoiceSettings,
+  initialWatchface,
+}: {
+  initialAgentSettings?: AgentPreferences | null;
+  initialAircon?: DashboardConfig["dashboard"]["aircon"];
+  initialAutoUpdate?: boolean;
+  initialSwipe?: AppleTvSwipeSettings | null;
+  initialSun?: SunThemeStatus | null;
+  initialTheme?: ThemeStorageValue | null;
+  initialVoiceSettings?: VoicePreferences | null;
+  initialWatchface?: WatchfacePreferences | null;
+}) {
   const [config, setConfig] = useState<unknown>(null);
   const [secrets, setSecrets] = useState<SecretSetupStatus | undefined>();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const scrollRestoredRef = useRef(false);
+  const systemLoadStartedRef = useRef(false);
+  const [activeCategory, setActiveCategory] = useState<ConfigCategoryId | null>(null);
   const rows = useMemo(() => setupRows(secrets), [secrets]);
   const router = useRouter();
 
@@ -111,19 +195,43 @@ export function ConfigWorkspace({ children, updateSection }: { children: ReactNo
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const selectFromLocation = () => {
+      const fromHash = categoryFromHash();
+      const remembered = getActiveConfigCategory();
+      const next = fromHash ?? (CONFIG_CATEGORIES.some(({ id }) => id === remembered) ? remembered as ConfigCategoryId : null);
+      setActiveCategory(next);
+    };
+    selectFromLocation();
+    window.addEventListener("hashchange", selectFromLocation);
+    return () => window.removeEventListener("hashchange", selectFromLocation);
+  }, []);
+
+  useEffect(() => {
+    if (activeCategory === "system-data" && !systemLoadStartedRef.current) {
+      systemLoadStartedRef.current = true;
+      void load();
+    }
+  }, [activeCategory, load]);
 
   // Restore the scroll position when returning to /config within the 5-min window.
   // Wait a beat so accordions can re-expand (which changes page height) before scrolling.
   useEffect(() => {
+    if (!activeCategory || scrollRestoredRef.current) {
+      return;
+    }
+    scrollRestoredRef.current = true;
+    if (categoryFromHash()) {
+      return;
+    }
     const state = getConfigUiState();
     if (!state || state.scrollTop <= 0) {
       return;
     }
-    const id = window.setTimeout(() => window.scrollTo(0, state.scrollTop), 180);
+    // Instant restore — `scroll-behavior: smooth` (globals.css) would otherwise
+    // animate this jump on every return to /config.
+    const id = window.setTimeout(() => window.scrollTo({ top: state.scrollTop, behavior: "auto" }), 300);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [activeCategory]);
 
   // Remember the scroll position (throttled to once per animation frame).
   useEffect(() => {
@@ -179,12 +287,29 @@ export function ConfigWorkspace({ children, updateSection }: { children: ReactNo
     }
   };
 
+  const selectCategory = (category: ConfigCategoryId) => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    const next = activeCategory === category ? null : category;
+    setActiveCategory(next);
+    setActiveConfigCategory(next);
+    const url = new URL(window.location.href);
+    url.hash = next ?? "";
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (next) {
+      window.requestAnimationFrame(() => document.getElementById("config-category-content")?.scrollIntoView?.({ block: "start" }));
+    }
+  };
+
+  const activeMeta = CONFIG_CATEGORIES.find(({ id }) => id === activeCategory);
+
   return (
-    <ConfigPreviewBackgroundProvider>
+    <ConfigPreviewBackgroundProvider initialSun={initialSun} initialTheme={initialTheme}>
       <main className="dashboard-shell config-shell min-h-screen px-4 py-5 text-neutral-100 sm:px-6" style={{ backgroundColor: "var(--cyber-bg)" }}>
         <ConfigPreviewBackground />
         <ReloadButton />
-        <div className="config-layout mx-auto grid max-w-5xl gap-4">
+        <div className={`config-layout mx-auto grid max-w-5xl gap-4 ${activeCategory ? "" : "config-layout-categories-closed"}`}>
         <UpdateBanner context="config" />
         <nav className="config-top-actions" aria-label="Configuration actions">
           <button
@@ -198,13 +323,74 @@ export function ConfigWorkspace({ children, updateSection }: { children: ReactNo
           </button>
         </nav>
 
-        {children}
+        <nav className="config-category-nav" aria-label="Configuration categories">
+          {CONFIG_CATEGORIES.map(({ detail, icon: Icon, id, label }) => {
+            const selected = activeCategory === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`config-category-button ${selected ? "config-category-button-active" : ""}`}
+                aria-expanded={selected}
+                aria-controls="config-category-content"
+                onClick={() => selectCategory(id)}
+              >
+                <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span className="grid gap-1 text-left">
+                  <span className="config-category-label">{label}</span>
+                  <span className="config-category-detail">{detail}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
-        <CameraConfig />
+        {activeCategory ? (
+          <div id="config-category-content" className="config-category-content grid gap-4" data-category={activeCategory}>
+            <header className="config-category-heading">
+              <p className="config-category-kicker">Configuration</p>
+              <h1>{activeMeta?.label}</h1>
+              <p>{activeMeta?.detail}</p>
+            </header>
 
-        <UserDataConfig />
-
-        <ConfigAccordion title="Secrets" icon={<KeyRound className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+            {activeCategory === "assistant" ? (
+              <>
+                <ConfigAccordion id="identity" title="Identity" icon={<UserRound className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+                  <AgentNameConfig />
+                </ConfigAccordion>
+                <AgentConfig initialSettings={initialAgentSettings} />
+                <ConfigAccordion id="authority" title="Agent Authority" icon={<ShieldCheck className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+                  <AgentAdministration />
+                </ConfigAccordion>
+              </>
+            ) : null}
+            {activeCategory === "voice-people" ? (
+              <>
+                <VoiceInfrastructureConfig initialSettings={initialVoiceSettings} />
+                <VoiceConfig initialSettings={initialVoiceSettings} />
+                <UserDataConfig />
+              </>
+            ) : null}
+            {activeCategory === "appearance-dashboard" ? (
+              <>
+                <ConfigAccordion id="appearance" title="Theme & Experience" icon={<Paintbrush className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+                  <AccentConfig initialSun={initialSun} initialTheme={initialTheme} />
+                </ConfigAccordion>
+                <GymCounterConfig initialSettings={initialWatchface} />
+                <DashboardClimateConfig initialSettings={initialAircon} />
+                <AppleTvSwipeConfig initialSettings={initialSwipe} />
+              </>
+            ) : null}
+            {activeCategory === "devices" ? (
+              <>
+                <ManagedComputersConfig />
+                <WaveshareWatchfaceConfig initialSettings={initialWatchface} />
+                <CameraConfig />
+              </>
+            ) : null}
+            {activeCategory === "system-data" ? (
+              <>
+        <ConfigAccordion id="secrets" title="Secrets" icon={<KeyRound className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
           <div className="panel-corner panel-corner-left" />
           <div className="panel-corner panel-corner-right" />
           <div className="mb-4 flex items-center gap-2 text-yellow-100">
@@ -224,7 +410,7 @@ export function ConfigWorkspace({ children, updateSection }: { children: ReactNo
           </div>
         </ConfigAccordion>
 
-        <ConfigAccordion title="Config Import/Export" icon={<ArrowDownUp className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+        <ConfigAccordion id="config-transfer" title="Config Import/Export" icon={<ArrowDownUp className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
           <div className="panel-corner panel-corner-left" />
           <div className="panel-corner panel-corner-right" />
           <div className="config-import-export-actions">
@@ -248,9 +434,13 @@ export function ConfigWorkspace({ children, updateSection }: { children: ReactNo
           {message ? <p className="mt-3 text-sm font-semibold text-neutral-300">{message}</p> : null}
         </ConfigAccordion>
 
-        {updateSection}
+        <UpdateConfig initialAutoUpdate={initialAutoUpdate} />
 
         <SystemControlConfig />
+              </>
+            ) : null}
+          </div>
+        ) : null}
         </div>
       </main>
     </ConfigPreviewBackgroundProvider>

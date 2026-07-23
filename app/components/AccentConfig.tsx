@@ -35,6 +35,7 @@ import {
   RADAR_OPACITY_MAX,
   RADAR_OPACITY_MIN,
   RadarPaletteMode,
+  SunThemeStatus,
   TASK_GLOW_INTENSITY_DEFAULT,
   TASK_GLOW_INTENSITY_MAX,
   TASK_GLOW_INTENSITY_MIN,
@@ -103,7 +104,14 @@ import { playControlSound } from "./dashboard/controlSound";
 import { VoiceInputDeviceGroup } from "./VoiceInputDeviceGroup";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
+import {
+  SMOOTH_SCROLL_SPEED_MAX,
+  SMOOTH_SCROLL_SPEED_MIN,
+  useSmoothScrollSetting,
+  useSmoothScrollSpeedSetting,
+} from "./dashboard/smoothScrollSetting";
 import { useExperienceFeatures } from "./dashboard/experienceModeSetting";
+import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { NovaAvatarConfig } from "./NovaAvatarConfig";
 import { useBuildReload } from "./useBuildReload";
 import { ThemeLibraryControl } from "./ThemeLibraryControl";
@@ -1393,8 +1401,10 @@ function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): ThemeColo
 }
 
 export function AccentConfig({
+  initialSun,
   initialTheme,
 }: {
+  initialSun?: SunThemeStatus | null;
   initialTheme?: ThemeStorageValue | null;
 }) {
   const { agentName } = useAgentName();
@@ -1410,6 +1420,7 @@ export function AccentConfig({
   useEffect(() => setMounted(true), []);
 
   const {
+    activeVariant,
     setThemeScope,
     setThemeSelection,
     setThemeSet,
@@ -1417,7 +1428,7 @@ export function AccentConfig({
     themeReady,
     themeScope,
     themeSet,
-  } = useDeviceTheme(initialTheme);
+  } = useDeviceTheme(initialTheme, initialSun);
 
   // The shared/local scope switch has been retired: the editor always targets
   // the shared host theme so loaded themes and edits reach every dashboard.
@@ -1429,7 +1440,7 @@ export function AccentConfig({
 
   const library = useThemeLibrary();
   const clipboard = useThemeClipboard();
-  const [editingVariant, setEditingVariant] = useState<ThemeVariant>("dark");
+  const [editingVariant, setEditingVariant] = useState<ThemeVariant>(activeVariant);
   const theme = themeSet.themes[editingVariant];
   const previewBackground = useConfigPreviewBackground();
   const setPreviewTheme = previewBackground?.setPreviewTheme;
@@ -1457,6 +1468,9 @@ export function AccentConfig({
   const [autoFullscreen, setAutoFullscreen] = useAutoFullscreenSetting();
   useAutoFullscreen(autoFullscreen);
   const [experienceFeatures, setExperienceFeature] = useExperienceFeatures();
+  const [smoothScroll, setSmoothScroll] = useSmoothScrollSetting();
+  const [smoothScrollSpeed, setSmoothScrollSpeed] = useSmoothScrollSpeedSetting();
+  const [statusOrbInfoVisible, setStatusOrbInfoVisible] = useStatusOrbInfoSetting();
   const [activeSlot, setActiveSlot] = useState<ThemeConfigSlot | null>(selectedConfigWidgetFromStorage);
   const [taskReminderAudioExists, setTaskReminderAudioExists] = useState(false);
   const taskAudioPreviewRef = useRef<HTMLAudioElement | null>(null);
@@ -1890,6 +1904,16 @@ export function AccentConfig({
               onChange={(checked) => setExperienceFeature("statusOrb", checked)}
             />
             <CheckboxRow
+              checked={statusOrbInfoVisible}
+              label="Show Status Orb Info"
+              detail={
+                statusOrbInfoVisible
+                  ? "Shows the information line inside the orb, including the gym count"
+                  : "Status orb information is hidden on this device"
+              }
+              onChange={setStatusOrbInfoVisible}
+            />
+            <CheckboxRow
               checked={experienceFeatures.background}
               label="Show Background"
               detail={
@@ -1919,6 +1943,31 @@ export function AccentConfig({
               }
               onChange={(checked) => setExperienceFeature("worldMap", checked)}
             />
+            <CheckboxRow
+              checked={smoothScroll}
+              label="Smooth Scrolling"
+              detail={
+                smoothScroll
+                  ? "Eases the mouse wheel — automatically off in lite mode or reduced-motion"
+                  : "Wheel scrolls instantly; anchors and keys still ease unless reduced-motion"
+              }
+              onChange={setSmoothScroll}
+            />
+            {smoothScroll ? (
+              <SliderControlPanel
+                ariaLabel="Smooth scroll speed"
+                ariaValueText={`${smoothScrollSpeed.toFixed(2)}x`}
+                color={[120, 130, 255]}
+                label="Smooth Scroll Speed"
+                max={SMOOTH_SCROLL_SPEED_MAX}
+                min={SMOOTH_SCROLL_SPEED_MIN}
+                step={0.01}
+                value={smoothScrollSpeed}
+                valueText={`${smoothScrollSpeed.toFixed(2)}x`}
+                onPreview={setSmoothScrollSpeed}
+                onCommit={setSmoothScrollSpeed}
+              />
+            ) : null}
           </div>
         </div>
       </section>

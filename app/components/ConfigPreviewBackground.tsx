@@ -1,8 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FluidBackground } from "./FluidBackground";
-import type { DeviceTheme } from "./accentColor";
+import {
+  normalizeThemeSet,
+  resolveDeviceTheme,
+  type DeviceTheme,
+  type SunThemeStatus,
+  type ThemeStorageValue,
+} from "./accentColor";
 import {
   EXPERIENCE_MODE_STORAGE_KEY,
   readExperienceFeatures,
@@ -28,7 +34,9 @@ function readBackgroundPreviewEnabled() {
 }
 
 function useBackgroundPreviewEnabled() {
-  const [enabled, setEnabled] = useState(readBackgroundPreviewEnabled);
+  // Keep the server and hydration render identical; device-local experience
+  // settings are available only after the client mounts.
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     const sync = () => setEnabled(readBackgroundPreviewEnabled());
@@ -55,8 +63,29 @@ export function useConfigPreviewBackground() {
   return useContext(ConfigPreviewContext);
 }
 
-export function ConfigPreviewBackgroundProvider({ children }: { children: ReactNode }) {
-  const [previewTheme, setPreviewTheme] = useState<DeviceTheme | null>(null);
+export function ConfigPreviewBackgroundProvider({
+  children,
+  initialSun,
+  initialTheme,
+}: {
+  children: ReactNode;
+  initialSun?: SunThemeStatus | null;
+  initialTheme?: ThemeStorageValue | null;
+}) {
+  const resolvedInitialTheme = useMemo(
+    () => resolveDeviceTheme(normalizeThemeSet(initialTheme), initialSun).theme,
+    [initialSun, initialTheme],
+  );
+  const latestThemeRef = useRef(resolvedInitialTheme);
+  const [previewTheme, setPreviewThemeState] = useState<DeviceTheme>(resolvedInitialTheme);
+  const setPreviewTheme = useCallback((theme: DeviceTheme | null) => {
+    if (theme) {
+      latestThemeRef.current = theme;
+      setPreviewThemeState(theme);
+      return;
+    }
+    setPreviewThemeState(latestThemeRef.current);
+  }, []);
 
   return (
     <ConfigPreviewContext.Provider value={{ previewTheme, setPreviewTheme }}>

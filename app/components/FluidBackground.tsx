@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { appliedThemeRgb, type DeviceTheme } from "./accentColor";
+import { arePageUpdatesPaused } from "./dashboard/pageUpdatePause";
 
 // Reference DPR the texture scale is authored against (iOS Retina). The mosaic
 // texture tiling is normalized to this so it looks the same regardless of the
@@ -509,6 +510,10 @@ export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: 
 
     function draw(now: number) {
       animationFrame = 0;
+      if (arePageUpdatesPaused()) {
+        if (!disposed) animationFrame = requestAnimationFrame(draw);
+        return;
+      }
       const shouldDraw = reducedMotion || now - previousFrame >= 1000 / 30;
       if (shouldDraw) {
         previousFrame = now;

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, Clipboard, Copy } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   appliedThemeRgb,
   themeRgbAtPosition,
@@ -14,6 +14,12 @@ import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
 type DotLineMarker = { active?: boolean; label: string; value: number };
+const CONFIG_ACCORDION_OPEN_EVENT = "nova-config-accordion-open";
+
+type ConfigAccordionOpenDetail = {
+  element: HTMLElement;
+  persistKey: string;
+};
 
 export function ConfigAccordion({
   actions,
@@ -39,12 +45,44 @@ export function ConfigAccordion({
   const sectionRef = useRef<HTMLElement | null>(null);
   const restoredRef = useRef(false);
 
-  const toggleOpen = () =>
-    setOpen((current) => {
-      const next = !current;
-      setAccordionOpen(persistKey, next);
-      return next;
-    });
+  const openExclusively = useCallback(() => {
+    setOpen(true);
+    setAccordionOpen(persistKey, true);
+    if (sectionRef.current) {
+      window.dispatchEvent(new CustomEvent<ConfigAccordionOpenDetail>(CONFIG_ACCORDION_OPEN_EVENT, {
+        detail: { element: sectionRef.current, persistKey },
+      }));
+    }
+  }, [persistKey]);
+
+  const toggleOpen = () => {
+    if (open) {
+      setOpen(false);
+      setAccordionOpen(persistKey, false);
+      return;
+    }
+    openExclusively();
+  };
+
+  // Accordions with the same nearest accordion ancestor are siblings. Opening
+  // one sibling closes the rest, leaving the ancestor chain open.
+  useEffect(() => {
+    const closeOpenSibling = (event: Event) => {
+      const { element, persistKey: openedKey } = (event as CustomEvent<ConfigAccordionOpenDetail>).detail;
+      if (openedKey === persistKey || !sectionRef.current) {
+        return;
+      }
+      const ownParent = sectionRef.current.parentElement?.closest(".config-accordion");
+      const openedParent = element.parentElement?.closest(".config-accordion");
+      if (ownParent === openedParent) {
+        setOpen(false);
+        setAccordionOpen(persistKey, false);
+      }
+    };
+
+    window.addEventListener(CONFIG_ACCORDION_OPEN_EVENT, closeOpenSibling);
+    return () => window.removeEventListener(CONFIG_ACCORDION_OPEN_EVENT, closeOpenSibling);
+  }, [persistKey]);
 
   // Restore the previously-expanded state when returning to /config within the 5-min
   // window. Runs once and before the hash-target effect below, so a #id deep-link
@@ -55,10 +93,12 @@ export function ConfigAccordion({
     }
     restoredRef.current = true;
     const persisted = getAccordionOpen(persistKey);
-    if (persisted !== undefined) {
-      setOpen(persisted);
+    if (persisted === true || (persisted === undefined && defaultOpen)) {
+      openExclusively();
+    } else if (persisted === false) {
+      setOpen(false);
     }
-  }, [persistKey]);
+  }, [defaultOpen, openExclusively, persistKey]);
 
   // When navigated to with a matching hash (e.g. the update banner links to
   // /config#updates), open this section and scroll it into view.
@@ -68,14 +108,14 @@ export function ConfigAccordion({
     }
     const focusIfTargeted = () => {
       if (window.location.hash === `#${id}`) {
-        setOpen(true);
+        openExclusively();
         sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     };
     focusIfTargeted();
     window.addEventListener("hashchange", focusIfTargeted);
     return () => window.removeEventListener("hashchange", focusIfTargeted);
-  }, [id]);
+  }, [id, openExclusively]);
 
   return (
     <section ref={sectionRef} id={id} className={`config-accordion ${open ? "config-accordion-open" : ""} ${className}`}>

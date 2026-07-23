@@ -90,14 +90,16 @@ export function useScrollRestore(ready: boolean) {
       raf = 0;
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
       if (maxScroll >= target) {
-        window.scrollTo(0, target);
+        // Restore must be instant: `scroll-behavior: smooth` (globals.css) would
+        // otherwise animate a long visible scroll on every reload.
+        window.scrollTo({ top: target, behavior: "auto" });
         finish();
         return;
       }
       if (Date.now() - startedAt > RESTORE_TIMEOUT_MS) {
         // Content never grew tall enough (layout changed since the save) —
         // land as deep as the page allows rather than jumping later.
-        window.scrollTo(0, Math.max(0, maxScroll));
+        window.scrollTo({ top: Math.max(0, maxScroll), behavior: "auto" });
         finish();
         return;
       }

@@ -230,7 +230,7 @@ function OrbModuleSelect({
 // separately as the group's master switch.
 type GlassSliderKey =
   | "displace"
-  | "curvature"
+  | "refractPower"
   | "smoothness"
   | "clarity"
   | "gloss"
@@ -240,7 +240,7 @@ type GlassSliderKey =
 
 const GLASS_SLIDERS: { key: GlassSliderKey; label: string; description: string }[] = [
   { key: "displace", label: "Refraction", description: "How hard the glass bends the page behind the whole orb" },
-  { key: "curvature", label: "Curvature", description: "Gentle bulge through to a sharp lens edge" },
+  { key: "refractPower", label: "Refraction curve", description: "Curvature of the glass dome — low is a near-flat pane, high piles refraction into a thick fisheye rim" },
   { key: "smoothness", label: "Melt", description: "Liquid softening of the refraction" },
   { key: "clarity", label: "Clarity", description: "How clear the orb centre goes so the refraction reads through" },
   { key: "gloss", label: "Gloss", description: "Key-light highlight fading in from the top edge" },

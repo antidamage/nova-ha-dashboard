@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import * as Slider from "@radix-ui/react-slider";
 import { classNames } from "./shared";
 import { cameraUrl } from "./cameraHost";
+import { arePageUpdatesPaused } from "./pageUpdatePause";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
@@ -137,6 +138,10 @@ function useCanvasClock(canvasRef: React.RefObject<HTMLCanvasElement | null>, ac
 
     let raf = 0;
     const render = () => {
+      if (arePageUpdatesPaused()) {
+        raf = requestAnimationFrame(render);
+        return;
+      }
       const width = (canvas.width = canvas.clientWidth || 640);
       const height = (canvas.height = canvas.clientHeight || 360);
       const now = new Date();
@@ -328,6 +333,10 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
     let raf = 0;
     const sample = () => {
+      if (arePageUpdatesPaused()) {
+        raf = requestAnimationFrame(sample);
+        return;
+      }
       const seekableRange = video.seekable;
       if (seekableRange.length > 0) {
         const start = seekableRange.start(0);

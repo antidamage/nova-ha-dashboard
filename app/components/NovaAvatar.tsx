@@ -15,6 +15,8 @@ import {
 } from "./NovaOrbGlass";
 import { sampleVoiceSpeechEnvelope, useVoiceSpeechPhase } from "./dashboard/voiceSpeech";
 import { markInput as markVoiceInput, useVoiceMode } from "./dashboard/voiceMode";
+import { arePageUpdatesPaused } from "./dashboard/pageUpdatePause";
+import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
 import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
 import { useAgentName } from "./AgentNameContext";
@@ -158,6 +160,7 @@ function NovaAvatarVisual({
   const { agentName } = useAgentName();
   const pathname = usePathname();
   const hidden = forceVisible ? false : (pathname?.startsWith("/config") ?? false);
+  const [statusOrbInfoVisible] = useStatusOrbInfoSetting();
   // Voice-agent speaking state: "speaking" migrates the orb to the viewport
   // centre and pulses the alert colour to the consonant envelope; "ending"
   // runs the return migration. Config previews (forceVisible) never react.
@@ -330,6 +333,11 @@ function NovaAvatarVisual({
     let lastTs = performance.now();
 
     const draw = (now: number) => {
+      if (arePageUpdatesPaused() && !speechActive) {
+        lastTs = now;
+        raf = requestAnimationFrame(draw);
+        return;
+      }
       const dt = Math.min(0.05, (now - lastTs) / 1000);
       lastTs = now;
 
@@ -566,6 +574,7 @@ function NovaAvatarVisual({
       data-nova-avatar-theme-source={themeOverride === undefined ? themeSource : "override"}
       data-nova-avatar-variant={themeOverride === undefined ? activeVariant : "override"}
       data-nova-avatar-voice={voiceGlowActive ? "active" : undefined}
+      data-nova-force-orb-info={forceVisible ? "true" : undefined}
       role="group"
       style={hostStyle}
       onClick={orbTappable ? voice.toggleTap : undefined}
@@ -592,14 +601,16 @@ function NovaAvatarVisual({
         style={canvasStyle}
       />
       {glassEnabled ? <NovaOrbGlassFilter filterId={glassFilterId} glass={glass} /> : null}
-      <div
-        className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}
-        style={gymCounterStyle}
-        aria-label={gymCounterLabel}
-        suppressHydrationWarning
-      >
-        {gymHours}
-      </div>
+      {forceVisible || statusOrbInfoVisible ? (
+        <div
+          className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}
+          style={gymCounterStyle}
+          aria-label={gymCounterLabel}
+          suppressHydrationWarning
+        >
+          {gymHours}
+        </div>
+      ) : null}
     </div>
     </>
   );
