@@ -141,7 +141,6 @@ export class BrowserSatellite {
     this.callbacks.onStateChange?.(this.reconnectAttempt ? "recovering" : "connecting");
     socket.addEventListener("open", () => {
       if (this.stopped || generation !== this.generation || this.socket !== socket) return;
-      this.reconnectAttempt = 0;
       this.callbacks.onStateChange?.("connected");
       this.sendHello();
     });
@@ -214,6 +213,7 @@ export class BrowserSatellite {
     }
     switch (message.type) {
       case "hello":
+        this.reconnectAttempt = 0;
         this.callbacks.onHelloAck?.();
         break;
       case "playback":

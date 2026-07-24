@@ -502,6 +502,11 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   const [messageTone, setMessageTone] = useState<"ok" | "warning" | "error">("ok");
   const [voiceOptions, setVoiceOptions] = useState<readonly VoiceOption[]>(VOICE_SPEAKERS);
   const [optionsSource, setOptionsSource] = useState<"static" | "iridium" | "fallback">("static");
+  // Active TTS engine module. "classic" = Qwen3-TTS presets (accent/emotion
+  // instruct); "custom" = dots.tts zero-shot cloned voices. The Classic-only
+  // controls (Accent, Baseline mood) are hidden in Custom mode — dots infers
+  // emotion from the text and has no accent-instruct surface.
+  const [engine, setEngine] = useState<"classic" | "custom">("classic");
   const draggingRef = useRef(new Set<keyof VoiceSettings>());
   const requestVersionRef = useRef(0);
   // After any control is used, hold off the 30s poll for a few seconds so an
@@ -519,10 +524,17 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         if (!response.ok) {
           return;
         }
-        const data = await response.json() as { source?: string; voices?: VoiceOption[] };
+        const data = await response.json() as {
+          source?: string;
+          voices?: VoiceOption[];
+          engine?: "classic" | "custom";
+        };
         if (!cancelled && Array.isArray(data.voices) && data.voices.length > 0) {
           setVoiceOptions(data.voices);
           setOptionsSource(data.source === "iridium" ? "iridium" : "fallback");
+        }
+        if (!cancelled && (data.engine === "classic" || data.engine === "custom")) {
+          setEngine(data.engine);
         }
       } catch (error) {
         console.error("[nova-dashboard] failed to load voice options", error);
@@ -790,7 +802,10 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           label="Voice"
           value={settings.speaker}
           options={voiceOptions as readonly { label: string; value: VoiceSpeaker }[]}
-          detail={selectedSpeaker?.detail ?? "Qwen CustomVoice preset"}
+          detail={
+            selectedSpeaker?.detail ??
+            (engine === "custom" ? "Custom cloned voice" : "Qwen CustomVoice preset")
+          }
           onChange={(speaker) => void commit("speaker", speaker)}
         />
         <SelectControl<VoiceLanguage>
@@ -800,20 +815,28 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           detail="Sets pronunciation and text interpretation for generated speech."
           onChange={(language) => void commit("language", language)}
         />
-        <SelectControl<VoiceAccent>
-          label="Accent"
-          value={settings.accent}
-          options={VOICE_ACCENTS}
-          detail="Guides accent while preserving the selected voice's timbre."
-          onChange={(accent) => void commit("accent", accent)}
-        />
-        <SelectControl<VoiceEmotion>
-          label="Baseline mood"
-          value={settings.emotion}
-          options={VOICE_EMOTIONS}
-          detail={`Sets ${agentName}'s resting delivery before conversational emotion is blended in.`}
-          onChange={(emotion) => void commit("emotion", emotion)}
-        />
+        {/* Accent and Baseline mood are Classic (Qwen) engine controls: they map
+            to the Qwen `instruct` string. The Custom (dots.tts) engine has no
+            accent-instruct surface and infers mood from the text, so these are
+            hidden when Custom is active to keep the panel clean. */}
+        {engine === "classic" && (
+          <>
+            <SelectControl<VoiceAccent>
+              label="Accent"
+              value={settings.accent}
+              options={VOICE_ACCENTS}
+              detail="Guides accent while preserving the selected voice's timbre."
+              onChange={(accent) => void commit("accent", accent)}
+            />
+            <SelectControl<VoiceEmotion>
+              label="Baseline mood"
+              value={settings.emotion}
+              options={VOICE_EMOTIONS}
+              detail={`Sets ${agentName}'s resting delivery before conversational emotion is blended in.`}
+              onChange={(emotion) => void commit("emotion", emotion)}
+            />
+          </>
+        )}
         <TextAreaControl
           label="Personality description"
           value={settings.personality}

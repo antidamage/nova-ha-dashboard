@@ -233,17 +233,31 @@ type GlassSliderKey =
   | "localStretch"
   | "refractPower"
   | "smoothness"
+  | "imageBlur"
+  | "refractionOpacity"
   | "clarity"
   | "gloss"
   | "reflection"
   | "drift"
   | "shadow";
 
-const GLASS_SLIDERS: { key: GlassSliderKey; label: string; description: string }[] = [
+// Most knobs are 0-100 magnitudes; a slider may override min/max/step/unit for
+// the exceptions (localStretch is signed, imageBlur is a direct 0-10px value).
+const GLASS_SLIDERS: {
+  key: GlassSliderKey;
+  label: string;
+  description: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+}[] = [
   { key: "displace", label: "Refraction", description: "How hard the glass bends the page behind the whole orb" },
-  { key: "localStretch", label: "Background size", description: "Actual size change of the background sampled through the glass: negative shrinks, positive enlarges" },
+  { key: "localStretch", label: "Background size", description: "Size of the background sampled through the glass: negative shrinks, positive enlarges (up to 4×)", min: -100, max: 300 },
   { key: "refractPower", label: "Refraction curve", description: "Curvature of the glass dome — low is a near-flat pane, high piles refraction into a thick fisheye rim" },
   { key: "smoothness", label: "Melt", description: "Liquid softening of the refraction" },
+  { key: "imageBlur", label: "Blur", description: "Frosted-glass blur of the refracted image seen through the orb", min: 0, max: 10, step: 0.5, unit: "px" },
+  { key: "refractionOpacity", label: "Refraction opacity", description: "Opacity of the whole refraction: 100 is full glass, 0 shows the plain page through the orb" },
   { key: "clarity", label: "Clarity", description: "How clear the orb centre goes so the refraction reads through" },
   { key: "gloss", label: "Gloss", description: "Key-light highlight fading in from the top edge" },
   { key: "reflection", label: "Reflection", description: "Silver-room reflection fading in from the rim" },
@@ -516,19 +530,20 @@ function NovaAvatarConfigView({
           <div className="grid gap-3">
             {GLASS_SLIDERS.map((slider) => {
               const value = theme.glass[slider.key];
+              const valueLabel = `${value}${slider.unit ?? ""}`;
               return (
                 <SliderControlPanel
                   key={slider.key}
                   ariaLabel={`${slider.label} — ${slider.description}`}
-                  ariaValueText={`${value}`}
+                  ariaValueText={valueLabel}
                   color={appliedThemeRgb(theme.gradientOuter)}
                   intensity={100}
                   label={slider.label}
-                  max={100}
-                  min={slider.key === "localStretch" ? -100 : 0}
-                  step={1}
+                  max={slider.max ?? 100}
+                  min={slider.min ?? 0}
+                  step={slider.step ?? 1}
                   value={value}
-                  valueText={`${value}`}
+                  valueText={valueLabel}
                   onPreview={(next) => previewTheme(glassNumberTheme(slider.key, next))}
                   onCommit={(next) => setTheme(glassNumberTheme(slider.key, next))}
                 />

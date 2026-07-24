@@ -100,6 +100,11 @@ export default function BrowserVoiceSatellite() {
       satelliteRef.current.stop();
       satelliteRef.current = null;
     }
+
+    return () => {
+      satelliteRef.current?.stop();
+      satelliteRef.current = null;
+    };
   }, [voice.eligible, voice.active, alwaysOn]);
 
   // Fire the push-to-talk begin_turn when a tapped turn opens.

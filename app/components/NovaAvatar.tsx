@@ -7,11 +7,14 @@ import type { NovaAvatarTheme } from "./avatarThemeModel";
 import { resolveOrbModuleSettings } from "../../lib/orb-modules";
 import { readExperienceFeatures, useExperienceFeature, useLiteMode } from "./dashboard/experienceModeSetting";
 import {
+  NovaOrbGlassBackdropCopy,
   NovaOrbGlassFilter,
   NovaOrbGlassLayers,
   glassBoxShadow,
   glassCanvasMask,
   glassCanvasOpacity,
+  glassCssBackdropFilter,
+  supportsSvgBackdropFilter,
 } from "./NovaOrbGlass";
 import { sampleVoiceSpeechEnvelope, useVoiceSpeechPhase } from "./dashboard/voiceSpeech";
 import { markInput as markVoiceInput, useVoiceMode } from "./dashboard/voiceMode";
@@ -230,9 +233,18 @@ function NovaAvatarVisual({
     glass.smoothness,
     glass.localStretch + 100,
     glass.flipVertical ? 1 : 0,
+    // ×2 keeps the 0.5-step blur an integer so the id has no "." (kept valid
+    // as a url(#id) reference).
+    Math.round(glass.imageBlur * 2),
+    glass.refractionOpacity,
   ].join("-");
   const glassEnabled = glass.enabled;
   const glassDriftActive = glassEnabled && !lite && glass.reflection > 0 && glass.drift > 0;
+  // WebKit / iOS ignore `backdrop-filter: url(#svg)`, so the displacement
+  // refraction never paints there — fall back to a CSS filter-function frost.
+  // Gated on `hydrated` so SSR and the first client paint both use the SVG path
+  // (no hydration mismatch); the detection only kicks in after mount.
+  const svgBackdrop = !hydrated || supportsSvgBackdropFilter();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -530,10 +542,13 @@ function NovaAvatarVisual({
   // ancestor would silently disable it, so the cast shadow lives on the disc
   // as a box-shadow (see NovaOrbGlass.glassBoxShadow) and the host carries no
   // filter. The disc sits BEHIND the canvas and in front of the voice glow.
+  const glassBackdropValue = svgBackdrop
+    ? `url(#${glassFilterId})`
+    : glassCssBackdropFilter(glass);
   const glassDiscStyle = glassEnabled
     ? ({
-        backdropFilter: `url(#${glassFilterId})`,
-        WebkitBackdropFilter: `url(#${glassFilterId})`,
+        backdropFilter: glassBackdropValue,
+        WebkitBackdropFilter: glassBackdropValue,
         boxShadow: glassBoxShadow(glass),
       } as CSSProperties)
     : undefined;
@@ -600,6 +615,14 @@ function NovaAvatarVisual({
           sharp. */}
       {glassEnabled ? (
         <div className="nova-orb-glass" style={glassDiscStyle} aria-hidden="true">
+          {/* WebKit/iOS can't refract the live backdrop (url() backdrop-filter
+              is a no-op there), so it gets a self-contained copy of the page
+              backdrop run through the SAME lens filter as a regular filter:.
+              The disc still carries the CSS-function frost above; the copy adds
+              the actual displacement refraction on top of it. */}
+          {!svgBackdrop ? (
+            <NovaOrbGlassBackdropCopy filterId={glassFilterId} glass={glass} />
+          ) : null}
           <NovaOrbGlassLayers glass={glass} hostRef={hostRef} active={glassDriftActive} />
         </div>
       ) : null}
@@ -609,6 +632,10 @@ function NovaAvatarVisual({
         className="nova-avatar-canvas"
         style={canvasStyle}
       />
+      {/* The SVG lens filter is used by BOTH paths: Chromium references it from
+          `backdrop-filter: url()` on the disc; WebKit/iOS references it as a
+          regular `filter:` on the backdrop copy above. So mount it whenever the
+          glass is on. */}
       {glassEnabled ? <NovaOrbGlassFilter filterId={glassFilterId} glass={glass} size={size} /> : null}
       {forceVisible || statusOrbInfoVisible ? (
         <div
