@@ -71,6 +71,11 @@ export type VoiceEngine = (typeof VOICE_ENGINES)[number]["value"];
 // server's validator so a value that persists here always resolves there.
 export const CUSTOM_SPEAKER_PATTERN = /^[a-z0-9_-]{1,64}$/;
 
+// Custom (dots.tts) diffusion step count — the model-side latency/quality lever.
+// Fewer steps reach first audio sooner and cost less GPU per reply, at some
+// quality cost; only affects the Custom engine.
+export const DOTS_NUM_STEPS_RANGE = { min: 1, max: 16, step: 1, default: 6 } as const;
+
 export type VoiceSpeaker = (typeof VOICE_SPEAKERS)[number]["value"];
 export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number]["value"];
 export type VoiceAccent = (typeof VOICE_ACCENTS)[number]["value"];
@@ -140,7 +145,7 @@ export type VoiceSettings = Required<
     | "commandReplyMinWords" | "commandReplyMaxWords"
     | "webAccessEnabled" | "webBackend" | "webAnswerMaxSentences"
     | "wakeWords" | "wakePrefixes" | "volumeDay" | "volumeNight" | "personality"
-    | "conversationIdleSeconds" | "ttsPrerollMs" | "ttsFrameMs" | "transcriptTemplate"
+    | "conversationIdleSeconds" | "ttsPrerollMs" | "ttsFrameMs" | "dotsNumSteps" | "transcriptTemplate"
     | "speakerMatchThreshold" | "speakerMatchMargin" | "speakerClusterThreshold"
     | "speakerConversationMatchThreshold"
   >
@@ -237,6 +242,7 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   // be moved back up from here if pacing deficits show up in /health.
   ttsPrerollMs: 400,
   ttsFrameMs: 100,
+  dotsNumSteps: DOTS_NUM_STEPS_RANGE.default,
   // Speaker-matching thresholds — same values the voice service has always used
   // by default, so exposing the controls changes nothing until they are moved.
   speakerMatchThreshold: 0.65,
@@ -265,6 +271,7 @@ export const VOICE_SETTINGS_RANGES = {
   conversationIdleSeconds: { min: 10, max: 300, step: 5 },
   ttsPrerollMs: { min: 20, max: 2000, step: 10 },
   ttsFrameMs: { min: 20, max: 200, step: 10 },
+  dotsNumSteps: DOTS_NUM_STEPS_RANGE,
   // Cosine-similarity thresholds (0-1). Ranges are the sensible operating band
   // plus a little extra headroom at each end. `default` is fixed to the stock
   // value so the UI can mark it and snap to it.
@@ -536,6 +543,13 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
       VOICE_SETTINGS_RANGES.ttsFrameMs.min,
       VOICE_SETTINGS_RANGES.ttsFrameMs.max,
       VOICE_SETTINGS_RANGES.ttsFrameMs.step,
+    ),
+    dotsNumSteps: storedNumber(
+      source.dotsNumSteps,
+      VOICE_SETTINGS_DEFAULTS.dotsNumSteps,
+      VOICE_SETTINGS_RANGES.dotsNumSteps.min,
+      VOICE_SETTINGS_RANGES.dotsNumSteps.max,
+      VOICE_SETTINGS_RANGES.dotsNumSteps.step,
     ),
     speakerMatchThreshold: storedNumber(
       source.speakerMatchThreshold,
@@ -869,6 +883,7 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     ),
     ttsPrerollMs: updateNumber(source, "ttsPrerollMs", VOICE_SETTINGS_RANGES.ttsPrerollMs),
     ttsFrameMs: updateNumber(source, "ttsFrameMs", VOICE_SETTINGS_RANGES.ttsFrameMs),
+    dotsNumSteps: updateNumber(source, "dotsNumSteps", VOICE_SETTINGS_RANGES.dotsNumSteps),
     speakerMatchThreshold: updateNumber(
       source,
       "speakerMatchThreshold",

@@ -7,7 +7,11 @@ import type { PersonalityLibraryEntry } from "./voicePersonalityLibrary";
 
 /** Compact one-line summary of a personality: voice and pronoun set. */
 function personalitySummary(entry: PersonalityLibraryEntry): string {
-  const voice = entry.personality.speaker.replace(/_/g, " ");
+  // Show the voice for the engine this profile belongs to: the cloned-voice id
+  // for Custom profiles, the preset name for Classic (and legacy untagged).
+  const voice = (
+    entry.engine === "custom" ? entry.personality.customSpeaker : entry.personality.speaker
+  ).replace(/_/g, " ");
   const { subjective, objective, possessive } = entry.personality.pronouns;
   return `${voice} · ${subjective}/${objective}/${possessive}`;
 }

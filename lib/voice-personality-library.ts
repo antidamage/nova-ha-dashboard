@@ -4,7 +4,11 @@
 // via `normalizeVoicePersonalitySet`, reusing the exact field validation the
 // live voice settings use.
 
-import { normalizeVoicePersonalitySet, type VoicePersonalitySet } from "./voice-settings";
+import {
+  normalizeVoicePersonalitySet,
+  type VoiceEngine,
+  type VoicePersonalitySet,
+} from "./voice-settings";
 
 export const VOICE_PERSONALITY_LIBRARY_VERSION = 1;
 export const VOICE_PERSONALITY_LIBRARY_MAX_ENTRIES = 100;
@@ -16,6 +20,11 @@ export type VoicePersonalityLibraryEntry = {
   createdAt: string;
   updatedAt: string;
   personality: VoicePersonalitySet;
+  // Which TTS engine this profile is for. Stamped from the active engine when
+  // the profile is saved; the Voice Agent picker only lists profiles for the
+  // engine currently loaded. Undefined = a legacy profile saved before engines
+  // were tracked; those stay visible under any engine until re-saved.
+  engine?: VoiceEngine;
 };
 
 export type VoicePersonalityLibrary = {
@@ -97,6 +106,11 @@ export function normalizeVoicePersonalityLibrary(value: unknown): VoicePersonali
       // Missing/invalid fields fall back to the settings defaults, so a
       // partially-shaped entry is repaired rather than dropped.
       personality: normalizeVoicePersonalitySet(entry.personality),
+      // Preserve an explicit engine tag; leave undefined for legacy profiles
+      // (they stay visible under any engine until re-saved).
+      ...(entry.engine === "classic" || entry.engine === "custom"
+        ? { engine: entry.engine }
+        : {}),
     });
   }
 

@@ -306,6 +306,7 @@ describe("voice personality subset", () => {
       "affectations",
       "commandReplyMaxWords",
       "commandReplyMinWords",
+      "customSpeaker",
       "emotion",
       "emotionMirroring",
       "language",
@@ -322,6 +323,8 @@ describe("voice personality subset", () => {
     expect(subset).not.toHaveProperty("volumeDay");
     expect(subset).not.toHaveProperty("wakeWords");
     expect(subset).not.toHaveProperty("ttsPrerollMs");
+    // Engine tuning is global, not a personality trait.
+    expect(subset).not.toHaveProperty("dotsNumSteps");
   });
 
   it("round-trips through normalizeVoicePersonalitySet", () => {
