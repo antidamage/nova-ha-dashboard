@@ -308,6 +308,12 @@ export type VoicePreferences = {
    */
   satelliteNoiseGateEnabled?: boolean;
   speaker?: "Ryan" | "Aiden" | "Vivian" | "Serena" | "Uncle_Fu" | "Dylan" | "Eric" | "Ono_Anna" | "Sohee";
+  /**
+   * Custom-engine (dots.tts) voice: a cloned-voice id from the voice server's
+   * registry. Separate from `speaker` because the two TTS engines have
+   * disjoint voice namespaces; each engine keeps its own last-used voice.
+   */
+  customSpeaker?: string;
   language?: "Auto" | "English" | "Chinese" | "Japanese" | "Korean" | "German" | "French" | "Russian" | "Portuguese" | "Spanish" | "Italian";
   accent?: "voice-native" | "new-zealand" | "australian" | "british" | "american" | "irish" | "scottish";
   speechRate?: number;

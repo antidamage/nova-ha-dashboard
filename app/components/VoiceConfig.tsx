@@ -10,6 +10,7 @@ import {
   VOICE_ACCENTS,
   VOICE_AFFECTATION_GROUPS,
   VOICE_EMOTIONS,
+  VOICE_ENGINES,
   VOICE_LANGUAGES,
   VOICE_PRONOUN_PRESETS,
   VOICE_SETTINGS_RANGES,
@@ -24,6 +25,7 @@ import {
   type VoiceAffectations,
   type VoiceEmotion,
   type VoiceLanguage,
+  type VoiceEngine,
   type VoicePersonalitySet,
   type VoicePronouns,
   type VoiceSettings,
@@ -506,7 +508,16 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   // instruct); "custom" = dots.tts zero-shot cloned voices. The Classic-only
   // controls (Accent, Baseline mood) are hidden in Custom mode — dots infers
   // emotion from the text and has no accent-instruct surface.
-  const [engine, setEngine] = useState<"classic" | "custom">("classic");
+  const [engine, setEngine] = useState<VoiceEngine>("classic");
+  // Engine switcher state. `pendingEngine` is a radio selection awaiting the
+  // explicit confirm (a switch restarts voice services, so it never fires from
+  // a single click); `switchTarget` is a swap in flight, followed by polling
+  // /api/voice/engine — the voice server restarts mid-swap, so unreachable
+  // polls are an expected phase, not an error.
+  const [pendingEngine, setPendingEngine] = useState<VoiceEngine | null>(null);
+  const [switchTarget, setSwitchTarget] = useState<VoiceEngine | null>(null);
+  const [switchNote, setSwitchNote] = useState<string | null>(null);
+  const [switchFailed, setSwitchFailed] = useState(false);
   const draggingRef = useRef(new Set<keyof VoiceSettings>());
   const requestVersionRef = useRef(0);
   // After any control is used, hold off the 30s poll for a few seconds so an
@@ -516,34 +527,123 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
 
   // Iridium publishes the voices its deployed TTS stack actually supports;
   // populate the dropdown from it and keep the static list as the fallback.
+  // Re-run after an engine switch: the voice list is per-engine (Classic
+  // presets vs the Custom clone registry).
+  const loadVoiceOptions = useCallback(async () => {
+    try {
+      const response = await fetch("/api/voice/options", { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json() as {
+        source?: string;
+        voices?: VoiceOption[];
+        engine?: VoiceEngine;
+      };
+      if (Array.isArray(data.voices) && data.voices.length > 0) {
+        setVoiceOptions(data.voices);
+        setOptionsSource(data.source === "iridium" ? "iridium" : "fallback");
+      }
+      if (data.engine === "classic" || data.engine === "custom") {
+        setEngine(data.engine);
+      }
+    } catch (error) {
+      console.error("[nova-dashboard] failed to load voice options", error);
+    }
+  }, []);
+
   useEffect(() => {
+    void loadVoiceOptions();
+  }, [loadVoiceOptions]);
+
+  // Ask the voice server to swap the resident TTS engine. Acceptance is not
+  // completion: the server hands the swap to its root-side switcher and
+  // restarts itself, so progress is followed by the polling effect below.
+  const requestEngineSwitch = useCallback(async (target: VoiceEngine) => {
+    setPendingEngine(null);
+    setSwitchFailed(false);
+    setSwitchTarget(target);
+    setSwitchNote("Asking the voice server to switch engines…");
+    try {
+      const response = await fetch("/api/voice/engine", {
+        body: JSON.stringify({ engine: target }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        changed?: boolean;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || `Engine switch failed: ${response.status}`);
+      }
+      if (data.changed === false) {
+        setEngine(target);
+        setSwitchTarget(null);
+        setSwitchNote(null);
+        return;
+      }
+      setSwitchNote("Switch accepted — voice services are restarting…");
+    } catch (error) {
+      setSwitchFailed(true);
+      setSwitchNote(error instanceof Error ? error.message : "Engine switch request failed");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (switchTarget === null || switchFailed) {
+      return;
+    }
     let cancelled = false;
-    (async () => {
+    const id = window.setInterval(async () => {
       try {
-        const response = await fetch("/api/voice/options", { cache: "no-store" });
-        if (!response.ok) {
+        const response = await fetch("/api/voice/engine", { cache: "no-store" });
+        if (!response.ok || cancelled) {
           return;
         }
         const data = await response.json() as {
-          source?: string;
-          voices?: VoiceOption[];
-          engine?: "classic" | "custom";
+          reachable?: boolean;
+          engine?: VoiceEngine;
+          switch?: { target?: string; phase?: string; error?: string };
         };
-        if (!cancelled && Array.isArray(data.voices) && data.voices.length > 0) {
-          setVoiceOptions(data.voices);
-          setOptionsSource(data.source === "iridium" ? "iridium" : "fallback");
+        if (cancelled) {
+          return;
         }
-        if (!cancelled && (data.engine === "classic" || data.engine === "custom")) {
-          setEngine(data.engine);
+        if (!data.reachable) {
+          setSwitchNote("Voice services are restarting…");
+          return;
         }
-      } catch (error) {
-        console.error("[nova-dashboard] failed to load voice options", error);
+        const phase = data.switch?.phase;
+        if (phase === "failed") {
+          setSwitchFailed(true);
+          setSwitchNote(`Engine switch failed: ${data.switch?.error ?? "see the voice server logs"}`);
+          return;
+        }
+        if (data.engine === switchTarget && phase === "ready") {
+          setSwitchTarget(null);
+          setSwitchNote(null);
+          setEngine(switchTarget);
+          setMessage(
+            `Switched to the ${VOICE_ENGINES.find(({ value }) => value === switchTarget)?.label ?? switchTarget} engine.`,
+          );
+          setMessageTone("ok");
+          void loadVoiceOptions();
+          return;
+        }
+        setSwitchNote(
+          phase === "warming"
+            ? "New engine is loading and warming up — Custom takes around 7 minutes…"
+            : "Voice services are restarting…",
+        );
+      } catch {
+        // Expected while the voice server is down mid-switch; keep polling.
       }
-    })();
+    }, 5_000);
     return () => {
       cancelled = true;
+      window.clearInterval(id);
     };
-  }, []);
+  }, [switchFailed, switchTarget, loadVoiceOptions]);
 
   const load = useCallback(async () => {
     if (draggingRef.current.size > 0 || isCoolingDown()) {
@@ -715,6 +815,11 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   // and pitch. Every knob is applied live, so this matches a real spoken turn.
   // The browser plays it locally — nothing is spoken through the satellites.
   const testPersonality = useCallback(async () => {
+    if (switchTarget !== null && !switchFailed) {
+      setMessage("An engine switch is in progress — voice preview returns once it completes.");
+      setMessageTone("warning");
+      return;
+    }
     setMessage(`Asking ${agentName} to say something…`);
     setMessageTone("ok");
     try {
@@ -739,9 +844,21 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       setMessage(error instanceof Error ? error.message : "Failed to play a voice sample");
       setMessageTone("error");
     }
-  }, [agentName]);
+  }, [agentName, switchFailed, switchTarget]);
 
-  const selectedSpeaker = voiceOptions.find(({ value }) => value === settings.speaker);
+  // The active engine decides which stored voice field the picker edits:
+  // Classic edits the preset `speaker`, Custom edits the clone-id
+  // `customSpeaker`. Each engine keeps its own last-used voice.
+  const activeVoiceValue = engine === "custom" ? settings.customSpeaker : settings.speaker;
+  const selectedSpeaker = voiceOptions.find(({ value }) => value === activeVoiceValue);
+  // A persisted clone id can predate the registry list (or the registry may be
+  // briefly unreachable); keep it selectable rather than showing a mismatched
+  // dropdown.
+  const customVoiceOptions =
+    engine === "custom" && !selectedSpeaker
+      ? [{ value: settings.customSpeaker, label: settings.customSpeaker }, ...voiceOptions]
+      : voiceOptions;
+  const switchInFlight = switchTarget !== null && !switchFailed;
 
   return (
     <ConfigAccordion
@@ -786,6 +903,83 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         ) : null}
       </div>
 
+      <div className="mb-4 grid gap-1.5">
+        <p className="text-xs font-black uppercase text-neutral-400">Voice engine</p>
+        <div role="radiogroup" aria-label="Voice engine" className="grid gap-1.5 sm:grid-cols-2">
+          {VOICE_ENGINES.map((option) => {
+            const selected = (pendingEngine ?? engine) === option.value;
+            return (
+              <MomentaryFeedbackButton
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={switchInFlight}
+                className={`cyber-checkbox-row border p-4 text-left ${
+                  selected ? "cyber-checkbox-row-active" : ""
+                }`}
+                onClick={() => setPendingEngine(option.value === engine ? null : option.value)}
+              >
+                <span
+                  className={`cyber-checkbox ${selected ? "cyber-checkbox-checked" : ""}`}
+                  aria-hidden="true"
+                >
+                  {selected ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
+                </span>
+                <span className="grid min-w-0 gap-1">
+                  <span className="theme-display-label zone-title-bar">
+                    {option.label}
+                    {engine === option.value ? " · active" : ""}
+                  </span>
+                  <span className="theme-display-detail">{option.detail}</span>
+                </span>
+              </MomentaryFeedbackButton>
+            );
+          })}
+        </div>
+        {pendingEngine !== null && pendingEngine !== engine && !switchInFlight ? (
+          <div className="grid gap-2 px-1">
+            <p className="font-sans text-xs leading-snug text-amber-200">
+              Switching swaps which TTS model is loaded on the voice server and restarts voice
+              services: expect no spoken replies for a couple of minutes
+              {pendingEngine === "custom" ? ", plus around 7 minutes of Custom-engine warmup" : ""}.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="system-confirm-go"
+                onClick={() => void requestEngineSwitch(pendingEngine)}
+              >
+                Switch to {VOICE_ENGINES.find(({ value }) => value === pendingEngine)?.label}
+              </button>
+              <button
+                type="button"
+                className="system-confirm-cancel"
+                onClick={() => setPendingEngine(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {switchNote ? (
+          <p
+            role="status"
+            className={`px-1 font-sans text-xs leading-snug ${
+              switchFailed ? "text-red-200" : "text-amber-200"
+            }`}
+          >
+            {switchNote}
+          </p>
+        ) : null}
+        <p className="px-1 font-sans text-xs leading-snug text-neutral-500">
+          One TTS engine is loaded on the voice server&apos;s GPU at a time. Classic offers the
+          built-in preset voices with accent and mood shaping; Custom speaks with cloned voices
+          from the voice server&apos;s registry. Each engine remembers its own voice selection, and
+          either can be restored at any time.
+        </p>
+      </div>
+
       <div className="mb-4 grid gap-4 sm:grid-cols-2">
         <WakeWordsControl
           value={settings.wakeWords}
@@ -798,16 +992,23 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           detail="Space-separated greetings accepted before the wake word (e.g. hey ok yo)."
           onCommit={(wakePrefixes) => void commit("wakePrefixes", wakePrefixes)}
         />
-        <SelectControl<VoiceSpeaker>
-          label="Voice"
-          value={settings.speaker}
-          options={voiceOptions as readonly { label: string; value: VoiceSpeaker }[]}
-          detail={
-            selectedSpeaker?.detail ??
-            (engine === "custom" ? "Custom cloned voice" : "Qwen CustomVoice preset")
-          }
-          onChange={(speaker) => void commit("speaker", speaker)}
-        />
+        {engine === "custom" ? (
+          <SelectControl<string>
+            label="Voice"
+            value={settings.customSpeaker}
+            options={customVoiceOptions}
+            detail={selectedSpeaker?.detail ?? "Custom cloned voice"}
+            onChange={(customSpeaker) => void commit("customSpeaker", customSpeaker)}
+          />
+        ) : (
+          <SelectControl<VoiceSpeaker>
+            label="Voice"
+            value={settings.speaker}
+            options={voiceOptions as readonly { label: string; value: VoiceSpeaker }[]}
+            detail={selectedSpeaker?.detail ?? "Qwen CustomVoice preset"}
+            onChange={(speaker) => void commit("speaker", speaker)}
+          />
+        )}
         <SelectControl<VoiceLanguage>
           label="Language"
           value={settings.language}

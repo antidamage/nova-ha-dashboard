@@ -30,6 +30,25 @@ export type IridiumVoiceCatalog = {
   emotions: string[];
   ranges: Record<string, { min: number; max: number; step: number; default: number }>;
   current?: unknown;
+  /** Which TTS engine module is resident ("classic" Qwen presets / "custom" dots.tts clones). */
+  engine?: "classic" | "custom";
+  engines?: { id: string; label: string }[];
+  customVoices?: { id: string; name?: string; language?: string }[];
+};
+
+// GET /v1/engine: the resident engine plus the root-side switcher's progress
+// file, which outlives orchestrator restarts so the dashboard can follow a
+// switch across the downtime it intentionally causes.
+export type IridiumEngineStatus = {
+  engine: "classic" | "custom";
+  engines?: { id: string; label: string }[];
+  switch?: {
+    target?: "classic" | "custom";
+    phase?: "preparing" | "restarting" | "warming" | "ready" | "failed";
+    updatedAt?: string;
+    error?: string;
+  };
+  tts?: { ok?: boolean; ready?: boolean; error?: string; speaker?: string };
 };
 
 function iridiumUrl(path: string) {
@@ -209,6 +228,25 @@ export async function fetchIridiumSatelliteRegistry(): Promise<IridiumSatelliteS
 // Iridium is authoritative for the voices and parameter ranges the deployed
 // TTS/LLM stack supports; the dashboard's Voice Agent section populates its
 // dropdowns from this instead of hard-coding model knowledge.
+export async function fetchIridiumEngineStatus(): Promise<IridiumEngineStatus | null> {
+  const payload = await fetchIridiumJson("/v1/engine", "engine status");
+  const engine = (payload as { engine?: unknown } | null)?.engine;
+  if (engine !== "classic" && engine !== "custom") {
+    return null;
+  }
+  return payload as IridiumEngineStatus;
+}
+
+// Ask the voice server to swap the resident TTS engine. The server hands the
+// swap to its root-side switcher and restarts itself, so a successful request
+// is an acceptance, not a completion — callers follow progress by polling
+// fetchIridiumEngineStatus() until the engine matches and its TTS is ready.
+export async function requestIridiumEngineSwitch(
+  engine: "classic" | "custom",
+): Promise<IridiumJsonResult> {
+  return requestIridiumJson("/v1/engine", "engine switch", { method: "POST", body: { engine } });
+}
+
 export async function fetchIridiumVoiceCatalog(): Promise<IridiumVoiceCatalog | null> {
   const payload = await fetchIridiumJson(VOICES_PATH, "voices");
   if (payload && Array.isArray((payload as { voices?: unknown }).voices)) {
