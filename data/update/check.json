@@ -1,8 +1,6 @@
 {
-  "checkedAt": "2026-07-23T04:49:42.928Z",
-  "ok": true,
+  "checkedAt": "2026-07-23T22:32:00.059Z",
+  "ok": false,
   "branch": "main",
-  "latestSha": "479a9c9c2d97ba79ba276dd58cbd936ee96d3909",
-  "latestMessage": "Click-to-drag-scroll",
-  "latestCommittedAt": "2026-07-23T02:20:38Z"
+  "error": "fetch failed"
 }

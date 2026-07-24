@@ -44,6 +44,24 @@ function glassMapBlur(glass: NovaGlassSettings) {
 }
 
 /**
+ * Gaussian blur (stdDeviation, px) applied to the refracted image itself once
+ * the lens has bent it — a frosted-glass softening. Stored directly in pixels
+ * (0-10), unlike the 0-100 magnitude knobs, so the slider value is the blur.
+ */
+export function glassImageBlur(glass: NovaGlassSettings) {
+  return clamp(glass.imageBlur, 0, 10);
+}
+
+/**
+ * Opacity (0..1) of the whole refraction group. The renderer cross-fades the
+ * refracted image back toward the plain backdrop with this weight, so 1 is full
+ * refraction and 0 is the un-bent page showing through the disc.
+ */
+export function glassRefractionOpacity(glass: NovaGlassSettings) {
+  return clamp(glass.refractionOpacity, 0, 100) / 100;
+}
+
+/**
  * Cast shadow + glass-edge highlight as a `box-shadow` on the glass disc.
  * Deliberately NOT a `filter: drop-shadow` on an ancestor: a filter on any
  * ancestor of the glass makes it a "backdrop root" and silently kills the
@@ -82,6 +100,99 @@ export function glassCanvasMask(glass: NovaGlassSettings): string | undefined {
 /** Max reflection pan (px) as the orb / pointer moves. */
 function glassDriftPx(glass: NovaGlassSettings) {
   return pctTo(glass.drift, 0, 24);
+}
+
+/**
+ * Whether the browser will actually render `backdrop-filter: url(#svgFilter)`.
+ *
+ * WebKit (desktop Safari AND every browser on iOS — they are all WebKit under
+ * the hood) accepts the CSS `backdrop-filter` property but silently ignores an
+ * SVG filter *reference*: it only honours the built-in filter FUNCTIONS
+ * (blur(), saturate(), brightness(), …). So the whole displacement-refraction
+ * disc renders as a no-op there and the glass "doesn't display". Every WebKit
+ * browser reports the Apple vendor string, which is the reliable way to spot
+ * the family (a plain `CSS.supports('backdrop-filter','url(#x)')` returns true
+ * in Safari even though nothing paints). Callers use the CSS-function fallback
+ * below when this is false. Defaults to `true` off the client (SSR) so the
+ * first paint matches the server markup and only corrects after mount.
+ */
+export function supportsSvgBackdropFilter(): boolean {
+  if (typeof navigator === "undefined") return true;
+  return navigator.vendor !== "Apple Computer, Inc.";
+}
+
+/**
+ * CSS filter-function backdrop used where SVG-url backdrop filters don't paint
+ * (WebKit / iOS — see `supportsSvgBackdropFilter`). The displacement refraction
+ * can't be reproduced with filter functions, so this leans into the same read
+ * Apple's own "liquid glass" material uses: a genuine backdrop blur plus a
+ * saturation/brightness lift, so the page behind the orb frosts and its colours
+ * bloom through the disc. The reflection + gloss layers (plain CSS gradients)
+ * still paint on top on every browser, supplying the specular/edge cues. Blur
+ * combines the "melt" (smoothness) and frosted (imageBlur) knobs; the colour
+ * lift tracks gloss/reflection; the whole thing fades out with
+ * refractionOpacity so a cleared disc stays clear.
+ */
+export function glassCssBackdropFilter(glass: NovaGlassSettings): string {
+  const op = glassRefractionOpacity(glass);
+  const blur = (pctTo(glass.smoothness, 3, 12) + glassImageBlur(glass)) * op;
+  const saturate = 1 + pctTo(glass.gloss, 0, 0.8) * op;
+  const brightness = 1 + pctTo(glass.reflection, 0, 0.12) * op;
+  return (
+    `blur(${blur.toFixed(1)}px) ` +
+    `saturate(${saturate.toFixed(2)}) ` +
+    `brightness(${brightness.toFixed(2)})`
+  );
+}
+
+/**
+ * Gentle CSS blur (px) applied to the WebKit backdrop *copy* (see
+ * `NovaOrbGlassBackdropCopy`) after the lens displaces it, so the synthetic
+ * refraction reads as frosted glass to match the real `backdrop-filter: blur()`
+ * frost on the disc. Kept light (melt knob + a fraction of the frosted knob) —
+ * the copy is the crisp, refracted layer, so over-blurring it would wash the
+ * lens warp back out.
+ */
+export function glassCopyBlurPx(glass: NovaGlassSettings) {
+  return pctTo(glass.smoothness, 0, 2.5) + glassImageBlur(glass) * 0.6;
+}
+
+/**
+ * The WebKit / iOS refraction layer.
+ *
+ * WebKit ignores `backdrop-filter: url(#svg)` (the live-backdrop refraction the
+ * disc uses everywhere else), but it DOES honour the same SVG filter as a
+ * regular `filter:` — it just needs something of its own to filter. So this
+ * renders a self-contained copy of the dashboard backdrop (the exact same
+ * `--cyber-bg` + faint grid CSS variables the real `.fluid-background` /
+ * `.dashboard-shell` paint, so it matches the page without hard-coding any
+ * colour) and runs it through the lens filter. The grid gives the lens real
+ * contrast to bend; the solid base keeps it seamless with the page. A rim mask
+ * (in CSS) fades the copy out at the edge so the disc's real frosted backdrop
+ * shows through there and continues the surroundings.
+ *
+ * Tradeoff vs the Chromium live path: this refracts a *reproduction* of the
+ * background, not arbitrary live widgets sitting behind the orb — invisible in
+ * practice since the orb floats at the top of the page over mostly-background.
+ * Only mounted on the WebKit path; Chromium refracts the real backdrop directly.
+ */
+export function NovaOrbGlassBackdropCopy({
+  filterId,
+  glass,
+}: {
+  filterId: string;
+  glass: NovaGlassSettings;
+}) {
+  const blur = glassCopyBlurPx(glass);
+  const filter =
+    blur > 0.05 ? `url(#${filterId}) blur(${blur.toFixed(1)}px)` : `url(#${filterId})`;
+  return (
+    <div
+      className="nova-orb-refract-copy"
+      aria-hidden="true"
+      style={{ filter, WebkitFilter: filter } as CSSProperties}
+    />
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +327,7 @@ export function imageTransformDisplacement(
   localStretch: number,
   flipVertical: boolean,
 ) {
-  const imageScale = Math.max(0.05, 1 + clamp(localStretch, -100, 100) / 100);
+  const imageScale = Math.max(0.05, 1 + clamp(localStretch, -100, 300) / 100);
   const sourceX = nx / imageScale;
   const sourceY = (flipVertical ? -ny : ny) / imageScale;
   return { dx: sourceX - nx, dy: sourceY - ny };
@@ -303,6 +414,8 @@ export function NovaOrbGlassFilter({
   }, [glass.localStretch, glass.flipVertical, transformActive]);
   const scale = glassDisplaceScale(glass);
   const blur = glassMapBlur(glass);
+  const imageBlur = glassImageBlur(glass);
+  const refractionOpacity = glassRefractionOpacity(glass);
 
   return (
     <svg className="nova-orb-glass-defs" aria-hidden="true" focusable="false">
@@ -378,6 +491,37 @@ export function NovaOrbGlassFilter({
                   </Fragment>
                 );
               })}
+              {/* Frosted-glass blur of the fully-refracted image (the last lens
+                  layer's output). Applied last so it softens what you see through
+                  the orb, not the displacement maps. Skipped at 0 so the default
+                  glass stays crisp. */}
+              {imageBlur > 0 ? (
+                <feGaussianBlur
+                  in={`lensWarp-${CONCENTRIC_LENS_LAYER_COUNT - 1}`}
+                  stdDeviation={imageBlur}
+                  result="refractedImage"
+                />
+              ) : null}
+              {/* Refraction-group opacity: cross-fade the finished refracted
+                  image back toward the plain backdrop. feComponentTransfer scales
+                  the refracted layer's alpha, then feMerge composites it over an
+                  untouched SourceGraphic — so 1 is full refraction and 0 shows the
+                  unbent page. Skipped at full so the default filter output is the
+                  refracted image directly. */}
+              {refractionOpacity < 1 ? (
+                <>
+                  <feComponentTransfer
+                    in={imageBlur > 0 ? "refractedImage" : `lensWarp-${CONCENTRIC_LENS_LAYER_COUNT - 1}`}
+                    result="refractedFaded"
+                  >
+                    <feFuncA type="linear" slope={refractionOpacity} intercept={0} />
+                  </feComponentTransfer>
+                  <feMerge>
+                    <feMergeNode in="SourceGraphic" />
+                    <feMergeNode in="refractedFaded" />
+                  </feMerge>
+                </>
+              ) : null}
             </>
           ) : (
             <feOffset in="SourceGraphic" dx="0" dy="0" />

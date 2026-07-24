@@ -26,8 +26,10 @@ export type NovaGlassSettings = {
   /** backdrop-filter displacement scale — how far the lens refracts the page
    *  behind the orb (the whole disc refracts, artist "liquid glass" style). */
   displace: number;
-  /** Signed local radial size change of the refracted image (-100..100).
-   * 0 is neutral, +100 doubles the local size, -100 collapses it. */
+  /** Signed size change of the refracted background image (-100..300).
+   * 0 is neutral, +100 doubles it, +300 quadruples it, -100 collapses it. The
+   * wide positive range lets the zoom read clearly; the old ±100 cap (max 2x)
+   * was easy to miss over low-contrast content. */
   localStretch: number;
   /** Reverse the displacement map's vertical refraction direction. */
   flipVertical: boolean;
@@ -39,6 +41,15 @@ export type NovaGlassSettings = {
   refractPower: number;
   /** Gaussian blur on the displacement map — the "liquid"/melt softness. */
   smoothness: number;
+  /** Gaussian blur (0-10px) applied to the refracted image itself, after the
+   *  lens — a frosted-glass softening of what you see through the orb. Distinct
+   *  from `smoothness`, which blurs the displacement map, not the image. A
+   *  direct pixel value rather than a 0-100 magnitude. */
+  imageBlur: number;
+  /** Opacity (0-100) of the whole refraction group — cross-fades the refracted
+   *  image back toward the plain (un-refracted) backdrop. 100 is full
+   *  refraction; 0 shows the page unbent through the disc. */
+  refractionOpacity: number;
   /** How see-through the orb core is — fades the canvas graphics toward the
    *  centre so the refraction reads through a mostly-clear middle. */
   clarity: number;
@@ -61,6 +72,8 @@ export const DEFAULT_NOVA_GLASS_SETTINGS: NovaGlassSettings = {
   flipVertical: false,
   refractPower: 50,
   smoothness: 30,
+  imageBlur: 0,
+  refractionOpacity: 100,
   clarity: 60,
   gloss: 50,
   shadow: 50,
@@ -238,13 +251,17 @@ export function normalizeNovaGlassSettings(value: unknown): NovaGlassSettings {
     enabled: typeof v.enabled === "boolean" ? v.enabled : DEFAULT_NOVA_GLASS_SETTINGS.enabled,
     displace: pct(v.displace, DEFAULT_NOVA_GLASS_SETTINGS.displace),
     localStretch: Number.isFinite(Number(v.localStretch))
-      ? clamp(Math.round(Number(v.localStretch)), -100, 100)
+      ? clamp(Math.round(Number(v.localStretch)), -100, 300)
       : DEFAULT_NOVA_GLASS_SETTINGS.localStretch,
     flipVertical: typeof v.flipVertical === "boolean"
       ? v.flipVertical
       : DEFAULT_NOVA_GLASS_SETTINGS.flipVertical,
     refractPower: pct(v.refractPower, DEFAULT_NOVA_GLASS_SETTINGS.refractPower),
     smoothness: pct(v.smoothness, DEFAULT_NOVA_GLASS_SETTINGS.smoothness),
+    imageBlur: Number.isFinite(Number(v.imageBlur))
+      ? clamp(Math.round(Number(v.imageBlur) * 2) / 2, 0, 10)
+      : DEFAULT_NOVA_GLASS_SETTINGS.imageBlur,
+    refractionOpacity: pct(v.refractionOpacity, DEFAULT_NOVA_GLASS_SETTINGS.refractionOpacity),
     clarity: pct(v.clarity, DEFAULT_NOVA_GLASS_SETTINGS.clarity),
     gloss: pct(v.gloss, DEFAULT_NOVA_GLASS_SETTINGS.gloss),
     shadow: pct(v.shadow, DEFAULT_NOVA_GLASS_SETTINGS.shadow),

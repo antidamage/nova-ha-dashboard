@@ -20,6 +20,8 @@ describe("normalizeNovaGlassSettings", () => {
       flipVertical: true,
       refractPower: -30,
       smoothness: 51.7,
+      imageBlur: 12.3,
+      refractionOpacity: 150,
       gloss: 12,
       shadow: 0,
       reflection: 100,
@@ -32,12 +34,20 @@ describe("normalizeNovaGlassSettings", () => {
       flipVertical: true,
       refractPower: 0,
       smoothness: 52,
+      imageBlur: 10,
+      refractionOpacity: 100,
       clarity: DEFAULT_NOVA_GLASS_SETTINGS.clarity,
       gloss: 12,
       shadow: 0,
       reflection: 100,
       drift: 33,
     });
+  });
+
+  it("allows the widened background-size range up to +300 and clamps beyond", () => {
+    expect(normalizeNovaGlassSettings({ localStretch: 250 }).localStretch).toBe(250);
+    expect(normalizeNovaGlassSettings({ localStretch: 400 }).localStretch).toBe(300);
+    expect(normalizeNovaGlassSettings({ localStretch: -400 }).localStretch).toBe(-100);
   });
 
   it("falls back to the default for non-finite knobs and non-boolean enabled", () => {
@@ -51,6 +61,14 @@ describe("normalizeNovaGlassSettings", () => {
     expect(glass.localStretch).toBe(DEFAULT_NOVA_GLASS_SETTINGS.localStretch);
     expect(glass.flipVertical).toBe(DEFAULT_NOVA_GLASS_SETTINGS.flipVertical);
     expect(glass.refractPower).toBe(DEFAULT_NOVA_GLASS_SETTINGS.refractPower);
+    expect(glass.imageBlur).toBe(DEFAULT_NOVA_GLASS_SETTINGS.imageBlur);
+    expect(glass.refractionOpacity).toBe(DEFAULT_NOVA_GLASS_SETTINGS.refractionOpacity);
+  });
+
+  it("snaps the refracted-image blur to the nearest 0.5px within 0-10", () => {
+    expect(normalizeNovaGlassSettings({ imageBlur: 3.3 }).imageBlur).toBe(3.5);
+    expect(normalizeNovaGlassSettings({ imageBlur: 0.2 }).imageBlur).toBe(0);
+    expect(normalizeNovaGlassSettings({ imageBlur: -5 }).imageBlur).toBe(0);
   });
 });
 

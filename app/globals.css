@@ -280,14 +280,49 @@ html[data-nova-lite] body.task-glow-preview::after {
   pointer-events: none;
 }
 
+/* WebKit / iOS refraction layer (mounted only there — see NovaAvatar). WebKit
+   ignores `backdrop-filter: url(#svg)`, so it can't refract the live page; this
+   is a self-contained COPY of the dashboard backdrop that the same SVG lens
+   filter (applied inline as a regular `filter:`, which WebKit DOES support) can
+   displace. It deliberately reuses the exact background variables the real
+   `.fluid-background` / `.dashboard-shell` paint (`--cyber-bg` + the faint
+   `--cyber-line-rgb` grid), set on <html> by the theme bootstrap, so the copy
+   always matches the page without hard-coding any colour. Sits below the
+   reflection (z2) / gloss (z3). Inset past the disc so the lens has source
+   pixels to pull in at the rim; the radial mask fades it out at the edge so the
+   disc's real frosted backdrop shows through there and continues seamlessly. */
+.nova-orb-refract-copy {
+  position: absolute;
+  inset: -12%;
+  z-index: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    linear-gradient(rgb(var(--cyber-line-rgb) / 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--cyber-line-rgb) / 0.05) 1px, transparent 1px),
+    var(--cyber-bg);
+  background-size:
+    56px 56px,
+    56px 56px,
+    auto;
+  background-position: center center;
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 60%, transparent 90%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 60%, transparent 90%);
+}
+
 /* Lite mode: drop the GPU-heavy backdrop refraction (the blanket lite rule
    neutralises backdrop-filter via `backdrop-filter: none`, but the inline
    style would still win, so override it explicitly). The reflection/gloss
    gradients stay — they're cheap — just no refraction and no drift (drift is
-   JS-gated by lite mode in NovaAvatar). */
+   JS-gated by lite mode in NovaAvatar). The WebKit refraction copy is a real
+   SVG filter pass, so drop it entirely in lite. */
 html[data-nova-lite] .nova-orb-glass {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+html[data-nova-lite] .nova-orb-refract-copy {
+  display: none !important;
 }
 
 /* Silver-room reflection: a screen-blended pane of "overhead lights in a grey
