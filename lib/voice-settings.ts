@@ -55,6 +55,22 @@ export const VOICE_EMOTIONS = [
   { value: "energetic", label: "Energetic" },
 ] as const;
 
+// The two TTS engine modules the voice server can host (one GPU-resident at a
+// time). "classic" = Qwen3-TTS preset voices with accent/mood instructions;
+// "custom" = dots.tts zero-shot cloned voices. Which is active comes from the
+// voice server; switching is an action (POST /api/voice/engine), not a stored
+// preference.
+export const VOICE_ENGINES = [
+  { value: "classic", label: "Classic presets", detail: "Qwen3-TTS preset voices with accent and mood shaping." },
+  { value: "custom", label: "Custom voices", detail: "dots.tts cloned voices built from your own reference clips." },
+] as const;
+
+export type VoiceEngine = (typeof VOICE_ENGINES)[number]["value"];
+
+// Custom-voice ids are the dots registry's normalized form. Mirrors the voice
+// server's validator so a value that persists here always resolves there.
+export const CUSTOM_SPEAKER_PATTERN = /^[a-z0-9_-]{1,64}$/;
+
 export type VoiceSpeaker = (typeof VOICE_SPEAKERS)[number]["value"];
 export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number]["value"];
 export type VoiceAccent = (typeof VOICE_ACCENTS)[number]["value"];
@@ -119,7 +135,7 @@ export type VoiceSettings = Required<
     VoicePreferences,
     | "agentName" | "agentNamePronunciation" | "systemVoiceEnabled" | "speakerRecognitionEnabled" | "disabledSatellites"
     | "satelliteNoiseGateEnabled"
-    | "speaker" | "language" | "accent" | "speechRate"
+    | "speaker" | "customSpeaker" | "language" | "accent" | "speechRate"
     | "pitch" | "emotion" | "emotionMirroring" | "temperature" | "longResponseProbability"
     | "commandReplyMinWords" | "commandReplyMaxWords"
     | "webAccessEnabled" | "webBackend" | "webAnswerMaxSentences"
@@ -141,6 +157,7 @@ export type VoiceSettingsUpdate = Partial<Omit<VoiceSettings, "updatedAt">>;
 // exactly these fields; loading one writes them back into the live settings.
 export const VOICE_PERSONALITY_FIELDS = [
   "speaker",
+  "customSpeaker",
   "language",
   "accent",
   "emotion",
@@ -191,6 +208,9 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   disabledSatellites: ["nocturnium"],
   satelliteNoiseGateEnabled: true,
   speaker: "Ryan",
+  // Default clone id on the Custom (dots.tts) engine; the picker replaces it
+  // with a registered clone from the voice server's registry.
+  customSpeaker: "johnny_multi",
   language: "English",
   accent: "new-zealand",
   speechRate: 100,
@@ -306,6 +326,16 @@ function storedAgentNamePronunciation(value: unknown) {
   return AGENT_NAME_PRONUNCIATION_PATTERN.test(candidate) ? candidate : "";
 }
 
+// Custom-voice ids come from the voice server's registry rather than a fixed
+// catalog, so the guard is the id shape, not a membership check.
+function storedCustomSpeaker(value: unknown): string {
+  if (typeof value !== "string") {
+    return VOICE_SETTINGS_DEFAULTS.customSpeaker;
+  }
+  const candidate = value.trim().toLowerCase();
+  return CUSTOM_SPEAKER_PATTERN.test(candidate) ? candidate : VOICE_SETTINGS_DEFAULTS.customSpeaker;
+}
+
 function storedPronounForm(value: unknown, fallback: string): string {
   if (typeof value !== "string") {
     return fallback;
@@ -396,6 +426,7 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
     // bandwidth-saving and privacy-preserving default.
     satelliteNoiseGateEnabled: source.satelliteNoiseGateEnabled !== false,
     speaker: storedChoice(source.speaker, SPEAKERS, VOICE_SETTINGS_DEFAULTS.speaker),
+    customSpeaker: storedCustomSpeaker(source.customSpeaker),
     language: storedChoice(source.language, LANGUAGES, VOICE_SETTINGS_DEFAULTS.language),
     accent: storedChoice(source.accent, ACCENTS, VOICE_SETTINGS_DEFAULTS.accent),
     speechRate: storedNumber(
@@ -551,6 +582,7 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
 export function voicePersonalitySubset(settings: VoiceSettings): VoicePersonalitySet {
   return {
     speaker: settings.speaker,
+    customSpeaker: settings.customSpeaker,
     language: settings.language,
     accent: settings.accent,
     emotion: settings.emotion,
@@ -579,6 +611,7 @@ export function normalizeVoicePersonalitySet(value: unknown): VoicePersonalitySe
 export function voicePersonalitySignature(set: VoicePersonalitySet): string {
   return JSON.stringify([
     set.speaker,
+    set.customSpeaker,
     set.language,
     set.accent,
     set.emotion,
@@ -790,6 +823,7 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     disabledSatellites: updateDisabledSatellites(source),
     satelliteNoiseGateEnabled: updateBoolean(source, "satelliteNoiseGateEnabled"),
     speaker: updateChoice(source, "speaker", SPEAKERS),
+    customSpeaker: updatePattern(source, "customSpeaker", CUSTOM_SPEAKER_PATTERN),
     language: updateChoice(source, "language", LANGUAGES),
     accent: updateChoice(source, "accent", ACCENTS),
     speechRate: updateNumber(source, "speechRate", VOICE_SETTINGS_RANGES.speechRate),
