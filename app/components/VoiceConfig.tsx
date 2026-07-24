@@ -859,6 +859,15 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       ? [{ value: settings.customSpeaker, label: settings.customSpeaker }, ...voiceOptions]
       : voiceOptions;
   const switchInFlight = switchTarget !== null && !switchFailed;
+  // Saved personalities are engine-scoped: the picker lists only profiles for
+  // the engine currently loaded (plus legacy profiles saved before engines were
+  // tracked, which have no tag yet and stay visible under either engine).
+  const visiblePersonalities = personalityLibrary.library.entries.filter(
+    (entry) => entry.engine == null || entry.engine === engine,
+  );
+  const activePersonalityVisible = visiblePersonalities.some(
+    (entry) => entry.id === personalityLibrary.library.activeId,
+  );
 
   return (
     <ConfigAccordion
@@ -876,32 +885,6 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         the voice service.
         {optionsSource === "iridium" ? " Voice list published live by Iridium." : null}
       </p>
-
-      <div className="mb-4 grid gap-1.5">
-        <p className="text-xs font-black uppercase text-neutral-400">Personality</p>
-        <VoicePersonalityLibraryControl
-          activeId={personalityLibrary.library.activeId}
-          dirty={personalityDirty}
-          entries={personalityLibrary.library.entries}
-          onLoad={loadPersonality}
-          onSaveChanges={() => personalityLibrary.saveChanges(currentSubset)}
-          onSaveAs={(name) => personalityLibrary.saveAs(name, currentSubset)}
-          onRename={(id, name) => personalityLibrary.rename(id, name)}
-          onDuplicate={(id) => personalityLibrary.duplicate(id)}
-          onDelete={(id) => personalityLibrary.remove(id)}
-          onTest={testPersonality}
-        />
-        <p className="font-sans text-xs leading-snug text-neutral-500">
-          A personality bundles the voice, language, accent, baseline mood, description, pronouns,
-          affectations, and speech shaping below. Load one to apply it live; the agent name, wake words, volume,
-          and conversation window stay global. Save captures the current settings back into the
-          selected personality. Test asks {agentName} a random question and plays the spoken reply
-          in this browser, so you hear every current voice and language-model setting.
-        </p>
-        {personalityLibrary.error ? (
-          <p role="status" className="font-sans text-xs text-red-200">{personalityLibrary.error}</p>
-        ) : null}
-      </div>
 
       <div className="mb-4 grid gap-1.5">
         <p className="text-xs font-black uppercase text-neutral-400">Voice engine</p>
@@ -978,6 +961,60 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           from the voice server&apos;s registry. Each engine remembers its own voice selection, and
           either can be restored at any time.
         </p>
+        {engine === "custom" ? (
+          <div className="grid gap-1.5 px-1 pt-1">
+            <SliderControlPanel
+              ariaLabel="Custom engine diffusion steps"
+              ariaValueText={`${settings.dotsNumSteps} steps`}
+              color={[190, 90, 100]}
+              intensity={100}
+              label="Streaming steps"
+              max={VOICE_SETTINGS_RANGES.dotsNumSteps.max}
+              min={VOICE_SETTINGS_RANGES.dotsNumSteps.min}
+              step={VOICE_SETTINGS_RANGES.dotsNumSteps.step}
+              value={settings.dotsNumSteps}
+              valueText={`${settings.dotsNumSteps} steps`}
+              onPreview={(dotsNumSteps) => {
+                draggingRef.current.add("dotsNumSteps");
+                markInteraction();
+                setSettings((current) => ({ ...current, dotsNumSteps }));
+              }}
+              onCommit={(dotsNumSteps) => void commit("dotsNumSteps", dotsNumSteps)}
+            />
+            <p className="font-sans text-xs leading-snug text-neutral-500">
+              How many diffusion steps the Custom engine runs per reply. Fewer steps reach the
+              first audio sooner and use less GPU, at some quality cost; more steps are smoother
+              but slower to start. Only affects the Custom engine.
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mb-4 grid gap-1.5">
+        <p className="text-xs font-black uppercase text-neutral-400">Personality</p>
+        <VoicePersonalityLibraryControl
+          activeId={activePersonalityVisible ? personalityLibrary.library.activeId : null}
+          dirty={personalityDirty}
+          entries={visiblePersonalities}
+          onLoad={loadPersonality}
+          onSaveChanges={() => personalityLibrary.saveChanges(currentSubset)}
+          onSaveAs={(name) => personalityLibrary.saveAs(name, currentSubset, engine)}
+          onRename={(id, name) => personalityLibrary.rename(id, name)}
+          onDuplicate={(id) => personalityLibrary.duplicate(id)}
+          onDelete={(id) => personalityLibrary.remove(id)}
+          onTest={testPersonality}
+        />
+        <p className="font-sans text-xs leading-snug text-neutral-500">
+          A personality bundles the voice, language, accent, baseline mood, description, pronouns,
+          affectations, and speech shaping below, and is tied to the engine it was saved under —
+          only {engine === "custom" ? "Custom" : "Classic"} profiles show here. Load one to apply it
+          live; the agent name, wake words, volume, and conversation window stay global. Save
+          captures the current settings back into the selected personality. Test asks {agentName} a
+          random question and plays the spoken reply in this browser.
+        </p>
+        {personalityLibrary.error ? (
+          <p role="status" className="font-sans text-xs text-red-200">{personalityLibrary.error}</p>
+        ) : null}
       </div>
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2">

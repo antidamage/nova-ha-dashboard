@@ -7,7 +7,11 @@ import {
   VOICE_PERSONALITY_LIBRARY_MAX_ENTRIES,
   type VoicePersonalityLibrary,
 } from "../../lib/voice-personality-library";
-import { normalizeVoicePersonalitySet, type VoicePersonalitySet } from "../../lib/voice-settings";
+import {
+  normalizeVoicePersonalitySet,
+  type VoiceEngine,
+  type VoicePersonalitySet,
+} from "../../lib/voice-settings";
 
 // Client-side view of the host-backed voice personality library. Mirrors
 // app/components/themeLibrary.ts: mutations are optimistic and then POSTed, and
@@ -19,6 +23,7 @@ export type PersonalityLibraryEntry = {
   createdAt: string;
   updatedAt: string;
   personality: VoicePersonalitySet;
+  engine?: VoiceEngine;
 };
 
 export type ClientVoicePersonalityLibrary = {
@@ -37,6 +42,7 @@ function toClientLibrary(library: VoicePersonalityLibrary): ClientVoicePersonali
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt,
       personality: entry.personality,
+      ...(entry.engine ? { engine: entry.engine } : {}),
     })),
   };
 }
@@ -106,24 +112,30 @@ export function useVoicePersonalityLibrary() {
     }
   }, []);
 
-  const saveAs = useCallback((name: string, personality: VoicePersonalitySet) => {
-    const current = libraryRef.current;
-    if (current.entries.length >= VOICE_PERSONALITY_LIBRARY_MAX_ENTRIES) {
-      setError("Voice personality library is full.");
-      return null;
-    }
-    const now = new Date().toISOString();
-    const id = createVoicePersonalityId();
-    const entry: PersonalityLibraryEntry = {
-      id,
-      name: name.trim() || "Untitled personality",
-      createdAt: now,
-      updatedAt: now,
-      personality: normalizeVoicePersonalitySet(personality),
-    };
-    void persist({ activeId: id, entries: [...current.entries, entry] });
-    return id;
-  }, [persist]);
+  const saveAs = useCallback(
+    (name: string, personality: VoicePersonalitySet, engine?: VoiceEngine) => {
+      const current = libraryRef.current;
+      if (current.entries.length >= VOICE_PERSONALITY_LIBRARY_MAX_ENTRIES) {
+        setError("Voice personality library is full.");
+        return null;
+      }
+      const now = new Date().toISOString();
+      const id = createVoicePersonalityId();
+      const entry: PersonalityLibraryEntry = {
+        id,
+        name: name.trim() || "Untitled personality",
+        createdAt: now,
+        updatedAt: now,
+        personality: normalizeVoicePersonalitySet(personality),
+        // Stamp the engine this profile was saved under so the picker can list
+        // it only while that engine is loaded.
+        ...(engine ? { engine } : {}),
+      };
+      void persist({ activeId: id, entries: [...current.entries, entry] });
+      return id;
+    },
+    [persist],
+  );
 
   const saveChanges = useCallback((personality: VoicePersonalitySet) => {
     const current = libraryRef.current;
@@ -169,6 +181,7 @@ export function useVoicePersonalityLibrary() {
       createdAt: now,
       updatedAt: now,
       personality: normalizeVoicePersonalitySet(source.personality),
+      ...(source.engine ? { engine: source.engine } : {}),
     };
     const index = current.entries.findIndex((entry) => entry.id === id);
     const entries = [...current.entries];

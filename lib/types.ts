@@ -366,6 +366,12 @@ export type VoicePreferences = {
   /** Milliseconds of audio per steady-state frame sent to satellites. */
   ttsFrameMs?: number;
   /**
+   * Custom (dots.tts) diffusion step count — the model-side latency/quality
+   * lever. Fewer steps reach first audio sooner and cost less GPU per reply.
+   * Ignored by the Classic engine.
+   */
+  dotsNumSteps?: number;
+  /**
    * Speaker-matching tuning — TitaNet cosine similarity thresholds (0-1) that
    * control how fuzzy voice recognition is across mics, rooms, and distances.
    * Defaults mirror the voice service's historical env values.
