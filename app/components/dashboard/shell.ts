@@ -73,8 +73,37 @@ function isFullscreenActive() {
   );
 }
 
+// A window the browser itself opened fullscreen (F11, or a kiosk launched with
+// --start-fullscreen) has no fullscreenElement, yet the page already fills the
+// screen. Treat that as satisfied: the Fullscreen API cannot be entered without
+// a user gesture, so retrying against an already-fullscreen window only burns
+// rejected promises until someone taps the screen.
+function isWindowFullscreen() {
+  try {
+    if (window.matchMedia?.("(display-mode: fullscreen)").matches) {
+      return true;
+    }
+  } catch {
+    // matchMedia can be unavailable in restricted contexts.
+  }
+
+  const screenHeight = window.screen?.height ?? 0;
+  const screenWidth = window.screen?.width ?? 0;
+  if (screenHeight <= 0 || screenWidth <= 0) {
+    return false;
+  }
+
+  const tolerance = 2;
+  return Math.abs(window.innerHeight - screenHeight) <= tolerance
+    && Math.abs(window.innerWidth - screenWidth) <= tolerance;
+}
+
+export function isDashboardFullscreen() {
+  return isFullscreenActive() || isWindowFullscreen();
+}
+
 export async function requestDashboardFullscreen() {
-  if (isFullscreenActive()) {
+  if (isDashboardFullscreen()) {
     return;
   }
 
