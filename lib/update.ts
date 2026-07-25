@@ -161,6 +161,22 @@ function fallbackSha(): string | null {
   return fromEnv && fromEnv.length > 0 ? fromEnv : null;
 }
 
+/**
+ * Treat a blank sha as absent.
+ *
+ * The updater writes `"currentSha": ""` into state.json before it has ever
+ * deployed anything, and an empty string is NOT nullish -- so `??` accepted it
+ * as a real value, the fallback below was never consulted, and
+ * `updateAvailable` (which requires a truthy currentSha) was pinned to false
+ * forever. The dashboard therefore reported "Already up to date ()" -- note the
+ * empty parens -- while sitting on an unknown version, and no update could ever
+ * be offered or applied.
+ */
+export function definedSha(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export async function checkGitHubForUpdate(): Promise<UpdateCheck> {
   const config = await readDashboardConfig();
   const { repo, branch } = config.update;
@@ -262,8 +278,8 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
     readUpdateCheck(),
   ]);
 
-  const currentSha = state?.currentSha ?? fallbackSha();
-  const latestSha = check?.ok ? check.latestSha ?? null : null;
+  const currentSha = definedSha(state?.currentSha) ?? fallbackSha();
+  const latestSha = check?.ok ? definedSha(check.latestSha) : null;
   const phase = state?.phase ?? "idle";
   const autoUpdate = prefs.update?.autoUpdate ?? config.update.autoUpdate;
 
@@ -282,8 +298,8 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
     latestMessage: check?.latestMessage ?? null,
     updateAvailable,
     autoUpdate,
-    canRollback: Boolean(state?.canRollback && state?.previousSha),
-    previousSha: state?.previousSha ?? null,
+    canRollback: Boolean(state?.canRollback && definedSha(state?.previousSha)),
+    previousSha: definedSha(state?.previousSha),
     phase,
     phaseMessage: state?.phaseMessage ?? null,
     phaseAt: state?.phaseAt ?? null,
