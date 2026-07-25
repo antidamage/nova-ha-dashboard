@@ -19,6 +19,7 @@ BACKEND_ENV="$HOME/.config/nova-kiosk/backend.env"
 # shellcheck disable=SC1090
 [ -f "$BACKEND_ENV" ] && . "$BACKEND_ENV"
 NOVA_BACKEND_URL="${NOVA_BACKEND_URL:-http://127.0.0.1/}"
+NOVA_KIOSK_START_FULLSCREEN="${NOVA_KIOSK_START_FULLSCREEN:-1}"
 
 PROFILE="$HOME/snap/brave/current/.config/BraveSoftware/Brave-Browser"
 DEF="$PROFILE/Default"
@@ -64,7 +65,17 @@ fi
 #   --disable-session-crashed-bubble / --noerrdialogs / --disable-infobars
 #       no "Brave didn't shut down correctly" or update/error nags, which a
 #       kiosk has no one to dismiss them
+# The dashboard's per-device fullscreen preference calls the Fullscreen API,
+# which every browser refuses without user activation -- so an unattended kiosk
+# sat windowed (desktop panel visible) until someone tapped the screen. A window
+# the browser OPENS fullscreen needs no gesture, and the page is fullscreen from
+# first paint. Not --kiosk: that also removes the escape hatch out of the
+# dashboard, which the recovery panel depends on.
+FULLSCREEN_ARGS=()
+[ "$NOVA_KIOSK_START_FULLSCREEN" = "1" ] && FULLSCREEN_ARGS=(--start-fullscreen)
+
 exec /snap/bin/brave \
+  "${FULLSCREEN_ARGS[@]}" \
   --no-first-run \
   --disable-component-update \
   --disable-session-crashed-bubble \
