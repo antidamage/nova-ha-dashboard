@@ -3110,14 +3110,31 @@ a.update-banner-button {
   opacity: 0.6;
 }
 
+:root,
+.temperature-stepper {
+  --climate-temp-size: calc(clamp(3rem, 8vw, 5.5rem) * var(--cyber-clock-scale, 1));
+}
+
 .climate-temp-readout {
   font-family: var(--cyber-mono);
-  font-size: calc(clamp(3rem, 8vw, 5.5rem) * var(--cyber-clock-scale, 1));
+  font-size: var(--climate-temp-size);
   line-height: 0.9;
   white-space: nowrap;
 }
 
 .climate-temp-readout span {
+  font-size: 0.55em;
+}
+
+/* Current-room-temp is 75% of the target readout so it stays legible from
+   across the room; it rides the same clock scale/weight as the target. */
+.climate-current-readout {
+  font-size: calc(var(--climate-temp-size) * 0.75);
+  line-height: 0.95;
+  white-space: nowrap;
+}
+
+.climate-current-readout span {
   font-size: 0.55em;
 }
 
