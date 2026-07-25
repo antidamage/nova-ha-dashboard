@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   THEME_FONT_SIZE_OFFSET_MAX,
@@ -14,6 +14,7 @@ import {
 } from "./accentColor";
 import { SliderControlPanel } from "./ConfigControls";
 import { getThemeFont, THEME_FONT_OPTIONS } from "./themeFonts";
+import { useSelectMenu } from "./useSelectMenu";
 
 type Rgb = [number, number, number];
 
@@ -35,10 +36,7 @@ export function FontSelect({
   value: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [menuRect, setMenuRect] = useState<{ left: number; top: number; width: number } | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLUListElement | null>(null);
+  const { containerRef, menuRef, menuStyle } = useSelectMenu(open, setOpen);
   const selectedOptionRef = useRef<HTMLLIElement | null>(null);
   const listboxId = useId();
   const active = getThemeFont(value) ?? THEME_FONT_OPTIONS[0];
@@ -48,47 +46,6 @@ export function FontSelect({
     () => [...THEME_FONT_OPTIONS].sort((a, b) => a.label.localeCompare(b.label)),
     [],
   );
-
-  const reposition = useCallback(() => {
-    const trigger = triggerRef.current;
-    if (!trigger) {
-      return;
-    }
-    const rect = trigger.getBoundingClientRect();
-    setMenuRect({ left: rect.left, top: rect.bottom + 6, width: rect.width });
-  }, []);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    reposition();
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (
-        !containerRef.current?.contains(target) &&
-        !menuRef.current?.contains(target)
-      ) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-    // Keep the portalled menu glued to the trigger if anything scrolls/resizes.
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
-  }, [open, reposition]);
 
   // Center the in-use font in the menu viewport once per open. Deferred to the next
   // frame so the portalled menu has been laid out; not tied to menuRect, which churns
@@ -108,7 +65,6 @@ export function FontSelect({
       <p className="text-sm font-black uppercase text-cyan-200">{label}</p>
       <div className="theme-library-select" ref={containerRef}>
         <button
-          ref={triggerRef}
           type="button"
           className={`cyber-select-trigger ${open ? "cyber-select-trigger-open" : ""}`}
           aria-haspopup="listbox"
@@ -126,7 +82,7 @@ export function FontSelect({
           <ChevronDown className={`cyber-select-chevron h-5 w-5 ${open ? "cyber-select-chevron-open" : ""}`} aria-hidden="true" />
         </button>
 
-        {open && menuRect
+        {open && menuStyle
           ? createPortal(
               <ul
                 ref={menuRef}
@@ -134,7 +90,7 @@ export function FontSelect({
                 id={listboxId}
                 role="listbox"
                 aria-label={label}
-                style={{ left: menuRect.left, top: menuRect.top, width: menuRect.width }}
+                style={menuStyle}
               >
                 {options.map((option) => {
                   const selected = option.id === active.id;

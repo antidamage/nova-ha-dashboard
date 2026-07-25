@@ -2,9 +2,11 @@
 
 import { Check, ChevronDown, CopyPlus, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { appliedThemeRgb, type DeviceThemeSet } from "./accentColor";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import type { LibraryEntry } from "./themeLibrary";
+import { useSelectMenu } from "./useSelectMenu";
 
 function rgbCss(rgb: [number, number, number]) {
   return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
@@ -115,32 +117,10 @@ export function ThemeLibraryControl({
 }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"idle" | "saveAs" | "rename">("idle");
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
+  const { containerRef, menuRef, menuStyle } = useSelectMenu(open, setOpen);
 
   const activeEntry = entries.find((entry) => entry.id === activeId) ?? null;
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
 
   const triggerLabel = activeEntry
     ? activeEntry.name
@@ -170,8 +150,15 @@ export function ThemeLibraryControl({
           <ChevronDown className={`cyber-select-chevron h-5 w-5 ${open ? "cyber-select-chevron-open" : ""}`} aria-hidden="true" />
         </button>
 
-        {open ? (
-          <ul className="cyber-select-menu" id={listboxId} role="listbox" aria-label="Saved themes">
+        {open && menuStyle ? createPortal(
+          <ul
+            ref={menuRef}
+            className="cyber-select-menu cyber-select-menu-portal"
+            id={listboxId}
+            role="listbox"
+            aria-label="Saved themes"
+            style={menuStyle}
+          >
             {entries.length === 0 ? (
               <li className="cyber-select-empty" role="presentation">
                 Save a theme to start your library.
@@ -198,7 +185,8 @@ export function ThemeLibraryControl({
                 );
               })
             )}
-          </ul>
+          </ul>,
+          document.body,
         ) : null}
       </div>
 

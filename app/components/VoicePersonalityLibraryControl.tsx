@@ -2,16 +2,18 @@
 
 import { Check, ChevronDown, CopyPlus, Pencil, Plus, Save, Trash2, Volume2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ENGINE_VOICE_FIELD } from "../../lib/voice-settings";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import type { PersonalityLibraryEntry } from "./voicePersonalityLibrary";
+import { useSelectMenu } from "./useSelectMenu";
 
 /** Compact one-line summary of a personality: voice and pronoun set. */
 function personalitySummary(entry: PersonalityLibraryEntry): string {
-  // Show the voice for the engine this profile belongs to: the cloned-voice id
-  // for Custom profiles, the preset name for Classic (and legacy untagged).
-  const voice = (
-    entry.engine === "custom" ? entry.personality.customSpeaker : entry.personality.speaker
-  ).replace(/_/g, " ");
+  // Show the voice for the engine this profile belongs to (the preset name
+  // for Classic/legacy untagged, or that engine's own cloned/trained-voice id).
+  const voiceField = ENGINE_VOICE_FIELD[entry.engine ?? "classic"];
+  const voice = (entry.personality[voiceField] || "").replace(/_/g, " ");
   const { subjective, objective, possessive } = entry.personality.pronouns;
   return `${voice} · ${subjective}/${objective}/${possessive}`;
 }
@@ -120,32 +122,10 @@ export function VoicePersonalityLibraryControl({
       setTesting(false);
     }
   };
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
+  const { containerRef, menuRef, menuStyle } = useSelectMenu(open, setOpen);
 
   const activeEntry = entries.find((entry) => entry.id === activeId) ?? null;
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
 
   const triggerLabel = activeEntry
     ? activeEntry.name
@@ -174,8 +154,15 @@ export function VoicePersonalityLibraryControl({
           <ChevronDown className={`cyber-select-chevron h-5 w-5 ${open ? "cyber-select-chevron-open" : ""}`} aria-hidden="true" />
         </button>
 
-        {open ? (
-          <ul className="cyber-select-menu" id={listboxId} role="listbox" aria-label="Saved personalities">
+        {open && menuStyle ? createPortal(
+          <ul
+            ref={menuRef}
+            className="cyber-select-menu cyber-select-menu-portal"
+            id={listboxId}
+            role="listbox"
+            aria-label="Saved personalities"
+            style={menuStyle}
+          >
             {entries.length === 0 ? (
               <li className="cyber-select-empty" role="presentation">
                 Save a personality to start your library.
@@ -206,7 +193,8 @@ export function VoicePersonalityLibraryControl({
                 );
               })
             )}
-          </ul>
+          </ul>,
+          document.body,
         ) : null}
       </div>
 

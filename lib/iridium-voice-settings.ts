@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
+import type { VoiceEngineCapabilities } from "./voice-settings";
 
 export type IridiumVoiceRefreshResult =
   | { ok: true; status: number }
@@ -22,6 +23,20 @@ const REQUEST_TIMEOUT_MS = 5_000;
 // Synthesis is slower than a plain status round trip (model inference, and a
 // cold voice can take a couple of seconds), so the preview gets its own budget.
 const PREVIEW_TIMEOUT_MS = 30_000;
+// Building/uploading a voice can be slow -- ffmpeg over sample clips (Custom)
+// or a multi-file checkpoint bundle (Trained) -- over a home network.
+const ENGINE_VOICE_BUILD_TIMEOUT_MS = 60_000;
+
+// One entry of the server's engine registry manifest (nova_voice.tts_engines
+// dashboard_engines_manifest()) — id/label plus what voice controls to render
+// for it. The dashboard renders off this array (and its capabilities) instead
+// of a hardcoded classic/custom pair, so a new engine the server advertises
+// needs no dashboard code change to appear in the picker.
+export type IridiumEngineDescriptor = {
+  id: string;
+  label: string;
+  capabilities?: VoiceEngineCapabilities;
+};
 
 export type IridiumVoiceCatalog = {
   voices: { value: string; label: string; detail: string }[];
@@ -30,20 +45,21 @@ export type IridiumVoiceCatalog = {
   emotions: string[];
   ranges: Record<string, { min: number; max: number; step: number; default: number }>;
   current?: unknown;
-  /** Which TTS engine module is resident ("classic" Qwen presets / "custom" dots.tts clones). */
-  engine?: "classic" | "custom";
-  engines?: { id: string; label: string }[];
-  customVoices?: { id: string; name?: string; language?: string }[];
+  /** Id of the resident TTS engine module, from the server's engine registry. */
+  engine?: string;
+  engines?: IridiumEngineDescriptor[];
+  /** The resident engine's own voice catalogue (custom clones / trained checkpoints), if it has one. */
+  engineVoices?: { id: string; name?: string; language?: string }[];
 };
 
 // GET /v1/engine: the resident engine plus the root-side switcher's progress
 // file, which outlives orchestrator restarts so the dashboard can follow a
 // switch across the downtime it intentionally causes.
 export type IridiumEngineStatus = {
-  engine: "classic" | "custom";
-  engines?: { id: string; label: string }[];
+  engine: string;
+  engines?: IridiumEngineDescriptor[];
   switch?: {
-    target?: "classic" | "custom";
+    target?: string;
     phase?: "preparing" | "restarting" | "warming" | "ready" | "failed";
     updatedAt?: string;
     error?: string;
@@ -231,7 +247,10 @@ export async function fetchIridiumSatelliteRegistry(): Promise<IridiumSatelliteS
 export async function fetchIridiumEngineStatus(): Promise<IridiumEngineStatus | null> {
   const payload = await fetchIridiumJson("/v1/engine", "engine status");
   const engine = (payload as { engine?: unknown } | null)?.engine;
-  if (engine !== "classic" && engine !== "custom") {
+  // Accept any non-empty engine id the server advertises rather than a
+  // hardcoded pair, so a newly-registered engine (e.g. "trained") is usable
+  // the moment the server knows about it — no dashboard release required.
+  if (typeof engine !== "string" || !engine) {
     return null;
   }
   return payload as IridiumEngineStatus;
@@ -241,8 +260,11 @@ export async function fetchIridiumEngineStatus(): Promise<IridiumEngineStatus | 
 // swap to its root-side switcher and restarts itself, so a successful request
 // is an acceptance, not a completion — callers follow progress by polling
 // fetchIridiumEngineStatus() until the engine matches and its TTS is ready.
+// The engine id is validated against the registry server-side (api.py's
+// EngineSwitchRequest); the dashboard just passes through what the picker,
+// itself populated from the server's own engine list, offered.
 export async function requestIridiumEngineSwitch(
-  engine: "classic" | "custom",
+  engine: string,
 ): Promise<IridiumJsonResult> {
   return requestIridiumJson("/v1/engine", "engine switch", { method: "POST", body: { engine } });
 }
@@ -253,6 +275,118 @@ export async function fetchIridiumVoiceCatalog(): Promise<IridiumVoiceCatalog | 
     return payload as IridiumVoiceCatalog;
   }
   return null;
+}
+
+export type IridiumEngineVoice = {
+  id: string;
+  name?: string;
+  language?: string;
+  speakerScale?: number;
+};
+
+// The registered voices for one engine's catalogue (Custom clones or Trained
+// checkpoints), straight from that engine's own service registry -- the Voice
+// Infrastructure catalogue panel renders this list. Engines with no
+// catalogue (Classic) 404 server-side; treat that the same as "no voices".
+export async function fetchIridiumEngineVoices(engineId: string): Promise<IridiumEngineVoice[] | null> {
+  const payload = await fetchIridiumJson(
+    `${VOICES_PATH}/${encodeURIComponent(engineId)}`,
+    `${engineId} voices`,
+  );
+  if (!payload || !Array.isArray((payload as { voices?: unknown }).voices)) {
+    return null;
+  }
+  return (payload as { voices: IridiumEngineVoice[] }).voices;
+}
+
+export type IridiumEngineVoiceBuildResult =
+  | { ok: true; voice?: Record<string, unknown> }
+  | { ok: false; error: string; status?: number };
+
+// Relay a multipart voice-catalogue upload through to Iridium unchanged for
+// the given engine -- the dashboard never parses the multipart body itself,
+// it just forwards the browser's request bytes and content-type, exactly like
+// the orchestrator's own relay to the engine's voice service does. For Custom
+// this builds a reference.wav from sample clips (CPU ffmpeg, no GPU); for
+// Trained this stores an already-trained checkpoint bundle.
+export async function buildIridiumEngineVoice(
+  engineId: string,
+  body: Buffer,
+  contentType: string,
+): Promise<IridiumEngineVoiceBuildResult> {
+  let url: URL;
+  try {
+    url = iridiumUrl(`${VOICES_PATH}/${encodeURIComponent(engineId)}`);
+  } catch (error) {
+    console.error(`[nova-dashboard] invalid Iridium ${engineId} voice URL`, error);
+    return { ok: false, error: "configured voice server URL is invalid" };
+  }
+  let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
+  if (url.protocol === "https:") {
+    try {
+      identity = await tlsIdentity();
+    } catch (error) {
+      console.error(`[nova-dashboard] Iridium ${engineId} voice TLS identity is unavailable`, error);
+      return { ok: false, error: "voice server TLS identity is unavailable" };
+    }
+  }
+  return await new Promise<IridiumEngineVoiceBuildResult>((resolve) => {
+    const requester = url.protocol === "https:" ? https.request : http.request;
+    const request = requester(
+      url,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": contentType,
+          "Content-Length": body.length,
+        },
+        timeout: ENGINE_VOICE_BUILD_TIMEOUT_MS,
+        ...(identity ?? {}),
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.once("end", () => {
+          const status = response.statusCode ?? 502;
+          const raw = Buffer.concat(chunks).toString("utf8");
+          if (status < 200 || status >= 300) {
+            console.error(`[nova-dashboard] Iridium ${engineId} voice build returned HTTP ${status}`);
+            resolve({ ok: false, error: raw || `HTTP ${status}`, status });
+            return;
+          }
+          try {
+            const payload = JSON.parse(raw) as { voice?: Record<string, unknown> };
+            resolve({ ok: true, voice: payload.voice });
+          } catch (error) {
+            console.error(`[nova-dashboard] Iridium ${engineId} voice build payload was invalid`, error);
+            resolve({ ok: false, error: "invalid JSON payload from voice server", status });
+          }
+        });
+      },
+    );
+    request.once("timeout", () => request.destroy(new Error("request timed out")));
+    request.once("error", (error) => {
+      console.error(`[nova-dashboard] Iridium ${engineId} voice build request failed`, error);
+      const code = (error as NodeJS.ErrnoException).code;
+      resolve({ ok: false, error: code || error.message });
+    });
+    request.write(body);
+    request.end();
+  });
+}
+
+// Remove a registered voice from an engine's catalogue. Irreversible -- the
+// engine's voice service deletes the voice's stored data outright.
+export async function deleteIridiumEngineVoice(
+  engineId: string,
+  voiceId: string,
+): Promise<IridiumJsonResult> {
+  return requestIridiumJson(
+    `${VOICES_PATH}/${encodeURIComponent(engineId)}/${encodeURIComponent(voiceId)}`,
+    `${engineId} voice delete`,
+    { method: "DELETE" },
+  );
 }
 
 type IridiumJsonResult = { payload: unknown } | { error: string; status?: number };

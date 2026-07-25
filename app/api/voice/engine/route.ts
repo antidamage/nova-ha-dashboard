@@ -3,8 +3,16 @@ import {
   fetchIridiumEngineStatus,
   requestIridiumEngineSwitch,
 } from "../../../../lib/iridium-voice-settings";
+import { VOICE_ENGINES } from "../../../../lib/voice-settings";
 
 export const dynamic = "force-dynamic";
+
+// A shape-level guard against the known engine ids, so an obviously malformed
+// request gets a friendly 400 without a round trip. The voice server's own
+// EngineSwitchRequest validator (checked against its live engine registry) is
+// the actual source of truth -- this list just needs to include every engine
+// the registry can ever advertise, which VOICE_ENGINES already tracks.
+const KNOWN_ENGINE_IDS = new Set<string>(VOICE_ENGINES.map(({ value }) => value));
 
 // The Voice Agent engine switcher polls this while a swap is in flight. The
 // voice server restarts mid-switch, so an unreachable server is a normal
@@ -17,10 +25,10 @@ export async function GET() {
   return NextResponse.json({ reachable: true, ...status });
 }
 
-// Ask the voice server to swap the resident TTS engine (classic Qwen presets
-// vs custom dots.tts clones). Accepting the request is the success case; the
-// swap itself takes minutes (service restarts, and the custom engine warms up
-// for ~7 minutes) and is followed via GET.
+// Ask the voice server to swap the resident TTS engine (Classic presets,
+// Custom dots.tts clones, or Trained GPT-SoVITS voices). Accepting the request
+// is the success case; the swap itself takes minutes (service restarts, and
+// some engines warm up for several more) and is followed via GET.
 export async function POST(request: Request) {
   let engine: unknown;
   try {
@@ -28,8 +36,11 @@ export async function POST(request: Request) {
   } catch {
     engine = undefined;
   }
-  if (engine !== "classic" && engine !== "custom") {
-    return NextResponse.json({ error: "engine must be \"classic\" or \"custom\"" }, { status: 400 });
+  if (typeof engine !== "string" || !KNOWN_ENGINE_IDS.has(engine)) {
+    return NextResponse.json(
+      { error: `engine must be one of: ${[...KNOWN_ENGINE_IDS].join(", ")}` },
+      { status: 400 },
+    );
   }
   const result = await requestIridiumEngineSwitch(engine);
   if ("error" in result) {

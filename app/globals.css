@@ -2547,13 +2547,15 @@ a.update-banner-button {
   font-weight: 500;
 }
 
-/* The font menu is portalled to <body> and positioned with fixed coords (left/top/
-   width set inline) so it escapes the config accordion's overflow/clip-path and
-   sits above everything. */
+/* Every cyber-select menu (theme library, personality library, orb module, font
+   picker) is portalled to <body> and positioned with fixed coords (left/top/width
+   set inline) so it escapes its config accordion's overflow/clip-path and stacking
+   context. The z-index sits above the task modals (z-1200) so an open dropdown is
+   always in front of everything. */
 .cyber-select-menu-portal {
   position: fixed;
   right: auto;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .theme-library-actions {

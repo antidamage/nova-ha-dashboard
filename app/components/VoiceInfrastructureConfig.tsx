@@ -1,11 +1,24 @@
 "use client";
 
-import { Check, Power, PowerOff, RadioTower, RefreshCw, Satellite } from "lucide-react";
+import {
+  Check,
+  Power,
+  PowerOff,
+  RadioTower,
+  RefreshCw,
+  Satellite,
+  Trash2,
+  UploadCloud,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CUSTOM_SPEAKER_PATTERN,
+  VOICE_ENGINE_CAPABILITIES,
   VOICE_SETTINGS_RANGES,
   WEB_BACKENDS,
   normalizeVoiceSettings,
+  type VoiceEngine,
+  type VoiceEngineDescriptor,
   type VoiceSettings,
 } from "../../lib/voice-settings";
 import type { VoicePreferences } from "../../lib/types";
@@ -259,6 +272,331 @@ function SatellitePanel() {
         it off makes the voice server ignore that satellite&apos;s microphone (so you can test other
         devices) while the satellite stays running and connected — no SSH, instant, and reversible.
       </p>
+    </div>
+  );
+}
+
+type EngineVoiceRow = {
+  id: string;
+  name?: string;
+  language?: string;
+  speakerScale?: number;
+};
+
+// Engine-scoped voice catalogue: list the resident engine's registered
+// voices, delete them, and upload new ones. What "upload" means depends on
+// the engine's capabilities (from the server's engine registry, not a
+// hardcoded id check): Custom (dots.tts) builds a reference.wav from raw
+// sample clips server-side (CPU ffmpeg, no GPU training); Trained
+// (GPT-SoVITS) stores an already fine-tuned checkpoint bundle produced by the
+// voice-training scripts. Classic has no catalogue at all -- capabilities say
+// so and the panel shows a short note instead of empty controls.
+function EngineVoicesPanel() {
+  const [engineId, setEngineId] = useState<string | null>(null);
+  const [engines, setEngines] = useState<VoiceEngineDescriptor[]>([]);
+  const [voices, setVoices] = useState<EngineVoiceRow[]>([]);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<"ok" | "warning" | "error">("ok");
+
+  const [id, setId] = useState("");
+  const [name, setName] = useState("");
+  const [language, setLanguage] = useState("en");
+  const [speakerScale, setSpeakerScale] = useState(1.5);
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileInputKey, setFileInputKey] = useState(0);
+
+  const loadEngine = useCallback(async () => {
+    try {
+      const response = await fetch("/api/voice/engine", { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json() as {
+        engine?: string;
+        engines?: VoiceEngineDescriptor[];
+      };
+      setEngineId(typeof data.engine === "string" && data.engine ? data.engine : null);
+      setEngines(Array.isArray(data.engines) ? data.engines : []);
+    } catch (error) {
+      console.error("[nova-dashboard] failed to load voice engine status", error);
+    }
+  }, []);
+
+  const activeEngine = engines.find((entry) => entry.id === engineId) ?? null;
+  const capabilities = activeEngine?.capabilities
+    ?? (engineId && engineId in VOICE_ENGINE_CAPABILITIES
+      ? VOICE_ENGINE_CAPABILITIES[engineId as VoiceEngine]
+      : null);
+  const catalogueKind = capabilities?.voiceCatalogue ?? "none";
+  const activeLabel = activeEngine?.label ?? engineId ?? "voice engine";
+
+  const loadVoices = useCallback(async () => {
+    if (!engineId || catalogueKind === "none") {
+      setVoices([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/voice/voices/${encodeURIComponent(engineId)}`, { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json() as { voices?: EngineVoiceRow[] };
+      setVoices(Array.isArray(data.voices) ? data.voices : []);
+    } catch (error) {
+      console.error(`[nova-dashboard] failed to load ${engineId} voices`, error);
+    }
+  }, [engineId, catalogueKind]);
+
+  useEffect(() => {
+    void loadEngine();
+    const timer = window.setInterval(() => void loadEngine(), 30_000);
+    return () => window.clearInterval(timer);
+  }, [loadEngine]);
+
+  useEffect(() => {
+    void loadVoices();
+  }, [loadVoices]);
+
+  // The upload id names a new catalogue entry regardless of engine -- same
+  // slug shape the server's voice registries normalize to either way.
+  const idValid = CUSTOM_SPEAKER_PATTERN.test(id);
+
+  const upload = useCallback(async () => {
+    if (!engineId || catalogueKind === "none") {
+      return;
+    }
+    if (!idValid) {
+      setMessage("Voice id must be lowercase letters, digits, - or _ (1-64 chars).");
+      setMessageTone("error");
+      return;
+    }
+    if (files.length === 0) {
+      setMessage(catalogueKind === "bundle" ? "Choose the trained voice bundle files." : "Choose at least one sample clip.");
+      setMessageTone("error");
+      return;
+    }
+    setUploading(true);
+    setMessage(
+      catalogueKind === "bundle"
+        ? `Uploading "${name || id}"…`
+        : `Building "${name || id}" from ${files.length} clip${files.length === 1 ? "" : "s"}…`,
+    );
+    setMessageTone("ok");
+    try {
+      const formData = new FormData();
+      formData.set("id", id);
+      formData.set("name", name.trim() || id);
+      formData.set("language", language.trim() || "en");
+      if (catalogueKind === "clips") {
+        formData.set("speaker_scale", String(speakerScale));
+      }
+      for (const file of files) {
+        formData.append("files", file);
+      }
+      const response = await fetch(`/api/voice/voices/${encodeURIComponent(engineId)}`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json() as { error?: string; voice?: { reference_seconds?: number } };
+      if (!response.ok) {
+        throw new Error(data.error || `Upload failed: ${response.status}`);
+      }
+      const seconds = data.voice?.reference_seconds;
+      setMessage(`"${name || id}" is ready${seconds ? ` — ${seconds}s reference built` : ""}.`);
+      setMessageTone("ok");
+      setFiles([]);
+      setFileInputKey((key) => key + 1);
+      void loadVoices();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to upload voice");
+      setMessageTone("error");
+    } finally {
+      setUploading(false);
+    }
+  }, [engineId, catalogueKind, id, idValid, files, name, language, speakerScale, loadVoices]);
+
+  const remove = useCallback(async (voiceId: string) => {
+    if (!engineId) {
+      return;
+    }
+    setDeleting(voiceId);
+    setMessage(`Deleting "${voiceId}"…`);
+    setMessageTone("ok");
+    try {
+      const response = await fetch(
+        `/api/voice/voices/${encodeURIComponent(engineId)}/${encodeURIComponent(voiceId)}`,
+        { method: "DELETE" },
+      );
+      const data = await response.json() as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || `Delete failed: ${response.status}`);
+      }
+      setMessage(`"${voiceId}" deleted.`);
+      setMessageTone("warning");
+      void loadVoices();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to delete voice");
+      setMessageTone("error");
+    } finally {
+      setDeleting(null);
+    }
+  }, [engineId, loadVoices]);
+
+  if (engineId === null) {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 grid gap-3">
+      <p className="text-xs font-black uppercase text-neutral-400">{activeLabel} voices</p>
+
+      {catalogueKind === "none" ? (
+        <p className="font-sans text-xs leading-snug text-neutral-500">
+          The {activeLabel} engine has no voice catalogue to manage here — switch to Custom or
+          Trained voices above to build or upload one.
+        </p>
+      ) : (
+        <>
+          {voices.length > 0 ? (
+            <div className="grid gap-2">
+              {voices.map((voice) => (
+                <div
+                  key={voice.id}
+                  className="intensity-panel flex flex-wrap items-center justify-between gap-3 border border-cyan-300/30 bg-neutral-900/80 p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black uppercase text-cyan-200">
+                      {voice.name || voice.id}
+                    </p>
+                    <p className="text-xs font-semibold text-cyan-200/80">
+                      {voice.id} · {voice.language || "en"}
+                      {typeof voice.speakerScale === "number" ? ` · scale ${voice.speakerScale}` : ""}
+                    </p>
+                  </div>
+                  <MomentaryFeedbackButton
+                    type="button"
+                    className="config-page-button"
+                    disabled={deleting !== null}
+                    onClick={() => void remove(voice.id)}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    Delete
+                  </MomentaryFeedbackButton>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="font-sans text-xs leading-snug text-neutral-500">
+              No {activeLabel.toLowerCase()} registered yet.
+            </p>
+          )}
+
+          <div className="intensity-panel grid gap-2 border border-cyan-300/30 bg-neutral-900/80 p-3">
+            <p className="text-xs font-black uppercase text-neutral-400">
+              {catalogueKind === "bundle" ? "Upload a trained voice" : "Build a voice"}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                <span>Voice id</span>
+                <input
+                  className="cyber-text-input"
+                  value={id}
+                  onChange={(event) => setId(event.target.value)}
+                  placeholder="johnny"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                <span>Display name</span>
+                <input
+                  className="cyber-text-input"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Johnny Silverhand"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                <span>Language</span>
+                <input
+                  className="cyber-text-input"
+                  value={language}
+                  onChange={(event) => setLanguage(event.target.value)}
+                  placeholder="en"
+                />
+              </label>
+              {catalogueKind === "clips" ? (
+                <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                  <span>Speaker scale</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    max={5}
+                    step={0.1}
+                    className="cyber-text-input"
+                    value={speakerScale}
+                    onChange={(event) => setSpeakerScale(Number(event.target.value) || 1.5)}
+                  />
+                </label>
+              ) : null}
+            </div>
+            <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+              <span>{catalogueKind === "bundle" ? "Voice bundle files" : "Sample clips"}</span>
+              <input
+                key={fileInputKey}
+                type="file"
+                accept={catalogueKind === "clips" ? "audio/*" : undefined}
+                multiple
+                className="cyber-text-input"
+                onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+              />
+            </label>
+            {id && !idValid ? (
+              <p className="text-xs font-semibold text-red-200">
+                Voice id must be lowercase letters, digits, - or _ (1-64 chars).
+              </p>
+            ) : null}
+            <MomentaryFeedbackButton
+              type="button"
+              className="config-page-button"
+              disabled={uploading || !idValid || files.length === 0}
+              onClick={() => void upload()}
+            >
+              <UploadCloud className={`h-4 w-4 ${uploading ? "animate-pulse" : ""}`} aria-hidden="true" />
+              {uploading ? "Uploading…" : catalogueKind === "bundle" ? "Upload voice" : "Build & upload"}
+            </MomentaryFeedbackButton>
+          </div>
+        </>
+      )}
+
+      {message ? (
+        <p
+          role="status"
+          className={`text-xs font-semibold ${
+            messageTone === "ok"
+              ? "text-cyan-200"
+              : messageTone === "warning"
+                ? "text-yellow-200"
+                : "text-red-200"
+          }`}
+        >
+          {message}
+        </p>
+      ) : null}
+      {catalogueKind === "clips" ? (
+        <p className="font-sans text-xs leading-snug text-neutral-500">
+          Upload one or more clean sample clips (or a reference.wav already prepared with the
+          voice-training scripts) under a lowercase id. The server trims silence, concatenates, and
+          loudness-normalizes them into one reference clip dots.tts clones from -- no GPU training
+          involved. Deleting a voice removes it immediately and cannot be undone.
+        </p>
+      ) : catalogueKind === "bundle" ? (
+        <p className="font-sans text-xs leading-snug text-neutral-500">
+          Upload the checkpoint bundle produced by the voice-training scripts (train on a GPU
+          machine first) under a lowercase id. The server stores it as-is -- no training happens
+          here. Deleting a voice removes it immediately and cannot be undone.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -924,6 +1262,7 @@ export function VoiceInfrastructureConfig({ initialSettings }: { initialSettings
         <VoiceServerStatus />
       </div>
       <SatellitePanel />
+      <EngineVoicesPanel />
       <VoicePipelineSettings initialSettings={initialSettings} />
     </ConfigAccordion>
   );
