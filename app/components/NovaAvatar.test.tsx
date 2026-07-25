@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import NovaAvatar from "./NovaAvatar";
 import type { ThemeStorageValue } from "./accentColor";
@@ -102,6 +102,41 @@ describe("NovaAvatar", () => {
     const requestedUrls = fetchMock.mock.calls.map((call) => String(call[0]));
     expect(requestedUrls).not.toContain("/api/nova-load");
     expect(requestedUrls).not.toContain("/api/watchface");
+  });
+
+  it("polls nova-load at a cadence a long-lived kiosk page can sustain", async () => {
+    // A 100ms cadence walked the renderer's descriptor limit in under an hour
+    // and froze the kiosk. Ten seconds of wall clock must stay in single digits.
+    const initialTheme = themeWithGymColor([255, 0, 93], 94);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/theme") return jsonResponse({ theme: initialTheme });
+      if (url === "/api/watchface") return jsonResponse({ watchface: {} });
+      if (url === "/api/nova-load") return jsonResponse({ load: 0 });
+      if (url === "/api/orb-modules") return jsonResponse({ modules: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const countLoadCalls = () =>
+      fetchMock.mock.calls.filter((call) => String(call[0]) === "/api/nova-load").length;
+
+    // Timers must be faked before render, or the poll interval is created
+    // against the real clock and advancing proves nothing.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<NovaAvatar forceVisible size={64} initialTheme={initialTheme} />);
+      await screen.findByRole("group", { name: "Nova avatar" });
+
+      const before = countLoadCalls();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      expect(countLoadCalls() - before).toBeLessThanOrEqual(10);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("fades the gym counter out while speech is active and back in once idle", async () => {

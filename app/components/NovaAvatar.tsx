@@ -48,7 +48,14 @@ const SIZE = 128;
 // spill from layers that extend slightly past the rim.
 const ORB_RADIUS_FRACTION = 0.48;
 
-const POLL_MS = 100;
+// Load polling cadence. This was 100ms -- ten requests a second, forever, from
+// every open dashboard. It bought nothing visually (LOAD_EASE below smooths the
+// orb over about a second regardless) and it wedged the kiosk: each response
+// holds a shared-memory data pipe until the renderer garbage-collects it, and at
+// 10Hz the renderer walked its 1024-descriptor limit in under an hour, after
+// which the page froze and the watchdog killed the browser. Keep this well above
+// the easing time constant.
+const POLL_MS = 2000;
 const MS_PER_HOUR = 60 * 60 * 1000;
 const GYM_COUNTER_POLL_MS = 5 * 60 * 1000;
 const LOAD_EASE = 1.0; // ease toward server-reported load
@@ -316,7 +323,12 @@ function NovaAvatarVisual({
     const tick = async () => {
       try {
         const r = await fetch("/api/nova-load", { cache: "no-store" });
-        if (!r.ok) return;
+        if (!r.ok) {
+          // Drop the body explicitly: an unread response keeps its data pipe --
+          // and the descriptor behind it -- alive until garbage collection.
+          await r.body?.cancel();
+          return;
+        }
         const data = (await r.json()) as LoadResponse;
         if (!alive) return;
         const load = Math.max(0, Math.min(1, Number(data.load) || 0));
