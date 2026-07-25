@@ -5,10 +5,16 @@
 // live voice settings use.
 
 import {
+  VOICE_ENGINES,
   normalizeVoicePersonalitySet,
   type VoiceEngine,
   type VoicePersonalitySet,
 } from "./voice-settings";
+
+const VOICE_ENGINE_VALUES = new Set<string>(VOICE_ENGINES.map(({ value }) => value));
+function isVoiceEngine(value: unknown): value is VoiceEngine {
+  return typeof value === "string" && VOICE_ENGINE_VALUES.has(value);
+}
 
 export const VOICE_PERSONALITY_LIBRARY_VERSION = 1;
 export const VOICE_PERSONALITY_LIBRARY_MAX_ENTRIES = 100;
@@ -108,9 +114,7 @@ export function normalizeVoicePersonalityLibrary(value: unknown): VoicePersonali
       personality: normalizeVoicePersonalitySet(entry.personality),
       // Preserve an explicit engine tag; leave undefined for legacy profiles
       // (they stay visible under any engine until re-saved).
-      ...(entry.engine === "classic" || entry.engine === "custom"
-        ? { engine: entry.engine }
-        : {}),
+      ...(isVoiceEngine(entry.engine) ? { engine: entry.engine } : {}),
     });
   }
 

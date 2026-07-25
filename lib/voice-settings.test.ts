@@ -317,6 +317,7 @@ describe("voice personality subset", () => {
       "speaker",
       "speechRate",
       "temperature",
+      "trainedSpeaker",
     ].sort());
     // Global fields must not leak into a personality.
     expect(subset).not.toHaveProperty("agentName");

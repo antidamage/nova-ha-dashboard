@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const demoMode = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
@@ -19,6 +20,10 @@ const nextConfig: NextConfig = {
         ...(demoBasePath ? { assetPrefix: demoBasePath, basePath: demoBasePath } : {}),
       }
     : {}),
+  // This app lives in a sub-directory of a larger repo that has its own
+  // package-lock.json, so Turbopack otherwise infers the repo root as the
+  // workspace root and traces the whole monorepo.
+  turbopack: { root: path.resolve(__dirname) },
   poweredByHeader: false,
   serverExternalPackages: ["ssh2"],
 };

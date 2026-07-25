@@ -2,6 +2,7 @@
 
 import { Check, ChevronDown, CircleDot } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { resolveOrbModuleSettings, type OrbModule } from "../../lib/orb-modules";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
 import {
@@ -21,6 +22,7 @@ import NovaAvatar from "./NovaAvatar";
 import { buildOrbPalette, useOrbModule, useOrbModules } from "./orbModules";
 import { createOrbRenderer } from "./orbRenderer";
 import { useAgentName } from "./AgentNameContext";
+import { useSelectMenu } from "./useSelectMenu";
 
 type AvatarSlot =
   | "gradientAlert"
@@ -148,34 +150,12 @@ function OrbModuleSelect({
 }) {
   const modules = useOrbModules();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
+  // Outside-click/Escape close plus the portalled, always-on-top menu — same
+  // behaviour as the theme library dropdown this control is copied from.
+  const { containerRef, menuRef, menuStyle } = useSelectMenu(open, setOpen);
 
   const active = modules.find((module) => module.id === value) ?? null;
-
-  // Close on outside pointer-down or Escape — same behavior as the theme
-  // library dropdown this control is copied from.
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
 
   return (
     <div className="theme-library-select" ref={containerRef}>
@@ -199,8 +179,15 @@ function OrbModuleSelect({
         <ChevronDown className={`cyber-select-chevron h-5 w-5 ${open ? "cyber-select-chevron-open" : ""}`} aria-hidden="true" />
       </button>
 
-      {open ? (
-        <ul className="cyber-select-menu" id={listboxId} role="listbox" aria-label="Status orb module">
+      {open && menuStyle ? createPortal(
+        <ul
+          ref={menuRef}
+          className="cyber-select-menu cyber-select-menu-portal"
+          id={listboxId}
+          role="listbox"
+          aria-label="Status orb module"
+          style={menuStyle}
+        >
           {modules.map((module) => {
             const selected = module.id === value;
             return (
@@ -220,7 +207,8 @@ function OrbModuleSelect({
               </li>
             );
           })}
-        </ul>
+        </ul>,
+        document.body,
       ) : null}
     </div>
   );

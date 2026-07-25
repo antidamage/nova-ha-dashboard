@@ -55,21 +55,91 @@ export const VOICE_EMOTIONS = [
   { value: "energetic", label: "Energetic" },
 ] as const;
 
-// The two TTS engine modules the voice server can host (one GPU-resident at a
+// The TTS engine modules the voice server can host (one GPU-resident at a
 // time). "classic" = Qwen3-TTS preset voices with accent/mood instructions;
-// "custom" = dots.tts zero-shot cloned voices. Which is active comes from the
-// voice server; switching is an action (POST /api/voice/engine), not a stored
-// preference.
+// "custom" = dots.tts zero-shot cloned voices; "trained" = GPT-SoVITS voices
+// fine-tuned from hundreds of samples. Which is active comes from the voice
+// server; switching is an action (POST /api/voice/engine), not a stored
+// preference. This static list is only the fallback shown before the server's
+// own live engine list loads — see IridiumEngineStatus.engines in
+// lib/iridium-voice-settings.ts, which carries the same ids with live
+// capabilities from the server's engine registry.
 export const VOICE_ENGINES = [
   { value: "classic", label: "Classic presets", detail: "Qwen3-TTS preset voices with accent and mood shaping." },
   { value: "custom", label: "Custom voices", detail: "dots.tts cloned voices built from your own reference clips." },
+  { value: "trained", label: "Trained voices", detail: "GPT-SoVITS voices fine-tuned from hundreds of your own samples." },
 ] as const;
 
 export type VoiceEngine = (typeof VOICE_ENGINES)[number]["value"];
 
+// What voice controls to render for an engine. Mirrors the server's
+// EngineCapabilities (nova_voice.tts_engines) so the UI renders off
+// capability flags instead of `engine === "custom"` branches — this is the
+// fallback used before the server's live per-engine capabilities load.
+export type VoiceEngineCapabilities = {
+  usesPresetSpeaker: boolean;
+  usesAccentMood: boolean;
+  usesCustomVoiceDropdown: boolean;
+  usesNumSteps: boolean;
+  voiceCatalogue: "none" | "clips" | "bundle";
+};
+
+// A live engine entry as published by the server's engine registry
+// (dashboard_engines_manifest(): id/label/capabilities) — the client-safe
+// shape both the Voice Agent picker and the Voice Infrastructure catalogue
+// read from `/api/voice/*`'s `engines` field. Mirrors IridiumEngineDescriptor
+// in lib/iridium-voice-settings.ts (that file is Node-only; this lets client
+// components use the same shape without importing it).
+export type VoiceEngineDescriptor = {
+  id: string;
+  label: string;
+  capabilities?: VoiceEngineCapabilities;
+};
+
+// Each engine has its own disjoint voice namespace/settings field (see the
+// customSpeaker/trainedSpeaker JSDoc on VoiceSettings above, and the
+// server-side counterpart in nova_voice/tts_engines.py's resolve_speaker). A
+// capability flag alone can't say WHICH field — this is the one place that
+// maps engine id to field name, shared by the Voice Agent picker and the
+// personality-library summary.
+export const ENGINE_VOICE_FIELD: Record<VoiceEngine, "speaker" | "customSpeaker" | "trainedSpeaker"> = {
+  classic: "speaker",
+  custom: "customSpeaker",
+  trained: "trainedSpeaker",
+};
+
+export const VOICE_ENGINE_CAPABILITIES: Record<VoiceEngine, VoiceEngineCapabilities> = {
+  classic: {
+    usesPresetSpeaker: true,
+    usesAccentMood: true,
+    usesCustomVoiceDropdown: false,
+    usesNumSteps: false,
+    voiceCatalogue: "none",
+  },
+  custom: {
+    usesPresetSpeaker: false,
+    usesAccentMood: false,
+    usesCustomVoiceDropdown: true,
+    usesNumSteps: true,
+    voiceCatalogue: "clips",
+  },
+  trained: {
+    usesPresetSpeaker: false,
+    usesAccentMood: false,
+    usesCustomVoiceDropdown: true,
+    usesNumSteps: false,
+    voiceCatalogue: "bundle",
+  },
+};
+
 // Custom-voice ids are the dots registry's normalized form. Mirrors the voice
 // server's validator so a value that persists here always resolves there.
 export const CUSTOM_SPEAKER_PATTERN = /^[a-z0-9_-]{1,64}$/;
+
+// Trained-voice ids are the trained-engine registry's normalized form — same
+// shape as CUSTOM_SPEAKER_PATTERN, but empty is valid: until a voice has been
+// trained there is no default to fall back to.
+export const TRAINED_SPEAKER_PATTERN = /^[a-z0-9_-]{0,64}$/;
 
 // Custom (dots.tts) diffusion step count — the model-side latency/quality lever.
 // Fewer steps reach first audio sooner and cost less GPU per reply, at some
@@ -140,7 +210,7 @@ export type VoiceSettings = Required<
     VoicePreferences,
     | "agentName" | "agentNamePronunciation" | "systemVoiceEnabled" | "speakerRecognitionEnabled" | "disabledSatellites"
     | "satelliteNoiseGateEnabled"
-    | "speaker" | "customSpeaker" | "language" | "accent" | "speechRate"
+    | "speaker" | "customSpeaker" | "trainedSpeaker" | "language" | "accent" | "speechRate"
     | "pitch" | "emotion" | "emotionMirroring" | "temperature" | "longResponseProbability"
     | "commandReplyMinWords" | "commandReplyMaxWords"
     | "webAccessEnabled" | "webBackend" | "webAnswerMaxSentences"
@@ -163,6 +233,7 @@ export type VoiceSettingsUpdate = Partial<Omit<VoiceSettings, "updatedAt">>;
 export const VOICE_PERSONALITY_FIELDS = [
   "speaker",
   "customSpeaker",
+  "trainedSpeaker",
   "language",
   "accent",
   "emotion",
@@ -216,6 +287,9 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   // Default clone id on the Custom (dots.tts) engine; the picker replaces it
   // with a registered clone from the voice server's registry.
   customSpeaker: "johnny_multi",
+  // No default trained voice until one has been trained; the picker fills
+  // this in from the trained-voice registry once a voice exists.
+  trainedSpeaker: "",
   language: "English",
   accent: "new-zealand",
   speechRate: 100,
@@ -343,6 +417,17 @@ function storedCustomSpeaker(value: unknown): string {
   return CUSTOM_SPEAKER_PATTERN.test(candidate) ? candidate : VOICE_SETTINGS_DEFAULTS.customSpeaker;
 }
 
+// Same shape as storedCustomSpeaker, but a stray value falls back to "" (no
+// selection) rather than a made-up default id — there may be no trained voice
+// yet.
+function storedTrainedSpeaker(value: unknown): string {
+  if (typeof value !== "string") {
+    return VOICE_SETTINGS_DEFAULTS.trainedSpeaker;
+  }
+  const candidate = value.trim().toLowerCase();
+  return TRAINED_SPEAKER_PATTERN.test(candidate) ? candidate : VOICE_SETTINGS_DEFAULTS.trainedSpeaker;
+}
+
 function storedPronounForm(value: unknown, fallback: string): string {
   if (typeof value !== "string") {
     return fallback;
@@ -434,6 +519,7 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
     satelliteNoiseGateEnabled: source.satelliteNoiseGateEnabled !== false,
     speaker: storedChoice(source.speaker, SPEAKERS, VOICE_SETTINGS_DEFAULTS.speaker),
     customSpeaker: storedCustomSpeaker(source.customSpeaker),
+    trainedSpeaker: storedTrainedSpeaker(source.trainedSpeaker),
     language: storedChoice(source.language, LANGUAGES, VOICE_SETTINGS_DEFAULTS.language),
     accent: storedChoice(source.accent, ACCENTS, VOICE_SETTINGS_DEFAULTS.accent),
     speechRate: storedNumber(
@@ -597,6 +683,7 @@ export function voicePersonalitySubset(settings: VoiceSettings): VoicePersonalit
   return {
     speaker: settings.speaker,
     customSpeaker: settings.customSpeaker,
+    trainedSpeaker: settings.trainedSpeaker,
     language: settings.language,
     accent: settings.accent,
     emotion: settings.emotion,
@@ -626,6 +713,7 @@ export function voicePersonalitySignature(set: VoicePersonalitySet): string {
   return JSON.stringify([
     set.speaker,
     set.customSpeaker,
+    set.trainedSpeaker,
     set.language,
     set.accent,
     set.emotion,
@@ -838,6 +926,7 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     satelliteNoiseGateEnabled: updateBoolean(source, "satelliteNoiseGateEnabled"),
     speaker: updateChoice(source, "speaker", SPEAKERS),
     customSpeaker: updatePattern(source, "customSpeaker", CUSTOM_SPEAKER_PATTERN),
+    trainedSpeaker: updatePattern(source, "trainedSpeaker", TRAINED_SPEAKER_PATTERN),
     language: updateChoice(source, "language", LANGUAGES),
     accent: updateChoice(source, "accent", ACCENTS),
     speechRate: updateNumber(source, "speechRate", VOICE_SETTINGS_RANGES.speechRate),

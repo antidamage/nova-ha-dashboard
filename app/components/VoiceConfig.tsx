@@ -7,9 +7,11 @@ import {
   PRONOUN_MAX_LENGTH,
   PRONOUN_PATTERN,
   TRANSCRIPT_TEMPLATE_MAX_LENGTH,
+  ENGINE_VOICE_FIELD,
   VOICE_ACCENTS,
   VOICE_AFFECTATION_GROUPS,
   VOICE_EMOTIONS,
+  VOICE_ENGINE_CAPABILITIES,
   VOICE_ENGINES,
   VOICE_LANGUAGES,
   VOICE_PRONOUN_PRESETS,
@@ -26,6 +28,7 @@ import {
   type VoiceEmotion,
   type VoiceLanguage,
   type VoiceEngine,
+  type VoiceEngineDescriptor,
   type VoicePersonalitySet,
   type VoicePronouns,
   type VoiceSettings,
@@ -44,6 +47,12 @@ import { useAgentName } from "./AgentNameContext";
 import { useSettingCooldown } from "./useSettingCooldown";
 
 type SyncResult = { ok: boolean; error?: string };
+
+const VOICE_ENGINE_VALUES = new Set<string>(VOICE_ENGINES.map(({ value }) => value));
+function isVoiceEngine(value: unknown): value is VoiceEngine {
+  return typeof value === "string" && VOICE_ENGINE_VALUES.has(value);
+}
+
 
 function SelectControl<T extends string>({
   detail,
@@ -504,11 +513,22 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   const [messageTone, setMessageTone] = useState<"ok" | "warning" | "error">("ok");
   const [voiceOptions, setVoiceOptions] = useState<readonly VoiceOption[]>(VOICE_SPEAKERS);
   const [optionsSource, setOptionsSource] = useState<"static" | "iridium" | "fallback">("static");
-  // Active TTS engine module. "classic" = Qwen3-TTS presets (accent/emotion
-  // instruct); "custom" = dots.tts zero-shot cloned voices. The Classic-only
-  // controls (Accent, Baseline mood) are hidden in Custom mode — dots infers
-  // emotion from the text and has no accent-instruct surface.
+  // Active TTS engine module. Which voice controls render (preset dropdown vs
+  // a cloned/trained-voice dropdown, accent/mood, diffusion steps) is decided
+  // by this engine's capabilities below, not a hardcoded engine-id check.
   const [engine, setEngine] = useState<VoiceEngine>("classic");
+  // The server's live engine list (id/label/capabilities), from the same
+  // registry manifest the engine picker and switch machinery use. Falls back
+  // to the static VOICE_ENGINE_CAPABILITIES map (no capabilities server data
+  // yet) so the panel still renders sensibly before the first successful poll.
+  const [engines, setEngines] = useState<readonly VoiceEngineDescriptor[]>([]);
+  // Prefers the server's live label (matches the engine that's actually
+  // deployed) over the static fallback, so display text never drifts from
+  // reality even if VOICE_ENGINES's copy goes stale.
+  const engineLabel = useCallback((id: string) =>
+    engines.find((entry) => entry.id === id)?.label
+    ?? VOICE_ENGINES.find((entry) => entry.value === id)?.label
+    ?? id, [engines]);
   // Engine switcher state. `pendingEngine` is a radio selection awaiting the
   // explicit confirm (a switch restarts voice services, so it never fires from
   // a single click); `switchTarget` is a swap in flight, followed by polling
@@ -538,13 +558,17 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       const data = await response.json() as {
         source?: string;
         voices?: VoiceOption[];
-        engine?: VoiceEngine;
+        engine?: string;
+        engines?: VoiceEngineDescriptor[];
       };
       if (Array.isArray(data.voices) && data.voices.length > 0) {
         setVoiceOptions(data.voices);
         setOptionsSource(data.source === "iridium" ? "iridium" : "fallback");
       }
-      if (data.engine === "classic" || data.engine === "custom") {
+      if (Array.isArray(data.engines) && data.engines.length > 0) {
+        setEngines(data.engines);
+      }
+      if (isVoiceEngine(data.engine)) {
         setEngine(data.engine);
       }
     } catch (error) {
@@ -603,7 +627,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         }
         const data = await response.json() as {
           reachable?: boolean;
-          engine?: VoiceEngine;
+          engine?: string;
           switch?: { target?: string; phase?: string; error?: string };
         };
         if (cancelled) {
@@ -624,7 +648,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           setSwitchNote(null);
           setEngine(switchTarget);
           setMessage(
-            `Switched to the ${VOICE_ENGINES.find(({ value }) => value === switchTarget)?.label ?? switchTarget} engine.`,
+            `Switched to the ${engineLabel(switchTarget)} engine.`,
           );
           setMessageTone("ok");
           void loadVoiceOptions();
@@ -632,7 +656,10 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         }
         setSwitchNote(
           phase === "warming"
-            ? "New engine is loading and warming up — Custom takes around 7 minutes…"
+            // The ~7 minute figure is specifically measured for the Custom
+            // (dots.tts) engine's optimize=True warmup; other engines' warmup
+            // time isn't asserted here until it's been measured the same way.
+            ? `New engine is loading and warming up${switchTarget === "custom" ? " — Custom takes around 7 minutes…" : "…"}`
             : "Voice services are restarting…",
         );
       } catch {
@@ -643,7 +670,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [switchFailed, switchTarget, loadVoiceOptions]);
+  }, [switchFailed, switchTarget, loadVoiceOptions, engineLabel]);
 
   const load = useCallback(async () => {
     if (draggingRef.current.size > 0 || isCoolingDown()) {
@@ -846,22 +873,31 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
     }
   }, [agentName, switchFailed, switchTarget]);
 
-  // The active engine decides which stored voice field the picker edits:
-  // Classic edits the preset `speaker`, Custom edits the clone-id
-  // `customSpeaker`. Each engine keeps its own last-used voice.
-  const activeVoiceValue = engine === "custom" ? settings.customSpeaker : settings.speaker;
+  // What controls to render for the active engine — from the server's live
+  // engine list when available, else the static fallback map. Neither is a
+  // hardcoded engine-id check, so a newly-registered engine renders correctly
+  // without a dashboard code change (as long as it fits an existing
+  // capability shape).
+  const capabilities =
+    engines.find((entry) => entry.id === engine)?.capabilities
+    ?? VOICE_ENGINE_CAPABILITIES[engine];
+  // The active engine decides which stored voice field the picker edits: each
+  // engine has its own disjoint voice namespace (see VoiceSettings in
+  // lib/voice-settings.ts) so it keeps its own last-used voice.
+  const voiceField = ENGINE_VOICE_FIELD[engine];
+  const activeVoiceValue = settings[voiceField];
   const selectedSpeaker = voiceOptions.find(({ value }) => value === activeVoiceValue);
-  // A persisted clone id can predate the registry list (or the registry may be
+  // A persisted voice id can predate the registry list (or the registry may be
   // briefly unreachable); keep it selectable rather than showing a mismatched
-  // dropdown.
-  const customVoiceOptions =
-    engine === "custom" && !selectedSpeaker
-      ? [{ value: settings.customSpeaker, label: settings.customSpeaker }, ...voiceOptions]
+  // dropdown. Skip this for an empty value (e.g. no trained voice yet).
+  const engineVoiceOptions =
+    capabilities.usesCustomVoiceDropdown && !selectedSpeaker && activeVoiceValue
+      ? [{ value: activeVoiceValue, label: activeVoiceValue }, ...voiceOptions]
       : voiceOptions;
   const switchInFlight = switchTarget !== null && !switchFailed;
   // Saved personalities are engine-scoped: the picker lists only profiles for
   // the engine currently loaded (plus legacy profiles saved before engines were
-  // tracked, which have no tag yet and stay visible under either engine).
+  // tracked, which have no tag yet and stay visible under any engine).
   const visiblePersonalities = personalityLibrary.library.entries.filter(
     (entry) => entry.engine == null || entry.engine === engine,
   );
@@ -888,7 +924,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
 
       <div className="mb-4 grid gap-1.5">
         <p className="text-xs font-black uppercase text-neutral-400">Voice engine</p>
-        <div role="radiogroup" aria-label="Voice engine" className="grid gap-1.5 sm:grid-cols-2">
+        <div role="radiogroup" aria-label="Voice engine" className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           {VOICE_ENGINES.map((option) => {
             const selected = (pendingEngine ?? engine) === option.value;
             return (
@@ -925,6 +961,8 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
             <p className="font-sans text-xs leading-snug text-amber-200">
               Switching swaps which TTS model is loaded on the voice server and restarts voice
               services: expect no spoken replies for a couple of minutes
+              {/* The ~7 minute figure is specifically measured for Custom's optimize=True
+                  warmup; other engines' warmup time isn't asserted until measured the same way. */}
               {pendingEngine === "custom" ? ", plus around 7 minutes of Custom-engine warmup" : ""}.
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -933,7 +971,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
                 className="system-confirm-go"
                 onClick={() => void requestEngineSwitch(pendingEngine)}
               >
-                Switch to {VOICE_ENGINES.find(({ value }) => value === pendingEngine)?.label}
+                Switch to {engineLabel(pendingEngine)}
               </button>
               <button
                 type="button"
@@ -957,14 +995,15 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         ) : null}
         <p className="px-1 font-sans text-xs leading-snug text-neutral-500">
           One TTS engine is loaded on the voice server&apos;s GPU at a time. Classic offers the
-          built-in preset voices with accent and mood shaping; Custom speaks with cloned voices
-          from the voice server&apos;s registry. Each engine remembers its own voice selection, and
-          either can be restored at any time.
+          built-in preset voices with accent and mood shaping; Custom speaks with voices cloned
+          zero-shot from your reference clips; Trained speaks with voices fine-tuned from hundreds
+          of your own samples. Each engine remembers its own voice selection, and any of them can
+          be restored at any time.
         </p>
-        {engine === "custom" ? (
+        {capabilities.usesNumSteps ? (
           <div className="grid gap-1.5 px-1 pt-1">
             <SliderControlPanel
-              ariaLabel="Custom engine diffusion steps"
+              ariaLabel={`${engineLabel(engine)} engine diffusion steps`}
               ariaValueText={`${settings.dotsNumSteps} steps`}
               color={[190, 90, 100]}
               intensity={100}
@@ -982,9 +1021,9 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
               onCommit={(dotsNumSteps) => void commit("dotsNumSteps", dotsNumSteps)}
             />
             <p className="font-sans text-xs leading-snug text-neutral-500">
-              How many diffusion steps the Custom engine runs per reply. Fewer steps reach the
-              first audio sooner and use less GPU, at some quality cost; more steps are smoother
-              but slower to start. Only affects the Custom engine.
+              How many diffusion steps the {engineLabel(engine)} engine runs per reply. Fewer steps
+              reach the first audio sooner and use less GPU, at some quality cost; more steps are
+              smoother but slower to start. Only affects engines with a diffusion sampler.
             </p>
           </div>
         ) : null}
@@ -1007,7 +1046,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
         <p className="font-sans text-xs leading-snug text-neutral-500">
           A personality bundles the voice, language, accent, baseline mood, description, pronouns,
           affectations, and speech shaping below, and is tied to the engine it was saved under —
-          only {engine === "custom" ? "Custom" : "Classic"} profiles show here. Load one to apply it
+          only {engineLabel(engine)} profiles show here. Load one to apply it
           live; the agent name, wake words, volume, and conversation window stay global. Save
           captures the current settings back into the selected personality. Test asks {agentName} a
           random question and plays the spoken reply in this browser.
@@ -1029,13 +1068,13 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           detail="Space-separated greetings accepted before the wake word (e.g. hey ok yo)."
           onCommit={(wakePrefixes) => void commit("wakePrefixes", wakePrefixes)}
         />
-        {engine === "custom" ? (
+        {capabilities.usesCustomVoiceDropdown ? (
           <SelectControl<string>
             label="Voice"
-            value={settings.customSpeaker}
-            options={customVoiceOptions}
-            detail={selectedSpeaker?.detail ?? "Custom cloned voice"}
-            onChange={(customSpeaker) => void commit("customSpeaker", customSpeaker)}
+            value={activeVoiceValue}
+            options={engineVoiceOptions}
+            detail={selectedSpeaker?.detail ?? `${engineLabel(engine)} voice`}
+            onChange={(value) => void commit(voiceField, value)}
           />
         ) : (
           <SelectControl<VoiceSpeaker>
@@ -1054,10 +1093,10 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
           onChange={(language) => void commit("language", language)}
         />
         {/* Accent and Baseline mood are Classic (Qwen) engine controls: they map
-            to the Qwen `instruct` string. The Custom (dots.tts) engine has no
-            accent-instruct surface and infers mood from the text, so these are
-            hidden when Custom is active to keep the panel clean. */}
-        {engine === "classic" && (
+            to the Qwen `instruct` string. Engines that clone or synthesize from
+            a trained voice have no accent-instruct surface and infer mood from
+            the text, so these are hidden unless the active engine uses them. */}
+        {capabilities.usesAccentMood && (
           <>
             <SelectControl<VoiceAccent>
               label="Accent"
