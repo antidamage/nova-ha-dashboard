@@ -55,4 +55,19 @@ os.replace(tmp, p)
 PY
 fi
 
-exec /snap/bin/brave --remote-debugging-port=9223 --remote-allow-origins=* "$NOVA_BACKEND_URL"
+# Quiet flags for an unattended kiosk. Managed-policy JSON is NOT an option
+# here: snap confinement denies Brave any read of /etc/brave/policies, and
+# brave://policy confirms nothing loads from it. The command line is the only
+# supported control surface for a snap install.
+#   --disable-component-update  no background component fetches (the browser
+#       binary itself is updated by snapd, which is held for brave on kiosks)
+#   --disable-session-crashed-bubble / --noerrdialogs / --disable-infobars
+#       no "Brave didn't shut down correctly" or update/error nags, which a
+#       kiosk has no one to dismiss them
+exec /snap/bin/brave \
+  --no-first-run \
+  --disable-component-update \
+  --disable-session-crashed-bubble \
+  --disable-infobars \
+  --noerrdialogs \
+  --remote-debugging-port=9223 --remote-allow-origins=* "$NOVA_BACKEND_URL"

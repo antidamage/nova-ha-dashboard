@@ -18,7 +18,14 @@ import json, os, sys, time, urllib.request, socket
 import websocket  # python3-websocket
 
 CDP = 'http://127.0.0.1:9223'
-EVAL_TIMEOUT = 8.0
+EVAL_TIMEOUT = 10.0
+# A single slow answer is not a hang. The dashboard's renderer can miss one
+# evaluate while it is busy (hydration after a reload, an HLS segment switch,
+# a heavy repaint), and acting on that produced roughly 25 pointless
+# reload/relaunch cycles a day on the kiosk. Only a page that fails EVERY
+# attempt in a run counts as unresponsive.
+EVAL_ATTEMPTS = 3
+ATTEMPT_GAP = 3.0
 
 
 def backend_url():
@@ -87,12 +94,35 @@ def main():
         except Exception as e:
             print(json.dumps({'ok': False, 'reason': 'reload_failed', 'err': str(e)[:120]}))
             sys.exit(2)
+    last = {'ok': False, 'reason': 'eval_timeout'}
+    for attempt in range(1, EVAL_ATTEMPTS + 1):
+        ok, verdict = try_evaluate(ws_url)
+        if ok:
+            verdict['attempt'] = attempt
+            print(json.dumps(verdict))
+            sys.exit(0)
+        last = verdict
+        if attempt < EVAL_ATTEMPTS:
+            time.sleep(ATTEMPT_GAP)
+            # Re-resolve the target: a reload or a renderer swap gives the page
+            # a new debugger socket, and reusing the old one looks like a hang.
+            try:
+                page = pick_page()
+            except Exception:
+                page = None
+            if page:
+                ws_url = page['webSocketDebuggerUrl']
+    last['attempts'] = EVAL_ATTEMPTS
+    print(json.dumps(last))
+    sys.exit(2)
+
+
+def try_evaluate(ws_url):
+    """One responsiveness attempt. Returns (ok, verdict-dict)."""
     try:
-        ws = websocket.create_connection(
-            ws_url, timeout=4)
+        ws = websocket.create_connection(ws_url, timeout=4)
     except Exception as e:
-        print(json.dumps({'ok': False, 'reason': 'ws_connect_fail', 'err': str(e)[:120]}))
-        sys.exit(2)
+        return False, {'ok': False, 'reason': 'ws_connect_fail', 'err': str(e)[:120]}
     try:
         # Ask the renderer to run trivial JS + report page visibility state.
         expr = ("JSON.stringify({v:1+1, hidden:document.hidden, "
@@ -106,16 +136,12 @@ def main():
             msg = json.loads(ws.recv())
             if msg.get('id') == 1:
                 res = msg.get('result', {}).get('result', {}).get('value')
-                print(json.dumps({'ok': True, 'reason': 'responsive', 'eval': res}))
-                sys.exit(0)
-        print(json.dumps({'ok': False, 'reason': 'eval_timeout'}))
-        sys.exit(2)
+                return True, {'ok': True, 'reason': 'responsive', 'eval': res}
+        return False, {'ok': False, 'reason': 'eval_timeout'}
     except (websocket.WebSocketTimeoutException, socket.timeout):
-        print(json.dumps({'ok': False, 'reason': 'eval_timeout'}))
-        sys.exit(2)
+        return False, {'ok': False, 'reason': 'eval_timeout'}
     except Exception as e:
-        print(json.dumps({'ok': False, 'reason': 'eval_error', 'err': str(e)[:120]}))
-        sys.exit(2)
+        return False, {'ok': False, 'reason': 'eval_error', 'err': str(e)[:120]}
     finally:
         try:
             ws.close()
