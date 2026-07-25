@@ -174,7 +174,7 @@ function TemperatureStepper({
         </div>
         <div className="text-right">
           <p className="text-xs font-black uppercase text-neutral-400">Current</p>
-          <p className="temp-readout num-sm font-mono text-xl font-black tabular-nums text-neutral-100">
+          <p className="temp-readout climate-current-readout font-mono font-black tabular-nums text-neutral-100">
             {formatTemperature(current)}
             <span>&deg;</span>
           </p>
