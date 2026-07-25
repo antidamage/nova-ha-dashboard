@@ -48,6 +48,24 @@ const UPDATE_STALE_MS = 15 * 60_000;
 // is worth resetting, and a long-fuse escape hatch for a half-wedged renderer.
 const RELOAD_MIN_BLOCKED_MS = 10 * 60_000;
 
+/**
+ * Release a response we are not going to read.
+ *
+ * An unread body keeps its data pipe — and the shared-memory descriptor behind
+ * it — alive until the renderer garbage-collects the Response. This loop polls
+ * twice every three seconds forever, and on the kiosk that leaked roughly twenty
+ * descriptors a minute: the renderer hit its 1024-descriptor limit in under an
+ * hour, stopped being able to allocate, and froze the screen. Anything here that
+ * only looks at `response.ok` must drop the body explicitly.
+ */
+async function discardBody(response: Response) {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Already consumed, already closed, or never had a body — nothing to release.
+  }
+}
+
 type Mode = "clear" | "offline" | "updating";
 
 const COPY: Record<Exclude<Mode, "clear">, { title: string; body: string }> = {
@@ -139,6 +157,7 @@ export function SystemActivityBlocker() {
         const response = await fetch("/api/version", { cache: "no-store", signal: controller.signal });
         window.clearTimeout(abort);
         if (!response.ok) {
+          await discardBody(response);
           return false; // still flapping — keep blocking, next tick retries
         }
         const payload = (await response.json().catch(() => null)) as { buildId?: string | null } | null;
@@ -174,6 +193,7 @@ export function SystemActivityBlocker() {
         const response = await fetch(HEALTH_URL, { cache: "no-store", signal: controller.signal });
         window.clearTimeout(abort);
         reachable = response.ok;
+        await discardBody(response);
       } catch {
         reachable = false;
       }
@@ -195,6 +215,8 @@ export function SystemActivityBlocker() {
               | { busy?: boolean; phaseAt?: string | null }
               | null;
             updating = updateIsLive(payload?.busy, payload?.phaseAt);
+          } else {
+            await discardBody(response);
           }
         } catch {
           updating = false;
