@@ -31,6 +31,7 @@ const UpdateConfig = dynamic(() => import("./UpdateConfig").then((module) => mod
 const UserDataConfig = dynamic(() => import("./UserDataConfig").then((module) => module.UserDataConfig));
 const VoiceConfig = dynamic(() => import("./VoiceConfig").then((module) => module.VoiceConfig));
 const VoiceInfrastructureConfig = dynamic(() => import("./VoiceInfrastructureConfig").then((module) => module.VoiceInfrastructureConfig));
+const VoiceTrainingConfig = dynamic(() => import("./VoiceTrainingConfig").then((module) => module.VoiceTrainingConfig));
 const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfig").then((module) => module.WaveshareWatchfaceConfig));
 
 function stringify(value: unknown) {
@@ -367,6 +368,7 @@ export function ConfigWorkspace({
               <>
                 <VoiceInfrastructureConfig initialSettings={initialVoiceSettings} />
                 <VoiceConfig initialSettings={initialVoiceSettings} />
+                <VoiceTrainingConfig />
                 <UserDataConfig />
               </>
             ) : null}
