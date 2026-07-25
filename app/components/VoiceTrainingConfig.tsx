@@ -24,6 +24,7 @@ type TrainingSet = {
   createdAt: string;
   sampleCount: number;
   resumable: boolean;
+  samplesChanged: boolean;
   state: TrainingState;
 };
 
@@ -61,6 +62,7 @@ function statusLabel(set: TrainingSet): string {
   if (state.status === "failed") return "Failed";
   if (state.status === "stopping") return "Stopping at next checkpoint…";
   if (BUSY.has(state.status)) return STAGE_LABEL[state.stage] ?? "Working";
+  if (set.samplesChanged) return "Samples changed — will retrain from scratch";
   return set.resumable ? "Ready to resume" : "Not started";
 }
 
@@ -257,7 +259,11 @@ export function VoiceTrainingConfig() {
 
               <p className="mb-3 text-xs text-neutral-400">
                 {set.sampleCount} sample{set.sampleCount === 1 ? "" : "s"}
-                {set.resumable ? " · has checkpoints (training will continue)" : ""}
+                {set.samplesChanged
+                  ? " · new samples added, so the next run rebuilds and retrains from scratch"
+                  : set.resumable
+                    ? " · has checkpoints (training will continue)"
+                    : ""}
                 {set.state.totalEpochs > 0 && isBusy ? ` · epoch ${set.state.epoch}/${set.state.totalEpochs}` : ""}
               </p>
 
@@ -312,7 +318,7 @@ export function VoiceTrainingConfig() {
                     onClick={() => void act(`/sets/${encodeURIComponent(set.id)}/start`, { method: "POST" })}
                   >
                     <Play className="h-4 w-4" aria-hidden="true" />
-                    {set.resumable ? "Resume training" : "Start training"}
+                    {set.samplesChanged ? "Retrain from scratch" : set.resumable ? "Resume training" : "Start training"}
                   </button>
                 )}
 

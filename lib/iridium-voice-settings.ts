@@ -72,6 +72,22 @@ function iridiumUrl(path: string) {
   return new URL(path, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
 }
 
+// Voice training runs on its own port, served by a process that holds no models
+// and is not stopped when a training run takes the GPU. Pointing training at the
+// voice API meant a run switched off its own control surface: progress froze at
+// the last successful poll and Stop returned a connection error while the run
+// carried on. Derived from the voice URL so a deployment configures one host.
+const TRAINING_PORT = process.env.NOVA_VOICE_TRAINING_PORT?.trim() || "8097";
+
+function trainingUrl(path: string) {
+  const base = new URL(
+    "/",
+    (process.env.NOVA_VOICE_IRIDIUM_URL?.trim() || DEFAULT_IRIDIUM_URL).replace(/\/$/, "") + "/",
+  );
+  base.port = TRAINING_PORT;
+  return new URL(path, base);
+}
+
 function refreshUrl() {
   return iridiumUrl(REFRESH_PATH);
 }
@@ -414,7 +430,7 @@ export async function relayIridiumTraining(
 ): Promise<IridiumRelayResult> {
   let url: URL;
   try {
-    url = iridiumUrl(requestPath);
+    url = trainingUrl(requestPath);
   } catch (error) {
     console.error("[nova-dashboard] invalid Iridium training URL", error);
     return { status: 500, body: JSON.stringify({ detail: "configured voice server URL is invalid" }), contentType: "application/json" };
