@@ -45,15 +45,55 @@ export function ConfigAccordion({
   const sectionRef = useRef<HTMLElement | null>(null);
   const restoredRef = useRef(false);
 
-  const openExclusively = useCallback(() => {
-    setOpen(true);
-    setAccordionOpen(persistKey, true);
-    if (sectionRef.current) {
-      window.dispatchEvent(new CustomEvent<ConfigAccordionOpenDetail>(CONFIG_ACCORDION_OPEN_EVENT, {
-        detail: { element: sectionRef.current, persistKey },
-      }));
-    }
-  }, [persistKey]);
+  /**
+   * Bring a just-opened section to the top of the viewport.
+   *
+   * Deferred by two frames rather than run inline: opening also collapses the
+   * open sibling, and if that sibling sits above this one the page shrinks
+   * underneath us. Measuring before React has committed both changes scrolls to
+   * a position that no longer exists by the time it lands. One frame gets the
+   * commit, the second gets layout after it.
+   *
+   * `behavior: "smooth"` is deliberate and deliberately local. Page-level smooth
+   * scrolling was removed from this app on purpose (see globals.css) so ordinary
+   * navigation lands instantly; this is an explicit exception for a direct
+   * manipulation, where the slide is what shows you the page moved rather than
+   * jumped. Honours prefers-reduced-motion, for whom an instant jump IS correct.
+   */
+  const scrollSectionIntoView = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const section = sectionRef.current;
+        // Guarded: this runs two frames late, so the section may have unmounted,
+        // and jsdom (tests) has no scrollIntoView at all. Neither is a reason to
+        // throw out of an animation-frame callback, where nothing can catch it.
+        if (typeof section?.scrollIntoView !== "function") {
+          return;
+        }
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        section.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        });
+      });
+    });
+  }, []);
+
+  const openExclusively = useCallback(
+    (options?: { scrollIntoView?: boolean }) => {
+      setOpen(true);
+      setAccordionOpen(persistKey, true);
+      if (sectionRef.current) {
+        window.dispatchEvent(new CustomEvent<ConfigAccordionOpenDetail>(CONFIG_ACCORDION_OPEN_EVENT, {
+          detail: { element: sectionRef.current, persistKey },
+        }));
+      }
+      if (options?.scrollIntoView) {
+        scrollSectionIntoView();
+      }
+    },
+    [persistKey, scrollSectionIntoView],
+  );
 
   const toggleOpen = () => {
     if (open) {
@@ -61,7 +101,9 @@ export function ConfigAccordion({
       setAccordionOpen(persistKey, false);
       return;
     }
-    openExclusively();
+    // Scrolls only on a real click. The restore-on-return effect below also
+    // opens a section, and scrolling there would yank the page on every load.
+    openExclusively({ scrollIntoView: true });
   };
 
   // Accordions with the same nearest accordion ancestor are siblings. Opening
@@ -108,8 +150,9 @@ export function ConfigAccordion({
     }
     const focusIfTargeted = () => {
       if (window.location.hash === `#${id}`) {
-        openExclusively();
-        sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Same deferred scroll as a click: arriving by hash also collapses the
+        // open sibling, so scrolling inline measures a layout about to change.
+        openExclusively({ scrollIntoView: true });
       }
     };
     focusIfTargeted();

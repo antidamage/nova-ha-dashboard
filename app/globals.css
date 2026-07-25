@@ -1979,6 +1979,14 @@ a.update-banner-button {
   scroll-margin-top: 92px;
 }
 
+/* Opening a section scrolls it to the top of the viewport. The category nav is
+   sticky, so without this the section header lands underneath it and the first
+   thing you see is the middle of the section's own content. Matches the
+   category offset above. */
+.config-accordion {
+  scroll-margin-top: 92px;
+}
+
 .config-category-heading,
 .config-category-empty {
   border: 1px solid var(--cyber-border-dim);
