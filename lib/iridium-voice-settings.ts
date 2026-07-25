@@ -389,6 +389,87 @@ export async function deleteIridiumEngineVoice(
   );
 }
 
+export type IridiumRelayResult = {
+  status: number;
+  body: string;
+  contentType: string;
+};
+
+// Voice-training relay. Unlike the other helpers here this one is deliberately
+// shape-agnostic: it forwards method, body and content-type through to the voice
+// server and hands back the raw response. The training endpoints cover JSON
+// control calls and large multipart sample uploads alike, and the dashboard has
+// no reason to re-parse either -- the voice server owns the contract and its
+// error messages are written to be shown to the user as-is.
+//
+// The timeout is generous because a sample upload can be a hundred files.
+export async function relayIridiumTraining(
+  requestPath: string,
+  options: {
+    method: "GET" | "POST" | "DELETE";
+    body?: Buffer;
+    contentType?: string;
+    timeoutMs?: number;
+  },
+): Promise<IridiumRelayResult> {
+  let url: URL;
+  try {
+    url = iridiumUrl(requestPath);
+  } catch (error) {
+    console.error("[nova-dashboard] invalid Iridium training URL", error);
+    return { status: 500, body: JSON.stringify({ detail: "configured voice server URL is invalid" }), contentType: "application/json" };
+  }
+  let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
+  if (url.protocol === "https:") {
+    try {
+      identity = await tlsIdentity();
+    } catch (error) {
+      console.error("[nova-dashboard] Iridium training TLS identity is unavailable", error);
+      return { status: 502, body: JSON.stringify({ detail: "voice server TLS identity is unavailable" }), contentType: "application/json" };
+    }
+  }
+  return await new Promise<IridiumRelayResult>((resolve) => {
+    const requester = url.protocol === "https:" ? https.request : http.request;
+    const headers: Record<string, string | number> = { Accept: "application/json" };
+    if (options.body) {
+      headers["Content-Length"] = options.body.length;
+      if (options.contentType) headers["Content-Type"] = options.contentType;
+    }
+    const request = requester(
+      url,
+      {
+        method: options.method,
+        headers,
+        timeout: options.timeoutMs ?? 300_000,
+        ...(identity ?? {}),
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk) => chunks.push(chunk));
+        response.once("end", () =>
+          resolve({
+            status: response.statusCode ?? 502,
+            body: Buffer.concat(chunks).toString("utf8"),
+            contentType: response.headers["content-type"] ?? "application/json",
+          }),
+        );
+      },
+    );
+    request.once("timeout", () => request.destroy(new Error("request timed out")));
+    request.once("error", (error) => {
+      console.error("[nova-dashboard] Iridium training request failed", error);
+      const code = (error as NodeJS.ErrnoException).code;
+      resolve({
+        status: 502,
+        body: JSON.stringify({ detail: `voice server unreachable (${code || error.message})` }),
+        contentType: "application/json",
+      });
+    });
+    if (options.body) request.write(options.body);
+    request.end();
+  });
+}
+
 type IridiumJsonResult = { payload: unknown } | { error: string; status?: number };
 
 async function requestIridiumJson(
