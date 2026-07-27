@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { readDashboardConfig, readDefaultDashboardConfig } from "../../lib/dashboard-config";
 import { getLatestDashboardSun } from "../../lib/dashboard-events";
+import { readDefaultDashboardPreferences } from "../../lib/default-preferences";
 import { readDashboardPreferences } from "../../lib/preferences";
 import { themeResponseValue } from "../../lib/theme-values";
 import { ConfigWorkspace } from "../components/ConfigWorkspace";
@@ -27,7 +28,9 @@ export default async function ConfigPage() {
   const dashboardConfig = demoMode ? await readDefaultDashboardConfig() : await readDashboardConfig();
   const localTheme = readInitialTheme(cookieStore?.get(THEME_COOKIE_NAME)?.value);
   const configScope = cookieStore?.get(THEME_SCOPE_COOKIE_NAME)?.value === "local" ? "local" : "shared";
-  const sharedPreferences = !demoMode ? await readDashboardPreferences() : null;
+  const sharedPreferences = demoMode
+    ? await readDefaultDashboardPreferences()
+    : await readDashboardPreferences();
   const preferences = configScope === "shared" ? sharedPreferences : null;
   const storedInitialTheme = configScope === "shared"
     ? (preferences?.theme as ThemeStorageValue | undefined) ?? localTheme

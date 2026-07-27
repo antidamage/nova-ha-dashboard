@@ -1,6 +1,6 @@
 {
   "theme": {
-    "selection": "auto",
+    "selection": "dark",
     "themes": {
       "dark": {
         "accent": {
@@ -17,74 +17,86 @@
         },
         "highlight": {
           "cursor": {
-            "x": 0.13315222820151282,
-            "y": 0
+            "x": 0.10453677909233142,
+            "y": 0.2460606892903646
           },
-          "intensity": 30,
+          "intensity": 45,
           "rgb": [
-            255,
-            204,
-            0
+            231,
+            177,
+            85
           ]
         },
         "avatar": {
           "gradientAlert": {
             "cursor": {
-              "x": 0.07793998332612997,
-              "y": 0.2532144274030413
+              "x": 0.10890955435182519,
+              "y": 0.041211908513849434
             },
-            "intensity": 34,
+            "intensity": 0,
             "rgb": [
-              231,
-              156,
-              90
+              250,
+              168,
+              15
             ]
           },
           "gradientCenter": {
             "cursor": {
-              "x": 0.1265082852696145,
-              "y": 0
+              "x": 0.14500990501931962,
+              "y": 0.04888316563197544
             },
             "intensity": 56,
             "rgb": [
-              255,
-              191,
-              0
+              249,
+              218,
+              16
             ]
           },
           "gradientOuter": {
             "cursor": {
-              "x": 0.09426439622814241,
+              "x": 0.11546871724106583,
               "y": 0
             },
-            "intensity": 20,
+            "intensity": 0,
             "rgb": [
               255,
-              145,
+              174,
               0
             ]
           },
           "gymAlertThresholdHours": 46,
           "gymNumberColor": {
             "cursor": {
-              "x": 0.10232536848851041,
+              "x": 0.09469800869467399,
+              "y": 0.197575771447384
+            },
+            "intensity": 39,
+            "rgb": [
+              235,
+              164,
+              71
+            ]
+          },
+          "gymNumberOpacity": 89,
+          "voiceGlowColor": {
+            "cursor": {
+              "x": 0.10890955435182519,
               "y": 0
             },
-            "intensity": 93,
+            "intensity": 0,
             "rgb": [
               255,
-              157,
+              166,
               0
             ]
           },
-          "gymNumberOpacity": 0,
           "lineColors": [
             {
               "cursor": {
                 "x": 0.1282115169625482,
                 "y": 0
               },
-              "intensity": 26,
+              "intensity": 59,
               "rgb": [
                 255,
                 196,
@@ -96,7 +108,7 @@
                 "x": 0.14698615935919723,
                 "y": 0
               },
-              "intensity": 31,
+              "intensity": 61,
               "rgb": [
                 255,
                 225,
@@ -108,7 +120,7 @@
                 "x": 0.11734189192540956,
                 "y": 0
               },
-              "intensity": 29,
+              "intensity": 66,
               "rgb": [
                 255,
                 179,
@@ -117,23 +129,47 @@
             }
           ],
           "lineOpacities": [
-            25,
-            30,
-            27
+            64,
+            64,
+            69
           ],
           "innerShadowOpacity": 0.25,
-          "orbModule": "reactor",
-          "orbModuleSettings": {}
+          "orbModule": "halo",
+          "orbModuleSettings": {
+            "halo": {
+              "fibers": 5,
+              "chaos": 100,
+              "weave": 100,
+              "speed": 86,
+              "pulse": 100,
+              "softness": 4
+            }
+          },
+          "glass": {
+            "enabled": true,
+            "displace": 100,
+            "localStretch": -70,
+            "flipVertical": true,
+            "refractPower": 100,
+            "smoothness": 100,
+            "imageBlur": 4.5,
+            "refractionOpacity": 100,
+            "clarity": 35,
+            "gloss": 100,
+            "shadow": 98,
+            "reflection": 35,
+            "drift": 100
+          }
         },
         "background": {
           "cursor": {
-            "x": 0.2393618969147669,
+            "x": 0.1264798699450181,
             "y": 0
           },
-          "intensity": 10,
+          "intensity": 9,
           "rgb": [
-            145,
             255,
+            191,
             0
           ]
         },
@@ -146,9 +182,21 @@
           "textureUrl": "/nova-background-texture.png",
           "warpAmplitude": 85
         },
+        "clockColor": {
+          "cursor": {
+            "x": 0.09907078395416775,
+            "y": 0.30424245198567706
+          },
+          "intensity": 34,
+          "rgb": [
+            228,
+            178,
+            103
+          ]
+        },
         "clockFont": {
-          "id": "ibm-plex-mono",
-          "weight": 100,
+          "id": "geist",
+          "weight": 900,
           "sizeOffset": 0
         },
         "controlSound": {
@@ -158,13 +206,18 @@
         },
         "font": {
           "id": "geist",
-          "weight": 900,
+          "weight": 500,
           "sizeOffset": 0
         },
         "gymFont": {
           "id": "rajdhani",
-          "weight": 100,
-          "sizeOffset": -36
+          "weight": 500,
+          "sizeOffset": 0
+        },
+        "transcriptFont": {
+          "id": "rajdhani",
+          "weight": 500,
+          "sizeOffset": 0
         },
         "border": {
           "color": {
@@ -180,7 +233,7 @@
             ]
           },
           "enabled": true,
-          "opacity": 36
+          "opacity": 15
         },
         "map": {
           "base": {
@@ -317,18 +370,48 @@
           },
           "light": {
             "cursor": {
-              "x": 0.0956078916048704,
-              "y": 0
+              "x": 0.09907078395416775,
+              "y": 0.30424245198567706
             },
-            "intensity": 89,
+            "intensity": 79,
             "rgb": [
-              255,
-              145,
-              0
+              228,
+              178,
+              103
             ]
           }
         },
-        "titleTone": "auto"
+        "titleTone": "auto",
+        "voiceTranscriptColors": {
+          "background": {
+            "cursor": {
+              "x": 0.12327065494504236,
+              "y": 0.3238836015973772
+            },
+            "intensity": 15,
+            "rgb": [
+              227,
+              196,
+              109
+            ]
+          },
+          "glowIntensity": 45,
+          "glowSize": 8,
+          "scanlineOpacity": 21,
+          "scanlineScale": 100,
+          "text": {
+            "cursor": {
+              "x": 0.12228260316437417,
+              "y": 0.4738834926060268
+            },
+            "intensity": 87,
+            "rgb": [
+              224,
+              205,
+              154
+            ]
+          }
+        }
       },
       "light": {
         "accent": {
@@ -345,124 +428,151 @@
         },
         "highlight": {
           "cursor": {
-            "x": 0.12129455138370598,
-            "y": 0.11674063546316964
+            "x": 0.07064769263986537,
+            "y": 0.42060620857007575
           },
-          "intensity": 20,
+          "intensity": 17,
           "rgb": [
-            242,
-            189,
-            44
+            224,
+            174,
+            138
           ]
         },
         "avatar": {
           "gradientAlert": {
             "cursor": {
-              "x": 0.12113430376270255,
-              "y": 0
+              "x": 0.07793998332612997,
+              "y": 0.2532144274030413
             },
-            "intensity": 100,
+            "intensity": 34,
             "rgb": [
-              255,
-              183,
-              0
+              231,
+              156,
+              90
             ]
           },
           "gradientCenter": {
             "cursor": {
-              "x": 0.11710381763251851,
-              "y": 0
+              "x": 0.14500990501931962,
+              "y": 0.04888316563197544
             },
-            "intensity": 74,
+            "intensity": 56,
             "rgb": [
-              255,
-              179,
-              0
+              249,
+              218,
+              16
             ]
           },
           "gradientOuter": {
             "cursor": {
-              "x": 0.014998169001190075,
+              "x": 0.134140279982181,
               "y": 0
             },
-            "intensity": 5,
+            "intensity": 20,
             "rgb": [
               255,
-              21,
+              204,
               0
             ]
           },
           "gymAlertThresholdHours": 46,
           "gymNumberColor": {
             "cursor": {
-              "x": 0.1318822667765265,
+              "x": 0.06408852975062472,
+              "y": 0.313939296838009
+            },
+            "intensity": 30,
+            "rgb": [
+              228,
+              154,
+              108
+            ]
+          },
+          "gymNumberOpacity": 0,
+          "voiceGlowColor": {
+            "cursor": {
+              "x": 0.53,
               "y": 0
             },
             "intensity": 100,
             "rgb": [
-              255,
-              200,
-              0
+              60,
+              220,
+              240
             ]
           },
-          "gymNumberOpacity": 0,
           "lineColors": [
             {
               "cursor": {
-                "x": 0.12382129451615852,
+                "x": 0.1282115169625482,
                 "y": 0
               },
-              "intensity": 100,
+              "intensity": 59,
               "rgb": [
                 255,
-                187,
+                196,
                 0
               ]
             },
             {
               "cursor": {
-                "x": 0.12785178064634248,
-                "y": 0.04482954545454163
+                "x": 0.14698615935919723,
+                "y": 0
               },
-              "intensity": 100,
+              "intensity": 61,
               "rgb": [
-                250,
-                195,
-                15
+                255,
+                225,
+                0
               ]
             },
             {
               "cursor": {
-                "x": 0.11307333150233446,
+                "x": 0.11734189192540956,
                 "y": 0
               },
-              "intensity": 100,
+              "intensity": 66,
               "rgb": [
                 255,
-                174,
+                179,
                 0
               ]
             }
           ],
           "lineOpacities": [
-            29,
-            30,
-            24
+            64,
+            64,
+            69
           ],
           "innerShadowOpacity": 0.25,
-          "orbModule": "reactor",
-          "orbModuleSettings": {}
+          "orbModule": "halo",
+          "orbModuleSettings": {},
+          "glass": {
+            "enabled": true,
+            "displace": 52,
+            "localStretch": 3,
+            "flipVertical": true,
+            "refractPower": 51,
+            "smoothness": 100,
+            "imageBlur": 0,
+            "refractionOpacity": 100,
+            "clarity": 22,
+            "gloss": 100,
+            "shadow": 100,
+            "reflection": 64,
+            "drift": 100
+          }
         },
         "background": {
           "cursor": {
-            "x": 0.19905703561292673,
-            "y": 0.39221590909090764
+            "x": 0.13989724705012052,
+            "y": 0.3053572518484933
           },
           "intensity": 34,
           "rgb": [
-            208,
-            225,
-            132
+            227,
+            207,
+            104
           ]
         },
         "backgroundEffect": {
@@ -474,9 +584,21 @@
           "textureUrl": "/nova-background-texture.png",
           "warpAmplitude": 85
         },
+        "clockColor": {
+          "cursor": {
+            "x": 0.12202788013030647,
+            "y": 0.30424245198567706
+          },
+          "intensity": 57,
+          "rgb": [
+            228,
+            195,
+            103
+          ]
+        },
         "clockFont": {
-          "id": "ibm-plex-mono",
-          "weight": 100,
+          "id": "geist",
+          "weight": 900,
           "sizeOffset": 0
         },
         "controlSound": {
@@ -486,13 +608,18 @@
         },
         "font": {
           "id": "geist",
-          "weight": 900,
+          "weight": 500,
           "sizeOffset": 0
         },
         "gymFont": {
           "id": "rajdhani",
-          "weight": 100,
-          "sizeOffset": -42
+          "weight": 500,
+          "sizeOffset": 0
+        },
+        "transcriptFont": {
+          "id": "rajdhani",
+          "weight": 500,
+          "sizeOffset": 0
         },
         "border": {
           "color": {
@@ -508,7 +635,7 @@
             ]
           },
           "enabled": true,
-          "opacity": 34
+          "opacity": 19
         },
         "map": {
           "base": {
@@ -645,18 +772,48 @@
           },
           "light": {
             "cursor": {
-              "x": 0.09695138698159839,
-              "y": 0
+              "x": 0.12202788013030647,
+              "y": 0.30424245198567706
             },
-            "intensity": 93,
+            "intensity": 57,
             "rgb": [
-              255,
-              149,
-              0
+              228,
+              195,
+              103
             ]
           }
         },
-        "titleTone": "auto"
+        "titleTone": "auto",
+        "voiceTranscriptColors": {
+          "background": {
+            "cursor": {
+              "x": 0.12327065494504236,
+              "y": 0.3238836015973772
+            },
+            "intensity": 15,
+            "rgb": [
+              227,
+              196,
+              109
+            ]
+          },
+          "glowIntensity": 45,
+          "glowSize": 8,
+          "scanlineOpacity": 18,
+          "scanlineScale": 100,
+          "text": {
+            "cursor": {
+              "x": 0.12228260316437417,
+              "y": 0.4738834926060268
+            },
+            "intensity": 87,
+            "rgb": [
+              224,
+              205,
+              154
+            ]
+          }
+        }
       }
     }
   },
@@ -671,5 +828,5 @@
       "nudgePx": 10
     }
   },
-  "updatedAt": "2026-07-13T08:09:07.970Z"
+  "updatedAt": null
 }

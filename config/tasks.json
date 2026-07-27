@@ -3,8 +3,12 @@
     "iCloud": {
       "caldavUrl": "https://caldav.icloud.com",
       "defaultSyncDays": 7,
-      "calendars": [],
-      "reminders": [],
+      "calendars": [
+        "__none__"
+      ],
+      "reminders": [
+        "Reminders"
+      ],
       "syncIntervalMs": 300000,
       "defaultReminderDurationMs": 1800000,
       "authBackoffMs": 3600000

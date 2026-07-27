@@ -6,6 +6,7 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "build:demo": "node scripts/build-demo.mjs",
+    "snapshot:defaults": "node scripts/snapshot-live-defaults.mjs",
     "start": "next start --hostname 0.0.0.0",
     "package:skills": "node scripts/package-agent-skills.mjs",
     "test": "npm run test:unit && npm run test:aircon && npm run package:skills",
