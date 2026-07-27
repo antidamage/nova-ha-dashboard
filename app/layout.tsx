@@ -11,6 +11,7 @@ import { TouchClickGuard } from "./components/TouchClickGuard";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
 import { getLatestDashboardSun } from "../lib/dashboard-events";
 import { readDashboardConfig, readDefaultDashboardConfig } from "../lib/dashboard-config";
+import { readDefaultDashboardPreferences } from "../lib/default-preferences";
 import { readDashboardPreferences } from "../lib/preferences";
 import { themeResponseValue } from "../lib/theme-values";
 import { normalizeVoiceSettings, VOICE_SETTINGS_DEFAULTS } from "../lib/voice-settings";
@@ -89,7 +90,15 @@ function demoThemeLibraryWithAssetPaths<T>(library: T): T {
 // serves the theme through a client-side fetch shim, so it stays null here.
 async function readInitialOrbTheme(): Promise<ThemeStorageValue | null> {
   if (isDemoMode) {
-    return null;
+    try {
+      const [preferences, config] = await Promise.all([
+        readDefaultDashboardPreferences(),
+        readDefaultDashboardConfig(),
+      ]);
+      return themeResponseValue(preferences.theme, config.dashboard.avatar) as ThemeStorageValue | null;
+    } catch {
+      return null;
+    }
   }
 
   try {
@@ -106,7 +115,7 @@ async function readInitialOrbTheme(): Promise<ThemeStorageValue | null> {
 
 async function readInitialAgentName(): Promise<string> {
   if (isDemoMode) {
-    return VOICE_SETTINGS_DEFAULTS.agentName;
+    return normalizeVoiceSettings((await readDefaultDashboardPreferences()).voice).agentName;
   }
   try {
     return normalizeVoiceSettings((await readDashboardPreferences()).voice).agentName;

@@ -64,7 +64,7 @@ export async function seedExperienceMode(page: Page, mode: "rich" | "lite" = "ri
 export async function gotoDashboard(page: Page, options: { neutralizeAlerts?: boolean } = {}) {
   await seedExperienceMode(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.getByLabel("Nova avatar")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel(/avatar$/)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
   if (options.neutralizeAlerts !== false) await neutralizeTaskAlerts(page);
 }

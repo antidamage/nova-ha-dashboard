@@ -5,7 +5,19 @@ import { gotoConfig, gotoDashboard } from "./helpers";
 // device theme finishes loading (themeReady), which removes it from the
 // accessibility tree, so wait for the heading to become visible first.
 async function waitForThemeEditor(page: Page) {
-  await expect(page.getByRole("heading", { name: "Theme Library" })).toBeVisible({ timeout: 20_000 });
+  const category = page.getByRole("button", { name: /Appearance & Dashboard/ });
+  const section = page.getByRole("button", { name: "Theme & Experience" });
+  const target = page.getByRole("heading", { name: "Theme Library" });
+  await expect(async () => {
+    if (!(await section.isVisible())) {
+      await category.click();
+    }
+    await expect(section).toBeVisible({ timeout: 2_000 });
+    if (!(await target.isVisible())) {
+      await section.click();
+    }
+    await expect(target).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 test.describe("theme", () => {

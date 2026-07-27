@@ -10,11 +10,13 @@ beforeEach(async () => {
   dir = await mkdtemp(path.join(tmpdir(), "nova-prefs-"));
   prefsPath = path.join(dir, "dashboard-preferences.json");
   process.env.NOVA_DASHBOARD_PREFERENCES = prefsPath;
+  process.env.NOVA_DASHBOARD_DEFAULT_PREFERENCES = path.join(dir, "missing-default-preferences.json");
   vi.resetModules();
 });
 
 afterEach(() => {
   delete process.env.NOVA_DASHBOARD_PREFERENCES;
+  delete process.env.NOVA_DASHBOARD_DEFAULT_PREFERENCES;
 });
 
 async function load() {
@@ -25,6 +27,23 @@ describe("dashboard preferences", () => {
   it("returns an empty object when the file does not exist", async () => {
     const { readDashboardPreferences } = await load();
     expect(await readDashboardPreferences()).toEqual({});
+  });
+
+  it("falls back to the shipped base-install preferences", async () => {
+    delete process.env.NOVA_DASHBOARD_DEFAULT_PREFERENCES;
+    vi.resetModules();
+    const { readDashboardPreferences } = await load();
+    const preferences = await readDashboardPreferences();
+
+    expect(preferences.voice?.agentName).toBe("[◯_◯]");
+    expect(preferences.themeLibrary?.activeId).toBe("theme_mq77kutb_7vrn4x1i");
+    const library = preferences.themeLibrary as {
+      activeId: string;
+      entries: Array<{ id: string; name: string; themeSet: Record<string, unknown> }>;
+    };
+    const active = library.entries.find((entry) => entry.id === library.activeId);
+    expect(active?.name).toBe("Human Revolution");
+    expect(preferences.theme).toEqual(active?.themeSet);
   });
 
   it("merges aircon settings and stamps updatedAt", async () => {

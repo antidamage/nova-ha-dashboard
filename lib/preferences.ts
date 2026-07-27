@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
+import { readDefaultDashboardPreferences } from "./default-preferences";
 import { DashboardPreferences } from "./types";
 
 const PREFERENCES_PATH =
@@ -17,7 +18,7 @@ export async function readDashboardPreferences(): Promise<DashboardPreferences> 
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
-      return {};
+      return readDefaultDashboardPreferences();
     }
     throw error;
   }

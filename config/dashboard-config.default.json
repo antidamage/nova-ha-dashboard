@@ -12,7 +12,10 @@
     ],
     "illuminationNamePattern": "\\b(neon|light|lights|lamp|lamps|led|strip|glow|fairy|sign|illumination)\\b",
     "supportSwitchPattern": "\\bauto[-_ ]?update\\b",
-    "everythingExcludedEntityIds": [],
+    "everythingExcludedEntityIds": [
+      "light.outside_light",
+      "light.tuya_mobile_outside_light"
+    ],
     "climateAreaNames": [
       "climate",
       "heating"
@@ -20,91 +23,146 @@
     "networkZoneId": "network",
     "weatherEntityId": "weather.forecast_home",
     "sunEntityId": "sun.sun",
-    "loungeSensorEntityIds": [],
+    "loungeSensorEntityIds": [
+      "sensor.tuya_mobile_lounge_sensor_temperature",
+      "sensor.tuya_mobile_lounge_sensor_humidity",
+      "sensor.wifi_temperature_humidity_sensor_temperature",
+      "sensor.wifi_temperature_humidity_sensor_humidity",
+      "sensor.lounge_temperature",
+      "sensor.lounge_humidity"
+    ],
     "router": {
-      "name": "Router",
-      "wanStatusEntityId": "binary_sensor.router_wan_status",
-      "externalIpEntityId": "sensor.router_external_ip",
-      "downloadSpeedEntityId": "sensor.router_download_speed",
-      "uploadSpeedEntityId": "sensor.router_upload_speed"
+      "name": "NX620v",
+      "wanStatusEntityId": "binary_sensor.nx620v_wan_status",
+      "externalIpEntityId": "sensor.nx620v_external_ip",
+      "downloadSpeedEntityId": "sensor.nx620v_download_speed",
+      "uploadSpeedEntityId": "sensor.nx620v_upload_speed"
     },
-    "novaAssistSatelliteEntityId": "assist_satellite.assist_satellite"
+    "novaAssistSatelliteEntityId": "assist_satellite.iridium_assist_satellite",
+    "classification": {
+      "illuminationLabels": [
+        "nova_illumination"
+      ],
+      "hiddenLabels": [
+        "nova_hidden"
+      ],
+      "environmentLabels": [
+        "nova_environment"
+      ],
+      "forceIlluminationEntityIds": [],
+      "forceHiddenEntityIds": [],
+      "environmentSensorEntityIds": [],
+      "environmentSensorExcludeEntityIds": []
+    }
   },
   "dashboard": {
+    "defaultZoneId": "everything",
+    "specialZones": {
+      "power": {
+        "id": "power",
+        "name": "Power"
+      },
+      "tasks": {
+        "id": "tasks",
+        "name": "Tasks"
+      }
+    },
+    "lighting": {
+      "intensityThresholds": [
+        {
+          "name": "Neon Lights",
+          "thresholdPct": 61,
+          "entityIds": [
+            "light.cupboard_socket_1",
+            "light.tuya_mobile_neon_lights"
+          ]
+        }
+      ],
+      "entityPresets": [
+        {
+          "entityId": "light.conservatory_light",
+          "pinned": true,
+          "targetBrightnessPct": {
+            "daytime": 100,
+            "evening": 100
+          },
+          "colorTemperatureOverrideKelvin": {
+            "candlelight": 3000,
+            "daylight": 3000
+          }
+        }
+      ]
+    },
     "aircon": {
-      "offTimerIncrementMinutes": 30
+      "offTimerIncrementMinutes": 10
     },
     "camera": {
       "outside": {
         "processing": {
-          "brightness": -0.12,
-          "contrast": 1.1,
-          "sharpness": 0.6
+          "brightness": 0,
+          "contrast": 1,
+          "sharpness": 0
         }
       }
-    },
-    "lighting": {
-      "intensityThresholds": [],
-      "entityPresets": []
     },
     "avatar": {
       "gradientAlert": {
         "cursor": {
-          "x": 0.07793998332612997,
-          "y": 0.2532144274030413
+          "x": 0.10890955435182519,
+          "y": 0.041211908513849434
         },
-        "intensity": 34,
+        "intensity": 0,
         "rgb": [
-          231,
-          156,
-          90
+          250,
+          168,
+          15
         ]
       },
       "gradientCenter": {
         "cursor": {
-          "x": 0.1265082852696145,
-          "y": 0
+          "x": 0.14500990501931962,
+          "y": 0.04888316563197544
         },
         "intensity": 56,
         "rgb": [
-          255,
-          191,
-          0
+          249,
+          218,
+          16
         ]
       },
       "gradientOuter": {
         "cursor": {
-          "x": 0.09426439622814241,
+          "x": 0.11546871724106583,
           "y": 0
         },
-        "intensity": 20,
+        "intensity": 0,
         "rgb": [
           255,
-          145,
+          174,
           0
         ]
       },
       "gymAlertThresholdHours": 46,
       "gymNumberColor": {
         "cursor": {
-          "x": 0.10232536848851041,
-          "y": 0
+          "x": 0.09469800869467399,
+          "y": 0.197575771447384
         },
-        "intensity": 93,
+        "intensity": 39,
         "rgb": [
-          255,
-          157,
-          0
+          235,
+          164,
+          71
         ]
       },
-      "gymNumberOpacity": 0,
+      "gymNumberOpacity": 89,
       "lineColors": [
         {
           "cursor": {
             "x": 0.1282115169625482,
             "y": 0
           },
-          "intensity": 26,
+          "intensity": 59,
           "rgb": [
             255,
             196,
@@ -116,7 +174,7 @@
             "x": 0.14698615935919723,
             "y": 0
           },
-          "intensity": 31,
+          "intensity": 61,
           "rgb": [
             255,
             225,
@@ -128,7 +186,7 @@
             "x": 0.11734189192540956,
             "y": 0
           },
-          "intensity": 29,
+          "intensity": 66,
           "rgb": [
             255,
             179,
@@ -137,9 +195,9 @@
         }
       ],
       "lineOpacities": [
-        25,
-        30,
-        27
+        64,
+        64,
+        69
       ]
     },
     "timing": {
@@ -155,6 +213,10 @@
     }
   },
   "mapWeather": {
+    "center": {
+      "lat": -36.8509,
+      "lng": 174.7645
+    },
     "radar": {
       "manifestUrl": "https://api.rainviewer.com/public/weather-maps.json",
       "fallbackHost": "https://tilecache.rainviewer.com",
@@ -171,6 +233,11 @@
     }
   },
   "power": {
+    "timeZone": "Pacific/Auckland",
+    "billing": {
+      "startDay": 19,
+      "endDay": 18
+    },
     "timing": {
       "sampleIntervalMs": 30000,
       "haPublishIntervalMs": 60000,
@@ -216,6 +283,27 @@
         0.84,
         0.79
       ]
+    }
+  },
+  "tasks": {
+    "iCloud": {
+      "caldavUrl": "https://caldav.icloud.com",
+      "defaultSyncDays": 7,
+      "calendars": [
+        "__none__"
+      ],
+      "reminders": [
+        "Reminders"
+      ],
+      "syncIntervalMs": 300000,
+      "defaultReminderDurationMs": 1800000,
+      "authBackoffMs": 3600000
+    },
+    "alertAudio": {
+      "fileName": "task-reminder.mp3",
+      "maxBytes": 10485760,
+      "alertWindowMs": 5000,
+      "repeatMs": 300000
     }
   },
   "theme": {

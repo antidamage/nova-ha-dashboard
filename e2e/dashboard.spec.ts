@@ -6,9 +6,9 @@ test.describe("dashboard shell", () => {
     const console = watchConsole(page);
     await gotoDashboard(page);
 
-    await expect(page).toHaveTitle(/Nova/);
-    await expect(page.getByLabel("Nova avatar")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Nova" })).toBeVisible();
+    await expect(page).toHaveTitle(/Control/);
+    await expect(page.getByLabel(/avatar$/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "[◯_◯]" })).toBeVisible();
 
     expectNoConsoleErrors(console);
   });
@@ -18,6 +18,8 @@ test.describe("dashboard shell", () => {
 
     // Zones panel and its zone buttons.
     await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Home/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Everything/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /World/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Reminders/ })).toBeVisible();
 

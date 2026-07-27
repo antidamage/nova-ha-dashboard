@@ -4,7 +4,7 @@ Nova HA Dashboard is a local Home Assistant control surface for a smart-home set
 
 View a live demo: https://antidamage.github.io/nova-ha-dashboard/config/
 
-The dashboard is configured through a portable, versioned JSON schema. Shipped defaults are assembled from `config/dashboard-config.default.json`, first-time setup values in `config/common.json`, and task setup in `config/tasks.json`; runtime imports live under `data/dashboard-config.json` by default and are preserved across Nova deployments.
+The dashboard is configured through a portable, versioned JSON schema. Shipped defaults are assembled from `config/dashboard-config.default.json`, first-time setup values in `config/common.json`, task setup in `config/tasks.json`, and non-secret UI defaults in `config/dashboard-preferences.default.json`; runtime imports live under `data/dashboard-config.json` by default and are preserved across Nova deployments.
 
 ## What It Does
 
@@ -36,6 +36,14 @@ Build for production:
 npm run build
 ```
 
+Build the static public demo against the published provider (or pass a local
+provider URL while testing fixture changes):
+
+```powershell
+npm run build:demo
+npm run build:demo -- http://127.0.0.1:4174/
+```
+
 Run tests:
 
 ```powershell
@@ -52,6 +60,18 @@ npm run package:skills
 
 Open `/config` to export the active portable config, download the JSON Schema, validate a draft import, import a config, and review missing runtime secrets.
 For first-time setup, edit `config/common.json` for common Home Assistant/map/power values and `config/tasks.json` for task and iCloud task-list behavior. Settings managed by `/config`, such as theme, Status Orb settings, and climate timer step, are kept in the portable runtime config rather than the setup-only files.
+
+To refresh all repository-safe defaults from a running Nova installation:
+
+```powershell
+npm run snapshot:defaults -- http://nova.local "Human Revolution"
+```
+
+The snapshot intentionally excludes secrets, machine-local paths, personal
+speaker embeddings, camera ingestion, and private camera hosts. The public demo
+can display the exported voice, satellite, training, and agent settings, but
+those controls are preview-only because GitHub Pages has no microphone, speech
+models, household memory, or acting voice agent.
 
 Configuration APIs:
 

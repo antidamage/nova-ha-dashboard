@@ -18,6 +18,8 @@ import { SystemControlConfig } from "./SystemControlConfig";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
 
+const isDemoMode = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
+
 const AccentConfig = dynamic(() => import("./AccentConfig").then((module) => module.AccentConfig));
 const AgentAdministration = dynamic(() => import("./AgentAdministration").then((module) => module.AgentAdministration));
 const AgentConfig = dynamic(() => import("./AgentConfig").then((module) => module.AgentConfig));
@@ -352,6 +354,18 @@ export function ConfigWorkspace({
               <h1>{activeMeta?.label}</h1>
               <p>{activeMeta?.detail}</p>
             </header>
+
+            {isDemoMode && (activeCategory === "assistant" || activeCategory === "voice-people") ? (
+              <aside
+                className="border border-amber-400/50 bg-amber-400/10 p-4 text-sm leading-relaxed text-amber-100"
+                role="status"
+              >
+                <strong className="font-black uppercase">Demo preview only.</strong>{" "}
+                Voice and agent data is simulated here so the settings and status surfaces can be
+                explored. The public demo has no microphone, speech models, household memory, training
+                service, or acting agent, so these controls do not run the voice stack.
+              </aside>
+            ) : null}
 
             {activeCategory === "assistant" ? (
               <>

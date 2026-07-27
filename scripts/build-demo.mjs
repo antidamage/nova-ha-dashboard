@@ -7,7 +7,9 @@ const env = Object.fromEntries(Object.entries({
   ...process.env,
   NEXT_PUBLIC_NOVA_DEMO_MODE: "true",
   NEXT_PUBLIC_NOVA_DEMO_PROVIDER_BASE:
-    process.env.NEXT_PUBLIC_NOVA_DEMO_PROVIDER_BASE || "https://example.github.io/nova-dummy-data-provider/",
+    process.argv[2] ||
+    process.env.NEXT_PUBLIC_NOVA_DEMO_PROVIDER_BASE ||
+    "https://antidamage.github.io/nova-dummy-data-provider/",
 }).filter(([, value]) => value !== undefined));
 
 const apiDir = path.join(process.cwd(), "app", "api");
