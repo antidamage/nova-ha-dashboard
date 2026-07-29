@@ -13,7 +13,9 @@ services, including agent-task producers.
 Events are retained in an append-only JSONL spool at
 `data/household-events.jsonl`, or the path selected by
 `NOVA_DASHBOARD_HOUSEHOLD_EVENTS`. The process keeps a bounded in-memory index
-and compacts the spool only when the 20,000-event retention bound is crossed.
+and compacts the spool once the 20,000-event retention bound has been exceeded
+by a further 10%. Compaction rewrites the whole file, so it is amortised over
+that slack window rather than run on every append past the bound.
 Repeated deduplication keys return the original cursor instead of appending a
 second event. A consumer whose cursor predates retention receives
 `resetRequired`, the first retained cursor, and the retained batch.

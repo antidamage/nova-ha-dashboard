@@ -36,6 +36,7 @@ const taskCommandDocs = {
         start: "2026-05-01T21:00:00+12:00",
         end: null,
         repeat: { kind: "days", intervalDays: 1 },
+        annoy: false,
       },
     },
     update: {
@@ -57,6 +58,7 @@ const taskCommandDocs = {
       },
     },
   },
+  annoy: "Optional. When true the reminder keeps chiming until dismissed. Otherwise it chimes once per occurrence, across all screens.",
   repeatFormats: [
     { kind: "hourly" },
     { kind: "morning-night" },
@@ -98,6 +100,7 @@ async function runJsonCommand(command: TaskCommand, body: Record<string, unknown
       start: body.start,
       end: body.end,
       repeat: body.repeat,
+      annoy: body.annoy,
       source: "local",
     });
     return NextResponse.json(task);

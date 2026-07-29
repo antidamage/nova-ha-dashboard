@@ -67,6 +67,7 @@ type DashboardEventStore = {
   latestSun: SunStatus | null;
   latestTaskAudioJson: string | null;
   latestTasksJson: string | null;
+  latestReminderIconsJson: string | null;
   lightPollHoldUntil: number;
   nextClientId: number;
   nextIcloudSyncAt: number;
@@ -110,6 +111,7 @@ const store =
     latestSun: null,
     latestTaskAudioJson: null,
     latestTasksJson: null,
+    latestReminderIconsJson: null,
     lightPollHoldUntil: 0,
     nextClientId: 0,
     nextIcloudSyncAt: 0,
@@ -139,6 +141,7 @@ store.icloudSyncing ??= false;
 store.latestSun ??= null;
 store.latestTaskAudioJson ??= null;
 store.latestTasksJson ??= null;
+store.latestReminderIconsJson ??= null;
 store.nextIcloudSyncAt ??= 0;
 store.pollPending ??= false;
 store.taskClients ??= new Set<DashboardEventClient>();
@@ -292,6 +295,15 @@ export function publishTasks(tasks: Task[]) {
 export function publishTaskDismiss(taskId: string) {
   delete store.taskAlertSessions[taskId];
   broadcastTask(sseEvent("task-dismiss", JSON.stringify({ taskId })));
+}
+
+// Sigil assignments for the reminder icon bar. Pushed on the same stream as
+// tasks so a tile's icon and its due state can never disagree for long — the
+// LLM classifier patches assignments asynchronously, well after the task that
+// triggered it was written.
+export function publishReminderIcons(entries: unknown[]) {
+  store.latestReminderIconsJson = JSON.stringify({ entries });
+  broadcastTask(sseEvent("reminder-icons", store.latestReminderIconsJson));
 }
 
 export type VoiceSpeakingEvent = {
@@ -807,6 +819,18 @@ function isTaskAlerting(task: Task, now: number) {
   return Number.isFinite(end) && now < end;
 }
 
+async function sendReminderIconsSnapshot(client: DashboardEventClient) {
+  try {
+    const { readReminderIcons } = await import("./reminder-icons");
+    store.latestReminderIconsJson = JSON.stringify({ entries: await readReminderIcons() });
+    sendClient(client, sseEvent("reminder-icons", store.latestReminderIconsJson));
+  } catch (error) {
+    // The bar degrades to "no tiles" on its own; this is not worth a
+    // dashboard-error toast the way a missing task list is.
+    console.error("[nova-dashboard] Failed to read reminder icons", { error });
+  }
+}
+
 async function sendTasksSnapshot(client: DashboardEventClient) {
   try {
     const { readTasks } = await import("./tasks");
@@ -1096,6 +1120,7 @@ export function subscribeDashboardEvents() {
       if (store.latestTaskAudioJson) {
         sendClient(client, sseEvent("task-audio", store.latestTaskAudioJson));
       }
+      void sendReminderIconsSnapshot(client);
       sendVoiceSpeakingSnapshot(client);
 
       startDashboardEventPoller();
@@ -1127,6 +1152,7 @@ export function subscribeTaskEvents() {
       if (store.latestTaskAudioJson) {
         sendClient(client, sseEvent("task-audio", store.latestTaskAudioJson));
       }
+      void sendReminderIconsSnapshot(client);
 
       startDashboardEventPoller();
     },

@@ -20,14 +20,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { parseTaskCsv, type ParseTaskCsvResult } from "../../lib/parse-task-csv";
 import type { Task } from "../../lib/types";
+import { useReminderBannerSetting } from "./dashboard/reminderBannerSetting";
+import { loadSharedClientConfig, readCachedClientConfig } from "./sharedConfigCache";
 import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
 import { jsonFetch } from "./tasks/task-api";
 import {
   defaultDraft,
   draftRepeat,
   fallbackEndInput,
+  hasTaskAlertChimed,
   isTaskAlerting,
   isTaskAlertSilenced,
+  isTaskAnnoyer,
   isTaskComplete,
   isTaskCurrent,
   localInputToIso,
@@ -65,8 +69,33 @@ type TaskAudioStatus = {
 };
 
 const ALERT_AUDIO_PATH = "/api/tasks/audio";
+// Fallbacks only. The live values come from config.tasks.alertAudio
+// (alertWindowMs / repeatMs) via the shared client config — they were declared
+// in the schema and documented in SPEC but nothing read them until now.
 const ALERT_AUDIO_WINDOW_MS = 5000;
 const ALERT_AUDIO_REPEAT_MS = 5 * 60 * 1000;
+
+function alertAudioTimingFromConfig(config: unknown) {
+  const root = config as { tasks?: { alertAudio?: { alertWindowMs?: unknown; repeatMs?: unknown } } } | null;
+  const audio = root?.tasks?.alertAudio;
+  if (!audio) {
+    return null;
+  }
+
+  const windowMs = audio.alertWindowMs;
+  const repeatMs = audio.repeatMs;
+
+  return {
+    windowMs:
+      typeof windowMs === "number" && Number.isFinite(windowMs) && windowMs > 0
+        ? windowMs
+        : ALERT_AUDIO_WINDOW_MS,
+    repeatMs:
+      typeof repeatMs === "number" && Number.isFinite(repeatMs) && repeatMs > 0
+        ? repeatMs
+        : ALERT_AUDIO_REPEAT_MS,
+  };
+}
 
 const inputClassName =
   "min-h-11 w-full border border-neutral-700 bg-neutral-950/70 px-3 py-2 font-mono text-sm font-black uppercase text-neutral-100 outline-none focus:border-cyan-300";
@@ -159,7 +188,16 @@ function TaskEditor({
   useEffect(() => {
     setDraft(initial);
     setError(null);
-  }, [initial.end, initial.hasEnd, initial.name, initial.repeatDays, initial.repeatEnabled, initial.repeatKind, initial.start]);
+  }, [
+    initial.annoy,
+    initial.end,
+    initial.hasEnd,
+    initial.name,
+    initial.repeatDays,
+    initial.repeatEnabled,
+    initial.repeatKind,
+    initial.start,
+  ]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -191,7 +229,7 @@ function TaskEditor({
     }
 
     setError(null);
-    await onSave({ name: draft.name.trim(), start, end, repeat: draftRepeat(draft) });
+    await onSave({ name: draft.name.trim(), start, end, repeat: draftRepeat(draft), annoy: draft.annoy });
   };
 
   return (
@@ -250,6 +288,11 @@ function TaskEditor({
           checked={draft.repeatEnabled}
           label="Repeating"
           onChange={(repeatEnabled) => setDraft((current) => ({ ...current, repeatEnabled }))}
+        />
+        <TaskCheckbox
+          checked={draft.annoy}
+          label="Keep chiming until dismissed"
+          onChange={(annoy) => setDraft((current) => ({ ...current, annoy }))}
         />
         {draft.repeatEnabled ? (
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
@@ -604,6 +647,15 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // Per-device: does this screen show the reminder banners at all? Repeat
+  // behaviour is no longer tied to this -- that is per-reminder (`annoy`).
+  const [bannersEnabled] = useReminderBannerSetting();
+  const [audioTiming, setAudioTiming] = useState({
+    windowMs: ALERT_AUDIO_WINDOW_MS,
+    repeatMs: ALERT_AUDIO_REPEAT_MS,
+  });
+  const audioWindowMs = audioTiming.windowMs;
+  const audioRepeatMs = audioTiming.repeatMs;
   const [alert, setAlert] = useState<AlertState | null>(null);
   const [taskAudioExists, setTaskAudioExists] = useState(false);
   const alertRef = useRef<AlertState | null>(null);
@@ -612,6 +664,9 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const audioStopTimer = useRef<number | null>(null);
   const audioRepeatTimer = useRef<number | null>(null);
   const dismissingTaskIds = useRef<Set<string>>(new Set());
+  // Occurrences this screen has already chimed for, keyed `taskId:sessionKey`.
+  // Purely a local fast path in front of the shared `alertChimedFor`.
+  const chimedOccurrences = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -728,19 +783,29 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     audio.play().catch((error) => {
       console.info("[nova-dashboard] task alert audio blocked or unavailable", error);
     });
-    audioStopTimer.current = window.setTimeout(stopAudio, ALERT_AUDIO_WINDOW_MS);
-  }, [stopAudio, taskAudioExists]);
+    audioStopTimer.current = window.setTimeout(stopAudio, audioWindowMs);
+  }, [audioWindowMs, stopAudio, taskAudioExists]);
 
-  const startAudioCadence = useCallback(() => {
-    if (!taskAudioExists) {
+  const startAudioCadence = useCallback(
+    (annoy: boolean) => {
+      if (!taskAudioExists) {
+        clearAudioCadence();
+        return;
+      }
+
       clearAudioCadence();
-      return;
-    }
+      playAudioWindow();
 
-    clearAudioCadence();
-    playAudioWindow();
-    audioRepeatTimer.current = window.setInterval(playAudioWindow, ALERT_AUDIO_REPEAT_MS);
-  }, [clearAudioCadence, playAudioWindow, taskAudioExists]);
+      // Only a reminder explicitly marked as an annoyer nags. Everything else
+      // gets exactly one chime per occurrence, household-wide -- see
+      // `hasTaskAlertChimed`. The banner (where enabled) still waits to be
+      // tapped; it just does so quietly.
+      if (annoy) {
+        audioRepeatTimer.current = window.setInterval(playAudioWindow, audioRepeatMs);
+      }
+    },
+    [audioRepeatMs, clearAudioCadence, playAudioWindow, taskAudioExists],
+  );
 
   const clearAlert = useCallback(
     (taskId?: string) => {
@@ -782,7 +847,12 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
         setTasks((current) =>
           current.map((task) =>
             task.id === targetTaskId
-              ? { ...task, alertDismissedAt, alertDismissedFor: taskAlertSessionKey(task) }
+              ? {
+                  ...task,
+                  alertDismissedAt,
+                  alertDismissedFor: taskAlertSessionKey(task),
+                  alertChimedFor: taskAlertSessionKey(task),
+                }
               : task,
           ),
         );
@@ -807,6 +877,20 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     },
     [clearAlert],
   );
+
+  useEffect(() => {
+    const apply = (config: unknown) => {
+      const timing = alertAudioTimingFromConfig(config);
+      if (timing) {
+        setAudioTiming(timing);
+      }
+    };
+
+    apply(readCachedClientConfig());
+    void loadSharedClientConfig().then(apply).catch(() => {
+      // Falling back to the compiled-in cadence is fine; this is a sound.
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof EventSource === "undefined") {
@@ -888,21 +972,71 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   }, [alert, nowMs, tasks, triggerAlert]);
 
   useEffect(() => {
-    if (!alert) {
+    if (!alert || !bannersEnabled) {
       return;
     }
 
     document.body.classList.add("task-alerting");
-    startAudioCadence();
-
     return () => {
       document.body.classList.remove("task-alerting");
-      clearAudioCadence();
     };
-  }, [alert, clearAudioCadence, startAudioCadence, taskAudioExists]);
+  }, [alert, bannersEnabled]);
+
+  // The chime is a property of the occurrence, not of the alert being on
+  // screen. Resolving the alerting task lets us ask two questions the alert
+  // itself cannot answer: has this occurrence already been chimed (by this
+  // screen before a reload, or by another screen entirely), and did the user
+  // ask for an annoyer?
+  //
+  // These are flattened to primitives on purpose. Depending on the task object
+  // would restart the audio on every SSE task push, cutting the sound off
+  // mid-window; `alertChimedFor` in particular changes the moment we claim the
+  // chime, which would otherwise tear down the very window it just opened.
+  const alertTask = useMemo(
+    () => (alert ? (tasks.find((task) => task.id === alert.taskId) ?? null) : null),
+    [alert, tasks],
+  );
+  const alertTaskId = alertTask?.id ?? null;
+  const alertOccurrence = alertTask ? `${alertTask.id}:${taskAlertSessionKey(alertTask)}` : null;
+  const alertAnnoy = alertTask ? isTaskAnnoyer(alertTask) : false;
+  const alertChimed = alertTask ? hasTaskAlertChimed(alertTask) : false;
+  const alertChimedRef = useRef(false);
 
   useEffect(() => {
-    if (!alert) {
+    alertChimedRef.current = alertChimed;
+  }, [alertChimed]);
+
+  useEffect(() => {
+    if (!alertOccurrence || !alertTaskId || !taskAudioExists) {
+      return;
+    }
+
+    // Locally claimed occurrences cover the gap before the server round trip
+    // lands and the task broadcast comes back.
+    const claimedLocally = chimedOccurrences.current.has(alertOccurrence);
+    if (!alertAnnoy && (alertChimedRef.current || claimedLocally)) {
+      return;
+    }
+
+    chimedOccurrences.current.add(alertOccurrence);
+    startAudioCadence(alertAnnoy);
+    if (!claimedLocally) {
+      void jsonFetch<Task>(`/api/tasks/${encodeURIComponent(alertTaskId)}/chimed`, { method: "POST" }).catch(() => {
+        // A failed claim only costs a repeat chime on the next reload; it must
+        // never surface as an error toast over the reminder banner.
+      });
+    }
+
+    return () => {
+      clearAudioCadence();
+    };
+  }, [alertAnnoy, alertOccurrence, alertTaskId, clearAudioCadence, startAudioCadence, taskAudioExists]);
+
+  // Capture-phase swallow so the tap that silences the alarm cannot also hit a
+  // light button underneath. With banners disabled there IS no overlay to tap,
+  // and installing this anyway would eat taps meant for the reminder icon bar.
+  useEffect(() => {
+    if (!alert || !bannersEnabled) {
       return;
     }
 
@@ -921,7 +1055,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
     };
-  }, [alert, dismissAlert]);
+  }, [alert, bannersEnabled, dismissAlert]);
 
   useEffect(() => {
     return () => {
@@ -1091,9 +1225,9 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
   return (
     <>
-      <CurrentTaskBar task={activeTask} />
+      {bannersEnabled ? <CurrentTaskBar task={activeTask} /> : null}
 
-      {alert ? (
+      {bannersEnabled && alert ? (
         <button
           className="task-alert-overlay"
           type="button"

@@ -43,6 +43,13 @@ behavior is decided, implemented, and tested.**
    box-shadow. If your glow is expensive, add a targeted
    `html[data-nova-lite]` flattening rule like the task-glow ones.
 
+   Worked example, the reminder icon bar's overdue pulse: the animation is a
+   plain `@keyframes` on `box-shadow`, so the kill-switch stops it dead and the
+   tile simply sits at its first keyframe (no glow, still full opacity, still
+   the alert colour). The glow is small enough not to need a flattening rule.
+   Nothing else in that component needs a gate — the 1s tick and the task feed
+   are shared with `TasksPanel`, so lite adds no timers and opens no streams.
+
 Source of truth for the flag: `app/components/dashboard/experienceModeSetting.ts`
 (localStorage `nova.dashboard.experienceMode.v1`; `data-nova-lite` on `<html>`
 is seeded pre-paint by the `app/layout.tsx` head bootstrap).

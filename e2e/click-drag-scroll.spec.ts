@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { neutralizeTaskAlerts, seedExperienceMode } from "./helpers";
+import { neutralizeTaskAlerts, seedExperienceMode, waitForStableLayout } from "./helpers";
 
 // Click-and-drag ("hand tool") mouse scrolling. Touch is untouched; this only
 // binds mouse events. A drag surface + tall spacer are injected so the test is
@@ -11,6 +11,9 @@ test.describe("click-drag scroll", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
     await neutralizeTaskAlerts(page);
+    // Late-arriving content plus scroll anchoring will move scrollY under the
+    // drag otherwise, which has nothing to do with what these tests measure.
+    await waitForStableLayout(page);
     await page.evaluate(() => {
       // Guarantee the window overflows so there is somewhere to scroll.
       const spacer = document.createElement("div");
@@ -43,11 +46,15 @@ test.describe("click-drag scroll", () => {
 
   test("dragging back down returns toward the top", async ({ page }) => {
     await page.evaluate(() => window.scrollTo({ top: 400, behavior: "auto" }));
+    // Assert on the DELTA the drag produced, not an absolute offset: the
+    // meaning of the test is "a downward drag pans up", and only the delta
+    // says that independently of where the page happened to be sitting.
+    const start = await page.evaluate(() => window.scrollY);
     await page.mouse.move(300, 150);
     await page.mouse.down();
     await page.mouse.move(300, 350, { steps: 10 });
     await page.mouse.move(300, 500, { steps: 10 });
     await page.mouse.up();
-    expect(await page.evaluate(() => window.scrollY)).toBeLessThan(400);
+    expect(await page.evaluate(() => window.scrollY)).toBeLessThan(start);
   });
 });

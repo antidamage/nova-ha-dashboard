@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
+import { isReminderIconId, REMINDER_ICON_IDS } from "./reminder-glyph";
 import type { VoiceEngineCapabilities } from "./voice-settings";
 
 export type IridiumVoiceRefreshResult =
@@ -19,6 +20,7 @@ const HEALTH_PATH = "/health";
 // skips the event backlog; only the `satellites` array matters here.
 const SATELLITES_PATH = "/v1/monitor/events?after=1000000000";
 const SPEAKER_PROFILES_PATH = "/v1/speaker-profiles";
+const CLASSIFY_ICON_PATH = "/v1/classify-icon";
 const REQUEST_TIMEOUT_MS = 5_000;
 // Synthesis is slower than a plain status round trip (model inference, and a
 // cold voice can take a couple of seconds), so the preview gets its own budget.
@@ -491,7 +493,11 @@ type IridiumJsonResult = { payload: unknown } | { error: string; status?: number
 async function requestIridiumJson(
   requestPath: string,
   label: string,
-  options: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {},
+  options: {
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+    body?: unknown;
+    timeoutMs?: number;
+  } = {},
 ): Promise<IridiumJsonResult> {
   let url: URL;
   try {
@@ -523,7 +529,7 @@ async function requestIridiumJson(
             "Content-Length": Buffer.byteLength(body),
           }),
         },
-        timeout: REQUEST_TIMEOUT_MS,
+        timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS,
         ...(identity ?? {}),
       },
       (response) => {
@@ -555,6 +561,37 @@ async function requestIridiumJson(
     if (body !== null) request.write(body);
     request.end();
   });
+}
+
+// Ask the voice host to pick a reminder sigil for a reminder name.
+//
+// The LLM itself (llama-server) is bound to 127.0.0.1 on iridium and firewalled
+// to localhost, so the orchestrator proxies for us -- see nova_voice.api
+// /v1/classify-icon. `icons` is an allow-list; the server validates its own
+// model's answer against it and returns null rather than an id we could not
+// render, and we re-check here because a stale voice build could still be
+// running an older, laxer handler.
+export async function classifyReminderIcon(
+  name: string,
+  timeoutMs: number,
+): Promise<string | null> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const result = await requestIridiumJson(CLASSIFY_ICON_PATH, "reminder icon classification", {
+    method: "POST",
+    body: { name: trimmed, icons: REMINDER_ICON_IDS },
+    timeoutMs,
+  });
+
+  if (!("payload" in result)) {
+    return null;
+  }
+
+  const icon = (result.payload as { icon?: unknown } | null)?.icon;
+  return isReminderIconId(icon) ? icon : null;
 }
 
 async function fetchIridiumJson(requestPath: string, label: string): Promise<unknown | null> {
@@ -644,6 +681,16 @@ export async function deleteAllIridiumSpeakerTemplates(): Promise<IridiumJsonRes
     "all speaker templates deletion",
     { method: "DELETE" },
   );
+}
+
+// Clearing the transcript log clears the assistant's working context too: the
+// visible record and what the model is still reasoning from are one thing to
+// the person pressing clear. Best-effort — a voice server that is unreachable
+// must never block the panel from clearing.
+export async function endIridiumConversations(): Promise<IridiumJsonResult> {
+  return requestIridiumJson("/v1/conversations", "conversation context clear", {
+    method: "DELETE",
+  });
 }
 
 export async function assignIridiumSpeakerTemplate(

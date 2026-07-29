@@ -578,6 +578,174 @@ html[data-nova-hide-orb-info]
   padding-bottom: 1.0lh;
 }
 
+/* ==== REMINDER ICON BAR ==================================================
+   A fixed row of sigils between the clock and the zones panel. Tiles are
+   sized off the DATE, not an absolute value, so the bar keeps its visual
+   relationship to the clock through the font-scale theme setting and the
+   wide-landscape override further down this file.
+
+   Everything stateful here is opacity + one CSS animation, which is what lets
+   the lite-mode kill-switch neutralise it without a JS gate (SPEC 2/31). */
+.reminder-icon-bar {
+  --reminder-tile-size: calc(clamp(2.4rem, 6vw, 3.6rem) * var(--cyber-clock-scale, 1));
+  --reminder-idle-opacity: 0.5;
+  /* Derived from the tile, NOT from em: .reminder-tile sets no font-size of its
+     own, so an em radius resolved against the inherited 16px root and rendered
+     a ~4px corner on a 63px tile — a sharp box wearing the generic panel
+     border, which is the opposite of what a rounded rectangle should read as. */
+  --reminder-tile-radius: calc(var(--reminder-tile-size) * 0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  min-width: 0;
+  /* Matches a tile exactly, so the row occupies its final height from first
+     paint. The roster arrives over the network; without this the bar would
+     pop in and shove the whole dashboard down a frame later. */
+  min-height: calc(var(--reminder-tile-size) * 1.45);
+}
+
+.reminder-icon-bar[data-outline="circle"] {
+  --reminder-tile-radius: 50%;
+}
+
+.reminder-icon-bar[data-outline="square"] {
+  /* Deliberately a hair off zero. A true 0 lands exactly on the dashboard's
+     hard-cornered panel language, and these sigils are meant to read as their
+     own object rather than as another cyber panel. */
+  --reminder-tile-radius: 2px;
+}
+
+.reminder-tile {
+  display: grid;
+  place-items: center;
+  flex: 0 1 auto;
+  width: calc(var(--reminder-tile-size) * 1.45);
+  height: calc(var(--reminder-tile-size) * 1.45);
+  border: calc(var(--reminder-tile-size) * 0.075) solid currentColor;
+  border-radius: var(--reminder-tile-radius);
+  background: transparent;
+  color: var(--cyber-highlight);
+  opacity: var(--reminder-idle-opacity);
+  transition: opacity 240ms ease, box-shadow 240ms ease;
+  cursor: pointer;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reminder-tile[data-state="due"],
+.reminder-tile[data-state="overdue"] {
+  opacity: 1;
+}
+
+/* Overdue past the configured threshold: a slow breath in the orb's alert
+   colour. --nova-alert-rgb is seeded from the theme's avatar gradientAlert
+   slot in accentColor.ts, so this tracks whatever the orb uses to shout. */
+.reminder-tile[data-state="overdue"] {
+  color: rgb(var(--nova-alert-rgb, 250 168 15));
+  animation: reminder-overdue-pulse 3.2s ease-in-out infinite;
+}
+
+@keyframes reminder-overdue-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgb(var(--nova-alert-rgb, 250 168 15) / 0);
+  }
+  50% {
+    box-shadow: 0 0 22px 2px rgb(var(--nova-alert-rgb, 250 168 15) / 0.55);
+  }
+}
+
+/* Just completed and still inside the undo window. Deliberately quiet: the
+   reminder is DONE, this is only an affordance for a mis-tap. */
+.reminder-tile[data-undoable="true"] {
+  opacity: calc(var(--reminder-idle-opacity) * 0.8);
+  border-style: dashed;
+}
+
+.reminder-tile:disabled {
+  cursor: default;
+}
+
+/* The glyph is deliberately sized off the tile box (1.45x --reminder-tile-size)
+   rather than off --reminder-tile-size itself: the sigil should nearly fill its
+   outline so the ring and the mark read as one object, not as a small icon
+   parked inside a big empty frame. Growing the mark also thickens its own
+   stroke (Phosphor bold is ~0.09em), which is what lands it on the same line
+   weight as the 0.075 border. */
+.reminder-tile-glyph {
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--reminder-tile-size) * 1.4);
+  line-height: 1;
+}
+
+.reminder-glyph-mark {
+  width: 0.72em;
+  height: 0.72em;
+}
+
+/* Config-page surfaces for the same sigils. Sized in absolute units rather
+   than off the clock, because the config page has no clock to match. */
+.reminder-config-glyph {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  /* Same fill ratio as the bar tiles above, so the picker previews what the
+     dashboard actually renders. */
+  font-size: 2.8rem;
+  border: 0.22rem solid var(--cyber-highlight);
+  border-radius: 1rem;
+  background: transparent;
+  color: var(--cyber-highlight);
+  cursor: pointer;
+  padding: 0;
+}
+
+.reminder-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+
+.reminder-picker-option {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  font-size: 1.6rem;
+  border: 1px solid rgb(115 115 115 / 0.6);
+  background: rgb(10 10 10 / 0.7);
+  color: rgb(229 229 229);
+  cursor: pointer;
+}
+
+.reminder-picker-option-selected {
+  border-color: var(--cyber-highlight);
+  color: var(--cyber-highlight);
+}
+
+.reminder-picker-option-label {
+  font-family: var(--cyber-mono);
+  font-size: 0.65rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.reminder-glyph-text {
+  font-family: var(--cyber-display);
+  font-size: 0.72em;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
 .current-task-bar {
   position: fixed;
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -1001,6 +1169,24 @@ button,
 .dashboard-shell section,
 .dashboard-shell [role="slider"] {
   border-radius: 0 !important;
+}
+
+/* ...except the reminder sigils, which opt out on purpose.
+   The rule above is the dashboard's hard-corner house style: every panel and
+   button is a sharp box. The reminder tiles are deliberately NOT panels — the
+   outline shape is a user setting precisely so the row reads as its own family
+   of objects rather than as five more cyber boxes — so they need an explicit
+   escape from an `!important` they would otherwise always lose to. */
+.dashboard-shell button.reminder-tile {
+  border-radius: var(--reminder-tile-radius) !important;
+}
+
+.dashboard-shell button.reminder-config-glyph {
+  border-radius: 1rem !important;
+}
+
+.dashboard-shell button.reminder-picker-option {
+  border-radius: 0.5rem !important;
 }
 
 .dashboard-shell button,
@@ -4173,7 +4359,7 @@ a.update-banner-button {
   .dashboard-layout {
     align-items: start;
     grid-template-areas:
-      ". clock"
+      "reminders clock"
       "zones control";
     grid-template-columns: 300px minmax(0, 1fr) !important;
   }
@@ -4262,6 +4448,32 @@ a.update-banner-button {
 
   .zones-panel {
     grid-area: zones;
+  }
+
+  /* The bar lives in the sidebar column here, not across the shell: centred
+     under the status orb (which this breakpoint also moves to the sidebar's
+     centre line, see --dashboard-wide-sidebar-center-x) and sitting directly
+     on top of the zones menu.
+
+     `align-self: end` pins it to the bottom of the row so it always touches
+     the menu below no matter how tall the clock beside it grows. In practice
+     the clock sets that row's height; the margin-top is the floor for the
+     case where it does not, reserving the orb's nominal disc above the bar.
+     It is deliberately NOT --nova-avatar-render-size: that box is the canvas,
+     most of which is transparent, and reserving it would open a visible gap.
+     The tiles wrap inside the 300px column rather than overflowing it — a full
+     roster is two short rows, which is the point.
+
+     The date is a fixed 2.7rem at this breakpoint rather than the clamp()
+     further up, and the tiles stay sized off it. */
+  .reminder-icon-bar {
+    --reminder-tile-size: 2.7rem;
+    grid-area: reminders;
+    align-self: end;
+    justify-self: stretch;
+    flex-wrap: wrap;
+    margin-top: calc(var(--nova-avatar-size) + var(--nova-avatar-margin));
+    max-width: 100%;
   }
 
   .zone-panel-header {

@@ -167,6 +167,30 @@ export const DashboardConfigSchema = z.object({
       }),
     }),
     avatar: NovaAvatarConfigSchema,
+    // The reminder sigil bar between the clock and zones panels. Presentation
+    // and thresholds only — which reminder owns which sigil lives in its own
+    // store (lib/reminder-icons.ts) because it is keyed on reminder name and
+    // churns as reminders come and go, which is not what a config file is for.
+    reminders: z
+      .object({
+        outlineShape: z.enum(["rounded-rect", "circle", "square"]).default("rounded-rect"),
+        /** How long past its end a reminder must sit before the tile pulses. */
+        overduePulseAfterMs: millisecondsSchema.default(86_400_000),
+        /** Tile opacity when nothing is due for that reminder. */
+        inactiveOpacity: z.number().min(0).max(1).default(0.5),
+        maxTiles: z.number().int().min(1).max(16).default(10),
+        /** How long after a tap the completion can still be held-to-undone. */
+        undoWindowMs: millisecondsSchema.default(600_000),
+        /** How long the press must be held to fire the undo. */
+        undoHoldMs: millisecondsSchema.default(2_000),
+        classifier: z
+          .object({
+            enabled: z.boolean().default(true),
+            timeoutMs: millisecondsSchema.default(4_000),
+          })
+          .prefault({}),
+      })
+      .prefault({}),
     timing: z.object({
       entityCommandHoldMs: millisecondsSchema,
       dashboardEventPollMs: millisecondsSchema,

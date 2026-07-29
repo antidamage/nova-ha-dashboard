@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { publishTaskDismiss, publishTasks } from "./dashboard-events";
+import { assignReminderIcons, reconcileReminderIcons } from "./reminder-icon-hook";
 import { parseTaskCsv } from "./parse-task-csv";
 import type { Task, TaskRepeat, TaskSource } from "./types";
 
@@ -23,6 +24,7 @@ type TaskInput = {
   sourceCalendar?: string;
   occurrenceDate?: string;
   readOnly?: boolean;
+  annoy?: unknown;
 };
 
 type TaskPatch = Partial<{
@@ -30,6 +32,7 @@ type TaskPatch = Partial<{
   start: unknown;
   end: unknown;
   repeat: unknown;
+  annoy: unknown;
 }>;
 
 let writeQueue = Promise.resolve();
@@ -211,6 +214,7 @@ function refreshedRepeatingTask(task: Task, nowMs: number) {
     dismissedAt: undefined,
     alertDismissedAt: undefined,
     alertDismissedFor: undefined,
+    alertChimedFor: undefined,
   };
 
   return { task: updated, changed: true };
@@ -255,12 +259,17 @@ function normalizedTask(value: unknown): Task | null {
     alertDismissedFor: typeof candidate.alertDismissedFor === "string" && candidate.alertDismissedFor.trim()
       ? candidate.alertDismissedFor.trim()
       : undefined,
+    alertChimedFor: typeof candidate.alertChimedFor === "string" && candidate.alertChimedFor.trim()
+      ? candidate.alertChimedFor.trim()
+      : undefined,
+    annoy: candidate.annoy === true ? true : undefined,
     repeat,
     source,
     sourceId: candidate.sourceId,
     sourceCalendar: candidate.sourceCalendar,
     occurrenceDate: candidate.occurrenceDate,
     readOnly: candidate.readOnly ?? source !== "local",
+    recurs: candidate.recurs === true ? true : undefined,
   };
 }
 
@@ -311,6 +320,7 @@ function validatedNewTask(input: TaskInput): Task {
     sourceCalendar: input.sourceCalendar,
     occurrenceDate: input.occurrenceDate,
     readOnly: input.readOnly ?? source !== "local",
+    annoy: input.annoy === true ? true : undefined,
   };
 
   return refreshedRepeatingTask(task, Date.now()).task;
@@ -336,6 +346,10 @@ function validatedParsedTask(task: Task): Task {
     alertDismissedFor: typeof task.alertDismissedFor === "string" && task.alertDismissedFor.trim()
       ? task.alertDismissedFor.trim()
       : undefined,
+    alertChimedFor: typeof task.alertChimedFor === "string" && task.alertChimedFor.trim()
+      ? task.alertChimedFor.trim()
+      : undefined,
+    annoy: task.annoy === true ? true : undefined,
     repeat,
     source,
     readOnly: task.readOnly ?? source !== "local",
@@ -403,15 +417,19 @@ export async function writeTasks(tasks: Task[]): Promise<void> {
   );
   await run;
   publishTasks(normalized);
+  reconcileReminderIcons(normalized);
 }
 
 export async function addTask(input: TaskInput): Promise<Task> {
   const task = validatedNewTask(input);
 
-  return mutateTasks((tasks) => ({
+  const created = await mutateTasks((tasks) => ({
     tasks: [...tasks, task],
     result: task,
   }));
+
+  assignReminderIcons([created]);
+  return created;
 }
 
 export async function addTasks(inputs: Task[]): Promise<Task[]> {
@@ -421,10 +439,13 @@ export async function addTasks(inputs: Task[]): Promise<Task[]> {
     return [];
   }
 
-  return mutateTasks((tasks) => ({
+  const added = await mutateTasks((tasks) => ({
     tasks: [...tasks, ...created],
     result: created,
   }));
+
+  assignReminderIcons(added);
+  return added;
 }
 
 export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
@@ -445,6 +466,9 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
     const hasRepeatPatch = Object.prototype.hasOwnProperty.call(patch, "repeat");
     const repeat = hasRepeatPatch ? normalizedRepeat(patch.repeat) : current.repeat;
     ensureRepeatWindow(start, end, repeat);
+    const hasAnnoyPatch = Object.prototype.hasOwnProperty.call(patch, "annoy");
+    const annoy = hasAnnoyPatch ? (patch.annoy === true ? true : undefined) : current.annoy;
+    const sameOccurrence = start === current.start && end === current.end;
 
     const updated: Task = refreshedRepeatingTask({
       ...current,
@@ -452,9 +476,11 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
       start,
       end,
       repeat,
-      dismissedAt: start === current.start && end === current.end ? current.dismissedAt : undefined,
-      alertDismissedAt: start === current.start && end === current.end ? current.alertDismissedAt : undefined,
-      alertDismissedFor: start === current.start && end === current.end ? current.alertDismissedFor : undefined,
+      annoy,
+      dismissedAt: sameOccurrence ? current.dismissedAt : undefined,
+      alertDismissedAt: sameOccurrence ? current.alertDismissedAt : undefined,
+      alertDismissedFor: sameOccurrence ? current.alertDismissedFor : undefined,
+      alertChimedFor: sameOccurrence ? current.alertChimedFor : undefined,
     }, Date.now()).task;
 
     return {
@@ -467,10 +493,15 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
 export async function deleteTasks(ids: string[]): Promise<void> {
   const idSet = new Set(ids);
 
-  await mutateTasks((tasks) => ({
-    tasks: tasks.filter((task) => !idSet.has(task.id)),
-    result: undefined,
-  }));
+  const remaining = await mutateTasks((tasks) => {
+    const nextTasks = tasks.filter((task) => !idSet.has(task.id));
+    return { tasks: nextTasks, result: nextTasks };
+  });
+
+  // A delete is an authoritative removal, so also forget its presentation
+  // metadata. The bar additionally filters against live tasks for immediate
+  // correctness while this asynchronous reconciliation finishes.
+  reconcileReminderIcons(remaining);
 }
 
 export async function dismissTaskAlert(id: string): Promise<Task> {
@@ -486,6 +517,9 @@ export async function dismissTaskAlert(id: string): Promise<Task> {
       ...current,
       alertDismissedAt,
       alertDismissedFor: alertSessionKey(current),
+      // Dismissing implies the chime is spent for this occurrence, even if the
+      // sound never actually played (silenced screen, blocked autoplay).
+      alertChimedFor: alertSessionKey(current),
     };
 
     return {
@@ -498,29 +532,125 @@ export async function dismissTaskAlert(id: string): Promise<Task> {
   return task;
 }
 
-export async function completeTask(id: string): Promise<Task> {
-  const dismissedAt = new Date().toISOString();
-  const nowMs = Date.now();
-  const task = await mutateTasks((tasks) => {
+/**
+ * Record that this occurrence's chime has been played, so no other screen and
+ * no later page load plays it again.
+ *
+ * Separate from `dismissTaskAlert` because the two are genuinely different
+ * events: the banner may still be up, waiting to be tapped, long after the
+ * sound has had its say. Idempotent -- concurrent screens racing to claim the
+ * same occurrence all converge on the same key.
+ */
+export async function markTaskAlertChimed(id: string): Promise<Task> {
+  return mutateTasks((tasks) => {
     const index = tasks.findIndex((candidate) => candidate.id === id);
     if (index < 0) {
       throw new Error("Reminder not found");
     }
 
+    const current = tasks[index];
+    const chimed: Task = { ...current, alertChimedFor: alertSessionKey(current) };
+
+    return {
+      tasks: tasks.map((candidate) => (candidate.id === id ? chimed : candidate)),
+      result: chimed,
+    };
+  });
+}
+
+// Completions that can still be taken back.
+//
+// A snapshot is required rather than "just clear dismissedAt": completing a
+// repeating task also rolls it forward to the next occurrence, so by the time
+// the user wants their mis-tap back, the task they tapped no longer exists in
+// that shape. The journal is in-process and deliberately unpersisted — an undo
+// window is a few minutes of grace for a fat finger on a wall panel, not
+// durable state worth surviving a restart.
+type TaskUndoRecord = { task: Task; completedAt: number };
+
+const undoJournal = new Map<string, TaskUndoRecord>();
+
+function pruneUndoJournal(nowMs: number, windowMs: number) {
+  for (const [id, record] of undoJournal) {
+    if (record.completedAt <= nowMs - windowMs) {
+      undoJournal.delete(id);
+    }
+  }
+}
+
+export function completedTaskUndoDeadline(id: string, windowMs: number): number | null {
+  const record = undoJournal.get(id);
+  if (!record) {
+    return null;
+  }
+
+  const deadline = record.completedAt + windowMs;
+  return deadline > Date.now() ? deadline : null;
+}
+
+export async function completeTask(id: string): Promise<Task> {
+  const dismissedAt = new Date().toISOString();
+  const nowMs = Date.now();
+  const { task, snapshot } = await mutateTasks((tasks) => {
+    const index = tasks.findIndex((candidate) => candidate.id === id);
+    if (index < 0) {
+      throw new Error("Reminder not found");
+    }
+
+    const snapshot = tasks[index];
     const dismissed = {
-      ...tasks[index],
+      ...snapshot,
       dismissedAt,
       alertDismissedAt: undefined,
       alertDismissedFor: undefined,
+      alertChimedFor: undefined,
     };
     const updated = refreshedRepeatingTask(dismissed, nowMs).task;
 
     return {
       tasks: tasks.map((candidate) => (candidate.id === id ? updated : candidate)),
-      result: updated,
+      result: { task: updated, snapshot },
     };
   });
 
+  undoJournal.set(id, { task: snapshot, completedAt: nowMs });
+
   publishTaskDismiss(id);
   return task;
+}
+
+/**
+ * Restore the pre-completion snapshot recorded by `completeTask`.
+ *
+ * Caveat worth knowing: a repeating task that HAS an end rolls itself forward
+ * whenever it lapses, independently of completion, so restoring one will
+ * simply roll forward again on the next read. Undo is meaningful for the
+ * reminders it is actually offered on — end-less reminders and iCloud mirrors,
+ * neither of which self-roll.
+ */
+export async function uncompleteTask(id: string, windowMs: number): Promise<Task> {
+  const nowMs = Date.now();
+  pruneUndoJournal(nowMs, windowMs);
+
+  const record = undoJournal.get(id);
+  if (!record) {
+    throw new Error("That completion can no longer be undone");
+  }
+
+  const restored = await mutateTasks((tasks) => {
+    const exists = tasks.some((candidate) => candidate.id === id);
+
+    return {
+      // The task is normally still present (completion mutates in place), but
+      // a concurrent delete or an iCloud resync could have removed it; putting
+      // the snapshot back is the honest interpretation of "undo" either way.
+      tasks: exists
+        ? tasks.map((candidate) => (candidate.id === id ? record.task : candidate))
+        : [...tasks, record.task],
+      result: record.task,
+    };
+  });
+
+  undoJournal.delete(id);
+  return restored;
 }

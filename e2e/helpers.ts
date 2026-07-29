@@ -60,9 +60,28 @@ export async function seedExperienceMode(page: Page, mode: "rich" | "lite" = "ri
   }, mode);
 }
 
+/**
+ * Reminder banners (bottom bar + full-screen alert) are a per-device opt-in and
+ * ship OFF, so a test that wants to see them has to say so. Same fill-if-absent
+ * shape as seedExperienceMode: a test that flips the checkbox itself must have
+ * its choice survive the next navigation.
+ */
+export async function seedReminderBanners(page: Page, enabled = true) {
+  await page.addInitScript((value) => {
+    const key = "nova.dashboard.reminderBanner.v1";
+    if (!window.localStorage.getItem(key)) {
+      window.localStorage.setItem(key, value);
+    }
+  }, enabled ? "true" : "false");
+}
+
 /** Navigate to the dashboard and wait until the live shell has rendered. */
-export async function gotoDashboard(page: Page, options: { neutralizeAlerts?: boolean } = {}) {
+export async function gotoDashboard(
+  page: Page,
+  options: { neutralizeAlerts?: boolean; reminderBanners?: boolean } = {},
+) {
   await seedExperienceMode(page);
+  await seedReminderBanners(page, options.reminderBanners ?? false);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByLabel(/avatar$/)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
@@ -74,6 +93,36 @@ export async function gotoConfig(page: Page) {
   await seedExperienceMode(page);
   await page.goto("/config/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Back" })).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * Wait until the page has stopped growing.
+ *
+ * The dashboard fills in asynchronously — camera, map, power, the reminder icon
+ * bar — and Chrome's scroll anchoring shifts `window.scrollY` whenever content
+ * lands ABOVE the current scroll position. Any test that scrolls to an absolute
+ * offset and then asserts on `scrollY` is racing that growth. Settle first.
+ */
+export async function waitForStableLayout(page: Page, quietMs = 500, timeoutMs = 10_000) {
+  await page.evaluate(
+    async ({ quiet, limit }) => {
+      const deadline = Date.now() + limit;
+      let last = document.body.scrollHeight;
+      let stableSince = Date.now();
+
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const height = document.body.scrollHeight;
+        if (height === last) {
+          if (Date.now() - stableSince >= quiet) return;
+        } else {
+          last = height;
+          stableSince = Date.now();
+        }
+      }
+    },
+    { quiet: quietMs, limit: timeoutMs },
+  );
 }
 
 /** Click a zone button in the Zones panel by its accessible name. */

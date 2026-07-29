@@ -1,7 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
-import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import { CheckboxRow } from "./ConfigControls";
 import { effectiveAlwaysOn, useVoiceAgentSetting } from "./dashboard/voiceAgentSetting";
 
 // The per-device voice-agent controls that sit at the TOP of the config page's
@@ -15,43 +14,6 @@ import { effectiveAlwaysOn, useVoiceAgentSetting } from "./dashboard/voiceAgentS
 //
 // Input is always this browser's own microphone — there is no native/custom
 // selection.
-
-function CheckboxRow({
-  checked,
-  detail,
-  disabled = false,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  detail: string;
-  disabled?: boolean;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <MomentaryFeedbackButton
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      aria-disabled={disabled}
-      disabled={disabled}
-      className={`cyber-checkbox-row border p-4 text-left ${checked ? "cyber-checkbox-row-active" : ""} ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
-      onClick={() => {
-        if (disabled) return;
-        onChange(!checked);
-      }}
-    >
-      <span className={`cyber-checkbox ${checked ? "cyber-checkbox-checked" : ""}`} aria-hidden="true">
-        {checked && <Check className="h-6 w-6" strokeWidth={3} />}
-      </span>
-      <span className="grid min-w-0 gap-1">
-        <span className="theme-display-label zone-title-bar">{label}</span>
-        <span className="theme-display-detail">{detail}</span>
-      </span>
-    </MomentaryFeedbackButton>
-  );
-}
 
 export function VoiceInputDeviceGroup({ agentName }: { agentName: string }) {
   const [setting, update] = useVoiceAgentSetting();

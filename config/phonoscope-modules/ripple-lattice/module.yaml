@@ -1,0 +1,29 @@
+engineVersion: 1
+id: ripple-lattice
+version: 1.0.0
+name: Ripple Lattice
+description: A deliberate field feedback loop bounded by per-tick round-trip detection.
+dimension: 2d
+bounds: { min: [-1.7778, -1], max: [1.7778, 1] }
+boundary: { mode: bounce, restitution: 0.9 }
+templates:
+  cell:
+    render: { primitive: ring, material: emissive, color: "=mix(palette.primary, palette.highlight, field.energy)", glow: "=field.energy" }
+    effectReceivers:
+      - { accepts: [wave], operation: add, target: field.energy, scale: 0.8 }
+      - { accepts: [wave], operation: emit, target: echo-wave, threshold: 0.1 }
+    effectSources:
+      - { id: echo-wave, trigger: received, shape: point, kind: wave, propagation: neighbours, strength: "=effect.strength * 0.75", falloff: 0.82 }
+scene:
+  - id: lattice
+    field:
+      layout: grid
+      resolution: [36, 20]
+      count: 720
+      template: cell
+      topology: grid
+      channels: { energy: 0 }
+    effectSources:
+      - { id: root-wave, trigger: beat, shape: circle, kind: wave, propagation: neighbours, strength: "=0.3 + audio.bass", speed: 1.2, falloff: 0.86 }
+resources: { maxParticles: 1024, maxInteractiveFieldEntities: 1024, maxRenderBatches: 8 }
+metadata: { author: Nova, license: Household use, tags: [reference, feedback, field] }

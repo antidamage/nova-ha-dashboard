@@ -5,7 +5,9 @@ test.describe("tasks and reminders", () => {
   test.beforeEach(async ({ page }) => {
     // Keep the alert overlay live: one test dismisses it explicitly. The others
     // neutralize it so it cannot intercept clicks.
-    await gotoDashboard(page, { neutralizeAlerts: false });
+    // Banners default off now (per-device opt-in), so ask for them: one test
+    // dismisses the overlay explicitly and the others neutralize it.
+    await gotoDashboard(page, { neutralizeAlerts: false, reminderBanners: true });
   });
 
   test("shows the reminders panel when its zone is selected", async ({ page }) => {

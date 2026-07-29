@@ -72,6 +72,7 @@ import {
 } from "./accentColor";
 import { type NovaAvatarTheme } from "./avatarThemeModel";
 import {
+  CheckboxRow,
   ColorIntensitySlider,
   ColorSpectrum,
   ColorWidget,
@@ -295,36 +296,6 @@ function BorderOpacity({
       onPreview={(opacity) => onPreview({ ...border, opacity })}
       onCommit={(opacity) => onCommit({ ...border, opacity })}
     />
-  );
-}
-
-function CheckboxRow({
-  checked,
-  detail,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  detail: string;
-  label: string;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <MomentaryFeedbackButton
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      className={`cyber-checkbox-row border p-4 text-left ${checked ? "cyber-checkbox-row-active" : ""}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span className={`cyber-checkbox ${checked ? "cyber-checkbox-checked" : ""}`} aria-hidden="true">
-        {checked && <Check className="h-6 w-6" strokeWidth={3} />}
-      </span>
-      <span className="grid min-w-0 gap-1">
-        <span className="theme-display-label zone-title-bar">{label}</span>
-        <span className="theme-display-detail">{detail}</span>
-      </span>
-    </MomentaryFeedbackButton>
   );
 }
 

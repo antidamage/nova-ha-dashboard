@@ -93,6 +93,22 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    if (next.phonoscope) {
+      merged.phonoscope = {
+        ...(current.phonoscope ?? {}),
+        ...withoutUndefined(next.phonoscope as Record<string, unknown>),
+        providers: {
+          ...(current.phonoscope?.providers ?? {}),
+          ...(next.phonoscope.providers ?? {}),
+        },
+        moduleSettings: {
+          ...(current.phonoscope?.moduleSettings ?? {}),
+          ...(next.phonoscope.moduleSettings ?? {}),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     await mkdir(path.dirname(PREFERENCES_PATH), { recursive: true });
     const tempPath = `${PREFERENCES_PATH}.${process.pid}.tmp`;
     await writeFile(tempPath, `${JSON.stringify(merged, null, 2)}\n`, "utf8");
