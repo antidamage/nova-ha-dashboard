@@ -1,0 +1,28 @@
+engineVersion: 1
+id: lyric-artwork-field
+version: 1.0.0
+name: Lyric Artwork Field
+description: Album artwork and timed lyrics drive a typographic 2D field.
+dimension: 2d
+bounds: { min: [-1.7778, -1], max: [1.7778, 1] }
+boundary: slide
+templates:
+  tile:
+    render: { primitive: sprite, material: unlit, color: "=mix(palette.secondary, palette.primary, uv.x)", opacity: "=0.25 + lyrics.pulse * 0.5" }
+scene:
+  - id: artwork
+    render: { primitive: artwork, material: unlit, opacity: 0.22, glow: "=audio.mid * 0.3" }
+    transform: { scale: [1.2, 1.2, 1] }
+  - id: lyric
+    render: { primitive: text, text: lyrics.current, material: emissive, color: "=palette.highlight", glow: "=0.2 + lyrics.pulse" }
+    transform: { position: [0, -0.72, 1], scale: [0.8, 0.8, 1] }
+  - id: tiles
+    field:
+      layout: grid
+      resolution: [24, 14]
+      count: 336
+      template: tile
+      topology: none
+      channels: { energy: "=0.1 + lyrics.progress * 0.9" }
+resources: { maxParticles: 1024, maxInteractiveFieldEntities: 512, maxRenderBatches: 12 }
+metadata: { author: Nova, license: Household use, tags: [reference, artwork, lyrics] }

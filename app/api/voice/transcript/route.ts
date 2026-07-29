@@ -6,6 +6,7 @@ import {
   publishVoiceTranscript,
   replaceVoiceTranscript,
 } from "../../../../lib/dashboard-events";
+import { endIridiumConversations } from "../../../../lib/iridium-voice-settings";
 import {
   parseVoiceTranscriptInput,
   parseVoiceTranscriptReplaceInput,
@@ -18,8 +19,20 @@ export async function GET() {
   return NextResponse.json({ transcripts: getVoiceTranscripts() });
 }
 
+// Clearing the log is a "forget this conversation" gesture, not just a screen
+// wipe: the open conversation windows and the frozen context they carry are
+// ended on the voice server too, so the next utterance needs the wake word
+// again and starts from a fresh household snapshot. The voice server being
+// unreachable must never leave the panel uncleared, so that half is best
+// effort and its outcome is reported rather than thrown.
 export async function DELETE() {
-  return NextResponse.json({ ok: true, ...clearVoiceTranscripts() });
+  const cleared = clearVoiceTranscripts();
+  const ended = await endIridiumConversations();
+  return NextResponse.json({
+    ok: true,
+    ...cleared,
+    conversationsCleared: !("error" in ended),
+  });
 }
 
 // Iridium posts each accepted user transcript and each spoken response here.
