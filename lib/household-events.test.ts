@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -67,6 +67,36 @@ describe("HouseholdEventLog", () => {
     expect(batch.resetRequired).toBe(true);
     expect(batch.firstAvailableCursor).toBe(2);
     expect(batch.events.map((event) => event.cursor)).toEqual([2, 3]);
+  });
+
+  it("amortises compaction instead of rewriting the spool on every append past retention", async () => {
+    const log = await eventLog(100);
+    const append = async (index: number) => log.append({
+      occurredAt: "2026-07-22T10:00:00.000Z",
+      source: "dashboard",
+      kind: "ha_state",
+      deduplicationKey: `event:${index}`,
+      payload: { index },
+    });
+    const lineCount = async () =>
+      (await readFile(log.filePath, "utf8")).split("\n").filter(Boolean).length;
+
+    for (let index = 1; index <= 105; index += 1) {
+      await append(index);
+    }
+
+    // Five events past the bound is inside the slack window, so the spool has
+    // not been rewritten even though retention already dropped them.
+    expect(await lineCount()).toBe(105);
+    expect((await log.read(0)).events[0].cursor).toBe(6);
+
+    for (let index = 106; index <= 110; index += 1) {
+      await append(index);
+    }
+
+    // Crossing the slack window compacts once, back down to the bound.
+    expect(await lineCount()).toBe(100);
+    expect((await log.read(0)).events[0].cursor).toBe(11);
   });
 });
 

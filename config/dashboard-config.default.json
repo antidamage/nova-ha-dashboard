@@ -200,6 +200,18 @@
         69
       ]
     },
+    "reminders": {
+      "outlineShape": "rounded-rect",
+      "overduePulseAfterMs": 86400000,
+      "inactiveOpacity": 0.5,
+      "maxTiles": 10,
+      "undoWindowMs": 600000,
+      "undoHoldMs": 2000,
+      "classifier": {
+        "enabled": true,
+        "timeoutMs": 4000
+      }
+    },
     "timing": {
       "entityCommandHoldMs": 2000,
       "dashboardEventPollMs": 5000,

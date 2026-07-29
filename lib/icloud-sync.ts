@@ -316,7 +316,8 @@ function taskFromTodoComponent(
   const rawEnd = isIcalTime(dtStartValue) && !dtStartValue.isDate && dueValue.toJSDate().getTime() > rawStart.getTime()
     ? dueValue.toJSDate()
     : new Date(rawStart.getTime() + defaultReminderDurationMs);
-  const recurringStart = nextRecurringDate(rawStart, component.getFirstPropertyValue("rrule"), windowStart);
+  const rrule = component.getFirstPropertyValue("rrule");
+  const recurringStart = nextRecurringDate(rawStart, rrule, windowStart);
   const durationMs = rawEnd.getTime() - rawStart.getTime();
   const start = recurringStart;
   const end = new Date(start.getTime() + durationMs);
@@ -339,6 +340,7 @@ function taskFromTodoComponent(
     sourceCalendar,
     occurrenceDate,
     readOnly: true,
+    recurs: Boolean(rrule),
   } satisfies Task;
 }
 
@@ -584,6 +586,8 @@ export async function syncIcloud(): Promise<IcloudSyncResult> {
         dismissedAt: existing.dismissedAt,
         alertDismissedAt: existing.alertDismissedAt,
         alertDismissedFor: existing.alertDismissedFor,
+        alertChimedFor: existing.alertChimedFor,
+        annoy: existing.annoy,
       });
     }
 

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDeviceTheme, type ThemeVariant } from "./accentColor";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
 import { ClockPanel } from "./dashboard/ClockPanel";
+import { ReminderIconBar } from "./dashboard/ReminderIconBar";
 import { ZoneControls } from "./dashboard/ZoneControls";
 import {
   findBedroomPanelHeaterTemperature,
@@ -126,6 +127,8 @@ export function Dashboard() {
 
           <div className="dashboard-layout grid gap-5">
             <ClockPanel />
+
+            <ReminderIconBar />
 
             <ZonesPanel
               data={data}

@@ -11,6 +11,7 @@ export type TaskDraft = {
   repeatEnabled: boolean;
   repeatKind: TaskRepeatDraftKind;
   repeatDays: string;
+  annoy: boolean;
 };
 
 export type AlertState = {
@@ -24,6 +25,7 @@ export type TaskEditorSaveDraft = {
   start: string;
   end?: string | null;
   repeat: TaskRepeat | null;
+  annoy: boolean;
 };
 
 const TASK_TIME_FORMATTER = new Intl.DateTimeFormat("en-NZ", {
@@ -75,6 +77,7 @@ export function defaultDraft(): TaskDraft {
     repeatEnabled: false,
     repeatKind: "days",
     repeatDays: "1",
+    annoy: false,
   };
 }
 
@@ -89,6 +92,7 @@ export function taskDraft(task: Task): TaskDraft {
     repeatEnabled: Boolean(task.repeat),
     repeatKind: task.repeat?.kind ?? "days",
     repeatDays: task.repeat?.kind === "days" ? String(task.repeat.intervalDays) : "1",
+    annoy: task.annoy === true,
   };
 }
 
@@ -157,6 +161,21 @@ export function isTaskAlertSilenced(task: Task) {
   return task.alertDismissedFor === taskAlertSessionKey(task);
 }
 
+/**
+ * Has this occurrence's chime already been played -- on this screen, on another
+ * screen, or before the page was last reloaded?
+ *
+ * The alert itself outlives the sound: a banner keeps waiting for a tap, and
+ * the reminder keeps its place in the icon bar. Only the audio is spent.
+ */
+export function hasTaskAlertChimed(task: Task) {
+  return task.alertChimedFor === taskAlertSessionKey(task);
+}
+
+export function isTaskAnnoyer(task: Task) {
+  return task.annoy === true;
+}
+
 export function isTaskActive(task: Task, nowMs: number) {
   if (!taskHasEnd(task) || isTaskComplete(task)) {
     return false;
@@ -178,6 +197,30 @@ export function isTaskCurrent(task: Task, nowMs: number) {
 
 export function isTaskAlerting(task: Task, nowMs: number) {
   return !isTaskComplete(task) && !isTaskAlertSilenced(task) && isTaskCurrent(task, nowMs);
+}
+
+/**
+ * Has this reminder been sitting unfinished for longer than `thresholdMs` past
+ * the point it should have been done?
+ *
+ * Deliberately NOT part of `statusForTask`, which collapses everything past
+ * its end into "Done" and is depended on by the reminders panel's status
+ * chips. This is a separate axis used only by the icon bar's overdue pulse.
+ *
+ * Note which reminders can actually reach this state: a repeating LOCAL task
+ * that has an end rolls itself forward once it lapses (tasks.ts
+ * `refreshedRepeatingTask`), so it is never overdue — it is simply due again.
+ * What does go overdue is the end-less reminder (local, repeating or not,
+ * which is the "Due" case) and every iCloud mirror, since the roll-forward is
+ * skipped for non-local sources.
+ */
+export function isTaskOverdue(task: Task, nowMs: number, thresholdMs: number) {
+  if (isTaskComplete(task)) {
+    return false;
+  }
+
+  const end = taskEndMs(task);
+  return Number.isFinite(end) && end <= nowMs - thresholdMs;
 }
 
 export function shouldClearTaskAlert(tasks: Task[], alert: AlertState | null, nowMs: number) {

@@ -153,12 +153,35 @@ export type Task = {
   dismissedAt?: string;
   alertDismissedAt?: string;
   alertDismissedFor?: string;
+  /**
+   * The alert session key (see `alertSessionKey`) whose chime has already been
+   * played. Shared state, not per-device: the sound is one household event, so
+   * the first screen to play it marks the occurrence and every other screen --
+   * and every subsequent page load, which is where this used to go wrong --
+   * stays quiet. Cleared alongside `alertDismissedFor` whenever the occurrence
+   * itself changes (roll-forward, completion, reschedule).
+   */
+  alertChimedFor?: string;
+  /**
+   * Keep chiming on a cadence until someone dismisses the alert. Off by
+   * default: a reminder announces itself once and then lives in the icon bar.
+   * Only opt a reminder in when missing it actually matters.
+   */
+  annoy?: boolean;
   repeat?: TaskRepeat;
   source: TaskSource;
   sourceId?: string;
   sourceCalendar?: string;
   occurrenceDate?: string;
   readOnly?: boolean;
+  /**
+   * The upstream item has a recurrence rule. Local tasks carry `repeat`
+   * instead; mirrored ones cannot, because `repeat` is local-only (the
+   * roll-forward in tasks.ts must not fight iCloud for control of the
+   * schedule). The reminder icon bar needs to know a mirrored reminder is a
+   * standing chore so it can auto-join the bar, and this is that flag.
+   */
+  recurs?: boolean;
 };
 
 export type RouterMetric = {
@@ -430,6 +453,22 @@ export type DashboardPreferences = {
   voicePersonalityLibraryUpdatedAt?: string;
   update?: UpdatePreferences;
   layout?: LayoutPreferences;
+  phonoscope?: PhonoscopePreferences;
+};
+
+export type PhonoscopePreferences = {
+  activeModuleId?: string;
+  activeModuleVersion?: string;
+  idleBehavior?: "ambient" | "black" | "return";
+  quality?: "auto" | "high" | "balanced" | "performance";
+  statusOverlay?: boolean;
+  transitionMs?: number;
+  providers?: {
+    reccoBeats?: boolean;
+    lrclib?: boolean;
+  };
+  moduleSettings?: Record<string, Record<string, number>>;
+  updatedAt?: string;
 };
 
 export type LayoutPreferences = {

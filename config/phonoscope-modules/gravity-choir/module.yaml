@@ -1,0 +1,25 @@
+engineVersion: 1
+id: gravity-choir
+version: 1.0.0
+name: Gravity Choir
+description: Lyric changes turn singers into temporary attractors.
+dimension: 3d
+bounds: { min: [-2, -1.2, -2], max: [2, 1.2, 2] }
+boundary: wrap
+templates:
+  singer:
+    render: { primitive: sphere, material: phong, color: "=mix(palette.primary, palette.highlight, lyrics.progress)", glow: "=lyrics.pulse" }
+    physics: { mass: 1.4, drag: 0.02, inertia: 0.995, attractorStrength: "=lyrics.pulse * 0.6" }
+    effectSources:
+      - { id: lyric-pull, trigger: lyric, shape: sphere, kind: force, propagation: overlap, strength: 0.6, duration: 0.8, falloff: 0.5 }
+scene:
+  - id: choir
+    field:
+      layout: volume
+      count: 512
+      template: singer
+      topology: radius
+      neighbourRadius: 0.3
+      channels: { charge: 0 }
+resources: { maxParticles: 2048, maxInteractiveFieldEntities: 1024, maxRenderBatches: 12 }
+metadata: { author: Nova, license: Household use, tags: [reference, lyrics, 3d] }

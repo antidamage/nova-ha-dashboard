@@ -77,9 +77,11 @@ export function clientConfigFromDashboardConfig(config: unknown) {
       avatar: dashboard.avatar,
       defaultZoneId: dashboard.defaultZoneId,
       lighting: dashboard.lighting,
+      reminders: dashboard.reminders,
       specialZones: dashboard.specialZones,
       timing: dashboard.timing,
     },
+    tasks: recordValue(root.tasks) ? { alertAudio: recordValue(root.tasks)?.alertAudio } : undefined,
     mapWeather: root.mapWeather,
     theme: root.theme,
   };

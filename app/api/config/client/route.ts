@@ -11,8 +11,12 @@ export async function GET() {
       aircon: config.dashboard.aircon,
       avatar: config.dashboard.avatar,
       lighting: config.dashboard.lighting,
+      reminders: config.dashboard.reminders,
       specialZones: config.dashboard.specialZones,
       timing: config.dashboard.timing,
+    },
+    tasks: {
+      alertAudio: config.tasks.alertAudio,
     },
     mapWeather: config.mapWeather,
     theme: config.theme,
