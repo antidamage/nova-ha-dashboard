@@ -1,0 +1,41 @@
+engineVersion: 1
+id: spectral-membrane
+version: 1.0.0
+name: Spectral Membrane
+description: A 2D lattice carrying bass-driven displacement waves.
+dimension: 2d
+bounds: { min: [-1.7778, -1], max: [1.7778, 1] }
+boundary: { mode: bounce, restitution: 0.78 }
+settings:
+  - { id: intensity, label: Wave Intensity, min: 0, max: 2, step: 0.05, default: 1 }
+templates:
+  node:
+    render:
+      primitive: point
+      material: emissive
+      color: "=mix(palette.primary, palette.highlight, clamp(field.energy, 0, 1))"
+      glow: "=0.1 + field.energy"
+    physics: { mass: 1, drag: 0.08, inertia: 0.94 }
+    effectReceivers:
+      - { accepts: [wave], operation: add, target: field.energy, scale: 1 }
+scene:
+  - id: membrane
+    field:
+      layout: grid
+      resolution: [48, 27]
+      count: 1296
+      template: node
+      topology: grid
+      channels: { energy: 0, displacement: 0 }
+    effectSources:
+      - id: bass-wave
+        trigger: beat
+        shape: circle
+        kind: wave
+        propagation: neighbours
+        strength: "=settings.intensity * (0.25 + audio.bass)"
+        speed: 1.4
+        falloff: 0.72
+        channel: energy
+resources: { maxParticles: 1024, maxInteractiveFieldEntities: 2048, maxRenderBatches: 8 }
+metadata: { author: Nova, license: Household use, tags: [reference, field, 2d] }

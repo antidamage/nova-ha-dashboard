@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { HaState, Task } from "./types";
 
@@ -47,6 +47,15 @@ export type HouseholdEventBatch = {
 const DEFAULT_MAX_EVENTS = 20_000;
 const DEFAULT_PATH = path.join(process.cwd(), "data", "household-events.jsonl");
 
+/**
+ * Compaction rewrites the whole spool, so it has to be amortised. Compacting
+ * the moment retention is exceeded means every append past the bound rewrites
+ * the entire file — roughly 8 MB of disk writes per ~400 byte event. Letting
+ * this fraction of the bound go stale on disk first turns that into one
+ * rewrite per slack window.
+ */
+const COMPACTION_SLACK_RATIO = 0.1;
+
 function validEvent(value: unknown): value is HouseholdEvent {
   if (!value || typeof value !== "object") {
     return false;
@@ -70,6 +79,9 @@ export class HouseholdEventLog {
   private loaded = false;
   private events: HouseholdEvent[] = [];
   private nextCursor = 1;
+  /** Lines the file still holds that retention has already dropped from memory. */
+  private staleLines = 0;
+  private readonly compactionSlack: number;
 
   constructor(
     readonly filePath = process.env.NOVA_DASHBOARD_HOUSEHOLD_EVENTS || DEFAULT_PATH,
@@ -78,6 +90,7 @@ export class HouseholdEventLog {
     if (!Number.isSafeInteger(maxEvents) || maxEvents < 1) {
       throw new Error("Household event retention must be a positive integer");
     }
+    this.compactionSlack = Math.max(1, Math.ceil(maxEvents * COMPACTION_SLACK_RATIO));
   }
 
   private async load() {
@@ -97,6 +110,7 @@ export class HouseholdEventLog {
         throw new Error("Household event log cursors are not strictly increasing");
       }
       this.events = events.slice(-this.maxEvents) as HouseholdEvent[];
+      this.staleLines = events.length - this.events.length;
       const lastEvent = events.at(-1) as HouseholdEvent | undefined;
       this.nextCursor = lastEvent ? lastEvent.cursor + 1 : 1;
     } catch (error) {
@@ -111,8 +125,14 @@ export class HouseholdEventLog {
     await mkdir(path.dirname(this.filePath), { recursive: true });
     const temporary = `${this.filePath}.${process.pid}.${randomUUID()}.tmp`;
     const content = this.events.map((event) => JSON.stringify(event)).join("\n");
-    await writeFile(temporary, content ? `${content}\n` : "", "utf8");
-    await rename(temporary, this.filePath);
+    try {
+      await writeFile(temporary, content ? `${content}\n` : "", "utf8");
+      await rename(temporary, this.filePath);
+    } catch (error) {
+      await rm(temporary, { force: true }).catch(() => undefined);
+      throw error;
+    }
+    this.staleLines = 0;
   }
 
   async append(input: HouseholdEventInput): Promise<HouseholdEvent> {
@@ -137,8 +157,11 @@ export class HouseholdEventLog {
       await mkdir(path.dirname(this.filePath), { recursive: true });
       await appendFile(this.filePath, `${JSON.stringify(event)}\n`, "utf8");
       if (this.events.length > this.maxEvents) {
+        this.staleLines += this.events.length - this.maxEvents;
         this.events.splice(0, this.events.length - this.maxEvents);
-        await this.compact();
+        if (this.staleLines >= this.compactionSlack) {
+          await this.compact();
+        }
       }
       result = event;
     });

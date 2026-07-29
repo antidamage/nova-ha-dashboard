@@ -29,6 +29,8 @@ const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => mod
 const DashboardClimateConfig = dynamic(() => import("./DashboardClimateConfig").then((module) => module.DashboardClimateConfig));
 const GymCounterConfig = dynamic(() => import("./GymCounterConfig").then((module) => module.GymCounterConfig));
 const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
+const PhonoscopeConfig = dynamic(() => import("./PhonoscopeConfig").then((module) => module.PhonoscopeConfig));
+const RemindersConfig = dynamic(() => import("./RemindersConfig").then((module) => module.RemindersConfig));
 const UpdateConfig = dynamic(() => import("./UpdateConfig").then((module) => module.UpdateConfig));
 const UserDataConfig = dynamic(() => import("./UserDataConfig").then((module) => module.UserDataConfig));
 const VoiceConfig = dynamic(() => import("./VoiceConfig").then((module) => module.VoiceConfig));
@@ -100,8 +102,10 @@ const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   appearance: "appearance-dashboard",
   "appearance-dashboard": "appearance-dashboard",
   "status-orb-info": "appearance-dashboard",
+  reminders: "appearance-dashboard",
   climate: "appearance-dashboard",
   "appletv-swipe": "appearance-dashboard",
+  phonoscope: "appearance-dashboard",
   devices: "devices",
   "managed-computers": "devices",
   "hardware-assistant": "devices",
@@ -391,9 +395,11 @@ export function ConfigWorkspace({
                 <ConfigAccordion id="appearance" title="Theme & Experience" icon={<Paintbrush className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
                   <AccentConfig initialSun={initialSun} initialTheme={initialTheme} />
                 </ConfigAccordion>
+                <RemindersConfig />
                 <GymCounterConfig initialSettings={initialWatchface} />
                 <DashboardClimateConfig initialSettings={initialAircon} />
                 <AppleTvSwipeConfig initialSettings={initialSwipe} />
+                <PhonoscopeConfig />
               </>
             ) : null}
             {activeCategory === "devices" ? (

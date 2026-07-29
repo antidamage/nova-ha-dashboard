@@ -1104,6 +1104,9 @@ Task fields:
 - `dismissedAt`
 - `alertDismissedAt`
 - `alertDismissedFor`
+- `alertChimedFor` — alert session key whose chime has been played, shared
+  across every screen
+- `annoy` — repeat the chime until dismissed; off by default
 - `repeat`
 - `source`
 - `sourceId`
@@ -1168,15 +1171,95 @@ Task alerts:
 
 - Server alert scanning runs every second while clients are connected.
 - A task alert is emitted as a rising edge when a task enters its alert window.
-- The client adds `task-alerting` to the body.
-- Overlay/banner UI is shown.
-- Clicking/tapping outside the banner in capture phase dismisses the alert and
-  swallows that tap.
-- Clicking the banner also dismisses the alert.
-- Alert audio plays from `/api/tasks/audio` when an MP3 exists.
-- Audio plays for the configured alert window and repeats every configured
-  repeat interval until dismissed, ended, or completed.
+- Banners are a **per-device opt-in**, off by default:
+  `nova.dashboard.reminderBanner.v1`
+  (`app/components/dashboard/reminderBannerSetting.ts`), surfaced as the
+  Reminder Banners checkbox in Appearance & Dashboard → Reminders. The switch
+  covers the bottom bar and the full-screen overlay. It does **not** govern the
+  sound cadence — that is per-reminder, see below.
+- With banners ENABLED:
+  - The client adds `task-alerting` to the body.
+  - Overlay/banner UI is shown.
+  - Clicking/tapping outside the banner in capture phase dismisses the alert
+    and swallows that tap.
+  - Clicking the banner also dismisses the alert.
+- With banners DISABLED:
+  - No bottom bar and no overlay are rendered, and the capture-phase tap
+    swallow is not installed — it would otherwise eat taps meant for the
+    reminder icon bar.
+
+Alert audio:
+
+- Audio plays from `/api/tasks/audio` when an MP3 exists.
+- A reminder chimes **once per occurrence, household-wide**. The first screen
+  to play it claims the occurrence via `POST /api/tasks/:id/chimed`, which sets
+  `alertChimedFor` to the alert session key and broadcasts the task. Every
+  other screen — and every subsequent page load, which is where a still-active
+  reminder used to re-chime on every refresh — sees the claim and stays quiet.
+  Dismissing the alert also spends the chime, so a dismissal implies silence
+  even if the sound never actually played.
+- `alertChimedFor` is cleared exactly where `alertDismissedFor` is: repeat
+  roll-forward, completion, and any reschedule that moves `start`/`end`. A new
+  occurrence gets a new chime.
+- A reminder with `annoy: true` (the "Keep chiming until dismissed" checkbox in
+  the reminder editor) is exempt: it repeats on the configured interval until
+  dismissed, ended, or completed, and ignores the once-per-occurrence claim.
+  Off by default.
+- Audio window and repeat interval come from `tasks.alertAudio.alertWindowMs`
+  and `tasks.alertAudio.repeatMs`, delivered over `/api/config/client`.
 - Browser audio blocking is logged rather than treated as fatal.
+
+Reminder icon bar:
+
+- A fixed row of sigils between the clock and zones panels
+  (`app/components/dashboard/ReminderIconBar.tsx`), rendered on every device
+  regardless of the banner setting.
+- Placement by layout:
+  - Portrait / narrow: a full-width row spanning the shell, between the clock
+    and the zones panel.
+  - Wide landscape (`min-width: 1126px` and `orientation: landscape`): the bar
+    moves into the 300px sidebar column, centred under the status orb — which
+    the same breakpoint centres on that column — and sitting directly on top of
+    the zones menu. Tiles wrap within the column width rather than overflowing
+    it, so a full roster reads as two short rows.
+- Sigils come from a curated Phosphor catalogue (`lib/reminder-glyph.ts`,
+  joined to components in `app/components/reminders/icon-registry.tsx`) plus a
+  1-2 character text glyph option for reminders that are a letter ("E").
+- Assignments live in `lib/reminder-icons.ts`, keyed on the **normalised
+  reminder name**, not the task id — iCloud mirrors are regenerated with fresh
+  ids on every sync, and `updateTask` refuses to write to a mirrored task at
+  all, so a name key is the only way a read-only Apple reminder can carry a
+  user-chosen icon.
+- Assignment order on first sight of a reminder: existing entry (a user choice
+  is permanently sticky) → keyword table → LLM → generic bell. The LLM step is
+  asynchronous and best-effort; it never blocks or fails a reminder write.
+- The LLM is reached at `POST /v1/classify-icon` on the voice orchestrator,
+  which proxies to the loopback-bound `llama-server`. The catalogue id list is
+  sent as an allow-list, compiled into the response schema as an enum and
+  re-validated on both sides.
+- Bar membership: a repeating reminder (local `repeat`, or an iCloud RRULE
+  recorded as `Task.recurs`) auto-joins; one-offs get a sigil but no tile.
+  Toggling membership by hand sets `showInBarLocked` and the auto rule stops
+  applying to that reminder.
+- Tile state: dimmed to `dashboard.reminders.inactiveOpacity` when nothing is
+  due, full opacity when due or active, and a slow glow pulse in the orb's
+  alert colour once overdue past `dashboard.reminders.overduePulseAfterMs`.
+  The pulse colour is published as `--nova-alert-rgb` from the theme's avatar
+  `gradientAlert` slot.
+- Overdue is `isTaskOverdue` in `app/components/tasks/task-model.ts`, a
+  separate axis from `statusForTask` (which collapses everything past its end
+  into "Done"). Note a repeating LOCAL task that has an end rolls itself
+  forward and so is never overdue; end-less reminders and iCloud mirrors are
+  what actually reach the state.
+- Tapping a tile completes its reminder. Pressing and holding for
+  `undoHoldMs` within `undoWindowMs` of that tap restores it through
+  `POST /api/tasks/[id]/uncomplete`, which replays a pre-completion snapshot —
+  completing a repeating reminder also rolls it to the next occurrence, so
+  clearing `dismissedAt` alone would not undo anything.
+- Lite mode: everything animated here is CSS, so the `html[data-nova-lite] *`
+  kill-switch neutralises the pulse. No rAF, no canvas, no polling of its own
+  (the 1s tick and the task feed are both shared), so no `useLiteMode()` gate
+  is required.
 
 Task import/export:
 
@@ -1875,6 +1958,8 @@ Tasks:
 - `PATCH /api/tasks/[id]`: update task.
 - `DELETE /api/tasks/[id]`: delete task.
 - `POST /api/tasks/[id]/dismiss`: dismiss reminder alert only.
+- `POST /api/tasks/[id]/chimed`: claim this occurrence's chime so no other
+  screen and no later page load replays it.
 - `POST /api/tasks/[id]/complete`: complete task.
 - `GET /api/tasks/audio`: return reminder MP3 or status when `?status=1`.
 - `POST /api/tasks/audio`: upload reminder MP3 using multipart form data.
@@ -2505,6 +2590,11 @@ must declare its lite behavior.
   fields, `[role="slider"]`, contenteditable, the maplibre map, inner scroll
   regions, and `data-nova-no-drag-scroll` opt-outs are skipped. It is a direct
   1:1 input (no easing/animation), so it is not gated by lite or reduced-motion.
+- **Reminder icon bar** (§19): renders identically — the tiles, their
+  dim/lit opacity, and tap-to-complete are all unaffected. Only the overdue
+  glow pulse stops animating, holding its first keyframe (no glow, still full
+  opacity, still the alert colour). No gate is needed: the animation is plain
+  CSS, and the component adds no timers or streams of its own.
 - **Task glow**: the inset blur stacks are flattened via CSS overrides on the
   consuming rules (the `--task-glow-*` vars are inline styles on `<html>`, so
   the vars themselves cannot be overridden from a stylesheet).
