@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import {
   BUILTIN_PHONOSCOPE_MODULE_YAML,
   compilePhonoscopeExpression,
@@ -6,6 +8,26 @@ import {
 } from "./phonoscope";
 
 describe("Phonoscope module compiler", () => {
+  it("publishes the Particle Ripples trail-length control", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "config", "phonoscope-modules", "particle-ripples", "module.yaml"),
+      "utf8",
+    );
+    const result = compilePhonoscopeYaml(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.module.version).toBe("1.4.0");
+    expect(result.module.settings.find((setting) => setting.id === "trail_length")).toMatchObject({
+      control: "slider",
+      min: 0,
+      max: 16,
+      step: 0.5,
+      default: 7,
+      affects: ["templates.particle.render.trailLength"],
+    });
+    expect(JSON.stringify(result.module.templates.particle)).toContain("settings.trail_length");
+  });
+
   it("compiles the resilient built-in module and its field", () => {
     const result = compilePhonoscopeYaml(BUILTIN_PHONOSCOPE_MODULE_YAML);
     expect(result.ok).toBe(true);
