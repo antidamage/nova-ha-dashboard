@@ -1,0 +1,13 @@
+[Unit]
+Description=Periodically repair Tuya Local devices after DHCP/key drift
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+Persistent=true
+Unit=nova-tuya-local-repair.service
+
+[Install]
+WantedBy=timers.target
+

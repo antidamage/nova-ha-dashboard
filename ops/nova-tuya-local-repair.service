@@ -1,0 +1,17 @@
+[Unit]
+Description=Repair verified Tuya Local host/key drift on Nova
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+ConditionPathExists=/opt/nova-ha-dashboard/scripts/tuya-local-repair.sh
+
+[Service]
+Type=oneshot
+User=antidamage
+SupplementaryGroups=docker
+RuntimeDirectory=nova-tuya-local-repair
+RuntimeDirectoryMode=0750
+ExecStart=/usr/bin/flock -n /run/nova-tuya-local-repair/lock /usr/bin/bash /opt/nova-ha-dashboard/scripts/tuya-local-repair.sh --apply
+TimeoutStartSec=5min
+Nice=10
+
