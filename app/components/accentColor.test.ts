@@ -3,6 +3,7 @@ import { createElement, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   normalizeThemeSet,
+  mixDeviceThemeColors,
   useDeviceTheme,
   type ThemeStorageValue,
 } from "./accentColor";
@@ -122,6 +123,21 @@ afterEach(() => {
 });
 
 describe("accentColor theme normalization", () => {
+  it("interpolates only colours for a House Party override", () => {
+    const configured = normalizeThemeSet(null).themes.dark;
+    const target = structuredClone(normalizeThemeSet(null).themes.light);
+    target.accent = { ...target.accent, intensity: 100, rgb: [255, 0, 0] };
+    target.font = { ...target.font, id: "rajdhani", sizeOffset: 80 };
+    target.backgroundEffect = { ...target.backgroundEffect, warpAmplitude: 220 };
+    target.avatar = { ...target.avatar, orbModule: "halo" };
+
+    const mixed = mixDeviceThemeColors(configured, target, 1);
+    expect(mixed.accent).toEqual(target.accent);
+    expect(mixed.font).toEqual(configured.font);
+    expect(mixed.backgroundEffect).toEqual(configured.backgroundEffect);
+    expect(mixed.avatar.orbModule).toBe(configured.avatar.orbModule);
+  });
+
   it("preserves intentional zero-intensity status-orb gym counter colors from cached theme sets", () => {
     // Partial avatars on purpose: this exercises the runtime normalisation of
     // a cached theme that stored only the gym counter fields.

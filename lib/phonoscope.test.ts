@@ -10,22 +10,73 @@ import {
 describe("Phonoscope module compiler", () => {
   it("publishes the Particle Ripples trail-length control", () => {
     const source = readFileSync(
-      path.join(process.cwd(), "config", "phonoscope-modules", "particle-ripples", "module.yaml"),
+      path.join(process.cwd(), "..", "nova-visualiser-modules", "particle-ripples", "module.yaml"),
       "utf8",
     );
     const result = compilePhonoscopeYaml(source);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.module.version).toBe("1.4.0");
+    expect(result.module.version).toBe("1.7.0");
+    expect(result.module.packageName).toBe("nz.skull.nova.visualiser.particle-ripples");
     expect(result.module.settings.find((setting) => setting.id === "trail_length")).toMatchObject({
       control: "slider",
       min: 0,
-      max: 16,
+      max: 500,
       step: 0.5,
       default: 7,
       affects: ["templates.particle.render.trailLength"],
     });
+    expect(result.module.settings.find((setting) => setting.id === "offset_magnifier")).toMatchObject({
+      control: "slider",
+      default: 1,
+      min: 0,
+      max: 50,
+      step: 0.5,
+    });
     expect(JSON.stringify(result.module.templates.particle)).toContain("settings.trail_length");
+    expect(result.module.settings.find((setting) => setting.id === "complexity")).toMatchObject({
+      min: 0.2,
+      max: 1,
+      default: 0.6,
+      affects: ["scene.particle-grid.field.density"],
+    });
+    expect(result.module.settings.find((setting) => setting.id === "grid_wireframe")).toMatchObject({
+      control: "toggle",
+      min: 0,
+      max: 1,
+      step: 1,
+      default: 0,
+      affects: ["scene.particle-grid.field.wireframe"],
+    });
+    expect(JSON.stringify(result.module.scene)).toContain("settings.grid_wireframe");
+  });
+
+  it("compiles the Hypervault 3D architectural shockwave module", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "..", "nova-visualiser-modules", "hypervault", "module.yaml"),
+      "utf8",
+    );
+    const result = compilePhonoscopeYaml(source);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.module).toMatchObject({
+      id: "hypervault",
+      packageName: "nz.skull.nova.visualiser.hypervault",
+      version: "1.1.0",
+      dimension: "3d",
+      resources: { maxParticles: 5000, maxInteractiveFieldEntities: 4032 },
+    });
+    expect(result.module.settings.find((setting) => setting.id === "downbeat_impact")).toMatchObject({
+      control: "slider",
+      default: 1.35,
+    });
+    expect(result.module.settings.find((setting) => setting.id === "complexity")).toMatchObject({
+      min: 0.2,
+      max: 1,
+      default: 0.45,
+      affects: ["scene.vault-field.field.density"],
+    });
+    expect(JSON.stringify(result.module.scene)).toContain("settings.downbeat_impact");
   });
 
   it("compiles the resilient built-in module and its field", () => {
@@ -110,6 +161,8 @@ bounds: { min: [-1, -1], max: [1, 1] }
 settings:
   - id: flash
     label: Flash
+    section: physics
+    updateMode: structural
     description: Shapes the crest.
     control: slider
     min: 0
@@ -139,6 +192,8 @@ scene: [{ template: dot }]
       control: "slider",
       curve: { type: "power", exponent: 2.2 },
       affects: ["templates.dot.render.glow"],
+      section: "physics",
+      updateMode: "structural",
     });
     expect(result.module.settings[1]).toMatchObject({ control: "toggle", min: 0, max: 1, step: 1 });
     expect(result.module.settings[2]).toMatchObject({

@@ -1,7 +1,7 @@
 "use client";
 
-import { Flame, Power, PowerOff, Sun } from "lucide-react";
-import { useCallback, useMemo, useRef } from "react";
+import { Flame, PartyPopper, Power, PowerOff, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DashboardPreferences,
   DashboardZone,
@@ -200,6 +200,31 @@ export function ZoneControls({
   const hasLightDevices = lightEntities.length > 0;
   const hasActiveLights = lightEntities.some(dashboardEntityIsOn);
   const statDomains = countDomainsForZone(zone);
+  const persistedHouseParty = preferences?.lighting?.housePartyZones?.[zone.id]?.enabled ?? false;
+  const [housePartyEnabled, setHousePartyEnabled] = useState(persistedHouseParty);
+  const [housePartyBusy, setHousePartyBusy] = useState(false);
+
+  useEffect(() => {
+    setHousePartyEnabled(persistedHouseParty);
+  }, [persistedHouseParty, zone.id]);
+
+  const toggleHouseParty = useCallback(async () => {
+    const enabled = !housePartyEnabled;
+    setHousePartyEnabled(enabled);
+    setHousePartyBusy(true);
+    try {
+      const response = await fetch(`/api/phonoscope/house-party/zones/${encodeURIComponent(zone.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!response.ok) throw new Error("House Party setting failed");
+    } catch {
+      setHousePartyEnabled(!enabled);
+    } finally {
+      setHousePartyBusy(false);
+    }
+  }, [housePartyEnabled, zone.id]);
 
   const rememberSpectrum = useCallback(
     (value: SpectrumValue) => {
@@ -282,6 +307,29 @@ export function ZoneControls({
           ) : (
             <>
               {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
+              <section className="border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
+                    <div>
+                      <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
+                      <p className="text-sm text-neutral-400">Allow Phonoscope to animate this zone&apos;s lights.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={housePartyEnabled}
+                    disabled={housePartyBusy || !hasLightDevices}
+                    className={`min-w-20 border px-3 py-2 font-black uppercase ${
+                      housePartyEnabled ? "border-fuchsia-300 bg-fuchsia-400 text-black" : "border-neutral-600 bg-black text-neutral-300"
+                    } disabled:opacity-40`}
+                    onClick={() => void toggleHouseParty()}
+                  >
+                    {housePartyEnabled ? "On" : "Off"}
+                  </button>
+                </div>
+              </section>
               <SpectrumPad
                 disabled={!hasActiveLights}
                 brightness={brightness}

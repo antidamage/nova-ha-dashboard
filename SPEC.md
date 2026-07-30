@@ -1837,6 +1837,47 @@ or browser responses.
 
 All routes are under `app/api`.
 
+Phonoscope track timing:
+
+- `POST /api/phonoscope/tracks/resolve` accepts Apple Music track identity and
+  returns Nova's complete cached analysis, including the canonical
+  `beatTimes` array. Beat timing resolves in strict order: Spotify Audio
+  Analysis when server credentials and endpoint access are available; a
+  duration- and metadata-matched Songle recording; the household's optional
+  Essentia service configured by `NOVA_PHONOSCOPE_ESSENTIA_URL`; and finally
+  the existing ReccoBeats tempo materialised into a uniform beat grid. Spotify
+  credentials are read only from `NOVA_SPOTIFY_CLIENT_ID` and
+  `NOVA_SPOTIFY_CLIENT_SECRET`. Clients never contact any provider directly.
+- The first resolution for a track is written atomically beneath
+  `data/phonoscope/tracks`. Concurrent cache misses share one in-flight
+  resolution, and subsequent resolutions are disk-cache reads, so a track
+  cannot produce a provider request stampede. Lower-priority beat providers
+  are not queried after a higher-priority provider returns a usable timeline.
+- Older cached analyses are upgraded locally by materialising their BPM and
+  beat offset into a version-2 beat timeline; this migration does not refetch
+  upstream data. Manual BPM/offset overrides regenerate the cached timeline
+  locally for the same reason.
+- `GET /api/phonoscope/tracks/<trackKey>/beats` is the immutable Nova
+  pass-through representation for other household clients. It serves only an
+  existing Nova cache entry and never falls through to an upstream provider.
+- House Party predicts lighting independently for local HA lights and
+  cloud-backed Tuya lights. The tvOS source samples the shared beat timeline
+  250 ms ahead for local devices and 1.10 s ahead for cloud devices; the
+  dashboard applies those predicted brightness values through their respective
+  service paths.
+- The Phonoscope configuration exposes a `housePartyRandomHueOffset` magnitude
+  from 0° (the default) through 180°. Every affected light independently samples
+  a continuous random offset from `[-magnitude, +magnitude]` for every House
+  Party command; the rotation preserves the supplied colour's saturation and
+  value. Per-entity HA calls are therefore intentional.
+- The Apple TV publishes the authoritative track key, playback position,
+  duration, play/pause state, and sample time with House Party frames.
+  `GET /api/phonoscope/house-party/clock` advances that observation to server
+  time. The web dashboard samples it every five seconds and corrects for half
+  the measured round trip before publishing the resulting wall-clock/track
+  offset in the `nova-house-party-clock-sync` window event. Other clients use
+  the same endpoint and algorithm.
+
 State and realtime:
 
 - `GET /api/state`: build and return dashboard state, publish state event.

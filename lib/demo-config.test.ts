@@ -104,6 +104,15 @@ describe("demo config storage", () => {
 
     const reread = await (await fetch("/api/theme")).json();
     expect(reread.theme.themes.dark.accent.rgb).toEqual([1, 2, 3]);
+
+    const settingResponse = await fetch("/api/theme", {
+      body: JSON.stringify({ followVisualizerWhenActive: true }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const settingPayload = await settingResponse.json();
+    expect(settingPayload.followVisualizerWhenActive).toBe(true);
+    expect(settingPayload.theme.themes.dark.accent.rgb).toEqual([1, 2, 3]);
     expect(nativeFetch).not.toHaveBeenCalled();
   });
 

@@ -1399,6 +1399,45 @@ export function AccentConfig({
     themeScope,
     themeSet,
   } = useDeviceTheme(initialTheme, initialSun);
+  const [followVisualizerWhenActive, setFollowVisualizerWhenActive] = useState(false);
+  const [followVisualizerError, setFollowVisualizerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/theme", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Shared config request failed: ${response.status}`);
+        const payload = await response.json() as { followVisualizerWhenActive?: boolean };
+        if (!cancelled) setFollowVisualizerWhenActive(payload.followVisualizerWhenActive === true);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setFollowVisualizerError(error instanceof Error ? error.message : "Failed to load shared config");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const updateFollowVisualizerWhenActive = useCallback(async (checked: boolean) => {
+    const previous = followVisualizerWhenActive;
+    setFollowVisualizerWhenActive(checked);
+    setFollowVisualizerError(null);
+    try {
+      const response = await fetch("/api/theme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followVisualizerWhenActive: checked }),
+      });
+      if (!response.ok) throw new Error(`Shared config update failed: ${response.status}`);
+      const payload = await response.json() as { followVisualizerWhenActive?: boolean };
+      setFollowVisualizerWhenActive(payload.followVisualizerWhenActive === true);
+    } catch (error) {
+      setFollowVisualizerWhenActive(previous);
+      setFollowVisualizerError(error instanceof Error ? error.message : "Failed to save shared config");
+    }
+  }, [followVisualizerWhenActive]);
 
   // The shared/local scope switch has been retired: the editor always targets
   // the shared host theme so loaded themes and edits reach every dashboard.
@@ -1903,6 +1942,17 @@ export function AccentConfig({
           </div>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
+            <CheckboxRow
+              checked={followVisualizerWhenActive}
+              label="Follow visualiser when active"
+              detail={
+                followVisualizerWhenActive
+                  ? "Dashboard colours temporarily blend into the active visualiser theme"
+                  : "Dashboard colours remain on the selected theme"
+              }
+              onChange={(checked) => void updateFollowVisualizerWhenActive(checked)}
+            />
+            {followVisualizerError ? <p className="theme-library-error">{followVisualizerError}</p> : null}
             <ThemeLibraryControl
               activeId={library.library.activeId}
               dirty={dirty}

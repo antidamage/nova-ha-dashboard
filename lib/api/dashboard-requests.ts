@@ -141,7 +141,11 @@ export function sharedThemeValue(value: unknown) {
     return null;
   }
 
-  const { autoFullscreenOnLoad: _localOnly, ...sharedTheme } = theme;
+  const {
+    autoFullscreenOnLoad: _localOnly,
+    followVisualizerWhenActive: _sharedConfigOnly,
+    ...sharedTheme
+  } = theme;
   const themes = recordValue(sharedTheme.themes);
   if (themes) {
     sharedTheme.themes = Object.fromEntries(

@@ -47,6 +47,11 @@ function trimmedName(value: unknown, fallback: string): string {
   return text.slice(0, THEME_LIBRARY_MAX_NAME_LENGTH);
 }
 
+function themeSetWithoutSharedConfig(value: Record<string, unknown>) {
+  const { followVisualizerWhenActive: _sharedConfigOnly, ...themeSet } = value;
+  return themeSet;
+}
+
 /**
  * A reasonably-unique id that works without crypto in any runtime. Library
  * entries are low-volume and user-named, so collision resistance only needs to
@@ -94,7 +99,7 @@ export function normalizeThemeLibrary(value: unknown): ThemeLibrary {
       name: trimmedName(entry.name, "Untitled theme"),
       createdAt,
       updatedAt: isoStringOr(entry.updatedAt, createdAt),
-      themeSet,
+      themeSet: themeSetWithoutSharedConfig(themeSet),
     });
   }
 

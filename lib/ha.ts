@@ -29,6 +29,13 @@ import { isEntityOn } from "./entity-semantics";
 import { DEFAULT_SUPPORT_SWITCH_RE } from "./ha/entities";
 import { lightLayerEntities } from "./ha/zones";
 import { buildDashboardState } from "./state";
+import {
+  deferLightingForHouseParty,
+  housePartyIgnoresBrightness,
+  isHousePartyZoneSuppressed,
+  setHousePartyZonePower,
+} from "./house-party-coordinator";
+import { housePartyNativeTransitionSeconds, randomHueOffsetRgb } from "./house-party";
 
 // lib/ha is the back-compat barrel + the lighting/entity command surface. The
 // state projection, registry, router, weather and climate logic now live in
@@ -330,6 +337,7 @@ export async function setZoneAction(input: {
   rgb?: [number, number, number];
   signal?: AbortSignal;
   traceId?: string;
+  housePartyBypass?: boolean;
 }) {
   const dashboard = await buildDashboardState();
   assertLatestCommandCurrent(input);
@@ -337,6 +345,34 @@ export async function setZoneAction(input: {
 
   if (!zone) {
     throw new Error(`Unknown zone: ${input.zoneId}`);
+  }
+
+  const isEffectiveOff = input.action === "off"
+    || (input.action === "brightness" && Math.round(input.brightnessPct ?? 0) === 0);
+  if (input.action === "on" || isEffectiveOff) {
+    const targetIds = new Set(zone.entities.map((entity) => entity.entity_id));
+    for (const candidate of dashboard.zones) {
+      if (candidate.entities.some((entity) => targetIds.has(entity.entity_id))) {
+        setHousePartyZonePower(candidate.id, input.action === "on");
+      }
+    }
+  }
+  if (!input.housePartyBypass && !isEffectiveOff && input.action !== "on") {
+    const deferredInput = {
+      zoneId: input.zoneId,
+      action: input.action,
+      brightnessPct: input.brightnessPct,
+      rgb: input.rgb,
+      traceId: input.traceId,
+      housePartyBypass: true,
+    };
+    const deferred = deferLightingForHouseParty(`zone:${input.zoneId}`, async () => {
+      await setZoneAction(deferredInput);
+    });
+    const applyBrightnessNow = input.action === "brightness" && housePartyIgnoresBrightness();
+    if (deferred && !applyBrightnessNow) {
+      return dashboard;
+    }
   }
 
   const lights = zone.entities.filter((entity) => entity.domain === "light");
@@ -481,6 +517,190 @@ export async function setZoneAction(input: {
   return buildDashboardState();
 }
 
+export type HousePartyLightingFrame = {
+  rgb: [number, number, number];
+  brightnessPct?: number;
+  cloudBrightnessPct?: number;
+  transitionSeconds?: number;
+};
+
+const HOUSE_PARTY_STATE_CACHE_MS = 500;
+const HOUSE_PARTY_CLOUD_FRAME_INTERVAL_MS = 200;
+const HOUSE_PARTY_DEVICE_CALL_TIMEOUT_MS = 900;
+let housePartyStateCache: { expiresAt: number; state: DashboardState } | null = null;
+let lastHousePartyCloudFrameAt = 0;
+const lastHousePartyNativeFrameAt = new Map<string, number>();
+
+type HousePartyLightSnapshot = {
+  entityId: string;
+  serviceData: Record<string, unknown>;
+};
+
+function finiteNumberArray(value: unknown, length: number) {
+  if (!Array.isArray(value) || value.length !== length) return null;
+  const numbers = value.map(Number);
+  return numbers.every(Number.isFinite) ? numbers : null;
+}
+
+function callHousePartyLight(
+  entityId: string,
+  payload: Record<string, unknown>,
+  signal?: AbortSignal,
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HOUSE_PARTY_DEVICE_CALL_TIMEOUT_MS);
+  const abort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", abort, { once: true });
+  return callService("light", "turn_on", payload, {
+    latestKey: `lighting:house-party:${entityId}`,
+    signal: controller.signal,
+  }).finally(() => {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  });
+}
+
+/**
+ * Captures only the colour-capable, currently-on lights that House Party is
+ * allowed to animate. On/off-only lights are deliberately absent, so neither
+ * the party nor its teardown touches devices such as the lounge neons.
+ */
+export async function captureHousePartyLightingRestore() {
+  const dashboard = await buildDashboardState();
+  const enabledZones = dashboard.preferences.lighting?.housePartyZones ?? {};
+  const snapshots = new Map<string, HousePartyLightSnapshot>();
+
+  for (const zone of dashboard.zones) {
+    if (!enabledZones[zone.id]?.enabled) continue;
+    for (const entity of zone.entities) {
+      if (
+        entity.domain !== "light"
+        || entity.state !== "on"
+        || !supportsColor(entity)
+        || snapshots.has(entity.entity_id)
+      ) continue;
+
+      const serviceData: Record<string, unknown> = { entity_id: entity.entity_id };
+      const brightness = numericAttribute(entity, "brightness");
+      if (brightness !== null) serviceData.brightness = Math.max(1, Math.min(255, Math.round(brightness)));
+
+      const colorMode = String(entity.attributes.color_mode ?? "");
+      const colorAttribute = colorMode === "color_temp"
+        ? (numericAttribute(entity, "color_temp_kelvin") !== null ? "color_temp_kelvin" : "color_temp")
+        : colorMode === "hs" ? "hs_color"
+        : colorMode === "xy" ? "xy_color"
+        : colorMode === "rgbw" ? "rgbw_color"
+        : colorMode === "rgbww" ? "rgbww_color"
+        : "rgb_color";
+      const colorLength = colorAttribute === "hs_color" || colorAttribute === "xy_color" ? 2
+        : colorAttribute === "rgbw_color" ? 4
+        : colorAttribute === "rgbww_color" ? 5
+        : colorAttribute === "rgb_color" ? 3
+        : 0;
+      if (colorLength) {
+        const color = finiteNumberArray(entity.attributes[colorAttribute], colorLength);
+        if (color) serviceData[colorAttribute] = color;
+      } else {
+        const temperature = numericAttribute(entity, colorAttribute);
+        if (temperature !== null) serviceData[colorAttribute] = Math.round(temperature);
+      }
+      snapshots.set(entity.entity_id, { entityId: entity.entity_id, serviceData });
+    }
+  }
+
+  return async () => {
+    await Promise.all(
+      [...snapshots.values()].map(({ entityId, serviceData }) =>
+        callService("light", "turn_on", serviceData, {
+          latestKey: `lighting:${entityId}`,
+        })),
+    );
+  };
+}
+
+export async function applyHousePartyLightingFrame(
+  frame: HousePartyLightingFrame,
+  signal?: AbortSignal,
+) {
+  const now = Date.now();
+  const dashboard = housePartyStateCache && housePartyStateCache.expiresAt > now
+    ? housePartyStateCache.state
+    : await buildDashboardState();
+  housePartyStateCache = { expiresAt: now + HOUSE_PARTY_STATE_CACHE_MS, state: dashboard };
+  const enabledZones = dashboard.preferences.lighting?.housePartyZones ?? {};
+  const randomHueOffset = Math.max(
+    0,
+    Math.min(180, Number(dashboard.preferences.phonoscope?.housePartyRandomHueOffset) || 0),
+  );
+  const entityIds = new Set<string>();
+  const affectedZoneIds: string[] = [];
+
+  for (const zone of dashboard.zones) {
+    if (!enabledZones[zone.id]?.enabled || isHousePartyZoneSuppressed(zone.id)) continue;
+    let affected = false;
+    for (const entity of zone.entities) {
+      if (
+        entity.domain !== "light"
+        || entity.state !== "on"
+        || !supportsColor(entity)
+        || ["unavailable", "unknown"].includes(entity.state)
+      ) continue;
+      entityIds.add(entity.entity_id);
+      affected = true;
+    }
+    if (affected) affectedZoneIds.push(zone.id);
+  }
+
+  if (!entityIds.size) return { affectedZoneIds, entityIds: [] as string[], state: dashboard };
+  const localEntityIds = [...entityIds].filter((entityId) => !entityId.startsWith("light.tuya_mobile_"));
+  const cloudEntityIds = [...entityIds].filter((entityId) => entityId.startsWith("light.tuya_mobile_"));
+  const calls: Promise<unknown>[] = [];
+  for (const entityId of localEntityIds) {
+    const localPayload: Record<string, unknown> = {
+      entity_id: entityId,
+      rgb_color: randomHueOffsetRgb(frame.rgb, randomHueOffset),
+    };
+    const entity = dashboard.entities.find((candidate) => candidate.entity_id === entityId);
+    const transition = housePartyNativeTransitionSeconds(
+      entity?.attributes.supported_features,
+      frame.transitionSeconds,
+    );
+    if (transition !== undefined) {
+      const earliestNextFrame = (lastHousePartyNativeFrameAt.get(entityId) ?? 0) + transition * 900;
+      if (now < earliestNextFrame) continue;
+      lastHousePartyNativeFrameAt.set(entityId, now);
+      localPayload.transition = transition;
+    }
+    if (typeof frame.brightnessPct === "number") {
+      localPayload.brightness_pct = Math.max(5, Math.min(100, Math.round(frame.brightnessPct)));
+    }
+    calls.push(callHousePartyLight(entityId, localPayload, signal));
+  }
+  if (cloudEntityIds.length && now - lastHousePartyCloudFrameAt >= HOUSE_PARTY_CLOUD_FRAME_INTERVAL_MS) {
+    lastHousePartyCloudFrameAt = now;
+    const cloudBrightness = frame.cloudBrightnessPct ?? frame.brightnessPct;
+    for (const entityId of cloudEntityIds) {
+      const cloudPayload: Record<string, unknown> = {
+        entity_id: entityId,
+        rgb_color: randomHueOffsetRgb(frame.rgb, randomHueOffset),
+      };
+      if (typeof cloudBrightness === "number") {
+        cloudPayload.brightness_pct = Math.max(5, Math.min(100, Math.round(cloudBrightness)));
+      }
+      calls.push(callHousePartyLight(entityId, cloudPayload, signal));
+    }
+  }
+  for (const call of calls) {
+    void call.catch((error) => {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.warn("[nova-dashboard] House Party light update failed", error);
+      }
+    });
+  }
+  return { affectedZoneIds, entityIds: [...entityIds], state: dashboard };
+}
+
 export async function setZoneLightingAction(input: {
   zoneId: string;
   action: "on" | "off";
@@ -497,6 +717,12 @@ export async function setZoneLightingAction(input: {
 
   if (!zone) {
     throw new Error(`Unknown zone: ${input.zoneId}`);
+  }
+  const targetIdsForPower = new Set(zone.entities.map((entity) => entity.entity_id));
+  for (const candidate of dashboard.zones) {
+    if (candidate.entities.some((entity) => targetIdsForPower.has(entity.entity_id))) {
+      setHousePartyZonePower(candidate.id, input.action === "on");
+    }
   }
 
   const entityIds = input.entityIds ? new Set(input.entityIds) : null;
@@ -559,6 +785,7 @@ export async function setAllLightingAction(input: {
   traceId?: string;
 }) {
   const dashboard = await buildDashboardState();
+  setHousePartyZonePower("*", input.action === "on");
   assertLatestCommandCurrent(input);
   const entityIds = input.entityIds ? new Set(input.entityIds) : null;
   const targets = uniqueDashboardEntities(lightLayerEntities(dashboard.entities))
@@ -608,7 +835,12 @@ export async function setAllLightingAction(input: {
   return buildDashboardState();
 }
 
-export async function applyAdaptiveCandlelightTransitions() {
+export async function applyAdaptiveCandlelightTransitions(housePartyBypass = false) {
+  if (!housePartyBypass && deferLightingForHouseParty("automation:adaptive-candlelight", async () => {
+    await applyAdaptiveCandlelightTransitions(true);
+  })) {
+    return null;
+  }
   const dashboard = await buildDashboardState();
   const sunState = normalizedSunState(dashboard.sun);
   if (!sunState) {
@@ -662,7 +894,12 @@ export async function applyAdaptiveCandlelightTransitions() {
   return applied ? buildDashboardState() : null;
 }
 
-export async function applyLightingIntensityThresholds() {
+export async function applyLightingIntensityThresholds(housePartyBypass = false) {
+  if (!housePartyBypass && deferLightingForHouseParty("automation:intensity-thresholds", async () => {
+    await applyLightingIntensityThresholds(true);
+  })) {
+    return null;
+  }
   const dashboard = await buildDashboardState();
   const tasks: Promise<unknown>[] = [];
 
@@ -743,7 +980,12 @@ function pinnedLightNeedsReapply(entity: DashboardEntity, payload: Record<string
  * snapped to its preset (e.g. the conservatory always warm-white at 100%),
  * reapplying only when its live state has drifted. Off fixtures are left off.
  */
-export async function applyPinnedLightPresets() {
+export async function applyPinnedLightPresets(housePartyBypass = false) {
+  if (!housePartyBypass && deferLightingForHouseParty("automation:pinned-presets", async () => {
+    await applyPinnedLightPresets(true);
+  })) {
+    return null;
+  }
   const dashboard = await buildDashboardState();
   const pinnedPresets = (dashboard.lighting.entityPresets ?? []).filter((preset) => preset.pinned);
   if (!pinnedPresets.length) {
@@ -781,6 +1023,7 @@ export async function setEntityAction(input: {
   remember?: Parameters<typeof mergeDashboardPreferences>[0];
   signal?: AbortSignal;
   traceId?: string;
+  housePartyBypass?: boolean;
 }) {
   const allowed: Record<HaDomain, string[]> = {
     light: ["turn_on", "turn_off", "toggle"],
@@ -819,10 +1062,27 @@ export async function setEntityAction(input: {
   }
 
   try {
-    const serviceData = {
+    let serviceData = {
       entity_id: input.entityId,
       ...(input.data ?? {}),
     };
+    if (input.domain === "light" && input.service === "turn_on" && !input.housePartyBypass) {
+      const styleKeys = ["brightness", "brightness_pct", "color_temp", "color_temp_kelvin", "hs_color", "rgb_color", "rgbw_color", "rgbww_color", "xy_color"];
+      const presentStyleKeys = styleKeys.filter((key) => key in serviceData);
+      const hasStyle = presentStyleKeys.length > 0;
+      const hasOnlyBrightness = presentStyleKeys.every((key) => key === "brightness" || key === "brightness_pct");
+      const deferred = hasStyle && deferLightingForHouseParty(`entity:${input.entityId}`, async () => {
+        await setEntityAction({
+          ...input,
+          housePartyBypass: true,
+          isCurrent: undefined,
+          signal: undefined,
+        });
+      });
+      if (deferred && !(hasOnlyBrightness && housePartyIgnoresBrightness())) {
+        serviceData = { entity_id: input.entityId };
+      }
+    }
     if (input.domain === "light" || input.domain === "switch") {
       await callLightingService(input.domain, input.service, serviceData, input);
     } else {
@@ -857,6 +1117,15 @@ export async function setEntityAction(input: {
   }
 
   const nextState = await buildDashboardState();
+  if (input.domain === "light" && ["turn_on", "turn_off", "toggle"].includes(input.service)) {
+    const entity = nextState.entities.find((candidate) => candidate.entity_id === input.entityId);
+    const on = entity?.state === "on";
+    for (const zone of nextState.zones) {
+      if (zone.entities.some((candidate) => candidate.entity_id === input.entityId)) {
+        setHousePartyZonePower(zone.id, on);
+      }
+    }
+  }
   assertLatestCommandCurrent(input);
 
   if (isAirconRelated) {
