@@ -157,6 +157,26 @@ nova-system reboot              reboot the host (needs the sudoers rule above)
 nova-system status              print data/system/state.json
 ```
 
+## Tuya Local self-repair
+
+Nova keeps a local `tuya_local` entity and a cloud MQTT twin for each supported
+Tuya device. DHCP address changes or a local-key rotation can strand the local
+entry, at which point the dashboard deliberately falls back to the cloud twin.
+
+`scripts/tuya-local-repair.sh --apply` refreshes keys from the Tuya mobile API,
+discovers current LAN endpoints, and changes only candidates that pass a live
+TinyTuya probe. It makes a dated `core.config_entries` backup before restarting
+Home Assistant. The hourly systemd timer makes that recovery automatic:
+
+```bash
+bash /opt/nova-ha-dashboard/ops/install-tuya-local-repair.sh
+systemctl list-timers nova-tuya-local-repair.timer
+journalctl -u nova-tuya-local-repair.service
+```
+
+The cloud twin remains available throughout discovery and whenever a candidate
+cannot be verified.
+
 The set of service containers `restart-stack` bounces (everything except the
 dashboard, which is handled last) is `NOVA_STACK_CONTAINERS`, default
 `mosquitto matter-server homeassistant tuya-mobile-mqtt-bridge linux-voice-assistant`.
