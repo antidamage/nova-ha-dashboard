@@ -29,6 +29,7 @@ assets/
 ```yaml
 engineVersion: 1
 id: unique-lowercase-id
+packageName: nz.skull.nova.visualiser.unique-lowercase-id
 version: 1.0.0
 name: Human Readable Name
 description: What the effect does.
@@ -143,6 +144,16 @@ minimum. The exponent range is `0.1` through `8`.
 `affects` is declarative control metadata. It lists the module paths the author
 has wired to `settings.<id>` and is shown on the configuration page, making the
 control's purpose inspectable without giving it executable behavior.
+
+Controls may declare `section: physics` (or another short label). The dashboard
+groups controls with the same label inside a collapsed subsection; controls
+without a section remain in the general group.
+
+`updateMode` is `smooth` by default. Smooth numeric settings are interpolated
+in the running simulation and must not rebuild the scene. Use
+`updateMode: structural` only for values such as grid resolution, topology, or
+resource allocation. Structural edits remain pending until the user explicitly
+applies them, at which point the visualiser performs one deliberate rebuild.
 
 ## 4. Entities and templates
 
@@ -272,6 +283,7 @@ scene:
       layout: grid
       resolution: [48, 27]
       count: 1296
+      density: "=settings.complexity"
       template: field-node
       spacing: [0.07, 0.07]
       jitter: 0
@@ -304,6 +316,13 @@ Topologies are:
 Fields use a uniform spatial hash and struct-of-arrays storage. Named channels
 are scalar or vector state values that expressions and effects may read as
 `field.<channel>`.
+
+`density` is an optional finite number or expression in `0.05...1`. It is
+evaluated when the module or its settings change. For a grid field, Phonoscope
+scales each grid axis proportionally and continues to span the declared bounds,
+so it is suitable for a dashboard complexity slider that reduces both simulated
+entities and rendered instances. A field without `density` remains at its full
+declared population.
 
 ## 7. Effect sources, receivers, and propagation
 

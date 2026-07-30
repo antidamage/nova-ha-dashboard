@@ -619,6 +619,28 @@ export function optimisticDashboardStateForLightingEntityIdsAction(
   );
 }
 
+export function optimisticDashboardStateForHouseParty(
+  state: DashboardState,
+  input: { entityIds: string[]; rgb: [number, number, number]; brightnessPct?: number },
+) {
+  const entityIds = new Set(input.entityIds);
+  const brightness = typeof input.brightnessPct === "number"
+    ? brightnessAttributeFromPct(Math.max(5, Math.min(100, input.brightnessPct)))
+    : null;
+  return withDashboardEntityUpdates(state, (entity) => {
+    if (!entityIds.has(entity.entity_id) || entity.domain !== "light") return entity;
+    return {
+      ...entity,
+      state: "on",
+      attributes: {
+        ...entity.attributes,
+        rgb_color: input.rgb,
+        ...(brightness === null ? {} : { brightness }),
+      },
+    };
+  });
+}
+
 export function entityActionAffectsLighting(state: DashboardState, input: EntityActionInput) {
   if (input.domain === "light") {
     return true;

@@ -3,6 +3,7 @@ import { parse as parseYaml } from "yaml";
 export const PHONOSCOPE_ENGINE_VERSION = 1;
 export const PHONOSCOPE_MODULE_ID = /^[a-z][a-z0-9_-]{1,63}$/;
 export const PHONOSCOPE_MODULE_VERSION = /^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i;
+export const PHONOSCOPE_PACKAGE_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/;
 
 export const PHONOSCOPE_LIMITS = {
   compressedBytes: 25 * 1024 * 1024,
@@ -52,6 +53,8 @@ export type PhonoscopeSetting = {
   affects: string[];
   curve: PhonoscopeControlCurve;
   options: PhonoscopeControlOption[];
+  section: string;
+  updateMode: "smooth" | "structural";
 };
 
 export type PhonoscopeInstruction =
@@ -68,6 +71,7 @@ export type PhonoscopeCompiledExpression = {
 export type PhonoscopeCompiledModule = {
   engineVersion: 1;
   id: string;
+  packageName: string;
   version: string;
   name: string;
   description: string;
@@ -99,6 +103,7 @@ export type PhonoscopeCompiledModule = {
 
 export type PhonoscopeModuleSummary = {
   id: string;
+  packageName: string;
   version: string;
   name: string;
   description: string;
@@ -494,6 +499,8 @@ function normalizeSettings(value: unknown, errors: string[]): PhonoscopeSetting[
         exponent: Math.max(0.1, Math.min(8, exponent)),
       },
       options,
+      section: typeof entry.section === "string" ? entry.section.trim().slice(0, 64) : "",
+      updateMode: entry.updateMode === "structural" ? "structural" : "smooth",
     }];
   });
 }
@@ -613,10 +620,14 @@ export function compilePhonoscopeModule(value: unknown): PhonoscopeCompileResult
   if (!isRecord(value)) return { ok: false, errors: ["module: expected a YAML object"], warnings };
 
   const id = typeof value.id === "string" ? value.id : "";
+  const packageName = typeof value.packageName === "string" && value.packageName.trim()
+    ? value.packageName.trim().toLowerCase()
+    : `nz.skull.nova.visualiser.${id}`;
   const version = typeof value.version === "string" ? value.version : "";
   const name = typeof value.name === "string" && value.name.trim() ? value.name.trim() : id;
   const dimension = value.dimension === "3d" ? "3d" : value.dimension === "2d" ? "2d" : null;
   if (!PHONOSCOPE_MODULE_ID.test(id)) errors.push("id: use 2-64 lowercase letters, numbers, underscores, or dashes, beginning with a letter");
+  if (!PHONOSCOPE_PACKAGE_NAME.test(packageName)) errors.push("packageName: use a reverse-domain package name such as nz.skull.nova.visualiser.example");
   if (!PHONOSCOPE_MODULE_VERSION.test(version)) errors.push("version: use semantic form such as 1.0.0");
   if (!dimension) errors.push("dimension: expected '2d' or '3d'");
   if (value.engineVersion !== undefined && value.engineVersion !== PHONOSCOPE_ENGINE_VERSION) {
@@ -651,6 +662,7 @@ export function compilePhonoscopeModule(value: unknown): PhonoscopeCompileResult
   const module: PhonoscopeCompiledModule = {
     engineVersion: PHONOSCOPE_ENGINE_VERSION,
     id,
+    packageName,
     version,
     name,
     description: typeof value.description === "string" ? value.description.trim() : "",
@@ -697,6 +709,7 @@ export function stablePhonoscopeJson(value: unknown): string {
 
 export const BUILTIN_PHONOSCOPE_MODULE_YAML = `engineVersion: 1
 id: bpm-pulse
+packageName: nz.skull.nova.visualiser.bpm-pulse
 version: 1.0.0
 name: BPM Pulse
 description: Built-in resilient Phonoscope module driven by the best available beat signal.

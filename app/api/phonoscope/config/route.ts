@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { listPhonoscopeModules, readPhonoscopeConfig, writePhonoscopeConfig } from "../../../../lib/phonoscope-store";
+import { readDashboardPreferences } from "../../../../lib/preferences";
+import { normalizeThemeLibrary } from "../../../../lib/theme-library";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,8 +20,10 @@ function response(value: unknown) {
 
 export async function GET() {
   try {
-    const [config, modules] = await Promise.all([readPhonoscopeConfig(), listPhonoscopeModules()]);
-    return response({ config, modules });
+    const [config, modules, preferences] = await Promise.all([
+      readPhonoscopeConfig(), listPhonoscopeModules(), readDashboardPreferences(),
+    ]);
+    return response({ config, modules, themeLibrary: normalizeThemeLibrary(preferences.themeLibrary) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to read Phonoscope config" }, { status: 500 });
   }

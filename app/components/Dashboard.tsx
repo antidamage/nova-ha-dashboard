@@ -20,6 +20,8 @@ import { useAirconAutoMode } from "./dashboard/useAirconAutoMode";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useDashboardCommands } from "./dashboard/useDashboardCommands";
+import { useHousePartyThemeFollow } from "./dashboard/useHousePartyThemeFollow";
+import { useHousePartyClockSync } from "./dashboard/useHousePartyClockSync";
 import { useDashboardSelection } from "./dashboard/useDashboardSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
@@ -32,7 +34,9 @@ import { useBuildReload } from "./useBuildReload";
 import { VoiceTranscriptPanel } from "./VoiceTranscriptPanel";
 
 export function Dashboard() {
-  const { activeVariant, theme, themeReady } = useDeviceTheme();
+  const { activeVariant, configuredTheme, theme, themeReady } = useDeviceTheme();
+  useHousePartyThemeFollow(configuredTheme);
+  useHousePartyClockSync();
   useBuildReload();
 
   // The dashboard is the only place a dark/light flip should push wallpapers to

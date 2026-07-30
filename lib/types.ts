@@ -250,6 +250,13 @@ export type LightingPreferences = {
       updatedAt?: string;
     }
   >;
+  housePartyZones?: Record<
+    string,
+    {
+      enabled?: boolean;
+      updatedAt?: string;
+    }
+  >;
   updatedAt?: string;
 };
 
@@ -440,6 +447,8 @@ export type VoicePreferences = {
 export type DashboardPreferences = {
   agent?: AgentPreferences;
   aircon?: AirconPreferences;
+  /** Shared behavior flag; intentionally independent of saved theme presets. */
+  followVisualizerWhenActive?: boolean;
   lighting?: LightingPreferences;
   panelHeater?: PanelHeaterPreferences;
   theme?: Record<string, unknown>;
@@ -461,14 +470,43 @@ export type PhonoscopePreferences = {
   activeModuleVersion?: string;
   idleBehavior?: "ambient" | "black" | "return";
   quality?: "auto" | "high" | "balanced" | "performance";
+  message?: string;
   statusOverlay?: boolean;
   transitionMs?: number;
+  housePartyRandomHueOffset?: number;
   providers?: {
+    spotify?: boolean;
+    songle?: boolean;
+    essentia?: boolean;
     reccoBeats?: boolean;
     lrclib?: boolean;
   };
   moduleSettings?: Record<string, Record<string, number>>;
+  pendingStructuralModuleSettings?: Record<string, Record<string, number>>;
+  moduleReloadGenerations?: Record<string, number>;
+  themeGroups?: PhonoscopeThemeGroup[];
+  moduleThemeGroupIds?: Record<string, string>;
   updatedAt?: string;
+};
+
+export type PhonoscopeThemeGroupEntry = {
+  themeId: string;
+  baseVariant: "dark" | "light";
+  swapOnDownbeat: boolean;
+  genres: string[];
+};
+
+export type PhonoscopeThemeGroup = {
+  id: string;
+  name: string;
+  themes: PhonoscopeThemeGroupEntry[];
+  useGenres: boolean;
+  order: "sequential" | "shuffle";
+  changeMode: "interval" | "song" | "downbeat";
+  waitSeconds: number;
+  transitionSeconds: number;
+  housePartyHueMode: "follow" | "complement";
+  housePartyBrightnessMode: "follow" | "oppose" | "ignore";
 };
 
 export type LayoutPreferences = {

@@ -41,6 +41,7 @@ export async function GET() {
     const preferences = await readDashboardPreferences();
     const config = await readDashboardConfig();
     return NextResponse.json({
+      followVisualizerWhenActive: preferences.followVisualizerWhenActive === true,
       theme: themeResponseValue(preferences.theme, config.dashboard.avatar),
       layout: resolveLayout(preferences.layout),
       updatedAt: preferences.themeUpdatedAt ?? null,
@@ -56,19 +57,32 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { theme: nextTheme } = parseThemeUpdateRequest(body);
+    const bodyRecord = body && typeof body === "object" && !Array.isArray(body)
+      ? body as Record<string, unknown>
+      : {};
+    const nextTheme = bodyRecord.theme === undefined
+      ? undefined
+      : parseThemeUpdateRequest(body).theme;
+    const followVisualizerWhenActive = typeof bodyRecord.followVisualizerWhenActive === "boolean"
+      ? bodyRecord.followVisualizerWhenActive
+      : undefined;
+    if (!nextTheme && followVisualizerWhenActive === undefined) {
+      throw new Error("A shared theme or visualiser-follow setting is required");
+    }
     const layoutUpdate = layoutUpdateFrom((body as Record<string, unknown> | null)?.layout);
 
     const preferences = await readDashboardPreferences();
     const config = await readDashboardConfig();
     const currentTheme = themeResponseValue(preferences.theme, config.dashboard.avatar) ?? {};
-    const theme = hasThemeNamespace(nextTheme)
-      ? themeResponseValue(nextTheme, config.dashboard.avatar) ?? nextTheme
-      : mergeLegacyThemeUpdate(currentTheme, nextTheme);
+    const theme = nextTheme
+      ? hasThemeNamespace(nextTheme)
+        ? themeResponseValue(nextTheme, config.dashboard.avatar) ?? nextTheme
+        : mergeLegacyThemeUpdate(currentTheme, nextTheme)
+      : currentTheme;
     const updatedAt = new Date().toISOString();
     await mergeDashboardPreferences({
-      theme,
-      themeUpdatedAt: updatedAt,
+      ...(nextTheme ? { theme, themeUpdatedAt: updatedAt } : {}),
+      ...(followVisualizerWhenActive !== undefined ? { followVisualizerWhenActive } : {}),
       ...(layoutUpdate ? { layout: { ...preferences.layout, ...layoutUpdate } } : {}),
     });
     // Saving a theme no longer pushes wallpapers to managed desktops. That now
@@ -76,6 +90,7 @@ export async function POST(request: Request) {
     // flips dark/light, both of which run the deduplicated sync explicitly.
 
     return NextResponse.json({
+      followVisualizerWhenActive: followVisualizerWhenActive ?? (preferences.followVisualizerWhenActive === true),
       theme,
       layout: resolveLayout(layoutUpdate ? { ...preferences.layout, ...layoutUpdate } : preferences.layout),
       updatedAt,

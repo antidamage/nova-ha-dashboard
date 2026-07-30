@@ -69,6 +69,7 @@ describe("dashboard API request parsing", () => {
         accent: { mode: "rgb" },
         avatar: { gradientCenter: "old-location" },
         autoFullscreenOnLoad: true,
+        followVisualizerWhenActive: true,
       },
     })).toEqual({
       theme: {
@@ -82,6 +83,7 @@ describe("dashboard API request parsing", () => {
     expect(parseThemeUpdateRequest({
       theme: {
         selection: "auto",
+        followVisualizerWhenActive: true,
         themes: {
           dark: {
             accent: { mode: "dark" },

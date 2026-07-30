@@ -33,6 +33,19 @@ describe("normalizeThemeLibrary", () => {
     expect(library.activeId).toBe("b");
   });
 
+  it("removes the legacy shared visualiser-follow flag from saved themes", () => {
+    const library = normalizeThemeLibrary({
+      entries: [entry({
+        themeSet: {
+          followVisualizerWhenActive: true,
+          selection: "dark",
+          themes: { dark: {}, light: {} },
+        },
+      })],
+    });
+    expect(library.entries[0].themeSet).not.toHaveProperty("followVisualizerWhenActive");
+  });
+
   it("drops entries without a themeSet object", () => {
     const library = normalizeThemeLibrary({
       entries: [entry(), entry({ id: "b", themeSet: null }), entry({ id: "c", themeSet: "x" })],

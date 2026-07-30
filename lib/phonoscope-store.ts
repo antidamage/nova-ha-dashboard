@@ -15,7 +15,7 @@ import {
   type PhonoscopeSetting,
 } from "./phonoscope";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
-import type { PhonoscopePreferences } from "./types";
+import type { PhonoscopePreferences, PhonoscopeThemeGroup } from "./types";
 
 const MODULE_ROOT =
   process.env.NOVA_PHONOSCOPE_MODULES_DIR ?? path.join(process.cwd(), "data", "phonoscope", "modules");
@@ -25,20 +25,79 @@ export const DEFAULT_PHONOSCOPE_CONFIG: Required<Omit<PhonoscopePreferences, "up
   activeModuleVersion: "1.0.0",
   idleBehavior: "ambient",
   quality: "auto",
+  message: "",
   statusOverlay: true,
   transitionMs: 600,
+  housePartyRandomHueOffset: 0,
   providers: {
+    spotify: true,
+    songle: true,
+    essentia: true,
     reccoBeats: true,
     lrclib: true,
   },
   moduleSettings: {},
+  pendingStructuralModuleSettings: {},
+  moduleReloadGenerations: {},
+  themeGroups: [],
+  moduleThemeGroupIds: {},
 };
+
+export function normalizePhonoscopeThemeGroups(value: unknown): PhonoscopeThemeGroup[] {
+  if (!Array.isArray(value)) return [];
+  const ids = new Set<string>();
+  return value.flatMap((raw, index) => {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    const entry = raw as Record<string, unknown>;
+    const id = typeof entry.id === "string" && /^[a-z][a-z0-9_-]{1,63}$/i.test(entry.id)
+      ? entry.id : `group_${index + 1}`;
+    if (ids.has(id)) return [];
+    ids.add(id);
+    const themes = Array.isArray(entry.themes) ? entry.themes.flatMap((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+      const theme = item as Record<string, unknown>;
+      if (typeof theme.themeId !== "string" || !theme.themeId.trim()) return [];
+      return [{
+        themeId: theme.themeId.trim(),
+        baseVariant: theme.baseVariant === "light" ? "light" as const : "dark" as const,
+        swapOnDownbeat: theme.swapOnDownbeat === true,
+        genres: Array.isArray(theme.genres)
+          ? [...new Set(theme.genres.flatMap((genre) => typeof genre === "string" && genre.trim() ? [genre.trim().slice(0, 48)] : []))]
+          : [],
+      }];
+    }) : [];
+    return [{
+      id,
+      name: typeof entry.name === "string" && entry.name.trim() ? entry.name.trim().slice(0, 60) : `Theme group ${index + 1}`,
+      themes,
+      useGenres: typeof entry.useGenres === "boolean"
+        ? entry.useGenres
+        : themes.some((theme) => theme.genres.length > 0),
+      order: entry.order === "shuffle" ? "shuffle" as const : "sequential" as const,
+      changeMode: entry.changeMode === "song"
+        ? "song" as const
+        : entry.changeMode === "downbeat"
+          ? "downbeat" as const
+          : "interval" as const,
+      waitSeconds: Math.max(0, Math.min(600, Number(entry.waitSeconds) || 0)),
+      transitionSeconds: Math.max(0, Math.min(600, Number(entry.transitionSeconds) || 0)),
+      housePartyHueMode: entry.housePartyHueMode === "complement" ? "complement" as const : "follow" as const,
+      housePartyBrightnessMode: ["oppose", "ignore"].includes(String(entry.housePartyBrightnessMode))
+        ? entry.housePartyBrightnessMode as "oppose" | "ignore"
+        : "follow" as const,
+    }];
+  });
+}
 
 type StoredManifest = PhonoscopeModuleSummary & {
   assets: string[];
   installedAt: string;
   warnings: string[];
 };
+
+function packageNameFor(module: Pick<PhonoscopeModuleSummary, "id"> & { packageName?: string }) {
+  return module.packageName ?? `nz.skull.nova.visualiser.${module.id}`;
+}
 
 function safeSegment(value: string, pattern: RegExp, label: string) {
   if (!pattern.test(value)) throw new Error(`Invalid ${label}`);
@@ -66,6 +125,7 @@ function builtinRecord() {
   const hash = hashBytes([Buffer.from(compiled)]);
   const summary: PhonoscopeModuleSummary = {
     id: result.module.id,
+    packageName: result.module.packageName,
     version: result.module.version,
     name: result.module.name,
     description: result.module.description,
@@ -85,6 +145,13 @@ export async function readPhonoscopeConfig() {
     ...raw,
     providers: { ...DEFAULT_PHONOSCOPE_CONFIG.providers, ...(raw.providers ?? {}) },
     moduleSettings: { ...DEFAULT_PHONOSCOPE_CONFIG.moduleSettings, ...(raw.moduleSettings ?? {}) },
+    pendingStructuralModuleSettings: {
+      ...DEFAULT_PHONOSCOPE_CONFIG.pendingStructuralModuleSettings,
+      ...(raw.pendingStructuralModuleSettings ?? {}),
+    },
+    moduleReloadGenerations: { ...DEFAULT_PHONOSCOPE_CONFIG.moduleReloadGenerations, ...(raw.moduleReloadGenerations ?? {}) },
+    themeGroups: normalizePhonoscopeThemeGroups(raw.themeGroups),
+    moduleThemeGroupIds: { ...DEFAULT_PHONOSCOPE_CONFIG.moduleThemeGroupIds, ...(raw.moduleThemeGroupIds ?? {}) },
   };
 }
 
@@ -107,16 +174,46 @@ export async function writePhonoscopeConfig(value: unknown) {
   const providers = input.providers && typeof input.providers === "object" && !Array.isArray(input.providers)
     ? input.providers as Record<string, unknown>
     : {};
+  const themeGroups = normalizePhonoscopeThemeGroups(input.themeGroups ?? current.themeGroups);
+  const validGroupIds = new Set(themeGroups.map((group) => group.id));
+  const requestedAssignments = input.moduleThemeGroupIds && typeof input.moduleThemeGroupIds === "object"
+    && !Array.isArray(input.moduleThemeGroupIds)
+    ? input.moduleThemeGroupIds as Record<string, unknown>
+    : current.moduleThemeGroupIds;
+  const moduleThemeGroupIds = Object.fromEntries(Object.entries(requestedAssignments).flatMap(([id, groupId]) =>
+    typeof groupId === "string" && validGroupIds.has(groupId) ? [[id, groupId]] : [],
+  ));
   const requestedSettings = input.moduleSettings && typeof input.moduleSettings === "object" && !Array.isArray(input.moduleSettings)
     ? input.moduleSettings as Record<string, unknown>
     : current.moduleSettings;
   const moduleSettings: Record<string, Record<string, number>> = {};
+  const normalizeSettingsMap = (requested: Record<string, unknown>, mode: "smooth" | "structural") => {
+    const result: Record<string, Record<string, number>> = {};
+    for (const [settingModuleId, rawValues] of Object.entries(requested)) {
+      if (!rawValues || typeof rawValues !== "object" || Array.isArray(rawValues)) continue;
+      const declarations = installed.filter((entry) => entry.id === settingModuleId
+        && (entry.id !== moduleId || entry.version === moduleVersion)).at(-1)?.settings;
+      if (!declarations) continue;
+      const values = rawValues as Record<string, unknown>;
+      const normalized: Record<string, number> = {};
+      for (const setting of declarations.filter((setting) => setting.updateMode === mode)) {
+        if (!(setting.id in values)) continue;
+        const resolved = normalizeSettingValue(setting, values[setting.id]);
+        if (resolved !== undefined) normalized[setting.id] = resolved;
+      }
+      if (Object.keys(normalized).length) result[settingModuleId] = normalized;
+    }
+    return result;
+  };
   for (const [settingModuleId, rawValues] of Object.entries(requestedSettings)) {
     if (!rawValues || typeof rawValues !== "object" || Array.isArray(rawValues)) continue;
-    const declarations = installed.find(
+    // Settings are keyed by module id for backward compatibility.  For an
+    // inactive module retain the settings declared by its newest installed
+    // version; the active module remains pinned to the selected version.
+    const declarations = installed.filter(
       (entry) => entry.id === settingModuleId
         && (entry.id !== moduleId || entry.version === moduleVersion),
-    )?.settings;
+    ).at(-1)?.settings;
     if (!declarations) continue;
     const values = rawValues as Record<string, unknown>;
     const normalized: Record<string, number> = {};
@@ -127,21 +224,46 @@ export async function writePhonoscopeConfig(value: unknown) {
     }
     if (Object.keys(normalized).length) moduleSettings[settingModuleId] = normalized;
   }
+  const pendingInput = input.pendingStructuralModuleSettings
+    && typeof input.pendingStructuralModuleSettings === "object"
+    && !Array.isArray(input.pendingStructuralModuleSettings)
+    ? input.pendingStructuralModuleSettings as Record<string, unknown>
+    : current.pendingStructuralModuleSettings;
+  const pendingStructuralModuleSettings = normalizeSettingsMap(pendingInput, "structural");
+  const reloadInput = input.moduleReloadGenerations && typeof input.moduleReloadGenerations === "object"
+    && !Array.isArray(input.moduleReloadGenerations)
+    ? input.moduleReloadGenerations as Record<string, unknown> : current.moduleReloadGenerations;
+  const moduleReloadGenerations = Object.fromEntries(Object.entries(reloadInput).flatMap(([id, value]) =>
+    typeof value === "number" && Number.isFinite(value) ? [[id, Math.max(0, Math.floor(value))]] : [],
+  ));
   await mergeDashboardPreferences({
     phonoscope: {
       activeModuleId: moduleId,
       activeModuleVersion: moduleVersion,
       idleBehavior,
       quality,
+      message: typeof input.message === "string"
+        ? Array.from(input.message.trim()).slice(0, 160).join("")
+        : current.message,
       statusOverlay: typeof input.statusOverlay === "boolean" ? input.statusOverlay : current.statusOverlay,
       transitionMs: typeof input.transitionMs === "number"
         ? Math.max(0, Math.min(3_000, Math.round(input.transitionMs)))
         : current.transitionMs,
+      housePartyRandomHueOffset: typeof input.housePartyRandomHueOffset === "number"
+        ? Math.max(0, Math.min(180, input.housePartyRandomHueOffset))
+        : current.housePartyRandomHueOffset,
       providers: {
+        spotify: typeof providers.spotify === "boolean" ? providers.spotify : current.providers.spotify,
+        songle: typeof providers.songle === "boolean" ? providers.songle : current.providers.songle,
+        essentia: typeof providers.essentia === "boolean" ? providers.essentia : current.providers.essentia,
         reccoBeats: typeof providers.reccoBeats === "boolean" ? providers.reccoBeats : current.providers.reccoBeats,
         lrclib: typeof providers.lrclib === "boolean" ? providers.lrclib : current.providers.lrclib,
       },
       moduleSettings,
+      pendingStructuralModuleSettings,
+      moduleReloadGenerations,
+      themeGroups,
+      moduleThemeGroupIds,
     },
   });
   return readPhonoscopeConfig();
@@ -243,12 +365,9 @@ export async function installPhonoscopePackage(bytes: Uint8Array) {
   }
 
   const target = moduleDirectory(result.module.id, result.module.version);
-  try {
-    await stat(target);
-    throw new Error(`${result.module.id}@${result.module.version} is already installed; increment the module version`);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
+  const replacedModules = (await listPhonoscopeModules()).filter(
+    (module) => !module.builtin && packageNameFor(module) === result.module.packageName,
+  );
 
   const compiledText = stablePhonoscopeJson(result.module);
   const orderedBytes = [...normalizedFiles.entries()].sort(([a], [b]) => a.localeCompare(b)).flatMap(([name, value]) => [Buffer.from(name), value]);
@@ -256,6 +375,7 @@ export async function installPhonoscopePackage(bytes: Uint8Array) {
   const assets = [...normalizedFiles.keys()].filter(isAllowedAsset).sort();
   const manifest: StoredManifest = {
     id: result.module.id,
+    packageName: result.module.packageName,
     version: result.module.version,
     name: result.module.name,
     description: result.module.description,
@@ -272,6 +392,8 @@ export async function installPhonoscopePackage(bytes: Uint8Array) {
   };
   await mkdir(path.dirname(target), { recursive: true });
   const temporary = `${target}.install-${randomUUID()}`;
+  const replacedTarget = `${target}.replace-${randomUUID()}`;
+  let targetWasReplaced = false;
   await mkdir(temporary, { recursive: true });
   try {
     await writeFile(path.join(temporary, "module.yaml"), source, "utf8");
@@ -283,7 +405,32 @@ export async function installPhonoscopePackage(bytes: Uint8Array) {
       await mkdir(path.dirname(destination), { recursive: true });
       await writeFile(destination, value);
     }
+    try {
+      await stat(target);
+      await rename(target, replacedTarget);
+      targetWasReplaced = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
     await rename(temporary, target);
+
+    const config = await readPhonoscopeConfig();
+    const replacedActiveModule = replacedModules.some(
+      (module) => module.id === config.activeModuleId && module.version === config.activeModuleVersion,
+    );
+    if (replacedActiveModule && (config.activeModuleId !== result.module.id || config.activeModuleVersion !== result.module.version)) {
+      await mergeDashboardPreferences({
+        phonoscope: {
+          ...config,
+          activeModuleId: result.module.id,
+          activeModuleVersion: result.module.version,
+        },
+      });
+    }
+    await Promise.all(replacedModules
+      .filter((module) => module.id !== result.module.id || module.version !== result.module.version)
+      .map((module) => rm(moduleDirectory(module.id, module.version), { recursive: true, force: true })));
+    if (targetWasReplaced) await rm(replacedTarget, { recursive: true, force: true });
   } catch (error) {
     await rm(temporary, { recursive: true, force: true });
     throw error;

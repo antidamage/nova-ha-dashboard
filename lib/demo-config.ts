@@ -171,7 +171,10 @@ export function demoConfigBootstrapScript(
     return requestBodyText(input, init).then(function (text) {
       var current = readDemoTheme();
       var body = text ? JSON.parse(text) : {};
-      var nextTheme = isRecord(body) && body.theme !== undefined ? body.theme : body;
+      var settingOnly = isRecord(body)
+        && typeof body.followVisualizerWhenActive === "boolean"
+        && body.theme === undefined;
+      var nextTheme = settingOnly ? null : isRecord(body) && body.theme !== undefined ? body.theme : body;
       var baseTheme = isRecord(current.theme) ? current.theme : {};
       var combinedTheme = clone(baseTheme);
       if (isRecord(nextTheme)) {
@@ -180,6 +183,9 @@ export function demoConfigBootstrapScript(
         });
       }
       var merged = {
+        followVisualizerWhenActive: isRecord(body) && typeof body.followVisualizerWhenActive === "boolean"
+          ? body.followVisualizerWhenActive
+          : current.followVisualizerWhenActive === true,
         theme: combinedTheme,
         updatedAt: new Date().toISOString(),
       };

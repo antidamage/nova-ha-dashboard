@@ -57,6 +57,10 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
           ...(current.lighting?.adaptiveCandlelightZones ?? {}),
           ...(next.lighting.adaptiveCandlelightZones ?? {}),
         },
+        housePartyZones: {
+          ...(current.lighting?.housePartyZones ?? {}),
+          ...(next.lighting.housePartyZones ?? {}),
+        },
         updatedAt: new Date().toISOString(),
       };
     }

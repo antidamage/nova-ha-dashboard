@@ -1307,6 +1307,65 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   document.documentElement.style.setProperty("--cyber-map-satellite", normalized.mapSatellite ? "1" : "0");
 }
 
+function mixedThemeColor(from: ThemeColorValue, to: ThemeColorValue, amount: number): ThemeColorValue {
+  const blend = clamp(amount, 0, 1);
+  return {
+    cursor: {
+      x: from.cursor.x + (to.cursor.x - from.cursor.x) * blend,
+      y: from.cursor.y + (to.cursor.y - from.cursor.y) * blend,
+    },
+    intensity: from.intensity + (to.intensity - from.intensity) * blend,
+    rgb: from.rgb.map((part, index) =>
+      Math.round(part + (to.rgb[index] - part) * blend),
+    ) as [number, number, number],
+  };
+}
+
+/** Blend every colour-bearing field while retaining all dashboard behavior,
+ * typography, sizing, opacity, effects, and module choices from `configured`. */
+export function mixDeviceThemeColors(configured: DeviceTheme, target: DeviceTheme, amount: number): DeviceTheme {
+  const color = (from: ThemeColorValue, to: ThemeColorValue) => mixedThemeColor(from, to, amount);
+  return {
+    ...configured,
+    accent: color(configured.accent, target.accent),
+    highlight: color(configured.highlight, target.highlight),
+    background: color(configured.background, target.background),
+    border: { ...configured.border, color: color(configured.border.color, target.border.color) },
+    clockColor: color(configured.clockColor, target.clockColor),
+    titleColors: {
+      dark: color(configured.titleColors.dark, target.titleColors.dark),
+      light: color(configured.titleColors.light, target.titleColors.light),
+    },
+    voiceTranscriptColors: {
+      ...configured.voiceTranscriptColors,
+      background: color(configured.voiceTranscriptColors.background, target.voiceTranscriptColors.background),
+      text: color(configured.voiceTranscriptColors.text, target.voiceTranscriptColors.text),
+    },
+    map: {
+      base: color(configured.map.base, target.map.base),
+      water: color(configured.map.water, target.map.water),
+      land: color(configured.map.land, target.map.land),
+      buildingLow: color(configured.map.buildingLow, target.map.buildingLow),
+      buildingHigh: color(configured.map.buildingHigh, target.map.buildingHigh),
+      roads: color(configured.map.roads, target.map.roads),
+      labels: color(configured.map.labels, target.map.labels),
+      radarLow: color(configured.map.radarLow, target.map.radarLow),
+      radarHigh: color(configured.map.radarHigh, target.map.radarHigh),
+    },
+    avatar: {
+      ...configured.avatar,
+      gradientAlert: color(configured.avatar.gradientAlert, target.avatar.gradientAlert),
+      gradientCenter: color(configured.avatar.gradientCenter, target.avatar.gradientCenter),
+      gradientOuter: color(configured.avatar.gradientOuter, target.avatar.gradientOuter),
+      gymNumberColor: color(configured.avatar.gymNumberColor, target.avatar.gymNumberColor),
+      voiceGlowColor: color(configured.avatar.voiceGlowColor, target.avatar.voiceGlowColor),
+      lineColors: configured.avatar.lineColors.map((value, index) =>
+        color(value, target.avatar.lineColors[index]),
+      ) as typeof configured.avatar.lineColors,
+    },
+  };
+}
+
 // While the theme config editor is open it pins :root to the variant being edited
 // (the light/dark tab), regardless of the active selection. Without this, the
 // shared-theme poll and sun-change events inside useDeviceTheme keep re-applying
@@ -1315,12 +1374,28 @@ export function applyDeviceTheme(theme: DeviceTheme) {
 // being edited and the dashboard's active one. When an override is set, applyThemeSet
 // applies it instead of the resolved theme; clearing it restores the active theme.
 let documentThemeOverride: DeviceTheme | null = null;
+let housePartyThemeOverride: DeviceTheme | null = null;
 let lastResolvedDocumentTheme: DeviceTheme | null = null;
+const HOUSE_PARTY_THEME_OVERRIDE_EVENT = "nova-house-party-theme-override";
+
+export function setHousePartyThemeOverride(theme: DeviceTheme | null) {
+  housePartyThemeOverride = theme ? normalizeTheme(theme) : null;
+  const next =
+    documentThemeOverride ??
+    housePartyThemeOverride ??
+    lastResolvedDocumentTheme ??
+    resolveDeviceTheme(normalizeThemeSet(DEFAULT_THEME_SET)).theme;
+  applyDeviceTheme(next);
+  window.dispatchEvent(new CustomEvent(HOUSE_PARTY_THEME_OVERRIDE_EVENT, {
+    detail: housePartyThemeOverride,
+  }));
+}
 
 export function setDocumentThemeOverride(theme: DeviceTheme | null) {
   documentThemeOverride = theme ? normalizeTheme(theme) : null;
   const next =
     documentThemeOverride ??
+    housePartyThemeOverride ??
     lastResolvedDocumentTheme ??
     resolveDeviceTheme(normalizeThemeSet(DEFAULT_THEME_SET)).theme;
   applyDeviceTheme(next);
@@ -1567,6 +1642,7 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
   );
   const [activeVariant, setActiveVariant] = useState<ThemeVariant>(initialResolvedTheme.activeVariant);
   const [theme, setThemeState] = useState(() => initialResolvedTheme.theme);
+  const [runtimeThemeOverride, setRuntimeThemeOverride] = useState<DeviceTheme | null>(() => housePartyThemeOverride);
   const [themeReady, setThemeReady] = useState(initialStateRef.current?.ready ?? false);
   const [themeSource, setThemeSource] = useState<ThemeSource>(initialStateRef.current?.source ?? "default");
   const themeScopeRef = useRef(themeScope);
@@ -1599,7 +1675,7 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
       setThemeSource(source);
     }
     lastResolvedDocumentTheme = resolved.theme;
-    applyDeviceTheme(documentThemeOverride ?? resolved.theme);
+    applyDeviceTheme(documentThemeOverride ?? housePartyThemeOverride ?? resolved.theme);
     writeThemeCookie(normalized);
 
     if (options.persist) {
@@ -1726,17 +1802,26 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
         applyThemeSet(themeSetRef.current, { sun: nextSun });
       }
     };
+    const onHousePartyThemeOverride = (event: Event) => {
+      setRuntimeThemeOverride(
+        event instanceof CustomEvent && event.detail
+          ? normalizeTheme(event.detail as DeviceTheme)
+          : null,
+      );
+    };
 
     void loadTheme();
     window.addEventListener("storage", onStorage);
     window.addEventListener(THEME_SCOPE_CHANGE_EVENT, onScopeChange);
     window.addEventListener(NOVA_THEME_SET_CHANGE_EVENT, onThemeSetChange);
     window.addEventListener(SUN_CHANGE_EVENT, onSunChange);
+    window.addEventListener(HOUSE_PARTY_THEME_OVERRIDE_EVENT, onHousePartyThemeOverride);
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(THEME_SCOPE_CHANGE_EVENT, onScopeChange);
       window.removeEventListener(NOVA_THEME_SET_CHANGE_EVENT, onThemeSetChange);
       window.removeEventListener(SUN_CHANGE_EVENT, onSunChange);
+      window.removeEventListener(HOUSE_PARTY_THEME_OVERRIDE_EVENT, onHousePartyThemeOverride);
     };
   }, [applyThemeSet, loadTheme]);
 
@@ -1846,7 +1931,8 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     setThemeSelection,
     setThemeSet,
     setThemeVariant,
-    theme,
+    configuredTheme: theme,
+    theme: runtimeThemeOverride ?? theme,
     themeReady,
     themeScope,
     themeSource,
