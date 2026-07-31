@@ -27,8 +27,10 @@ type HousePartyMasterClock = HousePartyMasterClockInput & {
 };
 
 export type HousePartyThemeTelemetry = {
-  themeId: string;
-  variant: "dark" | "light";
+  themeId?: string;
+  variant?: "dark" | "light";
+  colorThemeId?: string;
+  palette?: Record<string, [number, number, number]>;
   transitionSeconds: number;
   updatedAt: string;
 };

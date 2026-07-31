@@ -1905,6 +1905,10 @@ a.update-banner-button {
   background: var(--cyber-line);
 }
 
+.rect-slider-range-fill {
+  inset: 0 auto 0 auto;
+}
+
 .rect-slider-thumb {
   position: absolute;
   top: 50%;
@@ -1915,6 +1919,18 @@ a.update-banner-button {
   /* Same height + border as the track, co-centred, so the outlines align. */
   border: 1px solid var(--cyber-border-dim);
   pointer-events: none;
+}
+
+.rect-range-thumb {
+  pointer-events: auto;
+  touch-action: none;
+  outline: none;
+}
+
+.rect-range-thumb:focus-visible {
+  background: var(--cyber-highlight);
+  border-color: var(--cyber-highlight);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyber-highlight) 28%, transparent);
 }
 
 .rect-slider.rect-slider-active .rect-slider-thumb,
@@ -2593,6 +2609,22 @@ a.update-banner-button {
   box-shadow: inset 0 0 0 3px var(--cyber-panel);
 }
 
+.cyber-select-icon {
+  display: grid;
+  height: 44px;
+  width: 44px;
+  place-items: center;
+  border: 1px solid rgb(var(--cyber-cyan-rgb) / 0.45);
+  background: rgb(var(--cyber-cyan-rgb) / 0.08);
+  box-shadow: inset 0 0 0 3px var(--cyber-panel);
+  color: var(--cyber-cyan);
+}
+
+.cyber-select-icon > svg {
+  height: 22px;
+  width: 22px;
+}
+
 .cyber-select-swatch-empty {
   background:
     repeating-linear-gradient(135deg, rgb(var(--cyber-line-rgb) / 0.25) 0 6px, transparent 6px 12px);
@@ -2681,6 +2713,16 @@ a.update-banner-button {
   width: 34px;
 }
 
+.cyber-select-option .cyber-select-icon {
+  height: 34px;
+  width: 34px;
+}
+
+.cyber-select-option .cyber-select-icon > svg {
+  height: 18px;
+  width: 18px;
+}
+
 .cyber-select-option-name {
   min-width: 0;
   overflow: hidden;
@@ -2742,14 +2784,14 @@ a.update-banner-button {
 }
 
 /* Every cyber-select menu (theme library, personality library, orb module, font
-   picker) is portalled to <body> and positioned with fixed coords (left/top/width
-   set inline) so it escapes its config accordion's overflow/clip-path and stacking
-   context. The z-index sits above the task modals (z-1200) so an open dropdown is
-   always in front of everything. */
+   picker, and visualiser effects) is portalled to <body> and positioned with fixed
+   coords (left/top/width set inline) so it escapes config overflow/clip-path and
+   stacking contexts. ModalOverlay uses z-index 10000, so selectors used inside a
+   modal must sit above that interaction layer or the modal intercepts option taps. */
 .cyber-select-menu-portal {
   position: fixed;
   right: auto;
-  z-index: 2000;
+  z-index: 11000;
 }
 
 .theme-library-actions {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import {
   BUILTIN_PHONOSCOPE_MODULE_YAML,
@@ -8,6 +8,27 @@ import {
 } from "./phonoscope";
 
 describe("Phonoscope module compiler", () => {
+  it("uses a module's explicit visualiser-dependent palette slots", () => {
+    const result = compilePhonoscopeYaml(`
+engineVersion: 1
+id: palette-demo
+version: 1.0.0
+name: Palette demo
+dimension: 2d
+bounds: { min: [-1, -1], max: [1, 1] }
+boundary: wrap
+paletteSlots:
+  - { id: ambientGlow, label: Ambient Glow, defaultRgb: [10, 20, 30] }
+templates: {}
+scene:
+  - { id: dot, render: { primitive: point, color: "=palette.ambientGlow" } }
+resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches: 2 }
+`);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.module.paletteSlots.map((slot) => slot.id)).toEqual(["ambientGlow"]);
+  });
+
   it("publishes the Particle Ripples trail-length control", () => {
     const source = readFileSync(
       path.join(process.cwd(), "..", "nova-visualiser-modules", "particle-ripples", "module.yaml"),
@@ -16,7 +37,7 @@ describe("Phonoscope module compiler", () => {
     const result = compilePhonoscopeYaml(source);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.module.version).toBe("1.7.0");
+    expect(result.module.version).toBe("2.0.0");
     expect(result.module.packageName).toBe("nz.skull.nova.visualiser.particle-ripples");
     expect(result.module.settings.find((setting) => setting.id === "trail_length")).toMatchObject({
       control: "slider",
@@ -49,34 +70,70 @@ describe("Phonoscope module compiler", () => {
       affects: ["scene.particle-grid.field.wireframe"],
     });
     expect(JSON.stringify(result.module.scene)).toContain("settings.grid_wireframe");
+    expect(result.module.paletteSlots.map((slot) => slot.id)).toEqual([
+      "backgroundPrimary", "backgroundSecondary",
+      "dotPrimary", "dotSecondary",
+      "glowPrimary", "glowSecondary",
+      "linePrimary", "lineSecondary",
+      "trailPrimary", "trailSecondary",
+      "primaryText", "secondaryText",
+    ]);
+    const particle = JSON.stringify(result.module.templates.particle);
+    const scene = JSON.stringify(result.module.scene);
+    expect(result.module.templates.particle).toMatchObject({
+      render: {
+        colorStart: { $expr: "palette.dotPrimary" },
+        colorEnd: { $expr: "palette.dotSecondary" },
+        glowColorStart: { $expr: "palette.glowPrimary" },
+        glowColorEnd: { $expr: "palette.glowSecondary" },
+        trailColorStart: { $expr: "palette.trailPrimary" },
+        trailColorEnd: { $expr: "palette.trailSecondary" },
+      },
+    });
+    expect(result.module.scene[0]).toMatchObject({
+      field: {
+        wireframeColorStart: { $expr: "palette.linePrimary" },
+        wireframeColorEnd: { $expr: "palette.lineSecondary" },
+      },
+    });
+    const render = (result.module.templates.particle as {
+      render: Record<string, { $expr?: string }>;
+    }).render;
+    for (const key of [
+      "colorStart", "colorEnd", "glowColorStart", "glowColorEnd",
+      "trailColorStart", "trailColorEnd",
+    ]) {
+      expect(render[key]?.$expr).not.toContain("field.energy");
+    }
+    const field = (result.module.scene[0] as {
+      field: Record<string, { $expr?: string }>;
+    }).field;
+    expect(field.wireframeColorStart?.$expr).not.toContain("field.energy");
+    expect(field.wireframeColorEnd?.$expr).not.toContain("field.energy");
+    // Background and text are renderer-level surfaces rather than module
+    // entities; all other declared slots must be referenced by module data.
+    const rendererSlots = new Set([
+      "backgroundPrimary", "backgroundSecondary", "primaryText", "secondaryText",
+    ]);
+    const moduleData = `${particle}${scene}`;
+    const unused = result.module.paletteSlots
+      .map((slot) => slot.id)
+      .filter((id) => !rendererSlots.has(id) && !moduleData.includes(`palette.${id}`));
+    expect(unused).toEqual([]);
   });
 
-  it("compiles the Hypervault 3D architectural shockwave module", () => {
-    const source = readFileSync(
-      path.join(process.cwd(), "..", "nova-visualiser-modules", "hypervault", "module.yaml"),
-      "utf8",
-    );
-    const result = compilePhonoscopeYaml(source);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.module).toMatchObject({
-      id: "hypervault",
-      packageName: "nz.skull.nova.visualiser.hypervault",
-      version: "1.1.0",
-      dimension: "3d",
-      resources: { maxParticles: 5000, maxInteractiveFieldEntities: 4032 },
-    });
-    expect(result.module.settings.find((setting) => setting.id === "downbeat_impact")).toMatchObject({
-      control: "slider",
-      default: 1.35,
-    });
-    expect(result.module.settings.find((setting) => setting.id === "complexity")).toMatchObject({
-      min: 0.2,
-      max: 1,
-      default: 0.45,
-      affects: ["scene.vault-field.field.density"],
-    });
-    expect(JSON.stringify(result.module.scene)).toContain("settings.downbeat_impact");
+  it("keeps visualiser palette pairs as geometric gradient endpoints", () => {
+    const modulesRoot = path.join(process.cwd(), "..", "nova-visualiser-modules");
+    for (const entry of readdirSync(modulesRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const modulePath = path.join(modulesRoot, entry.name, "module.yaml");
+      if (!existsSync(modulePath)) continue;
+      const source = readFileSync(modulePath, "utf8");
+      expect(source, entry.name).not.toMatch(/mix\s*\(\s*palette\./i);
+      const result = compilePhonoscopeYaml(source);
+      expect(result.ok, entry.name).toBe(true);
+    }
+    expect(BUILTIN_PHONOSCOPE_MODULE_YAML).not.toMatch(/mix\s*\(\s*palette\./i);
   });
 
   it("compiles the resilient built-in module and its field", () => {

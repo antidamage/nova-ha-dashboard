@@ -9,7 +9,7 @@ import {
 } from "./accentColor";
 import { configAccordionKey, getAccordionOpen, setAccordionOpen } from "./configUiState";
 import { ConfigColorPicker } from "./ConfigColorPicker";
-import { DotLineControl } from "./DotControls";
+import { DotLineControl, DotRangeControl } from "./DotControls";
 import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
@@ -339,6 +339,51 @@ export function SliderControlPanel({
   );
 }
 
+export function RangeSliderControlPanel({
+  ariaLabel,
+  formatValue,
+  label,
+  max,
+  min,
+  onCommit,
+  onPreview,
+  step,
+  value,
+}: {
+  ariaLabel: string;
+  formatValue: (value: number) => string;
+  label: string;
+  max: number;
+  min: number;
+  onCommit: (value: [number, number]) => void;
+  onPreview: (value: [number, number]) => void;
+  step: number;
+  value: [number, number];
+}) {
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_180px] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">{label}</p>
+        <div className="px-1">
+          <DotRangeControl
+            ariaLabel={ariaLabel}
+            ariaValueText={(current) => [formatValue(current[0]), formatValue(current[1])]}
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={onPreview}
+            onCommit={onCommit}
+          />
+        </div>
+        <p className="config-slider-value text-xl font-black tabular-nums text-neutral-50 md:text-right">
+          {formatValue(value[0])}–{formatValue(value[1])}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ColorIntensitySlider({
   label,
   onCommit,
@@ -378,6 +423,7 @@ export function ColorWidget({
   onToggle,
   pasteColorDisabled,
   rgb,
+  intensity,
   swatchOpacity,
 }: {
   active: boolean;
@@ -389,8 +435,12 @@ export function ColorWidget({
   onToggle: () => void;
   pasteColorDisabled?: boolean;
   rgb: [number, number, number];
+  intensity?: number;
   swatchOpacity?: number;
 }) {
+  const displayedIntensity = Math.max(0, Math.min(100, intensity ?? 100));
+  const displayedRgb = rgb.map((component) =>
+    Math.round(component * displayedIntensity / 100)) as [number, number, number];
   return (
     <div className={`theme-widget-cell ${active ? "theme-widget-cell-active" : ""}`}>
       <button
@@ -403,13 +453,16 @@ export function ColorWidget({
         <span
           className="theme-display-swatch border"
           style={{
-            backgroundColor: `rgb(${rgb.join(",")})`,
+            backgroundColor: `rgb(${displayedRgb.join(",")})`,
             opacity: swatchOpacity,
           }}
         />
         <span className="theme-display-copy">
           <span className="theme-display-label zone-title-bar">{label}</span>
           <span className="theme-display-detail">{detail}</span>
+          {intensity === undefined ? null : (
+            <span className="theme-display-detail">Intensity {Math.round(displayedIntensity)}%</span>
+          )}
         </span>
       </button>
 

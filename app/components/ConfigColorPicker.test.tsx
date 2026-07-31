@@ -78,6 +78,26 @@ describe("ConfigColorPicker", () => {
     expect(onToggle).toHaveBeenCalledOnce();
   });
 
+  it("shows colour intensity and renders the intensity-adjusted swatch", () => {
+    render(
+      <ColorWidget
+        active={false}
+        detail="Visualiser palette colour"
+        intensity={0}
+        label="Background"
+        rgb={[255, 255, 255]}
+        onToggle={vi.fn()}
+      >
+        <div>picker</div>
+      </ColorWidget>,
+    );
+
+    expect(screen.getByText("Intensity 0%")).toBeInTheDocument();
+    expect(document.querySelector(".theme-display-swatch")).toHaveStyle({
+      backgroundColor: "rgb(0, 0, 0)",
+    });
+  });
+
   it("previews a config slider during drag and commits exactly once on release", () => {
     const onPreview = vi.fn();
     const onCommit = vi.fn();

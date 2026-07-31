@@ -482,11 +482,69 @@ export type PhonoscopePreferences = {
     lrclib?: boolean;
   };
   moduleSettings?: Record<string, Record<string, number>>;
+  /** module id -> setting id -> live baseline parameter source */
+  moduleParameterSources?: Record<string, Record<string, PhonoscopeParameterSource>>;
   pendingStructuralModuleSettings?: Record<string, Record<string, number>>;
   moduleReloadGenerations?: Record<string, number>;
+  colorGroups?: PhonoscopeColorGroup[];
+  moduleColorGroupIds?: Record<string, string>;
+  /** Transient dashboard editor preview; cleared when the editor closes. */
+  editorPreviewColorGroupId?: string;
+  editorPreviewColorThemeId?: string;
+  /**
+   * Legacy dashboard-theme-backed groups. Read only for the v2 migration; new
+   * writes use `colorGroups`.
+   */
   themeGroups?: PhonoscopeThemeGroup[];
   moduleThemeGroupIds?: Record<string, string>;
   updatedAt?: string;
+};
+
+export type PhonoscopeColorValue = {
+  rgb: [number, number, number];
+  intensity: number;
+  opacity: number;
+  cursor?: { x: number; y: number };
+};
+
+export type PhonoscopeParameterSource =
+  | { type: "manual"; value: number }
+  | {
+      type: "random";
+      min: number;
+      max: number;
+      cadence: "beat" | "downbeat" | "bar" | "song" | "interval";
+      intervalSeconds: number;
+      transitionSeconds: number;
+    }
+  | {
+      type: "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble";
+      min: number;
+      max: number;
+      attackSeconds: number;
+      releaseSeconds: number;
+    };
+
+export type PhonoscopeColorTheme = {
+  id: string;
+  name: string;
+  colors: Record<string, PhonoscopeColorValue>;
+  /** module id -> setting id -> source */
+  parameterOverrides: Record<string, Record<string, PhonoscopeParameterSource>>;
+};
+
+export type PhonoscopeColorGroup = {
+  id: string;
+  /** Colour groups are owned by one visualiser and never shared across modules. */
+  moduleId: string;
+  name: string;
+  themes: PhonoscopeColorTheme[];
+  order: "sequential" | "shuffle";
+  changeMode: "interval" | "song" | "downbeat";
+  waitSeconds: number;
+  transitionSeconds: number;
+  housePartyHueMode: "follow" | "complement";
+  housePartyBrightnessMode: "follow" | "oppose" | "ignore";
 };
 
 export type PhonoscopeThemeGroupEntry = {

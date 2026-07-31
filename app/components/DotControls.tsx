@@ -524,6 +524,145 @@ export function DotLineControl({
   );
 }
 
+export function DotRangeControl({
+  ariaLabel,
+  ariaValueText,
+  disabled = false,
+  max,
+  min,
+  onChange,
+  onCommit,
+  step,
+  value,
+}: {
+  ariaLabel: string;
+  ariaValueText?: (value: [number, number]) => [string, string];
+  disabled?: boolean;
+  max: number;
+  min: number;
+  onChange: (value: [number, number]) => void;
+  onCommit?: (value: [number, number]) => void;
+  step: number;
+  value: [number, number];
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const activeThumbRef = useRef<0 | 1 | null>(null);
+  const currentRef = useRef<[number, number]>(value);
+  const [interacting, setInteracting] = useState(false);
+  currentRef.current = value;
+  const span = Math.max(step, max - min);
+  const ratio = (part: number) => clamp((part - min) / span, 0, 1);
+  const labels = ariaValueText?.(value);
+
+  const stepped = useCallback((raw: number) => {
+    const next = min + Math.round((raw - min) / step) * step;
+    return Number(clamp(next, min, max).toFixed(12));
+  }, [max, min, step]);
+
+  const update = useCallback((thumb: 0 | 1, raw: number, commit = false) => {
+    const next = [...currentRef.current] as [number, number];
+    next[thumb] = stepped(raw);
+    if (thumb === 0) next[0] = Math.min(next[0], next[1]);
+    else next[1] = Math.max(next[0], next[1]);
+    currentRef.current = next;
+    onChange(next);
+    if (commit) onCommit?.(next);
+  }, [onChange, onCommit, stepped]);
+
+  const rawFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    return rect ? min + clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1) * span : min;
+  };
+
+  const begin = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    const raw = rawFromPointer(event);
+    const thumb: 0 | 1 = Math.abs(raw - currentRef.current[0]) <= Math.abs(raw - currentRef.current[1]) ? 0 : 1;
+    activeThumbRef.current = thumb;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    beginControlInteraction();
+    setInteracting(true);
+    update(thumb, raw);
+  };
+
+  const end = () => {
+    if (activeThumbRef.current === null) return;
+    activeThumbRef.current = null;
+    endControlInteraction();
+    setInteracting(false);
+    onCommit?.(currentRef.current);
+  };
+
+  const keyboard = (event: React.KeyboardEvent<HTMLDivElement>, thumb: 0 | 1) => {
+    if (disabled) return;
+    let next: number | null = null;
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = value[thumb] - step;
+    else if (event.key === "ArrowRight" || event.key === "ArrowUp") next = value[thumb] + step;
+    else if (event.key === "PageDown") next = value[thumb] - step * 10;
+    else if (event.key === "PageUp") next = value[thumb] + step * 10;
+    else if (event.key === "Home") next = min;
+    else if (event.key === "End") next = max;
+    if (next === null) return;
+    event.preventDefault();
+    markControlInteraction();
+    update(thumb, next, true);
+  };
+
+  return (
+    <div
+      ref={trackRef}
+      className={classNames(
+        "rect-slider rect-range-slider relative flex h-12 w-full items-center touch-none select-none",
+        interacting && "rect-slider-active",
+        disabled && "rect-slider-disabled",
+      )}
+      onPointerDown={begin}
+      onPointerMove={(event) => {
+        if (activeThumbRef.current !== null && event.buttons === 1) {
+          update(activeThumbRef.current, rawFromPointer(event));
+        }
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onLostPointerCapture={end}
+    >
+      <div className="rect-slider-track">
+        <div
+          className="rect-slider-fill rect-slider-range-fill"
+          style={{
+            left: `${ratio(value[0]) * 100}%`,
+            width: `${Math.max(0, ratio(value[1]) - ratio(value[0])) * 100}%`,
+          }}
+          aria-hidden="true"
+        />
+      </div>
+      {([0, 1] as const).map((thumb) => (
+        <div
+          key={thumb}
+          role="slider"
+          tabIndex={disabled ? -1 : 0}
+          aria-label={`${ariaLabel} ${thumb === 0 ? "minimum" : "maximum"}`}
+          aria-disabled={disabled}
+          aria-valuemin={thumb === 0 ? min : value[0]}
+          aria-valuemax={thumb === 0 ? value[1] : max}
+          aria-valuenow={value[thumb]}
+          aria-valuetext={labels?.[thumb]}
+          className="rect-slider-thumb rect-range-thumb"
+          style={{ left: `${ratio(value[thumb]) * 100}%` }}
+          onKeyDown={(event) => keyboard(event, thumb)}
+          onPointerDown={(event) => {
+            activeThumbRef.current = thumb;
+            event.stopPropagation();
+            event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
+            beginControlInteraction();
+            setInteracting(true);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function DotSpectrumControl({
   ariaLabel,
   cursor,

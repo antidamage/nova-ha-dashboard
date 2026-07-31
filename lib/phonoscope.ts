@@ -2,6 +2,7 @@ import { parse as parseYaml } from "yaml";
 
 export const PHONOSCOPE_ENGINE_VERSION = 1;
 export const PHONOSCOPE_MODULE_ID = /^[a-z][a-z0-9_-]{1,63}$/;
+const PHONOSCOPE_PALETTE_SLOT_ID = /^[a-z][a-zA-Z0-9_-]{0,63}$/;
 export const PHONOSCOPE_MODULE_VERSION = /^\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i;
 export const PHONOSCOPE_PACKAGE_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/;
 
@@ -40,6 +41,21 @@ export type PhonoscopeControlOption = {
   label: string;
   value: number;
 };
+
+export type PhonoscopePaletteSlot = {
+  id: string;
+  label: string;
+  defaultRgb: [number, number, number];
+};
+
+export const PHONOSCOPE_CORE_PALETTE_SLOTS: PhonoscopePaletteSlot[] = [
+  { id: "primary", label: "Primary", defaultRgb: [115, 115, 115] },
+  { id: "secondary", label: "Secondary", defaultRgb: [217, 217, 217] },
+  { id: "tertiary", label: "Tertiary", defaultRgb: [166, 166, 166] },
+  { id: "background", label: "Background", defaultRgb: [0, 0, 0] },
+  { id: "primaryText", label: "Primary Text Colour", defaultRgb: [255, 255, 255] },
+  { id: "secondaryText", label: "Secondary Text Colour", defaultRgb: [184, 184, 184] },
+];
 
 export type PhonoscopeSetting = {
   id: string;
@@ -87,6 +103,7 @@ export type PhonoscopeCompiledModule = {
     effect?: string;
   };
   settings: PhonoscopeSetting[];
+  paletteSlots: PhonoscopePaletteSlot[];
   templates: Record<string, unknown>;
   scene: unknown[];
   metadata: {
@@ -111,6 +128,7 @@ export type PhonoscopeModuleSummary = {
   hash: string;
   builtin: boolean;
   settings: PhonoscopeSetting[];
+  paletteSlots: PhonoscopePaletteSlot[];
   previewUrl?: string;
 };
 
@@ -505,6 +523,42 @@ function normalizeSettings(value: unknown, errors: string[]): PhonoscopeSetting[
   });
 }
 
+function normalizePaletteSlots(value: unknown, errors: string[]): PhonoscopePaletteSlot[] {
+  if (value === undefined) return PHONOSCOPE_CORE_PALETTE_SLOTS.map((slot) => ({ ...slot }));
+  if (!Array.isArray(value)) {
+    errors.push("paletteSlots: expected an array");
+    return PHONOSCOPE_CORE_PALETTE_SLOTS.map((slot) => ({ ...slot }));
+  }
+  const slots: PhonoscopePaletteSlot[] = [];
+  const seen = new Set<string>();
+  value.forEach((entry, index) => {
+    if (!isRecord(entry) || typeof entry.id !== "string" || !PHONOSCOPE_PALETTE_SLOT_ID.test(entry.id)) {
+      errors.push(`paletteSlots[${index}]: invalid id`);
+      return;
+    }
+    if (seen.has(entry.id)) {
+      errors.push(`paletteSlots[${index}]: duplicate id`);
+      return;
+    }
+    if (typeof entry.label !== "string" || !entry.label.trim()) {
+      errors.push(`paletteSlots[${index}].label: expected a label`);
+      return;
+    }
+    const rawRgb = entry.defaultRgb;
+    if (!Array.isArray(rawRgb) || rawRgb.length !== 3 || rawRgb.some((part) => !Number.isFinite(Number(part)))) {
+      errors.push(`paletteSlots[${index}].defaultRgb: expected three numeric RGB components`);
+      return;
+    }
+    seen.add(entry.id);
+    slots.push({
+      id: entry.id,
+      label: entry.label.trim().slice(0, 60),
+      defaultRgb: rawRgb.map((part) => Math.max(0, Math.min(255, Math.round(Number(part))))) as [number, number, number],
+    });
+  });
+  return slots;
+}
+
 function normalizeBounds(value: unknown, dimension: "2d" | "3d", errors: string[]) {
   const size = dimension === "2d" ? 2 : 3;
   const fallbackMin = Array(size).fill(-1);
@@ -636,6 +690,7 @@ export function compilePhonoscopeModule(value: unknown): PhonoscopeCompileResult
 
   const normalizedDimension = dimension ?? "2d";
   const settings = normalizeSettings(value.settings, errors);
+  const paletteSlots = normalizePaletteSlots(value.paletteSlots, errors);
   const bounds = normalizeBounds(value.bounds, normalizedDimension, errors);
   const boundary = normalizeBoundary(value.boundary, errors);
   const templates = isRecord(value.templates) ? compileValues(value.templates, "templates", errors) as Record<string, unknown> : {};
@@ -670,6 +725,7 @@ export function compilePhonoscopeModule(value: unknown): PhonoscopeCompileResult
     bounds,
     boundary,
     settings,
+    paletteSlots,
     templates,
     scene,
     metadata: {
@@ -731,7 +787,8 @@ templates:
     render:
       primitive: ring
       material: emissive
-      color: "=mix(palette.primary, palette.highlight, beat.phase)"
+      colorStart: "=palette.primary"
+      colorEnd: "=palette.secondary"
       glow: "=0.4 + beat.pulse * settings.intensity"
     transform:
       scale: "=vec3(0.35 + beat.phase * 0.45, 0.35 + beat.phase * 0.45, 1)"
