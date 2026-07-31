@@ -17,8 +17,10 @@ export type RuntimeThemeState = {
   active: boolean;
   followVisualizerWhenActive: boolean;
   theme: {
-    themeId: string;
-    variant: ThemeVariant;
+    themeId?: string;
+    variant?: ThemeVariant;
+    colorThemeId?: string;
+    palette?: Record<string, [number, number, number]>;
     transitionSeconds: number;
     updatedAt: string;
   } | null;
@@ -34,8 +36,9 @@ function runtimeKey(value: RuntimeThemeState) {
   return [
     value.active ? "active" : "inactive",
     value.followVisualizerWhenActive ? "follow" : "fixed",
-    value.theme?.themeId ?? "",
+    value.theme?.colorThemeId ?? value.theme?.themeId ?? "",
     value.theme?.variant ?? "",
+    JSON.stringify(value.theme?.palette ?? {}),
     value.theme?.transitionSeconds ?? 0,
   ].join(":");
 }
@@ -43,10 +46,31 @@ function runtimeKey(value: RuntimeThemeState) {
 export function resolveHousePartyTargetTheme(
   runtime: RuntimeThemeState,
   library: ClientThemeLibrary,
+  configuredTheme?: DeviceTheme,
 ): DeviceTheme | null {
   if (!runtime.active || !runtime.followVisualizerWhenActive || !runtime.theme) return null;
+  if (runtime.theme.palette && configuredTheme) {
+    const color = (slot: string, fallback: DeviceTheme["accent"]) => {
+      const rgb = runtime.theme?.palette?.[slot];
+      return rgb ? { ...fallback, rgb, intensity: 100 } : fallback;
+    };
+    const primaryText = color("primaryText", configuredTheme.clockColor);
+    const secondaryText = color("secondaryText", configuredTheme.voiceTranscriptColors.text);
+    return {
+      ...configuredTheme,
+      accent: color("primary", configuredTheme.accent),
+      highlight: color("secondary", configuredTheme.highlight),
+      background: color("background", configuredTheme.background),
+      clockColor: primaryText,
+      titleColors: { dark: primaryText, light: primaryText },
+      voiceTranscriptColors: {
+        ...configuredTheme.voiceTranscriptColors,
+        text: secondaryText,
+      },
+    };
+  }
   const entry = library.entries.find((candidate) => candidate.id === runtime.theme?.themeId);
-  return entry?.themeSet.themes[runtime.theme.variant] ?? null;
+  return runtime.theme.variant ? entry?.themeSet.themes[runtime.theme.variant] ?? null : null;
 }
 
 export function useHousePartyThemeFollow(configuredTheme: DeviceTheme) {
@@ -107,7 +131,7 @@ export function useHousePartyThemeFollow(configuredTheme: DeviceTheme) {
   }, []);
 
   useEffect(() => {
-    const target = resolveHousePartyTargetTheme(runtime, library);
+    const target = resolveHousePartyTargetTheme(runtime, library, configuredTheme);
     if (runtime.active && runtime.followVisualizerWhenActive && runtime.theme && !target) {
       return;
     }

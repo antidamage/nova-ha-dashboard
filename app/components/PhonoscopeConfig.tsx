@@ -1,11 +1,54 @@
 "use client";
 
-import { Activity, Box, RefreshCw, Trash2, Upload, Waves } from "lucide-react";
+import {
+  Activity,
+  AudioLines,
+  Box,
+  Check,
+  CircleDot,
+  Clock3,
+  Contrast,
+  CopyPlus,
+  Dice5,
+  Gauge,
+  Gem,
+  House,
+  ListOrdered,
+  MonitorOff,
+  Music2,
+  Palette,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Rocket,
+  RotateCcw,
+  Shuffle,
+  SlidersHorizontal,
+  Sparkles,
+  Square,
+  Sun,
+  Trash2,
+  Upload,
+  Waves,
+  X,
+  Zap,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { CheckboxRow, ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import {
+  CheckboxRow,
+  ColorIntensitySlider,
+  ColorSpectrum,
+  ColorWidget,
+  ConfigAccordion,
+  RangeSliderControlPanel,
+  SliderControlPanel,
+} from "./ConfigControls";
+import { ConfigSelect } from "./ConfigSelect";
+import { ModalOverlay } from "./ModalOverlay";
+import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import type { ThemeColorValue } from "./accentColor";
 
-type ModuleSetting = {
+export type ModuleSetting = {
   id: string;
   label: string;
   description?: string;
@@ -33,6 +76,7 @@ type ModuleSummary = {
   builtin: boolean;
   hash: string;
   settings: ModuleSetting[];
+  paletteSlots: Array<{ id: string; label: string; defaultRgb: [number, number, number] }>;
 };
 
 type Config = {
@@ -52,41 +96,39 @@ type Config = {
     lrclib: boolean;
   };
   moduleSettings: Record<string, Record<string, number>>;
+  moduleParameterSources: Record<string, Record<string, ParameterSource>>;
   pendingStructuralModuleSettings: Record<string, Record<string, number>>;
   moduleReloadGenerations: Record<string, number>;
-  themeGroups: ThemeGroup[];
-  moduleThemeGroupIds: Record<string, string>;
+  colorGroups: ColorGroup[];
+  moduleColorGroupIds: Record<string, string>;
+  editorPreviewColorGroupId: string;
+  editorPreviewColorThemeId: string;
 };
 
-type ThemeGroupEntry = { themeId: string; baseVariant: "dark" | "light"; swapOnDownbeat: boolean; genres: string[] };
-type ThemeGroup = {
-  id: string; name: string; themes: ThemeGroupEntry[]; order: "sequential" | "shuffle";
-  changeMode: "interval" | "song" | "downbeat"; waitSeconds: number; transitionSeconds: number; useGenres: boolean;
+export type ParameterSource =
+  | { type: "manual"; value: number }
+  | { type: "random"; min: number; max: number; cadence: "beat" | "downbeat" | "bar" | "song" | "interval"; intervalSeconds: number; transitionSeconds: number }
+  | { type: "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble"; min: number; max: number; attackSeconds: number; releaseSeconds: number };
+type VisualiserColorValue = ThemeColorValue & { opacity: number };
+type ColorTheme = {
+  id: string;
+  name: string;
+  colors: Record<string, VisualiserColorValue>;
+  parameterOverrides: Record<string, Record<string, ParameterSource>>;
+};
+type ColorGroup = {
+  id: string; moduleId: string; name: string; themes: ColorTheme[]; order: "sequential" | "shuffle";
+  changeMode: "interval" | "song" | "downbeat"; waitSeconds: number; transitionSeconds: number;
   housePartyHueMode: "follow" | "complement";
   housePartyBrightnessMode: "follow" | "oppose" | "ignore";
 };
-type ThemeLibraryEntry = { id: string; name: string; themeSet: unknown };
 type Payload = {
   config: Config; modules: ModuleSummary[];
-  themeLibrary?: { entries?: ThemeLibraryEntry[] }; error?: string;
+  error?: string;
 };
-const GENRE_SUGGESTIONS = [
-  "Alternative", "Blues", "Classical", "Country", "Dance", "Electronic", "Folk",
-  "Grunge", "Hip-Hop/Rap", "Hyperpop", "Indie", "Jazz", "Latin", "Metal", "Pop",
-  "Punk", "R&B/Soul", "Reggae", "Rock", "Soundtrack",
-];
-const GENRE_SUGGESTION_SET = new Set(GENRE_SUGGESTIONS);
 const THEME_TIME_MAX_SECONDS = 600;
 const THEME_TIME_SLIDER_MAX = 100;
 const THEME_TIME_LOG_OFFSET = 10;
-
-function parseGenreInput(value: string) {
-  return [...new Set(value.split(",").map((genre) => genre.trim()).filter(Boolean))];
-}
-
-function customGenres(genres: string[]) {
-  return genres.filter((genre) => !GENRE_SUGGESTION_SET.has(genre));
-}
 
 function themeTimeSliderPosition(seconds: number) {
   const clamped = Math.max(0, Math.min(THEME_TIME_MAX_SECONDS, seconds));
@@ -145,18 +187,232 @@ function formatSettingValue(setting: ModuleSetting, value: number) {
   return value.toFixed(decimals);
 }
 
+function createId(prefix: string) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function defaultSource(setting: ModuleSetting, inherited: number): ParameterSource {
+  return { type: "manual", value: clampSetting(setting, inherited) };
+}
+
+export function sourceWithType(
+  setting: ModuleSetting,
+  source: ParameterSource,
+  type: ParameterSource["type"],
+): ParameterSource {
+  if (type === source.type) return source;
+  if (type === "manual") {
+    return {
+      type,
+      value: clampSetting(setting, source.type === "manual" ? source.value : source.max),
+    };
+  }
+  if (source.type !== "manual") {
+    const min = clampSetting(setting, source.min);
+    const max = Math.max(min, clampSetting(setting, source.max));
+    if (type === "random") {
+      return source.type === "random"
+        ? { ...source, type, min, max }
+        : { type, min, max, cadence: "beat", intervalSeconds: 4, transitionSeconds: 0.5 };
+    }
+    return source.type === "random"
+      ? { type, min, max, attackSeconds: 0.05, releaseSeconds: 0.6 }
+      : { ...source, type, min, max };
+  }
+  const value = clampSetting(setting, source.value);
+  const spread = Math.max(setting.step, (setting.max - setting.min) * 0.2);
+  const max = value;
+  const min = Math.min(max, clampSetting(setting, max - spread));
+  if (type === "random") {
+    return { type, min, max, cadence: "beat", intervalSeconds: 4, transitionSeconds: 0.5 };
+  }
+  return { type, min, max, attackSeconds: 0.05, releaseSeconds: 0.6 };
+}
+
+function themeSwatch(theme: ColorTheme) {
+  const rgb = (id: string, fallback: string) => {
+    const value = theme.colors[id];
+    if (!value) return fallback;
+    const scale = value.intensity / 100;
+    return `rgb(${value.rgb.map((part) => Math.round(part * scale)).join(",")} / ${value.opacity / 100})`;
+  };
+  return (
+    <span
+      className="cyber-select-swatch"
+      aria-hidden="true"
+      style={{ background: `linear-gradient(135deg, ${rgb("background", "#000")} 0 38%, ${rgb("primary", "#777")} 38% 68%, ${rgb("secondary", "#ddd")} 68%)` }}
+    />
+  );
+}
+
+function hasThemeColors(theme: ColorTheme) {
+  return Object.values(theme.colors).some((color) =>
+    Array.isArray(color.rgb)
+    && color.rgb.length === 3
+    && color.rgb.every(Number.isFinite)
+  );
+}
+
+function parameterSourceIcon(type: ParameterSource["type"]) {
+  switch (type) {
+    case "manual": return <SlidersHorizontal />;
+    case "random": return <Dice5 />;
+    case "beat": return <Activity />;
+    case "downbeat": return <AudioLines />;
+    case "energy": return <Zap />;
+    case "bass": return <Waves />;
+    case "mid": return <AudioLines />;
+    case "treble": return <Sparkles />;
+  }
+}
+
+function ParameterDriverControls({
+  inherited,
+  onCommit,
+  onPreview,
+  setting,
+  source,
+}: {
+  inherited: number;
+  onCommit: (source: ParameterSource) => void;
+  onPreview: (source: ParameterSource) => void;
+  setting: ModuleSetting;
+  source: ParameterSource;
+}) {
+  return (
+    <div className="grid gap-3">
+      <ConfigSelect
+        label="Parameter source"
+        value={source.type}
+        options={(["manual", "random", "beat", "downbeat", "energy", "bass", "mid", "treble"] as ParameterSource["type"][]).map((type) => ({
+          value: type,
+          label: type.charAt(0).toUpperCase() + type.slice(1),
+          icon: parameterSourceIcon(type),
+        }))}
+        onChange={(type) => onCommit(sourceWithType(setting, source, type))}
+      />
+      {source.type === "manual" ? (
+        <SliderControlPanel
+          ariaLabel={`${setting.label} manual value`}
+          ariaValueText={formatSettingValue(setting, source.value)}
+          color={[34, 211, 238]}
+          label="Manual"
+          min={0}
+          max={1}
+          step={0.001}
+          value={sliderPosition(setting, source.value)}
+          valueText={formatSettingValue(setting, source.value)}
+          snapValue={sliderPosition(setting, inherited)}
+          onPreview={(position) => onPreview({ type: "manual", value: sliderValue(setting, position) })}
+          onCommit={(position) => onCommit({ type: "manual", value: sliderValue(setting, position) })}
+        />
+      ) : (
+        <>
+          <RangeSliderControlPanel
+            ariaLabel={`${setting.label} driven range`}
+            label="Minimum / Maximum"
+            min={setting.min}
+            max={setting.max}
+            step={setting.step}
+            value={[source.min, source.max]}
+            formatValue={(value) => formatSettingValue(setting, value)}
+            onPreview={([min, max]) => onPreview({ ...source, min, max })}
+            onCommit={([min, max]) => onCommit({ ...source, min, max })}
+          />
+          {source.type === "random" ? (
+            <>
+              <ConfigSelect
+                label="Random cadence"
+                value={source.cadence}
+                options={[
+                  { value: "beat", label: "Beat", icon: <Activity /> },
+                  { value: "downbeat", label: "Downbeat", icon: <AudioLines /> },
+                  { value: "bar", label: "Bar", icon: <ListOrdered /> },
+                  { value: "song", label: "Song", icon: <Music2 /> },
+                  { value: "interval", label: "Timed interval", icon: <Clock3 /> },
+                ]}
+                onChange={(cadence) => onCommit({ ...source, cadence })}
+              />
+              {source.cadence === "interval" ? (
+                <SliderControlPanel
+                  ariaLabel="Random interval"
+                  ariaValueText={`${source.intervalSeconds} seconds`}
+                  color={[34, 211, 238]}
+                  label="Interval"
+                  min={0.25}
+                  max={60}
+                  step={0.25}
+                  value={source.intervalSeconds}
+                  valueText={`${source.intervalSeconds.toFixed(2)}s`}
+                  onPreview={(intervalSeconds) => onPreview({ ...source, intervalSeconds })}
+                  onCommit={(intervalSeconds) => onCommit({ ...source, intervalSeconds })}
+                />
+              ) : null}
+              <SliderControlPanel
+                ariaLabel="Random transition"
+                ariaValueText={`${source.transitionSeconds} seconds`}
+                color={[34, 211, 238]}
+                label="Transition"
+                min={0}
+                max={10}
+                step={0.05}
+                value={source.transitionSeconds}
+                valueText={`${source.transitionSeconds.toFixed(2)}s`}
+                onPreview={(transitionSeconds) => onPreview({ ...source, transitionSeconds })}
+                onCommit={(transitionSeconds) => onCommit({ ...source, transitionSeconds })}
+              />
+            </>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SliderControlPanel
+                ariaLabel={`${setting.label} attack`}
+                ariaValueText={`${source.attackSeconds} seconds`}
+                color={[34, 211, 238]}
+                label="Attack"
+                min={0}
+                max={2}
+                step={0.01}
+                value={source.attackSeconds}
+                valueText={`${source.attackSeconds.toFixed(2)}s`}
+                onPreview={(attackSeconds) => onPreview({ ...source, attackSeconds })}
+                onCommit={(attackSeconds) => onCommit({ ...source, attackSeconds })}
+              />
+              <SliderControlPanel
+                ariaLabel={`${setting.label} release`}
+                ariaValueText={`${source.releaseSeconds} seconds`}
+                color={[34, 211, 238]}
+                label="Release"
+                min={0.05}
+                max={10}
+                step={0.05}
+                value={source.releaseSeconds}
+                valueText={`${source.releaseSeconds.toFixed(2)}s`}
+                onPreview={(releaseSeconds) => onPreview({ ...source, releaseSeconds })}
+                onCommit={(releaseSeconds) => onCommit({ ...source, releaseSeconds })}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function PhonoscopeConfig() {
   const [config, setConfig] = useState<Config | null>(null);
   const [modules, setModules] = useState<ModuleSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<string | null>(null);
-  const [themeLibrary, setThemeLibrary] = useState<ThemeLibraryEntry[]>([]);
   const [themeModal, setThemeModal] = useState(false);
-  const [draftGroups, setDraftGroups] = useState<ThemeGroup[]>([]);
+  const [draftGroups, setDraftGroups] = useState<ColorGroup[]>([]);
   const [draftGroupId, setDraftGroupId] = useState("");
-  const [genreInputs, setGenreInputs] = useState<Record<string, string>>({});
+  const [draftThemeId, setDraftThemeId] = useState("");
+  const [activeColorSlot, setActiveColorSlot] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<"group" | "theme" | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const editorSaveChain = useRef<Promise<void>>(Promise.resolve());
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -166,7 +422,6 @@ export function PhonoscopeConfig() {
       if (!response.ok) throw new Error(payload.error ?? "Failed to load Phonoscope");
       setConfig(payload.config);
       setModules(payload.modules);
-      setThemeLibrary(payload.themeLibrary?.entries ?? []);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to load Phonoscope");
     } finally {
@@ -177,15 +432,6 @@ export function PhonoscopeConfig() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    if (!themeModal) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [themeModal]);
 
   const save = useCallback(async (next: Config) => {
     setConfig(next);
@@ -212,22 +458,88 @@ export function PhonoscopeConfig() {
     () => modules.find((module) => module.id === config?.activeModuleId && module.version === config?.activeModuleVersion),
     [config, modules],
   );
-  const activeThemeGroup = config && activeModule
-    ? config.themeGroups.find((group) => group.id === config.moduleThemeGroupIds[activeModule.id])
+  const activeModuleColorGroups = config && activeModule
+    ? config.colorGroups.filter((group) => group.moduleId === activeModule.id)
+    : [];
+  const activeColorGroup = config && activeModule
+    ? activeModuleColorGroups.find((group) => group.id === config.moduleColorGroupIds[activeModule.id])
+      ?? activeModuleColorGroups[0]
     : undefined;
   const draftGroup = draftGroups.find((group) => group.id === draftGroupId);
-  const updateDraftGroup = (patch: Partial<ThemeGroup>) =>
-    setDraftGroups((groups) => groups.map((group) => group.id === draftGroupId ? { ...group, ...patch } : group));
+  const draftTheme = draftGroup?.themes.find((theme) => theme.id === draftThemeId) ?? draftGroup?.themes[0];
+  const persistEditor = useCallback((
+    groups: ColorGroup[],
+    groupId: string,
+    themeId: string,
+    preview = true,
+  ) => {
+    if (!config || !activeModule) return Promise.resolve();
+    const next: Config = {
+      ...config,
+      colorGroups: [
+        ...config.colorGroups.filter((group) => group.moduleId !== activeModule.id),
+        ...groups.map((group) => ({ ...group, moduleId: activeModule.id })),
+      ],
+      moduleColorGroupIds: groupId
+        ? { ...config.moduleColorGroupIds, [activeModule.id]: groupId }
+        : config.moduleColorGroupIds,
+      editorPreviewColorGroupId: preview ? groupId : "",
+      editorPreviewColorThemeId: preview ? themeId : "",
+    };
+    editorSaveChain.current = editorSaveChain.current
+      .catch(() => undefined)
+      .then(async () => { await save(next); });
+    return editorSaveChain.current;
+  }, [activeModule, config, save]);
+  const updateDraftGroup = (patch: Partial<ColorGroup>, commit = false) => {
+    const next = draftGroups.map((group) => group.id === draftGroupId ? { ...group, ...patch } : group);
+    setDraftGroups(next);
+    if (commit) void persistEditor(next, draftGroupId, draftThemeId);
+  };
+  const updateDraftTheme = (patch: Partial<ColorTheme>, commit = false) => {
+    const next = draftGroups.map((group) => group.id !== draftGroupId ? group : {
+      ...group,
+      themes: group.themes.map((theme) => theme.id === draftTheme?.id ? { ...theme, ...patch } : theme),
+    });
+    setDraftGroups(next);
+    if (commit) void persistEditor(next, draftGroupId, draftThemeId);
+  };
   const openThemeModal = () => {
-    if (!config) return;
-    const groups = structuredClone(config.themeGroups);
+    if (!config || !activeModule) return;
+    const groups = structuredClone(activeModuleColorGroups);
+    if (!groups.length) return;
     setDraftGroups(groups);
-    setGenreInputs(Object.fromEntries(groups.flatMap((group) => group.themes.map((theme) => [
-      `${group.id}:${theme.themeId}`,
-      customGenres(theme.genres).join(", "),
-    ]))));
-    setDraftGroupId(activeThemeGroup?.id ?? groups[0]?.id ?? "");
+    const group = activeColorGroup ?? groups[0];
+    setDraftGroupId(group?.id ?? "");
+    setDraftThemeId(group?.themes[0]?.id ?? "");
     setThemeModal(true);
+    void persistEditor(groups, group?.id ?? "", group?.themes[0]?.id ?? "");
+  };
+
+  const closeThemeModal = useCallback(async () => {
+    await persistEditor(draftGroups, draftGroupId, draftThemeId, false);
+    setThemeModal(false);
+    setActiveColorSlot(null);
+    setRenaming(null);
+  }, [draftGroupId, draftGroups, draftThemeId, persistEditor]);
+
+  const updateOverride = (setting: ModuleSetting, source: ParameterSource | null, commit = false) => {
+    if (!activeModule || !draftTheme) return;
+    const moduleOverrides = { ...(draftTheme.parameterOverrides[activeModule.id] ?? {}) };
+    if (source) moduleOverrides[setting.id] = source;
+    else delete moduleOverrides[setting.id];
+    const parameterOverrides = { ...draftTheme.parameterOverrides };
+    if (Object.keys(moduleOverrides).length) parameterOverrides[activeModule.id] = moduleOverrides;
+    else delete parameterOverrides[activeModule.id];
+    updateDraftTheme({ parameterOverrides }, commit);
+  };
+
+  const finishRename = () => {
+    const name = nameDraft.trim();
+    if (!name) return;
+    if (renaming === "group") updateDraftGroup({ name: name.slice(0, 60) }, true);
+    if (renaming === "theme") updateDraftTheme({ name: name.slice(0, 60) }, true);
+    setRenaming(null);
   };
 
   const uploadPackage = async (file: File) => {
@@ -294,6 +606,487 @@ export function PhonoscopeConfig() {
 
         {config ? (
           <>
+            <ConfigSelect
+              label="Active module"
+              ariaLabel="Active visualiser module"
+              value={moduleKey(activeModule ?? modules[0])}
+              disabled={busy}
+              options={modules.map((module) => ({
+                value: moduleKey(module),
+                label: module.name,
+                detail: module.dimension.toUpperCase(),
+                icon: module.dimension === "3d" ? <Box /> : <Square />,
+              }))}
+              onChange={(key) => {
+                const selected = modules.find((module) => moduleKey(module) === key);
+                if (selected) void save({ ...config, activeModuleId: selected.id, activeModuleVersion: selected.version });
+              }}
+            />
+
+            {activeModule?.description ? <p className="text-sm text-neutral-400">{activeModule.description}</p> : null}
+
+            <ModalOverlay
+              open={themeModal}
+              onClose={() => void closeThemeModal()}
+              ariaLabel="Visualiser colour effects"
+              className="grid max-h-[92vh] w-[min(1100px,94vw)] gap-4 overflow-y-auto border border-cyan-500/40 bg-neutral-950 p-5"
+            >
+              <header className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-black uppercase text-cyan-100">Visualiser colour effects</h2>
+                  <p className="mt-1 text-sm text-neutral-400">Colour group → colour theme → parameter override → parameter source</p>
+                </div>
+                <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Close effects editor" onClick={() => void closeThemeModal()}>
+                  <X className="h-5 w-5" />
+                </MomentaryFeedbackButton>
+              </header>
+
+              {draftGroup ? (
+                <>
+                  <div className="grid gap-3">
+                    <ConfigSelect
+                      label="Colour group"
+                      value={draftGroup.id}
+                      options={draftGroups.map((group) => {
+                        const previewTheme = group.themes.find(hasThemeColors);
+                        return {
+                          value: group.id,
+                          label: group.name,
+                          detail: `${group.themes.length} colour theme${group.themes.length === 1 ? "" : "s"}`,
+                          icon: previewTheme ? undefined : <Palette />,
+                          swatch: previewTheme ? themeSwatch(previewTheme) : undefined,
+                        };
+                      })}
+                      onChange={(id) => {
+                        const group = draftGroups.find((candidate) => candidate.id === id);
+                        const themeId = group?.themes[0]?.id ?? "";
+                        setDraftGroupId(id);
+                        setDraftThemeId(themeId);
+                        void persistEditor(draftGroups, id, themeId);
+                      }}
+                    />
+                    {renaming === "group" ? (
+                      <div className="theme-library-name-field">
+                        <input
+                          className="cyber-text-input"
+                          value={nameDraft}
+                          aria-label="Colour group name"
+                          maxLength={60}
+                          onChange={(event) => setNameDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") finishRename();
+                            if (event.key === "Escape") setRenaming(null);
+                          }}
+                        />
+                        <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Confirm group name" onClick={finishRename}><Check className="h-5 w-5" /></MomentaryFeedbackButton>
+                        <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Cancel group rename" onClick={() => setRenaming(null)}><X className="h-5 w-5" /></MomentaryFeedbackButton>
+                      </div>
+                    ) : (
+                      <div className="theme-library-actions">
+                        <MomentaryFeedbackButton type="button" className="theme-library-button" onClick={() => {
+                          const id = createId("color_group");
+                          const source = draftGroup.themes[0] ?? activeColorGroup?.themes[0];
+                          const next: ColorGroup = {
+                            ...draftGroup,
+                            id,
+                            name: "New Colour Group",
+                            themes: source ? [{ ...structuredClone(source), id: createId("theme"), name: "Default" }] : [],
+                          };
+                          const groups = [...draftGroups, next];
+                          setDraftGroups(groups);
+                          setDraftGroupId(id);
+                          setDraftThemeId(next.themes[0]?.id ?? "");
+                          void persistEditor(groups, id, next.themes[0]?.id ?? "");
+                          setRenaming("group");
+                          setNameDraft(next.name);
+                        }}><Plus className="h-4 w-4" />New</MomentaryFeedbackButton>
+                        <MomentaryFeedbackButton type="button" className="theme-library-button" onClick={() => {
+                          const id = createId("color_group");
+                          const next = structuredClone({
+                            ...draftGroup,
+                            id,
+                            name: `${draftGroup.name} Copy`,
+                            themes: draftGroup.themes.map((theme) => ({ ...theme, id: createId("theme") })),
+                          });
+                          const groups = [...draftGroups, next];
+                          setDraftGroups(groups);
+                          setDraftGroupId(id);
+                          setDraftThemeId(next.themes[0]?.id ?? "");
+                          void persistEditor(groups, id, next.themes[0]?.id ?? "");
+                        }}><CopyPlus className="h-4 w-4" />Duplicate</MomentaryFeedbackButton>
+                        <MomentaryFeedbackButton type="button" className="theme-library-button" onClick={() => {
+                          setRenaming("group");
+                          setNameDraft(draftGroup.name);
+                        }}><Pencil className="h-4 w-4" />Rename</MomentaryFeedbackButton>
+                        <MomentaryFeedbackButton
+                          type="button"
+                          className="theme-library-button theme-library-button-danger"
+                          disabled={draftGroups.length <= 1}
+                          onClick={() => {
+                            const remaining = draftGroups.filter((group) => group.id !== draftGroup.id);
+                            setDraftGroups(remaining);
+                            setDraftGroupId(remaining[0]?.id ?? "");
+                            setDraftThemeId(remaining[0]?.themes[0]?.id ?? "");
+                            void persistEditor(remaining, remaining[0]?.id ?? "", remaining[0]?.themes[0]?.id ?? "");
+                          }}
+                        ><Trash2 className="h-4 w-4" />Delete</MomentaryFeedbackButton>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ConfigSelect
+                      label="Order"
+                      value={draftGroup.order}
+                      options={[
+                        { value: "sequential", label: "Sequential", detail: "Use the listed order", icon: <ListOrdered /> },
+                        { value: "shuffle", label: "Shuffle", detail: "Avoid repeating the current theme", icon: <Shuffle /> },
+                      ]}
+                      onChange={(order) => updateDraftGroup({ order }, true)}
+                    />
+                    <ConfigSelect
+                      label="Change colour theme"
+                      value={draftGroup.changeMode}
+                      options={[
+                        { value: "interval", label: "On timer", icon: <Clock3 /> },
+                        { value: "song", label: "On song", icon: <Music2 /> },
+                        { value: "downbeat", label: "On downbeat", icon: <AudioLines /> },
+                      ]}
+                      onChange={(changeMode) => updateDraftGroup({ changeMode }, true)}
+                    />
+                    {draftGroup.changeMode === "interval" ? (
+                      <SliderControlPanel
+                        ariaLabel="Colour theme wait time"
+                        ariaValueText={`${draftGroup.waitSeconds} seconds`}
+                        color={[34, 211, 238]}
+                        label="Wait"
+                        min={0}
+                        max={THEME_TIME_SLIDER_MAX}
+                        step={1}
+                        value={themeTimeSliderPosition(draftGroup.waitSeconds)}
+                        valueText={`${draftGroup.waitSeconds}s`}
+                        onPreview={(position) => updateDraftGroup({ waitSeconds: themeTimeFromSlider(position) })}
+                        onCommit={(position) => updateDraftGroup({ waitSeconds: themeTimeFromSlider(position) }, true)}
+                      />
+                    ) : null}
+                    <SliderControlPanel
+                      ariaLabel="Colour theme transition time"
+                      ariaValueText={`${draftGroup.transitionSeconds} seconds`}
+                      color={[34, 211, 238]}
+                      label="Transition"
+                      min={0}
+                      max={THEME_TIME_SLIDER_MAX}
+                      step={1}
+                      value={themeTimeSliderPosition(draftGroup.transitionSeconds)}
+                      valueText={`${draftGroup.transitionSeconds}s`}
+                      onPreview={(position) => updateDraftGroup({ transitionSeconds: themeTimeFromSlider(position) })}
+                      onCommit={(position) => updateDraftGroup({ transitionSeconds: themeTimeFromSlider(position) }, true)}
+                    />
+                    <ConfigSelect
+                      label="House Party hue"
+                      value={draftGroup.housePartyHueMode}
+                      options={[
+                        { value: "follow", label: "Follow hue", icon: <Waves /> },
+                        { value: "complement", label: "Complement hue", icon: <Contrast /> },
+                      ]}
+                      onChange={(housePartyHueMode) => updateDraftGroup({ housePartyHueMode }, true)}
+                    />
+                    <ConfigSelect
+                      label="House Party brightness"
+                      value={draftGroup.housePartyBrightnessMode}
+                      options={[
+                        { value: "follow", label: "Follow brightness", icon: <Sun /> },
+                        { value: "oppose", label: "Oppose brightness", icon: <Contrast /> },
+                        { value: "ignore", label: "Ignore brightness", icon: <CircleDot /> },
+                      ]}
+                      onChange={(housePartyBrightnessMode) => updateDraftGroup({ housePartyBrightnessMode }, true)}
+                    />
+                  </div>
+
+                  {draftTheme ? (
+                    <div className="grid gap-4 border-t border-neutral-800 pt-4">
+                      <ConfigSelect
+                        label="Colour theme"
+                        value={draftTheme.id}
+                      options={draftGroup.themes.map((theme) => ({
+                        value: theme.id,
+                        label: theme.name,
+                        detail: `${Object.keys(theme.parameterOverrides[activeModule?.id ?? ""] ?? {}).length} parameter overrides`,
+                        icon: hasThemeColors(theme) ? undefined : <Palette />,
+                        swatch: hasThemeColors(theme) ? themeSwatch(theme) : undefined,
+                      }))}
+                        onChange={(themeId) => {
+                          setDraftThemeId(themeId);
+                          void persistEditor(draftGroups, draftGroupId, themeId);
+                        }}
+                      />
+                      {renaming === "theme" ? (
+                        <div className="theme-library-name-field">
+                          <input className="cyber-text-input" value={nameDraft} aria-label="Colour theme name" maxLength={60}
+                            onChange={(event) => setNameDraft(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") finishRename();
+                              if (event.key === "Escape") setRenaming(null);
+                            }} />
+                          <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Confirm theme name" onClick={finishRename}><Check className="h-5 w-5" /></MomentaryFeedbackButton>
+                          <MomentaryFeedbackButton type="button" className="icon-link" aria-label="Cancel theme rename" onClick={() => setRenaming(null)}><X className="h-5 w-5" /></MomentaryFeedbackButton>
+                        </div>
+                      ) : (
+                        <div className="theme-library-actions">
+                          <MomentaryFeedbackButton type="button" className="theme-library-button" onClick={() => {
+                            const id = createId("theme");
+                            const next = { ...structuredClone(draftTheme), id, name: "New Colour Theme" };
+                            const themes = [...draftGroup.themes, next];
+                            updateDraftGroup({ themes }, true);
+                            setDraftThemeId(id);
+                            void persistEditor(
+                              draftGroups.map((group) => group.id === draftGroupId ? { ...group, themes } : group),
+                              draftGroupId,
+                              id,
+                            );
+                            setRenaming("theme");
+                            setNameDraft(next.name);
+                          }}><Plus className="h-4 w-4" />New</MomentaryFeedbackButton>
+                          <MomentaryFeedbackButton type="button" className="theme-library-button" onClick={() => {
+                            const id = createId("theme");
+                            const next = { ...structuredClone(draftTheme), id, name: `${draftTheme.name} Copy` };
+                            const themes = [...draftGroup.themes, next];
+                            updateDraftGroup({ themes }, true);
+                            setDraftThemeId(id);
+                            void persistEditor(
+                              draftGroups.map((group) => group.id === draftGroupId ? { ...group, themes } : group),
+                              draftGroupId,
+                              id,
+                            );
+                          }}><CopyPlus className="h-4 w-4" />Duplicate</MomentaryFeedbackButton>
+                          <MomentaryFeedbackButton type="button" className="theme-library-button" onClick={() => {
+                            setRenaming("theme");
+                            setNameDraft(draftTheme.name);
+                          }}><Pencil className="h-4 w-4" />Rename</MomentaryFeedbackButton>
+                          <MomentaryFeedbackButton type="button" className="theme-library-button theme-library-button-danger"
+                            disabled={draftGroup.themes.length <= 1}
+                            onClick={() => {
+                              const themes = draftGroup.themes.filter((theme) => theme.id !== draftTheme.id);
+                              updateDraftGroup({ themes }, true);
+                              setDraftThemeId(themes[0]?.id ?? "");
+                              void persistEditor(
+                                draftGroups.map((group) => group.id === draftGroupId ? { ...group, themes } : group),
+                                draftGroupId,
+                                themes[0]?.id ?? "",
+                              );
+                            }}><Trash2 className="h-4 w-4" />Delete</MomentaryFeedbackButton>
+                        </div>
+                      )}
+
+                      <div>
+                        <h3 className="mb-3 font-black uppercase text-neutral-200">Colours</h3>
+                        <div className="theme-widget-flow">
+                          {(activeModule?.paletteSlots ?? []).map((slot) => {
+                            const value = draftTheme.colors[slot.id] ?? {
+                              rgb: slot.defaultRgb,
+                              intensity: 100,
+                              opacity: 100,
+                              cursor: { x: 0.5, y: 0.5 },
+                            };
+                            return (
+                              <ColorWidget
+                                key={slot.id}
+                                active={activeColorSlot === slot.id}
+                                detail={slot.id === "primaryText"
+                                  ? "Message over the visualiser"
+                                  : slot.id === "secondaryText"
+                                    ? "Track, artist, lyric and status information"
+                                    : `${activeModule?.name ?? "Module"} palette colour`}
+                                label={slot.label}
+                                rgb={value.rgb}
+                                intensity={value.intensity}
+                                swatchOpacity={Math.max(0.12, value.opacity / 100)}
+                                onToggle={() => setActiveColorSlot((current) => current === slot.id ? null : slot.id)}
+                              >
+                                <ColorSpectrum
+                                  label={slot.label}
+                                  value={value}
+                                  onPreview={(color) => updateDraftTheme({ colors: { ...draftTheme.colors, [slot.id]: { ...color, opacity: value.opacity } } })}
+                                  onCommit={(color) => updateDraftTheme({ colors: { ...draftTheme.colors, [slot.id]: { ...color, opacity: value.opacity } } }, true)}
+                                />
+                                <ColorIntensitySlider
+                                  label={slot.label}
+                                  value={value}
+                                  onPreview={(color) => updateDraftTheme({ colors: { ...draftTheme.colors, [slot.id]: { ...color, opacity: value.opacity } } })}
+                                  onCommit={(color) => updateDraftTheme({ colors: { ...draftTheme.colors, [slot.id]: { ...color, opacity: value.opacity } } }, true)}
+                                />
+                                <SliderControlPanel
+                                  ariaLabel={`${slot.label} opacity`}
+                                  ariaValueText={`${Math.round(value.opacity)}%`}
+                                  color={value.rgb}
+                                  dotOpacity={value.opacity / 100}
+                                  intensity={value.intensity}
+                                  label="Opacity"
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                  value={value.opacity}
+                                  valueText={`${Math.round(value.opacity)}%`}
+                                  onPreview={(opacity) => updateDraftTheme({
+                                    colors: { ...draftTheme.colors, [slot.id]: { ...value, opacity } },
+                                  })}
+                                  onCommit={(opacity) => updateDraftTheme({
+                                    colors: { ...draftTheme.colors, [slot.id]: { ...value, opacity } },
+                                  }, true)}
+                                />
+                              </ColorWidget>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {activeModule?.settings.length ? (
+                        <div className="grid gap-3">
+                          <h3 className="font-black uppercase text-neutral-200">Parameter overrides</h3>
+                          <p className="text-sm text-neutral-400">Unchanged parameters inherit the module baseline. Revert removes an override rather than copying the current value.</p>
+                          {activeModule.settings.map((setting) => {
+                            const inherited = config.moduleSettings[activeModule.id]?.[setting.id] ?? setting.default;
+                            const source = draftTheme.parameterOverrides[activeModule.id]?.[setting.id];
+                            const canDrive = setting.updateMode !== "structural"
+                              && setting.control !== "toggle" && setting.control !== "select";
+                            return (
+                              <div key={setting.id} className="grid gap-3 border border-neutral-800 bg-neutral-950/45 p-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <span>
+                                    <span className="block font-bold uppercase text-neutral-200">{setting.label}</span>
+                                    <span className="text-xs text-neutral-500">
+                                      {setting.updateMode === "structural"
+                                        ? "Structural · baseline only"
+                                        : source ? `Overridden · ${source.type}` : `Inherited · ${formatSettingValue(setting, inherited)}`}
+                                    </span>
+                                  </span>
+                                  {source ? (
+                                    <MomentaryFeedbackButton type="button" className="config-page-button" onClick={() => updateOverride(setting, null, true)}>
+                                      <RotateCcw className="h-4 w-4" />Revert to inherited
+                                    </MomentaryFeedbackButton>
+                                  ) : setting.updateMode !== "structural" ? (
+                                    <MomentaryFeedbackButton type="button" className="config-page-button" onClick={() => updateOverride(setting, defaultSource(setting, inherited), true)}>
+                                      <Plus className="h-4 w-4" />Override
+                                    </MomentaryFeedbackButton>
+                                  ) : null}
+                                </div>
+                                {source ? (
+                                  <>
+                                    <ConfigSelect
+                                      label="Parameter source"
+                                      value={source.type}
+                                      options={(canDrive
+                                        ? ["manual", "random", "beat", "downbeat", "energy", "bass", "mid", "treble"]
+                                        : ["manual"]).map((type) => ({
+                                          value: type as ParameterSource["type"],
+                                          label: type.charAt(0).toUpperCase() + type.slice(1),
+                                          icon: parameterSourceIcon(type as ParameterSource["type"]),
+                                        }))}
+                                      onChange={(type) => updateOverride(setting, sourceWithType(setting, source, type), true)}
+                                    />
+                                    {source.type === "manual" ? (
+                                      setting.control === "toggle" ? (
+                                        <CheckboxRow checked={source.value >= 0.5} label={setting.label}
+                                          detail={setting.description ?? "Manual theme override"}
+                                          onChange={(checked) => updateOverride(setting, { type: "manual", value: checked ? 1 : 0 }, true)} />
+                                      ) : setting.control === "select" ? (
+                                        <ConfigSelect
+                                          label="Manual value"
+                                          value={String(source.value)}
+                                          options={(setting.options ?? []).map((option) => ({
+                                            value: String(option.value),
+                                            label: option.label,
+                                            icon: <CircleDot />,
+                                          }))}
+                                          onChange={(value) => updateOverride(setting, { type: "manual", value: Number(value) }, true)}
+                                        />
+                                      ) : (
+                                        <SliderControlPanel
+                                          ariaLabel={`${setting.label} manual value`}
+                                          ariaValueText={formatSettingValue(setting, source.value)}
+                                          color={[34, 211, 238]}
+                                          label="Manual"
+                                          min={0}
+                                          max={1}
+                                          step={0.001}
+                                          value={sliderPosition(setting, source.value)}
+                                          valueText={formatSettingValue(setting, source.value)}
+                                          snapValue={sliderPosition(setting, inherited)}
+                                          onPreview={(position) => updateOverride(setting, { type: "manual", value: sliderValue(setting, position) })}
+                                          onCommit={(position) => updateOverride(setting, { type: "manual", value: sliderValue(setting, position) }, true)}
+                                        />
+                                      )
+                                    ) : (
+                                      <>
+                                        <RangeSliderControlPanel
+                                          ariaLabel={`${setting.label} driven range`}
+                                          label="Minimum / Maximum"
+                                          min={setting.min}
+                                          max={setting.max}
+                                          step={setting.step}
+                                          value={[source.min, source.max]}
+                                          formatValue={(value) => formatSettingValue(setting, value)}
+                                          onPreview={([min, max]) => updateOverride(setting, { ...source, min, max })}
+                                          onCommit={([min, max]) => updateOverride(setting, { ...source, min, max }, true)}
+                                        />
+                                        {source.type === "random" ? (
+                                          <>
+                                            <ConfigSelect
+                                              label="Random cadence"
+                                              value={source.cadence}
+                                              options={[
+                                                { value: "beat", label: "Beat", icon: <Activity /> },
+                                                { value: "downbeat", label: "Downbeat", icon: <AudioLines /> },
+                                                { value: "bar", label: "Bar", icon: <ListOrdered /> },
+                                                { value: "song", label: "Song", icon: <Music2 /> },
+                                                { value: "interval", label: "Timed interval", icon: <Clock3 /> },
+                                              ]}
+                                              onChange={(cadence) => updateOverride(setting, { ...source, cadence }, true)}
+                                            />
+                                            {source.cadence === "interval" ? (
+                                              <SliderControlPanel ariaLabel="Random interval" ariaValueText={`${source.intervalSeconds} seconds`}
+                                                color={[34, 211, 238]} label="Interval" min={0.25} max={60} step={0.25}
+                                                value={source.intervalSeconds} valueText={`${source.intervalSeconds.toFixed(2)}s`}
+                                                onPreview={(intervalSeconds) => updateOverride(setting, { ...source, intervalSeconds })}
+                                                onCommit={(intervalSeconds) => updateOverride(setting, { ...source, intervalSeconds }, true)} />
+                                            ) : null}
+                                            <SliderControlPanel ariaLabel="Random transition" ariaValueText={`${source.transitionSeconds} seconds`}
+                                              color={[34, 211, 238]} label="Transition" min={0} max={10} step={0.05}
+                                              value={source.transitionSeconds} valueText={`${source.transitionSeconds.toFixed(2)}s`}
+                                              onPreview={(transitionSeconds) => updateOverride(setting, { ...source, transitionSeconds })}
+                                              onCommit={(transitionSeconds) => updateOverride(setting, { ...source, transitionSeconds }, true)} />
+                                          </>
+                                        ) : (
+                                          <div className="grid gap-3 sm:grid-cols-2">
+                                            <SliderControlPanel ariaLabel={`${setting.label} attack`} ariaValueText={`${source.attackSeconds} seconds`}
+                                              color={[34, 211, 238]} label="Attack" min={0} max={2} step={0.01}
+                                              value={source.attackSeconds} valueText={`${source.attackSeconds.toFixed(2)}s`}
+                                              onPreview={(attackSeconds) => updateOverride(setting, { ...source, attackSeconds })}
+                                              onCommit={(attackSeconds) => updateOverride(setting, { ...source, attackSeconds }, true)} />
+                                            <SliderControlPanel ariaLabel={`${setting.label} release`} ariaValueText={`${source.releaseSeconds} seconds`}
+                                              color={[34, 211, 238]} label="Release" min={0.05} max={10} step={0.05}
+                                              value={source.releaseSeconds} valueText={`${source.releaseSeconds.toFixed(2)}s`}
+                                              onPreview={(releaseSeconds) => updateOverride(setting, { ...source, releaseSeconds })}
+                                              onCommit={(releaseSeconds) => updateOverride(setting, { ...source, releaseSeconds }, true)} />
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <p className="text-xs text-neutral-500">Changes save when a control is selected or a slider is released. Closing restores the configured theme sequence.</p>
+                </>
+              ) : null}
+            </ModalOverlay>
+
+            {/* Legacy dashboard-theme editor retained in source history only.
             <label className="grid gap-2 text-sm">
               <span className="font-black uppercase text-neutral-200">Active module</span>
               <select
@@ -503,32 +1296,29 @@ export function PhonoscopeConfig() {
               </div>
             ), document.body) : null}
 
+            */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-2 text-sm">
-                <span className="font-black uppercase text-neutral-200">Idle behavior</span>
-                <select
-                  className="border border-neutral-700 bg-neutral-950 px-3 py-2 text-neutral-100"
-                  value={config.idleBehavior}
-                  onChange={(event) => void save({ ...config, idleBehavior: event.target.value as Config["idleBehavior"] })}
-                >
-                  <option value="ambient">Ambient module</option>
-                  <option value="black">Black screen</option>
-                  <option value="return">Return to dashboard</option>
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm">
-                <span className="font-black uppercase text-neutral-200">Quality</span>
-                <select
-                  className="border border-neutral-700 bg-neutral-950 px-3 py-2 text-neutral-100"
-                  value={config.quality}
-                  onChange={(event) => void save({ ...config, quality: event.target.value as Config["quality"] })}
-                >
-                  <option value="auto">Auto</option>
-                  <option value="high">High</option>
-                  <option value="balanced">Balanced</option>
-                  <option value="performance">Performance</option>
-                </select>
-              </label>
+              <ConfigSelect
+                label="Idle behavior"
+                value={config.idleBehavior}
+                options={[
+                  { value: "ambient", label: "Ambient module", icon: <Sparkles /> },
+                  { value: "black", label: "Black screen", icon: <MonitorOff /> },
+                  { value: "return", label: "Return to dashboard", icon: <House /> },
+                ]}
+                onChange={(idleBehavior) => void save({ ...config, idleBehavior })}
+              />
+              <ConfigSelect
+                label="Quality"
+                value={config.quality}
+                options={[
+                  { value: "auto", label: "Auto", icon: <Gauge /> },
+                  { value: "high", label: "High", icon: <Gem /> },
+                  { value: "balanced", label: "Balanced", icon: <CircleDot /> },
+                  { value: "performance", label: "Performance", icon: <Rocket /> },
+                ]}
+                onChange={(quality) => void save({ ...config, quality })}
+              />
             </div>
 
             <label className="grid gap-2 text-sm">
@@ -545,54 +1335,18 @@ export function PhonoscopeConfig() {
             </label>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={config.providers.spotify}
-                  onChange={(event) => void save({ ...config, providers: { ...config.providers, spotify: event.target.checked } })}
-                />
-                Spotify beat timestamps
-              </label>
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={config.providers.songle}
-                  onChange={(event) => void save({ ...config, providers: { ...config.providers, songle: event.target.checked } })}
-                />
-                Songle beat timestamps
-              </label>
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={config.providers.essentia}
-                  onChange={(event) => void save({ ...config, providers: { ...config.providers, essentia: event.target.checked } })}
-                />
-                Local Essentia analysis
-              </label>
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={config.providers.reccoBeats}
-                  onChange={(event) => void save({ ...config, providers: { ...config.providers, reccoBeats: event.target.checked } })}
-                />
-                ReccoBeats BPM fallback
-              </label>
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={config.providers.lrclib}
-                  onChange={(event) => void save({ ...config, providers: { ...config.providers, lrclib: event.target.checked } })}
-                />
-                Timed lyrics
-              </label>
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={config.statusOverlay}
-                  onChange={(event) => void save({ ...config, statusOverlay: event.target.checked })}
-                />
-                Ambient status
-              </label>
+              <CheckboxRow checked={config.providers.spotify} label="Spotify beat timestamps" detail="Use Spotify timing when available"
+                onChange={(spotify) => void save({ ...config, providers: { ...config.providers, spotify } })} />
+              <CheckboxRow checked={config.providers.songle} label="Songle beat timestamps" detail="Use Songle timing when available"
+                onChange={(songle) => void save({ ...config, providers: { ...config.providers, songle } })} />
+              <CheckboxRow checked={config.providers.essentia} label="Local Essentia analysis" detail="Analyse tracks locally"
+                onChange={(essentia) => void save({ ...config, providers: { ...config.providers, essentia } })} />
+              <CheckboxRow checked={config.providers.reccoBeats} label="ReccoBeats BPM fallback" detail="Use BPM metadata as a fallback"
+                onChange={(reccoBeats) => void save({ ...config, providers: { ...config.providers, reccoBeats } })} />
+              <CheckboxRow checked={config.providers.lrclib} label="Timed lyrics" detail="Resolve synchronized lyrics"
+                onChange={(lrclib) => void save({ ...config, providers: { ...config.providers, lrclib } })} />
+              <CheckboxRow checked={config.statusOverlay} label="Ambient status" detail="Show music information over the visualiser"
+                onChange={(statusOverlay) => void save({ ...config, statusOverlay })} />
             </div>
 
             <div className="grid gap-2 text-sm">
@@ -629,32 +1383,59 @@ export function PhonoscopeConfig() {
                   (groups[section] ??= []).push(setting);
                   return groups;
                 }, {})).map(([section, settings]) => (
-                  <details key={section} className="group border border-neutral-800 bg-neutral-950/30">
-                    <summary className="cursor-pointer select-none px-3 py-3 font-black uppercase text-neutral-200">
+                  <details key={section} className="group relative border border-neutral-800 bg-neutral-950/30">
+                    <summary className={`cursor-pointer select-none px-3 py-3 font-black uppercase text-neutral-200 ${
+                      section.toLowerCase() === "physics" ? "pr-72" : ""
+                    }`}>
                       {section}
                     </summary>
+                    {section.toLowerCase() === "physics" && activeModuleColorGroups.length ? (
+                      <MomentaryFeedbackButton
+                        type="button"
+                        className="config-page-button config-page-button-primary absolute right-3 top-1.5 z-10"
+                        onClick={openThemeModal}
+                      >
+                        <Palette className="h-4 w-4" />
+                        Advanced parameters and colours
+                      </MomentaryFeedbackButton>
+                    ) : null}
                     <div className="grid gap-3 border-t border-neutral-800 p-3">
                 {settings.map((setting) => {
                   const saved = setting.updateMode === "structural"
-                    ? config.pendingStructuralModuleSettings[activeModule.id]?.[setting.id]
-                      ?? config.moduleSettings[activeModule.id]?.[setting.id] ?? setting.default
+                    ? config.moduleSettings[activeModule.id]?.[setting.id] ?? setting.default
                     : config.moduleSettings[activeModule.id]?.[setting.id] ?? setting.default;
-                  const nextConfig = (value: number): Config => ({
+                  const nextConfig = (value: number, restart = false): Config => ({
                     ...config,
-                    ...(setting.updateMode === "structural" ? {
-                      pendingStructuralModuleSettings: {
-                        ...config.pendingStructuralModuleSettings,
-                        [activeModule.id]: {
-                          ...(config.pendingStructuralModuleSettings[activeModule.id] ?? {}),
-                          [setting.id]: clampSetting(setting, value),
-                        },
-                      },
-                    } : {}),
                     moduleSettings: {
                       ...config.moduleSettings,
                       [activeModule.id]: {
                         ...(config.moduleSettings[activeModule.id] ?? {}),
-                        ...(setting.updateMode === "structural" ? {} : { [setting.id]: clampSetting(setting, value) }),
+                        [setting.id]: clampSetting(setting, value),
+                      },
+                    },
+                    ...(restart ? {
+                      moduleReloadGenerations: {
+                        ...config.moduleReloadGenerations,
+                        [activeModule.id]: (config.moduleReloadGenerations[activeModule.id] ?? 0) + 1,
+                      },
+                    } : {}),
+                  });
+                  const parameterSource = config.moduleParameterSources[activeModule.id]?.[setting.id]
+                    ?? defaultSource(setting, saved);
+                  const parameterSourceConfig = (source: ParameterSource): Config => ({
+                    ...config,
+                    moduleSettings: source.type === "manual" ? {
+                      ...config.moduleSettings,
+                      [activeModule.id]: {
+                        ...(config.moduleSettings[activeModule.id] ?? {}),
+                        [setting.id]: clampSetting(setting, source.value),
+                      },
+                    } : config.moduleSettings,
+                    moduleParameterSources: {
+                      ...config.moduleParameterSources,
+                      [activeModule.id]: {
+                        ...(config.moduleParameterSources[activeModule.id] ?? {}),
+                        [setting.id]: source,
                       },
                     },
                   });
@@ -665,7 +1446,7 @@ export function PhonoscopeConfig() {
                   ].filter(Boolean);
                   return (
                     <div key={setting.id} className="grid gap-2 border border-neutral-800 bg-neutral-950/45 p-3 text-sm">
-                      {setting.control !== "slider" && setting.control !== "toggle" ? (
+                      {setting.control !== "toggle" ? (
                         <span className="flex justify-between gap-3">
                           <span className="font-bold uppercase text-neutral-300">{setting.label}</span>
                           <span className="font-mono text-cyan-200">{formatSettingValue(setting, saved)}</span>
@@ -676,28 +1457,32 @@ export function PhonoscopeConfig() {
                           checked={saved >= 0.5}
                           detail={setting.description ?? `${setting.label} is ${saved >= 0.5 ? "enabled" : "disabled"}.`}
                           label={setting.label}
-                          onChange={(checked) => void save(nextConfig(checked ? 1 : 0))}
+                          onChange={(checked) => void save(nextConfig(
+                            checked ? 1 : 0,
+                            setting.updateMode === "structural",
+                          ))}
                         />
                       ) : setting.control === "select" ? (
-                        <select
-                          className="border border-neutral-700 bg-neutral-950 px-3 py-2 text-neutral-100"
-                          value={saved}
-                          onChange={(event) => void save(nextConfig(Number(event.target.value)))}
-                        >
-                          {(setting.options ?? []).map((option) => (
-                            <option key={option.value} value={option.value}>{option.label}</option>
+                        <ConfigSelect
+                          label={setting.label}
+                          value={String(saved)}
+                          options={(setting.options ?? []).map((option) => ({
+                            value: String(option.value),
+                            label: option.label,
+                            icon: <CircleDot />,
+                          }))}
+                          onChange={(value) => void save(nextConfig(
+                            Number(value),
+                            setting.updateMode === "structural",
                           ))}
-                        </select>
-                      ) : setting.control === "number" ? (
-                        <input
-                          type="number"
-                          className="border border-neutral-700 bg-neutral-950 px-3 py-2 text-neutral-100"
-                          min={setting.min}
-                          max={setting.max}
-                          step={setting.step}
-                          value={saved}
-                          onChange={(event) => setConfig(nextConfig(Number(event.target.value)))}
-                          onBlur={(event) => void save(nextConfig(Number(event.currentTarget.value)))}
+                        />
+                      ) : setting.updateMode !== "structural" ? (
+                        <ParameterDriverControls
+                          inherited={saved}
+                          setting={setting}
+                          source={parameterSource}
+                          onPreview={(source) => setConfig(parameterSourceConfig(source))}
+                          onCommit={(source) => void save(parameterSourceConfig(source))}
                         />
                       ) : (
                         <SliderControlPanel
@@ -715,7 +1500,7 @@ export function PhonoscopeConfig() {
                             setConfig(nextConfig(sliderValue(setting, position)));
                           }}
                           onCommit={(position) => {
-                            void save(nextConfig(sliderValue(setting, position)));
+                            void save(nextConfig(sliderValue(setting, position), true));
                           }}
                         />
                       )}
@@ -728,25 +1513,6 @@ export function PhonoscopeConfig() {
                     </div>
                   </details>
                 ))}
-                {Object.keys(config.pendingStructuralModuleSettings[activeModule.id] ?? {}).length ? (
-                  <button type="button" className="config-page-button config-page-button-primary" onClick={() => {
-                    const pending = config.pendingStructuralModuleSettings[activeModule.id] ?? {};
-                    void save({
-                      ...config,
-                      moduleSettings: {
-                        ...config.moduleSettings,
-                        [activeModule.id]: { ...(config.moduleSettings[activeModule.id] ?? {}), ...pending },
-                      },
-                      pendingStructuralModuleSettings: Object.fromEntries(
-                        Object.entries(config.pendingStructuralModuleSettings).filter(([id]) => id !== activeModule.id),
-                      ),
-                      moduleReloadGenerations: {
-                        ...config.moduleReloadGenerations,
-                        [activeModule.id]: (config.moduleReloadGenerations[activeModule.id] ?? 0) + 1,
-                      },
-                    });
-                  }}>Apply structural changes and restart visualiser</button>
-                ) : null}
               </div>
             ) : null}
           </>
@@ -764,15 +1530,15 @@ export function PhonoscopeConfig() {
                 if (file) void uploadPackage(file);
               }}
             />
-            <button className="config-page-button config-page-button-primary" type="button" disabled={busy} onClick={() => fileRef.current?.click()}>
+            <MomentaryFeedbackButton className="config-page-button config-page-button-primary" type="button" disabled={busy} onClick={() => fileRef.current?.click()}>
               <Upload className="h-4 w-4" /> Upload module package
-            </button>
-            <button className="config-page-button" type="button" disabled={busy} onClick={() => void load()}>
+            </MomentaryFeedbackButton>
+            <MomentaryFeedbackButton className="config-page-button" type="button" disabled={busy} onClick={() => void load()}>
               <RefreshCw className="h-4 w-4" /> Refresh
-            </button>
-            <button className="config-page-button" type="button" onClick={() => void loadDiagnostics()}>
+            </MomentaryFeedbackButton>
+            <MomentaryFeedbackButton className="config-page-button" type="button" onClick={() => void loadDiagnostics()}>
               <Activity className="h-4 w-4" /> Diagnostics
-            </button>
+            </MomentaryFeedbackButton>
           </div>
 
           <div className="grid gap-2">
@@ -786,7 +1552,7 @@ export function PhonoscopeConfig() {
                   </span>
                 </span>
                 {!module.builtin ? (
-                  <button
+                  <MomentaryFeedbackButton
                     type="button"
                     className="config-page-button"
                     aria-label={`Remove ${module.name} ${module.version}`}
@@ -794,7 +1560,7 @@ export function PhonoscopeConfig() {
                     onClick={() => void removeModule(module)}
                   >
                     <Trash2 className="h-4 w-4" />
-                  </button>
+                  </MomentaryFeedbackButton>
                 ) : <span className="text-xs font-black uppercase text-cyan-300">Built in</span>}
               </div>
             ))}

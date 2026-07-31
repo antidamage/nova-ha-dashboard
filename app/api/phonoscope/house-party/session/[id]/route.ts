@@ -48,14 +48,30 @@ function parseFrame(value: unknown) {
   }
   const themeId = typeof raw.themeId === "string" ? raw.themeId.trim().slice(0, 128) : "";
   const themeVariant = raw.themeVariant;
+  const colorThemeId = typeof raw.colorThemeId === "string" ? raw.colorThemeId.trim().slice(0, 128) : "";
+  const rawPalette = raw.palette && typeof raw.palette === "object" && !Array.isArray(raw.palette)
+    ? raw.palette as Record<string, unknown>
+    : null;
+  const palette = rawPalette ? Object.fromEntries(Object.entries(rawPalette).flatMap(([slot, value]) => {
+    if (!/^[a-z][a-z0-9_-]{1,63}$/i.test(slot) || !Array.isArray(value) || value.length !== 3
+      || value.some((part) => !Number.isFinite(Number(part)))) return [];
+    return [[slot, value.map((part) => Math.max(0, Math.min(255, Math.round(Number(part))))) as [number, number, number]]];
+  })) : null;
   const themeTransitionSeconds = Number(raw.themeTransitionSeconds);
-  const theme = themeId && (themeVariant === "dark" || themeVariant === "light")
+  const transitionSecondsForTheme = Number.isFinite(themeTransitionSeconds)
+    ? Math.max(0, Math.min(600, themeTransitionSeconds))
+    : 0;
+  const theme = colorThemeId && palette && Object.keys(palette).length
+    ? {
+      colorThemeId,
+      palette,
+      transitionSeconds: transitionSecondsForTheme,
+    }
+    : themeId && (themeVariant === "dark" || themeVariant === "light")
     ? {
       themeId,
       variant: themeVariant as "dark" | "light",
-        transitionSeconds: Number.isFinite(themeTransitionSeconds)
-          ? Math.max(0, Math.min(600, themeTransitionSeconds))
-          : 0,
+      transitionSeconds: transitionSecondsForTheme,
       }
     : null;
   const rawClock = raw.clock;

@@ -104,6 +104,23 @@ Settings become typed controls in the web dashboard. Every control still
 resolves to a finite numeric value so it can be read uniformly from module
 expressions:
 
+### Palette slots
+
+Every module receives the reusable `primary`, `secondary`, `tertiary`,
+`background`, `primaryText`, and `secondaryText` slots. A package may declare
+additional generic slots for colour groups shared across modules:
+
+```yaml
+paletteSlots:
+  - id: ambientGlow
+    label: Ambient Glow
+    defaultRgb: [40, 120, 255]
+```
+
+Use slots as `palette.<id>` in colour expressions. Older
+`palette.accent`/`palette.highlight` expressions remain aliases for
+`primary`/`secondary`, but new modules should use the canonical names.
+
 ```yaml
 settings:
   - id: intensity
@@ -199,7 +216,18 @@ Supported render primitives are:
 
 Supported materials are `unlit`, `phong`, `emissive`, and `wireframe`.
 Supported blends are `opaque`, `alpha`, and `additive`. Common render keys are
-`color`, `opacity`, `glow`, `lineWidth`, `texture`, and `depthWrite`.
+`color`, `colorStart`, `colorEnd`, `glowColorStart`, `glowColorEnd`,
+`trailColorStart`, `trailColorEnd`, `opacity`, `glow`, `lineWidth`, `texture`,
+and `depthWrite`. Fields can similarly provide `wireframeColorStart` and
+`wireframeColorEnd`.
+
+Start/end colours are shader gradient endpoints, not animation inputs. Primary
+palette colours belong at the start, centre, or first vertex; Secondary colours
+belong at the end, outer edge, or last vertex. The renderer interpolates them
+from local primitive geometry: centre-to-edge for points and glows,
+source-to-destination for lines, and head-to-tail for trails. Audio, energy,
+beat phase, and parameter drivers may change motion or intensity, but must not
+select a position within these colour ramps.
 
 `text` can use `track.title`, `track.artist`, `lyrics.current`,
 `lyrics.next`, or a literal. `artwork` uses the currently playing track’s
@@ -272,7 +300,8 @@ templates:
     render:
       primitive: sphere
       material: emissive
-      color: "=mix(palette.primary, palette.highlight, field.energy)"
+      colorStart: "=palette.primary"
+      colorEnd: "=palette.secondary"
       glow: "=field.energy"
     physics:
       mass: 1
@@ -461,7 +490,8 @@ Examples:
 
 ```yaml
 scale: "=vec3(0.2 + beat.pulse * 0.4, 0.2 + beat.pulse * 0.4, 1)"
-color: "=mix(palette.primary, palette.highlight, clamp(field.energy, 0, 1))"
+colorStart: "=palette.primary"
+colorEnd: "=palette.secondary"
 glow: "=settings.intensity * (0.2 + audio.bass * 0.8)"
 force: "=noise(position.x * 3, position.y * 3, time * 0.2)"
 ```
@@ -522,7 +552,8 @@ templates:
     render:
       primitive: ring
       material: emissive
-      color: "=mix(palette.primary, palette.highlight, beat.phase)"
+      colorStart: "=palette.primary"
+      colorEnd: "=palette.secondary"
       glow: "=beat.pulse * settings.intensity"
     transform:
       scale: "=vec3(0.25 + beat.phase * 0.5, 0.25 + beat.phase * 0.5, 1)"
