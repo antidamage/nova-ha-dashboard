@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useLiteMode } from "./dashboard/experienceModeSetting";
+import { decimalStepGranularity } from "../../lib/slider-step";
 import {
   beginControlInteraction,
   CONTROL_INTERACTION_COOLDOWN_MS,
@@ -25,6 +26,11 @@ const DECORATIVE_SPECTRUM_DOT_RGB: Rgb = [24, 26, 27];
 const DISABLED_DOT_RGB: Rgb = [126, 126, 126];
 const IOS_BOTTOM_GESTURE_BLIND_SPOT_PX = 96;
 const RECT_THUMB_WIDTH_PX = 36;
+const PRECISION_DRAG_DEAD_ZONE_PX = 30;
+const PRECISION_DRAG_FULL_EFFECT_PX = 100;
+const PRECISION_DRAG_MIN_SCALE = 0.25;
+
+type PrecisionDrag = { currentValue: number; lastX: number };
 
 function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -32,6 +38,27 @@ function classNames(...parts: Array<string | false | null | undefined>) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+export function precisionDragScale(verticalDistance: number) {
+  const progress = clamp(
+    (Math.abs(verticalDistance) - PRECISION_DRAG_DEAD_ZONE_PX)
+      / (PRECISION_DRAG_FULL_EFFECT_PX - PRECISION_DRAG_DEAD_ZONE_PX),
+    0,
+    1,
+  );
+  return 1 - progress * (1 - PRECISION_DRAG_MIN_SCALE);
+}
+
+function verticalDistanceOutside(clientY: number, rect: Pick<DOMRect, "bottom" | "top">) {
+  return Math.max(rect.top - clientY, clientY - rect.bottom, 0);
+}
+
+function accumulatePrecisionDrag(drag: PrecisionDrag, clientX: number, verticalDistance: number, valuePerPixel: number) {
+  const scale = precisionDragScale(verticalDistance);
+  drag.currentValue += (clientX - drag.lastX) * valuePerPixel * scale;
+  drag.lastX = clientX;
+  return drag.currentValue;
 }
 
 function easeOut(value: number) {
@@ -292,7 +319,7 @@ export function DotLineControl({
   onCommit,
   snapTolerance,
   snapValue,
-  step = 1,
+  step: requestedStep = 1,
   value,
 }: {
   /** Retained for API compatibility; the rectangular slider thumb uses the theme
@@ -323,9 +350,11 @@ export function DotLineControl({
   step?: number;
   value: number;
 }) {
+  const step = decimalStepGranularity(requestedStep);
   const padRef = useRef<HTMLDivElement | null>(null);
   const commitValueRef = useRef(value);
   const draggingRef = useRef(false);
+  const precisionDragRef = useRef<PrecisionDrag | null>(null);
   const incomingValueHoldUntilRef = useRef(0);
   const [interacting, setInteracting] = useState(false);
   const [lineWidth, setLineWidth] = useState(0);
@@ -392,6 +421,12 @@ export function DotLineControl({
   const effectiveSnapTolerance =
     snapTolerance ?? Math.max(step * 2, range * 0.03);
 
+  const snap = useCallback((raw: number) => (
+    snapValue !== undefined && Math.abs(raw - snapValue) <= effectiveSnapTolerance
+      ? snapValue
+      : raw
+  ), [effectiveSnapTolerance, snapValue]);
+
   const pick = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (disabled || !padRef.current) {
@@ -400,13 +435,26 @@ export function DotLineControl({
 
       const rect = padRef.current.getBoundingClientRect();
       const raw = min + ((event.clientX - rect.left) / rect.width) * range;
-      const snapped =
-        snapValue !== undefined && Math.abs(raw - snapValue) <= effectiveSnapTolerance
-          ? snapValue
-          : raw;
-      setControlValue(snapped);
+      setControlValue(snap(raw));
     },
-    [disabled, effectiveSnapTolerance, min, range, setControlValue, snapValue],
+    [disabled, min, range, setControlValue, snap],
+  );
+
+  const drag = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const rect = padRef.current?.getBoundingClientRect();
+      const precisionDrag = precisionDragRef.current;
+      if (!rect || !precisionDrag) return;
+      const raw = accumulatePrecisionDrag(
+        precisionDrag,
+        event.clientX,
+        verticalDistanceOutside(event.clientY, rect),
+        range / Math.max(1, rect.width),
+      );
+      precisionDrag.currentValue = clamp(raw, min, max);
+      setControlValue(snap(raw));
+    },
+    [max, min, range, setControlValue, snap],
   );
 
   const commit = useCallback(() => {
@@ -415,6 +463,7 @@ export function DotLineControl({
     }
 
     draggingRef.current = false;
+    precisionDragRef.current = null;
     endControlInteraction();
     incomingValueHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
     setInteracting(false);
@@ -476,10 +525,18 @@ export function DotLineControl({
         incomingValueHoldUntilRef.current = Number.POSITIVE_INFINITY;
         setInteracting(true);
         pick(event);
+        const rect = padRef.current?.getBoundingClientRect();
+        if (rect) {
+          const raw = min + ((event.clientX - rect.left) / Math.max(1, rect.width)) * range;
+          const startValue = snapValue !== undefined && Math.abs(raw - snapValue) <= effectiveSnapTolerance
+            ? snapValue
+            : raw;
+          precisionDragRef.current = { currentValue: roundToStep(startValue), lastX: event.clientX };
+        }
       }}
       onPointerMove={(event) => {
         if (event.buttons === 1) {
-          pick(event);
+          drag(event);
         }
       }}
       onPointerUp={commit}
@@ -532,7 +589,7 @@ export function DotRangeControl({
   min,
   onChange,
   onCommit,
-  step,
+  step: requestedStep,
   value,
 }: {
   ariaLabel: string;
@@ -545,8 +602,10 @@ export function DotRangeControl({
   step: number;
   value: [number, number];
 }) {
+  const step = decimalStepGranularity(requestedStep);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<0 | 1 | null>(null);
+  const precisionDragRef = useRef<PrecisionDrag | null>(null);
   const currentRef = useRef<[number, number]>(value);
   const [interacting, setInteracting] = useState(false);
   currentRef.current = value;
@@ -574,6 +633,14 @@ export function DotRangeControl({
     return rect ? min + clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1) * span : min;
   };
 
+  const rawFromDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    const drag = precisionDragRef.current;
+    return rect && drag
+      ? accumulatePrecisionDrag(drag, event.clientX, verticalDistanceOutside(event.clientY, rect), span / Math.max(1, rect.width))
+      : min;
+  };
+
   const begin = (event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     const raw = rawFromPointer(event);
@@ -583,11 +650,13 @@ export function DotRangeControl({
     beginControlInteraction();
     setInteracting(true);
     update(thumb, raw);
+    precisionDragRef.current = { currentValue: stepped(raw), lastX: event.clientX };
   };
 
   const end = () => {
     if (activeThumbRef.current === null) return;
     activeThumbRef.current = null;
+    precisionDragRef.current = null;
     endControlInteraction();
     setInteracting(false);
     onCommit?.(currentRef.current);
@@ -619,7 +688,11 @@ export function DotRangeControl({
       onPointerDown={begin}
       onPointerMove={(event) => {
         if (activeThumbRef.current !== null && event.buttons === 1) {
-          update(activeThumbRef.current, rawFromPointer(event));
+          const thumb = activeThumbRef.current;
+          const raw = rawFromDrag(event);
+          const drag = precisionDragRef.current;
+          if (drag) drag.currentValue = clamp(raw, thumb === 0 ? min : currentRef.current[0], thumb === 0 ? currentRef.current[1] : max);
+          update(thumb, raw);
         }
       }}
       onPointerUp={end}
@@ -656,6 +729,7 @@ export function DotRangeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
+            precisionDragRef.current = { currentValue: currentRef.current[thumb], lastX: event.clientX };
           }}
         />
       ))}
@@ -680,7 +754,7 @@ export function DotEnvelopeControl({
   max,
   onChange,
   onCommit,
-  step,
+  step: requestedStep,
   value,
 }: {
   ariaLabel: string;
@@ -691,8 +765,10 @@ export function DotEnvelopeControl({
   step: number;
   value: EnvelopeDurations;
 }) {
+  const step = decimalStepGranularity(requestedStep);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<0 | 1 | 2 | null>(null);
+  const precisionDragRef = useRef<PrecisionDrag | null>(null);
   const currentRef = useRef<EnvelopeDurations>(value);
   const [interacting, setInteracting] = useState(false);
   currentRef.current = value;
@@ -729,6 +805,13 @@ export function DotEnvelopeControl({
     const usableWidth = Math.max(1, rect.width - RECT_THUMB_WIDTH_PX * 3);
     return clamp((event.clientX - rect.left - RECT_THUMB_WIDTH_PX * (thumb + 0.5)) / usableWidth, 0, 1) * max;
   };
+  const rawFromDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    const drag = precisionDragRef.current;
+    if (!rect || !drag) return 0;
+    const usableWidth = Math.max(1, rect.width - RECT_THUMB_WIDTH_PX * 3);
+    return accumulatePrecisionDrag(drag, event.clientX, verticalDistanceOutside(event.clientY, rect), max / usableWidth);
+  };
   const begin = (event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     const rect = trackRef.current?.getBoundingClientRect();
@@ -745,11 +828,14 @@ export function DotEnvelopeControl({
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginControlInteraction();
     setInteracting(true);
-    update(thumb, rawFromPointer(event, thumb));
+    const raw = rawFromPointer(event, thumb);
+    update(thumb, raw);
+    precisionDragRef.current = { currentValue: stepped(raw), lastX: event.clientX };
   };
   const end = () => {
     if (activeThumbRef.current === null) return;
     activeThumbRef.current = null;
+    precisionDragRef.current = null;
     endControlInteraction();
     setInteracting(false);
     onCommit?.(currentRef.current);
@@ -770,18 +856,27 @@ export function DotEnvelopeControl({
   };
   const currentBoundaries = boundaries(value);
   const phaseNames = ["attack", "hold", "release"] as const;
+  const phaseAbbreviations = ["ATK", "HLD", "REL"] as const;
 
   return (
     <div ref={trackRef} className={classNames("rect-slider rect-envelope-slider relative flex h-12 w-full items-center touch-none select-none", interacting && "rect-slider-active", disabled && "rect-slider-disabled")}
       onPointerDown={begin}
       onPointerMove={(event) => {
-        if (activeThumbRef.current !== null && event.buttons === 1) update(activeThumbRef.current, rawFromPointer(event, activeThumbRef.current));
+        if (activeThumbRef.current !== null && event.buttons === 1) {
+          const thumb = activeThumbRef.current;
+          const raw = rawFromDrag(event);
+          const drag = precisionDragRef.current;
+          const current = boundaries(currentRef.current);
+          if (drag) drag.currentValue = clamp(raw, current[thumb - 1] ?? 0, current[thumb + 1] ?? max);
+          update(thumb, raw);
+        }
       }}
       onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
       <div className="rect-slider-track" />
       {([0, 1, 2] as const).map((thumb) => (
         <Fragment key={thumb}>
         <span className="rect-envelope-value" style={{ left: thumbPosition(currentBoundaries[thumb], thumb) }} aria-hidden="true">{formatEnvelopeSeconds(value[thumb])}</span>
+        <span className="rect-envelope-label" style={{ left: thumbPosition(currentBoundaries[thumb], thumb) }} aria-hidden="true">{phaseAbbreviations[thumb]}</span>
         <div role="slider" tabIndex={disabled ? -1 : 0}
           aria-label={`${ariaLabel} ${phaseNames[thumb]} end`}
           aria-disabled={disabled}
@@ -798,6 +893,7 @@ export function DotEnvelopeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
+            precisionDragRef.current = { currentValue: boundaries(currentRef.current)[thumb], lastX: event.clientX };
           }} />
         </Fragment>
       ))}

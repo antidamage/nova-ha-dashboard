@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  envelopeDurations,
   sourceWithType,
   type ModuleSetting,
   type ParameterSource,
@@ -15,6 +16,18 @@ const setting: ModuleSetting = {
 };
 
 describe("Phonoscope parameter source conversion", () => {
+  it("renders legacy or malformed envelope fields with safe defaults", () => {
+    const legacy = {
+      type: "bass",
+      min: 1,
+      max: 1.5,
+      attackSeconds: 0.05,
+      releaseSeconds: Number.NaN,
+    } as unknown as Extract<ParameterSource, { attackSeconds: number }>;
+
+    expect(envelopeDurations(legacy)).toEqual([0.05, 0, 0.6]);
+  });
+
   it("preserves the configured range between reactive drivers", () => {
     const source: ParameterSource = {
       type: "beat",

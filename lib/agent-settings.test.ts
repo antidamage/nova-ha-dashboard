@@ -49,7 +49,7 @@ describe("agent settings", () => {
       ralphLoopLlmVerifyMinIntervalMs: 2000,
     });
     expect(parseAgentSettingsUpdate({ ralphLoopLlmConfirmTimeoutSeconds: 4.3 })).toEqual({
-      ralphLoopLlmConfirmTimeoutSeconds: 4.5,
+      ralphLoopLlmConfirmTimeoutSeconds: 4.3,
     });
     expect(() => parseAgentSettingsUpdate({ ralphLoopEnabled: "yes" })).toThrow(
       "must be true or false",

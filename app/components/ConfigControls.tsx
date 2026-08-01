@@ -503,6 +503,7 @@ export function ColorWidget({
         onClose={onToggle}
         ariaLabel={`${label} colour picker`}
         className="theme-colour-popover"
+        overlayClassName="theme-colour-overlay"
       >
             <header className="theme-colour-popover-header">
               <span className="theme-display-label zone-title-bar">{label}</span>

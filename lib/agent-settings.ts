@@ -1,4 +1,5 @@
 import type { AgentPreferences } from "./types";
+import { decimalStepGranularity } from "./slider-step";
 
 export type AgentSettings = Required<
   Pick<
@@ -51,8 +52,9 @@ function storedNumber(
   if (!Number.isFinite(number)) {
     return fallback;
   }
-  const stepped = Math.round(number / range.step) * range.step;
-  return Math.max(range.min, Math.min(range.max, stepped));
+  const step = decimalStepGranularity(range.step);
+  const stepped = Math.round(number / step) * step;
+  return Number(Math.max(range.min, Math.min(range.max, stepped)).toFixed(12));
 }
 
 export function normalizeAgentSettings(value?: AgentPreferences | null): AgentSettings {
