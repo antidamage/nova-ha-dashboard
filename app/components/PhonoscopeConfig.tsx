@@ -48,6 +48,7 @@ import { ConfigSelect } from "./ConfigSelect";
 import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import type { ThemeColorValue } from "./accentColor";
+import { decimalStepGranularity } from "../../lib/slider-step";
 
 export type ModuleSetting = {
   id: string;
@@ -111,6 +112,15 @@ export type ParameterSource =
   | { type: "manual"; value: number }
   | { type: "random"; min: number; max: number; cadence: "beat" | "downbeat" | "bar" | "song" | "interval"; intervalSeconds: number; transitionSeconds: number }
   | { type: "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble"; min: number; max: number; attackSeconds: number; holdSeconds: number; releaseSeconds: number };
+
+export function envelopeDurations(source: Extract<ParameterSource, { attackSeconds: number }>): [number, number, number] {
+  const finiteOr = (value: unknown, fallback: number) => typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return [
+    Math.max(0, finiteOr(source.attackSeconds, 0.05)),
+    Math.max(0, finiteOr(source.holdSeconds, 0)),
+    Math.max(0, finiteOr(source.releaseSeconds, 0.6)),
+  ];
+}
 type VisualiserColorValue = ThemeColorValue & { opacity: number };
 type ColorTheme = {
   id: string;
@@ -178,7 +188,8 @@ function clampSetting(setting: ModuleSetting, value: number) {
     return setting.options?.some((option) => option.value === value) ? value : setting.default;
   }
   const clamped = Math.max(setting.min, Math.min(setting.max, value));
-  const stepped = setting.min + Math.round((clamped - setting.min) / setting.step) * setting.step;
+  const step = decimalStepGranularity(setting.step);
+  const stepped = setting.min + Math.round((clamped - setting.min) / step) * step;
   return Number(Math.max(setting.min, Math.min(setting.max, stepped)).toFixed(12));
 }
 
@@ -237,7 +248,7 @@ export function sourceWithType(
       : { ...source, type, min, max };
   }
   const value = clampSetting(setting, source.value);
-  const spread = Math.max(setting.step, (setting.max - setting.min) * 0.2);
+  const spread = Math.max(decimalStepGranularity(setting.step), (setting.max - setting.min) * 0.2);
   const max = value;
   const min = Math.min(max, clampSetting(setting, max - spread));
   if (type === "random") {
@@ -382,7 +393,7 @@ function ParameterDriverControls({
           ) : (
             <EnvelopeSliderControlPanel
               ariaLabel={`${setting.label} envelope`}
-              value={[source.attackSeconds, source.holdSeconds, source.releaseSeconds]}
+              value={envelopeDurations(source)}
               onPreview={([attackSeconds, holdSeconds, releaseSeconds]) => onPreview({ ...source, attackSeconds, holdSeconds, releaseSeconds })}
               onCommit={([attackSeconds, holdSeconds, releaseSeconds]) => onCommit({ ...source, attackSeconds, holdSeconds, releaseSeconds })}
             />
@@ -1053,7 +1064,7 @@ export function PhonoscopeConfig() {
                                           </>
                                         ) : (
                                           <EnvelopeSliderControlPanel ariaLabel={`${setting.label} envelope`}
-                                            value={[source.attackSeconds, source.holdSeconds, source.releaseSeconds]}
+                                            value={envelopeDurations(source)}
                                             onPreview={([attackSeconds, holdSeconds, releaseSeconds]) => updateOverride(setting, { ...source, attackSeconds, holdSeconds, releaseSeconds })}
                                             onCommit={([attackSeconds, holdSeconds, releaseSeconds]) => updateOverride(setting, { ...source, attackSeconds, holdSeconds, releaseSeconds }, true)} />
                                         )}
@@ -1384,22 +1395,13 @@ export function PhonoscopeConfig() {
                   (groups[section] ??= []).push(setting);
                   return groups;
                 }, {})).map(([section, settings]) => (
-                  <details key={section} className="group relative border border-neutral-800 bg-neutral-950/30">
+                  <div key={section} className="relative">
+                  <details className="group border border-neutral-800 bg-neutral-950/30">
                     <summary className={`cursor-pointer select-none px-3 py-3 font-black uppercase text-neutral-200 ${
                       section.toLowerCase() === "physics" ? "pr-72" : ""
                     }`}>
                       {section}
                     </summary>
-                    {section.toLowerCase() === "physics" && activeModuleColorGroups.length ? (
-                      <MomentaryFeedbackButton
-                        type="button"
-                        className="config-page-button config-page-button-primary absolute right-3 top-1.5 z-10"
-                        onClick={openThemeModal}
-                      >
-                        <Palette className="h-4 w-4" />
-                        Advanced parameters and colours
-                      </MomentaryFeedbackButton>
-                    ) : null}
                     <div className="grid gap-3 border-t border-neutral-800 p-3">
                 {settings.map((setting) => {
                   const saved = setting.updateMode === "structural"
@@ -1513,6 +1515,17 @@ export function PhonoscopeConfig() {
                 })}
                     </div>
                   </details>
+                  {section.toLowerCase() === "physics" && activeModuleColorGroups.length ? (
+                    <MomentaryFeedbackButton
+                      type="button"
+                      className="config-page-button config-page-button-primary absolute right-3 top-1.5 z-10"
+                      onClick={openThemeModal}
+                    >
+                      <Palette className="h-4 w-4" />
+                      Advanced parameters and colours
+                    </MomentaryFeedbackButton>
+                  ) : null}
+                  </div>
                 ))}
               </div>
             ) : null}

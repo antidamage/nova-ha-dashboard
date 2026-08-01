@@ -17,6 +17,7 @@ import {
 } from "./phonoscope";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
 import { normalizeThemeLibrary } from "./theme-library";
+import { decimalStepGranularity } from "./slider-step";
 import type {
   PhonoscopeColorGroup,
   PhonoscopeColorTheme,
@@ -168,7 +169,7 @@ function finiteClamped(value: unknown, fallback: number, min: number, max: numbe
   return Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : fallback;
 }
 
-function normalizeParameterSource(value: unknown): PhonoscopeParameterSource | null {
+export function normalizePhonoscopeParameterSource(value: unknown): PhonoscopeParameterSource | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
   const type = String(raw.type);
@@ -211,7 +212,7 @@ function normalizeParameterOverrides(value: unknown) {
     if (!PHONOSCOPE_MODULE_ID.test(moduleId) || !rawSettings || typeof rawSettings !== "object" || Array.isArray(rawSettings)) return [];
     const settings = Object.fromEntries(Object.entries(rawSettings as Record<string, unknown>).flatMap(([settingId, rawSource]) => {
       if (!PHONOSCOPE_MODULE_ID.test(settingId)) return [];
-      const source = normalizeParameterSource(rawSource);
+      const source = normalizePhonoscopeParameterSource(rawSource);
       return source ? [[settingId, source]] : [];
     }));
     return Object.keys(settings).length ? [[moduleId, settings]] : [];
@@ -470,6 +471,8 @@ export async function readPhonoscopeConfig() {
   return {
     ...DEFAULT_PHONOSCOPE_CONFIG,
     ...raw,
+    messageScaleSource: normalizePhonoscopeParameterSource(raw.messageScaleSource)
+      ?? DEFAULT_PHONOSCOPE_CONFIG.messageScaleSource,
     providers: { ...DEFAULT_PHONOSCOPE_CONFIG.providers, ...(raw.providers ?? {}) },
     moduleSettings: withoutRetiredModules(raw.moduleSettings),
     moduleParameterSources: withoutRetiredModules(normalizeParameterOverrides(raw.moduleParameterSources)),
@@ -626,7 +629,7 @@ export async function writePhonoscopeConfig(value: unknown) {
       message: typeof input.message === "string"
         ? Array.from(input.message.trim()).slice(0, 160).join("")
         : current.message,
-      messageScaleSource: normalizeParameterSource(input.messageScaleSource)
+      messageScaleSource: normalizePhonoscopeParameterSource(input.messageScaleSource)
         ?? current.messageScaleSource,
       statusOverlay: typeof input.statusOverlay === "boolean" ? input.statusOverlay : current.statusOverlay,
       transitionMs: typeof input.transitionMs === "number"
@@ -718,7 +721,8 @@ function normalizeSettingValue(setting: PhonoscopeSetting, value: unknown) {
     return setting.options.some((option) => option.value === value) ? value : setting.default;
   }
   const clamped = Math.max(setting.min, Math.min(setting.max, value));
-  const stepped = setting.min + Math.round((clamped - setting.min) / setting.step) * setting.step;
+  const step = decimalStepGranularity(setting.step);
+  const stepped = setting.min + Math.round((clamped - setting.min) / step) * step;
   return Number(Math.max(setting.min, Math.min(setting.max, stepped)).toFixed(12));
 }
 

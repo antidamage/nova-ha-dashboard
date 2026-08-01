@@ -1952,6 +1952,18 @@ a.update-banner-button {
   pointer-events: none;
 }
 
+.rect-envelope-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  color: var(--cyber-muted);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .rect-range-thumb:focus-visible {
   background: var(--cyber-highlight);
   border-color: var(--cyber-highlight);
@@ -2463,20 +2475,37 @@ a.update-banner-button {
 }
 
 .theme-colour-popover {
-  width: min(100%, 620px);
-  max-height: calc(100dvh - 32px);
-  overflow: auto;
-  border: 1px solid var(--cyber-cyan);
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   background: var(--cyber-panel);
-  box-shadow: 0 0 36px rgb(var(--cyber-cyan-rgb) / 0.28);
+}
+
+.modal-overlay.theme-colour-overlay {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--cyber-panel);
 }
 
 .theme-colour-popover-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px;
+  background: var(--cyber-panel);
+  border-bottom: 1px solid var(--cyber-border-dim);
 }
 
 .theme-colour-popover-close {

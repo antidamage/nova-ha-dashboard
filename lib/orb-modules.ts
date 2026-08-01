@@ -22,6 +22,8 @@
 // This file is intentionally free of React/DOM/fs imports: it is shared by
 // the `/api/orb-modules` server route, the browser renderer, and the tests.
 
+import { decimalStepGranularity } from "./slider-step";
+
 // ---------------------------------------------------------------------------
 // Color references
 // ---------------------------------------------------------------------------
@@ -624,7 +626,7 @@ function normalizeOrbModuleSetting(value: unknown): OrbModuleSettingDecl | null 
       : v.id,
     min,
     max,
-    step: span > 0 ? clampedNum(v.step, 1, 0.001, span) : 1,
+    step: span > 0 ? decimalStepGranularity(clampedNum(v.step, 1, 0.001, span)) : 1,
     default: clamp(num(v.default, min), min, max),
   };
   if (typeof v.description === "string" && v.description.trim().length > 0) {

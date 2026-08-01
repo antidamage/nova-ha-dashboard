@@ -1,4 +1,5 @@
 import type { VoicePreferences } from "./types";
+import { decimalStepGranularity } from "./slider-step";
 import { DEFAULT_TRANSCRIPT_TEMPLATE } from "./voice-transcript";
 
 export const VOICE_SPEAKERS = [
@@ -376,7 +377,8 @@ function storedNumber(value: unknown, fallback: number, min: number, max: number
   if (!Number.isFinite(number)) {
     return fallback;
   }
-  const stepped = Math.round(number / step) * step;
+  const granularStep = decimalStepGranularity(step);
+  const stepped = Math.round(number / granularStep) * granularStep;
   // Fractional steps (e.g. temperature's 0.1) accumulate float error without
   // an explicit precision clamp.
   return Number(Math.max(min, Math.min(max, stepped)).toFixed(4));

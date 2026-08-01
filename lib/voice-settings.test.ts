@@ -296,6 +296,10 @@ describe("voice settings", () => {
     expect(parseVoiceSettingsUpdate({ webAnswerMaxSentences: 4 }))
       .toEqual({ webAnswerMaxSentences: 4 });
   });
+  it("preserves the full precision declared by decimal ranges", () => {
+    expect(normalizeVoiceSettings({ longResponseProbability: 0.07 }).longResponseProbability).toBe(0.07);
+    expect(normalizeVoiceSettings({ temperature: 1.3 }).temperature).toBe(1.3);
+  });
 });
 
 describe("voice personality subset", () => {

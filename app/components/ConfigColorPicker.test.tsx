@@ -69,6 +69,10 @@ describe("ConfigColorPicker", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Accent colour picker" });
     expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveClass("theme-colour-popover");
+    expect(dialog.parentElement).toHaveClass("theme-colour-overlay");
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.documentElement.style.overflow).toBe("hidden");
     expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(screen.getByText("picker").compareDocumentPosition(screen.getByText("intensity"))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
@@ -76,6 +80,31 @@ describe("ConfigColorPicker", () => {
     expect(onToggle).not.toHaveBeenCalled();
     fireEvent.click(dialog.parentElement!);
     expect(onToggle).toHaveBeenCalledOnce();
+  });
+
+  it("keeps focus inside the colour editor modal", () => {
+    render(
+      <ColorWidget active detail="Test" label="Accent" rgb={[1, 2, 3]} onToggle={vi.fn()}>
+        <button type="button">First editor control</button>
+        <button type="button">Last editor control</button>
+      </ColorWidget>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Accent colour picker" });
+    const trigger = document.querySelector<HTMLButtonElement>(".theme-display-card")!;
+    const close = screen.getByRole("button", { name: "Close Accent colour picker" });
+    const last = screen.getByRole("button", { name: "Last editor control" });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    trigger.focus();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    last.focus();
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
+    expect(last).toHaveFocus();
   });
 
   it("shows colour intensity and renders the intensity-adjusted swatch", () => {
