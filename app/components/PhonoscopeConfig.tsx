@@ -40,6 +40,7 @@ import {
   ColorSpectrum,
   ColorWidget,
   ConfigAccordion,
+  EnvelopeSliderControlPanel,
   RangeSliderControlPanel,
   SliderControlPanel,
 } from "./ConfigControls";
@@ -85,6 +86,7 @@ type Config = {
   idleBehavior: "ambient" | "black" | "return";
   quality: "auto" | "high" | "balanced" | "performance";
   message: string;
+  messageScaleSource: ParameterSource;
   statusOverlay: boolean;
   transitionMs: number;
   housePartyRandomHueOffset: number;
@@ -108,7 +110,7 @@ type Config = {
 export type ParameterSource =
   | { type: "manual"; value: number }
   | { type: "random"; min: number; max: number; cadence: "beat" | "downbeat" | "bar" | "song" | "interval"; intervalSeconds: number; transitionSeconds: number }
-  | { type: "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble"; min: number; max: number; attackSeconds: number; releaseSeconds: number };
+  | { type: "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble"; min: number; max: number; attackSeconds: number; holdSeconds: number; releaseSeconds: number };
 type VisualiserColorValue = ThemeColorValue & { opacity: number };
 type ColorTheme = {
   id: string;
@@ -125,6 +127,21 @@ type ColorGroup = {
 type Payload = {
   config: Config; modules: ModuleSummary[];
   error?: string;
+};
+const MESSAGE_SCALE_SETTING: ModuleSetting = {
+  id: "messageScale",
+  label: "Message scale",
+  description: "Centered scale applied to the user-defined visualiser message.",
+  control: "slider",
+  min: 1,
+  max: 3,
+  step: 0.01,
+  default: 1,
+  affects: ["message"],
+  curve: { type: "linear", exponent: 1 },
+  options: [],
+  section: "Message",
+  updateMode: "smooth",
 };
 const THEME_TIME_MAX_SECONDS = 600;
 const THEME_TIME_SLIDER_MAX = 100;
@@ -216,7 +233,7 @@ export function sourceWithType(
         : { type, min, max, cadence: "beat", intervalSeconds: 4, transitionSeconds: 0.5 };
     }
     return source.type === "random"
-      ? { type, min, max, attackSeconds: 0.05, releaseSeconds: 0.6 }
+      ? { type, min, max, attackSeconds: 0.05, holdSeconds: 0, releaseSeconds: 0.6 }
       : { ...source, type, min, max };
   }
   const value = clampSetting(setting, source.value);
@@ -226,7 +243,7 @@ export function sourceWithType(
   if (type === "random") {
     return { type, min, max, cadence: "beat", intervalSeconds: 4, transitionSeconds: 0.5 };
   }
-  return { type, min, max, attackSeconds: 0.05, releaseSeconds: 0.6 };
+  return { type, min, max, attackSeconds: 0.05, holdSeconds: 0, releaseSeconds: 0.6 };
 }
 
 function themeSwatch(theme: ColorTheme) {
@@ -363,34 +380,12 @@ function ParameterDriverControls({
               />
             </>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <SliderControlPanel
-                ariaLabel={`${setting.label} attack`}
-                ariaValueText={`${source.attackSeconds} seconds`}
-                color={[34, 211, 238]}
-                label="Attack"
-                min={0}
-                max={2}
-                step={0.01}
-                value={source.attackSeconds}
-                valueText={`${source.attackSeconds.toFixed(2)}s`}
-                onPreview={(attackSeconds) => onPreview({ ...source, attackSeconds })}
-                onCommit={(attackSeconds) => onCommit({ ...source, attackSeconds })}
-              />
-              <SliderControlPanel
-                ariaLabel={`${setting.label} release`}
-                ariaValueText={`${source.releaseSeconds} seconds`}
-                color={[34, 211, 238]}
-                label="Release"
-                min={0.05}
-                max={10}
-                step={0.05}
-                value={source.releaseSeconds}
-                valueText={`${source.releaseSeconds.toFixed(2)}s`}
-                onPreview={(releaseSeconds) => onPreview({ ...source, releaseSeconds })}
-                onCommit={(releaseSeconds) => onCommit({ ...source, releaseSeconds })}
-              />
-            </div>
+            <EnvelopeSliderControlPanel
+              ariaLabel={`${setting.label} envelope`}
+              value={[source.attackSeconds, source.holdSeconds, source.releaseSeconds]}
+              onPreview={([attackSeconds, holdSeconds, releaseSeconds]) => onPreview({ ...source, attackSeconds, holdSeconds, releaseSeconds })}
+              onCommit={([attackSeconds, holdSeconds, releaseSeconds]) => onCommit({ ...source, attackSeconds, holdSeconds, releaseSeconds })}
+            />
           )}
         </>
       )}
@@ -1057,18 +1052,10 @@ export function PhonoscopeConfig() {
                                               onCommit={(transitionSeconds) => updateOverride(setting, { ...source, transitionSeconds }, true)} />
                                           </>
                                         ) : (
-                                          <div className="grid gap-3 sm:grid-cols-2">
-                                            <SliderControlPanel ariaLabel={`${setting.label} attack`} ariaValueText={`${source.attackSeconds} seconds`}
-                                              color={[34, 211, 238]} label="Attack" min={0} max={2} step={0.01}
-                                              value={source.attackSeconds} valueText={`${source.attackSeconds.toFixed(2)}s`}
-                                              onPreview={(attackSeconds) => updateOverride(setting, { ...source, attackSeconds })}
-                                              onCommit={(attackSeconds) => updateOverride(setting, { ...source, attackSeconds }, true)} />
-                                            <SliderControlPanel ariaLabel={`${setting.label} release`} ariaValueText={`${source.releaseSeconds} seconds`}
-                                              color={[34, 211, 238]} label="Release" min={0.05} max={10} step={0.05}
-                                              value={source.releaseSeconds} valueText={`${source.releaseSeconds.toFixed(2)}s`}
-                                              onPreview={(releaseSeconds) => updateOverride(setting, { ...source, releaseSeconds })}
-                                              onCommit={(releaseSeconds) => updateOverride(setting, { ...source, releaseSeconds }, true)} />
-                                          </div>
+                                          <EnvelopeSliderControlPanel ariaLabel={`${setting.label} envelope`}
+                                            value={[source.attackSeconds, source.holdSeconds, source.releaseSeconds]}
+                                            onPreview={([attackSeconds, holdSeconds, releaseSeconds]) => updateOverride(setting, { ...source, attackSeconds, holdSeconds, releaseSeconds })}
+                                            onCommit={([attackSeconds, holdSeconds, releaseSeconds]) => updateOverride(setting, { ...source, attackSeconds, holdSeconds, releaseSeconds }, true)} />
                                         )}
                                       </>
                                     )}
@@ -1333,6 +1320,20 @@ export function PhonoscopeConfig() {
                 onBlur={(event) => void save({ ...config, message: event.currentTarget.value })}
               />
             </label>
+
+            <div className="grid gap-3 border border-neutral-800 bg-neutral-950/45 p-3 text-sm">
+              <span className="font-bold uppercase text-neutral-300">Message scaling</span>
+              <p className="text-xs text-neutral-500">
+                Scale the message outward from its centre. Attack is the ramp-up time; release is the ramp-down time.
+              </p>
+              <ParameterDriverControls
+                inherited={1}
+                setting={MESSAGE_SCALE_SETTING}
+                source={config.messageScaleSource}
+                onPreview={(messageScaleSource) => setConfig({ ...config, messageScaleSource })}
+                onCommit={(messageScaleSource) => void save({ ...config, messageScaleSource })}
+              />
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               <CheckboxRow checked={config.providers.spotify} label="Spotify beat timestamps" detail="Use Spotify timing when available"

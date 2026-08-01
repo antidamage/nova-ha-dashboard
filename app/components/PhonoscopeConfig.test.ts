@@ -21,6 +21,7 @@ describe("Phonoscope parameter source conversion", () => {
       min: 2,
       max: 8,
       attackSeconds: 0.2,
+      holdSeconds: 0,
       releaseSeconds: 1.4,
     };
     expect(sourceWithType(setting, source, "energy")).toEqual({
@@ -35,6 +36,7 @@ describe("Phonoscope parameter source conversion", () => {
       min: 1.5,
       max: 7.5,
       attackSeconds: 0.1,
+      holdSeconds: 0,
       releaseSeconds: 0.8,
     };
     expect(sourceWithType(setting, reactive, "random")).toMatchObject({
@@ -64,6 +66,7 @@ describe("Phonoscope parameter source conversion", () => {
       min: 2,
       max: 8.5,
       attackSeconds: 0.05,
+      holdSeconds: 0,
       releaseSeconds: 0.6,
     };
     expect(sourceWithType(setting, ranged, "manual")).toEqual({

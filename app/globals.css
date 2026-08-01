@@ -1927,6 +1927,31 @@ a.update-banner-button {
   outline: none;
 }
 
+.rect-envelope-thumb {
+  transform: translate(-50%, -50%);
+}
+
+.rect-envelope-thumb-1 {
+  clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 100%);
+}
+
+.rect-envelope-thumb-3 {
+  clip-path: polygon(0 0, 100% 35%, 100% 100%, 0 100%);
+}
+
+.rect-envelope-value {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--cyber-highlight);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  clip-path: none;
+  pointer-events: none;
+}
+
 .rect-range-thumb:focus-visible {
   background: var(--cyber-highlight);
   border-color: var(--cyber-highlight);

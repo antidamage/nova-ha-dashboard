@@ -48,6 +48,9 @@ data/nova-voice-tls/
 data/terrain-fetches/
 data/*-sleep-token.txt
 data/wallpapers/
+# Secret-knock rhythm templates. Encrypted at rest, but an unlock credential
+# is not something to publish even in ciphertext (data/*.json misses .enc).
+data/doorbell-secrets.json.enc
 __pycache__/
 *.pyc
 

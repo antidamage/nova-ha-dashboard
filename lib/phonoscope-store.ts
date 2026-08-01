@@ -36,6 +36,7 @@ export const DEFAULT_PHONOSCOPE_CONFIG: Required<Omit<PhonoscopePreferences, "up
   idleBehavior: "ambient",
   quality: "auto",
   message: "",
+  messageScaleSource: { type: "manual", value: 1 },
   statusOverlay: true,
   transitionMs: 600,
   housePartyRandomHueOffset: 0,
@@ -190,12 +191,15 @@ function normalizeParameterSource(value: unknown): PhonoscopeParameterSource | n
     };
   }
   if (["beat", "downbeat", "energy", "bass", "mid", "treble"].includes(type)) {
+    const attackSeconds = finiteClamped(raw.attackSeconds, 0.05, 0, 12);
+    const holdSeconds = finiteClamped(raw.holdSeconds, 0, 0, 12 - attackSeconds);
     return {
       type: type as "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble",
       min,
       max,
-      attackSeconds: finiteClamped(raw.attackSeconds, 0.05, 0, 2),
-      releaseSeconds: finiteClamped(raw.releaseSeconds, 0.6, 0.05, 10),
+      attackSeconds,
+      holdSeconds,
+      releaseSeconds: finiteClamped(raw.releaseSeconds, 0.6, 0, 12 - attackSeconds - holdSeconds),
     };
   }
   return null;
@@ -622,6 +626,8 @@ export async function writePhonoscopeConfig(value: unknown) {
       message: typeof input.message === "string"
         ? Array.from(input.message.trim()).slice(0, 160).join("")
         : current.message,
+      messageScaleSource: normalizeParameterSource(input.messageScaleSource)
+        ?? current.messageScaleSource,
       statusOverlay: typeof input.statusOverlay === "boolean" ? input.statusOverlay : current.statusOverlay,
       transitionMs: typeof input.transitionMs === "number"
         ? Math.max(0, Math.min(3_000, Math.round(input.transitionMs)))

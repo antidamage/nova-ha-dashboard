@@ -471,6 +471,7 @@ export type PhonoscopePreferences = {
   idleBehavior?: "ambient" | "black" | "return";
   quality?: "auto" | "high" | "balanced" | "performance";
   message?: string;
+  messageScaleSource?: PhonoscopeParameterSource;
   statusOverlay?: boolean;
   transitionMs?: number;
   housePartyRandomHueOffset?: number;
@@ -522,6 +523,7 @@ export type PhonoscopeParameterSource =
       min: number;
       max: number;
       attackSeconds: number;
+      holdSeconds: number;
       releaseSeconds: number;
     };
 

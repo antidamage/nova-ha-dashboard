@@ -344,6 +344,17 @@ export function publishVoiceSpeaking(event: VoiceSpeakingEvent) {
   broadcast(sseEvent("voice-speaking", JSON.stringify(event)));
 }
 
+// Fan a doorbell alert out to every connected client. Reuses the shared SSE
+// stream rather than adding a second alert channel, so a client that already
+// handles task alerts gets doorbell alerts with the same reconnect behaviour.
+//
+// The payload is the redacted alert only: it carries a knock COUNT, never the
+// timings, because the stream reaches every browser on the network and the
+// timings are an unlock credential.
+export function publishDoorbellAlert(alert: unknown) {
+  broadcast(sseEvent("doorbell-alert", JSON.stringify(alert)));
+}
+
 // Keep a short process-local transcript so opening the Voice Agent panel after
 // a turn still shows recent context. Iridium remains the durable 24-hour
 // transcript owner; the dashboard only fans out and displays this bounded copy.
