@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTROL_INTERACTION_COOLDOWN_MS, resetControlInteractionCooldownForTests } from "./controlInteractionCooldown";
-import { DotLineControl } from "./DotControls";
+import { DotEnvelopeControl, DotLineControl } from "./DotControls";
 
 describe("DotLineControl reconciliation hold", () => {
   beforeEach(() => {
@@ -46,5 +46,24 @@ describe("DotLineControl reconciliation hold", () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(slider).toHaveAttribute("aria-valuenow", "10");
+  });
+});
+
+describe("DotEnvelopeControl", () => {
+  afterEach(cleanup);
+
+  it("shows individual phase durations and keeps equal-time boundaries side by side", () => {
+    render(<DotEnvelopeControl ariaLabel="Pulse envelope" max={12} step={0.05} value={[1, 0, 0]} onChange={() => {}} />);
+
+    expect(screen.getByText("1.0s")).toBeInTheDocument();
+    expect(screen.getAllByText("0.0s")).toHaveLength(2);
+    const attack = screen.getByRole("slider", { name: "Pulse envelope attack end" });
+    const hold = screen.getByRole("slider", { name: "Pulse envelope hold end" });
+    const release = screen.getByRole("slider", { name: "Pulse envelope release end" });
+    expect(attack).toHaveAttribute("aria-valuenow", "1");
+    expect(hold).toHaveAttribute("aria-valuenow", "1");
+    expect(release).toHaveAttribute("aria-valuenow", "1");
+    expect(hold.style.left).not.toBe(attack.style.left);
+    expect(release.style.left).not.toBe(hold.style.left);
   });
 });

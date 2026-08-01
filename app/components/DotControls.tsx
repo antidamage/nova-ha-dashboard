@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useLiteMode } from "./dashboard/experienceModeSetting";
 import {
   beginControlInteraction,
@@ -658,6 +658,148 @@ export function DotRangeControl({
             setInteracting(true);
           }}
         />
+      ))}
+    </div>
+  );
+}
+
+export type EnvelopeDurations = [attack: number, hold: number, release: number];
+
+function formatEnvelopeSeconds(value: number) {
+  return `${value.toFixed(2).replace(/0$/, "")}s`;
+}
+
+/**
+ * A three-boundary envelope timeline. Thumb widths are deliberately removed
+ * from the time scale, so touching thumbs represent equal boundary times (and
+ * therefore a zero-length hold or release) without ever overlapping.
+ */
+export function DotEnvelopeControl({
+  ariaLabel,
+  disabled = false,
+  max,
+  onChange,
+  onCommit,
+  step,
+  value,
+}: {
+  ariaLabel: string;
+  disabled?: boolean;
+  max: number;
+  onChange: (value: EnvelopeDurations) => void;
+  onCommit?: (value: EnvelopeDurations) => void;
+  step: number;
+  value: EnvelopeDurations;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const activeThumbRef = useRef<0 | 1 | 2 | null>(null);
+  const currentRef = useRef<EnvelopeDurations>(value);
+  const [interacting, setInteracting] = useState(false);
+  currentRef.current = value;
+
+  const boundaries = (durations: EnvelopeDurations): EnvelopeDurations => [
+    durations[0],
+    durations[0] + durations[1],
+    durations[0] + durations[1] + durations[2],
+  ];
+  const stepped = useCallback((raw: number) => (
+    Number(clamp(Math.round(raw / step) * step, 0, max).toFixed(12))
+  ), [max, step]);
+  const thumbPosition = (boundary: number, thumb: 0 | 1 | 2) => {
+    const ratio = clamp(boundary / max, 0, 1);
+    const pixelOffset = RECT_THUMB_WIDTH_PX * (thumb + 0.5) - ratio * RECT_THUMB_WIDTH_PX * 3;
+    return `calc(${ratio * 100}% + ${pixelOffset}px)`;
+  };
+  const update = useCallback((thumb: 0 | 1 | 2, raw: number, commit = false) => {
+    const oldBoundaries = boundaries(currentRef.current);
+    const nextBoundary = clamp(stepped(raw), oldBoundaries[thumb - 1] ?? 0, oldBoundaries[thumb + 1] ?? max);
+    oldBoundaries[thumb] = nextBoundary;
+    const next: EnvelopeDurations = [
+      oldBoundaries[0],
+      oldBoundaries[1] - oldBoundaries[0],
+      oldBoundaries[2] - oldBoundaries[1],
+    ];
+    currentRef.current = next;
+    onChange(next);
+    if (commit) onCommit?.(next);
+  }, [max, onChange, onCommit, step, stepped]);
+  const rawFromPointer = (event: React.PointerEvent<HTMLDivElement>, thumb: 0 | 1 | 2) => {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return 0;
+    const usableWidth = Math.max(1, rect.width - RECT_THUMB_WIDTH_PX * 3);
+    return clamp((event.clientX - rect.left - RECT_THUMB_WIDTH_PX * (thumb + 0.5)) / usableWidth, 0, 1) * max;
+  };
+  const begin = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const currentBoundaries = boundaries(currentRef.current);
+    const centers = currentBoundaries.map((boundary, thumb) => {
+      const ratio = boundary / max;
+      return rect.left + ratio * (rect.width - RECT_THUMB_WIDTH_PX * 3) + RECT_THUMB_WIDTH_PX * (thumb + 0.5);
+    });
+    const thumb = centers.reduce<0 | 1 | 2>((closest, center, index) => (
+      Math.abs(event.clientX - center) < Math.abs(event.clientX - centers[closest]) ? index as 0 | 1 | 2 : closest
+    ), 0);
+    activeThumbRef.current = thumb;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    beginControlInteraction();
+    setInteracting(true);
+    update(thumb, rawFromPointer(event, thumb));
+  };
+  const end = () => {
+    if (activeThumbRef.current === null) return;
+    activeThumbRef.current = null;
+    endControlInteraction();
+    setInteracting(false);
+    onCommit?.(currentRef.current);
+  };
+  const keyboard = (event: React.KeyboardEvent<HTMLDivElement>, thumb: 0 | 1 | 2) => {
+    const current = boundaries(value)[thumb];
+    let next: number | null = null;
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = current - step;
+    else if (event.key === "ArrowRight" || event.key === "ArrowUp") next = current + step;
+    else if (event.key === "PageDown") next = current - step * 10;
+    else if (event.key === "PageUp") next = current + step * 10;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = max;
+    if (disabled || next === null) return;
+    event.preventDefault();
+    markControlInteraction();
+    update(thumb, next, true);
+  };
+  const currentBoundaries = boundaries(value);
+  const phaseNames = ["attack", "hold", "release"] as const;
+
+  return (
+    <div ref={trackRef} className={classNames("rect-slider rect-envelope-slider relative flex h-12 w-full items-center touch-none select-none", interacting && "rect-slider-active", disabled && "rect-slider-disabled")}
+      onPointerDown={begin}
+      onPointerMove={(event) => {
+        if (activeThumbRef.current !== null && event.buttons === 1) update(activeThumbRef.current, rawFromPointer(event, activeThumbRef.current));
+      }}
+      onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
+      <div className="rect-slider-track" />
+      {([0, 1, 2] as const).map((thumb) => (
+        <Fragment key={thumb}>
+        <span className="rect-envelope-value" style={{ left: thumbPosition(currentBoundaries[thumb], thumb) }} aria-hidden="true">{formatEnvelopeSeconds(value[thumb])}</span>
+        <div role="slider" tabIndex={disabled ? -1 : 0}
+          aria-label={`${ariaLabel} ${phaseNames[thumb]} end`}
+          aria-disabled={disabled}
+          aria-valuemin={currentBoundaries[thumb - 1] ?? 0}
+          aria-valuemax={currentBoundaries[thumb + 1] ?? max}
+          aria-valuenow={currentBoundaries[thumb]}
+          aria-valuetext={`${phaseNames[thumb]} ${value[thumb].toFixed(2).replace(/0$/, "")} seconds`}
+          className={`rect-slider-thumb rect-range-thumb rect-envelope-thumb rect-envelope-thumb-${thumb + 1}`}
+          style={{ left: thumbPosition(currentBoundaries[thumb], thumb) }}
+          onKeyDown={(event) => keyboard(event, thumb)}
+          onPointerDown={(event) => {
+            activeThumbRef.current = thumb;
+            event.stopPropagation();
+            event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
+            beginControlInteraction();
+            setInteracting(true);
+          }} />
+        </Fragment>
       ))}
     </div>
   );

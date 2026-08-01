@@ -9,7 +9,7 @@ import {
 } from "./accentColor";
 import { configAccordionKey, getAccordionOpen, setAccordionOpen } from "./configUiState";
 import { ConfigColorPicker } from "./ConfigColorPicker";
-import { DotLineControl, DotRangeControl } from "./DotControls";
+import { DotEnvelopeControl, DotLineControl, DotRangeControl, type EnvelopeDurations } from "./DotControls";
 import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
@@ -378,6 +378,38 @@ export function RangeSliderControlPanel({
         </div>
         <p className="config-slider-value text-xl font-black tabular-nums text-neutral-50 md:text-right">
           {formatValue(value[0])}–{formatValue(value[1])}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function EnvelopeSliderControlPanel({
+  ariaLabel,
+  label = "Envelope",
+  max = 12,
+  onCommit,
+  onPreview,
+  step = 0.05,
+  value,
+}: {
+  ariaLabel: string;
+  label?: string;
+  max?: number;
+  onCommit: (value: EnvelopeDurations) => void;
+  onPreview: (value: EnvelopeDurations) => void;
+  step?: number;
+  value: EnvelopeDurations;
+}) {
+  return (
+    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_240px] md:items-center">
+        <p className="text-sm font-black uppercase text-cyan-200">{label}</p>
+        <div className="px-1">
+          <DotEnvelopeControl ariaLabel={ariaLabel} max={max} step={step} value={value} onChange={onPreview} onCommit={onCommit} />
+        </div>
+        <p className="config-slider-value text-sm font-black tabular-nums text-neutral-50 md:text-right">
+          A {value[0].toFixed(2)}s · H {value[1].toFixed(2)}s · R {value[2].toFixed(2)}s
         </p>
       </div>
     </div>
