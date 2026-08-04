@@ -163,13 +163,14 @@ export function ManagedComputersConfig() {
       while (completedSaveRef.current < requestedSaveRef.current) {
         const version = requestedSaveRef.current;
         const snapshot = computersRef.current;
-        setMessage("Saving managed computers…");
+        // No "saving"/"saved" banner — edits autosave, and the status line
+        // reflowing the panel drags the scroll position with it.
+        setMessage(null);
         try {
           const saved = await saveManagedComputers(snapshot);
           completedSaveRef.current = version;
           if (version === requestedSaveRef.current) {
             replaceComputers(saved);
-            setMessage("Managed computers saved automatically");
           }
         } catch (error) {
           setMessage(error instanceof Error ? error.message : "Failed to save managed computers");

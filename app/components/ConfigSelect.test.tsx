@@ -1,6 +1,7 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ConfigSelect } from "./ConfigSelect";
+import { ModalOverlay } from "./ModalOverlay";
 
 describe("ConfigSelect", () => {
   it("renders an option icon instead of the empty colour swatch", () => {
@@ -40,5 +41,30 @@ describe("ConfigSelect", () => {
 
     expect(container.querySelector('[data-testid="theme-swatch"]')).toBeInTheDocument();
     expect(container.querySelector('[data-testid="fallback-icon"]')).not.toBeInTheDocument();
+  });
+
+  it("keeps portalled options inside a modal so its focus trap permits selection", async () => {
+    const onChange = vi.fn();
+    render(
+      <ModalOverlay open ariaLabel="Theme editor" onClose={vi.fn()}>
+        <ConfigSelect
+          ariaLabel="Colour theme"
+          value="aurora"
+          options={[
+            { value: "aurora", label: "Aurora" },
+            { value: "ember", label: "Ember" },
+          ]}
+          onChange={onChange}
+        />
+      </ModalOverlay>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Colour theme" }));
+    const option = await screen.findByRole("option", { name: "Ember" });
+    const dialog = screen.getByRole("dialog", { name: "Theme editor" });
+    expect(dialog).toContainElement(option);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ember" }));
+    expect(onChange).toHaveBeenCalledWith("ember");
   });
 });

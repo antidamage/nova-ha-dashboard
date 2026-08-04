@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { appendFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -97,6 +97,73 @@ describe("HouseholdEventLog", () => {
     // Crossing the slack window compacts once, back down to the bound.
     expect(await lineCount()).toBe(100);
     expect((await log.read(0)).events[0].cursor).toBe(11);
+  });
+
+  it("survives a truncated tail line instead of losing the whole spool", async () => {
+    // Reproduces the 2026-08-01 production failure: an append interrupted by a
+    // swap-thrashing host left one half-written line at the end of the file.
+    // Every load then threw, so the dashboard logged ~46 errors a minute and
+    // nova-voice's household event polling failed outright.
+    const log = await eventLog();
+    for (let index = 1; index <= 3; index += 1) {
+      await log.append({
+        occurredAt: "2026-07-22T10:00:00.000Z",
+        source: "dashboard",
+        kind: "ha_state",
+        deduplicationKey: `event:${index}`,
+        payload: { index },
+      });
+    }
+    await appendFile(log.filePath, '{"occurredAt":"2026-08-01T03:33:32.051Z","previousState":"0.0');
+
+    const restarted = new HouseholdEventLog(log.filePath);
+    const batch = await restarted.read(0);
+
+    // The three good events survive the damaged tail.
+    expect(batch.events.map((event) => event.cursor)).toEqual([1, 2, 3]);
+    // And the spool is rewritten clean, so the damage is not re-skipped forever.
+    const rewritten = (await readFile(log.filePath, "utf8")).split("\n").filter(Boolean);
+    expect(rewritten).toHaveLength(3);
+    expect(() => rewritten.map((line) => JSON.parse(line))).not.toThrow();
+    // The next append continues the sequence rather than colliding with cursor 3.
+    const next = await restarted.append({
+      occurredAt: "2026-08-01T04:00:00.000Z",
+      source: "dashboard",
+      kind: "ha_state",
+      deduplicationKey: "event:after-damage",
+      payload: {},
+    });
+    expect(next.cursor).toBe(4);
+  });
+
+  it("skips entries that are valid JSON but unusable, and keeps the rest", async () => {
+    const log = await eventLog();
+    await log.append({
+      occurredAt: "2026-07-22T10:00:00.000Z",
+      source: "dashboard",
+      kind: "ha_state",
+      deduplicationKey: "event:1",
+      payload: { index: 1 },
+    });
+    // Schema violation (no cursor/id/version) and a cursor that goes backwards:
+    // both used to throw for the whole file.
+    await appendFile(log.filePath, '{"not":"an event"}\n');
+    await appendFile(
+      log.filePath,
+      `${JSON.stringify({
+        version: 1,
+        cursor: 1,
+        id: "dashboard-1",
+        occurredAt: "2026-07-22T10:00:00.000Z",
+        source: "dashboard",
+        kind: "ha_state",
+        deduplicationKey: "event:backwards",
+        payload: {},
+      })}\n`,
+    );
+
+    const restarted = new HouseholdEventLog(log.filePath);
+    expect((await restarted.read(0)).events.map((event) => event.cursor)).toEqual([1]);
   });
 });
 

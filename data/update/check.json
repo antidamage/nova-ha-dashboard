@@ -1,6 +1,8 @@
 {
-  "checkedAt": "2026-07-23T22:32:00.059Z",
-  "ok": false,
+  "checkedAt": "2026-08-02T09:16:43.482Z",
+  "ok": true,
   "branch": "main",
-  "error": "fetch failed"
+  "latestSha": "e5d8026cb9620f4a5d5450ca17f8a4b69a18cb51",
+  "latestMessage": "Merge pull request #1 from antidamage/agent/nova-dashboard-sync-20260729",
+  "latestCommittedAt": "2026-07-29T13:27:06Z"
 }

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   envelopeDurations,
   sourceWithType,
+  visualiserThemePreviewColors,
+  visualiserThemePreviewGradient,
   type ModuleSetting,
   type ParameterSource,
 } from "./PhonoscopeConfig";
@@ -16,6 +18,31 @@ const setting: ModuleSetting = {
 };
 
 describe("Phonoscope parameter source conversion", () => {
+  it("previews the visualiser background, dot, and glow primary colours", () => {
+    expect(visualiserThemePreviewColors({
+      backgroundPrimary: { rgb: [10, 20, 30], intensity: 100, opacity: 100, cursor: { x: 0, y: 0 } },
+      dotPrimary: { rgb: [100, 80, 60], intensity: 50, opacity: 80, cursor: { x: 0, y: 0 } },
+      glowPrimary: { rgb: [200, 100, 50], intensity: 25, opacity: 60, cursor: { x: 0, y: 0 } },
+    })).toEqual({
+      background: "rgb(10 20 30 / 1)",
+      dot: "rgb(50 40 30 / 0.8)",
+      glow: "rgb(50 25 13 / 0.6)",
+    });
+  });
+
+  it("serializes the three-colour preview as a browser-valid gradient", () => {
+    const gradient = visualiserThemePreviewGradient({
+      backgroundPrimary: { rgb: [10, 20, 30], intensity: 100, opacity: 100, cursor: { x: 0, y: 0 } },
+      dotPrimary: { rgb: [100, 80, 60], intensity: 50, opacity: 80, cursor: { x: 0, y: 0 } },
+      glowPrimary: { rgb: [200, 100, 50], intensity: 25, opacity: 60, cursor: { x: 0, y: 0 } },
+    });
+    const swatch = document.createElement("span");
+    swatch.style.background = gradient;
+
+    expect(swatch.style.background).toContain("linear-gradient");
+    expect(swatch.style.background).not.toBe("");
+  });
+
   it("renders legacy or malformed envelope fields with safe defaults", () => {
     const legacy = {
       type: "bass",
@@ -95,6 +122,35 @@ describe("Phonoscope parameter source conversion", () => {
       type: "downbeat",
       min: 6.5,
       max: 8.5,
+    });
+  });
+
+  it("gives a named-choice setting the full range when it starts being driven", () => {
+    // The glow overlay's blend mode: two named choices on a 0-1 axis. Shrinking
+    // the range towards the manual value the way a continuous setting does
+    // would leave "Screen" driven between Screen and Screen.
+    const blendMode: ModuleSetting = {
+      id: "glowBlend",
+      label: "Blend mode",
+      control: "select",
+      min: 0,
+      max: 1,
+      step: 1,
+      default: 0,
+      options: [
+        { value: 0, label: "Screen" },
+        { value: 1, label: "Multiply" },
+      ],
+    };
+    expect(sourceWithType(blendMode, { type: "manual", value: 0 }, "beat")).toMatchObject({
+      type: "beat",
+      min: 0,
+      max: 1,
+    });
+    expect(sourceWithType(blendMode, { type: "manual", value: 1 }, "random")).toMatchObject({
+      type: "random",
+      min: 0,
+      max: 1,
     });
   });
 

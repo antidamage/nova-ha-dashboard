@@ -306,6 +306,15 @@ export function publishReminderIcons(entries: unknown[]) {
   broadcastTask(sseEvent("reminder-icons", store.latestReminderIconsJson));
 }
 
+// Phonoscope configuration changed. The GPU renderer on iridium subscribes to
+// this stream so a slider moved in the browser reaches the render in a frame or
+// two instead of waiting for its next config poll. The payload is deliberately
+// just a nudge — the renderer re-reads /api/phonoscope/config itself, which
+// keeps exactly one code path for interpreting configuration.
+export function publishPhonoscopeConfig(reason: string) {
+  broadcast(sseEvent("phonoscope", JSON.stringify({ kind: "phonoscope", reason, at: Date.now() })));
+}
+
 export type VoiceSpeakingEvent = {
   phase: "start" | "end";
   turnId: string;

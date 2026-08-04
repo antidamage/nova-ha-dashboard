@@ -3,6 +3,10 @@ import type { Task, TaskRepeat, TaskSource } from "../../../lib/types";
 export type TaskTab = "today" | "upcoming";
 export type TaskRepeatDraftKind = TaskRepeat["kind"];
 
+// Day repeats are measured from completion, so a few clear days is the useful
+// default rather than "back tomorrow".
+export const DEFAULT_REPEAT_DAYS = 3;
+
 export type TaskDraft = {
   name: string;
   start: string;
@@ -76,7 +80,7 @@ export function defaultDraft(): TaskDraft {
     hasEnd: true,
     repeatEnabled: false,
     repeatKind: "days",
-    repeatDays: "1",
+    repeatDays: String(DEFAULT_REPEAT_DAYS),
     annoy: false,
   };
 }
@@ -91,7 +95,7 @@ export function taskDraft(task: Task): TaskDraft {
     hasEnd: Boolean(task.end),
     repeatEnabled: Boolean(task.repeat),
     repeatKind: task.repeat?.kind ?? "days",
-    repeatDays: task.repeat?.kind === "days" ? String(task.repeat.intervalDays) : "1",
+    repeatDays: task.repeat?.kind === "days" ? String(task.repeat.intervalDays) : String(DEFAULT_REPEAT_DAYS),
     annoy: task.annoy === true,
   };
 }
@@ -122,7 +126,7 @@ export function repeatLabel(repeat: TaskRepeat | undefined) {
   if (repeat.kind === "morning-night") {
     return "Repeats morning/night";
   }
-  return `Repeats every ${repeat.intervalDays} day${repeat.intervalDays === 1 ? "" : "s"}`;
+  return `Repeats ${repeat.intervalDays} day${repeat.intervalDays === 1 ? "" : "s"} after completion`;
 }
 
 function startOfLocalDay(date: Date) {

@@ -41,6 +41,8 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const MIN_REPEAT_DAYS = 1;
 const MAX_REPEAT_DAYS = 365;
+// Local hour a completed day-interval reminder comes back at.
+const REPEAT_MORNING_HOUR = 7;
 
 function randomTaskId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -144,6 +146,32 @@ function sortTasks(tasks: Task[]) {
   });
 }
 
+/**
+ * Where a day-interval reminder lands once it has actually been ticked off.
+ *
+ * Day repeats measure their gap from the completion, not from the schedule the
+ * occurrence happened to sit on: "every three days" means three clear days
+ * after doing the thing, so a chore ticked late does not come straight back.
+ * The next occurrence is pinned to 7am so it is waiting on the panel first
+ * thing that morning rather than at whatever minute the box was tapped.
+ */
+function nextCompletionAnchoredStart(
+  dismissedAtMs: number,
+  durationMs: number,
+  intervalDays: number,
+  nowMs: number,
+) {
+  const next = new Date(dismissedAtMs);
+  next.setDate(next.getDate() + intervalDays);
+  next.setHours(REPEAT_MORNING_HOUR, 0, 0, 0);
+
+  while (next.getTime() + durationMs <= nowMs) {
+    next.setDate(next.getDate() + intervalDays);
+  }
+
+  return next;
+}
+
 function nextIntervalStart(start: string, durationMs: number, repeat: TaskRepeat, nowMs: number) {
   const startMs = new Date(start).getTime();
   if (!Number.isFinite(startMs)) {
@@ -202,7 +230,10 @@ function refreshedRepeatingTask(task: Task, nowMs: number) {
   }
 
   const durationMs = endMs - startMs;
-  const nextStart = nextIntervalStart(task.start, durationMs, task.repeat, nowMs);
+  const nextStart =
+    completed && task.repeat.kind === "days" && Number.isFinite(dismissedAtMs)
+      ? nextCompletionAnchoredStart(dismissedAtMs, durationMs, task.repeat.intervalDays, nowMs)
+      : nextIntervalStart(task.start, durationMs, task.repeat, nowMs);
   if (!nextStart) {
     return { task, changed: false };
   }

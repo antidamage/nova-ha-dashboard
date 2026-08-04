@@ -1,0 +1,30 @@
+[Unit]
+Description=Caddy TLS front for Nova dashboard and browser voice (iridium)
+After=network-online.target tailscaled.service nova-ha-dashboard.service
+Wants=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+# Config path is deliberately NOT /etc/caddy/Caddyfile. Iridium already runs a
+# separate user-scoped caddy.service for the OpenClaw gateway that owns that
+# file and binds :8443. Writing to it would silently break OpenClaw, so Nova's
+# system-scoped Caddy keeps its own config and its own port (:443).
+ExecStart=/usr/local/bin/caddy run --config /etc/caddy/nova.Caddyfile --adapter caddyfile
+# No ExecReload on purpose. `caddy reload` drives the admin API, and this
+# Caddyfile sets `admin off`, so the reload could never work — `systemctl reload
+# nova-caddy` just failed with "Job for nova-caddy.service failed" while the
+# service was healthy, which is a confusing thing to hand an operator mid-incident.
+# Use `systemctl restart nova-caddy` instead; it is sub-second here.
+Restart=always
+RestartSec=5
+
+# Caddy resolves its data directory (ACME account keys, issued certificates)
+# from $HOME. systemd units get an empty environment, so without this Caddy logs
+# "$HOME environment variable is empty - please fix" and falls back to ./caddy
+# relative to the working directory. StateDirectory= creates and owns
+# /var/lib/caddy, giving the tailnet certificate a stable home across restarts.
+Environment=HOME=/var/lib/caddy
+StateDirectory=caddy
+
+[Install]
+WantedBy=multi-user.target

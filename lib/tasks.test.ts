@@ -96,6 +96,38 @@ describe("task notification dismissal", () => {
     expect(completed.alertDismissedFor).toBeUndefined();
   });
 
+  it("schedules a completed day-repeat from the completion, at 7am", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({
+        start: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+        repeat: { kind: "days", intervalDays: 3 },
+      }),
+    ]);
+
+    const completed = await store.completeTask("task-1");
+    const next = new Date(completed.start);
+    const expected = new Date();
+    expected.setDate(expected.getDate() + 3);
+
+    expect(next.getHours()).toBe(7);
+    expect(next.getMinutes()).toBe(0);
+    expect(next.toDateString()).toBe(expected.toDateString());
+    expect(completed.dismissedAt).toBeUndefined();
+  });
+
+  it("keeps hourly repeats on their fixed clock when completed", async () => {
+    const store = await isolatedTaskStore();
+    const start = new Date(Date.now() - 90 * 60_000);
+    await store.writeTasks([task({ start: start.toISOString(), repeat: { kind: "hourly" } })]);
+
+    const completed = await store.completeTask("task-1");
+    const next = new Date(completed.start);
+
+    expect(next.getMinutes()).toBe(start.getMinutes());
+    expect(next.getTime()).toBeGreaterThan(Date.now());
+  });
+
   it("repairs repeating tasks that were accidentally marked done before their current occurrence", async () => {
     const store = await isolatedTaskStore();
     await store.writeTasks([

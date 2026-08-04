@@ -4,6 +4,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useId, useMemo, useState, type ReactNode } from "react";
 import { useSelectMenu } from "./useSelectMenu";
+import { useModalPortalTarget } from "./ModalOverlay";
 
 export type ConfigSelectOption<T extends string = string> = {
   value: T;
@@ -48,6 +49,7 @@ export function ConfigSelect<T extends string>({
   const [open, setOpen] = useState(false);
   const listboxId = useId();
   const { containerRef, menuRef, menuStyle } = useSelectMenu(open, setOpen);
+  const modalPortalTarget = useModalPortalTarget();
   const active = useMemo(
     () => options.find((option) => option.value === value) ?? options[0],
     [options, value],
@@ -108,7 +110,7 @@ export function ConfigSelect<T extends string>({
               );
             })}
           </ul>,
-          document.body,
+          modalPortalTarget?.current ?? document.body,
         ) : null}
       </div>
     </div>

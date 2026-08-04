@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+
+const ModalPortalContext = createContext<RefObject<HTMLDivElement | null> | null>(null);
+
+/**
+ * Portalled controls inside a modal must remain DOM descendants of the dialog.
+ * Otherwise the modal's inert background and focus trap correctly treat them
+ * as outside content, which makes their options untappable on touch browsers.
+ */
+export function useModalPortalTarget() {
+  return useContext(ModalPortalContext);
+}
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -130,21 +141,23 @@ export function ModalOverlay({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div ref={overlayRef} className={`modal-overlay ${overlayClassName}`} role="presentation" onClick={onClose}>
-      <div
-        ref={dialogRef}
-        className={className}
-        role={dialogRole}
-        tabIndex={-1}
-        aria-modal="true"
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {children}
+    <ModalPortalContext.Provider value={dialogRef}>
+      <div ref={overlayRef} className={`modal-overlay ${overlayClassName}`} role="presentation" onClick={onClose}>
+        <div
+          ref={dialogRef}
+          className={className}
+          role={dialogRole}
+          tabIndex={-1}
+          aria-modal="true"
+          aria-label={ariaLabel}
+          aria-labelledby={ariaLabelledBy}
+          aria-describedby={ariaDescribedBy}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {children}
+        </div>
       </div>
-    </div>,
+    </ModalPortalContext.Provider>,
     document.body,
   );
 }

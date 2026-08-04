@@ -469,9 +469,9 @@ export type PhonoscopePreferences = {
   activeModuleId?: string;
   activeModuleVersion?: string;
   idleBehavior?: "ambient" | "black" | "return";
-  quality?: "auto" | "high" | "balanced" | "performance";
   message?: string;
   messageScaleSource?: PhonoscopeParameterSource;
+  glowOverlay?: PhonoscopeGlowOverlay;
   statusOverlay?: boolean;
   transitionMs?: number;
   housePartyRandomHueOffset?: number;
@@ -506,6 +506,25 @@ export type PhonoscopeColorValue = {
   intensity: number;
   opacity: number;
   cursor?: { x: number; y: number };
+};
+
+/**
+ * The final glow/bloom layer, laid over the whole visual stream — including the
+ * centre message — as the last pass of a frame.
+ *
+ * Blur amount (0-20), opacity (0-100) and blend mode each carry their own
+ * parameter driver, so all three are stored as sources rather than plain
+ * values, exactly like `messageScaleSource`.
+ *
+ * The blend mode uses Photoshop's naming, on a 0-1 axis between the two: 0 is
+ * screen, 1 is multiply, and both engines cut hard at 0.5 rather than
+ * cross-fading. That is what lets a beat driver swap the mode on the beat while
+ * a manual source still behaves as the plain two-way choice it looks like.
+ */
+export type PhonoscopeGlowOverlay = {
+  blendModeSource: PhonoscopeParameterSource;
+  blurSource: PhonoscopeParameterSource;
+  opacitySource: PhonoscopeParameterSource;
 };
 
 export type PhonoscopeParameterSource =

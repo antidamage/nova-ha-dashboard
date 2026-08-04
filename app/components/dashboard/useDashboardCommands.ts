@@ -11,12 +11,11 @@ import {
   optimisticStateForZoneAction,
 } from "./state";
 import { isClimateZone } from "./shared";
-import { playControlSound } from "./controlSound";
 
 export type ApplyEntityActionsOptions = {
-  // Background drivers (e.g. the auto-mode thermostat loop) pass silent:true so a
-  // command they issue every tick doesn't fire the UI control sound. User button
-  // presses leave it unset and get the sound.
+  // Retained for call-site compatibility. Interaction feedback now comes from
+  // the originating button or slider, so delayed/background commands are
+  // naturally silent.
   silent?: boolean;
 };
 
@@ -128,8 +127,6 @@ export function useDashboardCommands({
         return;
       }
 
-      playControlSound();
-
       const sequence = zoneActionSequence.current + 1;
       zoneActionSequence.current = sequence;
       const holdLightPolling = isLightZoneAction(action);
@@ -191,13 +188,9 @@ export function useDashboardCommands({
   );
 
   const applyEntityActions = useCallback(
-    async (actions: EntityActionInput[], toastMessage: string, options?: ApplyEntityActionsOptions) => {
+    async (actions: EntityActionInput[], toastMessage: string, _options?: ApplyEntityActionsOptions) => {
       if (!actions.length) {
         return;
-      }
-
-      if (!options?.silent) {
-        playControlSound();
       }
 
       const sequence = entityActionSequence.current + 1;
@@ -258,7 +251,6 @@ export function useDashboardCommands({
         return;
       }
 
-      playControlSound();
       setDesktopSleepBusy(true);
 
       try {
@@ -288,7 +280,6 @@ export function useDashboardCommands({
         return;
       }
 
-      playControlSound();
       setDesktopWakeBusy(true);
 
       try {

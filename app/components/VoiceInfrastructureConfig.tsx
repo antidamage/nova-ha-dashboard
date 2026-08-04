@@ -873,8 +873,10 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       draggingRef.current.delete(key);
     }
     setSettings((current) => ({ ...current, [key]: value }));
-    setMessage(`Saving on ${agentName} and notifying Iridium…`);
-    setMessageTone("ok");
+    // No "saving"/"saved" banner: settings commit on every slider release, and a
+    // status line appearing and disappearing under the controls shifts the page
+    // out from under the gesture. Only problems are worth announcing.
+    setMessage(null);
     try {
       const response = await fetch("/api/voice", {
         body: JSON.stringify({ [key]: value }),
@@ -895,10 +897,7 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       if (requestVersion !== requestVersionRef.current) {
         return;
       }
-      if (data.iridium?.ok) {
-        setMessage(`Saved on ${agentName} and applied live on Iridium.`);
-        setMessageTone("ok");
-      } else {
+      if (!data.iridium?.ok) {
         setMessage(`Saved on ${agentName}. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
         setMessageTone("warning");
       }

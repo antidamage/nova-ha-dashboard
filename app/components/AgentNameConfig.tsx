@@ -58,8 +58,8 @@ export function AgentNameConfig() {
     body: Record<string, string>,
     label: string,
   ): Promise<{ voice?: { agentName?: string; agentNamePronunciation?: string } } | null> => {
-    setMessage(`Saving and notifying Iridium…`);
-    setMessageTone("ok");
+    // No "saving"/"saved" banner — only problems are worth announcing.
+    setMessage(null);
     try {
       const response = await fetch("/api/voice", {
         body: JSON.stringify(body),
@@ -74,10 +74,7 @@ export function AgentNameConfig() {
       if (!response.ok) {
         throw new Error(data.error || `${label} update failed: ${response.status}`);
       }
-      if (data.iridium?.ok) {
-        setMessage(`${label} is saved and live on the voice service.`);
-        setMessageTone("ok");
-      } else {
+      if (!data.iridium?.ok) {
         setMessage(`Saved. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
         setMessageTone("warning");
       }

@@ -1,0 +1,66 @@
+{
+	auto_https off
+	admin off
+}
+
+# Keep the browser satellite on the same HTTPS origin as the dashboard. The
+# bridge still performs its own TLS internally, but that certificate never
+# reaches household browsers; Caddy terminates the public connection and
+# forwards the WebSocket over loopback.
+#
+# On iridium this is a genuine loopback hop: the voice stack is now co-resident
+# with the dashboard rather than a LAN round trip away.
+(nova_routes) {
+	@voice path /voice-satellite
+	handle @voice {
+		reverse_proxy https://127.0.0.1:8767 {
+			transport http {
+				# The upstream is loopback-only from Caddy's perspective and uses
+				# the household certificate, whose names intentionally do not
+				# include 127.0.0.1.
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:80
+	}
+}
+
+# Canonical household URL over the tailnet. Caddy asks the local Tailscale
+# daemon for this publicly trusted certificate and renews it automatically.
+#
+# THIS MUST BE THE NAME THIS NODE ACTUALLY OWNS. tailscaled will only issue a
+# certificate for its own MagicDNS name; point this at a name it does not own and
+# Caddy fails to start, taking HTTPS (and the browser voice satellite) down with
+# it.
+#
+# Do not hand-edit this to follow a host move. `ops/iridium/sync-tailnet-host.sh`
+# rewrites it to whatever name tailscaled reports, and both bootstrap-iridium.sh
+# and deploy-nova-dashboard.ps1 run it before `caddy validate`, so the value here
+# is only ever a starting point.
+#
+# History worth keeping: the retired nova-vm node held `nova` and logging it out
+# did NOT release the name — it sat "offline, last seen 1m ago" still holding it,
+# and the CLI could not claim it either (`tailscale set --hostname` was a silent
+# no-op; `tailscale cert` refused with `must be one of
+# ["iridium.tuatara-dory.ts.net"]`). It took deleting the old machine and
+# renaming this node in the admin console. Reclaimed 2026-08-03.
+https://nova.tuatara-dory.ts.net:443 {
+	tls {
+		get_certificate tailscale
+	}
+	import nova_routes
+}
+
+# LAN fallbacks remain available for already-enrolled household-CA devices.
+# They are not the documented browser-voice URL because new devices would need
+# the private CA installed before getUserMedia is available.
+#
+# nova-vm's addresses (192.168.8.14, 100.66.54.105, nova-vm[.local]) are gone:
+# the hosting role collapsed onto iridium's own .20 identity.
+https://nova.local:443, https://nova:443, https://iridium.local:443, https://iridium:443, https://192.168.8.20:443, https://100.104.57.108:443 {
+	tls /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.crt /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.key
+	import nova_routes
+}

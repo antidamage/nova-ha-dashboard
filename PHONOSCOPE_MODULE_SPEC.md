@@ -530,10 +530,101 @@ Each 60 Hz tick runs:
 7. Publish a double-buffered scene snapshot/GPU delta.
 8. Metal compute integrates bulk particles and trails.
 9. Metal renders opaque, transparent/additive, then bloom/composite passes.
+10. The centre message is drawn over the composite, then the glow overlay runs
+    last over everything.
 
 The render thread never waits for simulation. If simulation misses a deadline,
 the latest completed snapshot is reused or interpolated. Build effects around
 continuous motion and graceful omission rather than exact event counts.
+
+### Two conforming engines
+
+This module format has **two independent implementations**, and a module must
+look the same on both:
+
+- **tvOS** — Swift plus Metal, in `nova-appletv-dashboard`. Runs on the Apple TV
+  and is retained permanently as the fallback when the streamed renderer is
+  unavailable.
+- **iridium** — C++ plus GLSL, in `nova-visualiser`. Renders headlessly on the
+  GPU at 4K60 and streams the result to the Apple TV.
+
+Both consume the same compiled module JSON from
+`/api/phonoscope/modules/{id}/{version}/compiled`, so nothing about authoring a
+module changes. The GPU engine simulates on a fixed 1/120 s substep and
+interpolates between states when rendering, which is a refinement of the tick
+above rather than a different contract: `delta` is still the fixed timestep and
+`physics.inertia` is still per nominal 60 Hz frame.
+
+Both engines adapt effects from the 1080-line authoring reference. At denser
+outputs, glow falloff, bloom radius, trail length/width and fluid-background
+feature radius scale linearly with output height. Dot cores and grid-wire widths
+do not scale. This preserves the intended effect weight at 4K without making the
+wireframe geometry heavier.
+
+The configured centre `message` and its driven scale are scene content. They
+must be composited by the rendering engine before encoding/presentation, not by
+a client UI overlay, so every stream rung and the web inspector show the same
+frame.
+
+### Glow overlay
+
+After the composite, and after the centre message, one final pass lays a blurred
+copy of the finished frame back over itself. It is deliberately last: the
+message is part of the picture and glows with it. The layer is household
+configuration rather than module content — no manifest declares it, and it
+applies identically to every module.
+
+Three parameters, from `phonoscope.glowOverlay` in dashboard preferences:
+
+| Field | Range | Driver |
+| --- | --- | --- |
+| `blendModeSource` | 0-1: 0 is `screen`, 1 is `multiply`, named as Photoshop names them | full parameter driver |
+| `blurSource` | 0-20 | full parameter driver |
+| `opacitySource` | 0-100 | full parameter driver |
+
+All three resolve through the same path as `messageScaleSource`, under the
+private setting ids `__glowBlend`, `__glowBlur` and `__glowOpacity`. Opacity 0 is
+the identity and both engines skip the pass entirely at that value, which is the
+default.
+
+The blend mode is a choice of two looks but every driver produces a continuous
+number, so it is authored on a 0-1 axis and both engines cut hard at 0.5:
+anything below is `screen`, 0.5 and above is `multiply`. There is deliberately
+no cross-fade between the two blends — a beat or downbeat driver is meant to
+read as a switch, not a dissolve. A manual source is therefore the plain two-way
+choice it looks like, and a driven one swaps the mode wherever it crosses the
+midpoint. Configurations written before the mode was driven carry a plain
+`blendMode` string instead; it is read as the equivalent manual source.
+
+The blur is a separable Gaussian on a quarter-resolution copy, with taps at
+`i * (sigma/3)` texels for `i` in -6..6 and weights `exp(-i^2/18)`. One blur unit
+is 1.2 pixels of sigma at the 1080-line authoring reference, scaled with output
+height like every other pixel-sized soft effect. The blend is evaluated on
+display-referred colour, so the blurred copy is clamped to 0-1 first; coverage
+(alpha) passes through untouched, because this is a look applied to the picture
+rather than a layer of its own.
+
+`multiply` is `base * (1 - opacity + glow * opacity)`; `screen` is
+`base + opacity * (glow - base * glow)`.
+
+One engine cannot do this exactly. On the tvOS fallback the centre message and
+the letterboxed fluid backdrop live in SwiftUI either side of the Metal view and
+cannot be sampled into its final pass, so the same blur and blend are applied to
+those layers individually. It is an approximation of an effect the streamed
+renderer performs in one pass over the whole frame, and the streamed renderer is
+the reference.
+
+**Any change to this spec, or to either engine's behaviour, must update the
+conformance corpus in `nova-visualiser/tests/conformance` and pass on both.**
+Run it with:
+
+```sh
+nova-visualiser-conformance --corpus tests/conformance
+```
+
+Determinism is a requirement of that corpus, so the per-module random seed is an
+explicit FNV-1a over the module id on both engines — never a language-provided
+string hash, which Swift salts per process.
 
 ## 12. Minimal complete module
 

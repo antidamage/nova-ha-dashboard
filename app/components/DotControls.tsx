@@ -9,6 +9,7 @@ import {
   endControlInteraction,
   markControlInteraction,
 } from "./controlInteractionCooldown";
+import { selectionHaptic, SliderHapticController } from "./haptics";
 
 type Rgb = [number, number, number];
 type DotColor = Rgb | string;
@@ -355,6 +356,7 @@ export function DotLineControl({
   const commitValueRef = useRef(value);
   const draggingRef = useRef(false);
   const precisionDragRef = useRef<PrecisionDrag | null>(null);
+  const hapticsRef = useRef(new SliderHapticController());
   const incomingValueHoldUntilRef = useRef(0);
   const [interacting, setInteracting] = useState(false);
   const [lineWidth, setLineWidth] = useState(0);
@@ -410,6 +412,7 @@ export function DotLineControl({
       commitValueRef.current = stepped;
       setLocalValue(stepped);
       onChange(stepped);
+      return stepped;
     },
     [onChange, roundToStep, setLocalValue],
   );
@@ -435,7 +438,7 @@ export function DotLineControl({
 
       const rect = padRef.current.getBoundingClientRect();
       const raw = min + ((event.clientX - rect.left) / rect.width) * range;
-      setControlValue(snap(raw));
+      return setControlValue(snap(raw));
     },
     [disabled, min, range, setControlValue, snap],
   );
@@ -445,14 +448,20 @@ export function DotLineControl({
       const rect = padRef.current?.getBoundingClientRect();
       const precisionDrag = precisionDragRef.current;
       if (!rect || !precisionDrag) return;
+      const previousX = precisionDrag.lastX;
+      const verticalDistance = verticalDistanceOutside(event.clientY, rect);
       const raw = accumulatePrecisionDrag(
         precisionDrag,
         event.clientX,
-        verticalDistanceOutside(event.clientY, rect),
+        verticalDistance,
         range / Math.max(1, rect.width),
       );
       precisionDrag.currentValue = clamp(raw, min, max);
-      setControlValue(snap(raw));
+      const nextValue = setControlValue(snap(raw));
+      hapticsRef.current.move(
+        Math.abs(event.clientX - previousX) * precisionDragScale(verticalDistance) / Math.max(1, rect.width),
+        { value: nextValue },
+      );
     },
     [max, min, range, setControlValue, snap],
   );
@@ -464,6 +473,7 @@ export function DotLineControl({
 
     draggingRef.current = false;
     precisionDragRef.current = null;
+    hapticsRef.current.stop();
     endControlInteraction();
     incomingValueHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
     setInteracting(false);
@@ -477,6 +487,7 @@ export function DotLineControl({
       markControlInteraction();
       const stepped = roundToStep(next);
       setControlValue(stepped);
+      selectionHaptic();
       incomingValueHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
       releaseLocalValue(stepped);
       onCommit?.(stepped);
@@ -524,14 +535,11 @@ export function DotLineControl({
         draggingRef.current = true;
         incomingValueHoldUntilRef.current = Number.POSITIVE_INFINITY;
         setInteracting(true);
-        pick(event);
-        const rect = padRef.current?.getBoundingClientRect();
-        if (rect) {
-          const raw = min + ((event.clientX - rect.left) / Math.max(1, rect.width)) * range;
-          const startValue = snapValue !== undefined && Math.abs(raw - snapValue) <= effectiveSnapTolerance
-            ? snapValue
-            : raw;
-          precisionDragRef.current = { currentValue: roundToStep(startValue), lastX: event.clientX };
+        const startValue = pick(event);
+        if (startValue === undefined) return;
+        hapticsRef.current.start({ value: startValue, step });
+        if (padRef.current) {
+          precisionDragRef.current = { currentValue: startValue, lastX: event.clientX };
         }
       }}
       onPointerMove={(event) => {
@@ -606,6 +614,7 @@ export function DotRangeControl({
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<0 | 1 | null>(null);
   const precisionDragRef = useRef<PrecisionDrag | null>(null);
+  const hapticsRef = useRef(new SliderHapticController());
   const currentRef = useRef<[number, number]>(value);
   const [interacting, setInteracting] = useState(false);
   currentRef.current = value;
@@ -626,6 +635,7 @@ export function DotRangeControl({
     currentRef.current = next;
     onChange(next);
     if (commit) onCommit?.(next);
+    return next;
   }, [onChange, onCommit, stepped]);
 
   const rawFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -649,14 +659,16 @@ export function DotRangeControl({
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginControlInteraction();
     setInteracting(true);
-    update(thumb, raw);
-    precisionDragRef.current = { currentValue: stepped(raw), lastX: event.clientX };
+    const next = update(thumb, raw);
+    hapticsRef.current.start({ value: next[thumb], step });
+    precisionDragRef.current = { currentValue: next[thumb], lastX: event.clientX };
   };
 
   const end = () => {
     if (activeThumbRef.current === null) return;
     activeThumbRef.current = null;
     precisionDragRef.current = null;
+    hapticsRef.current.stop();
     endControlInteraction();
     setInteracting(false);
     onCommit?.(currentRef.current);
@@ -675,6 +687,7 @@ export function DotRangeControl({
     event.preventDefault();
     markControlInteraction();
     update(thumb, next, true);
+    selectionHaptic();
   };
 
   return (
@@ -689,10 +702,19 @@ export function DotRangeControl({
       onPointerMove={(event) => {
         if (activeThumbRef.current !== null && event.buttons === 1) {
           const thumb = activeThumbRef.current;
+          const rect = trackRef.current?.getBoundingClientRect();
+          const dragBefore = precisionDragRef.current;
+          const previousX = dragBefore?.lastX;
           const raw = rawFromDrag(event);
           const drag = precisionDragRef.current;
           if (drag) drag.currentValue = clamp(raw, thumb === 0 ? min : currentRef.current[0], thumb === 0 ? currentRef.current[1] : max);
-          update(thumb, raw);
+          const next = update(thumb, raw);
+          if (rect && dragBefore) {
+            hapticsRef.current.move(
+              Math.abs(event.clientX - (previousX ?? event.clientX)) * precisionDragScale(verticalDistanceOutside(event.clientY, rect)) / Math.max(1, rect.width),
+              { value: next[thumb] },
+            );
+          }
         }
       }}
       onPointerUp={end}
@@ -729,6 +751,7 @@ export function DotRangeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
+            hapticsRef.current.start({ value: currentRef.current[thumb], step });
             precisionDragRef.current = { currentValue: currentRef.current[thumb], lastX: event.clientX };
           }}
         />
@@ -769,6 +792,7 @@ export function DotEnvelopeControl({
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<0 | 1 | 2 | null>(null);
   const precisionDragRef = useRef<PrecisionDrag | null>(null);
+  const hapticsRef = useRef(new SliderHapticController());
   const currentRef = useRef<EnvelopeDurations>(value);
   const [interacting, setInteracting] = useState(false);
   currentRef.current = value;
@@ -798,6 +822,7 @@ export function DotEnvelopeControl({
     currentRef.current = next;
     onChange(next);
     if (commit) onCommit?.(next);
+    return nextBoundary;
   }, [max, onChange, onCommit, step, stepped]);
   const rawFromPointer = (event: React.PointerEvent<HTMLDivElement>, thumb: 0 | 1 | 2) => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -829,13 +854,15 @@ export function DotEnvelopeControl({
     beginControlInteraction();
     setInteracting(true);
     const raw = rawFromPointer(event, thumb);
-    update(thumb, raw);
-    precisionDragRef.current = { currentValue: stepped(raw), lastX: event.clientX };
+    const nextBoundary = update(thumb, raw);
+    hapticsRef.current.start({ value: nextBoundary, step });
+    precisionDragRef.current = { currentValue: nextBoundary, lastX: event.clientX };
   };
   const end = () => {
     if (activeThumbRef.current === null) return;
     activeThumbRef.current = null;
     precisionDragRef.current = null;
+    hapticsRef.current.stop();
     endControlInteraction();
     setInteracting(false);
     onCommit?.(currentRef.current);
@@ -853,6 +880,7 @@ export function DotEnvelopeControl({
     event.preventDefault();
     markControlInteraction();
     update(thumb, next, true);
+    selectionHaptic();
   };
   const currentBoundaries = boundaries(value);
   const phaseNames = ["attack", "hold", "release"] as const;
@@ -864,11 +892,20 @@ export function DotEnvelopeControl({
       onPointerMove={(event) => {
         if (activeThumbRef.current !== null && event.buttons === 1) {
           const thumb = activeThumbRef.current;
+          const rect = trackRef.current?.getBoundingClientRect();
+          const dragBefore = precisionDragRef.current;
+          const previousX = dragBefore?.lastX;
           const raw = rawFromDrag(event);
           const drag = precisionDragRef.current;
           const current = boundaries(currentRef.current);
           if (drag) drag.currentValue = clamp(raw, current[thumb - 1] ?? 0, current[thumb + 1] ?? max);
-          update(thumb, raw);
+          const nextBoundary = update(thumb, raw);
+          if (rect && dragBefore) {
+            hapticsRef.current.move(
+              Math.abs(event.clientX - (previousX ?? event.clientX)) * precisionDragScale(verticalDistanceOutside(event.clientY, rect)) / Math.max(1, rect.width - RECT_THUMB_WIDTH_PX * 3),
+              { value: nextBoundary },
+            );
+          }
         }
       }}
       onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
@@ -893,6 +930,7 @@ export function DotEnvelopeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
+            hapticsRef.current.start({ value: boundaries(currentRef.current)[thumb], step });
             precisionDragRef.current = { currentValue: boundaries(currentRef.current)[thumb], lastX: event.clientX };
           }} />
         </Fragment>
@@ -925,6 +963,8 @@ export function DotSpectrumControl({
   const padRef = useRef<HTMLDivElement | null>(null);
   const [dots, setDots] = useState<SpectrumDot[]>([]);
   const [dragging, setDragging] = useState(false);
+  const hapticsRef = useRef(new SliderHapticController());
+  const lastHapticCursorRef = useRef<Cursor | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const { display: displayCursor, setLocal: setLocalCursor, release: releaseCursor } = useEasedCursor(cursor.x, cursor.y);
   const intensityScale = clamp(intensity / 100, 0, 1);
@@ -1017,6 +1057,9 @@ export function DotSpectrumControl({
     const x = pixelToInsetRatio(event.clientX - rect.left, rect.width, SPECTRUM_CURSOR_INSET_PX);
     const y = pixelToInsetRatio(event.clientY - rect.top, rect.height, SPECTRUM_CURSOR_INSET_PX);
     const next = { x, y };
+    const previous = lastHapticCursorRef.current;
+    if (previous) hapticsRef.current.move(Math.hypot(x - previous.x, y - previous.y));
+    lastHapticCursorRef.current = next;
     setLocalCursor(next);
     onChange(next, rgbAtPosition(x, y));
   };
@@ -1024,6 +1067,8 @@ export function DotSpectrumControl({
   const stop = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
     setDragging(false);
+    hapticsRef.current.stop();
+    lastHapticCursorRef.current = null;
     const rect = padRef.current?.getBoundingClientRect();
     if (rect) {
       const x = pixelToInsetRatio(event.clientX - rect.left, rect.width, SPECTRUM_CURSOR_INSET_PX);
@@ -1050,6 +1095,8 @@ export function DotSpectrumControl({
         if (disabled || isBottomGestureBlindSpot(event)) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         setDragging(true);
+        hapticsRef.current.start();
+        lastHapticCursorRef.current = null;
         pick(event);
       }}
       onPointerMove={(event) => {
@@ -1060,6 +1107,8 @@ export function DotSpectrumControl({
       onPointerUp={stop}
       onPointerCancel={(event) => {
         setDragging(false);
+        hapticsRef.current.stop();
+        lastHapticCursorRef.current = null;
         releaseCursor(cursor);
         onCommit?.(cursor, rgbAtPosition(cursor.x, cursor.y));
       }}

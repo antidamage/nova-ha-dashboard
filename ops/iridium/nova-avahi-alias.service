@@ -1,0 +1,24 @@
+[Unit]
+Description=Publish iridium.local as an mDNS alias for the Nova host
+After=network-online.target avahi-daemon.service
+Wants=network-online.target
+Requires=avahi-daemon.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+# Iridium's avahi host-name is set to `nova` so the household's conventional
+# name resolves to this box (the Apple TV app, the kiosk, and bookmarks all
+# reach the dashboard by that name and nothing else). avahi's host-name= is
+# single-valued, so claiming `nova` gives up `iridium.local` -- which the deploy
+# tooling depends on (deploy-nova-stack.ps1's IRIDIUM_HOST).
+#
+# avahi-publish -a re-adds `iridium.local` as a plain address record, so both
+# names resolve to this host and no deploy path breaks. -R keeps the record
+# published for the lifetime of the process; the process must stay alive, hence
+# Type=simple + Restart=always rather than a oneshot.
+ExecStart=/usr/bin/avahi-publish -a -R iridium.local 192.168.8.20
+
+[Install]
+WantedBy=multi-user.target

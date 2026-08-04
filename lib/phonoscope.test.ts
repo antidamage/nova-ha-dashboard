@@ -54,6 +54,17 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
       max: 50,
       step: 0.5,
     });
+    expect(result.module.settings.find((setting) => setting.id === "fluid_speed")).toMatchObject({
+      section: "physics",
+      control: "slider",
+      min: 0.25,
+      max: 1.5,
+      step: 0.05,
+      default: 0.65,
+    });
+    // The fluid background follows the visualiser frame rate, so it exposes no
+    // independent frame-rate setting.
+    expect(result.module.settings.find((setting) => setting.id === "fluid_frame_rate")).toBeUndefined();
     expect(JSON.stringify(result.module.templates.particle)).toContain("settings.trail_length");
     expect(result.module.settings.find((setting) => setting.id === "complexity")).toMatchObject({
       min: 0.2,

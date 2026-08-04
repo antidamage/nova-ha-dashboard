@@ -31,8 +31,27 @@ STACK_CONTAINERS=(mosquitto matter-server homeassistant tuya-mobile-mqtt-bridge)
 log() { printf '\n\033[36m== %s ==\033[0m\n' "$*"; }
 
 log "base packages"
-sudo apt-get update -qq
-sudo apt-get install -y -qq docker.io avahi-daemon git rsync curl jq python3
+# Install only what is genuinely missing. A blanket `apt-get install docker.io`
+# is destructive on a host that already runs Docker's own packaging: iridium has
+# docker-ce 29.6.2 from download.docker.com, and docker.io (Ubuntu's 29.1.3)
+# conflicts with it, so the "idempotent" bootstrap would tear the engine down and
+# swap it mid-run. Detect a working engine instead of assuming a bare VM.
+missing=()
+for pkg in avahi-daemon git rsync curl jq python3; do
+  dpkg -s "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+done
+if ! command -v docker >/dev/null 2>&1; then
+  missing+=(docker.io)
+else
+  echo "  docker already present ($(docker --version 2>/dev/null || echo unknown)) — not touching its packaging"
+fi
+if (( ${#missing[@]} )); then
+  echo "  installing: ${missing[*]}"
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq "${missing[@]}"
+else
+  echo "  all base packages already present"
+fi
 sudo systemctl enable --now docker avahi-daemon
 sudo usermod -aG docker "$USER" || true
 
@@ -138,10 +157,21 @@ install -m 0755 "$APP_ROOT/ops/nova-system"  "$HOME/.local/bin/nova-system"
 # has no crontab yet — the normal state on a fresh VM. Under `set -e`, letting
 # that propagate would abort the subshell BEFORE the echo lines run, silently
 # installing an empty crontab. `|| true` is load-bearing here, not decoration.
+# NOVA_STAGE_ONLY=1 installs these commented, exactly like the scraper crons
+# below. Bootstrapping a host that is being STAGED alongside a still-live Nova
+# (rather than a VM being built to replace one) must not start a second
+# self-updater: two nova-release loops pointed at the same branch will both try
+# to build and restart a dashboard, and nova-system will act on power/restart
+# control files written for the live host. Cutover uncomments both.
+CRON_PREFIX=""
+if [ "${NOVA_STAGE_ONLY:-0}" = "1" ]; then
+  CRON_PREFIX="#CUTOVER# "
+  echo "  NOVA_STAGE_ONLY=1 — installing self-updater crons COMMENTED"
+fi
 existing_cron="$(crontab -l 2>/dev/null || true)"
 ( printf '%s\n' "$existing_cron" | grep -vE "nova-release process|nova-system process" ;
-  echo "* * * * * NOVA_UPDATE_BRANCH=$BRANCH $HOME/.local/bin/nova-release process >> $HOME/nova-release-cron.log 2>&1" ;
-  echo "* * * * * $HOME/.local/bin/nova-system process >> $HOME/nova-system-cron.log 2>&1" ) \
+  echo "${CRON_PREFIX}* * * * * NOVA_UPDATE_BRANCH=$BRANCH $HOME/.local/bin/nova-release process >> $HOME/nova-release-cron.log 2>&1" ;
+  echo "${CRON_PREFIX}* * * * * $HOME/.local/bin/nova-system process >> $HOME/nova-system-cron.log 2>&1" ) \
   | grep -v '^$' | crontab -
 crontab -l | grep -q 'nova-release process' || { echo "FATAL: nova-release cron did not install" >&2; exit 1; }
 

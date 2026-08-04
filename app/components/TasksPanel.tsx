@@ -103,7 +103,7 @@ const inputClassName =
 const repeatOptions: Array<{ label: string; value: TaskRepeatDraftKind }> = [
   { label: "Hourly", value: "hourly" },
   { label: "Morning/night", value: "morning-night" },
-  { label: "Every N days", value: "days" },
+  { label: "N days after completion", value: "days" },
 ];
 
 const IMPORT_TEMPLATE = [
@@ -317,7 +317,7 @@ function TaskEditor({
             </label>
             {draft.repeatKind === "days" ? (
               <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
-                Days
+                Days · returns 7am
                 <input
                   className={inputClassName}
                   type="number"

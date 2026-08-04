@@ -10,17 +10,15 @@ import {
   Contrast,
   CopyPlus,
   Dice5,
-  Gauge,
-  Gem,
   House,
   ListOrdered,
   MonitorOff,
+  Moon,
   Music2,
   Palette,
   Pencil,
   Plus,
   RefreshCw,
-  Rocket,
   RotateCcw,
   Shuffle,
   SlidersHorizontal,
@@ -33,7 +31,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CheckboxRow,
   ColorIntensitySlider,
@@ -85,9 +83,9 @@ type Config = {
   activeModuleId: string;
   activeModuleVersion: string;
   idleBehavior: "ambient" | "black" | "return";
-  quality: "auto" | "high" | "balanced" | "performance";
   message: string;
   messageScaleSource: ParameterSource;
+  glowOverlay: GlowOverlay;
   statusOverlay: boolean;
   transitionMs: number;
   housePartyRandomHueOffset: number;
@@ -106,6 +104,12 @@ type Config = {
   moduleColorGroupIds: Record<string, string>;
   editorPreviewColorGroupId: string;
   editorPreviewColorThemeId: string;
+};
+
+export type GlowOverlay = {
+  blendModeSource: ParameterSource;
+  blurSource: ParameterSource;
+  opacitySource: ParameterSource;
 };
 
 export type ParameterSource =
@@ -143,15 +147,74 @@ const MESSAGE_SCALE_SETTING: ModuleSetting = {
   label: "Message scale",
   description: "Centered scale applied to the user-defined visualiser message.",
   control: "slider",
-  min: 1,
-  max: 3,
-  step: 0.01,
+  min: 0.1,
+  max: 5,
+  step: 0.1,
   default: 1,
   affects: ["message"],
   curve: { type: "linear", exponent: 1 },
   options: [],
   section: "Message",
   updateMode: "smooth",
+};
+// The glow overlay's three driven parameters. Declared as settings so they use
+// the same `ParameterDriverControls` as every other driven value: the manual
+// control and the driver picker are one control, not two.
+const GLOW_BLUR_SETTING: ModuleSetting = {
+  id: "glowBlur",
+  label: "Blur amount",
+  description: "Softness of the glow laid back over the finished picture.",
+  control: "slider",
+  min: 0,
+  max: 20,
+  step: 0.1,
+  default: 0,
+  affects: ["glow"],
+  curve: { type: "linear", exponent: 1 },
+  options: [],
+  section: "Glow overlay",
+  updateMode: "smooth",
+};
+const GLOW_OPACITY_SETTING: ModuleSetting = {
+  id: "glowOpacity",
+  label: "Opacity",
+  description: "How much of the glow layer is blended in. Zero disables the pass entirely.",
+  control: "slider",
+  min: 0,
+  max: 100,
+  step: 1,
+  default: 0,
+  affects: ["glow"],
+  curve: { type: "linear", exponent: 1 },
+  options: [],
+  section: "Glow overlay",
+  updateMode: "smooth",
+};
+// Blend mode as a driven parameter. Every driver produces a continuous number,
+// so the two modes sit on a 0-1 axis and both engines cut hard at 0.5 — no
+// cross-fade, because a swap on the beat should read as a switch. A step of 1
+// keeps the manual choice and both driver endpoints on the two real modes.
+const GLOW_BLEND_SETTING: ModuleSetting = {
+  id: "glowBlend",
+  label: "Blend mode",
+  description: "How the glow layer is blended in, as a driven parameter.",
+  control: "select",
+  min: 0,
+  max: 1,
+  step: 1,
+  default: 0,
+  affects: ["glow"],
+  curve: { type: "linear", exponent: 1 },
+  options: [
+    { value: 0, label: "Screen" },
+    { value: 1, label: "Multiply" },
+  ],
+  section: "Glow overlay",
+  updateMode: "smooth",
+};
+const GLOW_BLEND_ICONS: Record<number, ReactNode> = {
+  0: <Sun />,
+  1: <Moon />,
 };
 const THEME_TIME_MAX_SECONDS = 600;
 const THEME_TIME_SLIDER_MAX = 100;
@@ -178,8 +241,33 @@ function themeTimeFromSlider(position: number) {
   return Math.max(0, Math.min(THEME_TIME_MAX_SECONDS, rounded));
 }
 
+// The transition is the one theme time worth setting finely: a quarter-second
+// difference in a cross-fade is visible, where a quarter second on a 60-second
+// wait is not. It therefore resolves to one decimal place across the short end
+// of the same logarithmic slider, and only joins the coarse ladder above it.
+function themeTransitionFromSlider(position: number) {
+  const normalized = Math.max(0, Math.min(THEME_TIME_SLIDER_MAX, position)) / THEME_TIME_SLIDER_MAX;
+  const rawSeconds = THEME_TIME_LOG_OFFSET
+    * Math.expm1(Math.log1p(THEME_TIME_MAX_SECONDS / THEME_TIME_LOG_OFFSET) * normalized);
+  const rounded = rawSeconds <= 30 ? Math.round(rawSeconds * 10) / 10 : themeTimeFromSlider(position);
+  return Math.max(0, Math.min(THEME_TIME_MAX_SECONDS, rounded));
+}
+
+function formatThemeSeconds(seconds: number) {
+  return `${seconds.toFixed(1)}s`;
+}
+
 function moduleKey(module: Pick<ModuleSummary, "id" | "version">) {
   return `${module.id}@${module.version}`;
+}
+
+// Every Phonoscope value resolves to a single decimal place. Module manifests
+// are free to declare finer steps, but two- and three-decimal precision was
+// never readable on a slider at television distance and never audibly changed
+// the picture, so anything finer than 0.1 is coerced up here — for the stepping
+// as well as for the read-out, which keeps the two in agreement.
+function phonoscopeStep(step: number) {
+  return step >= 0.1 ? step : 0.1;
 }
 
 function clampSetting(setting: ModuleSetting, value: number) {
@@ -188,7 +276,7 @@ function clampSetting(setting: ModuleSetting, value: number) {
     return setting.options?.some((option) => option.value === value) ? value : setting.default;
   }
   const clamped = Math.max(setting.min, Math.min(setting.max, value));
-  const step = decimalStepGranularity(setting.step);
+  const step = decimalStepGranularity(phonoscopeStep(setting.step));
   const stepped = setting.min + Math.round((clamped - setting.min) / step) * step;
   return Number(Math.max(setting.min, Math.min(setting.max, stepped)).toFixed(12));
 }
@@ -211,7 +299,7 @@ function formatSettingValue(setting: ModuleSetting, value: number) {
   if (setting.control === "select") {
     return setting.options?.find((option) => option.value === value)?.label ?? String(value);
   }
-  const decimals = Math.min(4, Math.max(0, (String(setting.step).split(".")[1] ?? "").length));
+  const decimals = Math.min(1, Math.max(0, (String(phonoscopeStep(setting.step)).split(".")[1] ?? "").length));
   return value.toFixed(decimals);
 }
 
@@ -249,26 +337,46 @@ export function sourceWithType(
   }
   const value = clampSetting(setting, source.value);
   const spread = Math.max(decimalStepGranularity(setting.step), (setting.max - setting.min) * 0.2);
-  const max = value;
-  const min = Math.min(max, clampSetting(setting, max - spread));
+  // A setting whose values are named choices only has somewhere to travel if
+  // the driven range spans them: shrinking towards the manual value the way a
+  // continuous setting does would hand back a driver that can never change the
+  // choice it is driving.
+  const namedChoices = setting.control === "select" && (setting.options?.length ?? 0) > 1;
+  const max = namedChoices ? setting.max : value;
+  const min = namedChoices ? setting.min : Math.min(max, clampSetting(setting, max - spread));
   if (type === "random") {
     return { type, min, max, cadence: "beat", intervalSeconds: 4, transitionSeconds: 0.5 };
   }
   return { type, min, max, attackSeconds: 0.05, holdSeconds: 0, releaseSeconds: 0.6 };
 }
 
-function themeSwatch(theme: ColorTheme) {
-  const rgb = (id: string, fallback: string) => {
-    const value = theme.colors[id];
+export function visualiserThemePreviewColors(colors: ColorTheme["colors"]) {
+  const rgb = (ids: string[], fallback: string) => {
+    const value = ids.map((id) => colors[id]).find(Boolean);
     if (!value) return fallback;
-    const scale = value.intensity / 100;
-    return `rgb(${value.rgb.map((part) => Math.round(part * scale)).join(",")} / ${value.opacity / 100})`;
+    const intensity = Number.isFinite(value.intensity) ? value.intensity : 100;
+    const opacity = Number.isFinite(value.opacity) ? value.opacity : 100;
+    const scale = intensity / 100;
+    return `rgb(${value.rgb.map((part) => Math.round(part * scale)).join(" ")} / ${opacity / 100})`;
   };
+  return {
+    background: rgb(["backgroundPrimary", "background"], "#000"),
+    dot: rgb(["dotPrimary", "primary"], "#777"),
+    glow: rgb(["glowPrimary", "secondary"], "#ddd"),
+  };
+}
+
+export function visualiserThemePreviewGradient(colors: ColorTheme["colors"]) {
+  const preview = visualiserThemePreviewColors(colors);
+  return `linear-gradient(135deg, ${preview.background} 0 33.333%, ${preview.dot} 33.333% 66.666%, ${preview.glow} 66.666%)`;
+}
+
+function themeSwatch(theme: ColorTheme) {
   return (
     <span
       className="cyber-select-swatch"
       aria-hidden="true"
-      style={{ background: `linear-gradient(135deg, ${rgb("background", "#000")} 0 38%, ${rgb("primary", "#777")} 38% 68%, ${rgb("secondary", "#ddd")} 68%)` }}
+      style={{ background: visualiserThemePreviewGradient(theme.colors) }}
     />
   );
 }
@@ -296,17 +404,25 @@ function parameterSourceIcon(type: ParameterSource["type"]) {
 
 function ParameterDriverControls({
   inherited,
+  manualOptionIcons,
   onCommit,
   onPreview,
   setting,
   source,
 }: {
   inherited: number;
+  /** Optional glyphs for a `select` setting's manual listbox. */
+  manualOptionIcons?: Record<number, ReactNode>;
   onCommit: (source: ParameterSource) => void;
   onPreview: (source: ParameterSource) => void;
   setting: ModuleSetting;
   source: ParameterSource;
 }) {
+  // A setting whose values are named choices keeps its listbox for the manual
+  // case rather than degrading to a two-position slider. Driven, it is the
+  // ordinary range/envelope pair: the endpoints are still the named choices,
+  // and the engines threshold whatever the driver produces between them.
+  const manualOptions = setting.control === "select" ? setting.options ?? [] : [];
   return (
     <div className="grid gap-3">
       <ConfigSelect
@@ -319,7 +435,22 @@ function ParameterDriverControls({
         }))}
         onChange={(type) => onCommit(sourceWithType(setting, source, type))}
       />
-      {source.type === "manual" ? (
+      {source.type === "manual" && manualOptions.length > 0 ? (
+        <ConfigSelect
+          ariaLabel={`${setting.label} manual value`}
+          label="Manual"
+          value={String(clampSetting(setting, source.value))}
+          options={manualOptions.map((option) => ({
+            value: String(option.value),
+            label: option.label,
+            icon: manualOptionIcons?.[option.value],
+          }))}
+          onChange={(value) => onCommit({
+            type: "manual",
+            value: clampSetting(setting, Number(value)),
+          })}
+        />
+      ) : source.type === "manual" ? (
         <SliderControlPanel
           ariaLabel={`${setting.label} manual value`}
           ariaValueText={formatSettingValue(setting, source.value)}
@@ -369,9 +500,9 @@ function ParameterDriverControls({
                   label="Interval"
                   min={0.25}
                   max={60}
-                  step={0.25}
+                  step={0.1}
                   value={source.intervalSeconds}
-                  valueText={`${source.intervalSeconds.toFixed(2)}s`}
+                  valueText={`${source.intervalSeconds.toFixed(1)}s`}
                   onPreview={(intervalSeconds) => onPreview({ ...source, intervalSeconds })}
                   onCommit={(intervalSeconds) => onCommit({ ...source, intervalSeconds })}
                 />
@@ -383,9 +514,9 @@ function ParameterDriverControls({
                 label="Transition"
                 min={0}
                 max={10}
-                step={0.05}
+                step={0.1}
                 value={source.transitionSeconds}
-                valueText={`${source.transitionSeconds.toFixed(2)}s`}
+                valueText={`${source.transitionSeconds.toFixed(1)}s`}
                 onPreview={(transitionSeconds) => onPreview({ ...source, transitionSeconds })}
                 onCommit={(transitionSeconds) => onCommit({ ...source, transitionSeconds })}
               />
@@ -419,6 +550,7 @@ export function PhonoscopeConfig() {
   const [nameDraft, setNameDraft] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
   const editorSaveChain = useRef<Promise<void>>(Promise.resolve());
+  const editorPreviewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -439,10 +571,12 @@ export function PhonoscopeConfig() {
     void load();
   }, [load]);
 
-  const save = useCallback(async (next: Config) => {
+  const save = useCallback(async (next: Config, { quiet = false }: { quiet?: boolean } = {}) => {
     setConfig(next);
-    setBusy(true);
-    setMessage(null);
+    if (!quiet) {
+      setBusy(true);
+      setMessage(null);
+    }
     try {
       const response = await fetch("/api/phonoscope/config", {
         method: "POST",
@@ -452,12 +586,14 @@ export function PhonoscopeConfig() {
       const payload = await response.json() as { config?: Config; error?: string };
       if (!response.ok || !payload.config) throw new Error(payload.error ?? "Failed to save Phonoscope");
       setConfig(payload.config);
-      setMessage("Phonoscope configuration saved");
+      // No "saved" banner: settings commit on every slider release, and the
+      // status line sits above the controls, so showing then clearing it shifts
+      // the page out from under the gesture. Only failures are announced.
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to save Phonoscope");
       await load();
     } finally {
-      setBusy(false);
+      if (!quiet) setBusy(false);
     }
   }, [load]);
   const activeModule = useMemo(
@@ -494,13 +630,35 @@ export function PhonoscopeConfig() {
     };
     editorSaveChain.current = editorSaveChain.current
       .catch(() => undefined)
-      .then(async () => { await save(next); });
+      .then(async () => { await save(next, { quiet: preview }); });
     return editorSaveChain.current;
   }, [activeModule, config, save]);
+  const cancelQueuedEditorSave = useCallback(() => {
+    if (editorPreviewTimer.current !== null) {
+      clearTimeout(editorPreviewTimer.current);
+      editorPreviewTimer.current = null;
+    }
+  }, []);
+  const queueEditorSave = useCallback((groups: ColorGroup[], groupId: string, themeId: string) => {
+    // Dot controls emit many preview samples while dragging. Coalesce them to
+    // a short cadence so edits are saved and broadcast during the gesture
+    // without turning one drag into dozens of preference writes.
+    cancelQueuedEditorSave();
+    editorPreviewTimer.current = setTimeout(() => {
+      editorPreviewTimer.current = null;
+      void persistEditor(groups, groupId, themeId);
+    }, 75);
+  }, [cancelQueuedEditorSave, persistEditor]);
+  useEffect(() => cancelQueuedEditorSave, [cancelQueuedEditorSave]);
   const updateDraftGroup = (patch: Partial<ColorGroup>, commit = false) => {
     const next = draftGroups.map((group) => group.id === draftGroupId ? { ...group, ...patch } : group);
     setDraftGroups(next);
-    if (commit) void persistEditor(next, draftGroupId, draftThemeId);
+    if (commit) {
+      cancelQueuedEditorSave();
+      void persistEditor(next, draftGroupId, draftThemeId);
+    } else {
+      queueEditorSave(next, draftGroupId, draftThemeId);
+    }
   };
   const updateDraftTheme = (patch: Partial<ColorTheme>, commit = false) => {
     const next = draftGroups.map((group) => group.id !== draftGroupId ? group : {
@@ -508,7 +666,12 @@ export function PhonoscopeConfig() {
       themes: group.themes.map((theme) => theme.id === draftTheme?.id ? { ...theme, ...patch } : theme),
     });
     setDraftGroups(next);
-    if (commit) void persistEditor(next, draftGroupId, draftThemeId);
+    if (commit) {
+      cancelQueuedEditorSave();
+      void persistEditor(next, draftGroupId, draftThemeId);
+    } else {
+      queueEditorSave(next, draftGroupId, draftThemeId);
+    }
   };
   const openThemeModal = () => {
     if (!config || !activeModule) return;
@@ -523,11 +686,12 @@ export function PhonoscopeConfig() {
   };
 
   const closeThemeModal = useCallback(async () => {
+    cancelQueuedEditorSave();
     await persistEditor(draftGroups, draftGroupId, draftThemeId, false);
     setThemeModal(false);
     setActiveColorSlot(null);
     setRenaming(null);
-  }, [draftGroupId, draftGroups, draftThemeId, persistEditor]);
+  }, [cancelQueuedEditorSave, draftGroupId, draftGroups, draftThemeId, persistEditor]);
 
   const updateOverride = (setting: ModuleSetting, source: ParameterSource | null, commit = false) => {
     if (!activeModule || !draftTheme) return;
@@ -777,16 +941,19 @@ export function PhonoscopeConfig() {
                     ) : null}
                     <SliderControlPanel
                       ariaLabel="Colour theme transition time"
-                      ariaValueText={`${draftGroup.transitionSeconds} seconds`}
+                      ariaValueText={`${draftGroup.transitionSeconds.toFixed(1)} seconds`}
                       color={[34, 211, 238]}
                       label="Transition"
                       min={0}
                       max={THEME_TIME_SLIDER_MAX}
-                      step={1}
+                      // A quarter of a slider position is a tenth of a second at
+                      // the short end of the logarithmic curve, so every value
+                      // the quantiser can return is actually reachable.
+                      step={0.25}
                       value={themeTimeSliderPosition(draftGroup.transitionSeconds)}
-                      valueText={`${draftGroup.transitionSeconds}s`}
-                      onPreview={(position) => updateDraftGroup({ transitionSeconds: themeTimeFromSlider(position) })}
-                      onCommit={(position) => updateDraftGroup({ transitionSeconds: themeTimeFromSlider(position) }, true)}
+                      valueText={formatThemeSeconds(draftGroup.transitionSeconds)}
+                      onPreview={(position) => updateDraftGroup({ transitionSeconds: themeTransitionFromSlider(position) })}
+                      onCommit={(position) => updateDraftGroup({ transitionSeconds: themeTransitionFromSlider(position) }, true)}
                     />
                     <ConfigSelect
                       label="House Party hue"
@@ -1051,14 +1218,14 @@ export function PhonoscopeConfig() {
                                             />
                                             {source.cadence === "interval" ? (
                                               <SliderControlPanel ariaLabel="Random interval" ariaValueText={`${source.intervalSeconds} seconds`}
-                                                color={[34, 211, 238]} label="Interval" min={0.25} max={60} step={0.25}
-                                                value={source.intervalSeconds} valueText={`${source.intervalSeconds.toFixed(2)}s`}
+                                                color={[34, 211, 238]} label="Interval" min={0.25} max={60} step={0.1}
+                                                value={source.intervalSeconds} valueText={`${source.intervalSeconds.toFixed(1)}s`}
                                                 onPreview={(intervalSeconds) => updateOverride(setting, { ...source, intervalSeconds })}
                                                 onCommit={(intervalSeconds) => updateOverride(setting, { ...source, intervalSeconds }, true)} />
                                             ) : null}
                                             <SliderControlPanel ariaLabel="Random transition" ariaValueText={`${source.transitionSeconds} seconds`}
-                                              color={[34, 211, 238]} label="Transition" min={0} max={10} step={0.05}
-                                              value={source.transitionSeconds} valueText={`${source.transitionSeconds.toFixed(2)}s`}
+                                              color={[34, 211, 238]} label="Transition" min={0} max={10} step={0.1}
+                                              value={source.transitionSeconds} valueText={`${source.transitionSeconds.toFixed(1)}s`}
                                               onPreview={(transitionSeconds) => updateOverride(setting, { ...source, transitionSeconds })}
                                               onCommit={(transitionSeconds) => updateOverride(setting, { ...source, transitionSeconds }, true)} />
                                           </>
@@ -1176,16 +1343,16 @@ export function PhonoscopeConfig() {
                       ) : null}
                       <SliderControlPanel
                         ariaLabel="Theme transition time"
-                        ariaValueText={`${draftGroup.transitionSeconds} seconds`}
+                        ariaValueText={`${draftGroup.transitionSeconds.toFixed(1)} seconds`}
                         color={[34, 211, 238]}
                         label="Transition"
                         min={0}
                         max={THEME_TIME_SLIDER_MAX}
-                        step={1}
+                        step={0.25}
                         value={themeTimeSliderPosition(draftGroup.transitionSeconds)}
-                        valueText={`${draftGroup.transitionSeconds}s`}
-                        onPreview={(position) => updateDraftGroup({ transitionSeconds: themeTimeFromSlider(position) })}
-                        onCommit={(position) => updateDraftGroup({ transitionSeconds: themeTimeFromSlider(position) })}
+                        valueText={formatThemeSeconds(draftGroup.transitionSeconds)}
+                        onPreview={(position) => updateDraftGroup({ transitionSeconds: themeTransitionFromSlider(position) })}
+                        onCommit={(position) => updateDraftGroup({ transitionSeconds: themeTransitionFromSlider(position) })}
                       />
                       <label className="flex items-center gap-2 self-end pb-1">
                         <input type="checkbox" checked={draftGroup.useGenres}
@@ -1306,17 +1473,6 @@ export function PhonoscopeConfig() {
                 ]}
                 onChange={(idleBehavior) => void save({ ...config, idleBehavior })}
               />
-              <ConfigSelect
-                label="Quality"
-                value={config.quality}
-                options={[
-                  { value: "auto", label: "Auto", icon: <Gauge /> },
-                  { value: "high", label: "High", icon: <Gem /> },
-                  { value: "balanced", label: "Balanced", icon: <CircleDot /> },
-                  { value: "performance", label: "Performance", icon: <Rocket /> },
-                ]}
-                onChange={(quality) => void save({ ...config, quality })}
-              />
             </div>
 
             <label className="grid gap-2 text-sm">
@@ -1343,6 +1499,63 @@ export function PhonoscopeConfig() {
                 source={config.messageScaleSource}
                 onPreview={(messageScaleSource) => setConfig({ ...config, messageScaleSource })}
                 onCommit={(messageScaleSource) => void save({ ...config, messageScaleSource })}
+              />
+            </div>
+
+            <div className="grid gap-3 border border-neutral-800 bg-neutral-950/45 p-3 text-sm">
+              <span className="font-bold uppercase text-neutral-300">Glow overlay</span>
+              <p className="text-xs text-neutral-500">
+                A blurred copy of the finished picture, laid back over it as the last pass —
+                after the visualiser and after the message, so everything on screen glows.
+                Opacity zero switches the layer off.
+              </p>
+              <span className="text-xs font-bold uppercase text-neutral-400">Blend mode</span>
+              <p className="text-xs text-neutral-500">
+                Driven, the mode swaps as a hard cut wherever its driver crosses the
+                halfway point — a beat or downbeat source flips it on the beat. Leave it
+                on Manual for a fixed mode.
+              </p>
+              <ParameterDriverControls
+                inherited={0}
+                manualOptionIcons={GLOW_BLEND_ICONS}
+                setting={GLOW_BLEND_SETTING}
+                source={config.glowOverlay.blendModeSource}
+                onPreview={(blendModeSource) => setConfig({
+                  ...config,
+                  glowOverlay: { ...config.glowOverlay, blendModeSource },
+                })}
+                onCommit={(blendModeSource) => void save({
+                  ...config,
+                  glowOverlay: { ...config.glowOverlay, blendModeSource },
+                })}
+              />
+              <span className="text-xs font-bold uppercase text-neutral-400">Blur amount</span>
+              <ParameterDriverControls
+                inherited={0}
+                setting={GLOW_BLUR_SETTING}
+                source={config.glowOverlay.blurSource}
+                onPreview={(blurSource) => setConfig({
+                  ...config,
+                  glowOverlay: { ...config.glowOverlay, blurSource },
+                })}
+                onCommit={(blurSource) => void save({
+                  ...config,
+                  glowOverlay: { ...config.glowOverlay, blurSource },
+                })}
+              />
+              <span className="text-xs font-bold uppercase text-neutral-400">Opacity</span>
+              <ParameterDriverControls
+                inherited={0}
+                setting={GLOW_OPACITY_SETTING}
+                source={config.glowOverlay.opacitySource}
+                onPreview={(opacitySource) => setConfig({
+                  ...config,
+                  glowOverlay: { ...config.glowOverlay, opacitySource },
+                })}
+                onCommit={(opacitySource) => void save({
+                  ...config,
+                  glowOverlay: { ...config.glowOverlay, opacitySource },
+                })}
               />
             </div>
 
@@ -1395,14 +1608,23 @@ export function PhonoscopeConfig() {
                   (groups[section] ??= []).push(setting);
                   return groups;
                 }, {})).map(([section, settings]) => (
-                  <div key={section} className="relative">
-                  <details className="group border border-neutral-800 bg-neutral-950/30">
-                    <summary className={`cursor-pointer select-none px-3 py-3 font-black uppercase text-neutral-200 ${
-                      section.toLowerCase() === "physics" ? "pr-72" : ""
-                    }`}>
+                  <details key={section} className="group border border-neutral-800 bg-neutral-950/30">
+                    <summary className="cursor-pointer select-none px-3 py-3 font-black uppercase text-neutral-200">
                       {section}
                     </summary>
                     <div className="grid gap-3 border-t border-neutral-800 p-3">
+                {section.toLowerCase() === "physics" && activeModuleColorGroups.length ? (
+                  <div className="flex w-full justify-end">
+                    <MomentaryFeedbackButton
+                      type="button"
+                      className="config-page-button config-page-button-primary"
+                      onClick={openThemeModal}
+                    >
+                      <Palette className="h-4 w-4" />
+                      Advanced parameters and colours
+                    </MomentaryFeedbackButton>
+                  </div>
+                ) : null}
                 {settings.map((setting) => {
                   const saved = setting.updateMode === "structural"
                     ? config.moduleSettings[activeModule.id]?.[setting.id] ?? setting.default
@@ -1515,17 +1737,6 @@ export function PhonoscopeConfig() {
                 })}
                     </div>
                   </details>
-                  {section.toLowerCase() === "physics" && activeModuleColorGroups.length ? (
-                    <MomentaryFeedbackButton
-                      type="button"
-                      className="config-page-button config-page-button-primary absolute right-3 top-1.5 z-10"
-                      onClick={openThemeModal}
-                    >
-                      <Palette className="h-4 w-4" />
-                      Advanced parameters and colours
-                    </MomentaryFeedbackButton>
-                  ) : null}
-                  </div>
                 ))}
               </div>
             ) : null}
