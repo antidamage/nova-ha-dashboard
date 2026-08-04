@@ -1,5 +1,16 @@
 # nova-vm — the Nova hosting appliance (Linux VM on indium)
 
+> **HISTORICAL — superseded 2026-08-02.** The Nova hosting role moved off this
+> VM to **iridium bare metal**; see [`../iridium/README.md`](../iridium/README.md)
+> for the live runbook. This directory is kept as the rollback record while the
+> VM image still exists on indium, and `snapshot-nova.sh` here is still the
+> current, reusable way to capture a Nova host's state — the iridium bootstrap
+> calls it and `bootstrap.sh` unchanged.
+>
+> Indium was a 16 GB box hosting a 6 GB guest; it reached 37 GB of swap across 39
+> swapfiles and took Nova down on 2026-08-02. Do not revive this arrangement
+> without reading that incident first.
+
 The entire Nova hosting role (dashboard + HA + Matter + Mosquitto + tuya
 bridge + self-update + power helper) runs in one Ubuntu VM. The physical nova
 box becomes a pure kiosk client whose backend is a single parameter, and its

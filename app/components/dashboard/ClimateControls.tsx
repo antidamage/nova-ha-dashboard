@@ -48,7 +48,6 @@ import {
   temperatureDelta,
   type LoungeEnvironment,
 } from "./shared";
-import { playControlSound } from "./controlSound";
 import type { DashboardZone } from "../../../lib/types";
 
 type EntityActionsHandler = (
@@ -811,9 +810,8 @@ function AirConditionerControl({
   // actual command: 2s after the last tap a single set_temperature with the final
   // value is sent. In Auto the thermostat loop picks the new target up on its next
   // tick (the unit stays on, parked on fan), so there is no special wake handling.
-  // The control sound plays here, on the tap; the debounced send is silent.
+  // Global interaction feedback plays on the tap; the debounced send is silent.
   const setTemperature = (temperature: number) => {
-    playControlSound();
     setSelectedTargetTemperature(temperature);
     pendingTemperatureRef.current = temperature;
     if (temperatureSendTimerRef.current) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { normalizeAppleTvSwipe } from "../../../lib/appletv-swipe";
 import { parseThemeUpdateRequest } from "../../../lib/api/dashboard-requests";
 import { readDashboardConfig } from "../../../lib/dashboard-config";
+import { resolveThemeVariant } from "../../../lib/managed-desktop-sync";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import { hasThemeNamespace, mergeLegacyThemeUpdate, themeResponseValue } from "../../../lib/theme-values";
 import type { LayoutPreferences } from "../../../lib/types";
@@ -36,13 +37,37 @@ function layoutUpdateFrom(value: unknown): LayoutPreferences | undefined {
   return { tvHeightFraction: Math.min(TV_HEIGHT_FRACTION_MAX, Math.max(TV_HEIGHT_FRACTION_MIN, raw)) };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const preferences = await readDashboardPreferences();
     const config = await readDashboardConfig();
+    const theme = themeResponseValue(preferences.theme, config.dashboard.avatar);
+
+    // `?variant=resolved` flattens the dark/light envelope server-side. The GPU
+    // visualiser needs the theme for its fluid backdrop, and resolving
+    // `selection: "auto"` requires the sun state, which only this side has.
+    // Doing it here keeps one implementation of the rule rather than a second
+    // one in C++.
+    if (new URL(request.url).searchParams.get("variant") === "resolved" && theme) {
+      const themeSet = theme as Record<string, unknown>;
+      const variant = await resolveThemeVariant(themeSet);
+      const variants = (themeSet.themes ?? {}) as Record<string, unknown>;
+      const resolved = (variants[variant] ?? variants.dark ?? variants.light ?? null) as
+        | Record<string, unknown>
+        | null;
+      return NextResponse.json(
+        {
+          variant,
+          theme: resolved,
+          updatedAt: preferences.themeUpdatedAt ?? null,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     return NextResponse.json({
       followVisualizerWhenActive: preferences.followVisualizerWhenActive === true,
-      theme: themeResponseValue(preferences.theme, config.dashboard.avatar),
+      theme,
       layout: resolveLayout(preferences.layout),
       updatedAt: preferences.themeUpdatedAt ?? null,
     });

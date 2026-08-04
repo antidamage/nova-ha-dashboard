@@ -97,21 +97,52 @@ export class HouseholdEventLog {
     if (this.loaded) {
       return;
     }
+    let skipped = 0;
     try {
       const lines = (await readFile(this.filePath, "utf8"))
         .split(/\r?\n/)
         .filter(Boolean);
-      const events = lines.map((line) => JSON.parse(line) as unknown);
-      if (!events.every(validEvent)) {
-        throw new Error("Household event log contains an unsupported event schema");
+      // Parse line by line and drop whatever is unusable, rather than mapping
+      // JSON.parse across the file and letting one bad line throw.
+      //
+      // This is not hypothetical. On 2026-08-01, while the host was swap-
+      // thrashing, an interrupted append left a single truncated line at the tail
+      // of this spool. The previous implementation threw on every load, so the
+      // dashboard logged ~46 "Unterminated string" errors per MINUTE and
+      // nova-voice's household event polling failed outright — one partial write
+      // took the entire event store down until the line was removed by hand.
+      //
+      // A partial feed is strictly better than no feed: these events are an
+      // append-only activity log, not a source of truth, and an unreadable tail
+      // must never cost us the 20k good events in front of it.
+      const events: HouseholdEvent[] = [];
+      for (const line of lines) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(line);
+        } catch {
+          skipped += 1;
+          continue;
+        }
+        if (!validEvent(parsed)) {
+          skipped += 1;
+          continue;
+        }
+        // `read(after)` paging depends on cursors being strictly increasing, so
+        // out-of-order entries are dropped for the same reason as unparseable
+        // ones: skipping one event beats serving none.
+        const previous = events.at(-1);
+        if (previous && parsed.cursor <= previous.cursor) {
+          skipped += 1;
+          continue;
+        }
+        events.push(parsed);
       }
-      const cursors = events.map((event) => event.cursor);
-      if (cursors.some((cursor, index) => index > 0 && cursor <= cursors[index - 1])) {
-        throw new Error("Household event log cursors are not strictly increasing");
-      }
-      this.events = events.slice(-this.maxEvents) as HouseholdEvent[];
-      this.staleLines = events.length - this.events.length;
-      const lastEvent = events.at(-1) as HouseholdEvent | undefined;
+      this.events = events.slice(-this.maxEvents);
+      // Skipped lines are still physically present, so they count as stale for
+      // compaction accounting.
+      this.staleLines = events.length - this.events.length + skipped;
+      const lastEvent = events.at(-1);
       this.nextCursor = lastEvent ? lastEvent.cursor + 1 : 1;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -119,6 +150,18 @@ export class HouseholdEventLog {
       }
     }
     this.loaded = true;
+
+    if (skipped > 0) {
+      console.warn("[nova-dashboard] household event log: skipped unusable lines", {
+        filePath: this.filePath,
+        skipped,
+        kept: this.events.length,
+      });
+      // Rewrite the spool once so the damage is gone for good instead of being
+      // re-skipped on every boot. compact() writes to a temp file and renames,
+      // so a crash mid-rewrite leaves the original intact.
+      await this.compact();
+    }
   }
 
   private async compact() {

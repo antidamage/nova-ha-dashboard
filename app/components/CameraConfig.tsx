@@ -281,7 +281,9 @@ export function CameraConfig() {
 
   const save = (nextValue: Processing) => {
     const version = ++processingVersionRef.current;
-    setMessage("Applying camera processing...");
+    // No "applying"/"saved" banner — sliders commit on release and the status
+    // line reflowing the panel drags the scroll position with it.
+    setMessage("");
     processingQueueRef.current = processingQueueRef.current.catch(() => undefined).then(async () => {
       const response = await fetch(cameraUrl("outside", "settings", videoHostUrl), {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(nextValue),
@@ -294,7 +296,6 @@ export function CameraConfig() {
       if (version === processingVersionRef.current) {
         setValue(processing);
         setSaved(processing);
-        setMessage("Saved automatically. Preview reconnecting...");
       }
     });
     return processingQueueRef.current;

@@ -712,8 +712,10 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
     if (key === "agentName" && typeof value === "string") {
       setAgentName(value);
     }
-    setMessage(`Saving on ${displayName} and notifying Iridium…`);
-    setMessageTone("ok");
+    // No "saving"/"saved" banner: settings commit on every slider release, and a
+    // status line appearing and disappearing under the controls shifts the page
+    // out from under the gesture. Only problems are worth announcing.
+    setMessage(null);
     try {
       const response = await fetch("/api/voice", {
         body: JSON.stringify({ [key]: value }),
@@ -741,10 +743,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       if (requestVersion !== requestVersionRef.current) {
         return;
       }
-      if (data.iridium?.ok) {
-        setMessage(`Saved on ${displayName} and applied live on Iridium.`);
-        setMessageTone("ok");
-      } else {
+      if (!data.iridium?.ok) {
         setMessage(`Saved on ${displayName}. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
         setMessageTone("warning");
       }

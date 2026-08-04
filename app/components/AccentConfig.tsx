@@ -101,7 +101,6 @@ import {
   uploadTaskReminderAudio,
   type TaskReminderAudioStatus,
 } from "./tasks/task-audio-client";
-import { playControlSound } from "./dashboard/controlSound";
 import { VoiceInputDeviceGroup } from "./VoiceInputDeviceGroup";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
@@ -758,7 +757,6 @@ function ControlSoundConfig({
                 type="button"
                 className="inline-flex min-h-11 items-center gap-2 border border-cyan-300/60 px-4 py-2 text-sm font-black"
                 aria-label="Test control sound"
-                onClick={() => playControlSound()}
               >
                 <Play className="h-4 w-4" />
                 Test
@@ -792,7 +790,6 @@ function ControlSoundConfig({
         onPreview={(volume) => onPreview({ ...settings, volume: Math.round(volume) })}
         onCommit={(volume) => {
           onChange({ ...settings, volume: Math.round(volume) });
-          playControlSound({ volume: Math.round(volume) });
         }}
         markers={[
           { active: settings.volume === CONTROL_SOUND_VOLUME_DEFAULT, label: "Default", value: CONTROL_SOUND_VOLUME_DEFAULT },

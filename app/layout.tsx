@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { DemoTooltipLayer } from "./components/DemoTooltipLayer";
-import { ExperienceModeModal } from "./components/ExperienceModeModal";
 import { AgentNameProvider } from "./components/AgentNameContext";
-import NovaAvatar from "./components/NovaAvatar";
-import BrowserVoiceSatellite from "./components/dashboard/BrowserVoiceSatellite";
-import { SystemActivityBlocker } from "./components/SystemActivityBlocker";
-import { SmoothScrollController } from "./components/SmoothScrollController";
-import { TouchClickGuard } from "./components/TouchClickGuard";
+import { DashboardGlobalServices } from "./components/DashboardGlobalServices";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
 import { getLatestDashboardSun } from "../lib/dashboard-events";
 import { readDashboardConfig, readDefaultDashboardConfig } from "../lib/dashboard-config";
@@ -531,13 +525,7 @@ try {
       </head>
       <body>
         <AgentNameProvider initialName={initialAgentName}>
-          <TouchClickGuard />
-          <SmoothScrollController />
-          <ExperienceModeModal />
-          <NovaAvatar size={200} initialTheme={initialOrbTheme} initialSun={initialSun} />
-          <BrowserVoiceSatellite />
-          <DemoTooltipLayer />
-          <SystemActivityBlocker />
+          <DashboardGlobalServices initialTheme={initialOrbTheme} initialSun={initialSun} />
           {children}
         </AgentNameProvider>
       </body>

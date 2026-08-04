@@ -7,6 +7,7 @@ import * as Slider from "@radix-ui/react-slider";
 import { classNames } from "./shared";
 import { cameraUrl } from "./cameraHost";
 import { arePageUpdatesPaused } from "./pageUpdatePause";
+import { SliderHapticController } from "../haptics";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
@@ -191,6 +192,8 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const [playingDate, setPlayingDate] = useState<Date | null>(null);
   // Suppresses live-follow while the user is dragging the scrubber.
   const scrubbingRef = useRef(false);
+  const scrubHapticsRef = useRef(new SliderHapticController());
+  const lastScrubHapticValueRef = useRef<number | null>(null);
   // Latched "follow live" flag read by the RAF sample loop. Set true only by the
   // Live button (and the initial mount), cleared by scrubbing or a user pause.
   const isLiveRef = useRef(true);
@@ -426,14 +429,20 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       return;
     }
     scrubbingRef.current = true;
+    const normalizedValue = (values[0] - seekable.start) / Math.max(1, seekable.end - seekable.start);
+    const previous = lastScrubHapticValueRef.current;
+    if (previous !== null) scrubHapticsRef.current.move(normalizedValue - previous, { value: values[0] });
+    lastScrubHapticValueRef.current = normalizedValue;
     setLive(false);
     video.currentTime = values[0];
     setCurrentTime(values[0]);
-  }, [setLive]);
+  }, [seekable.end, seekable.start, setLive]);
 
   const commitScrub = useCallback((values: number[]) => {
     const video = videoRef.current;
     scrubbingRef.current = false;
+    scrubHapticsRef.current.stop();
+    lastScrubHapticValueRef.current = null;
     if (video && values.length > 0) {
       video.currentTime = values[0];
       void video.play().catch(() => {});
@@ -561,6 +570,18 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
             value={[isLive ? seekable.end : Math.min(Math.max(currentTime, seekable.start), seekable.end)]}
             step={0.5}
             disabled={!hasDvr}
+            onPointerDown={() => {
+              if (!hasDvr) return;
+              scrubHapticsRef.current.start({
+                value: isLive ? seekable.end : Math.min(Math.max(currentTime, seekable.start), seekable.end),
+                step: 0.5,
+              });
+              lastScrubHapticValueRef.current = null;
+            }}
+            onPointerCancel={() => {
+              scrubHapticsRef.current.stop();
+              lastScrubHapticValueRef.current = null;
+            }}
             onValueChange={handleScrub}
             onValueCommit={commitScrub}
           >

@@ -145,7 +145,11 @@ export function managedDesktopThemeChangeMayAffectWallpaper(previousThemeValue: 
     desktopWallpaperSignatureForVariant(previousThemeSet, variant) !== desktopWallpaperSignatureForVariant(nextThemeSet, variant));
 }
 
-async function resolveThemeVariant(themeSet: Record<string, unknown>): Promise<ThemeVariant> {
+// Exported because the theme API's `?variant=resolved` form needs the identical
+// dark/light decision. The GPU visualiser reads the theme to drive its fluid
+// backdrop, and a second implementation of this rule in C++ would be a third
+// place for the three engines to disagree about what colour the room is.
+export async function resolveThemeVariant(themeSet: Record<string, unknown>): Promise<ThemeVariant> {
   if (themeSet.selection === "light") {
     return "light";
   }

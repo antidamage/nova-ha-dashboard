@@ -644,15 +644,23 @@ async function ensureLoggedIn(page, context, template, storagePath, email, passw
       error.code = "requires_mfa";
       throw error;
     }
-    const codeInput = await findLoginCodeInput(page);
-    if (!codeInput) {
-      const error = new Error("Powershop login requested a code, but the code field was not found.");
-      error.code = "requires_mfa";
-      throw error;
+    if (/^https?:\/\//i.test(loginCode)) {
+      // Powershop can send a verification link instead of a code. Navigating the
+      // same context consumes the link against the login attempt still in flight.
+      await page.goto(loginCode, { waitUntil: "domcontentloaded", timeout: PAGE_TIMEOUT_MS });
+      await page.waitForLoadState("networkidle", { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
+      await page.waitForTimeout(5000);
+    } else {
+      const codeInput = await findLoginCodeInput(page);
+      if (!codeInput) {
+        const error = new Error("Powershop login requested a code, but the code field was not found.");
+        error.code = "requires_mfa";
+        throw error;
+      }
+      await codeInput.fill(loginCode);
+      await clickNamedButton(page, template.login.continueButtonNames);
+      await page.waitForTimeout(5000);
     }
-    await codeInput.fill(loginCode);
-    await clickNamedButton(page, template.login.continueButtonNames);
-    await page.waitForTimeout(5000);
   }
   if (!(await pageLooksAuthenticated(page, template))) {
     await page.waitForURL(/\/dashboard/, { timeout: LOGIN_TIMEOUT_MS }).catch(() => null);

@@ -15,11 +15,13 @@ import {
   type PhonoscopeModuleSummary,
   type PhonoscopeSetting,
 } from "./phonoscope";
+import { publishPhonoscopeConfig } from "./dashboard-events";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
 import { normalizeThemeLibrary } from "./theme-library";
 import { decimalStepGranularity } from "./slider-step";
 import type {
   PhonoscopeColorGroup,
+  PhonoscopeGlowOverlay,
   PhonoscopeColorTheme,
   PhonoscopeColorValue,
   PhonoscopeParameterSource,
@@ -35,9 +37,16 @@ export const DEFAULT_PHONOSCOPE_CONFIG: Required<Omit<PhonoscopePreferences, "up
   activeModuleId: "bpm-pulse",
   activeModuleVersion: "1.0.0",
   idleBehavior: "ambient",
-  quality: "auto",
   message: "",
   messageScaleSource: { type: "manual", value: 1 },
+  glowOverlay: {
+    // 0 is screen, 1 is multiply.
+    blendModeSource: { type: "manual", value: 0 },
+    blurSource: { type: "manual", value: 0 },
+    // Opacity 0 is the identity, and it is what both engines check to skip the
+    // pass entirely. A new install therefore pays nothing for this layer.
+    opacitySource: { type: "manual", value: 0 },
+  },
   statusOverlay: true,
   transitionMs: 600,
   housePartyRandomHueOffset: 0,
@@ -204,6 +213,49 @@ export function normalizePhonoscopeParameterSource(value: unknown): PhonoscopePa
     };
   }
   return null;
+}
+
+/**
+ * The glow overlay's driven parameters are bounded by the layer itself rather
+ * than by any module declaration, so they are clamped here: blur 0-20, opacity
+ * 0-100, blend mode 0-1 (0 screen, 1 multiply). A source whose envelope or
+ * range is unusable falls back to the caller's current value rather than
+ * silently disabling the layer.
+ */
+export function normalizePhonoscopeGlowOverlay(
+  value: unknown,
+  fallback: PhonoscopeGlowOverlay,
+): PhonoscopeGlowOverlay {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fallback;
+  const raw = value as Record<string, unknown>;
+  const bounded = (source: unknown, max: number, previous: PhonoscopeParameterSource) => {
+    const normalized = normalizePhonoscopeParameterSource(source);
+    if (!normalized) return previous;
+    if (normalized.type === "manual") {
+      return { ...normalized, value: finiteClamped(normalized.value, 0, 0, max) };
+    }
+    const min = finiteClamped(normalized.min, 0, 0, max);
+    return {
+      ...normalized,
+      min,
+      max: Math.max(min, finiteClamped(normalized.max, min, 0, max)),
+    };
+  };
+  // Configurations written before the blend mode became a driven parameter
+  // carry a plain `blendMode` string instead. Read it as the manual source it
+  // maps to, so an install already set to multiply stays on multiply.
+  const legacyBlendMode = raw.blendModeSource === undefined && typeof raw.blendMode === "string"
+    ? { type: "manual" as const, value: raw.blendMode === "multiply" ? 1 : 0 }
+    : undefined;
+  return {
+    blendModeSource: bounded(
+      raw.blendModeSource ?? legacyBlendMode,
+      1,
+      fallback.blendModeSource,
+    ),
+    blurSource: bounded(raw.blurSource, 20, fallback.blurSource),
+    opacitySource: bounded(raw.opacitySource, 100, fallback.opacitySource),
+  };
 }
 
 function normalizeParameterOverrides(value: unknown) {
@@ -473,6 +525,10 @@ export async function readPhonoscopeConfig() {
     ...raw,
     messageScaleSource: normalizePhonoscopeParameterSource(raw.messageScaleSource)
       ?? DEFAULT_PHONOSCOPE_CONFIG.messageScaleSource,
+    glowOverlay: normalizePhonoscopeGlowOverlay(
+      raw.glowOverlay,
+      DEFAULT_PHONOSCOPE_CONFIG.glowOverlay,
+    ),
     providers: { ...DEFAULT_PHONOSCOPE_CONFIG.providers, ...(raw.providers ?? {}) },
     moduleSettings: withoutRetiredModules(raw.moduleSettings),
     moduleParameterSources: withoutRetiredModules(normalizeParameterOverrides(raw.moduleParameterSources)),
@@ -501,10 +557,7 @@ export async function writePhonoscopeConfig(value: unknown) {
   const idleBehavior = ["ambient", "black", "return"].includes(String(input.idleBehavior))
     ? input.idleBehavior as PhonoscopePreferences["idleBehavior"]
     : current.idleBehavior;
-  const quality = ["auto", "high", "balanced", "performance"].includes(String(input.quality))
-    ? input.quality as PhonoscopePreferences["quality"]
-    : current.quality;
-  const providers = input.providers && typeof input.providers === "object" && !Array.isArray(input.providers)
+  const providers =input.providers && typeof input.providers === "object" && !Array.isArray(input.providers)
     ? input.providers as Record<string, unknown>
     : {};
   const themeGroups = normalizePhonoscopeThemeGroups(input.themeGroups ?? current.themeGroups);
@@ -625,12 +678,12 @@ export async function writePhonoscopeConfig(value: unknown) {
       activeModuleId: moduleId,
       activeModuleVersion: moduleVersion,
       idleBehavior,
-      quality,
       message: typeof input.message === "string"
         ? Array.from(input.message.trim()).slice(0, 160).join("")
         : current.message,
       messageScaleSource: normalizePhonoscopeParameterSource(input.messageScaleSource)
         ?? current.messageScaleSource,
+      glowOverlay: normalizePhonoscopeGlowOverlay(input.glowOverlay, current.glowOverlay),
       statusOverlay: typeof input.statusOverlay === "boolean" ? input.statusOverlay : current.statusOverlay,
       transitionMs: typeof input.transitionMs === "number"
         ? Math.max(0, Math.min(3_000, Math.round(input.transitionMs)))
@@ -657,6 +710,9 @@ export async function writePhonoscopeConfig(value: unknown) {
       moduleThemeGroupIds,
     },
   });
+  // Nudge the GPU renderer on iridium. It re-reads the config itself, so this
+  // stays a notification rather than a second serialisation of the same state.
+  publishPhonoscopeConfig("config");
   return readPhonoscopeConfig();
 }
 
