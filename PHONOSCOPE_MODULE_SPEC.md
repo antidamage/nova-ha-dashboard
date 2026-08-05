@@ -578,7 +578,7 @@ Three parameters, from `phonoscope.glowOverlay` in dashboard preferences:
 
 | Field | Range | Driver |
 | --- | --- | --- |
-| `blendModeSource` | 0-1: 0 is `screen`, 1 is `multiply`, named as Photoshop names them | full parameter driver |
+| `blendModeSource` | 0-2: 0 is `screen`, 1 is `multiply`, 2 is `overlay`, named as Photoshop names them | full parameter driver |
 | `blurSource` | 0-20 | full parameter driver |
 | `opacitySource` | 0-100 | full parameter driver |
 
@@ -587,14 +587,22 @@ private setting ids `__glowBlend`, `__glowBlur` and `__glowOpacity`. Opacity 0 i
 the identity and both engines skip the pass entirely at that value, which is the
 default.
 
-The blend mode is a choice of two looks but every driver produces a continuous
-number, so it is authored on a 0-1 axis and both engines cut hard at 0.5:
-anything below is `screen`, 0.5 and above is `multiply`. There is deliberately
-no cross-fade between the two blends — a beat or downbeat driver is meant to
-read as a switch, not a dissolve. A manual source is therefore the plain two-way
-choice it looks like, and a driven one swaps the mode wherever it crosses the
-midpoint. Configurations written before the mode was driven carry a plain
-`blendMode` string instead; it is read as the equivalent manual source.
+The blend mode is a choice of discrete looks but every driver produces a
+continuous number, so it is authored on a whole-numbered axis and both engines
+snap to the nearest mode. There is deliberately no cross-fade between the blends
+— a beat or downbeat driver is meant to read as a switch, not a dissolve. A
+manual source is therefore the plain named choice it looks like, and a driven one
+swaps the mode wherever it crosses a halfway point. Configurations written before
+the mode was driven carry a plain `blendMode` string instead; it is read as the
+equivalent manual source.
+
+Modes are only ever appended to that axis. A stored driver keeps a numeric
+`min`/`max` range on it, so renumbering the modes would silently repoint every
+configuration that drives the parameter.
+
+`overlay` is Photoshop's: multiply where the base pixel is dark and screen where
+it is light, with the base — not the glow — choosing which. It therefore
+deepens the picture's own contrast instead of uniformly lifting or crushing it.
 
 The blur is a separable Gaussian on a quarter-resolution copy, with taps at
 `i * (sigma/3)` texels for `i` in -6..6 and weights `exp(-i^2/18)`. One blur unit

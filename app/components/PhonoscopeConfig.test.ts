@@ -126,31 +126,32 @@ describe("Phonoscope parameter source conversion", () => {
   });
 
   it("gives a named-choice setting the full range when it starts being driven", () => {
-    // The glow overlay's blend mode: two named choices on a 0-1 axis. Shrinking
-    // the range towards the manual value the way a continuous setting does
-    // would leave "Screen" driven between Screen and Screen.
+    // The glow overlay's blend mode: named choices on a whole-numbered axis.
+    // Shrinking the range towards the manual value the way a continuous setting
+    // does would leave "Screen" driven between Screen and Screen.
     const blendMode: ModuleSetting = {
       id: "glowBlend",
       label: "Blend mode",
       control: "select",
       min: 0,
-      max: 1,
+      max: 2,
       step: 1,
       default: 0,
       options: [
         { value: 0, label: "Screen" },
         { value: 1, label: "Multiply" },
+        { value: 2, label: "Overlay" },
       ],
     };
     expect(sourceWithType(blendMode, { type: "manual", value: 0 }, "beat")).toMatchObject({
       type: "beat",
       min: 0,
-      max: 1,
+      max: 2,
     });
     expect(sourceWithType(blendMode, { type: "manual", value: 1 }, "random")).toMatchObject({
       type: "random",
       min: 0,
-      max: 1,
+      max: 2,
     });
   });
 

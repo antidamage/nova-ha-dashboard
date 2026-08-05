@@ -627,11 +627,15 @@ export function DotRangeControl({
     return Number(clamp(next, min, max).toFixed(12));
   }, [max, min, step]);
 
+  // Thumbs push rather than block: dragging one into the other carries it
+  // along instead of stopping dead against it. Neither can be pushed off the
+  // end of the track, so the pair simply collapses to a zero-width range there
+  // and the dragged thumb keeps going to the limit.
   const update = useCallback((thumb: 0 | 1, raw: number, commit = false) => {
     const next = [...currentRef.current] as [number, number];
     next[thumb] = stepped(raw);
-    if (thumb === 0) next[0] = Math.min(next[0], next[1]);
-    else next[1] = Math.max(next[0], next[1]);
+    if (thumb === 0) next[1] = Math.max(next[0], next[1]);
+    else next[0] = Math.min(next[0], next[1]);
     currentRef.current = next;
     onChange(next);
     if (commit) onCommit?.(next);
@@ -654,7 +658,13 @@ export function DotRangeControl({
   const begin = (event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
     const raw = rawFromPointer(event);
-    const thumb: 0 | 1 = Math.abs(raw - currentRef.current[0]) <= Math.abs(raw - currentRef.current[1]) ? 0 : 1;
+    const toMinimum = Math.abs(raw - currentRef.current[0]);
+    const toMaximum = Math.abs(raw - currentRef.current[1]);
+    // Which side the pointer is on breaks the tie, so a pair collapsed against
+    // one end can still be pulled apart from either thumb.
+    const thumb: 0 | 1 = toMinimum === toMaximum
+      ? (raw >= currentRef.current[1] ? 1 : 0)
+      : (toMinimum < toMaximum ? 0 : 1);
     activeThumbRef.current = thumb;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginControlInteraction();
@@ -707,7 +717,9 @@ export function DotRangeControl({
           const previousX = dragBefore?.lastX;
           const raw = rawFromDrag(event);
           const drag = precisionDragRef.current;
-          if (drag) drag.currentValue = clamp(raw, thumb === 0 ? min : currentRef.current[0], thumb === 0 ? currentRef.current[1] : max);
+          // Both thumbs can travel the whole track now that they push each
+          // other, so the accumulator is only bounded by the track itself.
+          if (drag) drag.currentValue = clamp(raw, min, max);
           const next = update(thumb, raw);
           if (rect && dragBefore) {
             hapticsRef.current.move(
@@ -738,8 +750,8 @@ export function DotRangeControl({
           tabIndex={disabled ? -1 : 0}
           aria-label={`${ariaLabel} ${thumb === 0 ? "minimum" : "maximum"}`}
           aria-disabled={disabled}
-          aria-valuemin={thumb === 0 ? min : value[0]}
-          aria-valuemax={thumb === 0 ? value[1] : max}
+          aria-valuemin={min}
+          aria-valuemax={max}
           aria-valuenow={value[thumb]}
           aria-valuetext={labels?.[thumb]}
           className="rect-slider-thumb rect-range-thumb"
@@ -770,6 +782,15 @@ function formatEnvelopeSeconds(value: number) {
  * A three-boundary envelope timeline. Thumb widths are deliberately removed
  * from the time scale, so touching thumbs represent equal boundary times (and
  * therefore a zero-length hold or release) without ever overlapping.
+ *
+ * The thumbs push rather than block, and the push cascades rightwards, because
+ * the three boundaries are cumulative: attack carries hold and release with it
+ * so that moving the attack time does not silently rewrite the phases after it,
+ * and hold carries release for the same reason. Nothing pushes leftwards —
+ * hold stops against attack and release stops against hold — and nothing is
+ * ever pushed off the end of the track, so a carried thumb pinned at the end
+ * gives up its gap and shrinks instead. The gaps a drag tries to preserve are
+ * the ones it started with, so dragging out to the end and back restores them.
  */
 export function DotEnvelopeControl({
   ariaLabel,
@@ -810,20 +831,46 @@ export function DotEnvelopeControl({
     const pixelOffset = RECT_THUMB_WIDTH_PX * (thumb + 0.5) - ratio * RECT_THUMB_WIDTH_PX * 3;
     return `calc(${ratio * 100}% + ${pixelOffset}px)`;
   };
+  // The hold and release durations a drag is trying to hold on to. Captured
+  // when the drag starts so that compressing them against the end of the track
+  // is undone on the way back, rather than being lost the moment it happens.
+  const carriedRef = useRef<[hold: number, release: number]>([value[1], value[2]]);
   const update = useCallback((thumb: 0 | 1 | 2, raw: number, commit = false) => {
-    const oldBoundaries = boundaries(currentRef.current);
-    const nextBoundary = clamp(stepped(raw), oldBoundaries[thumb - 1] ?? 0, oldBoundaries[thumb + 1] ?? max);
-    oldBoundaries[thumb] = nextBoundary;
-    const next: EnvelopeDurations = [
-      oldBoundaries[0],
-      oldBoundaries[1] - oldBoundaries[0],
-      oldBoundaries[2] - oldBoundaries[1],
+    const [before0, before1] = boundaries(currentRef.current);
+    const [carriedHold, carriedRelease] = carriedRef.current;
+    // Derived boundaries keep whatever precision the carried durations had;
+    // only the dragged one is snapped to the step. `toFixed` just sheds the
+    // float dust an addition leaves behind.
+    const carry = (from: number, gap: number) => Number(clamp(from + gap, from, max).toFixed(12));
+    let next: [number, number, number];
+    if (thumb === 0) {
+      const attackEnd = stepped(raw);
+      const holdEnd = carry(attackEnd, carriedHold);
+      next = [attackEnd, holdEnd, carry(holdEnd, carriedRelease)];
+    } else if (thumb === 1) {
+      const holdEnd = clamp(stepped(raw), before0, max);
+      next = [before0, holdEnd, carry(holdEnd, carriedRelease)];
+    } else {
+      next = [before0, before1, clamp(stepped(raw), before1, max)];
+    }
+    // Durations are differences of boundaries, so they get the same float-dust
+    // treatment — otherwise a 2s hold persists as 1.9999999999999998.
+    const shed = (duration: number) => Number(duration.toFixed(12));
+    const durations: EnvelopeDurations = [
+      next[0],
+      shed(next[1] - next[0]),
+      shed(next[2] - next[1]),
     ];
-    currentRef.current = next;
-    onChange(next);
-    if (commit) onCommit?.(next);
-    return nextBoundary;
+    currentRef.current = durations;
+    onChange(durations);
+    if (commit) onCommit?.(durations);
+    return next[thumb];
   }, [max, onChange, onCommit, step, stepped]);
+  // Keyboard steps are one-off rather than a drag, so each takes the durations
+  // as they stand now for the thumbs it carries.
+  const carryFromCurrent = () => {
+    carriedRef.current = [currentRef.current[1], currentRef.current[2]];
+  };
   const rawFromPointer = (event: React.PointerEvent<HTMLDivElement>, thumb: 0 | 1 | 2) => {
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect) return 0;
@@ -853,6 +900,7 @@ export function DotEnvelopeControl({
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginControlInteraction();
     setInteracting(true);
+    carryFromCurrent();
     const raw = rawFromPointer(event, thumb);
     const nextBoundary = update(thumb, raw);
     hapticsRef.current.start({ value: nextBoundary, step });
@@ -879,6 +927,7 @@ export function DotEnvelopeControl({
     if (disabled || next === null) return;
     event.preventDefault();
     markControlInteraction();
+    carryFromCurrent();
     update(thumb, next, true);
     selectionHaptic();
   };
@@ -898,7 +947,9 @@ export function DotEnvelopeControl({
           const raw = rawFromDrag(event);
           const drag = precisionDragRef.current;
           const current = boundaries(currentRef.current);
-          if (drag) drag.currentValue = clamp(raw, current[thumb - 1] ?? 0, current[thumb + 1] ?? max);
+          // A carried thumb never limits the dragged one, so the accumulator
+          // stops only at the thumb it cannot push: the one to its left.
+          if (drag) drag.currentValue = clamp(raw, current[thumb - 1] ?? 0, max);
           const nextBoundary = update(thumb, raw);
           if (rect && dragBefore) {
             hapticsRef.current.move(
@@ -918,7 +969,7 @@ export function DotEnvelopeControl({
           aria-label={`${ariaLabel} ${phaseNames[thumb]} end`}
           aria-disabled={disabled}
           aria-valuemin={currentBoundaries[thumb - 1] ?? 0}
-          aria-valuemax={currentBoundaries[thumb + 1] ?? max}
+          aria-valuemax={max}
           aria-valuenow={currentBoundaries[thumb]}
           aria-valuetext={`${phaseNames[thumb]} ${value[thumb].toFixed(2).replace(/0$/, "")} seconds`}
           className={`rect-slider-thumb rect-range-thumb rect-envelope-thumb rect-envelope-thumb-${thumb + 1}`}
@@ -930,6 +981,7 @@ export function DotEnvelopeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
+            carryFromCurrent();
             hapticsRef.current.start({ value: boundaries(currentRef.current)[thumb], step });
             precisionDragRef.current = { currentValue: boundaries(currentRef.current)[thumb], lastX: event.clientX };
           }} />

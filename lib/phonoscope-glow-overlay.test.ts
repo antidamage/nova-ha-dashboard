@@ -35,7 +35,7 @@ describe("normalizePhonoscopeGlowOverlay", () => {
     });
   });
 
-  it("keeps a driven blend mode on its own 0-1 axis", () => {
+  it("keeps a driven blend mode on its own whole-numbered axis", () => {
     expect(normalizePhonoscopeGlowOverlay({
       blendModeSource: {
         type: "downbeat",
@@ -48,7 +48,7 @@ describe("normalizePhonoscopeGlowOverlay", () => {
     }, fallback).blendModeSource).toEqual({
       type: "downbeat",
       min: 0,
-      max: 1,
+      max: 2,
       attackSeconds: 0,
       holdSeconds: 0.2,
       releaseSeconds: 0,
@@ -60,10 +60,12 @@ describe("normalizePhonoscopeGlowOverlay", () => {
       .toEqual({ type: "manual", value: 1 });
     expect(normalizePhonoscopeGlowOverlay({ blendMode: "screen" }, fallback).blendModeSource)
       .toEqual({ type: "manual", value: 0 });
+    expect(normalizePhonoscopeGlowOverlay({ blendMode: "overlay" }, fallback).blendModeSource)
+      .toEqual({ type: "manual", value: 2 });
   });
 
   it("falls back to screen for an unknown legacy blend mode", () => {
-    expect(normalizePhonoscopeGlowOverlay({ blendMode: "overlay" }, fallback).blendModeSource)
+    expect(normalizePhonoscopeGlowOverlay({ blendMode: "hard-light" }, fallback).blendModeSource)
       .toEqual({ type: "manual", value: 0 });
   });
 

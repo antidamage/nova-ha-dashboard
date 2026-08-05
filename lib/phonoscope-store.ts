@@ -40,7 +40,7 @@ export const DEFAULT_PHONOSCOPE_CONFIG: Required<Omit<PhonoscopePreferences, "up
   message: "",
   messageScaleSource: { type: "manual", value: 1 },
   glowOverlay: {
-    // 0 is screen, 1 is multiply.
+    // 0 is screen, 1 is multiply, 2 is overlay.
     blendModeSource: { type: "manual", value: 0 },
     blurSource: { type: "manual", value: 0 },
     // Opacity 0 is the identity, and it is what both engines check to skip the
@@ -216,11 +216,19 @@ export function normalizePhonoscopeParameterSource(value: unknown): PhonoscopePa
 }
 
 /**
+ * The glow-overlay blend modes, in the order they are numbered on the
+ * `blendModeSource` axis. Mirrors `nova::GlowBlendMode` and
+ * `PhonoscopeGlowBlendMode`. Only ever append: a stored driver range is a pair
+ * of numbers on this axis, so renumbering repoints existing configurations.
+ */
+const GLOW_BLEND_MODE_AXIS = ["screen", "multiply", "overlay"] as const;
+
+/**
  * The glow overlay's driven parameters are bounded by the layer itself rather
  * than by any module declaration, so they are clamped here: blur 0-20, opacity
- * 0-100, blend mode 0-1 (0 screen, 1 multiply). A source whose envelope or
- * range is unusable falls back to the caller's current value rather than
- * silently disabling the layer.
+ * 0-100, blend mode 0-2 (0 screen, 1 multiply, 2 overlay). A source whose
+ * envelope or range is unusable falls back to the caller's current value rather
+ * than silently disabling the layer.
  */
 export function normalizePhonoscopeGlowOverlay(
   value: unknown,
@@ -245,12 +253,17 @@ export function normalizePhonoscopeGlowOverlay(
   // carry a plain `blendMode` string instead. Read it as the manual source it
   // maps to, so an install already set to multiply stays on multiply.
   const legacyBlendMode = raw.blendModeSource === undefined && typeof raw.blendMode === "string"
-    ? { type: "manual" as const, value: raw.blendMode === "multiply" ? 1 : 0 }
+    ? {
+      type: "manual" as const,
+      value: (GLOW_BLEND_MODE_AXIS as readonly string[]).indexOf(raw.blendMode),
+    }
     : undefined;
   return {
     blendModeSource: bounded(
+      // An unrecognised legacy name reads as -1, which the clamp below turns
+      // back into the default: screen.
       raw.blendModeSource ?? legacyBlendMode,
-      1,
+      GLOW_BLEND_MODE_AXIS.length - 1,
       fallback.blendModeSource,
     ),
     blurSource: bounded(raw.blurSource, 20, fallback.blurSource),

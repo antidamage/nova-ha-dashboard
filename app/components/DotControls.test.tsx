@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTROL_INTERACTION_COOLDOWN_MS, resetControlInteractionCooldownForTests } from "./controlInteractionCooldown";
-import { DotEnvelopeControl, DotLineControl, precisionDragScale } from "./DotControls";
+import { DotEnvelopeControl, DotLineControl, DotRangeControl, precisionDragScale } from "./DotControls";
 
 describe("precision drag scaling", () => {
   it("keeps full speed in the dead zone and reaches quarter speed at 100 pixels", () => {
@@ -110,5 +110,77 @@ describe("DotEnvelopeControl", () => {
     expect(release).toHaveAttribute("aria-valuenow", "1");
     expect(hold.style.left).not.toBe(attack.style.left);
     expect(release.style.left).not.toBe(hold.style.left);
+  });
+
+  // The thumbs push rather than block, and only ever rightwards: the three
+  // boundaries are cumulative, so moving attack must not silently rewrite the
+  // phases after it.
+  describe("pushing thumbs", () => {
+    const renderEnvelope = (value: [number, number, number]) => {
+      const onChange = vi.fn();
+      render(<DotEnvelopeControl ariaLabel="Envelope" max={12} step={0.05} value={value} onChange={onChange} />);
+      return {
+        attack: screen.getByRole("slider", { name: "Envelope attack end" }),
+        hold: screen.getByRole("slider", { name: "Envelope hold end" }),
+        onChange,
+        release: screen.getByRole("slider", { name: "Envelope release end" }),
+      };
+    };
+
+    it("carries hold and release along when attack moves", () => {
+      const { attack, onChange } = renderEnvelope([1, 2, 3]);
+
+      // A 0.05 step still moves by the finest decimal it expresses, 0.01.
+      fireEvent.keyDown(attack, { key: "ArrowRight" });
+      expect(onChange).toHaveBeenLastCalledWith([1.01, 2, 3]);
+
+      fireEvent.keyDown(attack, { key: "ArrowLeft" });
+      expect(onChange).toHaveBeenLastCalledWith([0.99, 2, 3]);
+    });
+
+    it("shrinks the carried phases rather than pushing them off the end", () => {
+      const { attack, onChange } = renderEnvelope([1, 2, 3]);
+
+      fireEvent.keyDown(attack, { key: "End" });
+
+      expect(onChange).toHaveBeenLastCalledWith([12, 0, 0]);
+    });
+
+    it("stops hold against attack without moving it, and carries release", () => {
+      const { hold, onChange } = renderEnvelope([1, 2, 3]);
+
+      fireEvent.keyDown(hold, { key: "Home" });
+      expect(onChange).toHaveBeenLastCalledWith([1, 0, 3]);
+
+      fireEvent.keyDown(hold, { key: "End" });
+      expect(onChange).toHaveBeenLastCalledWith([1, 11, 0]);
+    });
+
+    it("lets release be pushed by hold but never push it back", () => {
+      const { onChange, release } = renderEnvelope([1, 2, 3]);
+
+      fireEvent.keyDown(release, { key: "Home" });
+      expect(onChange).toHaveBeenLastCalledWith([1, 2, 0]);
+
+      fireEvent.keyDown(release, { key: "End" });
+      expect(onChange).toHaveBeenLastCalledWith([1, 2, 9]);
+    });
+  });
+});
+
+describe("DotRangeControl", () => {
+  afterEach(cleanup);
+
+  it("pushes the other thumb along instead of blocking against it", () => {
+    const onChange = vi.fn();
+    render(
+      <DotRangeControl ariaLabel="Range" min={0} max={100} step={1} value={[20, 50]} onChange={onChange} />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Range minimum" }), { key: "End" });
+    expect(onChange).toHaveBeenLastCalledWith([100, 100]);
+
+    fireEvent.keyDown(screen.getByRole("slider", { name: "Range maximum" }), { key: "Home" });
+    expect(onChange).toHaveBeenLastCalledWith([0, 0]);
   });
 });
