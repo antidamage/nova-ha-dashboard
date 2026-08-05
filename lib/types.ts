@@ -516,10 +516,10 @@ export type PhonoscopeColorValue = {
  * parameter driver, so all three are stored as sources rather than plain
  * values, exactly like `messageScaleSource`.
  *
- * The blend mode uses Photoshop's naming, on a 0-1 axis between the two: 0 is
- * screen, 1 is multiply, and both engines cut hard at 0.5 rather than
+ * The blend mode uses Photoshop's naming, on a whole-numbered axis: 0 is screen,
+ * 1 is multiply, 2 is overlay, and both engines snap to the nearest rather than
  * cross-fading. That is what lets a beat driver swap the mode on the beat while
- * a manual source still behaves as the plain two-way choice it looks like.
+ * a manual source still behaves as the plain named choice it looks like.
  */
 export type PhonoscopeGlowOverlay = {
   blendModeSource: PhonoscopeParameterSource;

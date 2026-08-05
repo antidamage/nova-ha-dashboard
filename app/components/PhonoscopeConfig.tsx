@@ -191,16 +191,18 @@ const GLOW_OPACITY_SETTING: ModuleSetting = {
   updateMode: "smooth",
 };
 // Blend mode as a driven parameter. Every driver produces a continuous number,
-// so the two modes sit on a 0-1 axis and both engines cut hard at 0.5 — no
-// cross-fade, because a swap on the beat should read as a switch. A step of 1
-// keeps the manual choice and both driver endpoints on the two real modes.
+// so the modes sit on a whole-numbered axis and both engines snap to the
+// nearest — no cross-fade, because a swap on the beat should read as a switch.
+// A step of 1 keeps the manual choice and both driver endpoints on real modes.
+// Modes are only ever appended: a stored driver range is a pair of numbers on
+// this axis, so renumbering would silently repoint existing configurations.
 const GLOW_BLEND_SETTING: ModuleSetting = {
   id: "glowBlend",
   label: "Blend mode",
   description: "How the glow layer is blended in, as a driven parameter.",
   control: "select",
   min: 0,
-  max: 1,
+  max: 2,
   step: 1,
   default: 0,
   affects: ["glow"],
@@ -208,6 +210,7 @@ const GLOW_BLEND_SETTING: ModuleSetting = {
   options: [
     { value: 0, label: "Screen" },
     { value: 1, label: "Multiply" },
+    { value: 2, label: "Overlay" },
   ],
   section: "Glow overlay",
   updateMode: "smooth",
@@ -215,6 +218,7 @@ const GLOW_BLEND_SETTING: ModuleSetting = {
 const GLOW_BLEND_ICONS: Record<number, ReactNode> = {
   0: <Sun />,
   1: <Moon />,
+  2: <Contrast />,
 };
 const THEME_TIME_MAX_SECONDS = 600;
 const THEME_TIME_SLIDER_MAX = 100;
@@ -1511,9 +1515,9 @@ export function PhonoscopeConfig() {
               </p>
               <span className="text-xs font-bold uppercase text-neutral-400">Blend mode</span>
               <p className="text-xs text-neutral-500">
-                Driven, the mode swaps as a hard cut wherever its driver crosses the
-                halfway point — a beat or downbeat source flips it on the beat. Leave it
-                on Manual for a fixed mode.
+                Driven, the mode swaps as a hard cut wherever its driver crosses from one
+                mode to the next — a beat or downbeat source flips it on the beat. Leave
+                it on Manual for a fixed mode.
               </p>
               <ParameterDriverControls
                 inherited={0}
