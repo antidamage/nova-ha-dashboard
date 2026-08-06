@@ -1,4 +1,8 @@
-import type { PhonoscopeDriver, PhonoscopeDriverType } from "../../../lib/types";
+import type {
+  PhonoscopeDriver,
+  PhonoscopeDriverType,
+  PhonoscopeEffectBinding,
+} from "../../../lib/types";
 import {
   PHONOSCOPE_PICTURE_EFFECTS,
   PHONOSCOPE_PICTURE_EFFECT_LABELS,
@@ -11,7 +15,7 @@ import {
   PHONOSCOPE_GLOW_BLEND_EFFECT,
   PHONOSCOPE_SCENE_BLEND_EFFECT,
   PHONOSCOPE_GLOW_CLAMP_EFFECT,
-  PHONOSCOPE_THEME_CHANGE_EFFECT,
+  isPhonoscopeThemePulseEffect,
   isPulseDriver,
 } from "../../../lib/phonoscope-drivers";
 
@@ -129,6 +133,41 @@ export function effectOptionFor(catalogue: EffectOption[], id: string) {
   return catalogue.find((effect) => effect.id === id);
 }
 
+/**
+ * A newly added effect, carrying the controls that ARE its control.
+ *
+ * An empty binding is legal — every unset field inherits the effect's
+ * declaration — but it puts an effect on screen with nothing in it, which reads
+ * as a broken row rather than as an invitation to add parameters. So an added
+ * effect arrives with the parameters that make it editable: the axis it runs
+ * on, and the ramp it takes to get there.
+ *
+ * Which ones those are is decided exactly as `EffectEntry` decides what it can
+ * still offer, so adding an effect and adding every parameter by hand produce
+ * the same binding:
+ *
+ * - A toggle or a discrete choice is pinned to its default: it is a state, not
+ *   something a driver sweeps, and it takes no envelope because it cuts.
+ * - A rotation pulse has no range at all — a firing is an instruction — but it
+ *   keeps the envelope, which is its cross-fade.
+ * - Anything else gets its full declared range and the standard envelope, which
+ *   is what an unset binding already resolves to.
+ */
+export function newEffectBinding(id: string, effect: EffectOption): PhonoscopeEffectBinding {
+  const binding: PhonoscopeEffectBinding = { id, effect: effect.id };
+  const discrete = Boolean(effect.choices) || Boolean(effect.toggle);
+  if (!isPhonoscopeThemePulseEffect(effect.id)) {
+    binding.min = discrete ? effect.default : effect.min;
+    binding.max = discrete ? effect.default : effect.max;
+  }
+  if (!discrete) {
+    binding.attackSeconds = 0.05;
+    binding.holdSeconds = 0;
+    binding.releaseSeconds = 0.6;
+  }
+  return binding;
+}
+
 /** "Grid width" under the Grid heading is just "Width". */
 function stripped(label: string, groupLabel: string) {
   const prefix = `${groupLabel.toLowerCase()} `;
@@ -194,6 +233,54 @@ const DRIVER_LABELS: Record<PhonoscopeDriverType, string> = {
 /** The `every` choices. Ordinals read better than raw numbers on a cycle. */
 export const EVERY_CHOICES = [1, 2, 3, 4, 6, 8, 12, 16];
 
+/** The subdivisions, fastest first, as they read in the cadence list. */
+export const DIVIDE_CHOICES: { divide: number; label: string }[] = [
+  { divide: 8, label: "Eighth" },
+  { divide: 4, label: "Quarter" },
+  { divide: 2, label: "Half" },
+];
+
+/** The pulse a counted driver counts, as a noun: beats, or bars. */
+export function driverPulseNoun(driver: PhonoscopeDriver) {
+  const type = driver.type === "random" ? driver.cadence : driver.type;
+  return type === "downbeat" ? "bar" : "beat";
+}
+
+/**
+ * The single cadence list: subdivisions of the pulse, then the pulse itself,
+ * then multiples of it. One control rather than two because they are one
+ * question — how often — asked in two directions, and a list that runs
+ * continuously from "eighth beat" to "every 16th" reads as that one question.
+ *
+ * Each option carries the `every`/`divide` pair it means, so the row never has
+ * to reconstruct one from the other.
+ */
+export function cadenceChoices(driver: PhonoscopeDriver) {
+  const noun = driverPulseNoun(driver);
+  const subdivisions = driverSupportsDivide(driver)
+    ? DIVIDE_CHOICES.map(({ divide, label }) => ({
+        value: `1/${divide}`,
+        label: `${label} ${noun}`,
+        every: 1,
+        divide,
+      }))
+    : [];
+  return [
+    ...subdivisions,
+    ...EVERY_CHOICES.map((every) => ({
+      value: String(every),
+      label: every === 1 ? "Every one" : ordinal(every),
+      every,
+      divide: 1,
+    })),
+  ];
+}
+
+/** Which cadence option a driver currently sits on. */
+export function cadenceValue(driver: PhonoscopeDriver) {
+  return driver.divide > 1 ? `1/${driver.divide}` : String(driver.every);
+}
+
 export function ordinal(value: number) {
   const remainderTen = value % 10;
   const remainderHundred = value % 100;
@@ -218,11 +305,17 @@ export function driverLabel(driver: PhonoscopeDriver): string {
     return `Timer · ${driver.intervalSeconds.toFixed(1)}s${suffix}`;
   }
   if (driver.type === "random") {
-    return `Random on ${driverTypeLabel(driver.cadence).toLowerCase()}`;
+    const on = driver.divide > 1
+      ? subdivisionLabel(driver).toLowerCase()
+      : driverTypeLabel(driver.cadence).toLowerCase();
+    return `Random on ${on}`;
   }
   if (driver.type !== "beat" && driver.type !== "downbeat" && driver.type !== "song") {
     return base;
   }
+  // A subdivided lane is faster than the pulse it names, so the subdivision is
+  // the whole story — there is no cycle left to offset within.
+  if (driver.divide > 1) return subdivisionLabel(driver);
   if (driver.every <= 1) return base;
   const cycle = `Every ${ordinal(driver.every)} ${base.toLowerCase()}`;
   return driver.offset > 0 ? `${cycle}, from the ${ordinal(driver.offset + 1)}` : cycle;
@@ -231,6 +324,22 @@ export function driverLabel(driver: PhonoscopeDriver): string {
 export function laneLabel(driver: PhonoscopeDriver, modifiers: PhonoscopeDriver[]) {
   const extra = modifiers.map((modifier) => driverTypeLabel(modifier.type)).join(" + ");
   return extra ? `${driverLabel(driver)} + ${extra}` : driverLabel(driver);
+}
+
+/** "Quarter beat", "Half bar" — how a subdivided driver reads. */
+export function subdivisionLabel(driver: PhonoscopeDriver) {
+  const named = DIVIDE_CHOICES.find((choice) => choice.divide === driver.divide);
+  return `${named?.label ?? `1/${driver.divide}`} ${driverPulseNoun(driver)}`;
+}
+
+/**
+ * Only the two musical pulses subdivide. A song cannot be cut in half, and a
+ * timer's interval is already a free-running number — halving it is what the
+ * interval slider is for.
+ */
+export function driverSupportsDivide(driver: PhonoscopeDriver) {
+  const type = driver.type === "random" ? driver.cadence : driver.type;
+  return type === "beat" || type === "downbeat";
 }
 
 /** `every`/`offset` only mean anything on a counted pulse. */
@@ -244,8 +353,9 @@ export function driverSupportsCycle(driver: PhonoscopeDriver) {
 
 /**
  * A level driver carries no discrete event, so it can never advance the colour
- * rotation. The editor says so rather than letting the binding sit there inert.
+ * rotation or flip the alt state. The editor says so rather than letting the
+ * binding sit there inert.
  */
 export function effectNeedsPulseDriver(effectId: string) {
-  return effectId === PHONOSCOPE_THEME_CHANGE_EFFECT;
+  return isPhonoscopeThemePulseEffect(effectId);
 }

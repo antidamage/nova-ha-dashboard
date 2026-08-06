@@ -34,6 +34,11 @@ export const PHONOSCOPE_MESSAGE_SCALE_EFFECT = "__messageScale";
 export const PHONOSCOPE_CENTRE_HEIGHT_EFFECT = "__centreHeight";
 export const PHONOSCOPE_HUE_OFFSET_EFFECT = "__hueOffset";
 export const PHONOSCOPE_THEME_CHANGE_EFFECT = "__themeChange";
+/**
+ * Toggles the household's alt-theme state. Each firing flips it, so the picture
+ * blends to the current entry's alt theme and the next firing blends back.
+ */
+export const PHONOSCOPE_ALT_THEME_EFFECT = "__altTheme";
 /** Frame geometry and the vignette framing it. */
 export const PHONOSCOPE_BG_HEIGHT_EFFECT = "__bgHeight";
 export const PHONOSCOPE_BG_WIDTH_EFFECT = "__bgWidth";
@@ -41,6 +46,18 @@ export const PHONOSCOPE_VIGNETTE_OPACITY_EFFECT = "__vignetteOpacity";
 export const PHONOSCOPE_VIGNETTE_SIZE_EFFECT = "__vignetteSize";
 /** How the scene layer meets the backdrop. */
 export const PHONOSCOPE_SCENE_BLEND_EFFECT = "__sceneBlend";
+
+/**
+ * The two rotation pulses: a firing is an instruction, not a magnitude.
+ *
+ * Both are fixed at the declared 0-1 range — any non-zero contribution is one
+ * firing — and both read their binding's release as the cross-fade the picture
+ * takes to reach the new palette, which is why neither offers a range and both
+ * label their envelope "Transition".
+ */
+export function isPhonoscopeThemePulseEffect(effect: string) {
+  return effect === PHONOSCOPE_THEME_CHANGE_EFFECT || effect === PHONOSCOPE_ALT_THEME_EFFECT;
+}
 
 /**
  * How the playlist plays: loop, shuffle, or once through and stop.
@@ -89,6 +106,10 @@ export type PhonoscopeSignalFrame = {
   delta: number;
   beatIndex: number;
   barIndex: number;
+  /** 0..1 position within the current beat, for subdividing it. */
+  beatPhase: number;
+  /** 0..1 position within the current bar, for subdividing it. */
+  barPhase: number;
   /** 0..1, decaying across the beat. */
   beatPulse: number;
   /** 0..1, `beatPulse` on the first beat of a bar and zero otherwise. */
@@ -181,6 +202,31 @@ export function driverFiresOn(index: number, every: number, offset: number) {
   return (((index - phase) % cycle) + cycle) % cycle === 0;
 }
 
+/** The subdivisions a counted pulse can be split into. */
+export const PHONOSCOPE_DIVIDE_CHOICES = [1, 2, 4, 8];
+
+/**
+ * How many times per pulse this driver fires. Anything other than a supported
+ * subdivision reads as the whole pulse, so an older configuration — or a newer
+ * one this engine does not understand — degrades to the behaviour it had before
+ * subdivisions existed rather than to silence.
+ */
+export function driverDivide(driver: PhonoscopeDriver) {
+  const value = Math.floor(finite(driver.divide ?? 1, 1));
+  return PHONOSCOPE_DIVIDE_CHOICES.includes(value) ? value : 1;
+}
+
+/**
+ * The event index a subdivided pulse is on: the whole-pulse index plus how far
+ * through it the frame is, scaled by the subdivision. At `divide: 1` this is
+ * exactly the whole-pulse index, so an undivided driver is untouched.
+ */
+function subdividedIndex(index: number, phase: number, divide: number) {
+  if (divide <= 1) return Math.floor(finite(index, 0));
+  const position = Math.floor(finite(index, 0)) + Math.max(0, Math.min(1, finite(phase, 0)));
+  return Math.floor(position * divide);
+}
+
 /**
  * How rarely a lane fires, in seconds, used to rank lanes when an effect
  * combines by `strongest`. Longer wins, so an every-4th-downbeat hit covers a
@@ -190,13 +236,17 @@ export function driverPeriodSeconds(driver: PhonoscopeDriver, frame: PhonoscopeS
   const every = Math.max(1, Math.floor(finite(driver.every, 1)));
   const secondsPerBeat = Math.max(1e-6, finite(frame.secondsPerBeat, 0.5));
   const beatsPerBar = Math.max(1, finite(frame.beatsPerBar, 4));
+  // Subdividing makes a lane commoner, which is exactly what `strongest` ranks
+  // by, so a quarter-beat lane loses to a plain beat the same way a beat loses
+  // to a downbeat.
+  const divide = driverDivide(driver);
   switch (driver.type) {
     // A song is the rarest thing that can happen, and its length is unknown
     // ahead of time, so it always outranks a counted pulse.
     case "song": return Number.POSITIVE_INFINITY;
     case "timer": return every * Math.max(0.25, finite(driver.intervalSeconds, 4));
-    case "downbeat": return every * beatsPerBar * secondsPerBeat;
-    case "beat": return every * secondsPerBeat;
+    case "downbeat": return every * beatsPerBar * secondsPerBeat / divide;
+    case "beat": return every * secondsPerBeat / divide;
     default: return 0;
   }
 }
@@ -272,12 +322,17 @@ function pulseEventKey(
     const index = Math.floor(finite(frame.time, 0) / interval);
     return driverFiresOn(index, driver.every, driver.offset) ? `t:${index}` : "";
   }
+  // A subdivided driver carries its subdivision in the key so that changing the
+  // subdivision live always reads as a new event, and so the keys an undivided
+  // driver produces are byte-for-byte the ones the conformance corpus recorded.
+  const divide = driverDivide(driver);
+  const suffix = divide > 1 ? `/${divide}` : "";
   if (driver.type === "downbeat") {
-    const index = Math.floor(finite(frame.barIndex, 0));
-    return driverFiresOn(index, driver.every, driver.offset) ? `d:${index}` : "";
+    const index = subdividedIndex(frame.barIndex, frame.barPhase, divide);
+    return driverFiresOn(index, driver.every, driver.offset) ? `d${suffix}:${index}` : "";
   }
-  const index = Math.floor(finite(frame.beatIndex, 0));
-  return driverFiresOn(index, driver.every, driver.offset) ? `b:${index}` : "";
+  const index = subdividedIndex(frame.beatIndex, frame.beatPhase, divide);
+  return driverFiresOn(index, driver.every, driver.offset) ? `b${suffix}:${index}` : "";
 }
 
 type EnvelopeTimes = {
@@ -558,14 +613,29 @@ function clampToDeclaration(declaration: PhonoscopeEffectDeclaration, value: num
 
 /** A driver with every field populated, for building defaults in the UI and tests. */
 export function phonoscopeDriver(partial: Partial<PhonoscopeDriver> = {}): PhonoscopeDriver {
-  const every = Math.max(1, Math.min(16, Math.floor(finite(partial.every ?? 1, 1))));
+  const requested = Math.floor(finite(partial.divide ?? 1, 1));
+  const type = partial.type ?? "beat";
+  const cadence = partial.cadence ?? "beat";
+  // Only the two musical pulses subdivide, so switching a subdivided lane to
+  // `song` or `timer` drops the subdivision rather than parking a value the
+  // engines would ignore.
+  const pulse = type === "random" ? cadence : type;
+  const divide = PHONOSCOPE_DIVIDE_CHOICES.includes(requested)
+    && (pulse === "beat" || pulse === "downbeat")
+    ? requested
+    : 1;
+  // Counting and subdividing are the two directions of one control, so a
+  // subdivided driver is always "every one" — and an offset within a cycle of
+  // one is nothing at all.
+  const every = divide > 1 ? 1 : Math.max(1, Math.min(16, Math.floor(finite(partial.every ?? 1, 1))));
   return {
-    type: partial.type ?? "beat",
+    type,
     every,
+    divide,
     // An offset only means anything inside the cycle it offsets within.
     offset: Math.max(0, Math.min(every - 1, Math.floor(finite(partial.offset ?? 0, 0)))),
     intervalSeconds: Math.max(0.25, Math.min(600, finite(partial.intervalSeconds ?? 4, 4))),
-    cadence: partial.cadence ?? "beat",
+    cadence,
     transitionSeconds: Math.max(0, Math.min(10, finite(partial.transitionSeconds ?? 0.5, 0.5))),
   };
 }

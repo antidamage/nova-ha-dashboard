@@ -64,7 +64,8 @@ the named component before introducing a one-off equivalent.
   `SettingsGroupCard`, `ColorGroupEditor`, `ColorThemeLibrary`,
   `HousePartySection`, and `ControlSettingsPanel` —
   `app/components/phonoscope/`. These are the Visualiser controls panel: a
-  driver row with its `every`/`from` selects, the primary-plus-inset-modifier
+  driver row with its cadence select (subdivisions through multiples, one list)
+  and its `from` select, the primary-plus-inset-modifier
   driver stack, a collapsible effect binding with its sparse `+ Add parameter`
   menu, and the settings-group / colour-theme / colour-group libraries that
   compose them. Reuse them for anything else that binds a value to a music

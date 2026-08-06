@@ -1858,14 +1858,31 @@ Visualiser controls (the config panel formerly called Physics):
   — assigning one steals it from whichever group held it, and the editor says so
   at the moment of assignment. The `chooseColorGroupByGenre` toggle that arms the
   routing sits outside the group list.
-- Driver-lane semantics — driver types, `every`/`offset` gating, modifier
-  summation, envelopes, add vs strongest, and the overshoot guard — are specified
-  in `PHONOSCOPE_MODULE_SPEC.md` §10 "Driver lanes" and shared by all three
-  engines. `lib/phonoscope-drivers.ts` is the dashboard's copy.
+- Driver-lane semantics — driver types, `every`/`offset` gating, `divide`
+  subdivision, modifier summation, envelopes, add vs strongest, and the
+  overshoot guard — are specified in `PHONOSCOPE_MODULE_SPEC.md` §10 "Driver
+  lanes" and shared by all three engines. `lib/phonoscope-drivers.ts` is the
+  dashboard's copy.
+- A driver row asks "how often" once: a single cadence list running from
+  "Eighth beat" through "Every one" to "Every 16th". Faster than the pulse there
+  is nothing to start on, so the "Starting on" control is absent for a
+  subdivided driver rather than shown inert.
 - Nesting is `ConfigAccordion` throughout — settings group → driver lane →
   effect — so opening one closes its siblings at each level without any new
   state. Effects are collapsed by default and expose only the parameters that
-  have been added; anything unset inherits the effect's declared default.
+  have been added; anything unset inherits the effect's declared default. An
+  effect is *added* carrying the parameters that are its control, so it is never
+  an empty row: its declared range plus an envelope, a checkbox pinned to its
+  default for a toggle, a mode pinned to its default for a discrete axis, and
+  the transition alone for a rotation pulse.
+- Each entry in a colour theme group may name an **Alt theme** beneath its
+  colour theme: a link to another theme in the same library, not a copy. The
+  "Change to alt theme" effect (`__altTheme`) flips one household-wide state, so
+  the whole system blends to whichever alt is available and the next firing
+  blends back. Entries that name no alt keep their own colours and leave the
+  state alone, which is what makes A → A-alt → B → C show C's alt. Editing the
+  linked theme edits it everywhere it is used, and deleting it releases the link
+  rather than leaving a dangling reference.
 - **Solo** locks the visualiser to one colour theme and/or one settings group.
   It is persisted (`soloColorThemeId`, `soloSettingsGroupId`) and deliberately
   survives leaving the page, so a floating indicator in the top-right names what
@@ -1876,6 +1893,38 @@ Visualiser controls (the config panel formerly called Physics):
 - Configurations written before this structure are migrated once on read by
   `lib/phonoscope-migrate-v3.ts`, which is behaviour-identical to the old
   baseline-plus-overrides cascade.
+
+Preference history and restore:
+
+- Every write to `data/dashboard-preferences.json` is recorded as a running
+  diff in `data/history/preferences/`: `log.jsonl` holds one JSON Patch per
+  revision, `genesis.json` the state the first revision changed away from, and
+  periodic `checkpoint-*.json` snapshots bound how far a replay has to run.
+  Recording happens inside the preferences write queue, after the save lands,
+  and swallows its own failures — losing an undo point must never fail the save.
+- **A revision is a minute, not a save.** Ten changes inside one minute are one
+  revert point: the first write opens the bucket and every later write in that
+  minute recomputes its patch against the state as the minute opened, so the
+  entry always means "everything that happened during this minute". Saves that
+  only restamp an `updatedAt` are not recorded at all.
+- Any point in time is reconstructed by replaying from the nearest checkpoint,
+  which is what lets the restore offer a branch that did *not* change at that
+  moment. The API takes a `before` flag for the state a revision changed away
+  from; the panel does not use it, because a single reading is clearer and
+  nothing is lost — the state before a change is the state after the change
+  preceding it, so recovering a deletion means restoring the row below it.
+- `POST /api/preferences/history` restores the selected JSON pointers from a
+  revision. A pointer absent at that revision is removed rather than skipped, so
+  "put this back to how it was" can mean "it was not there" — which is why the
+  restore writes through `replaceDashboardPreferences` rather than the merging
+  path, since a merge cannot express a removal. The restore is itself recorded
+  as a new revision and can be wound back in turn.
+- The **History** panel leads System & Data. It lists revert points newest
+  first, each with one **Restore** button meaning "the configuration as it stood
+  once this minute's changes had been made". Choosing one shows the whole
+  configuration as a tree of checkboxes: every branch is selectable, the ones
+  that revision moved are dotted, and branches that are gone now or were added
+  since say so.
 
 Phonoscope track timing:
 

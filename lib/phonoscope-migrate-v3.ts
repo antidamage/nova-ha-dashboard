@@ -75,6 +75,7 @@ function driverOf(partial: Partial<PhonoscopeDriver>): PhonoscopeDriver {
     type: partial.type ?? "beat",
     every: partial.every ?? 1,
     offset: partial.offset ?? 0,
+    divide: partial.divide ?? 1,
     intervalSeconds: partial.intervalSeconds ?? 4,
     cadence: partial.cadence ?? "beat",
     transitionSeconds: partial.transitionSeconds ?? 0.5,
