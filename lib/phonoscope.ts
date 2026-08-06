@@ -70,6 +70,13 @@ export type PhonoscopeSetting = {
   curve: PhonoscopeControlCurve;
   options: PhonoscopeControlOption[];
   section: string;
+  /**
+   * Optional effect group this setting belongs to in the controls editor, so
+   * related axes read as one effect with parameters rather than several
+   * entries in the picker. Presentation only — neither engine reads it, and
+   * both parse settings field by field, so it costs them nothing.
+   */
+  group: string;
   updateMode: "smooth" | "structural";
 };
 
@@ -518,6 +525,7 @@ function normalizeSettings(value: unknown, errors: string[]): PhonoscopeSetting[
       },
       options,
       section: typeof entry.section === "string" ? entry.section.trim().slice(0, 64) : "",
+      group: typeof entry.group === "string" ? entry.group.trim().slice(0, 64) : "",
       updateMode: entry.updateMode === "structural" ? "structural" : "smooth",
     }];
   });

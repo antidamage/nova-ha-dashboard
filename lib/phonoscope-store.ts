@@ -17,39 +17,87 @@ import {
 } from "./phonoscope";
 import { publishPhonoscopeConfig } from "./dashboard-events";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
-import { normalizeThemeLibrary } from "./theme-library";
 import { decimalStepGranularity } from "./slider-step";
+import { migratePhonoscopeToV3, PHONOSCOPE_DEFAULT_SETTINGS_GROUP_ID } from "./phonoscope-migrate-v3";
+import {
+  migratePhonoscopeModuleSettingsToPercent,
+  migratePhonoscopeScalarsToPercent,
+  migratePhonoscopeSettingsGroupsToPercent,
+  PHONOSCOPE_SCHEMA_VERSION,
+} from "./phonoscope-migrate-v4";
+import { phonoscopeEffectDeclarations } from "./phonoscope-effects";
+import { PHONOSCOPE_THEME_CHANGE_EFFECT } from "./phonoscope-drivers";
 import type {
   PhonoscopeColorGroup,
-  PhonoscopeGlowOverlay,
+  PhonoscopeColorGroupEntry,
   PhonoscopeColorTheme,
   PhonoscopeColorValue,
-  PhonoscopeParameterSource,
+  PhonoscopeCombineMode,
+  PhonoscopeDriver,
+  PhonoscopeDriverLane,
+  PhonoscopeEffectBinding,
+  PhonoscopeHouseParty,
   PhonoscopePreferences,
-  PhonoscopeThemeGroup,
+  PhonoscopeSettingsGroup,
 } from "./types";
 
 const MODULE_ROOT =
   process.env.NOVA_PHONOSCOPE_MODULES_DIR ?? path.join(process.cwd(), "data", "phonoscope", "modules");
 const RETIRED_PHONOSCOPE_MODULE_IDS = new Set(["hypervault"]);
 
-export const DEFAULT_PHONOSCOPE_CONFIG: Required<Omit<PhonoscopePreferences, "updatedAt">> = {
+export type PhonoscopeConfig = {
+  /**
+   * Which migrations have already been applied to the stored shape. Read
+   * bumps it to `PHONOSCOPE_SCHEMA_VERSION`; the next write persists it. See
+   * `phonoscope-migrate-v4.ts` for why the percentage conversion cannot be
+   * sniffed from the values themselves.
+   */
+  schemaVersion: number;
+  activeModuleId: string;
+  activeModuleVersion: string;
+  idleBehavior: "ambient" | "black" | "return";
+  /**
+   * The centre of the picture, when it is text.
+   *
+   * The image half comes from the live colour theme, never from here. A
+   * non-blank message overrides whatever image the theme supplies; blank means
+   * the theme's image shows, and a theme with no image means nothing is drawn.
+   */
+  message: string;
+  statusOverlay: boolean;
+  transitionMs: number;
+  providers: {
+    spotify: boolean;
+    songle: boolean;
+    essentia: boolean;
+    reccoBeats: boolean;
+    lrclib: boolean;
+  };
+  moduleSettings: Record<string, Record<string, number>>;
+  pendingStructuralModuleSettings: Record<string, Record<string, number>>;
+  moduleReloadGenerations: Record<string, number>;
+  settingsGroups: PhonoscopeSettingsGroup[];
+  colorThemes: PhonoscopeColorTheme[];
+  colorGroups: PhonoscopeColorGroup[];
+  moduleColorGroupIds: Record<string, string>;
+  chooseColorGroupByGenre: boolean;
+  structuralSettings: Record<string, number>;
+  houseParty: PhonoscopeHouseParty;
+  soloColorThemeId: string;
+  soloSettingsGroupId: string;
+  editorPreviewColorGroupId: string;
+  editorPreviewColorEntryId: string;
+  updatedAt?: string;
+};
+
+export const DEFAULT_PHONOSCOPE_CONFIG: Omit<PhonoscopeConfig, "updatedAt"> = {
+  schemaVersion: PHONOSCOPE_SCHEMA_VERSION,
   activeModuleId: "bpm-pulse",
   activeModuleVersion: "1.0.0",
   idleBehavior: "ambient",
   message: "",
-  messageScaleSource: { type: "manual", value: 1 },
-  glowOverlay: {
-    // 0 is screen, 1 is multiply, 2 is overlay.
-    blendModeSource: { type: "manual", value: 0 },
-    blurSource: { type: "manual", value: 0 },
-    // Opacity 0 is the identity, and it is what both engines check to skip the
-    // pass entirely. A new install therefore pays nothing for this layer.
-    opacitySource: { type: "manual", value: 0 },
-  },
   statusOverlay: true,
   transitionMs: 600,
-  housePartyRandomHueOffset: 0,
   providers: {
     spotify: true,
     songle: true,
@@ -58,15 +106,23 @@ export const DEFAULT_PHONOSCOPE_CONFIG: Required<Omit<PhonoscopePreferences, "up
     lrclib: true,
   },
   moduleSettings: {},
-  moduleParameterSources: {},
   pendingStructuralModuleSettings: {},
   moduleReloadGenerations: {},
+  settingsGroups: [],
+  colorThemes: [],
   colorGroups: [],
   moduleColorGroupIds: {},
+  chooseColorGroupByGenre: false,
+  structuralSettings: {},
+  houseParty: {
+    enabled: true,
+    hueMode: "follow",
+    brightnessMode: "follow",
+  },
+  soloColorThemeId: "",
+  soloSettingsGroupId: "",
   editorPreviewColorGroupId: "",
-  editorPreviewColorThemeId: "",
-  themeGroups: [],
-  moduleThemeGroupIds: {},
+  editorPreviewColorEntryId: "",
 };
 
 const DEFAULT_COLORS: Record<string, PhonoscopeColorValue> = Object.fromEntries(
@@ -125,26 +181,6 @@ function particleRippleColors(
   return colors;
 }
 
-function starterColorGroup(): PhonoscopeColorGroup {
-  return {
-    id: "default_visualiser",
-    moduleId: "particle-ripples",
-    name: "Default Visualiser",
-    themes: [{
-      id: "default",
-      name: "Default",
-      colors: particleRippleColors(cloneDefaultColors()),
-      parameterOverrides: {},
-    }],
-    order: "sequential",
-    changeMode: "interval",
-    waitSeconds: 60,
-    transitionSeconds: 3,
-    housePartyHueMode: "follow",
-    housePartyBrightnessMode: "follow",
-  };
-}
-
 function normalizedColor(value: unknown, fallback: PhonoscopeColorValue): PhonoscopeColorValue {
   const raw = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -178,289 +214,335 @@ function finiteClamped(value: unknown, fallback: number, min: number, max: numbe
   return Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : fallback;
 }
 
-export function normalizePhonoscopeParameterSource(value: unknown): PhonoscopeParameterSource | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const raw = value as Record<string, unknown>;
-  const type = String(raw.type);
-  if (type === "manual") {
-    return { type, value: finiteClamped(raw.value, 0, -1e9, 1e9) };
-  }
-  const min = finiteClamped(raw.min, 0, -1e9, 1e9);
-  const max = Math.max(min, finiteClamped(raw.max, min, -1e9, 1e9));
-  if (type === "random") {
-    const cadence = ["beat", "downbeat", "bar", "song", "interval"].includes(String(raw.cadence))
-      ? raw.cadence as "beat" | "downbeat" | "bar" | "song" | "interval"
-      : "beat";
-    return {
-      type,
-      min,
-      max,
-      cadence,
-      intervalSeconds: finiteClamped(raw.intervalSeconds, 4, 0.25, 60),
-      transitionSeconds: finiteClamped(raw.transitionSeconds, 0.5, 0, 10),
-    };
-  }
-  if (["beat", "downbeat", "energy", "bass", "mid", "treble"].includes(type)) {
-    const attackSeconds = finiteClamped(raw.attackSeconds, 0.05, 0, 12);
-    const holdSeconds = finiteClamped(raw.holdSeconds, 0, 0, 12 - attackSeconds);
-    return {
-      type: type as "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble",
-      min,
-      max,
-      attackSeconds,
-      holdSeconds,
-      releaseSeconds: finiteClamped(raw.releaseSeconds, 0.6, 0, 12 - attackSeconds - holdSeconds),
-    };
-  }
-  return null;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-/**
- * The glow-overlay blend modes, in the order they are numbered on the
- * `blendModeSource` axis. Mirrors `nova::GlowBlendMode` and
- * `PhonoscopeGlowBlendMode`. Only ever append: a stored driver range is a pair
- * of numbers on this axis, so renumbering repoints existing configurations.
- */
-const GLOW_BLEND_MODE_AXIS = ["screen", "multiply", "overlay"] as const;
+const PHONOSCOPE_DRIVER_TYPES = [
+  "beat", "downbeat", "timer", "song", "energy", "bass", "mid", "treble", "random",
+] as const;
+const PHONOSCOPE_PULSE_TYPES = ["beat", "downbeat", "timer", "song"] as const;
+/** An effect id is a module setting id or a private picture effect (`__glowBlur`). */
+const PHONOSCOPE_EFFECT_ID = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
+/** Enough modifiers to be expressive; the lane signal saturates at 4 regardless. */
+const PHONOSCOPE_MAX_MODIFIERS = 4;
 
 /**
- * The glow overlay's driven parameters are bounded by the layer itself rather
- * than by any module declaration, so they are clamped here: blur 0-20, opacity
- * 0-100, blend mode 0-2 (0 screen, 1 multiply, 2 overlay). A source whose
- * envelope or range is unusable falls back to the caller's current value rather
- * than silently disabling the layer.
+ * Every driver field is always present on the wire. `config_client.cpp` and
+ * `PhonoscopeModels.swift` hand-parse the same JSON, and a sparse driver would
+ * cost each of them a branch per field.
  */
-export function normalizePhonoscopeGlowOverlay(
-  value: unknown,
-  fallback: PhonoscopeGlowOverlay,
-): PhonoscopeGlowOverlay {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return fallback;
-  const raw = value as Record<string, unknown>;
-  const bounded = (source: unknown, max: number, previous: PhonoscopeParameterSource) => {
-    const normalized = normalizePhonoscopeParameterSource(source);
-    if (!normalized) return previous;
-    if (normalized.type === "manual") {
-      return { ...normalized, value: finiteClamped(normalized.value, 0, 0, max) };
-    }
-    const min = finiteClamped(normalized.min, 0, 0, max);
-    return {
-      ...normalized,
-      min,
-      max: Math.max(min, finiteClamped(normalized.max, min, 0, max)),
-    };
-  };
-  // Configurations written before the blend mode became a driven parameter
-  // carry a plain `blendMode` string instead. Read it as the manual source it
-  // maps to, so an install already set to multiply stays on multiply.
-  const legacyBlendMode = raw.blendModeSource === undefined && typeof raw.blendMode === "string"
-    ? {
-      type: "manual" as const,
-      value: (GLOW_BLEND_MODE_AXIS as readonly string[]).indexOf(raw.blendMode),
-    }
-    : undefined;
+function normalizeDriver(value: unknown): PhonoscopeDriver {
+  const raw = isRecord(value) ? value : {};
+  const type = (PHONOSCOPE_DRIVER_TYPES as readonly string[]).includes(String(raw.type))
+    ? String(raw.type) as PhonoscopeDriver["type"]
+    : "beat";
+  const every = Math.round(finiteClamped(raw.every, 1, 1, 16));
   return {
-    blendModeSource: bounded(
-      // An unrecognised legacy name reads as -1, which the clamp below turns
-      // back into the default: screen.
-      raw.blendModeSource ?? legacyBlendMode,
-      GLOW_BLEND_MODE_AXIS.length - 1,
-      fallback.blendModeSource,
-    ),
-    blurSource: bounded(raw.blurSource, 20, fallback.blurSource),
-    opacitySource: bounded(raw.opacitySource, 100, fallback.opacitySource),
+    type,
+    every,
+    // An offset only means anything inside the cycle it offsets within.
+    offset: Math.round(finiteClamped(raw.offset, 0, 0, Math.max(0, every - 1))),
+    intervalSeconds: finiteClamped(raw.intervalSeconds, 4, 0.25, 600),
+    cadence: (PHONOSCOPE_PULSE_TYPES as readonly string[]).includes(String(raw.cadence))
+      ? String(raw.cadence) as PhonoscopeDriver["cadence"]
+      : "beat",
+    transitionSeconds: finiteClamped(raw.transitionSeconds, 0.5, 0, 10),
   };
 }
 
-function normalizeParameterOverrides(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return Object.fromEntries(Object.entries(value as Record<string, unknown>).flatMap(([moduleId, rawSettings]) => {
-    if (!PHONOSCOPE_MODULE_ID.test(moduleId) || !rawSettings || typeof rawSettings !== "object" || Array.isArray(rawSettings)) return [];
-    const settings = Object.fromEntries(Object.entries(rawSettings as Record<string, unknown>).flatMap(([settingId, rawSource]) => {
-      if (!PHONOSCOPE_MODULE_ID.test(settingId)) return [];
-      const source = normalizePhonoscopeParameterSource(rawSource);
-      return source ? [[settingId, source]] : [];
-    }));
-    return Object.keys(settings).length ? [[moduleId, settings]] : [];
-  }));
+/**
+ * Bindings stay sparse: an absent field inherits the effect's declaration, so
+ * only what the author actually set is written back. Ranges are deliberately
+ * not clamped here — the declaration that bounds them belongs to the module,
+ * which the evaluator resolves against at draw time.
+ */
+function normalizeBinding(value: unknown, index: number): PhonoscopeEffectBinding | null {
+  if (!isRecord(value)) return null;
+  const effect = typeof value.effect === "string" ? value.effect.trim() : "";
+  if (!PHONOSCOPE_EFFECT_ID.test(effect)) return null;
+  const binding: PhonoscopeEffectBinding = {
+    id: typeof value.id === "string" && value.id.trim()
+      ? value.id.trim().slice(0, 64)
+      : `bind_${index + 1}`,
+    effect,
+  };
+  // The theme change is a pulse — any non-zero contribution advances the
+  // rotation by one entry — so its range is fixed at the declared 0-1 and the
+  // editor does not offer it. Dropping a stored range keeps what runs identical
+  // to what is shown.
+  if (effect !== PHONOSCOPE_THEME_CHANGE_EFFECT) {
+    if (Number.isFinite(Number(value.min))) binding.min = Number(value.min);
+    if (Number.isFinite(Number(value.max))) binding.max = Number(value.max);
+  }
+  if (Number.isFinite(Number(value.attackSeconds))) {
+    binding.attackSeconds = finiteClamped(value.attackSeconds, 0.05, 0, 60);
+  }
+  if (Number.isFinite(Number(value.holdSeconds))) {
+    binding.holdSeconds = finiteClamped(value.holdSeconds, 0, 0, 60);
+  }
+  if (Number.isFinite(Number(value.releaseSeconds))) {
+    binding.releaseSeconds = finiteClamped(value.releaseSeconds, 0.6, 0, 600);
+  }
+  if (isRecord(value.params)) {
+    const params: Record<string, number> = {};
+    for (const [key, entry] of Object.entries(value.params)) {
+      if (/^[a-z][a-zA-Z0-9_]{0,31}$/.test(key) && Number.isFinite(Number(entry))) {
+        params[key] = Number(entry);
+      }
+    }
+    if (Object.keys(params).length) binding.params = params;
+  }
+  return binding;
 }
 
-export function normalizePhonoscopeColorGroups(value: unknown): PhonoscopeColorGroup[] {
-  if (!Array.isArray(value)) return [];
-  const groupIds = new Set<string>();
-  return value.flatMap((rawGroup, groupIndex) => {
-    if (!rawGroup || typeof rawGroup !== "object" || Array.isArray(rawGroup)) return [];
-    const group = rawGroup as Record<string, unknown>;
-    const id = typeof group.id === "string" && PHONOSCOPE_MODULE_ID.test(group.id)
-      ? group.id : `color_group_${groupIndex + 1}`;
-    if (groupIds.has(id)) return [];
-    groupIds.add(id);
-    const moduleId = typeof group.moduleId === "string" && PHONOSCOPE_MODULE_ID.test(group.moduleId)
-      ? group.moduleId
-      : "particle-ripples";
-    const themeIds = new Set<string>();
-    const themes = Array.isArray(group.themes) ? group.themes.flatMap((rawTheme, themeIndex) => {
-      if (!rawTheme || typeof rawTheme !== "object" || Array.isArray(rawTheme)) return [];
-      const theme = rawTheme as Record<string, unknown>;
-      const themeId = typeof theme.id === "string" && PHONOSCOPE_MODULE_ID.test(theme.id)
-        ? theme.id : `theme_${themeIndex + 1}`;
-      if (themeIds.has(themeId)) return [];
-      themeIds.add(themeId);
-      const rawColors = theme.colors && typeof theme.colors === "object" && !Array.isArray(theme.colors)
-        ? theme.colors as Record<string, unknown>
-        : {};
-      const colors = cloneDefaultColors();
-      for (const [slotId, rawColor] of Object.entries(rawColors)) {
-        if (!/^[a-z][a-zA-Z0-9_-]{0,63}$/.test(slotId)) continue;
-        colors[slotId] = normalizedColor(rawColor, colors[slotId] ?? DEFAULT_COLORS.primary);
-      }
-      if (moduleId === "particle-ripples") {
-        particleRippleColors(colors, new Set(Object.keys(rawColors)));
-      }
-      return [{
-        id: themeId,
-        name: typeof theme.name === "string" && theme.name.trim()
-          ? theme.name.trim().slice(0, 60) : `Colour theme ${themeIndex + 1}`,
-        colors,
-        parameterOverrides: normalizeParameterOverrides(theme.parameterOverrides),
-      } satisfies PhonoscopeColorTheme];
-    }) : [];
-    return [{
-      id,
-      moduleId,
-      name: typeof group.name === "string" && group.name.trim()
-        ? group.name.trim().slice(0, 60) : `Colour group ${groupIndex + 1}`,
-      themes: themes.length ? themes : [{
-        id: "default",
-        name: "Default",
-        colors: moduleId === "particle-ripples"
-          ? particleRippleColors(cloneDefaultColors())
-          : cloneDefaultColors(),
-        parameterOverrides: {},
-      }],
-      order: group.order === "shuffle" ? "shuffle" : "sequential",
-      changeMode: group.changeMode === "song" || group.changeMode === "downbeat"
-        ? group.changeMode : "interval",
-      waitSeconds: finiteClamped(group.waitSeconds, 60, 0, 600),
-      transitionSeconds: finiteClamped(group.transitionSeconds, 3, 0, 600),
-      housePartyHueMode: group.housePartyHueMode === "complement" ? "complement" : "follow",
-      housePartyBrightnessMode: group.housePartyBrightnessMode === "oppose" || group.housePartyBrightnessMode === "ignore"
-        ? group.housePartyBrightnessMode : "follow",
-    } satisfies PhonoscopeColorGroup];
+function normalizeLane(value: unknown, index: number): PhonoscopeDriverLane | null {
+  if (!isRecord(value)) return null;
+  return {
+    id: typeof value.id === "string" && value.id.trim()
+      ? value.id.trim().slice(0, 64)
+      : `lane_${index + 1}`,
+    driver: normalizeDriver(value.driver),
+    modifiers: Array.isArray(value.modifiers)
+      ? value.modifiers.slice(0, PHONOSCOPE_MAX_MODIFIERS).map(normalizeDriver)
+      : [],
+    bindings: Array.isArray(value.bindings)
+      ? value.bindings.flatMap((entry, position) => {
+          const binding = normalizeBinding(entry, position);
+          return binding ? [binding] : [];
+        })
+      : [],
+  };
+}
+
+/**
+ * Drop bindings the installed module no longer declares, and with them any lane
+ * left with nothing resolvable.
+ *
+ * A lane that has *never* had a binding is not stale — it is one the editor has
+ * just added and the user has not wired an effect into yet. Pruning it too made
+ * "Add driver lane" silently undo itself on the first save, which read as the
+ * button doing nothing at all.
+ */
+export function prunePhonoscopeLanes(
+  lanes: PhonoscopeDriverLane[],
+  declarations: ReadonlyMap<string, unknown> | ReadonlySet<string>,
+): PhonoscopeDriverLane[] {
+  const declares = (effect: string) => declarations.has(effect);
+  return lanes.flatMap((lane) => {
+    const bindings = lane.bindings.filter((binding) => declares(binding.effect));
+    if (lane.bindings.length > 0 && bindings.length === 0) return [];
+    return [{ ...lane, bindings }];
   });
 }
 
-export function normalizePhonoscopeThemeGroups(value: unknown): PhonoscopeThemeGroup[] {
+export function normalizePhonoscopeSettingsGroups(value: unknown): PhonoscopeSettingsGroup[] {
   if (!Array.isArray(value)) return [];
   const ids = new Set<string>();
-  return value.flatMap((raw, index) => {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
-    const entry = raw as Record<string, unknown>;
-    const id = typeof entry.id === "string" && /^[a-z][a-z0-9_-]{1,63}$/i.test(entry.id)
-      ? entry.id : `group_${index + 1}`;
+  const groups = value.flatMap((raw, index): PhonoscopeSettingsGroup[] => {
+    if (!isRecord(raw)) return [];
+    const id = typeof raw.id === "string" && PHONOSCOPE_MODULE_ID.test(raw.id)
+      ? raw.id
+      : `settings_${index + 1}`;
     if (ids.has(id)) return [];
     ids.add(id);
-    const themes = Array.isArray(entry.themes) ? entry.themes.flatMap((item) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) return [];
-      const theme = item as Record<string, unknown>;
-      if (typeof theme.themeId !== "string" || !theme.themeId.trim()) return [];
-      return [{
-        themeId: theme.themeId.trim(),
-        baseVariant: theme.baseVariant === "light" ? "light" as const : "dark" as const,
-        swapOnDownbeat: theme.swapOnDownbeat === true,
-        genres: Array.isArray(theme.genres)
-          ? [...new Set(theme.genres.flatMap((genre) => typeof genre === "string" && genre.trim() ? [genre.trim().slice(0, 48)] : []))]
-          : [],
-      }];
-    }) : [];
+    const combine: Record<string, PhonoscopeCombineMode> = {};
+    if (isRecord(raw.combine)) {
+      for (const [effect, mode] of Object.entries(raw.combine)) {
+        if (PHONOSCOPE_EFFECT_ID.test(effect)) {
+          combine[effect] = mode === "strongest" ? "strongest" : "add";
+        }
+      }
+    }
+    const staticSettings: Record<string, number> = {};
+    if (isRecord(raw.staticSettings)) {
+      for (const [setting, entry] of Object.entries(raw.staticSettings)) {
+        if (PHONOSCOPE_EFFECT_ID.test(setting) && Number.isFinite(Number(entry))) {
+          staticSettings[setting] = Number(entry);
+        }
+      }
+    }
     return [{
       id,
-      name: typeof entry.name === "string" && entry.name.trim() ? entry.name.trim().slice(0, 60) : `Theme group ${index + 1}`,
-      themes,
-      useGenres: typeof entry.useGenres === "boolean"
-        ? entry.useGenres
-        : themes.some((theme) => theme.genres.length > 0),
-      order: entry.order === "shuffle" ? "shuffle" as const : "sequential" as const,
-      changeMode: entry.changeMode === "song"
-        ? "song" as const
-        : entry.changeMode === "downbeat"
-          ? "downbeat" as const
-          : "interval" as const,
-      waitSeconds: Math.max(0, Math.min(600, Number(entry.waitSeconds) || 0)),
-      transitionSeconds: Math.max(0, Math.min(600, Number(entry.transitionSeconds) || 0)),
-      housePartyHueMode: entry.housePartyHueMode === "complement" ? "complement" as const : "follow" as const,
-      housePartyBrightnessMode: ["oppose", "ignore"].includes(String(entry.housePartyBrightnessMode))
-        ? entry.housePartyBrightnessMode as "oppose" | "ignore"
-        : "follow" as const,
+      name: typeof raw.name === "string" && raw.name.trim()
+        ? raw.name.trim().slice(0, 60)
+        : `Settings ${index + 1}`,
+      moduleId: typeof raw.moduleId === "string" && PHONOSCOPE_MODULE_ID.test(raw.moduleId)
+        ? raw.moduleId
+        : "particle-ripples",
+      lanes: Array.isArray(raw.lanes)
+        ? raw.lanes.flatMap((entry, position) => {
+            const lane = normalizeLane(entry, position);
+            return lane ? [lane] : [];
+          })
+        : [],
+      combine,
+      staticSettings,
+      isDefault: raw.isDefault === true,
+    }];
+  });
+  if (!groups.length) return groups;
+  // Exactly one group carries the default flag. Everything falls back to it, so
+  // an absent or duplicated flag is repaired rather than rejected.
+  const chosen = Math.max(0, groups.findIndex((group) => group.isDefault));
+  groups.forEach((group, index) => { group.isDefault = index === chosen; });
+  return groups;
+}
+
+export function normalizePhonoscopeColorThemes(value: unknown): PhonoscopeColorTheme[] {
+  if (!Array.isArray(value)) return [];
+  const ids = new Set<string>();
+  return value.flatMap((raw, index): PhonoscopeColorTheme[] => {
+    if (!isRecord(raw)) return [];
+    const id = typeof raw.id === "string" && PHONOSCOPE_MODULE_ID.test(raw.id)
+      ? raw.id
+      : `theme_${index + 1}`;
+    if (ids.has(id)) return [];
+    ids.add(id);
+    const colors: Record<string, PhonoscopeColorValue> = {};
+    if (isRecord(raw.colors)) {
+      for (const [slot, colour] of Object.entries(raw.colors)) {
+        if (!/^[a-z][a-zA-Z0-9_-]{0,63}$/.test(slot)) continue;
+        colors[slot] = normalizedColor(colour, DEFAULT_COLORS[slot] ?? DEFAULT_COLORS.primary);
+      }
+    }
+    return [{
+      id,
+      name: typeof raw.name === "string" && raw.name.trim()
+        ? raw.name.trim().slice(0, 60)
+        : `Colour theme ${index + 1}`,
+      moduleId: typeof raw.moduleId === "string" && PHONOSCOPE_MODULE_ID.test(raw.moduleId)
+        ? raw.moduleId
+        : "particle-ripples",
+      colors,
+      // The theme's own centre image. Null rather than "" so "this theme does
+      // not supply one" is distinguishable from an id that has been cleared —
+      // both mean nothing is drawn, but only one of them is a deliberate empty.
+      imageId: typeof raw.imageId === "string" && raw.imageId ? raw.imageId.slice(0, 64) : null,
     }];
   });
 }
 
-function safeColorThemeId(value: string, fallback: string) {
-  const normalized = value.toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
-  return PHONOSCOPE_MODULE_ID.test(normalized) ? normalized : fallback;
+/**
+ * A colour group is the rotation playlist. Entries are validated against the
+ * flat libraries they reference, and a theme may legitimately appear in several
+ * entries with different settings groups — that is the whole point — so only
+ * the entry ids are deduplicated.
+ *
+ * Genres are exclusive across groups. Conflicts resolve first-wins here; the
+ * editor performs an explicit steal (removing the genre from its previous
+ * owner) so the user's most recent assignment is the one that survives.
+ */
+export function normalizePhonoscopeColorGroups(
+  value: unknown,
+  themes: PhonoscopeColorTheme[],
+  settingsGroups: PhonoscopeSettingsGroup[],
+): PhonoscopeColorGroup[] {
+  if (!Array.isArray(value)) return [];
+  const themeIds = new Set(themes.map((theme) => theme.id));
+  const settingsIds = new Set(settingsGroups.map((group) => group.id));
+  const fallbackSettingsId = settingsGroups.find((group) => group.isDefault)?.id
+    ?? settingsGroups[0]?.id
+    ?? PHONOSCOPE_DEFAULT_SETTINGS_GROUP_ID;
+  const groupIds = new Set<string>();
+  const claimedGenres = new Set<string>();
+
+  const groups = value.flatMap((raw, index): PhonoscopeColorGroup[] => {
+    if (!isRecord(raw)) return [];
+    const id = typeof raw.id === "string" && PHONOSCOPE_MODULE_ID.test(raw.id)
+      ? raw.id
+      : `group_${index + 1}`;
+    if (groupIds.has(id)) return [];
+    groupIds.add(id);
+
+    const entryIds = new Set<string>();
+    const entries = Array.isArray(raw.entries)
+      ? raw.entries.flatMap((rawEntry, position): PhonoscopeColorGroupEntry[] => {
+          if (!isRecord(rawEntry)) return [];
+          const themeId = typeof rawEntry.themeId === "string" ? rawEntry.themeId : "";
+          if (!themeIds.has(themeId)) return [];
+          let entryId = typeof rawEntry.id === "string" && rawEntry.id.trim()
+            ? rawEntry.id.trim().slice(0, 64)
+            : `entry_${position + 1}`;
+          while (entryIds.has(entryId)) entryId = `${entryId}_${position + 1}`;
+          entryIds.add(entryId);
+          const chosen = Array.isArray(rawEntry.settingsGroupIds)
+            ? [...new Set(rawEntry.settingsGroupIds.filter(
+                (entry): entry is string => typeof entry === "string" && settingsIds.has(entry)))]
+            : [];
+          return [{
+            id: entryId,
+            themeId,
+            // An entry that names nothing usable still has to render, so it
+            // falls back to the default settings group rather than going dark.
+            settingsGroupIds: chosen.length ? chosen : [fallbackSettingsId],
+          }];
+        })
+      : [];
+
+    const genres = Array.isArray(raw.genres)
+      ? [...new Set(raw.genres.flatMap((genre) => {
+          if (typeof genre !== "string" || !genre.trim()) return [];
+          const cleaned = genre.trim().slice(0, 48);
+          const key = cleaned.toLowerCase();
+          if (claimedGenres.has(key)) return [];
+          claimedGenres.add(key);
+          return [cleaned];
+        }))]
+      : [];
+
+    return [{
+      id,
+      moduleId: typeof raw.moduleId === "string" && PHONOSCOPE_MODULE_ID.test(raw.moduleId)
+        ? raw.moduleId
+        : "particle-ripples",
+      name: typeof raw.name === "string" && raw.name.trim()
+        ? raw.name.trim().slice(0, 60)
+        : `Colour group ${index + 1}`,
+      entries,
+      genres,
+      isDefault: raw.isDefault === true,
+    }];
+  });
+
+  if (!groups.length) return groups;
+  // Exactly one group catches tracks with no genre or an unclaimed one.
+  const chosen = Math.max(0, groups.findIndex((group) => group.isDefault));
+  groups.forEach((group, index) => { group.isDefault = index === chosen; });
+  return groups;
 }
 
-export function migrateLegacyPhonoscopeColorGroups(value: unknown, themeLibraryValue: unknown): PhonoscopeColorGroup[] {
-  const legacy = normalizePhonoscopeThemeGroups(value);
-  if (!legacy.length) return [];
-  const library = normalizeThemeLibrary(themeLibraryValue);
-  const entries = new Map(library.entries.map((entry) => [entry.id, entry]));
-  return legacy.map((group) => {
-    const ids = new Set<string>();
-    const themes: PhonoscopeColorTheme[] = group.themes.map((legacyTheme, index) => {
-      let id = safeColorThemeId(legacyTheme.themeId, `theme_${index + 1}`);
-      while (ids.has(id)) id = `${id}_${index + 1}`;
-      ids.add(id);
-      const saved = entries.get(legacyTheme.themeId);
-      const set = saved?.themeSet;
-      const variants = set?.themes && typeof set.themes === "object" && !Array.isArray(set.themes)
-        ? set.themes as Record<string, unknown>
-        : {};
-      const rawVariant = variants[legacyTheme.baseVariant];
-      const variant = rawVariant && typeof rawVariant === "object" && !Array.isArray(rawVariant)
-        ? rawVariant as Record<string, unknown>
-        : {};
-      const colors = cloneDefaultColors();
-      colors.primary = normalizedColor(variant.accent, colors.primary);
-      colors.secondary = normalizedColor(variant.highlight, colors.secondary);
-      colors.background = normalizedColor(variant.background, colors.background);
-      colors.tertiary = {
-        rgb: colors.primary.rgb.map((part, component) =>
-          Math.round((part + colors.secondary.rgb[component]) / 2)) as [number, number, number],
-        intensity: (colors.primary.intensity + colors.secondary.intensity) / 2,
-        opacity: (colors.primary.opacity + colors.secondary.opacity) / 2,
-        cursor: { x: 0.5, y: 0.5 },
-      };
-      const titleColors = variant.titleColors && typeof variant.titleColors === "object" && !Array.isArray(variant.titleColors)
-        ? variant.titleColors as Record<string, unknown>
-        : {};
-      const textFallback = legacyTheme.baseVariant === "light" ? titleColors.dark : titleColors.light;
-      colors.primaryText = normalizedColor(variant.clockColor ?? textFallback, colors.primaryText);
-      colors.secondaryText = {
-        ...colors.primaryText,
-        intensity: colors.primaryText.intensity * 0.7,
-      };
-      particleRippleColors(colors);
-      return {
-        id,
-        name: saved?.name ?? `Colour theme ${index + 1}`,
-        colors,
-        parameterOverrides: {},
-      };
-    });
-    return {
-      id: group.id,
-      moduleId: "particle-ripples",
-      name: group.name,
-      themes: themes.length ? themes : starterColorGroup().themes,
-      order: group.order,
-      changeMode: group.changeMode,
-      waitSeconds: group.waitSeconds,
-      transitionSeconds: group.transitionSeconds,
-      housePartyHueMode: group.housePartyHueMode,
-      housePartyBrightnessMode: group.housePartyBrightnessMode,
-    };
-  });
+function normalizeHouseParty(value: unknown): PhonoscopeHouseParty {
+  const raw = isRecord(value) ? value : {};
+  return {
+    enabled: typeof raw.enabled === "boolean" ? raw.enabled : true,
+    hueMode: raw.hueMode === "complement" ? "complement" : "follow",
+    brightnessMode: raw.brightnessMode === "oppose" || raw.brightnessMode === "ignore"
+      ? raw.brightnessMode
+      : "follow",
+  };
+}
+
+/**
+ * The settings group everything falls back to. It can never be deleted, so a
+ * configuration that somehow lost it gets an empty one rather than a rotation
+ * with nowhere to resolve.
+ */
+function withDefaultSettingsGroup(
+  groups: PhonoscopeSettingsGroup[],
+  moduleId: string,
+): PhonoscopeSettingsGroup[] {
+  if (groups.some((group) => group.isDefault)) return groups;
+  return [{
+    id: PHONOSCOPE_DEFAULT_SETTINGS_GROUP_ID,
+    name: "Default",
+    moduleId,
+    lanes: [],
+    combine: {},
+    staticSettings: {},
+    isDefault: true,
+  }, ...groups];
 }
 
 type StoredManifest = PhonoscopeModuleSummary & {
@@ -512,275 +594,284 @@ function builtinRecord() {
   return { compiled: result.module, summary, source: BUILTIN_PHONOSCOPE_MODULE_YAML };
 }
 
-export async function readPhonoscopeConfig() {
+/**
+ * Reads the stored configuration, converting a pre-lane one on the way through.
+ *
+ * The conversion is not persisted here: a read stays free of side effects, and
+ * the next write puts the v3 shape on disk. Until then every reader — both
+ * engines included — sees the same migrated view.
+ */
+export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
   const preferences = await readDashboardPreferences();
-  const raw = preferences.phonoscope ?? {};
-  const currentColorGroups = normalizePhonoscopeColorGroups(raw.colorGroups);
-  const migratedColorGroups = currentColorGroups.length
-    ? currentColorGroups
-    : migrateLegacyPhonoscopeColorGroups(raw.themeGroups, preferences.themeLibrary);
-  const colorGroups = migratedColorGroups.length ? migratedColorGroups : [starterColorGroup()];
+  const raw = (preferences.phonoscope ?? {}) as Record<string, unknown>;
+  const needsMigration = !Array.isArray(raw.settingsGroups) || raw.settingsGroups.length === 0;
+  const migrated = needsMigration ? migratePhonoscopeToV3(raw) : null;
+
+  // v4 turned the frame and lattice geometry into percentages. A configuration
+  // written before that carries 0-1 values, which would otherwise clamp to
+  // near-zero on the new axes. Converting on read (never persisting here) keeps
+  // this consistent with the v3 conversion above; the next write stamps
+  // `schemaVersion` and it stops happening.
+  const needsPercentGeometry = Number(raw.schemaVersion ?? 0) < PHONOSCOPE_SCHEMA_VERSION;
+
+  const activeModuleId = typeof raw.activeModuleId === "string"
+    ? raw.activeModuleId
+    : DEFAULT_PHONOSCOPE_CONFIG.activeModuleId;
+  const normalizedSettingsGroups = withDefaultSettingsGroup(
+    normalizePhonoscopeSettingsGroups(migrated ? migrated.settingsGroups : raw.settingsGroups),
+    activeModuleId,
+  );
+  const settingsGroups = needsPercentGeometry
+    ? migratePhonoscopeSettingsGroupsToPercent(normalizedSettingsGroups)
+    : normalizedSettingsGroups;
+  const colorThemes = normalizePhonoscopeColorThemes(
+    migrated ? migrated.colorThemes : raw.colorThemes);
+  const colorGroups = normalizePhonoscopeColorGroups(
+    migrated ? migrated.colorGroups : raw.colorGroups, colorThemes, settingsGroups);
+
   const validColorGroupIds = new Set(colorGroups.map((group) => group.id));
-  const rawColorAssignments = raw.moduleColorGroupIds && typeof raw.moduleColorGroupIds === "object"
-    ? raw.moduleColorGroupIds
-    : raw.moduleThemeGroupIds ?? {};
-  const moduleColorGroupIds = Object.fromEntries(Object.entries(rawColorAssignments).flatMap(([moduleId, groupId]) =>
-    typeof groupId === "string"
-      && validColorGroupIds.has(groupId)
-      && colorGroups.some((group) => group.id === groupId && group.moduleId === moduleId)
-      ? [[moduleId, groupId]]
-      : [],
-  ));
-  const withoutRetiredModules = <T>(value: Record<string, T> | undefined) =>
-    Object.fromEntries(Object.entries(value ?? {}).filter(([moduleId]) => !RETIRED_PHONOSCOPE_MODULE_IDS.has(moduleId)));
+  const rawAssignments = isRecord(raw.moduleColorGroupIds) ? raw.moduleColorGroupIds : {};
+  const moduleColorGroupIds = Object.fromEntries(
+    Object.entries(rawAssignments).flatMap(([moduleId, groupId]) =>
+      typeof groupId === "string"
+        && validColorGroupIds.has(groupId)
+        && colorGroups.some((group) => group.id === groupId && group.moduleId === moduleId)
+        ? [[moduleId, groupId]]
+        : []),
+  );
+
+  const withoutRetiredModules = <T>(value: unknown): Record<string, T> =>
+    Object.fromEntries(Object.entries(isRecord(value) ? value : {})
+      .filter(([moduleId]) => !RETIRED_PHONOSCOPE_MODULE_IDS.has(moduleId))) as Record<string, T>;
+
+  const percentGeometry = (value: Record<string, Record<string, number>>) =>
+    needsPercentGeometry ? migratePhonoscopeModuleSettingsToPercent(value) : value;
+
+  const previewGroupId = typeof raw.editorPreviewColorGroupId === "string"
+    ? raw.editorPreviewColorGroupId
+    : "";
+  const previewGroup = colorGroups.find((group) => group.id === previewGroupId);
+  const previewEntryId = typeof raw.editorPreviewColorEntryId === "string"
+    ? raw.editorPreviewColorEntryId
+    : "";
+
   return {
     ...DEFAULT_PHONOSCOPE_CONFIG,
-    ...raw,
-    messageScaleSource: normalizePhonoscopeParameterSource(raw.messageScaleSource)
-      ?? DEFAULT_PHONOSCOPE_CONFIG.messageScaleSource,
-    glowOverlay: normalizePhonoscopeGlowOverlay(
-      raw.glowOverlay,
-      DEFAULT_PHONOSCOPE_CONFIG.glowOverlay,
-    ),
-    providers: { ...DEFAULT_PHONOSCOPE_CONFIG.providers, ...(raw.providers ?? {}) },
-    moduleSettings: withoutRetiredModules(raw.moduleSettings),
-    moduleParameterSources: withoutRetiredModules(normalizeParameterOverrides(raw.moduleParameterSources)),
-    pendingStructuralModuleSettings: {
-      ...DEFAULT_PHONOSCOPE_CONFIG.pendingStructuralModuleSettings,
-      ...withoutRetiredModules(raw.pendingStructuralModuleSettings),
-    },
+    activeModuleId,
+    activeModuleVersion: typeof raw.activeModuleVersion === "string"
+      ? raw.activeModuleVersion
+      : DEFAULT_PHONOSCOPE_CONFIG.activeModuleVersion,
+    idleBehavior: ["ambient", "black", "return"].includes(String(raw.idleBehavior))
+      ? raw.idleBehavior as PhonoscopeConfig["idleBehavior"]
+      : DEFAULT_PHONOSCOPE_CONFIG.idleBehavior,
+    message: typeof raw.message === "string" ? raw.message : "",
+    statusOverlay: typeof raw.statusOverlay === "boolean"
+      ? raw.statusOverlay
+      : DEFAULT_PHONOSCOPE_CONFIG.statusOverlay,
+    transitionMs: finiteClamped(raw.transitionMs, DEFAULT_PHONOSCOPE_CONFIG.transitionMs, 0, 3_000),
+    providers: { ...DEFAULT_PHONOSCOPE_CONFIG.providers, ...(isRecord(raw.providers) ? raw.providers : {}) },
+    schemaVersion: PHONOSCOPE_SCHEMA_VERSION,
+    moduleSettings: percentGeometry(withoutRetiredModules(raw.moduleSettings)),
+    pendingStructuralModuleSettings:
+      percentGeometry(withoutRetiredModules(raw.pendingStructuralModuleSettings)),
     moduleReloadGenerations: withoutRetiredModules(raw.moduleReloadGenerations),
+    settingsGroups,
+    colorThemes,
     colorGroups,
     moduleColorGroupIds,
-    themeGroups: normalizePhonoscopeThemeGroups(raw.themeGroups),
-    moduleThemeGroupIds: { ...DEFAULT_PHONOSCOPE_CONFIG.moduleThemeGroupIds, ...(raw.moduleThemeGroupIds ?? {}) },
+    chooseColorGroupByGenre: raw.chooseColorGroupByGenre === true,
+    structuralSettings: (() => {
+      const values = Object.fromEntries(
+        Object.entries(isRecord(raw.structuralSettings) ? raw.structuralSettings : {})
+          .flatMap(([id, value]) => Number.isFinite(Number(value)) ? [[id, Number(value)]] : []),
+      ) as Record<string, number>;
+      return needsPercentGeometry ? migratePhonoscopeScalarsToPercent(values) : values;
+    })(),
+    houseParty: normalizeHouseParty(migrated ? migrated.houseParty : raw.houseParty),
+    // A solo pointing at something deleted is simply not soloed, rather than a
+    // lock on a theme or settings group that no longer exists.
+    soloColorThemeId: colorThemes.some((theme) => theme.id === raw.soloColorThemeId)
+      ? String(raw.soloColorThemeId)
+      : "",
+    soloSettingsGroupId: settingsGroups.some((group) => group.id === raw.soloSettingsGroupId)
+      ? String(raw.soloSettingsGroupId)
+      : "",
+    editorPreviewColorGroupId: previewGroup ? previewGroupId : "",
+    editorPreviewColorEntryId: previewGroup?.entries.some((entry) => entry.id === previewEntryId)
+      ? previewEntryId
+      : "",
+    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
   };
 }
 
-export async function writePhonoscopeConfig(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected a configuration object");
-  const input = value as Record<string, unknown>;
+/** A solo id, kept only while it still names something that exists. */
+function resolveSolo(requested: unknown, ids: { id: string }[]) {
+  const value = typeof requested === "string" ? requested : "";
+  return ids.some((entry) => entry.id === value) ? value : "";
+}
+
+export async function writePhonoscopeConfig(value: unknown): Promise<PhonoscopeConfig> {
+  if (!isRecord(value)) throw new Error("Expected a configuration object");
+  const input = value;
   const current = await readPhonoscopeConfig();
   const installed = await listPhonoscopeModules();
   const moduleId = typeof input.activeModuleId === "string" ? input.activeModuleId : current.activeModuleId;
-  const moduleVersion = typeof input.activeModuleVersion === "string" ? input.activeModuleVersion : current.activeModuleVersion;
+  const moduleVersion = typeof input.activeModuleVersion === "string"
+    ? input.activeModuleVersion
+    : current.activeModuleVersion;
   if (!installed.some((entry) => entry.id === moduleId && entry.version === moduleVersion)) {
     throw new Error(`Phonoscope module ${moduleId}@${moduleVersion} is not installed`);
   }
-  const idleBehavior = ["ambient", "black", "return"].includes(String(input.idleBehavior))
-    ? input.idleBehavior as PhonoscopePreferences["idleBehavior"]
-    : current.idleBehavior;
-  const providers =input.providers && typeof input.providers === "object" && !Array.isArray(input.providers)
-    ? input.providers as Record<string, unknown>
-    : {};
-  const themeGroups = normalizePhonoscopeThemeGroups(input.themeGroups ?? current.themeGroups);
-  const validGroupIds = new Set(themeGroups.map((group) => group.id));
-  const requestedAssignments = input.moduleThemeGroupIds && typeof input.moduleThemeGroupIds === "object"
-    && !Array.isArray(input.moduleThemeGroupIds)
-    ? input.moduleThemeGroupIds as Record<string, unknown>
-    : current.moduleThemeGroupIds;
-  const moduleThemeGroupIds = Object.fromEntries(Object.entries(requestedAssignments).flatMap(([id, groupId]) =>
-    typeof groupId === "string" && validGroupIds.has(groupId) ? [[id, groupId]] : [],
-  ));
-  const colorGroups = normalizePhonoscopeColorGroups(input.colorGroups ?? current.colorGroups);
-  const resolvedColorGroups = colorGroups.length ? colorGroups : [starterColorGroup()];
-  const validColorGroupIds = new Set(resolvedColorGroups.map((group) => group.id));
-  const requestedColorAssignments = input.moduleColorGroupIds && typeof input.moduleColorGroupIds === "object"
-    && !Array.isArray(input.moduleColorGroupIds)
-    ? input.moduleColorGroupIds as Record<string, unknown>
+
+  const settingsGroups = withDefaultSettingsGroup(
+    normalizePhonoscopeSettingsGroups(input.settingsGroups ?? current.settingsGroups),
+    moduleId,
+  );
+  const colorThemes = normalizePhonoscopeColorThemes(input.colorThemes ?? current.colorThemes);
+  const colorGroups = normalizePhonoscopeColorGroups(
+    input.colorGroups ?? current.colorGroups, colorThemes, settingsGroups);
+
+  // Bindings are checked against what the active module actually declares, so a
+  // stale lane pointing at a retired setting is dropped rather than carried
+  // forward as a binding that can never resolve.
+  const declarations = phonoscopeEffectDeclarations(
+    installed.filter((entry) => entry.id === moduleId && entry.version === moduleVersion)
+      .at(-1)?.settings ?? []);
+  const prunedSettingsGroups = settingsGroups.map((group) => group.moduleId !== moduleId
+    ? group
+    : { ...group, lanes: prunePhonoscopeLanes(group.lanes, declarations) });
+
+  const validColorGroupIds = new Set(colorGroups.map((group) => group.id));
+  const requestedAssignments = isRecord(input.moduleColorGroupIds)
+    ? input.moduleColorGroupIds
     : current.moduleColorGroupIds;
-  const moduleColorGroupIds = Object.fromEntries(Object.entries(requestedColorAssignments).flatMap(([id, groupId]) =>
-    typeof groupId === "string"
-      && validColorGroupIds.has(groupId)
-      && resolvedColorGroups.some((group) => group.id === groupId && group.moduleId === id)
-      ? [[id, groupId]]
-      : [],
-  ));
-  const requestedSettings = input.moduleSettings && typeof input.moduleSettings === "object" && !Array.isArray(input.moduleSettings)
-    ? input.moduleSettings as Record<string, unknown>
-    : current.moduleSettings;
-  const moduleSettings: Record<string, Record<string, number>> = {};
-  const normalizeSettingsMap = (requested: Record<string, unknown>, mode: "smooth" | "structural") => {
+  const moduleColorGroupIds = Object.fromEntries(
+    Object.entries(requestedAssignments).flatMap(([id, groupId]) =>
+      typeof groupId === "string"
+        && validColorGroupIds.has(groupId)
+        && colorGroups.some((group) => group.id === groupId && group.moduleId === id)
+        ? [[id, groupId]]
+        : []),
+  );
+
+  const normalizeSettingsMap = (requested: unknown, mode: "smooth" | "structural") => {
     const result: Record<string, Record<string, number>> = {};
-    for (const [settingModuleId, rawValues] of Object.entries(requested)) {
-      if (!rawValues || typeof rawValues !== "object" || Array.isArray(rawValues)) continue;
-      const declarations = installed.filter((entry) => entry.id === settingModuleId
+    for (const [settingModuleId, rawValues] of Object.entries(isRecord(requested) ? requested : {})) {
+      if (!isRecord(rawValues)) continue;
+      // Settings are keyed by module id for backward compatibility. For an
+      // inactive module retain the settings declared by its newest installed
+      // version; the active module remains pinned to the selected version.
+      const declared = installed.filter((entry) => entry.id === settingModuleId
         && (entry.id !== moduleId || entry.version === moduleVersion)).at(-1)?.settings;
-      if (!declarations) continue;
-      const values = rawValues as Record<string, unknown>;
+      if (!declared) continue;
       const normalized: Record<string, number> = {};
-      for (const setting of declarations.filter((setting) => setting.updateMode === mode)) {
-        if (!(setting.id in values)) continue;
-        const resolved = normalizeSettingValue(setting, values[setting.id]);
+      for (const setting of declared.filter((entry) => entry.updateMode === mode)) {
+        if (!(setting.id in rawValues)) continue;
+        const resolved = normalizeSettingValue(setting, rawValues[setting.id]);
         if (resolved !== undefined) normalized[setting.id] = resolved;
       }
       if (Object.keys(normalized).length) result[settingModuleId] = normalized;
     }
     return result;
   };
-  for (const [settingModuleId, rawValues] of Object.entries(requestedSettings)) {
-    if (!rawValues || typeof rawValues !== "object" || Array.isArray(rawValues)) continue;
-    // Settings are keyed by module id for backward compatibility.  For an
-    // inactive module retain the settings declared by its newest installed
-    // version; the active module remains pinned to the selected version.
-    const declarations = installed.filter(
-      (entry) => entry.id === settingModuleId
-        && (entry.id !== moduleId || entry.version === moduleVersion),
-    ).at(-1)?.settings;
-    if (!declarations) continue;
-    const values = rawValues as Record<string, unknown>;
-    const normalized: Record<string, number> = {};
-    for (const setting of declarations) {
-      if (!(setting.id in values)) continue;
-      const resolved = normalizeSettingValue(setting, values[setting.id]);
-      if (resolved !== undefined) normalized[setting.id] = resolved;
+
+  // Merged per module, not spread. `normalizeSettingsMap` is keyed by module id,
+  // so a shallow spread let the structural pass REPLACE the smooth pass's entry
+  // for the same module rather than add to it — every smooth setting of any
+  // module that also declared a structural one was silently discarded on write.
+  // `particle-ripples` declares `complexity` as structural, which is why it was
+  // the only value that ever persisted for it.
+  const moduleSettings = ((smooth, structural) => {
+    const merged: Record<string, Record<string, number>> = {};
+    for (const [id, values] of Object.entries(smooth)) merged[id] = { ...values };
+    for (const [id, values] of Object.entries(structural)) {
+      merged[id] = { ...merged[id], ...values };
     }
-    if (Object.keys(normalized).length) moduleSettings[settingModuleId] = normalized;
-  }
-  const pendingInput = input.pendingStructuralModuleSettings
-    && typeof input.pendingStructuralModuleSettings === "object"
-    && !Array.isArray(input.pendingStructuralModuleSettings)
-    ? input.pendingStructuralModuleSettings as Record<string, unknown>
-    : current.pendingStructuralModuleSettings;
-  const pendingStructuralModuleSettings = normalizeSettingsMap(pendingInput, "structural");
-  const reloadInput = input.moduleReloadGenerations && typeof input.moduleReloadGenerations === "object"
-    && !Array.isArray(input.moduleReloadGenerations)
-    ? input.moduleReloadGenerations as Record<string, unknown> : current.moduleReloadGenerations;
-  const moduleReloadGenerations = Object.fromEntries(Object.entries(reloadInput).flatMap(([id, value]) =>
-    typeof value === "number" && Number.isFinite(value) ? [[id, Math.max(0, Math.floor(value))]] : [],
-  ));
-  const requestedParameterSources = normalizeParameterOverrides(
-    input.moduleParameterSources ?? current.moduleParameterSources,
+    return merged;
+  })(
+    normalizeSettingsMap(input.moduleSettings ?? current.moduleSettings, "smooth"),
+    normalizeSettingsMap(input.moduleSettings ?? current.moduleSettings, "structural"),
   );
-  const moduleParameterSources: Record<string, Record<string, PhonoscopeParameterSource>> = {};
-  Object.entries(requestedParameterSources).forEach(([settingModuleId, sources]) => {
-    const declarations = installed.filter(
-      (entry) => entry.id === settingModuleId
-        && (entry.id !== moduleId || entry.version === moduleVersion),
-    ).at(-1)?.settings;
-    if (!declarations) return;
-    const settings = new Map(declarations.map((setting) => [setting.id, setting]));
-    const normalized: Record<string, PhonoscopeParameterSource> = {};
-    Object.entries(sources).forEach(([settingId, source]) => {
-      const setting = settings.get(settingId);
-      if (!setting || setting.updateMode === "structural"
-        || setting.control === "toggle" || setting.control === "select") return;
-      if (source.type === "manual") {
-        const value = normalizeSettingValue(setting, source.value);
-        if (value !== undefined) normalized[settingId] = { type: "manual", value };
-        return;
-      }
-      const min = normalizeSettingValue(setting, source.min);
-      const max = normalizeSettingValue(setting, source.max);
-      if (min === undefined || max === undefined) return;
-      normalized[settingId] = { ...source, min: Math.min(min, max), max: Math.max(min, max) };
-    });
-    if (Object.keys(normalized).length) moduleParameterSources[settingModuleId] = normalized;
-  });
-  const requestedPreviewGroupId = typeof input.editorPreviewColorGroupId === "string"
-    ? input.editorPreviewColorGroupId : "";
-  const editorPreviewColorGroupId = validColorGroupIds.has(requestedPreviewGroupId)
-    ? requestedPreviewGroupId : "";
-  const previewGroup = resolvedColorGroups.find((group) => group.id === editorPreviewColorGroupId);
-  const requestedPreviewThemeId = typeof input.editorPreviewColorThemeId === "string"
-    ? input.editorPreviewColorThemeId : "";
-  const editorPreviewColorThemeId = previewGroup?.themes.some((theme) => theme.id === requestedPreviewThemeId)
-    ? requestedPreviewThemeId : "";
-  await mergeDashboardPreferences({
-    phonoscope: {
-      activeModuleId: moduleId,
-      activeModuleVersion: moduleVersion,
-      idleBehavior,
-      message: typeof input.message === "string"
-        ? Array.from(input.message.trim()).slice(0, 160).join("")
-        : current.message,
-      messageScaleSource: normalizePhonoscopeParameterSource(input.messageScaleSource)
-        ?? current.messageScaleSource,
-      glowOverlay: normalizePhonoscopeGlowOverlay(input.glowOverlay, current.glowOverlay),
-      statusOverlay: typeof input.statusOverlay === "boolean" ? input.statusOverlay : current.statusOverlay,
-      transitionMs: typeof input.transitionMs === "number"
-        ? Math.max(0, Math.min(3_000, Math.round(input.transitionMs)))
-        : current.transitionMs,
-      housePartyRandomHueOffset: typeof input.housePartyRandomHueOffset === "number"
-        ? Math.max(0, Math.min(180, input.housePartyRandomHueOffset))
-        : current.housePartyRandomHueOffset,
-      providers: {
-        spotify: typeof providers.spotify === "boolean" ? providers.spotify : current.providers.spotify,
-        songle: typeof providers.songle === "boolean" ? providers.songle : current.providers.songle,
-        essentia: typeof providers.essentia === "boolean" ? providers.essentia : current.providers.essentia,
-        reccoBeats: typeof providers.reccoBeats === "boolean" ? providers.reccoBeats : current.providers.reccoBeats,
-        lrclib: typeof providers.lrclib === "boolean" ? providers.lrclib : current.providers.lrclib,
-      },
-      moduleSettings,
-      moduleParameterSources,
-      pendingStructuralModuleSettings,
-      moduleReloadGenerations,
-      colorGroups: normalizeColorGroupsForModules(resolvedColorGroups, installed),
-      moduleColorGroupIds,
-      editorPreviewColorGroupId,
-      editorPreviewColorThemeId,
-      themeGroups,
-      moduleThemeGroupIds,
+  const pendingStructuralModuleSettings = normalizeSettingsMap(
+    input.pendingStructuralModuleSettings ?? current.pendingStructuralModuleSettings, "structural");
+  const moduleReloadGenerations = Object.fromEntries(
+    Object.entries(isRecord(input.moduleReloadGenerations)
+      ? input.moduleReloadGenerations
+      : current.moduleReloadGenerations)
+      .flatMap(([id, entry]) => Number.isFinite(Number(entry))
+        ? [[id, Math.max(0, Math.floor(Number(entry)))]]
+        : []));
+
+  const previewGroupId = typeof input.editorPreviewColorGroupId === "string"
+    ? input.editorPreviewColorGroupId
+    : "";
+  const previewGroup = colorGroups.find((group) => group.id === previewGroupId);
+  const previewEntryId = typeof input.editorPreviewColorEntryId === "string"
+    ? input.editorPreviewColorEntryId
+    : "";
+
+  const next: PhonoscopeConfig = {
+    // `current` came from a read, so everything below is already on the current
+    // schema. Stamping it here is what stops the read-side conversions running
+    // again over values that have already been converted.
+    schemaVersion: PHONOSCOPE_SCHEMA_VERSION,
+    soloColorThemeId: resolveSolo(
+      "soloColorThemeId" in input ? input.soloColorThemeId : current.soloColorThemeId,
+      colorThemes),
+    soloSettingsGroupId: resolveSolo(
+      "soloSettingsGroupId" in input ? input.soloSettingsGroupId : current.soloSettingsGroupId,
+      prunedSettingsGroups),
+    activeModuleId: moduleId,
+    activeModuleVersion: moduleVersion,
+    idleBehavior: ["ambient", "black", "return"].includes(String(input.idleBehavior))
+      ? input.idleBehavior as PhonoscopeConfig["idleBehavior"]
+      : current.idleBehavior,
+    message: typeof input.message === "string"
+      ? Array.from(input.message.trim()).slice(0, 160).join("")
+      : current.message,
+    statusOverlay: typeof input.statusOverlay === "boolean" ? input.statusOverlay : current.statusOverlay,
+    transitionMs: typeof input.transitionMs === "number"
+      ? Math.max(0, Math.min(3_000, Math.round(input.transitionMs)))
+      : current.transitionMs,
+    providers: {
+      spotify: readBoolean(input.providers, "spotify", current.providers.spotify),
+      songle: readBoolean(input.providers, "songle", current.providers.songle),
+      essentia: readBoolean(input.providers, "essentia", current.providers.essentia),
+      reccoBeats: readBoolean(input.providers, "reccoBeats", current.providers.reccoBeats),
+      lrclib: readBoolean(input.providers, "lrclib", current.providers.lrclib),
     },
-  });
+    moduleSettings,
+    pendingStructuralModuleSettings,
+    moduleReloadGenerations,
+    settingsGroups: prunedSettingsGroups,
+    colorThemes,
+    colorGroups,
+    moduleColorGroupIds,
+    chooseColorGroupByGenre: typeof input.chooseColorGroupByGenre === "boolean"
+      ? input.chooseColorGroupByGenre
+      : current.chooseColorGroupByGenre,
+    structuralSettings: Object.fromEntries(
+      Object.entries(isRecord(input.structuralSettings)
+        ? input.structuralSettings
+        : current.structuralSettings)
+        .flatMap(([id, entry]) => Number.isFinite(Number(entry)) ? [[id, Number(entry)]] : [])),
+    houseParty: normalizeHouseParty(input.houseParty ?? current.houseParty),
+    editorPreviewColorGroupId: previewGroup ? previewGroupId : "",
+    editorPreviewColorEntryId: previewGroup?.entries.some((entry) => entry.id === previewEntryId)
+      ? previewEntryId
+      : "",
+  };
+
+  await mergeDashboardPreferences({ phonoscope: next as PhonoscopePreferences });
   // Nudge the GPU renderer on iridium. It re-reads the config itself, so this
   // stays a notification rather than a second serialisation of the same state.
   publishPhonoscopeConfig("config");
   return readPhonoscopeConfig();
 }
 
-function normalizeColorGroupsForModules(
-  groups: PhonoscopeColorGroup[],
-  installed: PhonoscopeModuleSummary[],
-): PhonoscopeColorGroup[] {
-  const newestById = new Map<string, PhonoscopeModuleSummary>();
-  installed.forEach((module) => newestById.set(module.id, module));
-  return groups.map((group) => {
-    const module = newestById.get(group.moduleId);
-    const slots = new Map(module?.paletteSlots.map((slot) => [slot.id, slot]) ?? []);
-    return {
-      ...group,
-      themes: group.themes.map((theme) => {
-        const colors: PhonoscopeColorTheme["colors"] = {};
-        slots.forEach((slot) => {
-          colors[slot.id] = theme.colors[slot.id] ?? {
-            rgb: slot.defaultRgb,
-            intensity: 100,
-            opacity: 100,
-            cursor: { x: 0.5, y: 0.5 },
-          };
-        });
-        const parameterOverrides: PhonoscopeColorTheme["parameterOverrides"] = {};
-        Object.entries(theme.parameterOverrides).forEach(([moduleId, sources]) => {
-          if (moduleId !== group.moduleId) return;
-          const module = newestById.get(moduleId);
-          if (!module) return;
-          const declarations = new Map(module.settings.map((setting) => [setting.id, setting]));
-          const normalizedSources: Record<string, PhonoscopeParameterSource> = {};
-          Object.entries(sources).forEach(([settingId, source]) => {
-            const setting = declarations.get(settingId);
-            if (!setting || setting.updateMode === "structural") return;
-            if ((setting.control === "toggle" || setting.control === "select") && source.type !== "manual") return;
-            if (source.type === "manual") {
-              const value = normalizeSettingValue(setting, source.value);
-              if (value !== undefined) normalizedSources[settingId] = { type: "manual", value };
-              return;
-            }
-            const min = normalizeSettingValue(setting, source.min);
-            const max = normalizeSettingValue(setting, source.max);
-            if (min === undefined || max === undefined) return;
-            normalizedSources[settingId] = {
-              ...source,
-              min: Math.min(min, max),
-              max: Math.max(min, max),
-            };
-          });
-          if (Object.keys(normalizedSources).length) parameterOverrides[moduleId] = normalizedSources;
-        });
-        return { ...theme, colors, parameterOverrides };
-      }),
-    };
-  });
+function readBoolean(source: unknown, key: string, fallback: boolean) {
+  if (!isRecord(source)) return fallback;
+  return typeof source[key] === "boolean" ? source[key] : fallback;
 }
 
 function normalizeSettingValue(setting: PhonoscopeSetting, value: unknown) {

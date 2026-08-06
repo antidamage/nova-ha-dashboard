@@ -466,15 +466,19 @@ export type DashboardPreferences = {
 };
 
 export type PhonoscopePreferences = {
+  /**
+   * Which migrations the stored shape has already been through. Absent on
+   * anything written before the percentage-geometry conversion, which is
+   * exactly how `readPhonoscopeConfig` knows to apply it. See
+   * `lib/phonoscope-migrate-v4.ts`.
+   */
+  schemaVersion?: number;
   activeModuleId?: string;
   activeModuleVersion?: string;
   idleBehavior?: "ambient" | "black" | "return";
   message?: string;
-  messageScaleSource?: PhonoscopeParameterSource;
-  glowOverlay?: PhonoscopeGlowOverlay;
   statusOverlay?: boolean;
   transitionMs?: number;
-  housePartyRandomHueOffset?: number;
   providers?: {
     spotify?: boolean;
     songle?: boolean;
@@ -483,22 +487,126 @@ export type PhonoscopePreferences = {
     lrclib?: boolean;
   };
   moduleSettings?: Record<string, Record<string, number>>;
-  /** module id -> setting id -> live baseline parameter source */
-  moduleParameterSources?: Record<string, Record<string, PhonoscopeParameterSource>>;
   pendingStructuralModuleSettings?: Record<string, Record<string, number>>;
   moduleReloadGenerations?: Record<string, number>;
+  /** Named sets of driver lanes. Colour group entries name the ones they ride with. */
+  settingsGroups?: PhonoscopeSettingsGroup[];
+  /** Flat library of colour-only themes, referenced by colour group entries. */
+  colorThemes?: PhonoscopeColorTheme[];
+  /** The rotation playlists. */
   colorGroups?: PhonoscopeColorGroup[];
   moduleColorGroupIds?: Record<string, string>;
+  /** Route the colour group by the playing track's genre rather than the manual pick. */
+  chooseColorGroupByGenre?: boolean;
+  /** Undriveable parameters that apply across every settings group. */
+  structuralSettings?: Record<string, number>;
+  houseParty?: PhonoscopeHouseParty;
+  /**
+   * Solo locks the visualiser to one colour theme and/or one settings group,
+   * overriding the rotation until it is switched off. Unlike the editor preview
+   * it is persisted and deliberately survives leaving the page — it is a
+   * "hold it here while I work on it" switch, not a transient pin.
+   */
+  soloColorThemeId?: string;
+  soloSettingsGroupId?: string;
   /** Transient dashboard editor preview; cleared when the editor closes. */
   editorPreviewColorGroupId?: string;
-  editorPreviewColorThemeId?: string;
-  /**
-   * Legacy dashboard-theme-backed groups. Read only for the v2 migration; new
-   * writes use `colorGroups`.
-   */
-  themeGroups?: PhonoscopeThemeGroup[];
-  moduleThemeGroupIds?: Record<string, string>;
+  editorPreviewColorEntryId?: string;
   updatedAt?: string;
+};
+
+/**
+ * One signal a driver lane runs on.
+ *
+ * `beat`, `downbeat`, `timer` and `song` are pulses; `energy`, `bass`, `mid`
+ * and `treble` are continuous levels; `random` samples and holds a value on its
+ * cadence. The shape is deliberately flat and total rather than a discriminated
+ * union, because `config_client.cpp` and `PhonoscopeModels.swift` hand-parse the
+ * same JSON and a union costs them a branch per field.
+ */
+export type PhonoscopeDriverType =
+  | "beat"
+  | "downbeat"
+  | "timer"
+  | "song"
+  | "energy"
+  | "bass"
+  | "mid"
+  | "treble"
+  | "random";
+
+/** The driver types that fire discrete events rather than carrying a level. */
+export type PhonoscopePulseType = "beat" | "downbeat" | "timer" | "song";
+
+export type PhonoscopeDriver = {
+  type: PhonoscopeDriverType;
+  /**
+   * Pulse drivers fire on every Nth event, 1-16 — "every 4th downbeat". Level
+   * drivers ignore it.
+   */
+  every: number;
+  /** Which event within the `every` cycle, `0..every-1`. */
+  offset: number;
+  /** Seconds between pulses when this driver, or a random driver's cadence, is `timer`. */
+  intervalSeconds: number;
+  /** `random` only: the pulse it re-samples on. */
+  cadence: PhonoscopePulseType;
+  /** `random` only: seconds to glide to a newly sampled value. */
+  transitionSeconds: number;
+};
+
+/**
+ * One appearance of an effect inside a lane. Sparse on purpose: an absent field
+ * inherits the effect's declared default, so a binding stores only what the user
+ * actually chose to change.
+ */
+export type PhonoscopeEffectBinding = {
+  id: string;
+  /** A module setting id, or a private picture effect such as `__glowBlur`. */
+  effect: string;
+  min?: number;
+  max?: number;
+  attackSeconds?: number;
+  holdSeconds?: number;
+  releaseSeconds?: number;
+  /** Effect-specific scalars, such as `order` on `__themeChange`. */
+  params?: Record<string, number>;
+};
+
+export type PhonoscopeDriverLane = {
+  id: string;
+  driver: PhonoscopeDriver;
+  /** Summed onto the main driver's signal; rendered inset beneath it. */
+  modifiers: PhonoscopeDriver[];
+  bindings: PhonoscopeEffectBinding[];
+};
+
+/**
+ * How an effect resolves when more than one lane drives it at once. `add` sums
+ * every lane's contribution above its resting value; `strongest` takes the
+ * contribution from the rarest firing lane outright, so an every-4th-downbeat
+ * hit covers the plain downbeat rather than compounding with it.
+ */
+export type PhonoscopeCombineMode = "add" | "strongest";
+
+export type PhonoscopeSettingsGroup = {
+  id: string;
+  name: string;
+  /** Bindings name module setting ids, so a group belongs to one visualiser. */
+  moduleId: string;
+  lanes: PhonoscopeDriverLane[];
+  /** effect id -> how its lanes stack. Shared by every appearance of that effect. */
+  combine: Record<string, PhonoscopeCombineMode>;
+  /** Parameters that cannot be driven at all; currently just `complexity`. */
+  staticSettings: Record<string, number>;
+  /** Exactly one group carries this. It cannot be deleted, and it catches every gap. */
+  isDefault: boolean;
+};
+
+export type PhonoscopeHouseParty = {
+  enabled: boolean;
+  hueMode: "follow" | "complement";
+  brightnessMode: "follow" | "oppose" | "ignore";
 };
 
 export type PhonoscopeColorValue = {
@@ -509,49 +617,38 @@ export type PhonoscopeColorValue = {
 };
 
 /**
- * The final glow/bloom layer, laid over the whole visual stream — including the
- * centre message — as the last pass of a frame.
- *
- * Blur amount (0-20), opacity (0-100) and blend mode each carry their own
- * parameter driver, so all three are stored as sources rather than plain
- * values, exactly like `messageScaleSource`.
- *
- * The blend mode uses Photoshop's naming, on a whole-numbered axis: 0 is screen,
- * 1 is multiply, 2 is overlay, and both engines snap to the nearest rather than
- * cross-fading. That is what lets a beat driver swap the mode on the beat while
- * a manual source still behaves as the plain named choice it looks like.
+ * Colour, and the picture's centrepiece. Behaviour lives in settings groups,
+ * which a colour group entry names alongside the theme, so the same palette can
+ * run under several different sets of drivers.
  */
-export type PhonoscopeGlowOverlay = {
-  blendModeSource: PhonoscopeParameterSource;
-  blurSource: PhonoscopeParameterSource;
-  opacitySource: PhonoscopeParameterSource;
-};
-
-export type PhonoscopeParameterSource =
-  | { type: "manual"; value: number }
-  | {
-      type: "random";
-      min: number;
-      max: number;
-      cadence: "beat" | "downbeat" | "bar" | "song" | "interval";
-      intervalSeconds: number;
-      transitionSeconds: number;
-    }
-  | {
-      type: "beat" | "downbeat" | "energy" | "bass" | "mid" | "treble";
-      min: number;
-      max: number;
-      attackSeconds: number;
-      holdSeconds: number;
-      releaseSeconds: number;
-    };
-
 export type PhonoscopeColorTheme = {
   id: string;
   name: string;
+  /** Palette slots are declared per module, so a theme belongs to one visualiser. */
+  moduleId: string;
   colors: Record<string, PhonoscopeColorValue>;
-  /** module id -> setting id -> source */
-  parameterOverrides: Record<string, Record<string, PhonoscopeParameterSource>>;
+  /**
+   * A centre-image library id this theme puts in the middle of the frame, or
+   * null for none. The rotation cross-fades between entries' images over the
+   * same transition their palettes chase across.
+   */
+  imageId: string | null;
+};
+
+/**
+ * One stop on a colour group's rotation. A theme may appear in several entries
+ * with different settings groups — "theme 1 with settings A", then "theme 1 with
+ * settings B", then "theme 2 with settings B" — which is why entries carry their
+ * own id rather than being keyed by `themeId`.
+ */
+export type PhonoscopeColorGroupEntry = {
+  id: string;
+  themeId: string;
+  /**
+   * Applied in order. Their lanes all run at once; a colliding `combine` mode or
+   * static setting layers, with the last group in this list winning.
+   */
+  settingsGroupIds: string[];
 };
 
 export type PhonoscopeColorGroup = {
@@ -559,33 +656,12 @@ export type PhonoscopeColorGroup = {
   /** Colour groups are owned by one visualiser and never shared across modules. */
   moduleId: string;
   name: string;
-  themes: PhonoscopeColorTheme[];
-  order: "sequential" | "shuffle";
-  changeMode: "interval" | "song" | "downbeat";
-  waitSeconds: number;
-  transitionSeconds: number;
-  housePartyHueMode: "follow" | "complement";
-  housePartyBrightnessMode: "follow" | "oppose" | "ignore";
-};
-
-export type PhonoscopeThemeGroupEntry = {
-  themeId: string;
-  baseVariant: "dark" | "light";
-  swapOnDownbeat: boolean;
+  /** The rotation playlist, in order. */
+  entries: PhonoscopeColorGroupEntry[];
+  /** Exclusive across groups: assigning a genre here takes it from whoever held it. */
   genres: string[];
-};
-
-export type PhonoscopeThemeGroup = {
-  id: string;
-  name: string;
-  themes: PhonoscopeThemeGroupEntry[];
-  useGenres: boolean;
-  order: "sequential" | "shuffle";
-  changeMode: "interval" | "song" | "downbeat";
-  waitSeconds: number;
-  transitionSeconds: number;
-  housePartyHueMode: "follow" | "complement";
-  housePartyBrightnessMode: "follow" | "oppose" | "ignore";
+  /** Exactly one group carries this; it catches tracks with no or an unclaimed genre. */
+  isDefault: boolean;
 };
 
 export type LayoutPreferences = {

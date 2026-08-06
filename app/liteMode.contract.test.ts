@@ -32,7 +32,13 @@ describe("lite mode contract", () => {
     expect(layoutSource).toContain('toggleAttribute("data-nova-lite"');
   });
 
-  it("layout.tsx mounts the first-run experience chooser", () => {
-    expect(layoutSource).toContain("<ExperienceModeModal />");
+  // The chooser moved out of the layout body into DashboardGlobalServices,
+  // which the layout mounts on every route — so the contract is that the chain
+  // is intact, not that the tag literally appears in layout.tsx.
+  it("every route mounts the first-run experience chooser", () => {
+    expect(layoutSource).toContain("<DashboardGlobalServices");
+    const globalServices = readFileSync(
+      join(appDir, "components", "DashboardGlobalServices.tsx"), "utf8");
+    expect(globalServices).toContain("<ExperienceModeModal />");
   });
 });
