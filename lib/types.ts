@@ -547,6 +547,15 @@ export type PhonoscopeDriver = {
   every: number;
   /** Which event within the `every` cycle, `0..every-1`. */
   offset: number;
+  /**
+   * Subdivisions per pulse, 1/2/4/8 — the other direction from `every`. A beat
+   * driver with `divide: 4` fires four times a beat, a downbeat driver four
+   * times a bar. Only `beat` and `downbeat` (and a `random` whose cadence is
+   * one of them) subdivide; a subdivided driver always has `every: 1` and
+   * `offset: 0`, because which of eight sub-beats a run starts on is not
+   * something anyone can hear.
+   */
+  divide: number;
   /** Seconds between pulses when this driver, or a random driver's cadence, is `timer`. */
   intervalSeconds: number;
   /** `random` only: the pulse it re-samples on. */
@@ -644,6 +653,15 @@ export type PhonoscopeColorTheme = {
 export type PhonoscopeColorGroupEntry = {
   id: string;
   themeId: string;
+  /**
+   * A second colour theme this entry blends to while the household's alt state
+   * is on. It is a link into the same flat library rather than a theme of its
+   * own, so editing that theme edits both places it is used.
+   *
+   * Null or absent means this entry has no alternative and simply keeps showing
+   * `themeId` — the alt state stays on, it just has nothing to do here.
+   */
+  altThemeId?: string | null;
   /**
    * Applied in order. Their lanes all run at once; a colliding `combine` mode or
    * static setting layers, with the last group in this list winning.

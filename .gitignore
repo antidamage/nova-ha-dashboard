@@ -42,6 +42,9 @@ data/*.json
 data/*.jsonl
 data/camera/
 data/gymmaster/
+# The preferences undo history: per-install runtime state, written on every
+# save. Nothing in it is source, and it is unique to the machine it grew on.
+data/history/
 data/managed-computer-keys/
 data/managed-desktop-known-hosts/
 data/nova-voice-tls/

@@ -1,9 +1,16 @@
-import type { PhonoscopeColorGroup, PhonoscopePreferences, PhonoscopeSettingsGroup } from "./types";
+import type {
+  PhonoscopeColorGroup,
+  PhonoscopeDriver,
+  PhonoscopeEffectBinding,
+  PhonoscopePreferences,
+  PhonoscopeSettingsGroup,
+} from "./types";
 import { readPhonoscopeNowPlaying, trackKey } from "./phonoscope-now-playing";
 import {
   driverFiresOn,
   mergePhonoscopeSettingsGroups,
   phonoscopePlaybackOrder,
+  PHONOSCOPE_ALT_THEME_EFFECT,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
   type PhonoscopePlaybackOrder,
 } from "./phonoscope-drivers";
@@ -13,8 +20,20 @@ export type PhonoscopeThemeState = {
   /** The playlist entry that is live. Rotation indexes entries, not themes. */
   entryId: string;
   entryIndex: number;
-  /** The entry's colour theme, carried alongside so clients can resolve a palette. */
+  /**
+   * The colour theme to show, carried alongside so clients can resolve a
+   * palette. Already resolved through the alt state: while `altActive` is on
+   * and the entry names an alt, this is the alt's id.
+   */
   themeId: string;
+  /**
+   * The household's alt state. Global rather than per-entry: it survives
+   * rotation and group changes, so an entry with no alt of its own shows its
+   * own theme without turning the state off. Clients that index a palette by
+   * entry rather than by id (the streamed renderer) need this to pick the alt
+   * column; clients that resolve `themeId` directly can ignore it.
+   */
+  altActive: boolean;
   /** The entry's settings groups, in order. Merged by lanes-stack/scalars-layer. */
   settingsGroupIds: string[];
   paused: boolean;
@@ -23,7 +42,15 @@ export type PhonoscopeThemeState = {
   transitionSeconds: number;
 };
 
-type ThemeStore = PhonoscopeThemeState & {
+// `themeId` is deliberately not carried: the store holds the entry's own theme
+// and its alt separately, and the published id is resolved from the two.
+type ThemeStore = Omit<PhonoscopeThemeState, "themeId"> & {
+  /** The selected entry's own theme, before the alt state is applied. */
+  baseThemeId: string;
+  /** The selected entry's alt, or "" when it has none. */
+  entryAltThemeId: string;
+  /** The alt pulse's own clock, so a timer on it cannot drag the rotation's. */
+  altChangedAtMs: number;
   lastTrackKey: string;
   lastBarIndex: number | null;
   /** Counts song and downbeat events so a driver's `every` can gate them. */
@@ -43,12 +70,15 @@ const emptyStore = (): ThemeStore => ({
   groupId: "",
   entryId: "",
   entryIndex: 0,
-  themeId: "",
+  altActive: false,
   settingsGroupIds: [],
   paused: false,
   revision: 0,
   changedAtMs: Date.now(),
   transitionSeconds: 0,
+  baseThemeId: "",
+  entryAltThemeId: "",
+  altChangedAtMs: Date.now(),
   lastTrackKey: "",
   lastBarIndex: null,
   songEventCount: 0,
@@ -100,14 +130,26 @@ export function activePhonoscopeColorGroup(
     ?? groups[0];
 }
 
+/**
+ * The theme this entry shows right now.
+ *
+ * The alt state is global and the alt link is per entry, so "alt is on" and
+ * "this entry has an alt" are separate questions: an entry with no alt keeps
+ * its own theme rather than blanking, and the state stays on for the next entry
+ * that does have one.
+ */
+function resolvedThemeId() {
+  return store.altActive && store.entryAltThemeId ? store.entryAltThemeId : store.baseThemeId;
+}
+
 function publicState(): PhonoscopeThemeState {
   const {
-    groupId, entryId, entryIndex, themeId, settingsGroupIds, paused, revision, changedAtMs,
+    groupId, entryId, entryIndex, altActive, settingsGroupIds, paused, revision, changedAtMs,
     transitionSeconds,
   } = store;
   return {
-    groupId, entryId, entryIndex, themeId, settingsGroupIds: [...settingsGroupIds], paused,
-    revision, changedAtMs, transitionSeconds,
+    groupId, entryId, entryIndex, themeId: resolvedThemeId(), altActive,
+    settingsGroupIds: [...settingsGroupIds], paused, revision, changedAtMs, transitionSeconds,
   };
 }
 
@@ -132,21 +174,27 @@ function chooseIndex(
   return (next + count) % count;
 }
 
-function themeChangeRuleFor(config: PhonoscopePreferences, settingsGroupIds: string[]) {
+type PulseRule = { driver: PhonoscopeDriver; binding: PhonoscopeEffectBinding };
+
+function pulseRuleFor(
+  config: PhonoscopePreferences,
+  settingsGroupIds: string[],
+  effect: string,
+): PulseRule | null {
   const byId = new Map((config.settingsGroups ?? []).map((group) => [group.id, group]));
   const groups = settingsGroupIds
     .map((id) => byId.get(id))
     .filter((group): group is PhonoscopeSettingsGroup => Boolean(group));
   const merged = mergePhonoscopeSettingsGroups(groups);
   for (const { lane } of merged.lanes) {
-    const binding = lane.bindings.find((entry) => entry.effect === PHONOSCOPE_THEME_CHANGE_EFFECT);
+    const binding = lane.bindings.find((entry) => entry.effect === effect);
     if (binding) return { driver: lane.driver, binding };
   }
   return null;
 }
 
 /**
- * The `__themeChange` binding that governs rotation.
+ * The rotation-pulse binding that governs `effect` right now.
  *
  * Preferably the one the *current* entry names, so different entries can hold
  * for different lengths. Failing that, the first one anywhere on the playlist.
@@ -156,20 +204,30 @@ function themeChangeRuleFor(config: PhonoscopePreferences, settingsGroupIds: str
  * onto an entry that bound nothing and then pinned there forever — the rotation
  * ran once and stopped, which is not what a sequential playlist means. An entry
  * with no binding of its own now inherits the playlist's, so it holds for that
- * long and moves on.
+ * long and moves on. `__altTheme` inherits by the same rule, for the same
+ * reason: the alt state is the playlist's, not one entry's.
  */
+function pulseRule(
+  config: PhonoscopePreferences,
+  entrySettingsGroupIds: string[],
+  effect: string,
+  group?: PhonoscopeColorGroup,
+): PulseRule | null {
+  const own = pulseRuleFor(config, entrySettingsGroupIds, effect);
+  if (own || !group) return own;
+  for (const entry of group.entries) {
+    const inherited = pulseRuleFor(config, entry.settingsGroupIds, effect);
+    if (inherited) return inherited;
+  }
+  return null;
+}
+
 function themeChangeRule(
   config: PhonoscopePreferences,
   entrySettingsGroupIds: string[],
   group?: PhonoscopeColorGroup,
 ) {
-  const own = themeChangeRuleFor(config, entrySettingsGroupIds);
-  if (own || !group) return own;
-  for (const entry of group.entries) {
-    const inherited = themeChangeRuleFor(config, entry.settingsGroupIds);
-    if (inherited) return inherited;
-  }
-  return null;
+  return pulseRule(config, entrySettingsGroupIds, PHONOSCOPE_THEME_CHANGE_EFFECT, group);
 }
 
 function select(group: PhonoscopeColorGroup, index: number, now: number, transitionSeconds: number) {
@@ -177,7 +235,8 @@ function select(group: PhonoscopeColorGroup, index: number, now: number, transit
   store.entryIndex = (index + group.entries.length) % group.entries.length;
   const entry = group.entries[store.entryIndex];
   store.entryId = entry.id;
-  store.themeId = entry.themeId;
+  store.baseThemeId = entry.themeId;
+  store.entryAltThemeId = entry.altThemeId ?? "";
   store.settingsGroupIds = [...entry.settingsGroupIds];
   store.changedAtMs = now;
   store.transitionSeconds = transitionSeconds;
@@ -241,6 +300,58 @@ function trackSoloChanges(config: PhonoscopePreferences, now: number) {
 }
 
 /**
+ * `__altTheme`: each firing flips the household's alt state.
+ *
+ * Deliberately a flip of one global boolean rather than a per-entry mode. The
+ * user's picture is "we are in alt now", and it has to survive the rotation
+ * moving on — going A → A-alt → B (no alt, so B) → C shows C's alt, because the
+ * state was never turned off, only unusable in the middle.
+ *
+ * Held exactly as the rotation is held: a pause, an editor preview or a solo is
+ * "hold this picture", and a flip is a picture change like any other.
+ */
+function applyAltPulse(
+  config: PhonoscopePreferences,
+  group: PhonoscopeColorGroup,
+  now: number,
+  context: { songChanged: boolean; barChanged: boolean; held: boolean },
+) {
+  const rule = pulseRule(config, store.settingsGroupIds, PHONOSCOPE_ALT_THEME_EFFECT, group);
+  if (!rule) return;
+  const { driver, binding } = rule;
+  // The release is the blend, read the same way `__themeChange` reads it.
+  const transitionSeconds = Math.max(0, binding.releaseSeconds ?? 0.6);
+  if (context.held) {
+    // Keep the clock under the hold, or releasing a long pause fires the flip
+    // immediately on a timer that was never really running.
+    store.altChangedAtMs = now;
+    return;
+  }
+
+  let fired = false;
+  if (driver.type === "timer") {
+    const period = Math.max(0.25, driver.intervalSeconds) * Math.max(1, driver.every);
+    fired = now - store.altChangedAtMs >= (period + transitionSeconds) * 1_000;
+  } else if (driver.type === "song") {
+    fired = context.songChanged && driverFiresOn(store.songEventCount, driver.every, driver.offset);
+  } else if (driver.type === "downbeat" || driver.type === "beat") {
+    // Quantised to the downbeat for the same reason the rotation is: the
+    // now-playing uplink reports bars, and there is no beat clock here.
+    fired = context.barChanged && driverFiresOn(store.barEventCount, driver.every, driver.offset);
+  }
+  // A level driver carries no event, so it can never flip the state.
+  if (!fired) return;
+
+  store.altActive = !store.altActive;
+  store.altChangedAtMs = now;
+  store.transitionSeconds = transitionSeconds;
+  // Bumped even when the showing entry has no alt: the household state really
+  // did change, and the next entry that owns an alt must not be told to blend
+  // from a revision the clients already hold.
+  store.revision += 1;
+}
+
+/**
  * Returns Nova's authoritative visualiser choice. Both Iridium and tvOS consume
  * this object; neither is allowed to maintain an independent rotation.
  */
@@ -255,7 +366,8 @@ export function readPhonoscopeThemeState(
     if (store.groupId || store.entryId) {
       store.groupId = "";
       store.entryId = "";
-      store.themeId = "";
+      store.baseThemeId = "";
+      store.entryAltThemeId = "";
       store.settingsGroupIds = [];
       store.entryIndex = 0;
       store.revision += 1;
@@ -337,6 +449,16 @@ export function readPhonoscopeThemeState(
   } else if (shouldAdvance) {
     store.changedAtMs = now;
   }
+
+  // The alt pulse is evaluated after the rotation so that when both fire on the
+  // same event the flip lands on the entry that is now showing, rather than
+  // flipping the outgoing one a frame before it leaves.
+  applyAltPulse(config, group, now, {
+    songChanged,
+    barChanged,
+    held: store.paused || store.previewActive || resolveSolo(config).active,
+  });
+
   store.lastTrackKey = currentTrackKey;
   store.lastBarIndex = currentBarIndex;
   return applySolo(publicState(), config);
@@ -381,5 +503,5 @@ export function commandPhonoscopeTheme(
 }
 
 export function resetPhonoscopeThemeStateForTest() {
-  Object.assign(store, emptyStore(), { changedAtMs: 0 });
+  Object.assign(store, emptyStore(), { changedAtMs: 0, altChangedAtMs: 0 });
 }

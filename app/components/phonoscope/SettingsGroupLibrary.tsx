@@ -21,6 +21,7 @@ import {
   effectGroupIndex,
   effectOptionFor,
   laneLabel,
+  newEffectBinding,
   type EffectOption,
   type ModuleSetting,
   type ResolvedEffectGroup,
@@ -305,9 +306,13 @@ export function SettingsGroupCard({
                   bindings={item.bindings}
                   group={item.group}
                   laneId={lane.id}
-                  onAdd={(effectId) => updateLane(lane.id, {
-                    bindings: [...lane.bindings, { id: newId("bind"), effect: effectId }],
-                  })}
+                  onAdd={(effectId) => {
+                    const member = effectOptionFor(catalogue, effectId);
+                    if (!member) return;
+                    updateLane(lane.id, {
+                      bindings: [...lane.bindings, newEffectBinding(newId("bind"), member)],
+                    });
+                  }}
                   onRemoveAll={() => {
                     const members = new Set(item.group.members.map((member) => member.id));
                     updateLane(lane.id, {
@@ -321,8 +326,11 @@ export function SettingsGroupCard({
                 catalogue={catalogue}
                 groups={effectGroups}
                 onAdd={(effectId) => {
-                  const binding: PhonoscopeEffectBinding = { id: newId("bind"), effect: effectId };
-                  updateLane(lane.id, { bindings: [...lane.bindings, binding] });
+                  const added = effectOptionFor(catalogue, effectId);
+                  if (!added) return;
+                  updateLane(lane.id, {
+                    bindings: [...lane.bindings, newEffectBinding(newId("bind"), added)],
+                  });
                 }}
                 onAddGroup={(added) => {
                   // Adding a group adds its first member, which is the one that
@@ -331,7 +339,7 @@ export function SettingsGroupCard({
                   const first = added.members[0];
                   if (!first) return;
                   updateLane(lane.id, {
-                    bindings: [...lane.bindings, { id: newId("bind"), effect: first.id }],
+                    bindings: [...lane.bindings, newEffectBinding(newId("bind"), first)],
                   });
                 }}
               />

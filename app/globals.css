@@ -731,14 +731,26 @@ html[data-nova-hide-orb-info]
 /* The centre-image tile that is actually assigned.
  *
  * A real class rather than Tailwind's `ring-*`: no other surface here uses those
- * utilities, and the first attempt at this produced nothing visible at all. A
- * solid highlight border plus an outer glow reads as a ring around the artwork
- * at a glance, which a one-pixel border colour change did not. */
+ * utilities and they rendered nothing at all here.
+ *
+ * The ring is the highlight LIFTED TOWARDS WHITE rather than the highlight
+ * itself. `--cyber-highlight` carries the theme's intensity, and a theme can
+ * legitimately set that low -- this household's resolves to rgb(104 80 38),
+ * a dark brown that is invisible against a near-black tile. Mixing in white
+ * keeps the theme's hue while guaranteeing the ring reads on the panel it is
+ * drawn on, which is the whole job of a selection ring. */
+.dashboard-shell button.centre-image-tile-selected,
 .centre-image-tile-selected {
-  border-color: var(--cyber-highlight) !important;
+  --centre-ring: color-mix(in srgb, var(--cyber-highlight) 55%, #ffffff 45%);
+  border-color: var(--centre-ring) !important;
+  /* `!important` and the `.dashboard-shell button` prefix are both load-bearing:
+     the shell nulls shadows on every button with
+     `.dashboard-shell button { box-shadow: none !important }`, which silently
+     ate this ring twice. Same escape hatch `.dashboard-shell
+     button.reminder-picker-option` already uses. */
   box-shadow:
-    0 0 0 3px var(--cyber-highlight),
-    0 0 14px rgb(var(--cyber-highlight-rgb) / 0.55);
+    0 0 0 3px var(--centre-ring),
+    0 0 16px rgb(var(--cyber-highlight-rgb) / 0.65) !important;
 }
 
 .reminder-picker-option-label {
@@ -2487,25 +2499,29 @@ a.update-banner-button {
   gap: 12px;
 }
 
+/* A centred card, not a full-screen sheet.
+ *
+ * It used to be `width: 100%; height: 100dvh` over a `stretch` overlay, which
+ * covered the viewport edge to edge -- so there was no backdrop left to click
+ * and "tap outside to dismiss" could never fire, even though ModalOverlay has
+ * always wired it up. Sized generously and scrollable so it is still usable
+ * under a finger on the wall kiosk. */
 .theme-colour-popover {
-  width: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
+  width: min(560px, 92vw);
+  max-height: min(86dvh, 900px);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
   background: var(--cyber-panel);
+  border: 1px solid var(--cyber-border-dim);
 }
 
 .modal-overlay.theme-colour-overlay {
-  align-items: stretch;
-  justify-content: stretch;
-  padding: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
-  background: var(--cyber-panel);
+  /* Inherits the shared layer's centring. Half-opaque rather than the shared
+     0.78 so the picture behind stays readable while you match a colour to it. */
+  background: rgb(0 0 0 / 0.5);
 }
 
 .theme-colour-popover-header {

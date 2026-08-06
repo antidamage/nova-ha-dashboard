@@ -11,6 +11,7 @@ import {
   PHONOSCOPE_HUE_OFFSET_EFFECT,
   PHONOSCOPE_MESSAGE_SCALE_EFFECT,
   PHONOSCOPE_SCENE_BLEND_EFFECT,
+  PHONOSCOPE_ALT_THEME_EFFECT,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
   PHONOSCOPE_VIGNETTE_OPACITY_EFFECT,
   PHONOSCOPE_VIGNETTE_SIZE_EFFECT,
@@ -56,6 +57,10 @@ export const PHONOSCOPE_PICTURE_EFFECTS: PhonoscopeEffectDeclaration[] = [
   // rotation by one entry. The binding's envelope is the cross-fade, and
   // `params.order` chooses sequential or shuffle.
   { id: PHONOSCOPE_THEME_CHANGE_EFFECT, min: 0, max: 1, step: 1, default: 0 },
+  // The other rotation pulse: each firing flips the household's alt state, so
+  // the picture blends to the current entry's alt theme and the firing after
+  // that blends back. Same fixed 0-1 range for the same reason.
+  { id: PHONOSCOPE_ALT_THEME_EFFECT, min: 0, max: 1, step: 1, default: 0 },
   // Frame geometry, as a PERCENTAGE of the render view. The defaults are the
   // fixed letterbox these replaced: a centred band one third high and full
   // width. Authored 0-100 because "33%" is what the control means; each engine
@@ -139,6 +144,11 @@ export const PHONOSCOPE_PICTURE_EFFECT_LABELS: Record<
   [PHONOSCOPE_THEME_CHANGE_EFFECT]: {
     label: "Change colour theme",
     description: "Advances the colour group to its next entry. The envelope is the cross-fade.",
+  },
+  [PHONOSCOPE_ALT_THEME_EFFECT]: {
+    label: "Change to alt theme",
+    description:
+      "Flips the household between each entry's main and alt colour theme. Entries with no alt keep their own. The envelope is the cross-fade.",
   },
   [PHONOSCOPE_BG_HEIGHT_EFFECT]: {
     label: "Background height",

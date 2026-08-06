@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { PhonoscopeColorTheme, PhonoscopeColorValue } from "../../../lib/types";
-import { ColorSpectrum, ColorWidget, ConfigAccordion, SliderControlPanel } from "../ConfigControls";
+import {
+  ColorIntensitySlider,
+  ColorSpectrum,
+  ColorWidget,
+  ConfigAccordion,
+  SliderControlPanel,
+} from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { CentreImageLibrary } from "./CentreImageLibrary";
 import { CopyActions, PasteIntoButton } from "./ClipboardControls";
@@ -138,6 +144,29 @@ export function ColorThemeLibrary({
                         // `ColorSpectrum` works in the dashboard's own colour
                         // shape, which requires a cursor. A Phonoscope colour
                         // carries one optionally, so it is defaulted to centre.
+                        value={{
+                          rgb: value.rgb,
+                          intensity: value.intensity,
+                          cursor: value.cursor ?? { x: 0.5, y: 0.5 },
+                        }}
+                        onPreview={(color) => updateTheme(theme.id, {
+                          colors: { ...theme.colors, [slot.id]: { ...color, opacity: value.opacity } },
+                        })}
+                        onCommit={(color) => updateTheme(theme.id, {
+                          colors: { ...theme.colors, [slot.id]: { ...color, opacity: value.opacity } },
+                        }, true)}
+                      />
+                      {/*
+                        Intensity is a separate control from the spectrum, the
+                        same way it is in the dashboard theme editor: the
+                        spectrum picks the hue, this picks how hard it is
+                        driven. The cursor is defaulted to centre here for the
+                        same reason as above — a Phonoscope colour carries one
+                        only optionally, and dropping it would move the
+                        spectrum's crosshair every time intensity changed.
+                      */}
+                      <ColorIntensitySlider
+                        label={slot.label}
                         value={{
                           rgb: value.rgb,
                           intensity: value.intensity,

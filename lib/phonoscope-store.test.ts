@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizePhonoscopeSettingsGroups, prunePhonoscopeLanes } from "./phonoscope-store";
+import {
+  normalizePhonoscopeColorGroups,
+  normalizePhonoscopeSettingsGroups,
+  prunePhonoscopeLanes,
+} from "./phonoscope-store";
 import { phonoscopeDriver } from "./phonoscope-drivers";
 import type { PhonoscopeDriverLane } from "./types";
 
@@ -82,5 +86,55 @@ describe("theme change range", () => {
     expect(binding.max).toBeUndefined();
     // The envelope is still the cross-fade and must survive.
     expect(binding.releaseSeconds).toBe(2);
+  });
+});
+
+describe("alt theme range", () => {
+  it("drops a stored range on the alt flip too: it is a pulse, not a value", () => {
+    const [group] = normalizePhonoscopeSettingsGroups([{
+      id: "g", name: "G", moduleId: "m",
+      lanes: [{
+        id: "l",
+        driver: { type: "downbeat" },
+        bindings: [{
+          id: "b", effect: "__altTheme",
+          min: 0.5, max: 0.9, releaseSeconds: 2,
+        }],
+      }],
+    }]);
+    const [binding] = group.lanes[0].bindings;
+    expect(binding.min).toBeUndefined();
+    expect(binding.max).toBeUndefined();
+    expect(binding.releaseSeconds).toBe(2);
+  });
+});
+
+describe("colour group entry alt links", () => {
+  const themes = ["red", "blue"].map((id) => ({
+    id, name: id, moduleId: "particle-ripples", colors: {}, imageId: null,
+  }));
+  const settingsGroups = normalizePhonoscopeSettingsGroups([
+    { id: "default", name: "Default", moduleId: "particle-ripples", isDefault: true },
+  ]);
+
+  const normalize = (altThemeId: unknown) => normalizePhonoscopeColorGroups([{
+    id: "group", moduleId: "particle-ripples", name: "G", isDefault: true,
+    entries: [{ id: "entry", themeId: "red", altThemeId, settingsGroupIds: ["default"] }],
+  }], themes, settingsGroups)[0].entries[0].altThemeId;
+
+  it("keeps a link that resolves in the library", () => {
+    expect(normalize("blue")).toBe("blue");
+  });
+
+  it("drops one naming a theme that no longer exists, rather than dangling", () => {
+    expect(normalize("deleted")).toBeNull();
+  });
+
+  it("drops one pointing back at the entry's own theme, which alts to nothing", () => {
+    expect(normalize("red")).toBeNull();
+  });
+
+  it("reads an entry with no alt at all as having none", () => {
+    expect(normalize(undefined)).toBeNull();
   });
 });

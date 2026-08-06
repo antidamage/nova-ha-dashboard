@@ -540,7 +540,16 @@ A driver produces 0-1 each tick:
 
 Pulse drivers carry `every` (1-16) and `offset`: the lane fires only when
 `(index - offset) mod every == 0`, which is how "every fourth downbeat, starting
-on the second" is expressed rather than as its own driver type. Modifier signals
+on the second" is expressed rather than as its own driver type.
+
+`beat` and `downbeat` also carry `divide` (1, 2, 4 or 8), which counts in the
+other direction: the pulse is split into that many events, so a `beat` driver at
+`divide: 4` fires four times a beat and a `downbeat` driver at `divide: 2` twice
+a bar. The event index becomes `floor((index + phase) × divide)` against the
+frame's `beatPhase`/`barPhase`. Counting and subdividing are exclusive — a
+subdivided driver always has `every: 1` and `offset: 0`, because which of eight
+sub-beats a run begins on is not audible — and a `divide` outside 1/2/4/8 reads
+as the whole pulse. A `random` driver subdivides through its `cadence`. Modifier signals
 are **summed** onto the primary and the total is guard-clamped to 0-4; there is
 no operator choice.
 
@@ -549,8 +558,8 @@ attack/hold/release envelope. What it contributes is `value - min` — the amoun
 above its own resting point, so two idle bindings do not stack their floors. Per
 effect, contributions either **add** or resolve to the **strongest**, meaning the
 contribution from the rarest currently-firing lane, rarity ordered `song` >
-`timer` (by interval) > `downbeat × every` > `beat × every` > level drivers, ties
-broken by lane order.
+`timer` (by interval) > `downbeat × every ÷ divide` > `beat × every ÷ divide` >
+level drivers, ties broken by lane order.
 
 The result is **not** clamped to the setting's declared maximum. It is guarded
 only to `[min, min + 4 × (max - min)]` and to being finite: stacked lanes are
@@ -564,10 +573,29 @@ effect keep independent envelopes.
 
 Five effects belong to the picture rather than to any module, and no manifest
 declares them: `__glowBlur`, `__glowOpacity`, `__glowBlend`, `__messageScale` and
-`__hueOffset`. A sixth, `__themeChange`, is a pulse rather than a value — it
-advances the colour theme group's playlist, so it is meaningless under a level
-driver. `__hueOffset` and `__themeChange` are resolved by the dashboard, which
-owns House Party output and rotation; the rest are resolved by both engines.
+`__hueOffset`. Two more, `__themeChange` and `__altTheme`, are pulses rather than
+values — one advances the colour theme group's playlist and the other flips the
+household's alt state — so both are meaningless under a level driver, and both
+read their binding's release as the cross-fade rather than as an envelope shape.
+`__hueOffset`, `__themeChange` and `__altTheme` are resolved by the dashboard,
+which owns House Party output and rotation; the rest are resolved by both
+engines.
+
+**The alt colour theme.** A colour group entry may name a second theme in
+`altThemeId`, a link into the same flat theme library rather than a theme of its
+own. `__altTheme` flips one household-wide boolean, published as `altActive`
+beside the theme state's already-resolved `themeId`. The state is global and the
+link is per entry, so it survives the rotation moving on: going A → A-alt → B,
+where B names no alt, shows B's own colours and leaves the state on, and the
+next entry that does name one shows its alt. An entry with no alt therefore
+never blanks and never turns the state off. A solo holds the picture, so a flip
+under one changes nothing on screen.
+
+Clients that resolve a palette from `themeId` need nothing further. The streamed
+renderer indexes palettes by rotation entry, so it resolves both columns at
+config-parse time and picks between them with `altActive`; an entry with no alt
+has the same palette and centre image in both columns, which is why the flip can
+never show a hole.
 
 **Solo** holds the visualiser on one colour theme and/or one settings group,
 overriding the rotation until it is switched off. It is resolved by the

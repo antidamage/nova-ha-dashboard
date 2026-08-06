@@ -8,6 +8,7 @@ import type {
   PhonoscopeEffectBinding,
 } from "../../../lib/types";
 import {
+  isPhonoscopeThemePulseEffect,
   isPulseDriver,
   PHONOSCOPE_PLAYBACK_ORDER_VALUES,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
@@ -183,10 +184,12 @@ export function EffectEntry({
     binding.holdSeconds ?? 0,
     binding.releaseSeconds ?? 0.6,
   ];
-  // The theme change is a pulse: any non-zero contribution advances the
-  // rotation by one entry, so its range is fixed at 0-1 and there is nothing to
-  // author. Its envelope is still the cross-fade.
-  const fixedRange = binding.effect === PHONOSCOPE_THEME_CHANGE_EFFECT;
+  // The rotation pulses are instructions: any non-zero contribution advances
+  // the rotation by one entry, or flips the alt state, so the range is fixed at
+  // 0-1 and there is nothing to author. The envelope is still the cross-fade,
+  // which is why it is labelled "Transition" on both of them.
+  const themePulse = isPhonoscopeThemePulseEffect(binding.effect);
+  const fixedRange = themePulse;
   const missing = PARAMETER_KEYS.filter((key) => {
     if (key === "order" && binding.effect !== PHONOSCOPE_THEME_CHANGE_EFFECT) return false;
     if (key === "range" && fixedRange) return false;
@@ -367,12 +370,12 @@ export function EffectEntry({
 
         {hasParameter(binding, combine, "envelope") && !effect.choices ? (
           <ParameterRow
-            label={binding.effect === PHONOSCOPE_THEME_CHANGE_EFFECT ? "Transition" : "Envelope"}
+            label={themePulse ? "Transition" : "Envelope"}
             onRemove={() => removeParameter("envelope")}
           >
             <EnvelopeSliderControlPanel
               ariaLabel={`${effect.label} envelope`}
-              label={binding.effect === PHONOSCOPE_THEME_CHANGE_EFFECT ? "Transition" : "Envelope"}
+              label={themePulse ? "Transition" : "Envelope"}
               value={envelope}
               onPreview={([attackSeconds, holdSeconds, releaseSeconds]) =>
                 onChange({ ...binding, attackSeconds, holdSeconds, releaseSeconds })}
@@ -402,7 +405,7 @@ export function EffectEntry({
                 label: key === "range"
                   ? (effect.choices || effect.toggle ? effect.label : "Range")
                   : key === "envelope"
-                    ? (binding.effect === PHONOSCOPE_THEME_CHANGE_EFFECT ? "Transition" : "Envelope")
+                    ? (themePulse ? "Transition" : "Envelope")
                     : key === "combine" ? "When stacked" : "Playback",
               })),
             ]}

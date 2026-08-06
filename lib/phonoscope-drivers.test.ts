@@ -28,6 +28,8 @@ function frameAt(partial: Partial<PhonoscopeSignalFrame> = {}): PhonoscopeSignal
     delta: 1 / 60,
     beatIndex: 0,
     barIndex: 0,
+    beatPhase: 0,
+    barPhase: 0,
     beatPulse: 0,
     downbeatPulse: 0,
     energy: 0,
@@ -118,6 +120,17 @@ describe("driverPeriodSeconds", () => {
     expect(fourthDownbeat).toBeLessThan(song);
   });
 
+  it("ranks a subdivided lane as commoner than the pulse it divides", () => {
+    const beat = driverPeriodSeconds(phonoscopeDriver({ type: "beat" }), frame);
+    const half = driverPeriodSeconds(phonoscopeDriver({ type: "beat", divide: 2 }), frame);
+    const eighth = driverPeriodSeconds(phonoscopeDriver({ type: "beat", divide: 8 }), frame);
+    expect(half).toBeCloseTo(beat / 2, 10);
+    expect(eighth).toBeCloseTo(beat / 8, 10);
+    const bar = driverPeriodSeconds(phonoscopeDriver({ type: "downbeat" }), frame);
+    expect(driverPeriodSeconds(phonoscopeDriver({ type: "downbeat", divide: 4 }), frame))
+      .toBeCloseTo(bar / 4, 10);
+  });
+
   it("gives continuous drivers no rarity at all", () => {
     for (const type of ["energy", "bass", "mid", "treble", "random"] as const) {
       expect(driverPeriodSeconds(phonoscopeDriver({ type }), frame)).toBe(0);
@@ -193,6 +206,93 @@ describe("pulse envelopes", () => {
     expect(at(2)).toBe(0);
     expect(at(3)).toBe(0);
     expect(at(4)).toBe(10);
+  });
+
+  it("fires four times a beat when the beat is quartered", () => {
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "beat", divide: 4 }), [binding({
+        min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0,
+      })]),
+    }];
+    const states = createPhonoscopeDriverStates();
+    const at = (beatIndex: number, beatPhase: number) =>
+      evaluatePhonoscopeDriverLanes({
+        lanes, combine: {}, declarations, states,
+        frame: frameAt({ time: beatIndex + beatPhase, delta: 0.05, beatIndex, beatPhase }),
+      }).values.glow;
+
+    // One firing per quarter of the beat: the second sample inside a quarter is
+    // the same event, so the envelope has already fallen back to nothing.
+    expect(at(0, 0)).toBe(10);
+    expect(at(0, 0.1)).toBe(0);
+    expect(at(0, 0.25)).toBe(10);
+    expect(at(0, 0.4)).toBe(0);
+    expect(at(0, 0.5)).toBe(10);
+    expect(at(0, 0.75)).toBe(10);
+    expect(at(1, 0)).toBe(10);
+  });
+
+  it("subdivides the bar for a quartered downbeat", () => {
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "downbeat", divide: 2 }), [binding({
+        min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0,
+      })]),
+    }];
+    const states = createPhonoscopeDriverStates();
+    const at = (barIndex: number, barPhase: number) =>
+      evaluatePhonoscopeDriverLanes({
+        lanes, combine: {}, declarations, states,
+        frame: frameAt({ time: barIndex + barPhase, delta: 0.05, barIndex, barPhase }),
+      }).values.glow;
+
+    expect(at(0, 0)).toBe(10);
+    expect(at(0, 0.25)).toBe(0);
+    expect(at(0, 0.5)).toBe(10);
+    expect(at(0, 0.75)).toBe(0);
+    expect(at(1, 0)).toBe(10);
+  });
+
+  it("leaves an undivided driver's events exactly as they were", () => {
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "beat" }), [binding({
+        min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0,
+      })]),
+    }];
+    const states = createPhonoscopeDriverStates();
+    const at = (beatIndex: number, beatPhase: number) =>
+      evaluatePhonoscopeDriverLanes({
+        lanes, combine: {}, declarations, states,
+        frame: frameAt({ time: beatIndex + beatPhase, delta: 0.05, beatIndex, beatPhase }),
+      }).values.glow;
+
+    expect(at(0, 0)).toBe(10);
+    expect(at(0, 0.5)).toBe(0);
+    expect(at(0, 0.75)).toBe(0);
+    expect(at(1, 0)).toBe(10);
+  });
+});
+
+describe("phonoscopeDriver", () => {
+  it("keeps counting and subdividing exclusive", () => {
+    const driver = phonoscopeDriver({ type: "beat", divide: 4, every: 8, offset: 3 });
+    expect(driver.divide).toBe(4);
+    expect(driver.every).toBe(1);
+    expect(driver.offset).toBe(0);
+  });
+
+  it("drops a subdivision the pulse cannot carry", () => {
+    expect(phonoscopeDriver({ type: "song", divide: 4 }).divide).toBe(1);
+    expect(phonoscopeDriver({ type: "timer", divide: 4 }).divide).toBe(1);
+    expect(phonoscopeDriver({ type: "random", cadence: "song", divide: 4 }).divide).toBe(1);
+    expect(phonoscopeDriver({ type: "random", cadence: "downbeat", divide: 4 }).divide).toBe(4);
+  });
+
+  it("reads an unsupported subdivision as the whole pulse", () => {
+    expect(phonoscopeDriver({ type: "beat", divide: 3 }).divide).toBe(1);
+    expect(phonoscopeDriver({ type: "beat", divide: 0 }).divide).toBe(1);
   });
 });
 

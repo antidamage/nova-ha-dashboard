@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUp, ArrowLeft, AudioLines, Bot, Database, Download, KeyRound, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
+import { ArrowDownUp, ArrowLeft, AudioLines, Bot, Database, Download, History, KeyRound, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -28,6 +28,7 @@ const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((mo
 const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
 const DashboardClimateConfig = dynamic(() => import("./DashboardClimateConfig").then((module) => module.DashboardClimateConfig));
 const GymCounterConfig = dynamic(() => import("./GymCounterConfig").then((module) => module.GymCounterConfig));
+const HistoryPanel = dynamic(() => import("./HistoryPanel").then((module) => module.HistoryPanel));
 const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
 const PhonoscopeConfig = dynamic(() => import("./PhonoscopeConfig").then((module) => module.PhonoscopeConfig));
 const RemindersConfig = dynamic(() => import("./RemindersConfig").then((module) => module.RemindersConfig));
@@ -411,6 +412,14 @@ export function ConfigWorkspace({
             ) : null}
             {activeCategory === "system-data" ? (
               <>
+        {/*
+          History leads this category: when someone comes looking for it they
+          have usually just lost something, and hunting past Secrets and
+          Transfer to find the way back is the wrong first experience.
+        */}
+        <ConfigAccordion id="history" title="History" icon={<History className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
+          <HistoryPanel />
+        </ConfigAccordion>
         <ConfigAccordion id="secrets" title="Secrets" icon={<KeyRound className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
           <div className="panel-corner panel-corner-left" />
           <div className="panel-corner panel-corner-right" />

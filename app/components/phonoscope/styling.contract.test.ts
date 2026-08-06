@@ -41,6 +41,16 @@ describe("centre image library styling", () => {
       /\.centre-image-tile-selected\s*\{[^}]*box-shadow:[^;]*--cyber-highlight/);
   });
 
+  it("outranks the shell rule that nulls box-shadow on every button", () => {
+    // `.dashboard-shell button { box-shadow: none !important }` beat this ring
+    // twice: once on specificity, once on importance. Both halves of the escape
+    // hatch are asserted because dropping either silently removes the ring
+    // again, and an invisible selection looks exactly like no selection.
+    expect(css).toContain(".dashboard-shell button.centre-image-tile-selected");
+    const rule = css.match(/\.dashboard-shell button\.centre-image-tile-selected[\s\S]*?\}/)?.[0] ?? "";
+    expect(rule).toMatch(/box-shadow:[\s\S]*!important/);
+  });
+
   it("does not reuse Tailwind ring utilities, which render nothing on this surface", () => {
     expect(centreImages).not.toMatch(/\bring-(2|offset)/);
   });

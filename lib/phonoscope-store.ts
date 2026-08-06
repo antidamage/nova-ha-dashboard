@@ -26,7 +26,7 @@ import {
   PHONOSCOPE_SCHEMA_VERSION,
 } from "./phonoscope-migrate-v4";
 import { phonoscopeEffectDeclarations } from "./phonoscope-effects";
-import { PHONOSCOPE_THEME_CHANGE_EFFECT } from "./phonoscope-drivers";
+import { isPhonoscopeThemePulseEffect, PHONOSCOPE_DIVIDE_CHOICES } from "./phonoscope-drivers";
 import type {
   PhonoscopeColorGroup,
   PhonoscopeColorGroupEntry,
@@ -238,10 +238,15 @@ function normalizeDriver(value: unknown): PhonoscopeDriver {
   const type = (PHONOSCOPE_DRIVER_TYPES as readonly string[]).includes(String(raw.type))
     ? String(raw.type) as PhonoscopeDriver["type"]
     : "beat";
-  const every = Math.round(finiteClamped(raw.every, 1, 1, 16));
+  const requested = Math.round(finiteClamped(raw.divide, 1, 1, 8));
+  const divide = PHONOSCOPE_DIVIDE_CHOICES.includes(requested) ? requested : 1;
+  // Counting and subdividing are the two directions of one control: a
+  // subdivided driver is always "every one", and its offset is nothing.
+  const every = divide > 1 ? 1 : Math.round(finiteClamped(raw.every, 1, 1, 16));
   return {
     type,
     every,
+    divide,
     // An offset only means anything inside the cycle it offsets within.
     offset: Math.round(finiteClamped(raw.offset, 0, 0, Math.max(0, every - 1))),
     intervalSeconds: finiteClamped(raw.intervalSeconds, 4, 0.25, 600),
@@ -268,11 +273,11 @@ function normalizeBinding(value: unknown, index: number): PhonoscopeEffectBindin
       : `bind_${index + 1}`,
     effect,
   };
-  // The theme change is a pulse — any non-zero contribution advances the
-  // rotation by one entry — so its range is fixed at the declared 0-1 and the
-  // editor does not offer it. Dropping a stored range keeps what runs identical
-  // to what is shown.
-  if (effect !== PHONOSCOPE_THEME_CHANGE_EFFECT) {
+  // The rotation pulses are instructions — any non-zero contribution advances
+  // the rotation or flips the alt state — so their range is fixed at the
+  // declared 0-1 and the editor does not offer it. Dropping a stored range
+  // keeps what runs identical to what is shown.
+  if (!isPhonoscopeThemePulseEffect(effect)) {
     if (Number.isFinite(Number(value.min))) binding.min = Number(value.min);
     if (Number.isFinite(Number(value.max))) binding.max = Number(value.max);
   }
@@ -471,9 +476,16 @@ export function normalizePhonoscopeColorGroups(
             ? [...new Set(rawEntry.settingsGroupIds.filter(
                 (entry): entry is string => typeof entry === "string" && settingsIds.has(entry)))]
             : [];
+          // The alt is a link into the same library, so an id that no longer
+          // resolves — or one pointing back at this entry's own theme, which
+          // would be an alt that does nothing — is dropped rather than kept as
+          // a dangling reference. The entry then simply has no alternative.
+          const rawAlt = typeof rawEntry.altThemeId === "string" ? rawEntry.altThemeId : "";
+          const altThemeId = rawAlt && rawAlt !== themeId && themeIds.has(rawAlt) ? rawAlt : null;
           return [{
             id: entryId,
             themeId,
+            altThemeId,
             // An entry that names nothing usable still has to render, so it
             // falls back to the default settings group rather than going dark.
             settingsGroupIds: chosen.length ? chosen : [fallbackSettingsId],

@@ -9,7 +9,8 @@ import { SliderControlPanel } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import {
   DRIVER_TYPES,
-  EVERY_CHOICES,
+  cadenceChoices,
+  cadenceValue,
   driverSupportsCycle,
   driverTypeLabel,
   ordinal,
@@ -51,17 +52,27 @@ export function DriverRow({
   // `random` already spends a column on "Re-samples on", so its cycle controls
   // go on their own row rather than crowding four selects onto one.
   const cycleOnOwnRow = driver.type === "random";
+  const choices = cadenceChoices(driver);
   const cycleControls = showsCycle ? (
     <>
       <ConfigSelect
         label="Every"
-        value={String(driver.every)}
-        options={EVERY_CHOICES.map((every) => ({
-          value: String(every),
-          label: every === 1 ? "Every one" : ordinal(every),
-        }))}
-        onChange={(value) => onChange(phonoscopeDriver({ ...driver, every: Number(value) }))}
+        value={cadenceValue(driver)}
+        options={choices.map(({ value, label }) => ({ value, label }))}
+        onChange={(value) => {
+          const choice = choices.find((entry) => entry.value === value);
+          onChange(phonoscopeDriver({
+            ...driver,
+            every: choice?.every ?? 1,
+            divide: choice?.divide ?? 1,
+          }));
+        }}
       />
+      {/*
+        Faster than the pulse, "from the 2nd of eight sub-beats" is not a thing
+        anyone can hear, so the offset control is simply absent — and
+        `phonoscopeDriver` has already zeroed the value behind it.
+      */}
       {driver.every > 1 ? (
         <ConfigSelect
           label="Starting on"

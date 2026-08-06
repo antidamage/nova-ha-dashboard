@@ -3,7 +3,9 @@ import {
   driverLabel,
   effectCatalogue,
   effectNeedsPulseDriver,
+  effectOptionFor,
   laneLabel,
+  newEffectBinding,
   ordinal,
   type ModuleSetting,
 } from "./phonoscope/effectCatalogue";
@@ -47,6 +49,41 @@ describe("effect catalogue", () => {
     expect(catalogue.find((effect) => effect.id === "intensity")?.section).toBe("Motion");
     expect(catalogue.find((effect) => effect.id === "__glowBlur")?.section).toBe("Picture");
   });
+
+  describe("newEffectBinding", () => {
+    const added = (id: string) => {
+      const effect = effectOptionFor(catalogue, id);
+      if (!effect) throw new Error(`${id} is not in the catalogue`);
+      return newEffectBinding("b1", effect);
+    };
+
+    it("gives a continuous effect its declared range and a ramp", () => {
+      expect(added("__glowOverdrive")).toEqual({
+        id: "b1", effect: "__glowOverdrive",
+        min: 1, max: 10,
+        attackSeconds: 0.05, holdSeconds: 0, releaseSeconds: 0.6,
+      });
+    });
+
+    it("pins a toggle to its default and gives it no ramp to take", () => {
+      expect(added("__glowClamp")).toEqual({
+        id: "b1", effect: "__glowClamp", min: 1, max: 1,
+      });
+    });
+
+    it("pins a discrete choice to its default", () => {
+      expect(added("__glowBlend")).toEqual({
+        id: "b1", effect: "__glowBlend", min: 0, max: 0,
+      });
+    });
+
+    it("gives a rotation pulse its transition but no range to author", () => {
+      expect(added(PHONOSCOPE_THEME_CHANGE_EFFECT)).toEqual({
+        id: "b1", effect: PHONOSCOPE_THEME_CHANGE_EFFECT,
+        attackSeconds: 0.05, holdSeconds: 0, releaseSeconds: 0.6,
+      });
+    });
+  });
 });
 
 describe("lane labels", () => {
@@ -64,6 +101,14 @@ describe("lane labels", () => {
   it("names an offset cycle by where it starts", () => {
     expect(driverLabel(phonoscopeDriver({ type: "downbeat", every: 4, offset: 1 })))
       .toBe("Every 4th downbeat, from the 2nd");
+  });
+
+  it("names a subdivided pulse by the fraction it runs at", () => {
+    expect(driverLabel(phonoscopeDriver({ type: "beat", divide: 2 }))).toBe("Half beat");
+    expect(driverLabel(phonoscopeDriver({ type: "beat", divide: 4 }))).toBe("Quarter beat");
+    expect(driverLabel(phonoscopeDriver({ type: "downbeat", divide: 8 }))).toBe("Eighth bar");
+    expect(driverLabel(phonoscopeDriver({ type: "random", cadence: "beat", divide: 4 })))
+      .toBe("Random on quarter beat");
   });
 
   it("names a timer by its interval", () => {

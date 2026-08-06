@@ -148,7 +148,9 @@ export function ColorGroupEditor({
           <ConfigAccordion
             key={entry.id}
             id={`entry-${entry.id}`}
-            title={`${index + 1}. ${themeName(entry.themeId)}`}
+            title={entry.altThemeId
+              ? `${index + 1}. ${themeName(entry.themeId)} / ${themeName(entry.altThemeId)}`
+              : `${index + 1}. ${themeName(entry.themeId)}`}
             className="border border-neutral-800 bg-neutral-950/45"
             actions={
               <span className="flex items-center gap-1">
@@ -197,8 +199,30 @@ export function ColorGroupEditor({
                 label="Colour theme"
                 value={entry.themeId}
                 options={colorThemes.map((theme) => ({ value: theme.id, label: theme.name }))}
-                onChange={(themeId) => updateEntry(entry.id, { themeId })}
+                onChange={(themeId) => updateEntry(entry.id, {
+                  themeId,
+                  // An alt that has become the main theme is no longer an
+                  // alternative to anything, so it is released rather than left
+                  // pointing at the entry's own colours.
+                  altThemeId: entry.altThemeId === themeId ? null : entry.altThemeId,
+                })}
               />
+              <ConfigSelect
+                label="Alt theme"
+                value={entry.altThemeId ?? ""}
+                options={[
+                  { value: "", label: "None" },
+                  ...colorThemes
+                    .filter((theme) => theme.id !== entry.themeId)
+                    .map((theme) => ({ value: theme.id, label: theme.name })),
+                ]}
+                onChange={(altThemeId) => updateEntry(entry.id, { altThemeId: altThemeId || null })}
+              />
+              <p className="text-xs text-neutral-500">
+                A link to another theme in the library, shown instead of this entry&rsquo;s while the
+                &ldquo;Change to alt theme&rdquo; effect has the household in alt. Entries with no
+                alt keep their own colours and leave the state alone.
+              </p>
               <div className="grid gap-1">
                 <span className="text-xs font-black uppercase text-neutral-400">Settings groups</span>
                 <p className="text-xs text-neutral-500">
@@ -255,6 +279,7 @@ export function ColorGroupEditor({
                 what="entry"
                 onPaste={(pasted) => updateEntry(entry.id, {
                   themeId: pasted.themeId,
+                  altThemeId: pasted.altThemeId ?? null,
                   settingsGroupIds: pasted.settingsGroupIds,
                 })}
               />
@@ -271,6 +296,7 @@ export function ColorGroupEditor({
             entries: [...group.entries, {
               id: newId("entry"),
               themeId: colorThemes[0]?.id ?? "",
+              altThemeId: null,
               settingsGroupIds: [
                 settingsGroups.find((candidate) => candidate.isDefault)?.id
                   ?? settingsGroups[0]?.id ?? "",
