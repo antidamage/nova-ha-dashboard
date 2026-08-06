@@ -77,6 +77,13 @@ export function resolveHousePartyFrame(input: {
   transitionSeconds?: number;
   hueMode: HousePartyHueMode;
   brightnessMode: HousePartyBrightnessMode;
+  /**
+   * Degrees of random hue jitter, resolved by the renderer. It is the
+   * `__hueOffset` effect, and the renderer resolves it because only the engine
+   * holds the spectrum a bass or energy driver reads — the dashboard sees bars
+   * and track changes, nothing finer.
+   */
+  hueOffsetDegrees?: number;
 }) {
   const peak = Math.max(5, Math.min(100, Math.round(input.peakBrightnessPct)));
   const cloudPeak = typeof input.cloudPeakBrightnessPct === "number"
@@ -85,6 +92,9 @@ export function resolveHousePartyFrame(input: {
   const resolveBrightness = (value: number) => input.brightnessMode === "oppose" ? 105 - value : value;
   return {
     rgb: input.hueMode === "complement" ? complementRgb(input.peakRgb) : input.peakRgb.map(clampByte) as [number, number, number],
+    ...(typeof input.hueOffsetDegrees === "number" && Number.isFinite(input.hueOffsetDegrees)
+      ? { hueOffsetDegrees: Math.max(0, Math.min(180, input.hueOffsetDegrees)) }
+      : {}),
     ...(typeof input.transitionSeconds === "number" && Number.isFinite(input.transitionSeconds)
       ? { transitionSeconds: Math.max(0.08, Math.min(2, input.transitionSeconds)) }
       : {}),

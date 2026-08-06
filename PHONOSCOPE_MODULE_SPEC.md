@@ -162,9 +162,10 @@ minimum. The exponent range is `0.1` through `8`.
 has wired to `settings.<id>` and is shown on the configuration page, making the
 control's purpose inspectable without giving it executable behavior.
 
-Controls may declare `section: physics` (or another short label). The dashboard
-groups controls with the same label inside a collapsed subsection; controls
-without a section remain in the general group.
+Controls may declare `section: motion` (or another short label). The dashboard
+groups controls with the same label in its "add effect" picker; controls without
+a section fall into the general group. Do not use `physics` — the panel is
+Visualiser controls now, and that word is retired from the user-facing surface.
 
 `updateMode` is `smooth` by default. Smooth numeric settings are interpolated
 in the running simulation and must not rebuild the scene. Use
@@ -517,6 +518,70 @@ mood, title, artist, album, artwork, artwork palette, current/next lyric, and
 lyric progress. The 32 spectrum values may be synthetic; never present them to
 the user as measured audio unless the quality is `live`.
 
+### Driver lanes
+
+Household configuration binds those signals to settings. The unit is a **driver
+lane**: one primary driver, any number of added modifier drivers, and a list of
+effect bindings that all run off the combined signal. A lane lives in a named
+**settings group**, which is what a colour theme group's playlist entry selects
+alongside a colour theme. An effect may appear in as many lanes as you like with
+different bounds each time — a medium glow on the beat and a large one on every
+fourth downbeat is two lanes binding one effect.
+
+A driver produces 0-1 each tick:
+
+| Type | Signal |
+| --- | --- |
+| `beat`, `downbeat` | the frame's beat/downbeat pulse |
+| `timer` | a pulse every `intervalSeconds` |
+| `song` | a pulse when the track changes |
+| `energy`, `bass`, `mid`, `treble` | the band maximum, followed continuously |
+| `random` | sample-and-hold on `cadence`, glided over `transitionSeconds` |
+
+Pulse drivers carry `every` (1-16) and `offset`: the lane fires only when
+`(index - offset) mod every == 0`, which is how "every fourth downbeat, starting
+on the second" is expressed rather than as its own driver type. Modifier signals
+are **summed** onto the primary and the total is guard-clamped to 0-4; there is
+no operator choice.
+
+Each binding maps the lane signal across its `[min, max]` and runs it through an
+attack/hold/release envelope. What it contributes is `value - min` — the amount
+above its own resting point, so two idle bindings do not stack their floors. Per
+effect, contributions either **add** or resolve to the **strongest**, meaning the
+contribution from the rarest currently-firing lane, rarity ordered `song` >
+`timer` (by interval) > `downbeat × every` > `beat × every` > level drivers, ties
+broken by lane order.
+
+The result is **not** clamped to the setting's declared maximum. It is guarded
+only to `[min, min + 4 × (max - min)]` and to being finite: stacked lanes are
+expected to overshoot, and that is the authored look rather than an error.
+
+Where several settings groups are selected at once, **lanes stack and scalars
+layer** — every group's lanes run concurrently in group order, while a per-effect
+combine mode or a static setting collides and the later group wins. Envelope
+state is keyed by `settingsGroupId:laneId:bindingId`, so two groups driving one
+effect keep independent envelopes.
+
+Five effects belong to the picture rather than to any module, and no manifest
+declares them: `__glowBlur`, `__glowOpacity`, `__glowBlend`, `__messageScale` and
+`__hueOffset`. A sixth, `__themeChange`, is a pulse rather than a value — it
+advances the colour theme group's playlist, so it is meaningless under a level
+driver. `__hueOffset` and `__themeChange` are resolved by the dashboard, which
+owns House Party output and rotation; the rest are resolved by both engines.
+
+**Solo** holds the visualiser on one colour theme and/or one settings group,
+overriding the rotation until it is switched off. It is resolved by the
+dashboard when it publishes the theme state, which both engines already follow
+as Nova's authoritative choice, so neither engine implements it. A solo is a cut
+rather than a cross-fade, and one naming a deleted theme or group is simply not
+a solo.
+
+The evaluator is shared code in all three implementations
+(`nova-visualiser/src/core/parameter_drivers.cpp`,
+`nova-ha-dashboard/lib/phonoscope-drivers.ts`,
+`nova-appletv-dashboard/.../PhonoscopeDrivers.swift`) and is covered by the
+`parameter-drivers` conformance case.
+
 ## 11. Simulation and render lifecycle
 
 Each 60 Hz tick runs:
@@ -574,18 +639,26 @@ message is part of the picture and glows with it. The layer is household
 configuration rather than module content — no manifest declares it, and it
 applies identically to every module.
 
-Three parameters, from `phonoscope.glowOverlay` in dashboard preferences:
+Three parameters, bound like any other effect through the driver lanes described
+in §10 under the private effect ids no manifest declares:
 
-| Field | Range | Driver |
+| Effect | Range | Default |
 | --- | --- | --- |
-| `blendModeSource` | 0-2: 0 is `screen`, 1 is `multiply`, 2 is `overlay`, named as Photoshop names them | full parameter driver |
-| `blurSource` | 0-20 | full parameter driver |
-| `opacitySource` | 0-100 | full parameter driver |
+| `__glowBlend` | 0-2: 0 is `screen`, 1 is `multiply`, 2 is `overlay`, named as Photoshop names them | 0 |
+| `__glowBlur` | 0-20 | 0 |
+| `__glowOpacity` | 0-100 | 0 |
+| `__glowOverdrive` | 1-10 | 1 |
+| `__glowClamp` | 0 or 1 | 1 |
 
-All three resolve through the same path as `messageScaleSource`, under the
-private setting ids `__glowBlend`, `__glowBlur` and `__glowOpacity`. Opacity 0 is
-the identity and both engines skip the pass entirely at that value, which is the
-default.
+Overdrive multiplies the blurred copy's RGB. `__glowClamp` then decides what
+happens to the result: clamped — the default, and the display-referred behaviour
+the blends are defined on — it is brought back into 0-1, so overdrive saturates
+the glow. Unclamped it keeps its overdriven value past 1 and the blend carries
+the excess, which is how the picture is deliberately blown out to white.
+
+All three resolve through the same path as `__messageScale`. Opacity 0 is the
+identity and both engines skip the pass entirely at that value, which is the
+default — an unbound glow costs nothing.
 
 The blend mode is a choice of discrete looks but every driver produces a
 continuous number, so it is authored on a whole-numbered axis and both engines

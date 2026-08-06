@@ -1837,6 +1837,46 @@ or browser responses.
 
 All routes are under `app/api`.
 
+Visualiser controls (the config panel formerly called Physics):
+
+- The panel is built from two independent libraries. **Colour themes** are
+  colours only. **Settings groups** are named sets of driver lanes plus the
+  static settings a module cannot change without rebuilding its scene (today
+  just `complexity`). Both are per module.
+- A **colour theme group** joins them: an ordered playlist whose entries each
+  pair one colour theme with one or more ordered settings groups. A theme may
+  appear in several entries with different settings, so rotation advances
+  through **entries**, not themes — two consecutive entries sharing a palette
+  still cross-fade, because the behaviour differs.
+- Where an entry names several settings groups, lanes stack and scalars layer:
+  every group's lanes run at once, while a per-effect combine mode or a static
+  setting collides and the later group wins.
+- Exactly one settings group and one colour theme group carry the Default flag.
+  The default group catches any genre that no group claims, and the default
+  settings group catches an entry that names none. Neither can be deleted.
+- Genres are assigned on the colour theme group and are exclusive across groups
+  — assigning one steals it from whichever group held it, and the editor says so
+  at the moment of assignment. The `chooseColorGroupByGenre` toggle that arms the
+  routing sits outside the group list.
+- Driver-lane semantics — driver types, `every`/`offset` gating, modifier
+  summation, envelopes, add vs strongest, and the overshoot guard — are specified
+  in `PHONOSCOPE_MODULE_SPEC.md` §10 "Driver lanes" and shared by all three
+  engines. `lib/phonoscope-drivers.ts` is the dashboard's copy.
+- Nesting is `ConfigAccordion` throughout — settings group → driver lane →
+  effect — so opening one closes its siblings at each level without any new
+  state. Effects are collapsed by default and expose only the parameters that
+  have been added; anything unset inherits the effect's declared default.
+- **Solo** locks the visualiser to one colour theme and/or one settings group.
+  It is persisted (`soloColorThemeId`, `soloSettingsGroupId`) and deliberately
+  survives leaving the page, so a floating indicator in the top-right names what
+  is held — colour theme above settings, 1px apart — and tapping it releases the
+  lock. It is applied in `readPhonoscopeThemeState`, so it reaches the streamed
+  renderer and the tvOS fallback at the same revision without either engine
+  knowing the feature exists.
+- Configurations written before this structure are migrated once on read by
+  `lib/phonoscope-migrate-v3.ts`, which is behaviour-identical to the old
+  baseline-plus-overrides cascade.
+
 Phonoscope track timing:
 
 - `POST /api/phonoscope/tracks/resolve` accepts Apple Music track identity and
@@ -1865,11 +1905,16 @@ Phonoscope track timing:
   250 ms ahead for local devices and 1.10 s ahead for cloud devices; the
   dashboard applies those predicted brightness values through their respective
   service paths.
-- The Phonoscope configuration exposes a `housePartyRandomHueOffset` magnitude
-  from 0° (the default) through 180°. Every affected light independently samples
-  a continuous random offset from `[-magnitude, +magnitude]` for every House
-  Party command; the rotation preserves the supplied colour's saturation and
-  value. Per-entity HA calls are therefore intentional.
+- House Party is gated by its own persisted master switch, with the hue and
+  brightness modes nested under it in Visualiser controls.
+- The random light-hue offset is the `__hueOffset` effect, bound to a driver lane
+  like any other, ranging 0° through 180° with a default of 5°. Because the
+  renderer is the only side that sees the spectrum, it resolves the effect and
+  publishes the resulting magnitude on the House Party frame it already posts;
+  the dashboard reads `hueOffsetDegrees` from the frame. Every affected light
+  independently samples a continuous random offset from `[-magnitude, +magnitude]`
+  for every House Party command; the rotation preserves the supplied colour's
+  saturation and value. Per-entity HA calls are therefore intentional.
 - The Apple TV publishes the authoritative track key, playback position,
   duration, play/pause state, and sample time with House Party frames.
   `GET /api/phonoscope/house-party/clock` advances that observation to server
@@ -2615,6 +2660,11 @@ must declare its lite behavior.
 - **Dot controls**: the remote-easing rAF loops in `DotControls.tsx` are
   skipped when the device is in full lite (all four off, `useLiteMode()`);
   values snap to target.
+- **Visualiser controls**: no gate is needed. The panel is markup plus
+  `ConfigAccordion`, `ConfigSelect` and the `DotControls` wrappers, so it
+  inherits their lite behaviour — its sliders snap and its accordions open
+  instantly. It runs no timers, no canvas and no stream of its own; driver lanes
+  are evaluated by the renderer, not by the editor.
 - **Scrolling**: native/instant on every device. The former smooth-scroll
   feature — the CSS `scroll-behavior: smooth` default plus the JS wheel-momentum
   engine (`useSmoothWheelScroll`) and its per-device "Smooth Scrolling" toggle

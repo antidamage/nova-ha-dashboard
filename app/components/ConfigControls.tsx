@@ -403,14 +403,17 @@ export function EnvelopeSliderControlPanel({
 }) {
   return (
     <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
-      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_240px] md:items-center">
+      {/*
+        No numeric readout column. The three thumbs already carry their own A/H/R
+        labels, so a second copy of the same three values only narrowed the
+        control that actually needs the width — and this control is dragged, not
+        read off.
+      */}
+      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)] md:items-center">
         <p className="text-sm font-black uppercase text-cyan-200">{label}</p>
         <div className="px-1">
           <DotEnvelopeControl ariaLabel={ariaLabel} max={max} step={step} value={value} onChange={onPreview} onCommit={onCommit} />
         </div>
-        <p className="config-slider-value text-sm font-black tabular-nums text-neutral-50 md:text-right">
-          A {value[0].toFixed(2)}s · H {value[1].toFixed(2)}s · R {value[2].toFixed(2)}s
-        </p>
       </div>
     </div>
   );

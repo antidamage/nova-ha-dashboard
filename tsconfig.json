@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
+    // ES2020 for BigInt literals: the Phonoscope driver evaluator mirrors the
+    // engines' 64-bit FNV-1a seed, which a double cannot hold exactly. Next
+    // builds through SWC/browserslist rather than this target, so raising it
+    // only widens what tsc accepts.
+    "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,

@@ -60,6 +60,17 @@ the named component before introducing a one-off equivalent.
   selector used by theme typography settings.
 - `ReminderIconPicker` — `app/components/reminders/ReminderIconPicker.tsx`. This
   is the searchable/custom reminder glyph picker used by reminder configuration.
+- `DriverRow`, `DriverStack`, `EffectEntry`, `AddEffectControl`,
+  `SettingsGroupCard`, `ColorGroupEditor`, `ColorThemeLibrary`,
+  `HousePartySection`, and `ControlSettingsPanel` —
+  `app/components/phonoscope/`. These are the Visualiser controls panel: a
+  driver row with its `every`/`from` selects, the primary-plus-inset-modifier
+  driver stack, a collapsible effect binding with its sparse `+ Add parameter`
+  menu, and the settings-group / colour-theme / colour-group libraries that
+  compose them. Reuse them for anything else that binds a value to a music
+  driver rather than building a second driver editor. Shared labelling
+  (`driverLabel`, `laneLabel`, `effectCatalogue`) lives in
+  `app/components/phonoscope/effectCatalogue.ts`.
 - `ThemeLibraryControl` and `VoicePersonalityLibraryControl` —
   `app/components/ThemeLibraryControl.tsx` and
   `app/components/VoicePersonalityLibraryControl.tsx`. These are the established

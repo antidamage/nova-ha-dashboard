@@ -110,6 +110,11 @@ function parseFrame(value: unknown) {
       transitionSeconds,
       hueMode: hueMode as HousePartyHueMode,
       brightnessMode: brightnessMode as HousePartyBrightnessMode,
+      // The resolved `__hueOffset` effect. Absent from an older renderer, in
+      // which case the applier falls back to the effect's declared default.
+      ...(Number.isFinite(Number(raw.hueOffsetDegrees))
+        ? { hueOffsetDegrees: Number(raw.hueOffsetDegrees) }
+        : {}),
     }),
   };
 }

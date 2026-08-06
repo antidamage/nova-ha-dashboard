@@ -37,31 +37,37 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     const result = compilePhonoscopeYaml(source);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.module.version).toBe("2.0.0");
+    expect(result.module.version).toBe("2.5.0");
     expect(result.module.packageName).toBe("nz.skull.nova.visualiser.particle-ripples");
+    // Defaults are the values this household actually runs. The driver panel
+    // has no static layer, so an effect nobody has bound to a lane rests on its
+    // declared default rather than on a shipped-from-new guess.
     expect(result.module.settings.find((setting) => setting.id === "trail_length")).toMatchObject({
       control: "slider",
       min: 0,
       max: 500,
       step: 0.5,
-      default: 7,
+      default: 25.5,
       affects: ["templates.particle.render.trailLength"],
     });
     expect(result.module.settings.find((setting) => setting.id === "offset_magnifier")).toMatchObject({
       control: "slider",
-      default: 1,
+      default: 13,
       min: 0,
       max: 50,
       step: 0.5,
     });
     expect(result.module.settings.find((setting) => setting.id === "fluid_speed")).toMatchObject({
-      section: "physics",
+      section: "motion",
       control: "slider",
-      min: 0.25,
-      max: 1.5,
+      min: 0.1,
+      max: 60,
       step: 0.05,
       default: 0.65,
     });
+    // "Physics" is retired as a user-facing word: the panel is Visualiser
+    // controls and these are its motion effects.
+    expect(result.module.settings.every((setting) => setting.section !== "physics")).toBe(true);
     // The fluid background follows the visualiser frame rate, so it exposes no
     // independent frame-rate setting.
     expect(result.module.settings.find((setting) => setting.id === "fluid_frame_rate")).toBeUndefined();
@@ -69,24 +75,34 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     expect(result.module.settings.find((setting) => setting.id === "complexity")).toMatchObject({
       min: 0.2,
       max: 1,
-      default: 0.6,
+      default: 1,
       affects: ["scene.particle-grid.field.density"],
     });
-    expect(result.module.settings.find((setting) => setting.id === "grid_wireframe")).toMatchObject({
-      control: "toggle",
-      min: 0,
-      max: 1,
-      step: 1,
-      default: 0,
-      affects: ["scene.particle-grid.field.wireframe"],
+    // The lattice extent is a percentage, and both axes name the `grid` group so
+    // the controls editor shows them under one effect with the particle blend
+    // mode rather than as separate picker entries.
+    expect(result.module.settings.find((setting) => setting.id === "grid_width")).toMatchObject({
+      min: 0, max: 100, step: 1, default: 100, group: "grid",
     });
-    expect(JSON.stringify(result.module.scene)).toContain("settings.grid_wireframe");
+    expect(result.module.settings.find((setting) => setting.id === "grid_height")).toMatchObject({
+      min: 0, max: 100, step: 1, default: 33, group: "grid",
+    });
+    // The divide lives in the manifest, so the extent contract stays a fraction.
+    expect(JSON.stringify(result.module.scene)).toContain("div");
+    // The grid toggle is gone: the geometry is always built and the line
+    // palette slots' opacity decides whether it is visible.
+    expect(result.module.settings.find((setting) => setting.id === "grid_wireframe")).toBeUndefined();
+    expect(JSON.stringify(result.module.scene)).not.toContain("settings.grid_wireframe");
+    expect((result.module.scene[0] as { field?: { wireframe?: unknown } }).field?.wireframe).toBe(1);
     expect(result.module.paletteSlots.map((slot) => slot.id)).toEqual([
       "backgroundPrimary", "backgroundSecondary",
       "dotPrimary", "dotSecondary",
       "glowPrimary", "glowSecondary",
       "linePrimary", "lineSecondary",
       "trailPrimary", "trailSecondary",
+      // The edge gradients framing the backdrop band are themed, so the colour
+      // outside the band is a palette slot rather than the authored black.
+      "vignette",
       "primaryText", "secondaryText",
     ]);
     const particle = JSON.stringify(result.module.templates.particle);
@@ -121,10 +137,13 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     }).field;
     expect(field.wireframeColorStart?.$expr).not.toContain("field.energy");
     expect(field.wireframeColorEnd?.$expr).not.toContain("field.energy");
-    // Background and text are renderer-level surfaces rather than module
-    // entities; all other declared slots must be referenced by module data.
+    // Background, vignette and text are renderer-level surfaces rather than
+    // module entities — the vignette is the frame around the backdrop band, read
+    // straight off the palette by the engine. All other declared slots must be
+    // referenced by module data.
     const rendererSlots = new Set([
-      "backgroundPrimary", "backgroundSecondary", "primaryText", "secondaryText",
+      "backgroundPrimary", "backgroundSecondary", "vignette",
+      "primaryText", "secondaryText",
     ]);
     const moduleData = `${particle}${scene}`;
     const unused = result.module.paletteSlots

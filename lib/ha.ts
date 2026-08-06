@@ -36,6 +36,11 @@ import {
   setHousePartyZonePower,
 } from "./house-party-coordinator";
 import { housePartyNativeTransitionSeconds, randomHueOffsetRgb } from "./house-party";
+import { PHONOSCOPE_HUE_OFFSET_EFFECT } from "./phonoscope-drivers";
+import { PHONOSCOPE_PICTURE_EFFECTS } from "./phonoscope-effects";
+
+const PHONOSCOPE_HUE_OFFSET_DEFAULT = PHONOSCOPE_PICTURE_EFFECTS
+  .find((effect) => effect.id === PHONOSCOPE_HUE_OFFSET_EFFECT)?.default ?? 0;
 
 // lib/ha is the back-compat barrel + the lighting/entity command surface. The
 // state projection, registry, router, weather and climate logic now live in
@@ -522,6 +527,8 @@ export type HousePartyLightingFrame = {
   brightnessPct?: number;
   cloudBrightnessPct?: number;
   transitionSeconds?: number;
+  /** Degrees of random hue jitter per light, resolved by the renderer. */
+  hueOffsetDegrees?: number;
 };
 
 const HOUSE_PARTY_STATE_CACHE_MS = 500;
@@ -629,10 +636,18 @@ export async function applyHousePartyLightingFrame(
     : await buildDashboardState();
   housePartyStateCache = { expiresAt: now + HOUSE_PARTY_STATE_CACHE_MS, state: dashboard };
   const enabledZones = dashboard.preferences.lighting?.housePartyZones ?? {};
-  const randomHueOffset = Math.max(
-    0,
-    Math.min(180, Number(dashboard.preferences.phonoscope?.housePartyRandomHueOffset) || 0),
-  );
+  // The household master switch. Per-zone opt-in still applies on top; this is
+  // the single control that stops the visualiser touching any light at all.
+  if (dashboard.preferences.phonoscope?.houseParty?.enabled === false) {
+    return { affectedZoneIds: [] as string[], entityIds: [] as string[], state: dashboard };
+  }
+  // `__hueOffset` arrives resolved on the frame, because only the renderer holds
+  // the spectrum a bass or energy driver reads. An older renderer that does not
+  // send it falls back to the effect's declared default.
+  const randomHueOffset = Math.max(0, Math.min(180,
+    Number.isFinite(Number(frame.hueOffsetDegrees))
+      ? Number(frame.hueOffsetDegrees)
+      : PHONOSCOPE_HUE_OFFSET_DEFAULT));
   const entityIds = new Set<string>();
   const affectedZoneIds: string[] = [];
 

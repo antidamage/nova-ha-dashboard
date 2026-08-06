@@ -728,6 +728,19 @@ html[data-nova-hide-orb-info]
   color: var(--cyber-highlight);
 }
 
+/* The centre-image tile that is actually assigned.
+ *
+ * A real class rather than Tailwind's `ring-*`: no other surface here uses those
+ * utilities, and the first attempt at this produced nothing visible at all. A
+ * solid highlight border plus an outer glow reads as a ring around the artwork
+ * at a glance, which a one-pixel border colour change did not. */
+.centre-image-tile-selected {
+  border-color: var(--cyber-highlight) !important;
+  box-shadow:
+    0 0 0 3px var(--cyber-highlight),
+    0 0 14px rgb(var(--cyber-highlight-rgb) / 0.55);
+}
+
 .reminder-picker-option-label {
   font-family: var(--cyber-mono);
   font-size: 0.65rem;
@@ -5029,4 +5042,63 @@ a.update-banner-button {
   margin-top: 8px;
   width: 100%;
   cursor: default;
+}
+
+/* Solo, in the Phonoscope Visualiser controls.
+   A plain square rather than the clipped corner of `.icon-link`: solo is a
+   latching state, not an action, and it has to read the same in the header and
+   in the floating indicator. */
+.phonoscope-solo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--cyber-border-dim);
+  color: var(--cyber-line);
+  font-weight: 900;
+  font-size: 0.75rem;
+  line-height: 1;
+  background: transparent;
+}
+
+.phonoscope-solo-button:hover,
+.phonoscope-solo-button:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+}
+
+.phonoscope-solo-button.is-soloed {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.22);
+  color: var(--cyber-cyan);
+}
+
+/* Floats over the panel so a lock left on is visible from anywhere on the page.
+   1px gap, colour theme above settings. */
+.phonoscope-solo-indicator {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.phonoscope-solo-indicator > * {
+  pointer-events: auto;
+}
+
+.phonoscope-solo-chip {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
