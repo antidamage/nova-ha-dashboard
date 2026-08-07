@@ -9,6 +9,7 @@ import {
   PHONOSCOPE_GLOW_OVERDRIVE_EFFECT,
   PHONOSCOPE_MESSAGE_SCALE_EFFECT,
   PHONOSCOPE_SCENE_BLEND_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
 } from "./phonoscope-drivers";
 
 /**
@@ -50,7 +51,15 @@ export const PHONOSCOPE_EFFECT_GROUPS: PhonoscopeEffectGroup[] = [
     section: PICTURE_SECTION,
     // Height leads because it is the base size the image actually is; scale is
     // the multiplier on top, and it is the one worth binding to a driver lane.
-    effects: [PHONOSCOPE_CENTRE_HEIGHT_EFFECT, PHONOSCOPE_MESSAGE_SCALE_EFFECT],
+    // The transition follows: how the image LEAVES is the same subject as how
+    // big it is while it is there. Its axis, divisions and return edge are NOT
+    // listed — they are companions the transition's own control set shows and
+    // writes, because each of them only means anything under a particular mode.
+    effects: [
+      PHONOSCOPE_CENTRE_HEIGHT_EFFECT,
+      PHONOSCOPE_MESSAGE_SCALE_EFFECT,
+      PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+    ],
   },
   {
     id: "glow",

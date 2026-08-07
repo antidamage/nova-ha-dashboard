@@ -11,6 +11,10 @@ import {
   PHONOSCOPE_HUE_OFFSET_EFFECT,
   PHONOSCOPE_MESSAGE_SCALE_EFFECT,
   PHONOSCOPE_SCENE_BLEND_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
   PHONOSCOPE_ALT_THEME_EFFECT,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
   PHONOSCOPE_VIGNETTE_OPACITY_EFFECT,
@@ -77,6 +81,25 @@ export const PHONOSCOPE_PICTURE_EFFECTS: PhonoscopeEffectDeclaration[] = [
   // as the glow axis: a stored binding keeps a numeric range on it. Linear is
   // the original composite term and so the default.
   { id: PHONOSCOPE_SCENE_BLEND_EFFECT, min: 0, max: 3, step: 1, default: 0 },
+  // How the centre image changes when the rotation moves to an entry naming a
+  // different one. 0 cross-fade, 1 flip, 2 slide; append-only, and cross-fade
+  // is 0 because it is what every existing configuration already does.
+  //
+  // All four axes are override-only (see PHONOSCOPE_OVERRIDE_ONLY_EFFECTS): a
+  // transition is one instruction, and summing two of them is meaningless.
+  { id: PHONOSCOPE_CENTRE_TRANSITION_EFFECT, min: 0, max: 2, step: 1, default: 0 },
+  // Degrees. 0 collapses or travels horizontally, 90 vertically, and the full
+  // circle is authored because the two halves are not the same picture once the
+  // image is divided: 45 and 225 send the segments opposite ways.
+  { id: PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT, min: 0, max: 360, step: 1, default: 0 },
+  // How many times a sliding image is cut. 0 is a solid image; 1 pushes the two
+  // halves apart; 2 sends the outer sections one way and the middle the other,
+  // and so on alternating up to 10 cuts.
+  { id: PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT, min: 0, max: 10, step: 1, default: 0 },
+  // Where a slid segment comes back from: 0 the opposite edge (it carries on in
+  // the direction it left), 1 the edge it left by (it reverses). Opposite is the
+  // default because it reads as one continuous movement.
+  { id: PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT, min: 0, max: 1, step: 1, default: 0 },
 ];
 
 const PICTURE_EFFECT_IDS = new Set(PHONOSCOPE_PICTURE_EFFECTS.map((effect) => effect.id));
@@ -176,6 +199,30 @@ export const PHONOSCOPE_PICTURE_EFFECT_LABELS: Record<
     shortLabel: "Blend mode",
     description:
       "How the particle layer meets the backdrop: linear, screen, overlay or multiply. Driven, it cuts between them rather than fading.",
+  },
+  [PHONOSCOPE_CENTRE_TRANSITION_EFFECT]: {
+    label: "Centre transition",
+    shortLabel: "Transition",
+    description:
+      "How the centre image changes when the rotation moves on: cross-fade, flip, or slide off and back. The entry the change STARTS from owns the transition; the one it lands on has no say in it.",
+  },
+  [PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT]: {
+    label: "Centre transition axis",
+    shortLabel: "Axis",
+    description:
+      "Degrees. 0 flips or slides horizontally, 90 vertically. No effect on a cross-fade.",
+  },
+  [PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT]: {
+    label: "Centre transition divisions",
+    shortLabel: "Divisions",
+    description:
+      "How many times a sliding image is cut across the axis. Sections travel in alternating directions, so 1 pushes the halves apart and 2 sends the outer two one way and the middle the other. Slide only.",
+  },
+  [PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT]: {
+    label: "Return from the origin edge",
+    shortLabel: "Return edge",
+    description:
+      "Off, a slid section carries on in the direction it left and enters from the opposite edge. On, it reverses and comes back the way it went. Slide only.",
   },
 };
 

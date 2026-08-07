@@ -21,8 +21,13 @@ import {
  * Keyed off `schemaVersion` rather than sniffed from the values, because 1 is a
  * legitimate number on both scales and there is no way to tell 1% from 100%
  * after the fact.
+ *
+ * This is the version *this* conversion applies below — deliberately its own
+ * constant rather than "the current schema version", so that bumping the schema
+ * for an unrelated change (as v5 did) does not silently re-run the percent
+ * scaling over data that has already been scaled once.
  */
-export const PHONOSCOPE_SCHEMA_VERSION = 4;
+export const PHONOSCOPE_PERCENT_GEOMETRY_VERSION = 4;
 
 /**
  * The lattice extent ids. These are module settings rather than picture effects,

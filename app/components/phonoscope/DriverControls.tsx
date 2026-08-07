@@ -116,7 +116,7 @@ export function DriverRow({
         {cycleOnOwnRow ? null : cycleControls}
         {driver.type === "random" ? (
           <ConfigSelect
-            label="Re-samples on"
+            label="Fires within"
             value={driver.cadence}
             options={PULSE_TYPES.map((type) => ({
               value: type,
@@ -146,19 +146,10 @@ export function DriverRow({
         />
       ) : null}
       {driver.type === "random" ? (
-        <SliderControlPanel
-          ariaLabel="Random glide"
-          ariaValueText={`${driver.transitionSeconds} seconds`}
-          color={[34, 211, 238]}
-          label="Glide"
-          min={0}
-          max={10}
-          step={0.1}
-          value={driver.transitionSeconds}
-          valueText={`${driver.transitionSeconds.toFixed(1)}s`}
-          onPreview={(transitionSeconds) => onChange({ ...driver, transitionSeconds })}
-          onCommit={(transitionSeconds) => onChange(phonoscopeDriver({ ...driver, transitionSeconds }))}
-        />
+        <p className="text-xs text-neutral-500">
+          Fires once somewhere inside each window, then picks a new moment for the next one. The
+          shape of the hit is each effect&rsquo;s own envelope, the same as any other pulse.
+        </p>
       ) : null}
     </div>
   );

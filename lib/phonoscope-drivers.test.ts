@@ -11,7 +11,13 @@ import {
   type PhonoscopeEffectDeclaration,
   type PhonoscopeSignalFrame,
 } from "./phonoscope-drivers";
+import {
+  isPhonoscopeOverrideOnlyEffect,
+  phonoscopeTransitionRamp,
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+} from "./phonoscope-drivers";
 import type {
+  PhonoscopeCombineMode,
   PhonoscopeDriverLane,
   PhonoscopeEffectBinding,
   PhonoscopeSettingsGroup,
@@ -58,7 +64,7 @@ function binding(partial: Partial<PhonoscopeEffectBinding> = {}): PhonoscopeEffe
 function run(
   lanes: { groupId: string; lane: PhonoscopeDriverLane }[],
   frames: PhonoscopeSignalFrame[],
-  combine: Record<string, "add" | "strongest"> = {},
+  combine: Record<string, PhonoscopeCombineMode> = {},
 ) {
   const states = createPhonoscopeDriverStates();
   return frames.map((frame) =>
@@ -132,9 +138,24 @@ describe("driverPeriodSeconds", () => {
   });
 
   it("gives continuous drivers no rarity at all", () => {
-    for (const type of ["energy", "bass", "mid", "treble", "random"] as const) {
+    for (const type of ["energy", "bass", "mid", "treble"] as const) {
       expect(driverPeriodSeconds(phonoscopeDriver({ type }), frame)).toBe(0);
     }
+  });
+
+  it("ranks a random driver by the window it fires once inside", () => {
+    // Random fires exactly once per window, so it is exactly as rare as the
+    // cadence it borrows -- and therefore rankable, where the old
+    // sample-and-hold random was excluded from `strongest` and `common` alike.
+    for (const cadence of ["beat", "downbeat"] as const) {
+      expect(driverPeriodSeconds(phonoscopeDriver({ type: "random", cadence }), frame))
+        .toBe(driverPeriodSeconds(phonoscopeDriver({ type: cadence }), frame));
+    }
+    expect(driverPeriodSeconds(
+      phonoscopeDriver({ type: "random", cadence: "downbeat", every: 4 }), frame,
+    )).toBe(driverPeriodSeconds(phonoscopeDriver({ type: "downbeat", every: 4 }), frame));
+    expect(driverPeriodSeconds(phonoscopeDriver({ type: "random", cadence: "song" }), frame))
+      .toBe(Number.POSITIVE_INFINITY);
   });
 });
 
@@ -392,6 +413,83 @@ describe("combining several lanes on one effect", () => {
     expect(value).toBeCloseTo(4, 5);
   });
 
+  it("lets the busiest firing lane win outright when combining by common", () => {
+    // The mirror of `strongest`: the beat lane fires four times as often as the
+    // every-fourth-downbeat one, so it is the one that takes the effect.
+    const value = run([beatLane, downbeatLane], [frameAt({ spectrum, delta: 0.05 })], {
+      glow: "common",
+    })[0];
+    expect(value).toBeCloseTo(4, 5);
+  });
+
+  it("does not let a level lane win `common`, which has no period at all", () => {
+    const levelLane = {
+      groupId: "g",
+      lane: lane("energy", phonoscopeDriver({ type: "energy" }), [binding({
+        id: "b-energy", min: 0, max: 2, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0,
+      })]),
+    };
+    // Energy is continuous, so it is "most frequent" in a sense that would make
+    // every pulse unhearable. The downbeat still takes it.
+    const value = run([levelLane, downbeatLane], [frameAt({
+      spectrum, delta: 0.05, energy: 1,
+    })], { glow: "common" })[0];
+    expect(value).toBeCloseTo(10, 5);
+  });
+
+  it("replaces rather than stacks when combining by override, resting value and all", () => {
+    const lanes = [
+      {
+        groupId: "defaults",
+        lane: lane("a", phonoscopeDriver({ type: "downbeat", every: 8 }), [binding({
+          id: "b-a", min: 3, max: 5, attackSeconds: 0, holdSeconds: 1, releaseSeconds: 0,
+        })]),
+      },
+      {
+        groupId: "override",
+        lane: lane("b", phonoscopeDriver({ type: "beat" }), [binding({
+          id: "b-b", min: 1, max: 2, attackSeconds: 0, holdSeconds: 1, releaseSeconds: 0,
+        })]),
+      },
+    ];
+    // The later group wins outright: 1 (its own resting) + 1 (its contribution).
+    // Under `add` the shared floor would be the earlier group's 3 and the total
+    // would be 5, which is exactly what an override must NOT do.
+    expect(run(lanes, [frameAt({ spectrum, delta: 0.05 })], { glow: "override" })[0])
+      .toBeCloseTo(2, 5);
+    expect(run(lanes, [frameAt({ spectrum, delta: 0.05 })], { glow: "add" })[0])
+      .toBeCloseTo(6, 5);
+  });
+
+  it("forces override on the transition axes whatever the group stored", () => {
+    const transition: PhonoscopeEffectDeclaration = {
+      id: PHONOSCOPE_CENTRE_TRANSITION_EFFECT, min: 0, max: 2, step: 1, default: 0,
+    };
+    const pinned = (id: string, value: number) => ({
+      groupId: id,
+      lane: lane(id, phonoscopeDriver({ type: "beat" }), [{
+        id: `${id}_bind`,
+        effect: PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+        min: value,
+        max: value,
+        attackSeconds: 0,
+        holdSeconds: 1,
+        releaseSeconds: 0,
+      }]),
+    });
+    const result = evaluatePhonoscopeDriverLanes({
+      lanes: [pinned("defaults", 1), pinned("override", 2)],
+      // Deliberately the mode that would sum them to 3 — off the end of the axis.
+      combine: { [PHONOSCOPE_CENTRE_TRANSITION_EFFECT]: "add" },
+      declarations: new Map([[transition.id, transition]]),
+      frame: frameAt({ spectrum, delta: 0.05 }),
+      states: createPhonoscopeDriverStates(),
+    });
+    expect(result.values[PHONOSCOPE_CENTRE_TRANSITION_EFFECT]).toBe(2);
+    expect(isPhonoscopeOverrideOnlyEffect(PHONOSCOPE_CENTRE_TRANSITION_EFFECT)).toBe(true);
+    expect(isPhonoscopeOverrideOnlyEffect("glow")).toBe(false);
+  });
+
   it("does not double the resting floor when two bindings share an effect", () => {
     const restingLanes = [
       {
@@ -501,28 +599,228 @@ describe("timer and song drivers", () => {
 });
 
 describe("random drivers", () => {
-  it("holds a seeded value between cadence events and is reproducible", () => {
+  /** A binding that reads as a single tick at full value on each fire. */
+  const instant = (partial: Partial<PhonoscopeEffectBinding> = {}) => binding({
+    min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0, ...partial,
+  });
+
+  it("fires once per window, at the seeded point inside it", () => {
     const build = () => [{
       groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "random", cadence: "beat" }), [instant()]),
+    }];
+    // Window 0's threshold is 0.651022 and window 1's is 0.321335, so the fire
+    // lands in the last quarter of beat 0 and the third quarter of beat 1 --
+    // a different point each time, which is the whole point.
+    const frames = [0, 0.25, 0.5, 0.75].flatMap((beatPhase) => [0, 1].map((beatIndex) =>
+      ({ beatIndex, beatPhase })))
+      .sort((a, b) => (a.beatIndex - b.beatIndex) || (a.beatPhase - b.beatPhase))
+      .map(({ beatIndex, beatPhase }) => frameAt({
+        beatIndex, beatPhase, time: (beatIndex + beatPhase) * 0.5, delta: 0.125,
+      }));
+
+    const first = run(build(), frames);
+    expect(first).toEqual([0, 0, 0, 10, 0, 0, 10, 0]);
+    // Same seed, same jitter: the engines must agree frame for frame.
+    expect(run(build(), frames)).toEqual(first);
+  });
+
+  it("spreads one fire across the whole every-N window, not inside the Nth bar", () => {
+    const lanes = [{
+      groupId: "g",
       lane: lane("l", phonoscopeDriver({
-        type: "random", cadence: "beat", transitionSeconds: 0,
-      }), [binding({ min: 0, max: 10 })]),
+        type: "random", cadence: "downbeat", every: 4,
+      }), [instant()]),
+    }];
+    // Window 0 spans bars 0-3 with threshold 0.632706, so it fires partway
+    // through bar 2. Were `every` selecting which bar to jitter inside, nothing
+    // could fire before bar 3.
+    const frames = [
+      { barIndex: 0, barPhase: 0 }, { barIndex: 1, barPhase: 0 },
+      { barIndex: 2, barPhase: 0 }, { barIndex: 2, barPhase: 0.75 },
+      { barIndex: 3, barPhase: 0 }, { barIndex: 4, barPhase: 0 },
+      { barIndex: 5, barPhase: 0 }, { barIndex: 6, barPhase: 0 },
+    ].map(({ barIndex, barPhase }) => frameAt({
+      barIndex, barPhase, time: (barIndex + barPhase) * 2, delta: 0.5,
+    }));
+
+    expect(run(lanes, frames)).toEqual([0, 0, 0, 10, 0, 0, 0, 10]);
+  });
+
+  it("runs the binding envelope rather than gliding past it", () => {
+    // A release the driver cannot override: the old sample-and-hold random
+    // ignored the envelope entirely, so this decay is the visible difference.
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "random", cadence: "beat" }), [binding({
+        min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 1,
+      })]),
+    }];
+    const frames = [0.5, 0.75, 1].map((beatPhase) => frameAt({
+      beatIndex: 0, beatPhase, time: beatPhase * 0.5, delta: 0.25,
+    }));
+    const values = run(lanes, frames);
+    expect(values[0]).toBe(0);          // before the 0.651022 threshold
+    expect(values[1]).toBe(10);         // the fire
+    expect(values[2]).toBeCloseTo(7.5, 6); // 0.25s into a 1s release
+  });
+
+  it("falls back to the track change when the cadence is song", () => {
+    // A song has no known length, so there is no interior to jitter within.
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "random", cadence: "song" }), [instant()]),
+    }];
+    const frames = [1, 1, 2].map((trackSeed, index) =>
+      frameAt({ trackSeed, time: index * 0.5, delta: 0.5 }));
+    expect(run(lanes, frames)).toEqual([10, 0, 10]);
+  });
+});
+
+describe("randomValue bindings", () => {
+  const instant = (partial: Partial<PhonoscopeEffectBinding> = {}) => binding({
+    min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0, ...partial,
+  });
+
+  it("draws a new target inside the range on each lane event", () => {
+    const build = () => [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "beat" }), [instant({ randomValue: true })]),
     }];
     const frames = [
-      frameAt({ beatIndex: 0, delta: 0.05 }),
-      frameAt({ beatIndex: 0, time: 0.05, delta: 0.05 }),
-      frameAt({ beatIndex: 1, time: 0.5, delta: 0.05 }),
+      frameAt({ beatIndex: 0, delta: 0.25 }),
+      frameAt({ beatIndex: 0, beatPhase: 0.5, time: 0.25, delta: 0.25 }),
+      frameAt({ beatIndex: 1, time: 0.5, delta: 0.25 }),
+      frameAt({ beatIndex: 2, time: 1, delta: 0.25 }),
     ];
-    const first = run(build(), frames);
-    const second = run(build(), frames);
-    expect(first).toEqual(second);
-    expect(first[0]).toBe(first[1]);
-    expect(first[2]).not.toBe(first[1]);
+    const values = run(build(), frames);
     // Pinned so the FNV-1a seed path stays identical across all three engines.
-    // The C++ port produces these same values for the same slot keys; changing
-    // them means re-recording tests/conformance/parameter-drivers.
-    expect(first[0]).toBeCloseTo(9.280491, 6);
-    expect(first[2]).toBeCloseTo(5.983628, 6);
+    // Changing them means re-recording tests/conformance/parameter-drivers.
+    expect(values[0]).toBeCloseTo(0.8712282575, 8);   // roll on b:0
+    expect(values[1]).toBe(0);                        // released; nothing to scale
+    expect(values[2]).toBeCloseTo(7.5743748513, 8);   // a new roll on b:1
+    expect(values[3]).toBeCloseTo(4.2775114450, 8);   // and again on b:2
+    expect(run(build(), frames)).toEqual(values);
+  });
+
+  it("never leaves the authored range", () => {
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "beat" }),
+        [instant({ min: 4, max: 6, randomValue: true })]),
+    }];
+    const frames = Array.from({ length: 12 }, (unused, index) => frameAt({
+      beatIndex: index, time: index * 0.5, delta: 0.5,
+    }));
+    for (const value of run(lanes, frames)) {
+      expect(value).toBeGreaterThanOrEqual(4);
+      expect(value).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it("agrees with the C++ and Swift engines value for value", () => {
+    // These numbers were printed by the Swift evaluator on indium and by the
+    // C++ one on iridium, from this exact frame sequence. The corpus digest
+    // proves those two agree with each other; this is what ties the TypeScript
+    // reference to them, because it is the one engine the corpus never runs.
+    const frames = Array.from({ length: 8 }, (unused, tick) => frameAt({
+      time: tick * 0.125,
+      delta: 0.125,
+      beatIndex: Math.floor(tick / 4),
+      barIndex: Math.floor(tick / 4),
+      beatPhase: (tick % 4) / 4,
+      barPhase: (tick % 4) / 4,
+    }));
+    const sweep = (driver: PhonoscopeDriverLane["driver"], randomValue: boolean) => run([{
+      groupId: "g",
+      lane: lane("l", driver, [binding({
+        min: 0, max: 10, attackSeconds: 0, holdSeconds: 0, releaseSeconds: 0,
+        ...(randomValue ? { randomValue: true } : {}),
+      })]),
+    }], frames);
+
+    const round = (values: number[]) => values.map((value) => Number(value.toFixed(6)));
+    expect(round(sweep(phonoscopeDriver({ type: "random", cadence: "beat" }), false)))
+      .toEqual([0, 0, 0, 10, 0, 0, 10, 0]);
+    // Every 4th downbeat is a four-bar window, and eight ticks only reach bar 1,
+    // so nothing has fired yet. Under the old reading of `every` this lane could
+    // not have fired here either -- but for the opposite reason.
+    expect(round(sweep(
+      phonoscopeDriver({ type: "random", cadence: "downbeat", every: 4 }), false,
+    ))).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(round(sweep(phonoscopeDriver({ type: "beat" }), true)))
+      .toEqual([0.871228, 0, 0, 0, 7.574375, 0, 0, 0]);
+    // Both halves at once: the jittered moments of the first, the drawn heights
+    // of the third.
+    expect(round(sweep(phonoscopeDriver({ type: "random", cadence: "beat" }), true)))
+      .toEqual([0, 0, 0, 6.054888, 0, 0, 6.272557, 0]);
+  });
+
+  it("stacks with random timing: a random peak at a random moment", () => {
+    const lanes = [{
+      groupId: "g",
+      lane: lane("l", phonoscopeDriver({ type: "random", cadence: "beat" }),
+        [instant({ randomValue: true })]),
+    }];
+    const frames = [0, 0.25, 0.5, 0.75].map((beatPhase) => frameAt({
+      beatIndex: 0, beatPhase, time: beatPhase * 0.5, delta: 0.125,
+    }));
+    const values = run(lanes, frames);
+    // Fires once, in the last quarter as before, but no longer at full range.
+    expect(values.slice(0, 3)).toEqual([0, 0, 0]);
+    expect(values[3]).toBeGreaterThan(0);
+    expect(values[3]).toBeLessThan(10);
+  });
+});
+
+describe("phonoscopeTransitionRamp", () => {
+  it("finishes at exactly attack + hold + release", () => {
+    expect(phonoscopeTransitionRamp(0, 0.5, 1, 0.5)).toBe(0);
+    expect(phonoscopeTransitionRamp(1.999, 0.5, 1, 0.5)).toBeLessThan(1);
+    expect(phonoscopeTransitionRamp(2, 0.5, 1, 0.5)).toBe(1);
+    expect(phonoscopeTransitionRamp(9, 0.5, 1, 0.5)).toBe(1);
+  });
+
+  it("is symmetric about the midpoint when the two ramps match", () => {
+    // Half the distance covered in half the time: an ease-in and an ease-out of
+    // equal length cancel, which is what makes the control read as balanced.
+    expect(phonoscopeTransitionRamp(1, 0.5, 1, 0.5)).toBeCloseTo(0.5, 10);
+    expect(phonoscopeTransitionRamp(0.25, 1, 0, 1)).toBeCloseTo(
+      1 - phonoscopeTransitionRamp(1.75, 1, 0, 1), 10);
+  });
+
+  it("accelerates through the attack and decelerates through the release", () => {
+    // Equal time slices cover increasing distance while easing in, and
+    // decreasing distance while easing out.
+    const at = (t: number) => phonoscopeTransitionRamp(t, 1, 0, 1);
+    const easingIn = [0.25, 0.5, 0.75, 1].map((t) => at(t) - at(t - 0.25));
+    expect(easingIn[1]).toBeGreaterThan(easingIn[0]);
+    expect(easingIn[3]).toBeGreaterThan(easingIn[2]);
+    const easingOut = [1.25, 1.5, 1.75, 2].map((t) => at(t) - at(t - 0.25));
+    expect(easingOut[1]).toBeLessThan(easingOut[0]);
+    expect(easingOut[3]).toBeLessThan(easingOut[2]);
+  });
+
+  it("holds a constant velocity through the middle", () => {
+    const at = (t: number) => phonoscopeTransitionRamp(t, 1, 2, 1);
+    expect(at(2) - at(1.5)).toBeCloseTo(at(2.5) - at(2), 10);
+  });
+
+  it("degenerates safely: a bare release is a pure ease-out, and no ramp is a cut", () => {
+    expect(phonoscopeTransitionRamp(0, 0, 0, 0)).toBe(1);
+    expect(phonoscopeTransitionRamp(1, 0, 0, 2)).toBeGreaterThan(0.5);
+    expect(phonoscopeTransitionRamp(2, 0, 0, 2)).toBe(1);
+    // A bare attack is the opposite: everything is deferred to the end.
+    expect(phonoscopeTransitionRamp(1, 2, 0, 0)).toBeLessThan(0.5);
+    expect(phonoscopeTransitionRamp(2, 2, 0, 0)).toBe(1);
+  });
+
+  it("never leaves 0..1, whatever it is handed", () => {
+    for (const t of [-5, 0, 0.3, 1.2, 50, Number.NaN]) {
+      const value = phonoscopeTransitionRamp(t, 0.4, 0.2, 0.9);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThanOrEqual(1);
+    }
   });
 });
 
@@ -530,7 +828,7 @@ describe("mergePhonoscopeSettingsGroups", () => {
   const group = (
     id: string,
     lanes: PhonoscopeDriverLane[],
-    combine: Record<string, "add" | "strongest">,
+    combine: Record<string, PhonoscopeCombineMode>,
     staticSettings: Record<string, number>,
   ): PhonoscopeSettingsGroup => ({
     id, name: id, moduleId: "particle-ripples", lanes, combine, staticSettings, isDefault: false,

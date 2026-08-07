@@ -15,8 +15,12 @@ import {
   PHONOSCOPE_GLOW_BLEND_EFFECT,
   PHONOSCOPE_SCENE_BLEND_EFFECT,
   PHONOSCOPE_GLOW_CLAMP_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+  driverFiresEvents,
   isPhonoscopeThemePulseEffect,
-  isPulseDriver,
 } from "../../../lib/phonoscope-drivers";
 
 export type ModuleSetting = {
@@ -57,6 +61,27 @@ export type EffectOption = {
   choices?: { value: number; label: string }[];
   /** A 0/1 axis that reads as on or off, edited as a checkbox. */
   toggle?: boolean;
+  /**
+   * A continuous axis that is nonetheless ONE value rather than a sweep: both
+   * ends of the range are pinned together and it is edited with a plain slider.
+   *
+   * The transition parameters are the case this exists for. They are latched
+   * when the transition starts and held for its whole run, so a driver sweeping
+   * the axis would only ever be sampled once — a range would be a control that
+   * looks like it does something and does not.
+   */
+  pinned?: boolean;
+  /**
+   * A value another effect's control set owns, rather than an effect you add.
+   *
+   * The transition axis, divisions and return edge only mean anything relative
+   * to the mode: an axis with no flip or slide to run on is a control for
+   * nothing. So they are not offered in the picker and never render on their
+   * own — the transition's own control set shows exactly the ones its current
+   * mode uses, and writes them. They stay separate effect ids underneath so
+   * both engines and the override resolution are unchanged.
+   */
+  companion?: boolean;
 };
 
 const PICTURE_SECTION = "Picture";
@@ -83,6 +108,37 @@ export const SCENE_BLEND_CHOICES = [
   { value: 2, label: "Overlay" },
   { value: 3, label: "Multiply" },
 ];
+
+/**
+ * How the centre image changes: 0 cross-fade, 1 flip, 2 slide, append-only.
+ * Cross-fade leads because it is 0 and it is what the picture did before the
+ * other two existed.
+ */
+export const CENTRE_TRANSITION_CHOICES = [
+  { value: 0, label: "Cross-fade" },
+  { value: 1, label: "Flip" },
+  { value: 2, label: "Slide" },
+];
+
+/**
+ * The three axes the transition's control set owns, and which mode each needs.
+ *
+ * Cross-fade uses none of them, a flip runs on the axis, and only a slide can
+ * be divided or sent back the way it came.
+ */
+export const CENTRE_TRANSITION_COMPANIONS: { id: string; minimumMode: number }[] = [
+  { id: PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT, minimumMode: 1 },
+  { id: PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT, minimumMode: 2 },
+  { id: PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT, minimumMode: 2 },
+];
+
+const CENTRE_TRANSITION_COMPANION_IDS = new Set(
+  CENTRE_TRANSITION_COMPANIONS.map((companion) => companion.id));
+
+/** True for a value some other effect's control set owns. */
+export function isCompanionEffect(id: string) {
+  return CENTRE_TRANSITION_COMPANION_IDS.has(id);
+}
 
 function titleCase(value: string) {
   const cleaned = value.replace(/[-_]+/g, " ").trim();
@@ -111,8 +167,14 @@ export function effectCatalogue(moduleSettings: ModuleSetting[]): EffectOption[]
         ? GLOW_BLEND_CHOICES
         : effect.id === PHONOSCOPE_SCENE_BLEND_EFFECT
           ? SCENE_BLEND_CHOICES
-          : undefined,
-    toggle: effect.id === PHONOSCOPE_GLOW_CLAMP_EFFECT,
+          : effect.id === PHONOSCOPE_CENTRE_TRANSITION_EFFECT
+            ? CENTRE_TRANSITION_CHOICES
+            : undefined,
+    toggle: effect.id === PHONOSCOPE_GLOW_CLAMP_EFFECT
+      || effect.id === PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+    pinned: effect.id === PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT
+      || effect.id === PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+    companion: isCompanionEffect(effect.id),
   }));
   const module = moduleSettings
     .filter((setting) => setting.updateMode !== "structural")
@@ -155,12 +217,18 @@ export function effectOptionFor(catalogue: EffectOption[], id: string) {
  */
 export function newEffectBinding(id: string, effect: EffectOption): PhonoscopeEffectBinding {
   const binding: PhonoscopeEffectBinding = { id, effect: effect.id };
-  const discrete = Boolean(effect.choices) || Boolean(effect.toggle);
+  // A pinned axis is discrete in every way that matters here: it is one chosen
+  // value, it takes no envelope, and both ends of its range sit on it.
+  const discrete = Boolean(effect.choices) || Boolean(effect.toggle) || Boolean(effect.pinned);
   if (!isPhonoscopeThemePulseEffect(effect.id)) {
     binding.min = discrete ? effect.default : effect.min;
     binding.max = discrete ? effect.default : effect.max;
   }
-  if (!discrete) {
+  // The transition is discrete — it cuts between modes — but its envelope is
+  // not a shape the mode takes: it is the ramp the transition itself runs on,
+  // and every transition has one. So it is the one discrete effect that arrives
+  // carrying an envelope.
+  if (!discrete || effect.id === PHONOSCOPE_CENTRE_TRANSITION_EFFECT) {
     binding.attackSeconds = 0.05;
     binding.holdSeconds = 0;
     binding.releaseSeconds = 0.6;
@@ -305,10 +373,13 @@ export function driverLabel(driver: PhonoscopeDriver): string {
     return `Timer · ${driver.intervalSeconds.toFixed(1)}s${suffix}`;
   }
   if (driver.type === "random") {
-    const on = driver.divide > 1
-      ? subdivisionLabel(driver).toLowerCase()
-      : driverTypeLabel(driver.cadence).toLowerCase();
-    return `Random on ${on}`;
+    // "Within" rather than "on": the fire lands somewhere inside the window,
+    // not at its edge, and `every` widens that window rather than skipping it.
+    if (driver.divide > 1) return `Random within each ${subdivisionLabel(driver).toLowerCase()}`;
+    const noun = driverTypeLabel(driver.cadence).toLowerCase();
+    return driver.every > 1
+      ? `Random within every ${driver.every} ${noun}s`
+      : `Random within each ${noun}`;
   }
   if (driver.type !== "beat" && driver.type !== "downbeat" && driver.type !== "song") {
     return base;
@@ -344,11 +415,9 @@ export function driverSupportsDivide(driver: PhonoscopeDriver) {
 
 /** `every`/`offset` only mean anything on a counted pulse. */
 export function driverSupportsCycle(driver: PhonoscopeDriver) {
-  // `random` re-samples on a pulse cadence, and all three evaluators build that
-  // cadence by copying the driver and swapping only its type — so `every` and
-  // `offset` already gate it. "Random on every 4th downbeat" works; it just had
-  // no controls.
-  return isPulseDriver(driver) || driver.type === "random";
+  // On `random` the pair sizes the window it fires somewhere inside rather than
+  // selecting which pulses count, but it is the same two controls either way.
+  return driverFiresEvents(driver);
 }
 
 /**

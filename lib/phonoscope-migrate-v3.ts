@@ -78,7 +78,6 @@ function driverOf(partial: Partial<PhonoscopeDriver>): PhonoscopeDriver {
     divide: partial.divide ?? 1,
     intervalSeconds: partial.intervalSeconds ?? 4,
     cadence: partial.cadence ?? "beat",
-    transitionSeconds: partial.transitionSeconds ?? 0.5,
   };
 }
 
@@ -104,7 +103,6 @@ function laneDriverFor(source: LegacySource): PhonoscopeDriver | null {
             ? "timer"
             : "beat",
       intervalSeconds: numberOr(source.intervalSeconds, 4),
-      transitionSeconds: numberOr(source.transitionSeconds, 0.5),
     });
   }
   if (["beat", "downbeat", "energy", "bass", "mid", "treble"].includes(type)) {
@@ -113,22 +111,39 @@ function laneDriverFor(source: LegacySource): PhonoscopeDriver | null {
   return null;
 }
 
-function bindingFor(effect: string, source: LegacySource): PhonoscopeEffectBinding {
+function bindingFor(
+  effect: string,
+  source: LegacySource,
+  driver: PhonoscopeDriver,
+): PhonoscopeEffectBinding {
+  // A legacy random source sampled a value and glided to it, ignoring the
+  // envelope entirely. Both halves of that now live on the binding: the drawn
+  // value is `randomValue`, and the glide is the attack it ramps over. Its
+  // stored `attackSeconds`, which the old evaluator never read, is discarded
+  // rather than resurrected.
+  const random = driver.type === "random";
   return {
     id: nextId("bind"),
     effect,
     min: numberOr(source.min, 0),
     max: numberOr(source.max, 0),
-    attackSeconds: numberOr(source.attackSeconds, 0.05),
+    attackSeconds: random
+      ? Math.max(0, numberOr(source.transitionSeconds, 0.5))
+      : numberOr(source.attackSeconds, 0.05),
     holdSeconds: numberOr(source.holdSeconds, 0),
     releaseSeconds: numberOr(source.releaseSeconds, 0.6),
+    ...(random ? { randomValue: true } : {}),
   };
 }
 
-/** A stable key so sources sharing a driver land in the same lane. */
+/**
+ * A stable key so sources sharing a driver land in the same lane. Two random
+ * sources that differed only by glide now merge, which is right: the glide has
+ * become a per-binding attack, so one lane can carry both.
+ */
 function laneKey(driver: PhonoscopeDriver) {
   return driver.type === "random"
-    ? `random:${driver.cadence}:${driver.intervalSeconds}:${driver.transitionSeconds}`
+    ? `random:${driver.cadence}:${driver.intervalSeconds}`
     : driver.type;
 }
 
@@ -149,7 +164,7 @@ function lanesFromSources(sources: Record<string, unknown>): PhonoscopeDriverLan
       lane = { id: nextId("lane"), driver, modifiers: [], bindings: [] };
       byDriver.set(key, lane);
     }
-    lane.bindings.push(bindingFor(effect, rawSource));
+    lane.bindings.push(bindingFor(effect, rawSource, driver));
   }
   return [...byDriver.values()];
 }

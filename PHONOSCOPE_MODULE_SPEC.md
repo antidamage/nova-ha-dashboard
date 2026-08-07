@@ -536,11 +536,26 @@ A driver produces 0-1 each tick:
 | `timer` | a pulse every `intervalSeconds` |
 | `song` | a pulse when the track changes |
 | `energy`, `bass`, `mid`, `treble` | the band maximum, followed continuously |
-| `random` | sample-and-hold on `cadence`, glided over `transitionSeconds` |
+| `random` | one pulse per `cadence` window, at a point drawn at random inside it |
 
 Pulse drivers carry `every` (1-16) and `offset`: the lane fires only when
 `(index - offset) mod every == 0`, which is how "every fourth downbeat, starting
 on the second" is expressed rather than as its own driver type.
+
+**Random is a pulse, not a value.** A `random` driver fires exactly once per
+window and runs the binding envelope like any other pulse; what is random is
+*when* inside the window it fires, not how far it goes. The window is the whole
+span between one firing opportunity and the next, so `every: 4` on a `downbeat`
+cadence means one fire somewhere across four bars rather than a jittered hit
+inside the fourth. When the window rolls over, a new moment is drawn. The
+threshold is `seedFraction(stableSeed("<slotKey>:<windowKey>"))`, so every engine
+jitters identically; a `song` cadence has no interior to place a fire inside and
+simply fires on the track change. Because it fires once per window, a random
+driver's rarity is its cadence's period, and it ranks in `strongest` and `common`
+like any other pulse.
+
+Randomising the *value* is the separate, stackable `randomValue` on a binding —
+see below. Timing and value can be had in any combination.
 
 `beat` and `downbeat` also carry `divide` (1, 2, 4 or 8), which counts in the
 other direction: the pulse is split into that many events, so a `beat` driver at
@@ -549,17 +564,53 @@ a bar. The event index becomes `floor((index + phase) × divide)` against the
 frame's `beatPhase`/`barPhase`. Counting and subdividing are exclusive — a
 subdivided driver always has `every: 1` and `offset: 0`, because which of eight
 sub-beats a run begins on is not audible — and a `divide` outside 1/2/4/8 reads
-as the whole pulse. A `random` driver subdivides through its `cadence`. Modifier signals
+as the whole pulse. A `random` driver subdivides through its `cadence`, which
+narrows the window it fires inside. Modifier signals
 are **summed** onto the primary and the total is guard-clamped to 0-4; there is
 no operator choice.
 
 Each binding maps the lane signal across its `[min, max]` and runs it through an
 attack/hold/release envelope. What it contributes is `value - min` — the amount
-above its own resting point, so two idle bindings do not stack their floors. Per
-effect, contributions either **add** or resolve to the **strongest**, meaning the
-contribution from the rarest currently-firing lane, rarity ordered `song` >
-`timer` (by interval) > `downbeat × every ÷ divide` > `beat × every ÷ divide` >
-level drivers, ties broken by lane order.
+above its own resting point, so two idle bindings do not stack their floors.
+
+A binding may also set **`randomValue`**. The lane then drives to a target drawn
+at random from inside `[min, max]` on each lane event, instead of always driving
+to `max`. Only the top of the sweep moves: the resting value is still `min` and
+the envelope still shapes the approach, so the ramp reads as the transition curve
+from the bottom of the range up to whatever was drawn this time. The draw is
+`seedFraction(stableSeed("<slotKey>:rnd:<eventKey>"))`, keyed off the primary
+driver's event key, so it re-draws exactly when the lane fires and holds between
+fires. Each binding draws from its own slot key, so two randomised effects in one
+lane move independently. A level driver fires no events, so a level-driven lane
+draws once and holds — the editor warns about this.
+
+Per effect, contributions resolve by one of four **combine modes**. Rarity is
+ordered `song` > `timer` (by interval) > `downbeat × every ÷ divide` >
+`beat × every ÷ divide` > level drivers, ties broken by lane order; a `random`
+driver ranks as its cadence:
+
+| Wire value | Label | Resolution |
+| --- | --- | --- |
+| `add` | Sum | Every contribution adds together. |
+| `strongest` | Least frequent lane wins | The rarest currently-firing lane takes the effect outright. |
+| `common` | Most frequent lane wins | The commonest currently-firing lane takes it outright. Level drivers have no period and are excluded, exactly as they can never win `strongest`; with nothing but level lanes contributing this falls back to summing them. |
+| `override` | Override | The last lane in merge order replaces the value outright, **carrying its own resting value** rather than the shared floor. This is the one mode that is a replacement rather than a contribution. |
+
+Anything unrecognised reads as `add`, which is what every effect did before
+combine modes existed.
+
+**The ramp as a motion profile.** For a one-shot linear transition — as opposed
+to a pulse envelope — the same three-thumb control is read as a trapezoidal
+velocity profile: **attack is the ease-in, hold is the flat constant-velocity
+middle, release is the ease-out, and the transition lasts exactly
+`attack + hold + release`.** Peak velocity is whatever makes the area under the
+profile 1, so lengthening the ease-in does not overshoot the end, it makes the
+middle faster. Zero-length phases are skipped rather than divided by, so a bare
+release is a pure ease-out and an all-zero ramp is an instant cut. This is
+`phonoscopeTransitionRamp` / `nova::transitionRamp` and it is what the centre
+image's transition and the rotation's `transitionSeconds` are built from. Pulse
+envelopes are unchanged: there, attack rises to 1, hold stays there, and release
+falls back to 0.
 
 The result is **not** clamped to the setting's declared maximum. It is guarded
 only to `[min, min + 4 × (max - min)]` and to being finite: stacked lanes are
@@ -576,10 +627,98 @@ declares them: `__glowBlur`, `__glowOpacity`, `__glowBlend`, `__messageScale` an
 `__hueOffset`. Two more, `__themeChange` and `__altTheme`, are pulses rather than
 values — one advances the colour theme group's playlist and the other flips the
 household's alt state — so both are meaningless under a level driver, and both
-read their binding's release as the cross-fade rather than as an envelope shape.
-`__hueOffset`, `__themeChange` and `__altTheme` are resolved by the dashboard,
-which owns House Party output and rotation; the rest are resolved by both
-engines.
+read their binding's ramp as the transition's motion profile rather than as an
+envelope shape. `__hueOffset`, `__themeChange` and `__altTheme` are resolved by
+the dashboard, which owns House Party output and rotation; the rest are resolved
+by both engines.
+
+**The centre-image transition.** Four further picture effects say how the centre
+image changes when the rotation moves to an entry naming a different one:
+
+| Effect | Range | Meaning |
+| --- | --- | --- |
+| `__centreTransition` | 0-2 | 0 cross-fade, 1 flip, 2 slide. Append-only. |
+| `__centreTransitionAxis` | 0-360 | Integer degrees. 0 is horizontal, 90 vertical. Wrapped, so 360 is 0. |
+| `__centreTransitionDivisions` | 0-10 | Cuts across the axis. Slide only. |
+| `__centreTransitionReturn` | 0-1 | 0 return from the opposite edge, 1 from the origin edge. Slide only. |
+
+All four are **override-only**: whatever a settings group stored, they combine
+by `override`, because a transition is one instruction and half a flip summed
+with half a slide is not a transition. That is what makes an override settings
+group's transition beat the defaults' rather than adding to it. All four are
+pinned values rather than ranges — a driver sweeping one would be sampled
+exactly once, because:
+
+**One control set, not four effects.** Only `__centreTransition` is offered in
+the editor. The other three are its *companions*: the transition's control set
+shows exactly the ones its current mode uses — the axis under a flip or a slide,
+the divisions and the return edge under a slide alone — and writes them as
+ordinary pinned bindings in the same lane. They are never listed in the picker,
+never render on their own, and are removed with the transition that owns them.
+An axis slider sitting under a cross-fade would be a control for nothing, and
+the user would have had to know that. Underneath they are unchanged: four effect
+ids, four bindings, one override resolution, so both engines and the conformance
+corpus see exactly what they saw before.
+
+The set always shows **the ramp**, because every transition has one. It is
+authored on the `__centreTransition` binding's own envelope and resolved
+last-wins over the same settings groups as the other axes, so an override
+group's ramp travels with the rest of its transition. Where no settings group
+binds a transition at all, the firing pulse's envelope is still the ramp — which
+is what it meant before the transition modes existed, so a group authored then
+keeps working untouched.
+
+**The initiator owns the transition.** All four axes, and the ramp, are resolved
+from the settings groups in effect at the instant the pulse fired — the entry
+being *left* — and latched for the whole run. The entry being arrived at has no
+say in how the picture gets there, and its own settings take effect only once
+the transition has finished. Without the latch the outgoing half would play
+under one rule and the incoming half under another, because advancing the
+rotation also swaps `settingsGroupIds`. A parameter edited mid-transition
+therefore lands on the next one.
+
+The dashboard publishes the latched result as `transition` on the theme state,
+with `transitionSeconds` carrying its total length (`attack + hold + release`)
+for every consumer that only needs the duration — the palette chase among them.
+A solo lock, a first selection and an editor preview are cuts and publish a
+zero-length cross-fade.
+
+**Transition geometry**, stated once so both engines can be tested against it —
+`nova-visualiser/src/core/centre_image_transition.h` is the reference, mirrored
+by `centre_image.frag` and the tvOS Metal centre pass, and locked by the
+`centre-image` conformance case.
+
+All of it happens in *aspect-corrected* frame space, `p = (uv - 0.5) ×
+(frameAspect, 1)`, undone before the image's own rectangle test — rotating in
+raw normalised coordinates would skew the axis on a 16:9 frame. The axis angle θ
+gives an orthonormal basis: `along = (cos θ, sin θ)`, `across = (-sin θ, cos θ)`.
+`progress` throughout is the ramp's output, not raw elapsed time.
+
+- **Cross-fade** is the two-plane weighted dissolve it has always been, with
+  `progress` as the incoming plane's weight. Both planes are premultiplied and
+  the weights sum to 1, so it is a straight weighted sum rather than an
+  over-composite.
+- **Flip** collapses the image along the axis by `s = |cos(π × progress)|` —
+  source coordinate `a' = a / s`, discarded below an epsilon — and draws
+  **exactly one plane at a time**: the outgoing image while `progress < 0.5`,
+  the incoming one at and after it. That midpoint is the swap, and it is why the
+  flip reads as one object turning over rather than two images blending.
+- **Slide** cuts the image into `divisions + 1` segments. A segment's index
+  comes from the *across* coordinate alone, which displacement never changes, so
+  it is unambiguous without a search:
+  `k = clamp(floor((a_across / halfAcross × 0.5 + 0.5) × segments), 0, segments - 1)`.
+  Travel alternates by parity, `dir = k even ? +1 : -1`, so 0 divisions is a
+  solid image, 1 pushes the two halves apart and 2 sends the outer sections one
+  way and the middle the other.
+  The clear distance `D` is the smallest offset that fully clears the frame at
+  that angle: `0.5 × (|cos θ| + |sin θ|) × frameSpan + halfExtent · |along|`.
+  The outgoing plane leaves over the first half, `offset = dir × D × 2 ×
+  progress`; the incoming plane arrives over the second, with
+  `q = 2 × progress - 1`, at `offset = dir × D × (q - 1)` returning from the
+  opposite edge or `-dir × D × (q - 1)` returning from the origin edge.
+  Both legs are linear in `progress` — the ramp supplies all the acceleration,
+  which is what makes ease-in read as the image accelerating away and ease-out
+  as it settling into place.
 
 **The alt colour theme.** A colour group entry may name a second theme in
 `altThemeId`, a link into the same flat theme library rather than a theme of its
