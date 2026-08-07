@@ -23,8 +23,12 @@ import {
   migratePhonoscopeModuleSettingsToPercent,
   migratePhonoscopeScalarsToPercent,
   migratePhonoscopeSettingsGroupsToPercent,
-  PHONOSCOPE_SCHEMA_VERSION,
+  PHONOSCOPE_PERCENT_GEOMETRY_VERSION,
 } from "./phonoscope-migrate-v4";
+import {
+  migratePhonoscopeRandomLanes,
+  PHONOSCOPE_SCHEMA_VERSION,
+} from "./phonoscope-migrate-v5";
 import { phonoscopeEffectDeclarations } from "./phonoscope-effects";
 import { isPhonoscopeThemePulseEffect, PHONOSCOPE_DIVIDE_CHOICES } from "./phonoscope-drivers";
 import type {
@@ -253,7 +257,6 @@ function normalizeDriver(value: unknown): PhonoscopeDriver {
     cadence: (PHONOSCOPE_PULSE_TYPES as readonly string[]).includes(String(raw.cadence))
       ? String(raw.cadence) as PhonoscopeDriver["cadence"]
       : "beat",
-    transitionSeconds: finiteClamped(raw.transitionSeconds, 0.5, 0, 10),
   };
 }
 
@@ -290,6 +293,9 @@ function normalizeBinding(value: unknown, index: number): PhonoscopeEffectBindin
   if (Number.isFinite(Number(value.releaseSeconds))) {
     binding.releaseSeconds = finiteClamped(value.releaseSeconds, 0.6, 0, 600);
   }
+  // Sparse like everything else: off is simply absent, so only a binding that
+  // actually randomises its target carries the flag.
+  if (value.randomValue === true) binding.randomValue = true;
   if (isRecord(value.params)) {
     const params: Record<string, number> = {};
     for (const [key, entry] of Object.entries(value.params)) {
@@ -355,8 +361,13 @@ export function normalizePhonoscopeSettingsGroups(value: unknown): PhonoscopeSet
     const combine: Record<string, PhonoscopeCombineMode> = {};
     if (isRecord(raw.combine)) {
       for (const [effect, mode] of Object.entries(raw.combine)) {
+        // Anything unrecognised reads as `add`, which is what every effect did
+        // before combine modes existed — a config written by a newer dashboard
+        // degrades rather than being rejected.
         if (PHONOSCOPE_EFFECT_ID.test(effect)) {
-          combine[effect] = mode === "strongest" ? "strongest" : "add";
+          combine[effect] = mode === "strongest" || mode === "common" || mode === "override"
+            ? mode
+            : "add";
         }
       }
     }
@@ -619,18 +630,31 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
   const needsMigration = !Array.isArray(raw.settingsGroups) || raw.settingsGroups.length === 0;
   const migrated = needsMigration ? migratePhonoscopeToV3(raw) : null;
 
-  // v4 turned the frame and lattice geometry into percentages. A configuration
-  // written before that carries 0-1 values, which would otherwise clamp to
-  // near-zero on the new axes. Converting on read (never persisting here) keeps
-  // this consistent with the v3 conversion above; the next write stamps
-  // `schemaVersion` and it stops happening.
-  const needsPercentGeometry = Number(raw.schemaVersion ?? 0) < PHONOSCOPE_SCHEMA_VERSION;
+  // Each conversion is gated on the version it applies below, not on the
+  // current one — otherwise the next schema bump would re-run every earlier
+  // conversion over data that has already had it. Converting on read (never
+  // persisting here) keeps this consistent with the v3 conversion above; the
+  // next write stamps `schemaVersion` and it stops happening.
+  //
+  // v4 turned the frame and lattice geometry into percentages: a configuration
+  // written before it carries 0-1 values that would clamp to near-zero on the
+  // new axes.
+  const storedVersion = Number(raw.schemaVersion ?? 0);
+  const needsPercentGeometry = storedVersion < PHONOSCOPE_PERCENT_GEOMETRY_VERSION;
+  // v5 split the random driver into random timing and random value: a random
+  // lane written before it needs both halves turned on to keep its character.
+  const needsRandomSplit = storedVersion < PHONOSCOPE_SCHEMA_VERSION;
 
   const activeModuleId = typeof raw.activeModuleId === "string"
     ? raw.activeModuleId
     : DEFAULT_PHONOSCOPE_CONFIG.activeModuleId;
+  // v5 runs before normalisation because normalisation drops the driver's old
+  // `transitionSeconds` — the very value it converts.
+  const storedGroups = migrated ? migrated.settingsGroups : raw.settingsGroups;
   const normalizedSettingsGroups = withDefaultSettingsGroup(
-    normalizePhonoscopeSettingsGroups(migrated ? migrated.settingsGroups : raw.settingsGroups),
+    normalizePhonoscopeSettingsGroups(
+      needsRandomSplit ? migratePhonoscopeRandomLanes(storedGroups) : storedGroups,
+    ),
     activeModuleId,
   );
   const settingsGroups = needsPercentGeometry

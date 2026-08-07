@@ -1859,10 +1859,30 @@ Visualiser controls (the config panel formerly called Physics):
   at the moment of assignment. The `chooseColorGroupByGenre` toggle that arms the
   routing sits outside the group list.
 - Driver-lane semantics — driver types, `every`/`offset` gating, `divide`
-  subdivision, modifier summation, envelopes, add vs strongest, and the
+  subdivision, modifier summation, envelopes, the four combine modes, and the
   overshoot guard — are specified in `PHONOSCOPE_MODULE_SPEC.md` §10 "Driver
   lanes" and shared by all three engines. `lib/phonoscope-drivers.ts` is the
   dashboard's copy.
+- "When stacked" offers **Sum**, **Least frequent lane wins**, **Most frequent
+  lane wins** and **Override**. The first two keep their original wire values
+  (`add`, `strongest`) because saved configurations already hold them.
+- The **ramp** control has two readings, and the label says which is in play.
+  On a pulse it is an envelope: attack rises, hold holds, release falls. On a
+  one-shot transition it is a motion profile: attack is the ease-in, hold is the
+  flat middle, release is the ease-out, and the transition lasts their sum.
+- The **Centre** effect group carries the transition alongside the height and
+  scale, as **one control set rather than four effects**. Picking the mode
+  (Cross-fade / Flip / Slide) decides what the rest of the set is: a flip adds
+  the axis it collapses along, a slide adds the axis plus the division count and
+  the return-edge toggle, and a cross-fade shows neither. The **ramp** is always
+  shown, because every transition has one. The axis, divisions and return edge
+  are never offered in the "Add effect" picker and never render on their own —
+  the set writes them, and removing the transition removes them. Each is a
+  single pinned value rather than a range, because they are latched for the
+  length of the transition; all four are override-only, so the "When stacked"
+  control is replaced by a line saying the last settings group wins. The entry a
+  change *starts from* owns its transition — see `PHONOSCOPE_MODULE_SPEC.md`
+  §10.
 - A driver row asks "how often" once: a single cadence list running from
   "Eighth beat" through "Every one" to "Every 16th". Faster than the pulse there
   is nothing to start on, so the "Starting on" control is absent for a

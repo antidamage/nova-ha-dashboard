@@ -519,10 +519,11 @@ export type PhonoscopePreferences = {
  * One signal a driver lane runs on.
  *
  * `beat`, `downbeat`, `timer` and `song` are pulses; `energy`, `bass`, `mid`
- * and `treble` are continuous levels; `random` samples and holds a value on its
- * cadence. The shape is deliberately flat and total rather than a discriminated
- * union, because `config_client.cpp` and `PhonoscopeModels.swift` hand-parse the
- * same JSON and a union costs them a branch per field.
+ * and `treble` are continuous levels; `random` is a pulse too — it fires once
+ * per `cadence` window, at a random point inside it. The shape is deliberately
+ * flat and total rather than a discriminated union, because `config_client.cpp`
+ * and `PhonoscopeModels.swift` hand-parse the same JSON and a union costs them a
+ * branch per field.
  */
 export type PhonoscopeDriverType =
   | "beat"
@@ -558,10 +559,13 @@ export type PhonoscopeDriver = {
   divide: number;
   /** Seconds between pulses when this driver, or a random driver's cadence, is `timer`. */
   intervalSeconds: number;
-  /** `random` only: the pulse it re-samples on. */
+  /**
+   * `random` only: the pulse whose interval is the window it fires somewhere
+   * inside. `every` and `divide` size that window rather than selecting which
+   * pulses count, so "every 4th downbeat" is one fire per four bars at a moving
+   * moment, not a jittered hit inside the fourth bar.
+   */
   cadence: PhonoscopePulseType;
-  /** `random` only: seconds to glide to a newly sampled value. */
-  transitionSeconds: number;
 };
 
 /**
@@ -578,6 +582,16 @@ export type PhonoscopeEffectBinding = {
   attackSeconds?: number;
   holdSeconds?: number;
   releaseSeconds?: number;
+  /**
+   * Draw the target at random from inside `[min, max]` on each lane event
+   * instead of always driving to `max`. The envelope is untouched: it still
+   * shapes the approach, so the ramp reads as the transition curve from the
+   * bottom of the range up to whatever was drawn this time.
+   *
+   * Orthogonal to the `random` driver — that randomises *when* the lane fires,
+   * this randomises *how far* it goes — so the two stack in any combination.
+   */
+  randomValue?: boolean;
   /** Effect-specific scalars, such as `order` on `__themeChange`. */
   params?: Record<string, number>;
 };
@@ -591,12 +605,25 @@ export type PhonoscopeDriverLane = {
 };
 
 /**
- * How an effect resolves when more than one lane drives it at once. `add` sums
- * every lane's contribution above its resting value; `strongest` takes the
- * contribution from the rarest firing lane outright, so an every-4th-downbeat
- * hit covers the plain downbeat rather than compounding with it.
+ * How an effect resolves when more than one lane drives it at once.
+ *
+ * - `add` sums every lane's contribution above its resting value.
+ * - `strongest` takes the contribution from the LEAST FREQUENT firing lane
+ *   outright, so an every-4th-downbeat hit covers the plain downbeat rather
+ *   than compounding with it.
+ * - `common` is its mirror: the MOST FREQUENT firing lane takes it, so the
+ *   busiest lane sets the value and the rare punctuation stays out of the way.
+ * - `override` is a replacement rather than a contribution — the last lane in
+ *   merge order takes the effect outright, carrying its own resting value with
+ *   it. This is how an override settings group's value always beats the
+ *   default group's when both are present.
+ *
+ * The two original ids are kept verbatim: they are already stored in saved
+ * configurations and hand-parsed by `config_client.cpp` and
+ * `PhonoscopeModels.swift`. The UI labels them Sum / Least frequent lane wins /
+ * Most frequent lane wins / Override.
  */
-export type PhonoscopeCombineMode = "add" | "strongest";
+export type PhonoscopeCombineMode = "add" | "strongest" | "common" | "override";
 
 export type PhonoscopeSettingsGroup = {
   id: string;

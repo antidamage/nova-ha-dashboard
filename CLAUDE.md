@@ -32,7 +32,11 @@ the named component before introducing a one-off equivalent.
   configuration.
 - `RangeSliderControlPanel` — `app/components/ConfigControls.tsx`. This is the
   standard configuration wrapper for `DotRangeControl`, preserving separate
-  preview and commit boundaries plus explicit minimum/maximum readouts.
+  preview and commit boundaries plus explicit minimum/maximum readouts. Passing
+  `onRandomChange` adds the optional `RND` tag — a compact checkbox under a 9px
+  `rect-envelope-tag` label, the same tag family the envelope thumbs use — for
+  ranges whose target may be drawn at random. Reuse it rather than adding a
+  second randomise affordance.
 - `EnvelopeSliderControlPanel` — `app/components/ConfigControls.tsx`. This wraps
   `DotEnvelopeControl` with standard preview/commit behavior and per-phase
   duration readouts.

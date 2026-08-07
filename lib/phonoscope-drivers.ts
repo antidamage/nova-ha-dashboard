@@ -46,6 +46,50 @@ export const PHONOSCOPE_VIGNETTE_OPACITY_EFFECT = "__vignetteOpacity";
 export const PHONOSCOPE_VIGNETTE_SIZE_EFFECT = "__vignetteSize";
 /** How the scene layer meets the backdrop. */
 export const PHONOSCOPE_SCENE_BLEND_EFFECT = "__sceneBlend";
+/**
+ * How the centre image changes when the rotation moves to an entry naming a
+ * different one: cross-fade, flip, or slide, plus the three parameters the
+ * latter two read. See `centre_image_transition.h` for the geometry.
+ */
+export const PHONOSCOPE_CENTRE_TRANSITION_EFFECT = "__centreTransition";
+export const PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT = "__centreTransitionAxis";
+export const PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT = "__centreTransitionDivisions";
+export const PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT = "__centreTransitionReturn";
+
+/**
+ * Effects that always combine by `override`, whatever a settings group stored.
+ *
+ * A transition is one indivisible instruction: half a flip summed with half a
+ * slide is not a transition, it is a fault. So these axes never stack — the
+ * last group in the entry's list replaces the value outright, which is exactly
+ * what "an override group beats the defaults" has to mean. The "When stacked"
+ * control is not offered for them.
+ */
+export const PHONOSCOPE_OVERRIDE_ONLY_EFFECTS: ReadonlySet<string> = new Set([
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+]);
+
+export function isPhonoscopeOverrideOnlyEffect(effect: string) {
+  return PHONOSCOPE_OVERRIDE_ONLY_EFFECTS.has(effect);
+}
+
+/** The centre-image transition modes. APPEND-ONLY: stored bindings hold these numbers. */
+export type PhonoscopeCentreTransition = "crossfade" | "flip" | "slide";
+
+export const PHONOSCOPE_CENTRE_TRANSITION_VALUES: Record<PhonoscopeCentreTransition, number> = {
+  crossfade: 0,
+  flip: 1,
+  slide: 2,
+};
+
+export function phonoscopeCentreTransition(value: number | undefined): PhonoscopeCentreTransition {
+  if ((value ?? 0) >= 1.5) return "slide";
+  if ((value ?? 0) >= 0.5) return "flip";
+  return "crossfade";
+}
 
 /**
  * The two rotation pulses: a firing is an instruction, not a magnitude.
@@ -145,6 +189,19 @@ export type PhonoscopeDriverState = {
   eventCount: number;
   lastTrackSeed: number;
   seenTrack: boolean;
+  /**
+   * `random` timing: the window `target` was rolled for, and whether that
+   * window's one fire has already happened. `target` carries the rolled
+   * threshold — the fraction through the window at which it fires.
+   */
+  windowKey: string;
+  fired: boolean;
+  /**
+   * `randomValue` slots only: whether a value has ever been drawn. Without it a
+   * lane whose driver never writes an event key — every continuous driver — would
+   * sit on the zero `target` forever and hold the effect at its floor.
+   */
+  seeded: boolean;
 };
 
 export type PhonoscopeDriverStates = Map<string, PhonoscopeDriverState>;
@@ -182,8 +239,23 @@ export function seedFraction(seed: bigint): number {
 
 const PULSE_TYPES = new Set(["beat", "downbeat", "timer", "song"]);
 
+/** One of the four literal pulse types — not `random`, which borrows one. */
 export function isPulseDriver(driver: PhonoscopeDriver) {
   return PULSE_TYPES.has(driver.type);
+}
+
+/**
+ * Whether this driver fires discrete events at all, as opposed to carrying a
+ * continuous level.
+ *
+ * This is the question almost everything outside the evaluator actually wants:
+ * `random` is a pulse whose timing is jittered, so it advances the rotation and
+ * re-draws a `randomValue` exactly like the four named pulses do. Only
+ * `isPulseDriver`'s two callers — the signal dispatch and the cadence copy —
+ * care about the narrower distinction.
+ */
+export function driverFiresEvents(driver: PhonoscopeDriver) {
+  return isPulseDriver(driver) || driver.type === "random";
 }
 
 function finite(value: number, fallback: number) {
@@ -228,11 +300,65 @@ function subdividedIndex(index: number, phase: number, divide: number) {
 }
 
 /**
- * How rarely a lane fires, in seconds, used to rank lanes when an effect
- * combines by `strongest`. Longer wins, so an every-4th-downbeat hit covers a
- * plain downbeat, which covers a beat. Continuous drivers never win outright.
+ * The pulse a `random` driver's window is measured in. An unrecognised cadence
+ * reads as `beat`, so a configuration from a newer dashboard degrades to the
+ * commonest window rather than to silence.
  */
-export function driverPeriodSeconds(driver: PhonoscopeDriver, frame: PhonoscopeSignalFrame) {
+function randomCadenceDriver(driver: PhonoscopeDriver): PhonoscopeDriver {
+  return {
+    ...driver,
+    type: PULSE_TYPES.has(driver.cadence) ? driver.cadence : "beat",
+  };
+}
+
+/**
+ * Where the frame sits inside the driver's firing window, as a whole window
+ * index and a 0..1 fraction through it.
+ *
+ * The window is the whole span between one firing opportunity and the next —
+ * `every` windows of the pulse, or one `divide`th of it — which is exactly the
+ * span `driverPeriodSeconds` measures. That is what makes "every 4th downbeat"
+ * mean one fire somewhere in four bars rather than a fire inside the fourth.
+ *
+ * `song` has no position: a track's length is not known until it ends, so there
+ * is no "fraction through" it to place anything at. Returns null there, and the
+ * caller falls back to firing on the track change itself.
+ */
+function driverWindowPosition(
+  driver: PhonoscopeDriver,
+  frame: PhonoscopeSignalFrame,
+): { index: number; fraction: number } | null {
+  if (driver.type === "song") return null;
+  let position: number;
+  if (driver.type === "timer") {
+    position = finite(frame.time, 0) / Math.max(0.25, finite(driver.intervalSeconds, 4));
+  } else {
+    const whole = driver.type === "downbeat" ? frame.barIndex : frame.beatIndex;
+    const phase = driver.type === "downbeat" ? frame.barPhase : frame.beatPhase;
+    // Same continuous position `subdividedIndex` floors, kept unfloored: the
+    // fractional part is the whole point here.
+    position = (Math.floor(finite(whole, 0)) + Math.max(0, Math.min(1, finite(phase, 0))))
+      * driverDivide(driver);
+  }
+  // `every` and `divide` are the two directions of one control and never both
+  // apply, so this scales by whichever is in play.
+  const every = Math.max(1, Math.floor(finite(driver.every, 1)));
+  const offset = Math.max(0, Math.min(every - 1, Math.floor(finite(driver.offset, 0))));
+  const cycles = (position - offset) / every;
+  const index = Math.floor(cycles);
+  return { index, fraction: cycles - index };
+}
+
+/**
+ * How rarely a lane fires, in seconds, used to rank lanes when an effect
+ * combines by `strongest` or `common`. Longer wins under `strongest`, so an
+ * every-4th-downbeat hit covers a plain downbeat, which covers a beat.
+ * Continuous drivers have no period at all and never win outright either way.
+ */
+export function driverPeriodSeconds(driver: PhonoscopeDriver, frame: PhonoscopeSignalFrame): number {
+  // A random driver fires exactly once per window, so its rarity IS its
+  // window — the same period the cadence pulse would have had.
+  if (driver.type === "random") return driverPeriodSeconds(randomCadenceDriver(driver), frame);
   const every = Math.max(1, Math.floor(finite(driver.every, 1)));
   const secondsPerBeat = Math.max(1e-6, finite(frame.secondsPerBeat, 0.5));
   const beatsPerBar = Math.max(1, finite(frame.beatsPerBar, 4));
@@ -282,6 +408,9 @@ function emptyState(): PhonoscopeDriverState {
     eventCount: 0,
     lastTrackSeed: 0,
     seenTrack: false,
+    windowKey: "",
+    fired: false,
+    seeded: false,
   };
 }
 
@@ -340,6 +469,49 @@ type EnvelopeTimes = {
   holdSeconds: number;
   releaseSeconds: number;
 };
+
+/**
+ * The ramp control read as a MOTION PROFILE, for one-shot linear transitions.
+ *
+ * A pulse envelope and a transition are two different things wearing the same
+ * three-thumb control, and this is the second reading:
+ *
+ * - attack is the EASE-IN — the stretch the motion spends accelerating,
+ * - hold is the FLAT middle — constant velocity, no acceleration either way,
+ * - release is the EASE-OUT — the stretch it spends decelerating,
+ *
+ * and the transition therefore lasts exactly `attack + hold + release`. Returns
+ * progress from 0 to 1.
+ *
+ * Concretely this is a trapezoidal velocity profile integrated once. Peak
+ * velocity is whatever makes the area under it exactly 1, so the transition
+ * always completes on time no matter how the three phases are proportioned:
+ * lengthening the ease-in does not overshoot, it just makes the middle faster.
+ *
+ * Zero-length phases are skipped rather than divided by, so a bare release is a
+ * pure ease-out and an all-zero ramp is an instant cut.
+ */
+export function phonoscopeTransitionRamp(
+  elapsedSeconds: number,
+  attackSeconds: number,
+  holdSeconds: number,
+  releaseSeconds: number,
+) {
+  const attack = Math.max(0, finite(attackSeconds, 0));
+  const hold = Math.max(0, finite(holdSeconds, 0));
+  const release = Math.max(0, finite(releaseSeconds, 0));
+  const total = attack + hold + release;
+  const elapsed = Math.max(0, finite(elapsedSeconds, 0));
+  if (!(total > 0) || elapsed >= total) return 1;
+  // Half of each ramp's span carries half its velocity: the area of a triangle.
+  const peak = 1 / (attack / 2 + hold + release / 2);
+  if (elapsed < attack) return clamp01(peak * elapsed * elapsed / (2 * attack));
+  if (elapsed < attack + hold) return clamp01(peak * (attack / 2 + (elapsed - attack)));
+  const decelerating = elapsed - attack - hold;
+  return clamp01(peak * (
+    attack / 2 + hold + decelerating - decelerating * decelerating / (2 * release)
+  ));
+}
 
 /**
  * A pulse driver runs a triggered attack/hold/release envelope: the event
@@ -450,34 +622,53 @@ function advanceFollower(
 }
 
 /**
- * `random` samples a new value on its cadence and glides to it over
- * `transitionSeconds`, ignoring the binding envelope — the cadence and the
- * glide are the shape. The sample is seeded from the slot key and the event, so
- * every engine picks the same value for the same beat of the same track.
+ * `random` is a pulse whose timing is jittered: it fires exactly once per
+ * cadence window, at a point drawn at random from inside that window, and draws
+ * a new point when the window rolls over. So a `downbeat` random driver fires
+ * somewhere before the next downbeat, and the downbeat resets where it will
+ * fire next time.
+ *
+ * It runs the binding's envelope like every other pulse — the randomness is in
+ * *when*, not in the shape. Randomising the value it drives to is a separate,
+ * stackable thing: the binding's `randomValue`.
+ *
+ * The threshold is seeded from the slot key and the window, so every engine
+ * jitters identically for the same window of the same track.
  */
-function advanceRandom(
+function advanceJitteredPulse(
   state: PhonoscopeDriverState,
   driver: PhonoscopeDriver,
+  binding: PhonoscopeEffectBinding,
   frame: PhonoscopeSignalFrame,
   delta: number,
   key: string,
 ) {
-  const cadence: PhonoscopeDriver = {
-    ...driver,
-    type: driver.cadence === "beat" || driver.cadence === "downbeat"
-      || driver.cadence === "timer" || driver.cadence === "song"
-      ? driver.cadence
-      : "beat",
-  };
-  const eventKey = pulseEventKey(cadence, frame, state);
-  if (eventKey && eventKey !== state.eventKey) {
-    state.eventKey = eventKey;
-    state.target = seedFraction(stablePhonoscopeSeed(`${key}:${eventKey}`));
+  const cadence = randomCadenceDriver(driver);
+  const times = envelopeTimes(binding);
+  const position = driverWindowPosition(cadence, frame);
+  // A song has no interior to place a fire inside, so a song-cadence random
+  // driver is simply the song pulse. Better than pretending to jitter.
+  if (!position) {
+    return advancePulseEnvelope(state, times, delta, pulseEventKey(cadence, frame, state));
   }
-  const duration = Math.max(0, finite(driver.transitionSeconds, 0.5));
-  const amount = duration === 0 ? 1 : Math.min(1, delta / duration);
-  state.current += (state.target - state.current) * amount;
-  return clamp01(state.current);
+
+  const divide = driverDivide(cadence);
+  const prefix = cadence.type === "downbeat" ? "d" : cadence.type === "timer" ? "t" : "b";
+  const windowKey = `r${prefix}${divide > 1 ? `/${divide}` : ""}:${position.index}`;
+  if (windowKey !== state.windowKey) {
+    state.windowKey = windowKey;
+    state.target = seedFraction(stablePhonoscopeSeed(`${key}:${windowKey}`));
+    state.fired = false;
+  }
+
+  let eventKey = "";
+  if (!state.fired && position.fraction >= state.target) {
+    state.fired = true;
+    // The `!` keeps a fire distinct from the window it belongs to, so the
+    // envelope's "is this a new event" test can never confuse the two.
+    eventKey = `${windowKey}!`;
+  }
+  return advancePulseEnvelope(state, times, delta, eventKey);
 }
 
 function envelopeTimes(binding: PhonoscopeEffectBinding): EnvelopeTimes {
@@ -498,7 +689,9 @@ function driverSignal(
 ) {
   const state = stateFor(states, key);
   const delta = Math.max(1 / 120, Math.min(0.25, finite(frame.delta, 1 / 60)));
-  if (driver.type === "random") return advanceRandom(state, driver, frame, delta, key);
+  if (driver.type === "random") {
+    return advanceJitteredPulse(state, driver, binding, frame, delta, key);
+  }
   if (isPulseDriver(driver)) {
     return advancePulseEnvelope(state, envelopeTimes(binding), delta, pulseEventKey(driver, frame, state));
   }
@@ -528,6 +721,37 @@ type Contribution = {
   period: number;
   restingValue: number;
 };
+
+/**
+ * How far up its range a binding reaches this tick, 0..1.
+ *
+ * Normally 1 — the lane sweeps the whole authored range. With `randomValue` the
+ * top of the sweep is drawn at random on each lane event and held until the
+ * next one, so the envelope still ramps from the bottom of the range but stops
+ * somewhere new every time.
+ *
+ * The draw is keyed off the primary driver's event key, which changes exactly
+ * when the lane fires. Each binding draws from its own slot key, so two
+ * randomised effects in one lane move independently rather than in lockstep.
+ *
+ * A continuous driver never writes an event key, so a level-driven lane draws
+ * once and holds it — there is no event to re-draw on. The UI says so.
+ */
+function randomValueScale(
+  binding: PhonoscopeEffectBinding,
+  states: PhonoscopeDriverStates,
+  slot: string,
+) {
+  if (!binding.randomValue) return 1;
+  const roll = stateFor(states, `${slot}:rnd`);
+  const eventKey = states.get(`${slot}:0`)?.eventKey ?? "";
+  if (!roll.seeded || eventKey !== roll.eventKey) {
+    roll.seeded = true;
+    roll.eventKey = eventKey;
+    roll.target = seedFraction(stablePhonoscopeSeed(`${slot}:rnd:${eventKey}`));
+  }
+  return roll.target;
+}
 
 /**
  * Resolve every effect the given lanes drive.
@@ -564,8 +788,9 @@ export function evaluatePhonoscopeDriverLanes(input: {
         signal += driverSignal(modifier, binding, frame, states, `${slot}:${index + 1}`);
       });
       signal = Math.max(0, Math.min(PHONOSCOPE_MAX_LANE_SIGNAL, signal));
+      const reach = randomValueScale(binding, states, slot);
       const list = contributions.get(binding.effect) ?? [];
-      list.push({ amount: (high - low) * signal, period: lanePeriod, restingValue: low });
+      list.push({ amount: (high - low) * signal * reach, period: lanePeriod, restingValue: low });
       contributions.set(binding.effect, list);
     }
   }
@@ -575,21 +800,43 @@ export function evaluatePhonoscopeDriverLanes(input: {
   for (const [effect, list] of contributions) {
     const declaration = declarations.get(effect);
     if (!declaration || list.length === 0) continue;
-    const resting = list.reduce((highest, entry) => Math.max(highest, entry.restingValue), -Infinity);
-    const mode = combine[effect] === "strongest" ? "strongest" : "add";
+    const mode = combineMode(effect, combine[effect]);
+    let resting = list.reduce((highest, entry) => Math.max(highest, entry.restingValue), -Infinity);
     let total = 0;
-    if (mode === "add") {
+    if (mode === "override") {
+      // A replacement, not a contribution: the last lane in merge order takes
+      // the effect outright and brings its OWN resting value with it, rather
+      // than sitting on the shared floor every other mode builds from. That is
+      // what makes an override settings group beat the defaults instead of
+      // adding to them.
+      const winner = list[list.length - 1];
+      resting = winner.restingValue;
+      total = winner.amount;
+    } else if (mode === "add") {
       total = list.reduce((sum, entry) => sum + entry.amount, 0);
     } else {
-      // The rarest lane that is actually firing takes the effect outright.
+      // One firing lane takes the effect outright, chosen by how often it
+      // fires: `strongest` wants the least frequent, `common` the most.
       // Equal periods fall back to lane order, last one winning, which matches
       // the way colliding scalars layer.
+      //
+      // A continuous driver has no period at all (0), so under `strongest` it
+      // never wins outright. `common` has to exclude it explicitly for the same
+      // reason inverted — otherwise a level lane, being the "most frequent"
+      // thing there is, would win every time and no pulse could ever be heard.
+      const rarest = mode === "strongest";
       let best: Contribution | null = null;
       for (const entry of list) {
         if (entry.amount === 0) continue;
-        if (!best || entry.period >= best.period) best = entry;
+        if (!rarest && !(entry.period > 0)) continue;
+        if (!best || (rarest ? entry.period >= best.period : entry.period <= best.period)) {
+          best = entry;
+        }
       }
-      total = best ? best.amount : 0;
+      // Nothing but continuous lanes are contributing, so `common` falls back to
+      // summing them rather than going silent.
+      if (!best && !rarest) total = list.reduce((sum, entry) => sum + entry.amount, 0);
+      else total = best ? best.amount : 0;
     }
     const range = Math.max(0, declaration.max - declaration.min);
     const ceiling = resting + range * PHONOSCOPE_OVERSHOOT_RANGES;
@@ -600,6 +847,20 @@ export function evaluatePhonoscopeDriverLanes(input: {
     driven.add(effect);
   }
   return { values, driven };
+}
+
+/**
+ * The mode an effect actually combines by.
+ *
+ * Override-only effects ignore whatever a settings group stored: a transition
+ * cannot be half one thing and half another, so the axis is forced no matter
+ * how an older configuration was authored. Anything unrecognised reads as
+ * `add`, which is the behaviour every effect had before combine modes existed.
+ */
+function combineMode(effect: string, stored: PhonoscopeCombineMode | undefined) {
+  if (isPhonoscopeOverrideOnlyEffect(effect)) return "override";
+  if (stored === "strongest" || stored === "common" || stored === "override") return stored;
+  return "add";
 }
 
 function clampToDeclaration(declaration: PhonoscopeEffectDeclaration, value: number) {
@@ -636,6 +897,5 @@ export function phonoscopeDriver(partial: Partial<PhonoscopeDriver> = {}): Phono
     offset: Math.max(0, Math.min(every - 1, Math.floor(finite(partial.offset ?? 0, 0)))),
     intervalSeconds: Math.max(0.25, Math.min(600, finite(partial.intervalSeconds ?? 4, 4))),
     cadence,
-    transitionSeconds: Math.max(0, Math.min(10, finite(partial.transitionSeconds ?? 0.5, 0.5))),
   };
 }

@@ -1977,15 +1977,22 @@ a.update-banner-button {
   pointer-events: none;
 }
 
+/* The three-letter tag a slider control hangs off a thumb (ATK/HLD/REL) or off
+   its own edge (RND). Typography only, so it reads as one family wherever it is
+   put; .rect-envelope-label adds the thumb positioning on top. */
+.rect-envelope-tag,
 .rect-envelope-label {
-  position: absolute;
-  bottom: 0;
-  transform: translateX(-50%);
   color: var(--cyber-muted);
   font-size: 9px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
+}
+
+.rect-envelope-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
   pointer-events: none;
 }
 

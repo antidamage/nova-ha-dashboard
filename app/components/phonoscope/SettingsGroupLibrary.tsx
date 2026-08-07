@@ -8,7 +8,10 @@ import type {
   PhonoscopeEffectBinding,
   PhonoscopeSettingsGroup,
 } from "../../../lib/types";
-import { phonoscopeDriver } from "../../../lib/phonoscope-drivers";
+import {
+  phonoscopeDriver,
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+} from "../../../lib/phonoscope-drivers";
 import { ConfigAccordion, SliderControlPanel } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { DriverStack } from "./DriverControls";
@@ -20,6 +23,7 @@ import { EffectGroupEntry } from "./EffectGroupEntry";
 import {
   effectGroupIndex,
   effectOptionFor,
+  isCompanionEffect,
   laneLabel,
   newEffectBinding,
   type EffectOption,
@@ -94,6 +98,10 @@ export function SettingsGroupCard({
 
   const groupOf = effectGroupIndex(effectGroups);
 
+  /** The bindings a lane puts on screen: companions are shown by their owner. */
+  const visibleBindings = (lane: PhonoscopeDriverLane) =>
+    lane.bindings.filter((binding) => !isCompanionEffect(binding.effect));
+
   /**
    * A lane's bindings as they are laid out: grouped ones collected under their
    * group, everything else on its own.
@@ -105,7 +113,7 @@ export function SettingsGroupCard({
    */
   const laneItems = (lane: PhonoscopeDriverLane): LaneItem[] => {
     const seen = new Set<string>();
-    return lane.bindings.flatMap<LaneItem>((binding) => {
+    return visibleBindings(lane).flatMap<LaneItem>((binding) => {
       const groupId = groupOf.get(binding.effect);
       if (!groupId) return [{ kind: "binding", binding }];
       if (seen.has(groupId)) return [];
@@ -129,16 +137,45 @@ export function SettingsGroupCard({
       ?? effectOptionFor(catalogue, effectId);
   };
 
+  /**
+   * Set a companion value in a lane: update the binding that carries it, or add
+   * one pinned to that value if the lane has none yet.
+   *
+   * Pinned means both ends of the range sit on the number — these axes are
+   * latched for the length of a transition, so there is nothing for a driver to
+   * sweep between.
+   */
+  const setCompanion = (
+    lane: PhonoscopeDriverLane,
+    effectId: string,
+    value: number,
+  ) => {
+    const existing = lane.bindings.some((entry) => entry.effect === effectId);
+    updateLane(lane.id, {
+      bindings: existing
+        ? lane.bindings.map((entry) => entry.effect === effectId
+          ? { ...entry, min: value, max: value }
+          : entry)
+        : [...lane.bindings, { id: newId("bind"), effect: effectId, min: value, max: value }],
+    });
+  };
+
   const renderBinding = (lane: PhonoscopeDriverLane, binding: PhonoscopeEffectBinding) => {
+    // A companion has no entry of its own: the control set that owns it shows
+    // it, and only under the mode that uses it.
+    if (isCompanionEffect(binding.effect)) return null;
     const effect = optionFor(binding.effect);
     if (!effect) return null;
+    const ownsCompanions = binding.effect === PHONOSCOPE_CENTRE_TRANSITION_EFFECT;
     return (
       <EffectEntry
         key={binding.id}
         binding={binding}
         combine={group.combine[binding.effect]}
+        companions={lane.bindings.filter((entry) => isCompanionEffect(entry.effect))}
         driver={lane.driver}
         effect={effect}
+        onCompanionChange={(effectId, value) => setCompanion(lane, effectId, value)}
         onChange={(next) => updateLane(lane.id, {
           bindings: lane.bindings.map((entry) => entry.id === next.id ? next : entry),
         })}
@@ -159,7 +196,10 @@ export function SettingsGroupCard({
             entry.id === binding.id ? [entry, reidBinding(entry)] : [entry]),
         })}
         onRemove={() => updateLane(lane.id, {
-          bindings: lane.bindings.filter((entry) => entry.id !== binding.id),
+          bindings: lane.bindings.filter((entry) => entry.id !== binding.id
+            // The companions have no control of their own, so leaving them
+            // behind would leave values in the group that nothing can edit.
+            && !(ownsCompanions && isCompanionEffect(entry.effect))),
         })}
         onPaste={(pasted) => updateLane(lane.id, {
           bindings: lane.bindings.map((entry) => entry.id === binding.id
@@ -255,7 +295,10 @@ export function SettingsGroupCard({
             actions={
               <span className="flex items-center gap-1">
                 <span className="mr-2 text-xs text-neutral-500">
-                  {lane.bindings.length} effect{lane.bindings.length === 1 ? "" : "s"}
+                  {/* Companions are parameters of the effect above them, so the
+                      count is of what the lane actually shows. */}
+                  {visibleBindings(lane).length} effect
+                  {visibleBindings(lane).length === 1 ? "" : "s"}
                 </span>
                 <CopyActions
                   kind="lane"
@@ -315,8 +358,12 @@ export function SettingsGroupCard({
                   }}
                   onRemoveAll={() => {
                     const members = new Set(item.group.members.map((member) => member.id));
+                    // Taking the transition away takes its companions with it:
+                    // they belong to its control set, not to the lane.
+                    const companions = members.has(PHONOSCOPE_CENTRE_TRANSITION_EFFECT);
                     updateLane(lane.id, {
-                      bindings: lane.bindings.filter((entry) => !members.has(entry.effect)),
+                      bindings: lane.bindings.filter((entry) => !members.has(entry.effect)
+                        && !(companions && isCompanionEffect(entry.effect))),
                     });
                   }}
                   renderMember={(binding) => renderBinding(lane, binding)}

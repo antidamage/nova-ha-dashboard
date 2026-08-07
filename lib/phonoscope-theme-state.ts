@@ -11,9 +11,42 @@ import {
   mergePhonoscopeSettingsGroups,
   phonoscopePlaybackOrder,
   PHONOSCOPE_ALT_THEME_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+  PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
   type PhonoscopePlaybackOrder,
 } from "./phonoscope-drivers";
+
+/**
+ * Everything a change carries about HOW it changes, latched when it fires.
+ *
+ * THE INITIATOR OWNS THE TRANSITION. These are resolved from the settings
+ * groups that were in effect at the instant the pulse fired — the entry being
+ * left, not the one being arrived at — and then held unchanged for the whole
+ * run. Reading them live would mean the outgoing half of a change played by one
+ * rule and the incoming half by another, because advancing the rotation also
+ * swaps `settingsGroupIds`.
+ */
+export type PhonoscopeTransition = {
+  /**
+   * The ramp, read as a motion profile: attack eases in, hold is the flat
+   * constant-velocity middle, release eases out. The change therefore lasts
+   * exactly attack + hold + release. See `phonoscopeTransitionRamp`.
+   */
+  attackSeconds: number;
+  holdSeconds: number;
+  releaseSeconds: number;
+  /** 0 cross-fade, 1 flip, 2 slide. Append-only. */
+  mode: number;
+  /** Degrees. 0 flips or slides horizontally, 90 vertically. */
+  axisDegrees: number;
+  /** Cuts across the axis, 0-10. Sections alternate travel direction. Slide only. */
+  divisions: number;
+  /** Slide only: a section returns from the edge it left by rather than the far one. */
+  returnFromOrigin: boolean;
+};
 
 export type PhonoscopeThemeState = {
   groupId: string;
@@ -39,7 +72,14 @@ export type PhonoscopeThemeState = {
   paused: boolean;
   revision: number;
   changedAtMs: number;
+  /**
+   * How long the change takes, start to finish. Now the SUM of the ramp's three
+   * phases rather than its release alone, so it still means exactly what every
+   * existing consumer reads it as — the palette chase's time constant, 0 for a
+   * cut — while the shape within it lives on `transition`.
+   */
   transitionSeconds: number;
+  transition: PhonoscopeTransition;
 };
 
 // `themeId` is deliberately not carried: the store holds the entry's own theme
@@ -66,6 +106,133 @@ const globalWithThemeState = globalThis as typeof globalThis & {
   __novaPhonoscopeThemeState?: ThemeStore;
 };
 
+/**
+ * An instant change: no ramp at all, and therefore no mode worth naming.
+ *
+ * A solo lock, a first selection and an empty group are all cuts — "hold it
+ * here" rather than "move to there" — and a flip or a slide with nowhere to
+ * spend its time would just be a frame of missing image.
+ */
+function cutTransition(seconds = 0): PhonoscopeTransition {
+  return {
+    attackSeconds: 0,
+    holdSeconds: 0,
+    // A cut's whole duration is its ease-out, so `transitionSeconds` (the sum)
+    // keeps carrying the number the palette chase has always read.
+    releaseSeconds: Math.max(0, seconds),
+    mode: 0,
+    axisDegrees: 0,
+    divisions: 0,
+    returnFromOrigin: false,
+  };
+}
+
+/**
+ * The value an override-only axis resolves to across a set of settings groups.
+ *
+ * Last one wins, which is the whole of `override`: the entry lists its groups
+ * in layering order, so an override group placed after the defaults replaces
+ * what they set. Nothing sums, and a group that says nothing about the axis
+ * leaves the earlier answer standing.
+ *
+ * The value is the binding's pinned range — `min` and `max` are the same number
+ * on these axes — so no driver signal is involved. That is deliberate: the axis
+ * is latched for the length of the transition, so a swept value would be
+ * sampled exactly once and the sweep would be a lie.
+ */
+function overrideAxis(
+  groups: PhonoscopeSettingsGroup[],
+  effect: string,
+  fallback: number,
+): number {
+  let resolved = fallback;
+  for (const { lane } of mergePhonoscopeSettingsGroups(groups).lanes) {
+    for (const binding of lane.bindings ?? []) {
+      if (binding.effect !== effect) continue;
+      const value = binding.min ?? binding.max;
+      if (typeof value === "number" && Number.isFinite(value)) resolved = value;
+    }
+  }
+  return resolved;
+}
+
+/**
+ * The ramp the transition itself carries, if it carries one.
+ *
+ * The transition's control set always shows a ramp, because every transition
+ * has one, and it is authored on the transition rather than on the pulse that
+ * fires it — the pulse says "change now", the transition says how long the
+ * change takes and how it accelerates. Resolved last-wins over the same
+ * settings groups as the other axes, so an override group's ramp replaces the
+ * defaults' along with the rest of its transition.
+ *
+ * Undefined when no settings group binds a transition at all, in which case the
+ * pulse's own envelope is still the ramp — that is what it meant before the
+ * transition modes existed, and a group authored back then keeps working.
+ */
+function overrideRamp(
+  groups: PhonoscopeSettingsGroup[],
+): [number, number, number] | undefined {
+  let resolved: [number, number, number] | undefined;
+  for (const { lane } of mergePhonoscopeSettingsGroups(groups).lanes) {
+    for (const binding of lane.bindings ?? []) {
+      if (binding.effect !== PHONOSCOPE_CENTRE_TRANSITION_EFFECT) continue;
+      if (binding.attackSeconds === undefined && binding.holdSeconds === undefined
+        && binding.releaseSeconds === undefined) continue;
+      resolved = [
+        Math.max(0, binding.attackSeconds ?? 0),
+        Math.max(0, binding.holdSeconds ?? 0),
+        Math.max(0, binding.releaseSeconds ?? 0),
+      ];
+    }
+  }
+  return resolved;
+}
+
+/**
+ * The transition a firing pulse hands to the change it is about to make.
+ *
+ * Resolved from the settings groups in effect NOW — before the rotation moves
+ * and swaps them — which is what makes the initiator, not the destination, the
+ * owner of how the picture changes.
+ */
+function transitionFrom(
+  config: PhonoscopePreferences,
+  settingsGroupIds: string[],
+  binding: PhonoscopeEffectBinding,
+): PhonoscopeTransition {
+  const byId = new Map((config.settingsGroups ?? []).map((group) => [group.id, group]));
+  const groups = settingsGroupIds
+    .map((id) => byId.get(id))
+    .filter((group): group is PhonoscopeSettingsGroup => Boolean(group));
+  const ramp = overrideRamp(groups);
+  return {
+    attackSeconds: ramp ? ramp[0] : Math.max(0, binding.attackSeconds ?? 0.05),
+    holdSeconds: ramp ? ramp[1] : Math.max(0, binding.holdSeconds ?? 0),
+    releaseSeconds: ramp ? ramp[2] : Math.max(0, binding.releaseSeconds ?? 0.6),
+    mode: clampInteger(overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_EFFECT, 0), 0, 2),
+    // Wrapped rather than clamped: 360 and 0 are the same direction, and an
+    // authored 360 should not read as a different transition from an authored 0.
+    axisDegrees: ((Math.round(
+      overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT, 0),
+    ) % 360) + 360) % 360,
+    divisions: clampInteger(
+      overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT, 0), 0, 10),
+    returnFromOrigin:
+      overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT, 0) >= 0.5,
+  };
+}
+
+function clampInteger(value: number, low: number, high: number) {
+  if (!Number.isFinite(value)) return low;
+  return Math.max(low, Math.min(high, Math.round(value)));
+}
+
+/** The whole length of a transition: its ramp's three phases, end to end. */
+function transitionLength(transition: PhonoscopeTransition) {
+  return transition.attackSeconds + transition.holdSeconds + transition.releaseSeconds;
+}
+
 const emptyStore = (): ThemeStore => ({
   groupId: "",
   entryId: "",
@@ -76,6 +243,7 @@ const emptyStore = (): ThemeStore => ({
   revision: 0,
   changedAtMs: Date.now(),
   transitionSeconds: 0,
+  transition: cutTransition(),
   baseThemeId: "",
   entryAltThemeId: "",
   altChangedAtMs: Date.now(),
@@ -145,11 +313,12 @@ function resolvedThemeId() {
 function publicState(): PhonoscopeThemeState {
   const {
     groupId, entryId, entryIndex, altActive, settingsGroupIds, paused, revision, changedAtMs,
-    transitionSeconds,
+    transitionSeconds, transition,
   } = store;
   return {
     groupId, entryId, entryIndex, themeId: resolvedThemeId(), altActive,
     settingsGroupIds: [...settingsGroupIds], paused, revision, changedAtMs, transitionSeconds,
+    transition: { ...transition },
   };
 }
 
@@ -230,16 +399,24 @@ function themeChangeRule(
   return pulseRule(config, entrySettingsGroupIds, PHONOSCOPE_THEME_CHANGE_EFFECT, group);
 }
 
-function select(group: PhonoscopeColorGroup, index: number, now: number, transitionSeconds: number) {
+function select(
+  group: PhonoscopeColorGroup,
+  index: number,
+  now: number,
+  transition: PhonoscopeTransition,
+) {
   if (!group.entries.length) return;
   store.entryIndex = (index + group.entries.length) % group.entries.length;
   const entry = group.entries[store.entryIndex];
   store.entryId = entry.id;
   store.baseThemeId = entry.themeId;
   store.entryAltThemeId = entry.altThemeId ?? "";
+  // The transition was resolved from the OUTGOING entry's settings groups, so
+  // it must be latched before this line replaces them.
   store.settingsGroupIds = [...entry.settingsGroupIds];
   store.changedAtMs = now;
-  store.transitionSeconds = transitionSeconds;
+  store.transition = transition;
+  store.transitionSeconds = transitionLength(transition);
   store.revision += 1;
 }
 
@@ -279,9 +456,11 @@ function applySolo(
     // Held, so clients that surface pause state show it as held rather than
     // as a rotation that has simply gone quiet.
     paused: true,
-    // A lock is a cut, not a cross-fade: it is a "hold it here" switch used
-    // while authoring, and a fade would misrepresent what is on screen.
+    // A lock is a cut, not a transition: it is a "hold it here" switch used
+    // while authoring, and a fade — or worse, a slide — would misrepresent what
+    // is on screen.
     transitionSeconds: 0,
+    transition: cutTransition(),
   };
 }
 
@@ -319,8 +498,12 @@ function applyAltPulse(
   const rule = pulseRule(config, store.settingsGroupIds, PHONOSCOPE_ALT_THEME_EFFECT, group);
   if (!rule) return;
   const { driver, binding } = rule;
-  // The release is the blend, read the same way `__themeChange` reads it.
-  const transitionSeconds = Math.max(0, binding.releaseSeconds ?? 0.6);
+  // Read exactly the way `__themeChange` reads it, and from the same place: the
+  // settings groups showing now. An alt flip does not move the rotation, so
+  // there is no incoming entry to confuse this with — but the two pulses have to
+  // agree on what a transition is or the same picture would change two ways.
+  const transition = transitionFrom(config, store.settingsGroupIds, binding);
+  const transitionSeconds = transitionLength(transition);
   if (context.held) {
     // Keep the clock under the hold, or releasing a long pause fires the flip
     // immediately on a timer that was never really running.
@@ -344,6 +527,7 @@ function applyAltPulse(
 
   store.altActive = !store.altActive;
   store.altChangedAtMs = now;
+  store.transition = transition;
   store.transitionSeconds = transitionSeconds;
   // Bumped even when the showing entry has no alt: the household state really
   // did change, and the next entry that owns an alt must not be told to blend
@@ -390,7 +574,9 @@ export function readPhonoscopeThemeState(
       : 0;
     store.paused = Boolean(previewEntry);
     store.previewActive = Boolean(previewEntry);
-    select(group, index, now, previewEntry ? 0.05 : 0);
+    // Landing on a group, and stepping through it in the editor, are both cuts:
+    // there is no outgoing picture the change came from, only a destination.
+    select(group, index, now, cutTransition(previewEntry ? 0.05 : 0));
   } else if (!previewEntry && previewChanged && store.previewActive) {
     // Leaving the editor releases its transient pin. A remote command clears
     // previewActive first, so closing the editor cannot undo a user's explicit
@@ -413,14 +599,16 @@ export function readPhonoscopeThemeState(
 
   const rule = themeChangeRule(config, store.settingsGroupIds, group);
   let shouldAdvance = false;
+  let transition = store.transition;
   let transitionSeconds = store.transitionSeconds;
   // Soloing stops the rotation outright rather than letting it run underneath
   // an override: the theme-change effect must not fire while something is held.
   if (rule && !store.paused && !store.previewActive && !resolveSolo(config).active) {
     const { driver, binding } = rule;
-    // The binding's release is the cross-fade: the slider is the transition's
-    // progress against time, exactly as it is for every other effect.
-    transitionSeconds = Math.max(0, binding.releaseSeconds ?? 0.6);
+    // Resolved from the settings groups showing RIGHT NOW, before the advance
+    // below replaces them: the entry the change starts from owns it.
+    transition = transitionFrom(config, store.settingsGroupIds, binding);
+    transitionSeconds = transitionLength(transition);
     if (driver.type === "timer") {
       const period = Math.max(0.25, driver.intervalSeconds) * Math.max(1, driver.every);
       shouldAdvance = now - store.changedAtMs >= (period + transitionSeconds) * 1_000;
@@ -444,7 +632,7 @@ export function readPhonoscopeThemeState(
     const index = chooseIndex(store.entryIndex, group.entries.length, 1, order);
     // Null is "play once, and it has finished": hold on the last entry rather
     // than wrapping. The clock still runs, so switching back to loop resumes.
-    if (index !== null) select(group, index, now, transitionSeconds);
+    if (index !== null) select(group, index, now, transition);
     else store.changedAtMs = now;
   } else if (shouldAdvance) {
     store.changedAtMs = now;
@@ -483,7 +671,12 @@ export function commandPhonoscopeTheme(
     const index = chooseIndex(store.entryIndex, group.entries.length, direction,
       order === "once" ? "loop" : order);
     if (index !== null) {
-      select(group, index, now, Math.max(0, rule?.binding.releaseSeconds ?? 0.6));
+      // A manual skip is still a change of entry, so it plays the transition the
+      // entry being left would have played. Without a rule anywhere on the
+      // playlist there is nothing authored to read, so it cuts.
+      select(group, index, now, rule
+        ? transitionFrom(config, store.settingsGroupIds, rule.binding)
+        : cutTransition());
     }
     store.paused = true;
     store.previewActive = false;

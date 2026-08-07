@@ -108,7 +108,7 @@ describe("lane labels", () => {
     expect(driverLabel(phonoscopeDriver({ type: "beat", divide: 4 }))).toBe("Quarter beat");
     expect(driverLabel(phonoscopeDriver({ type: "downbeat", divide: 8 }))).toBe("Eighth bar");
     expect(driverLabel(phonoscopeDriver({ type: "random", cadence: "beat", divide: 4 })))
-      .toBe("Random on quarter beat");
+      .toBe("Random within each quarter beat");
   });
 
   it("names a timer by its interval", () => {
@@ -116,9 +116,13 @@ describe("lane labels", () => {
       .toBe("Timer · 8.0s");
   });
 
-  it("names a random driver by what it re-samples on", () => {
+  it("names a random driver by the window it fires inside", () => {
     expect(driverLabel(phonoscopeDriver({ type: "random", cadence: "downbeat" })))
-      .toBe("Random on downbeat");
+      .toBe("Random within each downbeat");
+    // `every` widens the window rather than skipping windows, so the label has
+    // to read as a span and not as "every 4th".
+    expect(driverLabel(phonoscopeDriver({ type: "random", cadence: "downbeat", every: 4 })))
+      .toBe("Random within every 4 downbeats");
   });
 
   it("appends the added drivers", () => {
