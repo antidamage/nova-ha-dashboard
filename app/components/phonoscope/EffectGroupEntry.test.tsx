@@ -30,10 +30,12 @@ function renderGroup(groupId: string) {
   render(
     <EffectGroupEntry
       bindings={bindings}
+      combine={{}}
       group={group}
       laneId="lane"
       onAdd={() => {}}
       onRemoveAll={() => {}}
+      onSharedCombineChange={() => {}}
       onSharedRampChange={() => {}}
       renderMember={(binding) => {
         const effect = effectOptionFor(catalogue, binding.effect);
@@ -97,5 +99,28 @@ describe("one ramp per parameter group", () => {
     // Size's ramp is drawn by the group; the transition's is its motion
     // profile, drawn inside its control set — one each, not one per parameter.
     expect(screen.queryAllByText("Ramp")).toHaveLength(2);
+  });
+});
+
+/**
+ * The same rule for stacking: how two lanes setting a group's value resolve is
+ * one decision for the group, so it is offered once — not once per parameter.
+ */
+describe("one stacking mode per parameter group", () => {
+  it.each(["glow", "centre", "background", "grid"])("holds for %s", (groupId) => {
+    const group = renderGroup(groupId);
+    const controls = screen.queryAllByText("When stacked");
+    for (const parameters of group.parameterGroups) {
+      const owned = controls.filter((node) => node.closest("[data-parameter-group]")
+        ?.getAttribute("data-parameter-group") === parameters.id);
+      expect(owned.length, `${groupId}/${parameters.id}`).toBeLessThanOrEqual(1);
+    }
+    // A parameter never draws its own, so none sits outside a group either.
+    expect(controls.every((node) => node.closest("[data-parameter-group]"))).toBe(true);
+  });
+
+  it("gives the glow's five parameters exactly one", () => {
+    renderGroup("glow");
+    expect(screen.queryAllByText("When stacked")).toHaveLength(1);
   });
 });

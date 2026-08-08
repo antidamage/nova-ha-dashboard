@@ -226,6 +226,25 @@ export function SettingsGroupCard({
     });
   };
 
+  /**
+   * One stacking mode across a parameter group: the same mode written to every
+   * parameter of it that stacks, including the ones this lane has not added
+   * yet, so a parameter joining later lands stacking the way the group does.
+   *
+   * `combine` is keyed by effect and lives on the settings group, so this is
+   * shared by every appearance of those parameters, exactly as it was when the
+   * control sat on the individual parameter.
+   */
+  const setSharedCombine = (effectIds: string[], mode: PhonoscopeCombineMode) => {
+    onChange({
+      ...group,
+      combine: {
+        ...group.combine,
+        ...Object.fromEntries(effectIds.map((effectId) => [effectId, mode])),
+      },
+    });
+  };
+
   const renderBinding = (
     lane: PhonoscopeDriverLane,
     binding: PhonoscopeEffectBinding,
@@ -426,6 +445,7 @@ export function SettingsGroupCard({
                 <EffectGroupEntry
                   key={`${lane.id}-${item.group.id}`}
                   bindings={item.bindings}
+                  combine={group.combine}
                   group={item.group}
                   isMemberRelevant={memberRelevance(lane, item.group.id)}
                   laneId={lane.id}
@@ -454,6 +474,7 @@ export function SettingsGroupCard({
                         && !companions.has(entry.effect)),
                     });
                   }}
+                  onSharedCombineChange={setSharedCombine}
                   onSharedRampChange={(effectIds, ramp) => setSharedRamp(lane, effectIds, ramp)}
                   renderMember={(binding) => renderBinding(lane, binding, true)}
                 />

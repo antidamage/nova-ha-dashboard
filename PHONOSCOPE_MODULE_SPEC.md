@@ -172,9 +172,10 @@ A control may also join one of the panel's built-in **effect groups** with
 inside it; without one it lands in the effect's first). Its own settings are
 listed before the picture-level parameters of that group — a module owns the
 geometry, the picture owns how that geometry is composited. Joining a parameter
-group means joining that group's **single ramp**: every parameter group has
-exactly one, written to every member that can take one, and a module setting
-never carries a ramp of its own.
+group means joining that group's **single ramp and its single stacking mode**:
+every parameter group has exactly one of each, written to every member that can
+take one, and a module setting never carries a ramp or a "When stacked" of its
+own.
 
 `updateMode` is `smooth` by default. Smooth numeric settings are interpolated
 in the running simulation and must not rebuild the scene. Use
