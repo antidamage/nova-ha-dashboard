@@ -57,6 +57,14 @@ export function ControlSettingsPanel({
   const colorThemes = mine(value.colorThemes);
   const colorGroups = mine(value.colorGroups);
 
+  // Whether either image slot is ever filled, for this module's themes. The
+  // size mode and the Auto height only mean something when there is an image to
+  // have proportions, so the settings cards hide them until there is.
+  const hasImage = {
+    centre: colorThemes.some((theme) => Boolean(theme.imageId)),
+    background: colorThemes.some((theme) => Boolean(theme.backgroundImageId)),
+  };
+
   const replaceSettingsGroups = (next: PhonoscopeSettingsGroup[], commit = true) => onChange({
     ...value,
     settingsGroups: [...value.settingsGroups.filter((g) => g.moduleId !== moduleId), ...next],
@@ -143,6 +151,7 @@ export function ControlSettingsPanel({
               catalogue={catalogue}
               effectGroups={groups}
               group={group}
+              hasImage={hasImage}
               staticSettings={staticSettings}
               onChange={(next, commit) => replaceSettingsGroups(
                 settingsGroups.map((entry) => entry.id === next.id ? next : entry), commit)}

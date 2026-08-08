@@ -111,12 +111,14 @@ describe("migratePhonoscopeToV3 over the real configuration", () => {
 
   it("keeps colour themes flat, with no behaviour on them", () => {
     for (const theme of result.colorThemes) {
-      // A theme carries colour and the picture's centrepiece, and nothing else:
-      // behaviour lives in settings groups, which the playlist entry names
-      // alongside it. `imageId` postdates the shape this migration reads from,
-      // so it is always null here.
-      expect(Object.keys(theme)).toEqual(["id", "name", "moduleId", "colors", "imageId"]);
+      // A theme carries colour and the picture's two image slots, and nothing
+      // else: behaviour lives in settings groups, which the playlist entry
+      // names alongside it. Both slots postdate the shape this migration reads
+      // from, so both are always null here.
+      expect(Object.keys(theme)).toEqual(
+        ["id", "name", "moduleId", "colors", "imageId", "backgroundImageId"]);
       expect(theme.imageId).toBeNull();
+      expect(theme.backgroundImageId).toBeNull();
       expect(Object.keys(theme.colors).length).toBeGreaterThan(0);
     }
     // Ids are unique across the flat library.

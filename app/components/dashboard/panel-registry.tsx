@@ -10,7 +10,15 @@ import type {
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import type { EntityActionInput } from "../../../lib/aircon-control";
-import { isClimateZone, isNetworkZone, isOutsideZone, isPowerZone, isWorldZone, type LoungeEnvironment } from "./shared";
+import {
+  isClimateZone,
+  isNetworkZone,
+  isOutsideZone,
+  isPowerZone,
+  isWorldZone,
+  type BedroomHeaterDevices,
+  type LoungeEnvironment,
+} from "./shared";
 import { PowerPanel } from "./PowerPanel";
 import { RouterPanel } from "./RouterPanel";
 import { ClimateControls } from "./ClimateControls";
@@ -20,7 +28,7 @@ import { useExperienceFeature } from "./experienceModeSetting";
 const MapPanel = dynamic(() => import("../MapPanel").then((module) => module.MapPanel), { ssr: false });
 
 // Devices with the world-map feature off never mount maplibre (WebGL map,
-// satellite tiles, radar animation) — they get a static placeholder instead,
+// satellite tiles, radar animation) â€” they get a static placeholder instead,
 // and the dynamic import above never loads.
 function WorldMapPanel() {
   const showWorldMap = useExperienceFeature("worldMap");
@@ -30,7 +38,7 @@ function WorldMapPanel() {
       <section className="world-map-panel world-map-panel-lite border border-[var(--cyber-line-dim)] bg-[var(--cyber-panel)]">
         <p className="world-map-panel-lite-title">Map Offline</p>
         <p className="world-map-panel-lite-detail">
-          The live map is off on this device. Enable “Show World Map” in Config → This Device to
+          The live map is off on this device. Enable â€œShow World Mapâ€ in Config â†’ This Device to
           restore it.
         </p>
       </section>
@@ -59,6 +67,7 @@ export type PrimaryPanelContext = {
   weather?: WeatherStatus | null;
   preferences?: DashboardPreferences;
   loungeEnvironment?: LoungeEnvironment | null;
+  bedroomHeater?: BedroomHeaterDevices;
   onDesktopSleep?: (computer: { id: string; name: string }) => void;
   onDesktopWake?: (computer: { id: string; name: string }) => void;
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
@@ -99,9 +108,10 @@ export const primaryZonePanels: PrimaryZonePanel[] = [
   {
     id: "climate",
     appliesTo: isClimateZone,
-    render: ({ zone, loungeEnvironment, preferences, onEntityActions }) => (
+    render: ({ zone, bedroomHeater, loungeEnvironment, preferences, onEntityActions }) => (
       <ClimateControls
         zone={zone}
+        bedroomHeater={bedroomHeater}
         loungeEnvironment={loungeEnvironment}
         preferences={preferences}
         onEntityActions={onEntityActions}

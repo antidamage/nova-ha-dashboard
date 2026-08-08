@@ -469,6 +469,21 @@ const defaultRatings: PowerDeviceRating[] = [
     source: "User supplied: probably 2kW",
   },
   {
+    // Replaced the panel heater above, which died in August 2026. This one is a
+    // switch rather than a climate entity, so power follows the switch state.
+    id: "bedroom_heater",
+    name: "Bedroom Heater",
+    zone: "Bedroom",
+    kind: "switch",
+    entityIds: ["switch.bedroom_heater", "switch.tuya_mobile_bedroom_heater"],
+    ratedWatts: 2000,
+    standbyWatts: 1.5,
+    confidence: "assumed",
+    manufacturer: "Tuya",
+    model: "Smart heater switch with climate sensors",
+    source: "Assumed 2kW pending nameplate confirmation",
+  },
+  {
     id: "gree_aircon",
     name: "Air Conditioner",
     zone: "Climate",

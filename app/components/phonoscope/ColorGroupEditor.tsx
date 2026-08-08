@@ -12,6 +12,7 @@ import { ConfigAccordion, CheckboxRow } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { CopyActions, PasteIntoButton } from "./ClipboardControls";
 import { reidColorEntry } from "./clipboard";
+import { useEditLock } from "./editing-lock";
 
 function newId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -50,6 +51,9 @@ export function ColorGroupEditor({
   onSetDefault: () => void;
   settingsGroups: PhonoscopeSettingsGroup[];
 }) {
+  // Holds the panel's state still while the name is being typed into.
+  const editLock = useEditLock();
+
   const themeName = (id: string) => colorThemes.find((theme) => theme.id === id)?.name ?? "Missing theme";
   const groupName = (id: string) => settingsGroups.find((entry) => entry.id === id)?.name ?? id;
 
@@ -110,6 +114,8 @@ export function ColorGroupEditor({
             className="cyber-text-input"
             value={group.name}
             onChange={(event) => onChange({ ...group, name: event.target.value })}
+            onFocus={editLock.onFocus}
+            onBlur={editLock.onBlur}
           />
         </label>
 
@@ -218,16 +224,10 @@ export function ColorGroupEditor({
                 ]}
                 onChange={(altThemeId) => updateEntry(entry.id, { altThemeId: altThemeId || null })}
               />
-              <p className="text-xs text-neutral-500">
-                A link to another theme in the library, shown instead of this entry&rsquo;s while the
-                &ldquo;Change to alt theme&rdquo; effect has the household in alt. Entries with no
-                alt keep their own colours and leave the state alone.
-              </p>
               <div className="grid gap-1">
                 <span className="text-xs font-black uppercase text-neutral-400">Settings groups</span>
                 <p className="text-xs text-neutral-500">
-                  Applied in order: their lanes all run at once, and a setting two of them both
-                  define takes the value from the one further down.
+                  Applied in order; the one further down wins.
                 </p>
                 {entry.settingsGroupIds.map((id, position) => (
                   <div key={`${id}-${position}`} className="flex items-center justify-between gap-2 border border-neutral-800 px-3 py-2 text-sm">

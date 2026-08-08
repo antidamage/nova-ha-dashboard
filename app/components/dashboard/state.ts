@@ -448,6 +448,14 @@ function optimisticPreferences(current: DashboardPreferences, next: DashboardPre
     };
   }
 
+  if (next.bedroomHeater) {
+    merged.bedroomHeater = {
+      ...(current.bedroomHeater ?? {}),
+      ...withoutUndefinedObject(next.bedroomHeater),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   return merged;
 }
 

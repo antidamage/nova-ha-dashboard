@@ -18,18 +18,20 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const data = await readPhonoscopeImageFile(id);
-    if (!data) return NextResponse.json({ error: "No such image" }, { status: 404 });
-    return new NextResponse(new Uint8Array(data), {
+    const file = await readPhonoscopeImageFile(id);
+    if (!file) return NextResponse.json({ error: "No such image" }, { status: 404 });
+    return new NextResponse(new Uint8Array(file.data), {
       headers: {
         "Cache-Control": "public, max-age=31536000, immutable",
-        "Content-Length": String(data.byteLength),
-        "Content-Type": "image/png",
+        "Content-Length": String(file.data.byteLength),
+        // From the manifest's recorded format, not assumed: the library holds
+        // PNG, JPEG and WebP, and a JPEG served as `image/png` decodes nowhere.
+        "Content-Type": file.contentType,
       },
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to read the centre image" },
+      { error: error instanceof Error ? error.message : "Failed to read the image" },
       { status: 500 },
     );
   }

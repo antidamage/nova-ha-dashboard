@@ -221,6 +221,21 @@ export const DashboardConfigSchema = z.object({
     aircon: z.object({
       offTimerIncrementMinutes: z.number().int().min(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN).max(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX),
     }),
+    // The bedroom heater is a bare switch with onboard climate sensors; Nova
+    // owns the thermostat loop (lib/bedroom-heater-control.ts). Entity ids are
+    // listed most-preferred first so a LAN twin can be put ahead of the cloud
+    // one later without touching code. Empty lists == no card.
+    bedroomHeater: z
+      .object({
+        switchEntityIds: stringListSchema,
+        temperatureEntityIds: stringListSchema,
+        humidityEntityIds: stringListSchema,
+      })
+      .default({ switchEntityIds: [], temperatureEntityIds: [], humidityEntityIds: [] }),
+    // The original panel heater died in August 2026 and was replaced by the
+    // bedroom heater above. Its card is retained but hidden; set this true to
+    // bring it back if an equivalent unit is installed.
+    legacyPanelHeaterCardEnabled: z.boolean().default(false),
     camera: z.object({
       outside: z.object({
         // Pre-configured video host: where the Outside camera stream is served

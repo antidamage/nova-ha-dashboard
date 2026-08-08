@@ -27,8 +27,17 @@ import {
 } from "./phonoscope-migrate-v4";
 import {
   migratePhonoscopeRandomLanes,
-  PHONOSCOPE_SCHEMA_VERSION,
+  PHONOSCOPE_RANDOM_SPLIT_VERSION,
 } from "./phonoscope-migrate-v5";
+import {
+  migratePhonoscopeCentreScalars,
+  migratePhonoscopeCentreSettingsGroups,
+  migratePhonoscopeProportionalDefault,
+  phonoscopeMigrationImageAspect,
+  PHONOSCOPE_SCHEMA_VERSION,
+  PHONOSCOPE_WIDTH_AUTHORED_VERSION,
+} from "./phonoscope-migrate-v6";
+import { readPhonoscopeImages } from "./phonoscope-images";
 import { phonoscopeEffectDeclarations } from "./phonoscope-effects";
 import { isPhonoscopeThemePulseEffect, PHONOSCOPE_DIVIDE_CHOICES } from "./phonoscope-drivers";
 import type {
@@ -60,6 +69,11 @@ export type PhonoscopeConfig = {
   activeModuleId: string;
   activeModuleVersion: string;
   idleBehavior: "ambient" | "black" | "return";
+  /**
+   * Seconds of silence before the screensaver: the picture fades to black and a
+   * randomly chosen image bounces around the frame. 0 disables it.
+   */
+  screensaverSeconds: number;
   /**
    * The centre of the picture, when it is text.
    *
@@ -99,6 +113,9 @@ export const DEFAULT_PHONOSCOPE_CONFIG: Omit<PhonoscopeConfig, "updatedAt"> = {
   activeModuleId: "bpm-pulse",
   activeModuleVersion: "1.0.0",
   idleBehavior: "ambient",
+  // Off by default: a screen that starts bouncing a logo on its own is a
+  // surprise, and this is a thing to turn on rather than to discover.
+  screensaverSeconds: 0,
   message: "",
   statusOverlay: true,
   transitionMs: 600,
@@ -436,6 +453,12 @@ export function normalizePhonoscopeColorThemes(value: unknown): PhonoscopeColorT
       // not supply one" is distinguishable from an id that has been cleared —
       // both mean nothing is drawn, but only one of them is a deliberate empty.
       imageId: typeof raw.imageId === "string" && raw.imageId ? raw.imageId.slice(0, 64) : null,
+      // The theme's own backdrop, on the same terms. Null is what makes the
+      // procedural field run: the two are one slot with two possible occupants,
+      // not a picture layered over a field.
+      backgroundImageId: typeof raw.backgroundImageId === "string" && raw.backgroundImageId
+        ? raw.backgroundImageId.slice(0, 64)
+        : null,
     }];
   });
 }
@@ -643,7 +666,10 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
   const needsPercentGeometry = storedVersion < PHONOSCOPE_PERCENT_GEOMETRY_VERSION;
   // v5 split the random driver into random timing and random value: a random
   // lane written before it needs both halves turned on to keep its character.
-  const needsRandomSplit = storedVersion < PHONOSCOPE_SCHEMA_VERSION;
+  const needsRandomSplit = storedVersion < PHONOSCOPE_RANDOM_SPLIT_VERSION;
+  // v6 made the centre slot width-authored like the backdrop, which inverts the
+  // arithmetic a stored `__centreHeight` was chosen under.
+  const needsWidthAuthored = storedVersion < PHONOSCOPE_WIDTH_AUTHORED_VERSION;
 
   const activeModuleId = typeof raw.activeModuleId === "string"
     ? raw.activeModuleId
@@ -657,11 +683,20 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
     ),
     activeModuleId,
   );
-  const settingsGroups = needsPercentGeometry
+  const percentGeometrySettingsGroups = needsPercentGeometry
     ? migratePhonoscopeSettingsGroupsToPercent(normalizedSettingsGroups)
     : normalizedSettingsGroups;
+  // Themes are resolved before the v6 conversion because that conversion needs
+  // one of their images: the old height-authored size only converts into a
+  // width once the source's proportions are known.
   const colorThemes = normalizePhonoscopeColorThemes(
     migrated ? migrated.colorThemes : raw.colorThemes);
+  const centreImageAspect = needsWidthAuthored
+    ? phonoscopeMigrationImageAspect(colorThemes, await readPhonoscopeImages())
+    : 1;
+  const settingsGroups = needsWidthAuthored
+    ? migratePhonoscopeCentreSettingsGroups(percentGeometrySettingsGroups, centreImageAspect)
+    : percentGeometrySettingsGroups;
   const colorGroups = normalizePhonoscopeColorGroups(
     migrated ? migrated.colorGroups : raw.colorGroups, colorThemes, settingsGroups);
 
@@ -700,6 +735,10 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
     idleBehavior: ["ambient", "black", "return"].includes(String(raw.idleBehavior))
       ? raw.idleBehavior as PhonoscopeConfig["idleBehavior"]
       : DEFAULT_PHONOSCOPE_CONFIG.idleBehavior,
+    // Capped at an hour: past that it is indistinguishable from off, and the
+    // control would be mostly dead travel.
+    screensaverSeconds: finiteClamped(
+      raw.screensaverSeconds, DEFAULT_PHONOSCOPE_CONFIG.screensaverSeconds, 0, 3_600),
     message: typeof raw.message === "string" ? raw.message : "",
     statusOverlay: typeof raw.statusOverlay === "boolean"
       ? raw.statusOverlay
@@ -721,7 +760,13 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
         Object.entries(isRecord(raw.structuralSettings) ? raw.structuralSettings : {})
           .flatMap(([id, value]) => Number.isFinite(Number(value)) ? [[id, Number(value)]] : []),
       ) as Record<string, number>;
-      return needsPercentGeometry ? migratePhonoscopeScalarsToPercent(values) : values;
+      const scaled = needsPercentGeometry ? migratePhonoscopeScalarsToPercent(values) : values;
+      if (!needsWidthAuthored) return scaled;
+      // Both halves of v6: the old centre height becomes the width that draws
+      // the same picture, and Proportional is stamped on explicitly so absent
+      // can never later read as "the user turned this off".
+      return migratePhonoscopeProportionalDefault(
+        migratePhonoscopeCentreScalars(scaled, centreImageAspect));
     })(),
     houseParty: normalizeHouseParty(migrated ? migrated.houseParty : raw.houseParty),
     // A solo pointing at something deleted is simply not soloed, rather than a
@@ -862,6 +907,9 @@ export async function writePhonoscopeConfig(value: unknown): Promise<PhonoscopeC
     idleBehavior: ["ambient", "black", "return"].includes(String(input.idleBehavior))
       ? input.idleBehavior as PhonoscopeConfig["idleBehavior"]
       : current.idleBehavior,
+    screensaverSeconds: typeof input.screensaverSeconds === "number"
+      ? Math.max(0, Math.min(3_600, Math.round(input.screensaverSeconds)))
+      : current.screensaverSeconds,
     message: typeof input.message === "string"
       ? Array.from(input.message.trim()).slice(0, 160).join("")
       : current.message,

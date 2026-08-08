@@ -309,9 +309,10 @@ export function migratePhonoscopeToV3(raw: unknown): PhonoscopeMigrationResult {
         colors: isRecord(rawTheme.colors)
           ? rawTheme.colors as PhonoscopeColorTheme["colors"]
           : {},
-        // Centre images postdate the shape this migration reads from, so there
-        // is never one to carry across.
+        // Both image slots postdate the shape this migration reads from, so
+        // there is never one to carry across.
         imageId: null,
+        backgroundImageId: null,
       });
 
       // A theme that carried overrides becomes its own settings group, layered

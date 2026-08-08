@@ -20,28 +20,31 @@ import {
   loadCentreImages,
   uploadCentreImage,
   type CentreImage,
+  type CentreImageSlot,
 } from "./centre-image-client";
 
 /**
- * The centre-image library: upload a transparent PNG, pick one, throw one away.
+ * An image library: upload a picture, pick one, throw one away.
  *
  * A history rather than a single slot, so an image used last month can be put
- * back without finding the file again. Shared by the centre-slot control and the
- * colour theme editor — a theme picks from exactly the same library, which is
- * what lets the rotation cross-fade between images that are already loaded.
+ * back without finding the file again. `slot` says WHICH library — the centre
+ * and the background keep separate ones, so a centrepiece never turns up in the
+ * backdrop picker.
  *
  * Deleting an image still referenced by the configuration is refused by the API
  * rather than cascading, and the reason it gives names the referrer.
  */
 export function CentreImageLibrary({
-  emptyLabel = "No image",
+  emptyLabel = "None",
   onSelect,
   selectedId,
+  slot,
 }: {
   /** What the "nothing selected" tile reads as in this context. */
   emptyLabel?: string;
   onSelect: (id: string | null) => void;
   selectedId: string | null;
+  slot: CentreImageSlot;
 }) {
   const [images, setImages] = useState<CentreImage[]>([]);
   const [message, setMessage] = useState("");
@@ -50,11 +53,11 @@ export function CentreImageLibrary({
 
   const refresh = useCallback(async () => {
     try {
-      setImages(await loadCentreImages());
+      setImages(await loadCentreImages(slot));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to load the image library");
     }
-  }, []);
+  }, [slot]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -63,7 +66,7 @@ export function CentreImageLibrary({
     setBusy(true);
     setMessage("");
     try {
-      const added = await uploadCentreImage(file);
+      const added = await uploadCentreImage(file, slot);
       await refresh();
       // Uploading is always in order to use it, so selecting it is the answer
       // rather than making it a second step.
@@ -83,7 +86,7 @@ export function CentreImageLibrary({
     setBusy(true);
     setMessage("");
     try {
-      setImages(await deleteCentreImage(image.id));
+      setImages(await deleteCentreImage(image.id, slot));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to remove the image");
     } finally {

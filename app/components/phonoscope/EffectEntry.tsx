@@ -14,6 +14,9 @@ import {
   PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT,
   PHONOSCOPE_PLAYBACK_ORDER_VALUES,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
   phonoscopePlaybackOrder,
@@ -33,8 +36,8 @@ import {
 } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import {
-  CENTRE_TRANSITION_CHOICES,
-  CENTRE_TRANSITION_COMPANIONS,
+  IMAGE_TRANSITION_CHOICES,
+  transitionCompanionsFor,
   effectGroupIndex,
   effectNeedsPulseDriver,
   type EffectOption,
@@ -126,7 +129,12 @@ function pictureDeclaration(id: string) {
 }
 
 /**
- * The centre transition as one control set rather than four effects.
+ * A transition as one control set rather than four effects.
+ *
+ * Used by both the centre slot and the background image, which have identical
+ * modes and identical companions on separate axes — so this takes the mode
+ * binding it was handed and looks its companions up from it, rather than naming
+ * the centre's.
  *
  * The mode decides what the rest of the set even means, so the set follows the
  * mode: a cross-fade shows nothing but its ramp, a flip adds the axis it
@@ -143,7 +151,7 @@ function pictureDeclaration(id: string) {
  * override resolution, both engines and the conformance corpus are untouched:
  * this is entirely how it is presented and written.
  */
-function CentreTransitionControl({
+function TransitionControl({
   binding,
   companionValue,
   envelope,
@@ -157,12 +165,13 @@ function CentreTransitionControl({
   onCompanionChange: (effect: string, value: number) => void;
 }) {
   const mode = Math.round(binding.min ?? binding.max ?? 0);
+  const companions = transitionCompanionsFor(binding.effect);
   return (
     <div className="grid gap-3">
       <ConfigSelect
         label="Transition"
         value={String(mode)}
-        options={CENTRE_TRANSITION_CHOICES.map((choice) => ({
+        options={IMAGE_TRANSITION_CHOICES.map((choice) => ({
           value: String(choice.value),
           label: choice.label,
         }))}
@@ -170,14 +179,15 @@ function CentreTransitionControl({
           onChange({ ...binding, min: Number(value), max: Number(value) })}
       />
 
-      {CENTRE_TRANSITION_COMPANIONS.filter((companion) => mode >= companion.minimumMode)
+      {companions.filter((companion) => mode >= companion.minimumMode)
         .map((companion) => {
           const declaration = pictureDeclaration(companion.id);
           if (!declaration) return null;
           const labels = PHONOSCOPE_PICTURE_EFFECT_LABELS[companion.id];
           const label = labels?.shortLabel ?? labels?.label ?? companion.id;
           const value = companionValue(companion.id);
-          if (companion.id === PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT) {
+          if (companion.id === PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT
+            || companion.id === PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT) {
             return (
               <CheckboxRow
                 key={companion.id}
@@ -188,7 +198,8 @@ function CentreTransitionControl({
               />
             );
           }
-          const degrees = companion.id === PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT;
+          const degrees = companion.id === PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT
+            || companion.id === PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT;
           return (
             <SliderControlPanel
               key={companion.id}
@@ -216,10 +227,6 @@ function CentreTransitionControl({
         onCommit={([attackSeconds, holdSeconds, releaseSeconds]) =>
           onChange({ ...binding, attackSeconds, holdSeconds, releaseSeconds })}
       />
-      <p className="text-xs text-neutral-500">
-        Attack eases the transition in, hold runs it at a steady speed, release eases it out. The
-        transition lasts all three end to end.
-      </p>
     </div>
   );
 }
@@ -278,6 +285,7 @@ export function EffectEntry({
   onDuplicate,
   onPaste,
   onRemove,
+  variant = "card",
 }: {
   binding: PhonoscopeEffectBinding;
   /** Shared by every appearance of this effect, so it is edited via the group. */
@@ -294,6 +302,18 @@ export function EffectEntry({
   onDuplicate: () => void;
   onPaste: (binding: PhonoscopeEffectBinding) => void;
   onRemove: () => void;
+  /**
+   * `card` is an effect standing on its own in a lane: a collapsible with its
+   * clipboard actions and its sparse "+ Add parameter" menu.
+   *
+   * `row` is one parameter inside a parameter group, where the group already
+   * carries the subject and the accordion chrome. It renders the control and
+   * the button that takes it back off — a fourth level of accordion would be
+   * unusable — and never a ramp: the group owns the one ramp for all of its
+   * parameters and writes the same envelope to every member, so a ramp here
+   * would be a second control for the same value.
+   */
+  variant?: "card" | "row";
 }) {
   const range: [number, number] = [
     binding.min ?? effect.min,
@@ -315,7 +335,8 @@ export function EffectEntry({
   const overrideOnly = isPhonoscopeOverrideOnlyEffect(binding.effect);
   // The transition brings its own control set, which IS its parameters: there
   // is nothing left for the sparse "+ Add parameter" menu to offer.
-  const controlSet = binding.effect === PHONOSCOPE_CENTRE_TRANSITION_EFFECT;
+  const controlSet = binding.effect === PHONOSCOPE_CENTRE_TRANSITION_EFFECT
+    || binding.effect === PHONOSCOPE_BG_TRANSITION_EFFECT;
   const companionValue = (effectId: string) => {
     const declaration = pictureDeclaration(effectId);
     let resolved = declaration?.default ?? 0;
@@ -334,6 +355,9 @@ export function EffectEntry({
     // would only describe a shape it cannot take. A pinned axis is one value
     // held for a whole transition, which is the same story.
     if (key === "envelope" && (effect.choices || effect.toggle || effect.pinned)) return false;
+    // Inside a parameter group the group owns the ramp, so there is nothing
+    // here to add.
+    if (key === "envelope" && variant === "row") return false;
     return !hasParameter(binding, combine, key);
   });
 
@@ -385,38 +409,25 @@ export function EffectEntry({
     onChange({ ...binding, params: { ...(binding.params ?? {}), order: 0 } });
   };
 
-  return (
-    <ConfigAccordion
-      id={`effect-${binding.id}`}
-      // Inside a group the heading already carries the subject, so the member
-      // reads as "Opacity" rather than "Glow opacity". Only grouped effects
-      // define a short label, so this is the full one everywhere else.
-      title={effect.shortLabel ?? effect.label}
-      className="border border-neutral-800 bg-neutral-950/45"
-      actions={
-        <span className="flex items-center gap-2">
-          <CopyActions
-            kind="binding"
-            label={effect.label}
-            payload={binding}
-            onDuplicate={onDuplicate}
-          />
-          <MomentaryFeedbackButton
-            type="button"
-            className="icon-link text-red-200"
-            aria-label={`Remove ${effect.label}`}
-            onClick={onRemove}
-          >
-            <Trash2 className="h-4 w-4" />
-          </MomentaryFeedbackButton>
-        </span>
-      }
-    >
-      <div className="grid gap-3 p-3 text-sm">
-        {effect.description ? (
-          <p className="text-xs text-neutral-500">{effect.description}</p>
-        ) : null}
-        {effectNeedsPulseDriver(binding.effect) && !driverFiresEvents(driver) ? (
+  // Inside a parameter group the heading already carries the subject, so the
+  // parameter reads as "Opacity" rather than "Glow opacity".
+  const name = effect.shortLabel ?? effect.label;
+  const valueText = (value: number) =>
+    `${effect.step >= 1 ? Math.round(value) : value.toFixed(1)}${effect.unit ?? ""}`;
+
+  /**
+   * A control's own remove button, which takes the OVERRIDE off and leaves the
+   * effect in place. Inside a parameter group there is nothing to leave behind —
+   * the parameter is the binding — so the group's row carries one X instead.
+   */
+  const wrap = (label: string, key: ParameterKey, node: ReactNode) =>
+    variant === "row" ? node : (
+      <ParameterRow label={label} onRemove={() => removeParameter(key)}>{node}</ParameterRow>
+    );
+
+  const controls = (
+    <>
+      {effectNeedsPulseDriver(binding.effect) && !driverFiresEvents(driver) ? (
           <p className="text-xs text-amber-300">
             This lane&rsquo;s driver carries a level, not an event, so it will never advance the
             rotation. Use a beat, downbeat, timer, song or random driver.
@@ -430,15 +441,8 @@ export function EffectEntry({
           </p>
         ) : null}
 
-        {overrideOnly ? (
-          <p className="text-xs text-neutral-500">
-            Always overrides: where more than one settings group sets this, the last one in the
-            entry&rsquo;s list wins outright. It never stacks.
-          </p>
-        ) : null}
-
         {controlSet ? (
-          <CentreTransitionControl
+          <TransitionControl
             binding={binding}
             companionValue={companionValue}
             envelope={envelope}
@@ -447,8 +451,9 @@ export function EffectEntry({
           />
         ) : null}
 
-        {!overrideOnly && hasParameter(binding, combine, "combine") ? (
-          <ParameterRow label="When stacked" onRemove={() => removeParameter("combine")}>
+        {!overrideOnly && hasParameter(binding, combine, "combine") ? wrap(
+          "When stacked",
+          "combine",
             <ConfigSelect
               label="When stacked"
               value={combine ?? "add"}
@@ -471,13 +476,13 @@ export function EffectEntry({
                 },
               ]}
               onChange={(mode) => onCombineChange(mode as PhonoscopeCombineMode)}
-            />
-          </ParameterRow>
+            />,
         ) : null}
 
         {binding.effect === PHONOSCOPE_THEME_CHANGE_EFFECT
-          && hasParameter(binding, combine, "order") ? (
-          <ParameterRow label="Playback" onRemove={() => removeParameter("order")}>
+          && hasParameter(binding, combine, "order") ? wrap(
+          "Playback",
+          "order",
             <PlaybackOrderControl
               value={phonoscopePlaybackOrder(binding.params?.order)}
               onChange={(order) => onChange({
@@ -487,35 +492,35 @@ export function EffectEntry({
                   order: PHONOSCOPE_PLAYBACK_ORDER_VALUES[order],
                 },
               })}
-            />
-          </ParameterRow>
+            />,
         ) : null}
 
-        {hasParameter(binding, combine, "range") && effect.toggle ? (
+        {hasParameter(binding, combine, "range") && effect.toggle ? wrap(
           // A 0/1 axis reads as on or off. Both ends are pinned together, so it
           // is a state rather than something a driver sweeps.
-          <ParameterRow label={effect.label} onRemove={() => removeParameter("range")}>
+          name,
+          "range",
             <CheckboxRow
               checked={range[0] >= 0.5}
               detail={effect.description}
-              label={effect.label}
+              label={name}
               onChange={(checked) => onChange({
                 ...binding,
                 min: checked ? 1 : 0,
                 max: checked ? 1 : 0,
               })}
-            />
-          </ParameterRow>
+            />,
         ) : null}
 
         {hasParameter(binding, combine, "range") && effect.choices && !fixedRange
-          && !controlSet ? (
+          && !controlSet ? wrap(
           // A discrete axis is one choice, not a sweep: the way to change a
           // blend mode with the music is a second lane carrying its own glow,
           // so both ends of the range are pinned to the selected mode.
-          <ParameterRow label={effect.label} onRemove={() => removeParameter("range")}>
+          name,
+          "range",
             <ConfigSelect
-              label={effect.label}
+              label={name}
               value={String(range[0])}
               options={effect.choices.map((choice) => ({
                 value: String(choice.value),
@@ -523,37 +528,37 @@ export function EffectEntry({
               }))}
               onChange={(value) =>
                 onChange({ ...binding, min: Number(value), max: Number(value) })}
-            />
-          </ParameterRow>
+            />,
         ) : null}
 
-        {hasParameter(binding, combine, "range") && effect.pinned && !fixedRange ? (
-          // Continuous, but one value rather than a sweep: the transition
-          // latches it when it starts and holds it for the whole run, so both
-          // ends of the range sit on the chosen number.
-          <ParameterRow label={effect.label} onRemove={() => removeParameter("range")}>
+        {hasParameter(binding, combine, "range") && effect.pinned && !fixedRange ? wrap(
+          // Continuous, but ONE value rather than a sweep: a width is a width,
+          // and a transition axis is latched for the whole run. Both ends of
+          // the range sit on the chosen number.
+          name,
+          "range",
             <SliderControlPanel
-              ariaLabel={effect.label}
-              ariaValueText={String(Math.round(range[0]))}
+              ariaLabel={name}
+              ariaValueText={valueText(range[0])}
               color={[34, 211, 238]}
-              label={effect.label}
+              label={name}
               min={effect.min}
               max={effect.max}
               step={effect.step}
               value={range[0]}
-              valueText={String(Math.round(range[0]))}
+              valueText={valueText(range[0])}
               onPreview={(value) => onChange({ ...binding, min: value, max: value })}
               onCommit={(value) => onChange({ ...binding, min: value, max: value })}
-            />
-          </ParameterRow>
+            />,
         ) : null}
 
         {hasParameter(binding, combine, "range") && !effect.choices && !effect.toggle
-          && !effect.pinned && !fixedRange ? (
-          <ParameterRow label="Range" onRemove={() => removeParameter("range")}>
+          && !effect.pinned && !fixedRange ? wrap(
+          "Range",
+          "range",
             <RangeSliderControlPanel
-              ariaLabel={`${effect.label} range`}
-              label="Minimum / Maximum"
+              ariaLabel={`${name} range`}
+              label={variant === "row" ? name : "Minimum / Maximum"}
               min={effect.min}
               max={effect.max}
               step={effect.step}
@@ -569,26 +574,68 @@ export function EffectEntry({
                 else delete next.randomValue;
                 onChange(next);
               }}
-            />
-          </ParameterRow>
+            />,
         ) : null}
 
-        {hasParameter(binding, combine, "envelope") && !effect.choices && !effect.pinned ? (
-          <ParameterRow
-            label={themePulse ? "Transition" : "Envelope"}
-            onRemove={() => removeParameter("envelope")}
-          >
+        {hasParameter(binding, combine, "envelope") && !effect.choices && !effect.pinned
+          && variant !== "row" ? wrap(
+          themePulse ? "Transition" : "Ramp",
+          "envelope",
             <EnvelopeSliderControlPanel
-              ariaLabel={`${effect.label} envelope`}
-              label={themePulse ? "Transition" : "Envelope"}
+              ariaLabel={`${name} ramp`}
+              label={themePulse ? "Transition" : "Ramp"}
               value={envelope}
               onPreview={([attackSeconds, holdSeconds, releaseSeconds]) =>
                 onChange({ ...binding, attackSeconds, holdSeconds, releaseSeconds })}
               onCommit={([attackSeconds, holdSeconds, releaseSeconds]) =>
                 onChange({ ...binding, attackSeconds, holdSeconds, releaseSeconds })}
-            />
-          </ParameterRow>
+            />,
         ) : null}
+    </>
+  );
+
+  if (variant === "row") {
+    return (
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid min-w-0 flex-1 gap-3">{controls}</div>
+        <MomentaryFeedbackButton
+          type="button"
+          className="icon-link text-red-200"
+          aria-label={`Remove ${effect.label}`}
+          onClick={onRemove}
+        >
+          <X className="h-4 w-4" />
+        </MomentaryFeedbackButton>
+      </div>
+    );
+  }
+
+  return (
+    <ConfigAccordion
+      id={`effect-${binding.id}`}
+      title={name}
+      className="border border-neutral-800 bg-neutral-950/45"
+      actions={
+        <span className="flex items-center gap-2">
+          <CopyActions
+            kind="binding"
+            label={effect.label}
+            payload={binding}
+            onDuplicate={onDuplicate}
+          />
+          <MomentaryFeedbackButton
+            type="button"
+            className="icon-link text-red-200"
+            aria-label={`Remove ${effect.label}`}
+            onClick={onRemove}
+          >
+            <Trash2 className="h-4 w-4" />
+          </MomentaryFeedbackButton>
+        </span>
+      }
+    >
+      <div className="grid gap-3 p-3 text-sm">
+        {controls}
 
         <PasteIntoButton
           kind="binding"

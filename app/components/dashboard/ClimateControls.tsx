@@ -13,7 +13,25 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import type { AirconPreferences, DashboardEntity, DashboardPreferences, PanelHeaterPreferences } from "../../../lib/types";
+import type {
+  AirconPreferences,
+  BedroomHeaterMode,
+  BedroomHeaterPreferences,
+  DashboardEntity,
+  DashboardPreferences,
+  PanelHeaterPreferences,
+} from "../../../lib/types";
+import {
+  BEDROOM_HEATER_MAX_TARGET_C,
+  BEDROOM_HEATER_MIN_TARGET_C,
+  BEDROOM_HEATER_WINDOW_MAX_MINUTES,
+  BEDROOM_HEATER_WINDOW_STEP_MINUTES,
+  bedroomHeaterMode,
+  bedroomHeaterTargetTemperature,
+  bedroomHeaterWindow,
+  formatMinutesFromMidday,
+} from "../../../lib/bedroom-heater-control";
+import { DotRangeControl } from "../DotControls";
 import {
   AIRCON_FAN_STEPS,
   airconAutoMeasuredTemperature,
@@ -46,6 +64,7 @@ import {
   climateDevicesForZone,
   formatTemperature,
   temperatureDelta,
+  type BedroomHeaterDevices,
   type LoungeEnvironment,
 } from "./shared";
 import type { DashboardZone } from "../../../lib/types";
@@ -127,6 +146,8 @@ function TemperatureStepper({
   disabled = false,
   entity,
   label,
+  maxTemperature,
+  minTemperature,
   onChange,
   onTargetPreviewChange,
   step = 0.5,
@@ -136,6 +157,13 @@ function TemperatureStepper({
   disabled?: boolean;
   entity: DashboardEntity;
   label: string;
+  /**
+   * Bounds for callers whose limit is a Nova concept rather than a climate
+   * entity attribute — a bare switch has no min_temp/max_temp to read, and
+   * without these the readout would climb past a limit the caller then clamps.
+   */
+  maxTemperature?: number;
+  minTemperature?: number;
   onChange: (temperature: number) => Promise<void>;
   onTargetPreviewChange?: (temperature: number) => void;
   step?: number;
@@ -155,7 +183,11 @@ function TemperatureStepper({
       return;
     }
 
-    const next = temperatureDelta(entity, delta, step, target ?? displayedTarget ?? current ?? 20);
+    const stepped = temperatureDelta(entity, delta, step, target ?? displayedTarget ?? current ?? 20);
+    const next = Math.min(maxTemperature ?? Infinity, Math.max(minTemperature ?? -Infinity, stepped));
+    if (next === target) {
+      return;
+    }
     setTarget(next);
     onTargetPreviewChange?.(next);
     void onChange(next);
@@ -435,6 +467,312 @@ function PanelHeaterControl({
   );
 }
 
+// Two states, not three. "Manual" used to sit between these and meant "hold the
+// switch on", which is what Auto already does to a cold room — it was a third
+// button for a state the user could not distinguish.
+const BEDROOM_HEATER_POWER_BUTTONS: ReadonlyArray<{
+  label: string;
+  state: BedroomHeaterMode;
+  Icon: ComponentType<{ className?: string }>;
+}> = [
+  { label: "Auto", state: "auto", Icon: Gauge },
+  { label: "Off", state: "off", Icon: PowerOff },
+] as const;
+
+async function saveBedroomHeater(update: BedroomHeaterPreferences) {
+  const response = await fetch("/api/bedroom-heater", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+  const body = await response.json();
+  if (!response.ok) {
+    throw new Error(body.error ?? "Failed to update bedroom heater");
+  }
+}
+
+function BedroomHeaterControl({
+  humidity,
+  onEntityActions,
+  preferences,
+  switchEntity,
+  temperature,
+}: {
+  humidity: number | null;
+  onEntityActions: EntityActionsHandler;
+  preferences?: BedroomHeaterPreferences;
+  switchEntity?: DashboardEntity;
+  temperature: number | null;
+}) {
+  const persistedMode = bedroomHeaterMode(preferences);
+  const persistedTarget = bedroomHeaterTargetTemperature(preferences);
+  const persistedWindow = bedroomHeaterWindow(preferences);
+
+  // Mode, target, and window are all optimistic: the server is authoritative
+  // but a tap must land instantly, and the auto loop stands down for its
+  // cooldown while the write propagates.
+  const [mode, setMode] = useState<BedroomHeaterMode>(persistedMode);
+  const [target, setTarget] = useState(persistedTarget);
+  const [window_, setWindow] = useState<[number, number]>([persistedWindow.start, persistedWindow.end]);
+  const temperatureSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const persistedTimerEndsAt = typeof preferences?.offTimerEndsAt === "string" ? preferences.offTimerEndsAt : null;
+  const [localTimerEndsAt, setLocalTimerEndsAt] = useState<string | null>(persistedTimerEndsAt);
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+  const [timerIncrementMinutes, setTimerIncrementMinutes] = useState(AIRCON_OFF_TIMER_INCREMENT_MINUTES_DEFAULT);
+  const offTimerEndsAtMs = timerEndMs(localTimerEndsAt);
+  const offTimerActive = offTimerEndsAtMs !== null && offTimerEndsAtMs > timerNow;
+  const offTimerRemainingMs = offTimerEndsAtMs !== null ? Math.max(0, offTimerEndsAtMs - timerNow) : 0;
+  const timerIncrementMs = airconOffTimerIncrementMs(timerIncrementMinutes);
+
+  useEffect(() => {
+    setMode(persistedMode);
+  }, [persistedMode]);
+
+  useEffect(() => {
+    setTarget(persistedTarget);
+  }, [persistedTarget]);
+
+  useEffect(() => {
+    setWindow([persistedWindow.start, persistedWindow.end]);
+  }, [persistedWindow.start, persistedWindow.end]);
+
+  useEffect(() => {
+    setLocalTimerEndsAt(persistedTimerEndsAt);
+  }, [persistedTimerEndsAt]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadTimerIncrement = async () => {
+      const cachedIncrement = readCachedOffTimerIncrementMinutes();
+      if (alive) {
+        setTimerIncrementMinutes(cachedIncrement);
+      }
+
+      try {
+        if (alive) {
+          setTimerIncrementMinutes(await fetchOffTimerIncrementMinutes());
+        }
+      } catch {
+        // Keep the shipped default when config cannot be read.
+      }
+    };
+
+    void loadTimerIncrement();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (offTimerEndsAtMs === null) {
+      return;
+    }
+
+    setTimerNow(Date.now());
+    const timer = window.setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [offTimerEndsAtMs]);
+
+  useEffect(() => {
+    return () => {
+      if (temperatureSendTimerRef.current) {
+        clearTimeout(temperatureSendTimerRef.current);
+      }
+    };
+  }, []);
+
+  if (!switchEntity) {
+    return <ClimateCard kicker="Heating Unit" title="Bedroom" />;
+  }
+
+  const entityUnavailable = ["unavailable", "unknown"].includes(switchEntity.state);
+  const isOn = switchEntity.state === "on";
+
+  const chooseMode = (next: BedroomHeaterMode) => {
+    if (next === mode) {
+      return Promise.resolve();
+    }
+    setMode(next);
+    // Off means the schedule is off and the heater is off, so a pending sleep
+    // timer has nothing left to do; it would otherwise fire over a later Auto.
+    const clearTimer = next === "off" && localTimerEndsAt !== null;
+    if (clearTimer) {
+      setLocalTimerEndsAt(null);
+    }
+    const save = saveBedroomHeater(clearTimer ? { mode: next, offTimerEndsAt: null } : { mode: next }).catch(() => {
+      setMode(persistedMode);
+      if (clearTimer) {
+        setLocalTimerEndsAt(persistedTimerEndsAt);
+      }
+    });
+
+    // Auto hands over to the server thermostat, which the save above evaluates
+    // immediately — pressing Auto must not itself force the element on, only
+    // ask the thermostat to decide. Off drives the switch directly.
+    if (next === "auto") {
+      return save;
+    }
+    return callClimateActions(
+      [{ entityId: switchEntity.entity_id, domain: "switch", service: "turn_off" }],
+      onEntityActions,
+      "Bedroom Heater off",
+    );
+  };
+
+  // Same debounce shape as the air conditioner's target: only the last value is
+  // ever sent, and the auto loop picks it up on its next tick.
+  const changeTarget = async (next: number) => {
+    const clamped = Math.min(BEDROOM_HEATER_MAX_TARGET_C, Math.max(BEDROOM_HEATER_MIN_TARGET_C, next));
+    setTarget(clamped);
+    if (temperatureSendTimerRef.current) {
+      clearTimeout(temperatureSendTimerRef.current);
+    }
+    temperatureSendTimerRef.current = setTimeout(() => {
+      void saveBedroomHeater({ temperature: clamped }).catch(() => setTarget(persistedTarget));
+    }, AIRCON_TEMPERATURE_SEND_DEBOUNCE_MS);
+  };
+
+  // Expiry is enforced by the server loop (lib/bedroom-heater-auto.ts), not
+  // here: the whole point of a bedroom sleep timer is that it fires with every
+  // dashboard client asleep. This side only sets and displays it.
+  const setOffTimer = (offTimerEndsAt: string | null) => {
+    setLocalTimerEndsAt(offTimerEndsAt);
+    void saveBedroomHeater({ offTimerEndsAt }).catch(() => {
+      setLocalTimerEndsAt(persistedTimerEndsAt);
+    });
+  };
+
+  const addOffTimer = () => {
+    const now = Date.now();
+    const base = offTimerEndsAtMs !== null && offTimerEndsAtMs > now ? offTimerEndsAtMs : now;
+    setOffTimer(new Date(base + timerIncrementMs).toISOString());
+  };
+
+  const clearOffTimer = () => {
+    setOffTimer(null);
+  };
+
+  const commitWindow = (next: [number, number]) => {
+    setWindow(next);
+    void saveBedroomHeater({ autoOnMinutes: next[0], autoOffMinutes: next[1] }).catch(() =>
+      setWindow([persistedWindow.start, persistedWindow.end]),
+    );
+  };
+
+  return (
+    <ClimateCard entity={switchEntity} kicker="Heating Unit" title="Bedroom">
+      <div className="grid gap-4">
+        {/*
+          Off is the only mode with no target to set: it means auto off and the
+          heater off. Under Auto the heater's own switch may well be idle, but
+          the target still governs when it fires again, so the stepper stays live.
+        */}
+        <TemperatureStepper
+          currentTemperature={temperature}
+          disabled={entityUnavailable || mode === "off"}
+          entity={switchEntity}
+          label="Temperature"
+          maxTemperature={BEDROOM_HEATER_MAX_TARGET_C}
+          minTemperature={BEDROOM_HEATER_MIN_TARGET_C}
+          step={1}
+          targetTemperature={target}
+          onChange={changeTarget}
+        />
+
+        <div className="aircon-state-grid grid grid-cols-2 gap-2">
+          {BEDROOM_HEATER_POWER_BUTTONS.map(({ Icon, label, state }) => {
+            const active = mode === state;
+
+            return (
+              <button
+                key={state}
+                type="button"
+                aria-pressed={active}
+                className={classNames("aircon-state-button border", active && "aircon-state-button-active")}
+                disabled={entityUnavailable}
+                onClick={() => chooseMode(state)}
+              >
+                <Icon className="h-6 w-6" />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={classNames("climate-timer-row", mode === "off" && "climate-timer-row-disabled")}>
+          <MomentaryFeedbackButton
+            type="button"
+            aria-label={
+              offTimerActive
+                ? `Add ${timerIncrementMinutes} minutes to bedroom heater sleep timer`
+                : `Start ${timerIncrementMinutes} minute bedroom heater sleep timer`
+            }
+            className={classNames("climate-timer-button border", offTimerActive && "climate-timer-button-active")}
+            disabled={entityUnavailable || mode === "off"}
+            onClick={addOffTimer}
+          >
+            <Clock className="h-6 w-6" />
+            <span>{offTimerActive ? formatTimerRemaining(offTimerRemainingMs) : `${timerIncrementMinutes} min`}</span>
+          </MomentaryFeedbackButton>
+          {offTimerActive ? (
+            <MomentaryFeedbackButton
+              type="button"
+              aria-label="Clear bedroom heater sleep timer"
+              className="climate-timer-cancel border"
+              disabled={entityUnavailable}
+              onClick={clearOffTimer}
+            >
+              <X className="h-6 w-6" />
+            </MomentaryFeedbackButton>
+          ) : null}
+        </div>
+
+        {/*
+          The window is a schedule, not a gate: it turns the heater on and off at
+          its endpoints and does nothing in between, so it stays editable in
+          every mode — including Off, where the user is setting up tonight.
+        */}
+        <div className="temperature-stepper border border-neutral-700 bg-neutral-950/70 p-4">
+          <div className="flex items-end justify-between gap-4">
+            <p className="text-sm font-black uppercase text-cyan-300">Auto window</p>
+            <p className="text-xs font-black uppercase tabular-nums text-neutral-300">
+              {formatMinutesFromMidday(window_[0])} &rarr; {formatMinutesFromMidday(window_[1])}
+            </p>
+          </div>
+          <div className="mt-4">
+            <DotRangeControl
+              ariaLabel="Bedroom heater auto window"
+              ariaValueText={(value) => [
+                `Auto on at ${formatMinutesFromMidday(value[0])}`,
+                `Auto off at ${formatMinutesFromMidday(value[1])}`,
+              ]}
+              disabled={entityUnavailable}
+              max={BEDROOM_HEATER_WINDOW_MAX_MINUTES}
+              min={0}
+              onChange={setWindow}
+              onCommit={commitWindow}
+              step={BEDROOM_HEATER_WINDOW_STEP_MINUTES}
+              value={window_}
+            />
+          </div>
+          <p className="mt-3 text-xs font-black uppercase text-neutral-400">
+            Humidity {humidity === null ? "--" : `${Math.round(humidity)}%`} &middot;{" "}
+            {isOn ? "Heating" : "Idle"}
+          </p>
+        </div>
+      </div>
+    </ClimateCard>
+  );
+}
+
 const AIRCON_MODE_BUTTONS: ReadonlyArray<{
   label: string;
   mode: AirconMode;
@@ -653,7 +991,7 @@ function AirConditionerControl({
   }, [entity, offTimerEndsAtMs, onEntityActions, timerNow]);
 
   if (!entity) {
-    return <ClimateCard kicker="Air Control" title="Air Conditioner" />;
+    return <ClimateCard kicker="Air Control" title="Lounge" />;
   }
 
   const isOn = isClimateEntityOn(entity);
@@ -892,7 +1230,7 @@ function AirConditionerControl({
   };
 
   return (
-    <ClimateCard entity={entity} kicker="Air Control" title="Air Conditioner">
+    <ClimateCard entity={entity} kicker="Air Control" title="Lounge">
       <div className="grid gap-4">
         <TemperatureStepper
           disabled={!isControlOn}
@@ -1013,18 +1351,48 @@ function AirConditionerControl({
   );
 }
 
+function legacyPanelHeaterEnabled(payload: unknown) {
+  const config = payload as { dashboard?: { legacyPanelHeaterCardEnabled?: unknown } } | null;
+  return config?.dashboard?.legacyPanelHeaterCardEnabled === true;
+}
+
 export function ClimateControls({
+  bedroomHeater,
   loungeEnvironment,
   onEntityActions,
   preferences,
   zone,
 }: {
+  bedroomHeater?: BedroomHeaterDevices;
   loungeEnvironment?: LoungeEnvironment | null;
   onEntityActions: EntityActionsHandler;
   preferences?: DashboardPreferences;
   zone: DashboardZone;
 }) {
   const { aircon, freshAirSwitch, heater, quietSwitch, turboSwitch } = climateDevicesForZone(zone);
+  // The original panel heater died in August 2026; its card stays in the tree
+  // but is off unless an equivalent unit is reinstated in config.
+  const [showLegacyPanelHeater, setShowLegacyPanelHeater] = useState(() =>
+    legacyPanelHeaterEnabled(readCachedClientConfig()),
+  );
+
+  useEffect(() => {
+    let alive = true;
+
+    void loadSharedClientConfig()
+      .then((payload) => {
+        if (alive) {
+          setShowLegacyPanelHeater(legacyPanelHeaterEnabled(payload));
+        }
+      })
+      .catch(() => {
+        // Keep the cached answer when config cannot be read.
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div className="climate-control-grid grid gap-5">
@@ -1037,7 +1405,16 @@ export function ClimateControls({
         turboSwitch={turboSwitch}
         onEntityActions={onEntityActions}
       />
-      <PanelHeaterControl entity={heater} preferences={preferences?.panelHeater} onEntityActions={onEntityActions} />
+      <BedroomHeaterControl
+        humidity={bedroomHeater?.humidity ?? null}
+        preferences={preferences?.bedroomHeater}
+        switchEntity={bedroomHeater?.switchEntity}
+        temperature={bedroomHeater?.temperature ?? null}
+        onEntityActions={onEntityActions}
+      />
+      {showLegacyPanelHeater ? (
+        <PanelHeaterControl entity={heater} preferences={preferences?.panelHeater} onEntityActions={onEntityActions} />
+      ) : null}
     </div>
   );
 }

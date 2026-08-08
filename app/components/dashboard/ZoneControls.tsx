@@ -21,6 +21,7 @@ import {
   dashboardEntityIsOn,
   isBedroomZone,
   isLoungeZone,
+  type BedroomHeaterDevices,
   type LoungeEnvironment,
 } from "./shared";
 import {
@@ -138,6 +139,7 @@ function IntensityControl({
 }
 
 export function ZoneControls({
+  bedroomHeater,
   bedroomTemperature,
   desktopSleepBusy,
   desktopWakeBusy,
@@ -153,6 +155,7 @@ export function ZoneControls({
   spectrumCursor,
   weather,
 }: {
+  bedroomHeater?: BedroomHeaterDevices;
   bedroomTemperature?: number | null;
   desktopSleepBusy?: boolean;
   desktopWakeBusy?: boolean;
@@ -300,6 +303,7 @@ export function ZoneControls({
               weather,
               preferences,
               loungeEnvironment,
+              bedroomHeater,
               onDesktopSleep,
               onDesktopWake,
               onEntityActions,

@@ -111,7 +111,8 @@ describe("alt theme range", () => {
 
 describe("colour group entry alt links", () => {
   const themes = ["red", "blue"].map((id) => ({
-    id, name: id, moduleId: "particle-ripples", colors: {}, imageId: null,
+    id, name: id, moduleId: "particle-ripples", colors: {},
+    imageId: null, backgroundImageId: null,
   }));
   const settingsGroups = normalizePhonoscopeSettingsGroups([
     { id: "default", name: "Default", moduleId: "particle-ripples", isDefault: true },

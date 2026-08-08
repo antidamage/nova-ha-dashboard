@@ -17,7 +17,9 @@
     "networkZoneId": "network",
     "everythingExcludedEntityIds": [
       "light.outside_light",
-      "light.tuya_mobile_outside_light"
+      "light.tuya_mobile_outside_light",
+      "switch.bedroom_heater",
+      "switch.tuya_mobile_bedroom_heater"
     ],
     "classification": {
       "illuminationLabels": [

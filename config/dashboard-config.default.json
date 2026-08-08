@@ -14,7 +14,9 @@
     "supportSwitchPattern": "\\bauto[-_ ]?update\\b",
     "everythingExcludedEntityIds": [
       "light.outside_light",
-      "light.tuya_mobile_outside_light"
+      "light.tuya_mobile_outside_light",
+      "switch.bedroom_heater",
+      "switch.tuya_mobile_bedroom_heater"
     ],
     "climateAreaNames": [
       "climate",
@@ -96,6 +98,18 @@
     "aircon": {
       "offTimerIncrementMinutes": 10
     },
+    "bedroomHeater": {
+      "switchEntityIds": ["switch.bedroom_heater", "switch.tuya_mobile_bedroom_heater"],
+      "temperatureEntityIds": [
+        "sensor.bedroom_heater_temperature",
+        "sensor.tuya_mobile_bedroom_heater_temperature"
+      ],
+      "humidityEntityIds": [
+        "sensor.bedroom_heater_humidity",
+        "sensor.tuya_mobile_bedroom_heater_humidity"
+      ]
+    },
+    "legacyPanelHeaterCardEnabled": false,
     "camera": {
       "outside": {
         "processing": {

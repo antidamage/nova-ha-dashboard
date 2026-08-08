@@ -265,14 +265,67 @@ export function findLoungeEnvironment(data: DashboardState | null): LoungeEnviro
   return findZoneEnvironment(data?.zones.find(isLoungeZone) ?? null, data);
 }
 
-export function findBedroomPanelHeaterTemperature(data: DashboardState | null) {
-  const panelHeater = data?.entities.find(
-    (entity) =>
-      entity.domain === "climate" &&
-      (entity.entity_id === "climate.panel_heater" || matchesEntity(entity, ["panel heater"])),
-  );
+/**
+ * Resolve one entity from a preference-ordered list of ids. The lists let a LAN
+ * twin be listed ahead of its cloud twin without a code change, so this returns
+ * the first id that actually exists and is reporting.
+ */
+export function findConfiguredEntity(data: DashboardState | null, entityIds: readonly string[]) {
+  for (const entityId of entityIds) {
+    const entity = data?.entities.find((candidate) => candidate.entity_id === entityId);
+    if (entity && !["unavailable", "unknown"].includes(entity.state)) {
+      return entity;
+    }
+  }
+  // Fall back to a known-but-unavailable entity so the card can render its
+  // unavailable state rather than disappearing entirely.
+  for (const entityId of entityIds) {
+    const entity = data?.entities.find((candidate) => candidate.entity_id === entityId);
+    if (entity) {
+      return entity;
+    }
+  }
+  return undefined;
+}
 
-  return panelHeater ? climateCurrentTemperature(panelHeater) : null;
+export type BedroomHeaterDevices = {
+  humidity: number | null;
+  humidityEntity?: DashboardEntity;
+  switchEntity?: DashboardEntity;
+  temperature: number | null;
+  temperatureEntity?: DashboardEntity;
+};
+
+export function bedroomHeaterDevices(
+  data: DashboardState | null,
+  config?: {
+    switchEntityIds?: readonly string[];
+    temperatureEntityIds?: readonly string[];
+    humidityEntityIds?: readonly string[];
+  } | null,
+): BedroomHeaterDevices {
+  const temperatureEntity = findConfiguredEntity(data, config?.temperatureEntityIds ?? []);
+  const humidityEntity = findConfiguredEntity(data, config?.humidityEntityIds ?? []);
+
+  return {
+    humidity: numericEntityState(humidityEntity),
+    humidityEntity,
+    switchEntity: findConfiguredEntity(data, config?.switchEntityIds ?? []),
+    temperature: numericEntityState(temperatureEntity),
+    temperatureEntity,
+  };
+}
+
+/**
+ * Bedroom temperature for the environment panels. This reads the bedroom
+ * heater's own sensor: the original panel heater it replaced died in August
+ * 2026 and its climate entity is permanently unavailable.
+ */
+export function findBedroomTemperature(
+  data: DashboardState | null,
+  config?: { temperatureEntityIds?: readonly string[] } | null,
+) {
+  return numericEntityState(findConfiguredEntity(data, config?.temperatureEntityIds ?? []));
 }
 
 export function countDomainsForZone(zone: DashboardZone): HaDomain[] {

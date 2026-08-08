@@ -9,7 +9,9 @@ import {
 } from "../../../lib/phonoscope-effects";
 import {
   PHONOSCOPE_EFFECT_GROUPS,
+  PHONOSCOPE_SINGLE_VALUE_EFFECTS,
   type PhonoscopeEffectGroup,
+  type PhonoscopeParameterGroup,
 } from "../../../lib/phonoscope-effect-groups";
 import {
   PHONOSCOPE_GLOW_BLEND_EFFECT,
@@ -19,6 +21,14 @@ import {
   PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+  PHONOSCOPE_CENTRE_FIT_EFFECT,
+  PHONOSCOPE_CENTRE_PROPORTIONAL_EFFECT,
+  PHONOSCOPE_BG_FIT_EFFECT,
+  PHONOSCOPE_BG_PROPORTIONAL_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT,
   driverFiresEvents,
   isPhonoscopeThemePulseEffect,
 } from "../../../lib/phonoscope-drivers";
@@ -26,6 +36,11 @@ import {
 export type ModuleSetting = {
   id: string;
   label: string;
+  /**
+   * Manifests still carry these, and the flat picker still shows them as the
+   * `detail` line on a choice. They are deliberately NOT rendered as body copy
+   * under the control itself.
+   */
   description?: string;
   control: "slider" | "number" | "toggle" | "select";
   min: number;
@@ -38,6 +53,12 @@ export type ModuleSetting = {
   section?: string;
   /** Effect group this setting joins in the editor, if its manifest named one. */
   group?: string;
+  /**
+   * Which parameter group inside that effect. Optional: with none named the
+   * setting lands in the effect's first parameter group, which is the geometry
+   * one, so `group: grid` alone puts the lattice's width and height under Size.
+   */
+  parameterGroup?: string;
   updateMode: "smooth" | "structural";
 };
 
@@ -51,12 +72,18 @@ export type EffectOption = {
    * `label` for an effect that stands alone.
    */
   shortLabel?: string;
-  description: string;
+  /**
+   * Only ever set for a genuinely obtuse control, and only ever one short
+   * clause. Most controls carry a label and nothing else.
+   */
+  description?: string;
   section: string;
   min: number;
   max: number;
   step: number;
   default: number;
+  /** Suffix on the readout: "%" on a screen fraction, "°" on an axis. */
+  unit?: string;
   /** Named positions on a discrete axis, if the numbers mean something. */
   choices?: { value: number; label: string }[];
   /** A 0/1 axis that reads as on or off, edited as a checkbox. */
@@ -110,34 +137,69 @@ export const SCENE_BLEND_CHOICES = [
 ];
 
 /**
- * How the centre image changes: 0 cross-fade, 1 flip, 2 slide, append-only.
- * Cross-fade leads because it is 0 and it is what the picture did before the
- * other two existed.
+ * How an image changes: 0 cross-fade, 1 flip, 2 slide, append-only. Cross-fade
+ * leads because it is 0 and it is what the picture did before the other two
+ * existed. Shared by the centre and the background, which have identical modes
+ * on separate axes — so it is not named for either of them.
  */
-export const CENTRE_TRANSITION_CHOICES = [
+export const IMAGE_TRANSITION_CHOICES = [
   { value: 0, label: "Cross-fade" },
   { value: 1, label: "Flip" },
   { value: 2, label: "Slide" },
 ];
 
 /**
- * The three axes the transition's control set owns, and which mode each needs.
+ * How an image is sized: 0 manual, 1 fit to screen, 2 fill screen, append-only.
+ * Manual leads because it is 0 and it is the width and height the sliders under
+ * it state — the other two derive both from the image and hide them.
+ */
+export const IMAGE_FIT_CHOICES = [
+  { value: 0, label: "Manual" },
+  { value: 1, label: "Fit to screen" },
+  { value: 2, label: "Fill screen" },
+];
+
+export type TransitionCompanion = { id: string; minimumMode: number };
+
+/**
+ * The three axes a transition's control set owns, and which mode each needs.
  *
  * Cross-fade uses none of them, a flip runs on the axis, and only a slide can
  * be divided or sent back the way it came.
  */
-export const CENTRE_TRANSITION_COMPANIONS: { id: string; minimumMode: number }[] = [
+export const CENTRE_TRANSITION_COMPANIONS: TransitionCompanion[] = [
   { id: PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT, minimumMode: 1 },
   { id: PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT, minimumMode: 2 },
   { id: PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT, minimumMode: 2 },
 ];
 
-const CENTRE_TRANSITION_COMPANION_IDS = new Set(
-  CENTRE_TRANSITION_COMPANIONS.map((companion) => companion.id));
+/** The background image's, with the same modes and therefore the same rule. */
+export const BACKGROUND_TRANSITION_COMPANIONS: TransitionCompanion[] = [
+  { id: PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT, minimumMode: 1 },
+  { id: PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT, minimumMode: 2 },
+  { id: PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT, minimumMode: 2 },
+];
+
+/**
+ * Which control set owns which companions, keyed by the mode axis that shows
+ * them. Two slots, identical rules, so the lookup is by mode rather than the
+ * centre's list being the one everything reaches for.
+ */
+const TRANSITION_COMPANIONS = new Map<string, TransitionCompanion[]>([
+  [PHONOSCOPE_CENTRE_TRANSITION_EFFECT, CENTRE_TRANSITION_COMPANIONS],
+  [PHONOSCOPE_BG_TRANSITION_EFFECT, BACKGROUND_TRANSITION_COMPANIONS],
+]);
+
+export function transitionCompanionsFor(modeEffect: string): TransitionCompanion[] {
+  return TRANSITION_COMPANIONS.get(modeEffect) ?? [];
+}
+
+const COMPANION_IDS = new Set(
+  [...TRANSITION_COMPANIONS.values()].flat().map((companion) => companion.id));
 
 /** True for a value some other effect's control set owns. */
 export function isCompanionEffect(id: string) {
-  return CENTRE_TRANSITION_COMPANION_IDS.has(id);
+  return COMPANION_IDS.has(id);
 }
 
 function titleCase(value: string) {
@@ -156,7 +218,7 @@ export function effectCatalogue(moduleSettings: ModuleSetting[]): EffectOption[]
     id: effect.id,
     label: PHONOSCOPE_PICTURE_EFFECT_LABELS[effect.id]?.label ?? effect.id,
     shortLabel: PHONOSCOPE_PICTURE_EFFECT_LABELS[effect.id]?.shortLabel,
-    description: PHONOSCOPE_PICTURE_EFFECT_LABELS[effect.id]?.description ?? "",
+    description: PHONOSCOPE_PICTURE_EFFECT_LABELS[effect.id]?.description,
     section: PICTURE_SECTION,
     min: effect.min,
     max: effect.max,
@@ -168,12 +230,30 @@ export function effectCatalogue(moduleSettings: ModuleSetting[]): EffectOption[]
         : effect.id === PHONOSCOPE_SCENE_BLEND_EFFECT
           ? SCENE_BLEND_CHOICES
           : effect.id === PHONOSCOPE_CENTRE_TRANSITION_EFFECT
-            ? CENTRE_TRANSITION_CHOICES
-            : undefined,
+            || effect.id === PHONOSCOPE_BG_TRANSITION_EFFECT
+            ? IMAGE_TRANSITION_CHOICES
+            : effect.id === PHONOSCOPE_CENTRE_FIT_EFFECT
+              || effect.id === PHONOSCOPE_BG_FIT_EFFECT
+              ? IMAGE_FIT_CHOICES
+              : undefined,
+    unit: PHONOSCOPE_SINGLE_VALUE_EFFECTS.has(effect.id)
+      ? "%"
+      : effect.id === PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT
+        || effect.id === PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT
+        ? "°"
+        : undefined,
     toggle: effect.id === PHONOSCOPE_GLOW_CLAMP_EFFECT
-      || effect.id === PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+      || effect.id === PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT
+      || effect.id === PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT
+      || effect.id === PHONOSCOPE_CENTRE_PROPORTIONAL_EFFECT
+      || effect.id === PHONOSCOPE_BG_PROPORTIONAL_EFFECT,
+    // A width is one number, not a sweep between two, so it is a plain slider
+    // exactly as a latched transition axis is.
     pinned: effect.id === PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT
-      || effect.id === PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+      || effect.id === PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT
+      || effect.id === PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT
+      || effect.id === PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT
+      || PHONOSCOPE_SINGLE_VALUE_EFFECTS.has(effect.id),
     companion: isCompanionEffect(effect.id),
   }));
   const module = moduleSettings
@@ -181,7 +261,7 @@ export function effectCatalogue(moduleSettings: ModuleSetting[]): EffectOption[]
     .map((setting) => ({
       id: setting.id,
       label: setting.label,
-      description: setting.description ?? "",
+      description: setting.description,
       section: titleCase(setting.section ?? "General"),
       min: setting.min,
       max: setting.max,
@@ -228,7 +308,8 @@ export function newEffectBinding(id: string, effect: EffectOption): PhonoscopeEf
   // not a shape the mode takes: it is the ramp the transition itself runs on,
   // and every transition has one. So it is the one discrete effect that arrives
   // carrying an envelope.
-  if (!discrete || effect.id === PHONOSCOPE_CENTRE_TRANSITION_EFFECT) {
+  if (!discrete || effect.id === PHONOSCOPE_CENTRE_TRANSITION_EFFECT
+    || effect.id === PHONOSCOPE_BG_TRANSITION_EFFECT) {
     binding.attackSeconds = 0.05;
     binding.holdSeconds = 0;
     binding.releaseSeconds = 0.6;
@@ -244,35 +325,69 @@ function stripped(label: string, groupLabel: string) {
   return rest.charAt(0).toUpperCase() + rest.slice(1);
 }
 
-/** A group resolved against one module: only the members that actually exist. */
-export type ResolvedEffectGroup = PhonoscopeEffectGroup & { members: EffectOption[] };
+/** A parameter group resolved against one module: the parameters that exist. */
+export type ResolvedParameterGroup =
+  Omit<PhonoscopeParameterGroup, "effects"> & { members: EffectOption[] };
 
 /**
- * The groups on offer for this module, each resolved to its present members in
- * display order: the module's own settings that named the group (manifest
+ * A group resolved against one module. `parameterGroups` is the structure the
+ * panel renders; `members` is the same set flattened, for the callers that only
+ * need to ask whether an effect belongs to this group.
+ */
+export type ResolvedEffectGroup =
+  Omit<PhonoscopeEffectGroup, "parameterGroups"> & {
+    parameterGroups: ResolvedParameterGroup[];
+    members: EffectOption[];
+  };
+
+/**
+ * The groups on offer for this module, each resolved to its present parameters
+ * in display order: the module's own settings that named the group (manifest
  * order) first, then the picture-level ones.
  *
- * A group whose members are all absent — `grid` under a module with no lattice —
- * is not offered at all rather than appearing empty.
+ * A group whose parameters are all absent — `grid` under a module with no
+ * lattice — is not offered at all rather than appearing empty, and neither is
+ * an empty parameter group inside one that survives.
  */
 export function effectGroups(
   catalogue: EffectOption[],
   moduleSettings: ModuleSetting[],
 ): ResolvedEffectGroup[] {
   return PHONOSCOPE_EFFECT_GROUPS.flatMap((group) => {
-    const fromModule = moduleSettings
-      .filter((setting) => setting.group === group.id && setting.updateMode !== "structural")
-      .flatMap((setting) => {
-        const option = effectOptionFor(catalogue, setting.id);
-        // A module names its settings for the flat picker ("Grid width"), where
-        // the subject has to be in the label. Inside the group the heading
-        // already says it, so strip the prefix rather than making every manifest
-        // carry a second label.
-        return option ? [{ ...option, shortLabel: option.shortLabel ?? stripped(option.label, group.label) }] : [];
-      });
-    const fromPicture = group.effects.flatMap((id) => effectOptionFor(catalogue, id) ?? []);
-    const members = [...fromModule, ...fromPicture];
-    return members.length ? [{ ...group, members }] : [];
+    // A manifest names the effect group, not the parameter group inside it, so
+    // its settings land in the first one — which is the geometry group in every
+    // case that exists. Naming one explicitly overrides that.
+    const defaultParameterGroup = group.parameterGroups[0]?.id;
+    const parameterGroups = group.parameterGroups.flatMap((parameters) => {
+      const fromModule = moduleSettings
+        .filter((setting) => setting.group === group.id
+          && setting.updateMode !== "structural"
+          && (setting.parameterGroup ?? defaultParameterGroup) === parameters.id)
+        .flatMap((setting) => {
+          const option = effectOptionFor(catalogue, setting.id);
+          if (!option) return [];
+          // A module names its settings for the flat picker ("Grid width"),
+          // where the subject has to be in the label. Inside the group the
+          // heading already says it, so strip the prefix rather than making
+          // every manifest carry a second label.
+          return [{
+            ...option,
+            shortLabel: option.shortLabel ?? stripped(option.label, group.label),
+            unit: option.unit ?? (parameters.moduleSingleValue ? "%" : undefined),
+            pinned: option.pinned || parameters.moduleSingleValue,
+          }];
+        });
+      const fromPicture = parameters.effects
+        .flatMap((id) => effectOptionFor(catalogue, id) ?? []);
+      const members = [...fromModule, ...fromPicture];
+      if (!members.length) return [];
+      const { effects: _declared, ...rest } = parameters;
+      return [{ ...rest, members }];
+    });
+    const members = parameterGroups.flatMap((parameters) => parameters.members);
+    if (!members.length) return [];
+    const { parameterGroups: _declared, ...rest } = group;
+    return [{ ...rest, parameterGroups, members }];
   });
 }
 
@@ -280,6 +395,12 @@ export function effectGroups(
 export function effectGroupIndex(groups: ResolvedEffectGroup[]) {
   return new Map(groups.flatMap((group) =>
     group.members.map((member) => [member.id, group.id] as const)));
+}
+
+/** Which parameter group inside its effect an effect id belongs to. */
+export function parameterGroupIndex(groups: ResolvedEffectGroup[]) {
+  return new Map(groups.flatMap((group) => group.parameterGroups.flatMap((parameters) =>
+    parameters.members.map((member) => [member.id, parameters.id] as const))));
 }
 
 export const DRIVER_TYPES: PhonoscopeDriverType[] = [

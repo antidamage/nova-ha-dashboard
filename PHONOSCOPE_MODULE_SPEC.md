@@ -167,6 +167,15 @@ groups controls with the same label in its "add effect" picker; controls without
 a section fall into the general group. Do not use `physics` — the panel is
 Visualiser controls now, and that word is retired from the user-facing surface.
 
+A control may also join one of the panel's built-in **effect groups** with
+`group: grid` (and optionally `parameterGroup: size` to name the parameter group
+inside it; without one it lands in the effect's first). Its own settings are
+listed before the picture-level parameters of that group — a module owns the
+geometry, the picture owns how that geometry is composited. Joining a parameter
+group means joining that group's **single ramp**: every parameter group has
+exactly one, written to every member that can take one, and a module setting
+never carries a ramp of its own.
+
 `updateMode` is `smooth` by default. Smooth numeric settings are interpolated
 in the running simulation and must not rebuild the scene. Use
 `updateMode: structural` only for values such as grid resolution, topology, or

@@ -10,9 +10,10 @@ import { ClockPanel } from "./dashboard/ClockPanel";
 import { ReminderIconBar } from "./dashboard/ReminderIconBar";
 import { ZoneControls } from "./dashboard/ZoneControls";
 import {
-  findBedroomPanelHeaterTemperature,
+  bedroomHeaterDevices,
   findLoungeEnvironment,
 } from "./dashboard/shared";
+import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
 import { useDashboardState } from "./dashboard/state";
 import { Warnings } from "./dashboard/Warnings";
 import { buildZoneTree, ZonesPanel } from "./dashboard/ZonesPanel";
@@ -64,7 +65,12 @@ export function Dashboard() {
   const { selectedZone, selectedZoneId, selectZone, tasksZoneSelected } = useDashboardSelection(data);
   const zoneTree = useMemo(() => buildZoneTree(data), [data]);
   const loungeEnvironment = useMemo(() => findLoungeEnvironment(data), [data]);
-  const bedroomTemperature = useMemo(() => findBedroomPanelHeaterTemperature(data), [data]);
+  const bedroomHeaterConfig = useBedroomHeaterConfig();
+  const bedroomHeater = useMemo(
+    () => bedroomHeaterDevices(data, bedroomHeaterConfig),
+    [data, bedroomHeaterConfig],
+  );
+  const bedroomTemperature = bedroomHeater.temperature;
   const [autoFullscreen] = useAutoFullscreenSetting();
   useAutoFullscreen(autoFullscreen);
   const showBackground = useExperienceFeature("background");
@@ -148,6 +154,7 @@ export function Dashboard() {
               {tasksZoneSelected ? null : selectedZone ? (
                 <ZoneControls
                   zone={selectedZone}
+                  bedroomHeater={bedroomHeater}
                   bedroomTemperature={bedroomTemperature}
                   desktopSleepBusy={desktopSleepBusy}
                   desktopWakeBusy={desktopWakeBusy}
