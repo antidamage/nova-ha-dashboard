@@ -296,6 +296,82 @@ describe("genre routing", () => {
   });
 });
 
+describe("group stepping", () => {
+  afterEach(() => {
+    resetPhonoscopeThemeStateForTest();
+    resetPhonoscopeNowPlayingForTest();
+  });
+
+  /** Two multi-entry groups, so stepping sideways is visibly not stepping along. */
+  const stepConfig = (overrides: Partial<PhonoscopePreferences> = {}): PhonoscopePreferences => ({
+    ...configWith([rotationGroup("default", { type: "timer", intervalSeconds: 600 })]),
+    moduleColorGroupIds: {},
+    colorGroups: [
+      {
+        id: "house", moduleId: "particle-ripples", name: "House",
+        entries: [
+          { id: "e_house_1", themeId: "red", settingsGroupIds: ["default"] },
+          { id: "e_house_2", themeId: "blue", settingsGroupIds: ["default"] },
+        ],
+        genres: ["Techno"], isDefault: false,
+      },
+      {
+        id: "fallback", moduleId: "particle-ripples", name: "Fallback",
+        entries: [
+          { id: "e_fallback_1", themeId: "green", settingsGroupIds: ["default"] },
+          { id: "e_fallback_2", themeId: "blue", settingsGroupIds: ["default"] },
+        ],
+        genres: [], isDefault: true,
+      },
+    ],
+    ...overrides,
+  });
+
+  it("steps to the adjacent group and lands on its first entry", () => {
+    const config = stepConfig();
+    expect(readPhonoscopeThemeState(config, 1_000).groupId).toBe("fallback");
+    const stepped = commandPhonoscopeTheme(config, "next-group", 1_100);
+    expect(stepped.groupId).toBe("house");
+    expect(stepped.entryId).toBe("e_house_1");
+  });
+
+  it("wraps, so the transport never dead-ends", () => {
+    const config = stepConfig();
+    expect(commandPhonoscopeTheme(config, "previous-group", 1_100).groupId).toBe("house");
+    expect(commandPhonoscopeTheme(config, "previous-group", 1_200).groupId).toBe("fallback");
+  });
+
+  it("leaves the group's own rotation running, because only pause holds it", () => {
+    const config = stepConfig();
+    expect(commandPhonoscopeTheme(config, "next-group", 1_100).paused).toBe(false);
+  });
+
+  it("holds the stepped group against genre routing", () => {
+    writePhonoscopeNowPlaying({
+      playing: true, position: 1,
+      track: { title: "t", artist: "a", duration: 100, genreNames: ["Techno"] },
+    });
+    const config = stepConfig({ chooseColorGroupByGenre: true });
+    expect(readPhonoscopeThemeState(config, 1_000).groupId).toBe("house");
+    expect(commandPhonoscopeTheme(config, "next-group", 1_100).groupId).toBe("fallback");
+    expect(readPhonoscopeThemeState(config, 1_200).groupId).toBe("fallback");
+  });
+
+  it("drops the step once the config's own pick changes", () => {
+    const config = stepConfig();
+    expect(commandPhonoscopeTheme(config, "next-group", 1_100).groupId).toBe("house");
+    const repicked = stepConfig({ moduleColorGroupIds: { "particle-ripples": "fallback" } });
+    expect(readPhonoscopeThemeState(repicked, 1_200).groupId).toBe("fallback");
+  });
+
+  it("loses to the editor's preview pin, because authoring beats transport", () => {
+    const config = stepConfig();
+    expect(commandPhonoscopeTheme(config, "next-group", 1_100).groupId).toBe("house");
+    const previewing = stepConfig({ editorPreviewColorGroupId: "fallback" });
+    expect(readPhonoscopeThemeState(previewing, 1_200).groupId).toBe("fallback");
+  });
+});
+
 describe("solo", () => {
   afterEach(() => {
     resetPhonoscopeThemeStateForTest();

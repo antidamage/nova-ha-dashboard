@@ -116,6 +116,23 @@ type ThemeStore = Omit<PhonoscopeThemeState, "themeId"> & {
   previewActive: boolean;
   observedSoloThemeId: string;
   observedSoloSettingsGroupId: string;
+  /**
+   * The group a remote step landed on, or "" when nobody has stepped.
+   *
+   * Transient household state rather than a preference, exactly as `paused` is:
+   * the transport's job is to override what the routing chose without editing
+   * what the routing IS. It outranks genre routing — otherwise the arrows would
+   * be inert on a genre-routed module, which is most of them — but loses to the
+   * editor's preview pin, because authoring wins over transport.
+   */
+  groupOverrideId: string;
+  /**
+   * The config-side pick the override was taken against. When the module, the
+   * genre-routing switch or the saved per-module group changes, that answer no
+   * longer describes what the user last chose, so the override drops and the
+   * config's own pick takes over again.
+   */
+  groupOverrideBasePick: string;
 };
 
 const globalWithThemeState = globalThis as typeof globalThis & {
@@ -300,31 +317,64 @@ const emptyStore = (): ThemeStore => ({
   previewActive: false,
   observedSoloThemeId: "",
   observedSoloSettingsGroupId: "",
+  groupOverrideId: "",
+  groupOverrideBasePick: "",
 });
 
 const store = globalWithThemeState.__novaPhonoscopeThemeState ??
   (globalWithThemeState.__novaPhonoscopeThemeState = emptyStore());
 
+/** Every colour group belonging to the live module, in authored order. */
+function moduleColorGroups(config: PhonoscopePreferences): PhonoscopeColorGroup[] {
+  const moduleId = config.activeModuleId ?? "";
+  return (config.colorGroups ?? []).filter((group) => group.moduleId === moduleId);
+}
+
+/**
+ * What the config itself says the group should be, as one comparable string.
+ *
+ * A stepped override is only meaningful relative to this: the moment any part
+ * of it changes the user has picked a group by other means, and the override
+ * must get out of the way rather than pin the old answer forever.
+ */
+function configGroupPick(config: PhonoscopePreferences) {
+  const moduleId = config.activeModuleId ?? "";
+  return [
+    moduleId,
+    config.chooseColorGroupByGenre ? "genre" : "manual",
+    config.moduleColorGroupIds?.[moduleId] ?? "",
+  ].join("|");
+}
+
 /**
  * Which colour group is live.
  *
- * The editor's preview pin wins, then genre routing when it is switched on,
- * then the manual per-module pick. A track with no genre, or a genre no group
- * has claimed, falls through to the group flagged default — which is why
- * exactly one group always carries that flag.
+ * The editor's preview pin wins, then a remote group step, then genre routing
+ * when it is switched on, then the manual per-module pick. A track with no
+ * genre, or a genre no group has claimed, falls through to the group flagged
+ * default — which is why exactly one group always carries that flag.
  */
 export function activePhonoscopeColorGroup(
   config: PhonoscopePreferences,
   genreNames: string[] = [],
 ): PhonoscopeColorGroup | undefined {
-  const moduleId = config.activeModuleId ?? "";
-  const groups = (config.colorGroups ?? []).filter((group) => group.moduleId === moduleId);
+  const groups = moduleColorGroups(config);
   if (!groups.length) return undefined;
 
   const previewId = config.editorPreviewColorGroupId?.trim();
   if (previewId) {
     const preview = groups.find((group) => group.id === previewId);
     if (preview) return preview;
+  }
+
+  if (store.groupOverrideId) {
+    const stepped = store.groupOverrideBasePick === configGroupPick(config)
+      ? groups.find((group) => group.id === store.groupOverrideId)
+      : undefined;
+    if (stepped) return stepped;
+    // Stale: the config's pick moved on, or the group was deleted.
+    store.groupOverrideId = "";
+    store.groupOverrideBasePick = "";
   }
 
   if (config.chooseColorGroupByGenre) {
@@ -337,7 +387,7 @@ export function activePhonoscopeColorGroup(
     return groups.find((group) => group.isDefault) ?? groups[0];
   }
 
-  const manual = config.moduleColorGroupIds?.[moduleId];
+  const manual = config.moduleColorGroupIds?.[config.activeModuleId ?? ""];
   return groups.find((group) => group.id === manual)
     ?? groups.find((group) => group.isDefault)
     ?? groups[0];
@@ -744,6 +794,32 @@ export function commandPhonoscopeTheme(
     }
     store.paused = true;
     store.previewActive = false;
+  } else if (action === "next-group" || action === "previous-group") {
+    // Stepping GROUPS, not entries: the arrows move sideways across the
+    // playlists rather than along the one that is playing. The rotation is
+    // deliberately left running — the sequence inside a group is the group, and
+    // freezing it on arrival would make every group look like one theme.
+    // Pausing stays the pause button's job.
+    const groups = moduleColorGroups(config).filter((entry) => entry.entries.length);
+    const direction = action === "next-group" ? 1 : -1;
+    const current = groups.findIndex((entry) => entry.id === group.id);
+    if (groups.length > 1) {
+      const target = groups[(Math.max(0, current) + direction + groups.length) % groups.length];
+      const rule = themeChangeRule(config, store.settingsGroupIds, group);
+      store.groupOverrideId = target.id;
+      store.groupOverrideBasePick = configGroupPick(config);
+      store.groupId = target.id;
+      // A group step is still a change of picture, so it plays the transition
+      // the entry being left would have played — resolved before `select`
+      // swaps the settings groups out, exactly as a skip does.
+      select(target, 0, now,
+        rule ? transitionFrom(config, store.settingsGroupIds, rule.binding) : cutTransition(),
+        rule
+          ? transitionFrom(config, store.settingsGroupIds, rule.binding,
+            BACKGROUND_TRANSITION_AXES)
+          : cutTransition());
+      store.previewActive = false;
+    }
   } else if (action === "pause") {
     if (!store.paused) store.revision += 1;
     store.paused = true;
