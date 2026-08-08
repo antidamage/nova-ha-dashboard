@@ -1875,7 +1875,8 @@ Visualiser controls (the config panel formerly called Physics):
      │  ├─ Parameter (Width)
      │  ├─ Parameter (Height + Auto)
      │  ├─ Parameter (Scale)
-     │  └─ Ramp            ← ONE, for the whole parameter group
+     │  ├─ Ramp            ← ONE, for the whole parameter group
+     │  └─ When stacked    ← ONE, for the whole parameter group
      └─ Parameter group (Transition)
   ```
 
@@ -1898,6 +1899,17 @@ Visualiser controls (the config panel formerly called Physics):
   not drawn by the group is the Transition group, whose control set draws the
   transition's own motion profile — which is that group's single ramp, not a
   second one.
+- **A parameter group owns exactly ONE stacking mode ("When stacked"), on the
+  same footing as its ramp.** How two lanes setting the group's value resolve
+  against each other is a property of the thing being set, not of each slider,
+  so it is offered once per parameter group and never per parameter. The chosen
+  mode is written to every member that stacks — including members this lane has
+  not added yet, so one added later already stacks the way the group does — and
+  an override-only axis never stacks, so it is not part of it. `combine` is
+  still keyed by effect id on the settings group, so the wire format is
+  unchanged and the mode is still shared by every appearance of those
+  parameters. An effect standing on its own in a lane, outside any group, keeps
+  its own "When stacked" as an addable parameter.
 - The **ramp** control has two readings, and the label says which is in play.
   On a pulse it is an envelope: attack rises, hold holds, release falls. On a
   one-shot transition it is a motion profile: attack is the ease-in, hold is the

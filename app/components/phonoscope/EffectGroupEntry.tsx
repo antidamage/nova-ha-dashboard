@@ -2,10 +2,12 @@
 
 import { Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import type { PhonoscopeEffectBinding } from "../../../lib/types";
+import type { PhonoscopeCombineMode, PhonoscopeEffectBinding } from "../../../lib/types";
+import { isPhonoscopeOverrideOnlyEffect } from "../../../lib/phonoscope-drivers";
 import { ConfigSelect } from "../ConfigSelect";
 import { ConfigAccordion, EnvelopeSliderControlPanel } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { COMBINE_OPTIONS } from "./EffectEntry";
 import type { ResolvedEffectGroup, ResolvedParameterGroup } from "./effectCatalogue";
 
 /** The ramp a parameter group falls back to before anything has authored one. */
@@ -31,16 +33,20 @@ const DEFAULT_RAMP: [number, number, number] = [0.05, 0, 0.6];
  */
 export function EffectGroupEntry({
   bindings,
+  combine,
   group,
   isMemberRelevant,
   laneId,
   onAdd,
   onRemoveAll,
+  onSharedCombineChange,
   onSharedRampChange,
   renderMember,
 }: {
   /** This lane's bindings for parameters of this effect, in the lane's order. */
   bindings: PhonoscopeEffectBinding[];
+  /** The settings group's stacking modes, keyed by effect id. */
+  combine: Record<string, PhonoscopeCombineMode>;
   group: ResolvedEffectGroup;
   /**
    * False for a parameter that cannot do anything as things stand — a manual
@@ -56,6 +62,8 @@ export function EffectGroupEntry({
   laneId: string;
   onAdd: (effectId: string, ramp: [number, number, number]) => void;
   onRemoveAll: () => void;
+  /** Write the group's one stacking mode across every parameter that stacks. */
+  onSharedCombineChange: (effectIds: string[], mode: PhonoscopeCombineMode) => void;
   /** Write the group's one ramp across every continuous parameter in it. */
   onSharedRampChange: (effectIds: string[], ramp: [number, number, number]) => void;
   renderMember: (binding: PhonoscopeEffectBinding, parameters: ResolvedParameterGroup) => ReactNode;
@@ -91,9 +99,11 @@ export function EffectGroupEntry({
             key={parameters.id}
             bindings={shown}
             bound={bound}
+            combine={combine}
             parameters={parameters}
             relevant={relevant}
             onAdd={onAdd}
+            onSharedCombineChange={onSharedCombineChange}
             onSharedRampChange={onSharedRampChange}
             renderMember={renderMember}
           />
@@ -113,17 +123,21 @@ export function EffectGroupEntry({
 function ParameterGroupSection({
   bindings,
   bound,
+  combine,
   parameters,
   relevant,
   onAdd,
+  onSharedCombineChange,
   onSharedRampChange,
   renderMember,
 }: {
   bindings: PhonoscopeEffectBinding[];
   bound: Set<string>;
+  combine: Record<string, PhonoscopeCombineMode>;
   parameters: ResolvedParameterGroup;
   relevant: (effectId: string) => boolean;
   onAdd: (effectId: string, ramp: [number, number, number]) => void;
+  onSharedCombineChange: (effectIds: string[], mode: PhonoscopeCombineMode) => void;
   onSharedRampChange: (effectIds: string[], ramp: [number, number, number]) => void;
   renderMember: (binding: PhonoscopeEffectBinding, parameters: ResolvedParameterGroup) => ReactNode;
 }) {
@@ -154,6 +168,18 @@ function ParameterGroupSection({
     : DEFAULT_RAMP;
   const showRamp = shown.some((binding) => rampable.has(binding.effect));
 
+  // Stacking is one decision for the whole group, on the same footing as the
+  // ramp: the parameters of a group describe one thing, so how two lanes
+  // setting it resolve is a property of that thing rather than of each slider.
+  // An override-only axis never stacks, so it is simply not part of it.
+  const stacking = new Set(parameters.members
+    .filter((member) => !isPhonoscopeOverrideOnlyEffect(member.id))
+    .map((member) => member.id));
+  const showCombine = shown.some((binding) => stacking.has(binding.effect));
+  const mode = parameters.members
+    .map((member) => stacking.has(member.id) ? combine[member.id] : undefined)
+    .find((entry) => entry !== undefined) ?? "add";
+
   if (!shown.length && !missing.length) return null;
 
   return (
@@ -172,6 +198,17 @@ function ParameterGroupSection({
           value={ramp}
           onPreview={(next) => onSharedRampChange([...rampable], next)}
           onCommit={(next) => onSharedRampChange([...rampable], next)}
+        />
+      ) : null}
+
+      {showCombine ? (
+        <ConfigSelect
+          label="When stacked"
+          value={mode}
+          options={COMBINE_OPTIONS}
+          // Written to every parameter of the group, bound or not, so one that
+          // is added later already stacks the way the group does.
+          onChange={(next) => onSharedCombineChange([...stacking], next as PhonoscopeCombineMode)}
         />
       ) : null}
 

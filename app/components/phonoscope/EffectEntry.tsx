@@ -45,6 +45,31 @@ import {
 } from "./effectCatalogue";
 import { CopyActions, PasteIntoButton } from "./ClipboardControls";
 
+/**
+ * How several lanes setting the same value resolve against each other.
+ *
+ * Exported because a parameter group offers this once for all of its
+ * parameters, so `EffectGroupEntry` draws the same list.
+ */
+export const COMBINE_OPTIONS = [
+  { value: "add", label: "Sum", detail: "Every lane's contribution adds together." },
+  {
+    value: "strongest",
+    label: "Least frequent lane wins",
+    detail: "The rarest lane that is firing takes it outright.",
+  },
+  {
+    value: "common",
+    label: "Most frequent lane wins",
+    detail: "The busiest lane that is firing takes it outright.",
+  },
+  {
+    value: "override",
+    label: "Override",
+    detail: "The last settings group to set it replaces the value entirely.",
+  },
+];
+
 /** The optional parameters an effect entry can carry, in the order offered. */
 type ParameterKey = "range" | "envelope" | "combine" | "order";
 
@@ -309,9 +334,9 @@ export function EffectEntry({
    * `row` is one parameter inside a parameter group, where the group already
    * carries the subject and the accordion chrome. It renders the control and
    * the button that takes it back off — a fourth level of accordion would be
-   * unusable — and never a ramp: the group owns the one ramp for all of its
-   * parameters and writes the same envelope to every member, so a ramp here
-   * would be a second control for the same value.
+   * unusable — and never a ramp or a "When stacked": the group owns one of each
+   * for all of its parameters and writes the same value to every member, so
+   * either here would be a second control for the same decision.
    */
   variant?: "card" | "row";
 }) {
@@ -355,9 +380,9 @@ export function EffectEntry({
     // would only describe a shape it cannot take. A pinned axis is one value
     // held for a whole transition, which is the same story.
     if (key === "envelope" && (effect.choices || effect.toggle || effect.pinned)) return false;
-    // Inside a parameter group the group owns the ramp, so there is nothing
-    // here to add.
-    if (key === "envelope" && variant === "row") return false;
+    // Inside a parameter group the group owns the ramp and the stacking mode,
+    // so there is nothing here to add.
+    if ((key === "envelope" || key === "combine") && variant === "row") return false;
     return !hasParameter(binding, combine, key);
   });
 
@@ -451,30 +476,13 @@ export function EffectEntry({
           />
         ) : null}
 
-        {!overrideOnly && hasParameter(binding, combine, "combine") ? wrap(
+        {!overrideOnly && variant !== "row" && hasParameter(binding, combine, "combine") ? wrap(
           "When stacked",
           "combine",
             <ConfigSelect
               label="When stacked"
               value={combine ?? "add"}
-              options={[
-                { value: "add", label: "Sum", detail: "Every lane's contribution adds together." },
-                {
-                  value: "strongest",
-                  label: "Least frequent lane wins",
-                  detail: "The rarest lane that is firing takes it outright.",
-                },
-                {
-                  value: "common",
-                  label: "Most frequent lane wins",
-                  detail: "The busiest lane that is firing takes it outright.",
-                },
-                {
-                  value: "override",
-                  label: "Override",
-                  detail: "The last settings group to set it replaces the value entirely.",
-                },
-              ]}
+              options={COMBINE_OPTIONS}
               onChange={(mode) => onCombineChange(mode as PhonoscopeCombineMode)}
             />,
         ) : null}
