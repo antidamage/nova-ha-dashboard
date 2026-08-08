@@ -19,15 +19,27 @@ export type LoungeEnvironment = {
 
 export const STEP_EPSILON = 0.0001;
 export const LOUNGE_ZONE_ID = "lounge";
+/*
+ * Legacy fallback ids for the lounge's environment readout, tried only after the
+ * HA-native area binding and the zone's own sensors (see findZoneEnvironment).
+ *
+ * The third-party Tuya puck that used to head both lists is deliberately NOT
+ * here any more. It was physically moved to the bedroom on 2026-08-08 and
+ * renamed, and a fallback that can still resolve it would put a bedroom reading
+ * under a lounge label — a lookup by id cannot tell that the device changed
+ * rooms, so the id has to go.
+ *
+ * sensor.lounge_temperature is the lounge's current source: a template sensor
+ * exposing the Gree indoor unit's own thermistor, defined in Home Assistant's
+ * template.yaml. The lounge has no standalone room sensor.
+ */
 export const LOUNGE_TEMPERATURE_SENSOR_IDS = [
-  "sensor.tuya_mobile_lounge_sensor_temperature",
-  "sensor.wifi_temperature_humidity_sensor_temperature",
   "sensor.lounge_temperature",
+  "sensor.wifi_temperature_humidity_sensor_temperature",
 ];
 export const LOUNGE_HUMIDITY_SENSOR_IDS = [
-  "sensor.tuya_mobile_lounge_sensor_humidity",
-  "sensor.wifi_temperature_humidity_sensor_humidity",
   "sensor.lounge_humidity",
+  "sensor.wifi_temperature_humidity_sensor_humidity",
 ];
 export const TASKS_ZONE_ID = "tasks";
 export const POWER_ZONE_ID = "power";
