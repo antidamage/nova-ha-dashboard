@@ -26,8 +26,8 @@
     "weatherEntityId": "weather.forecast_home",
     "sunEntityId": "sun.sun",
     "loungeSensorEntityIds": [
-      "sensor.tuya_mobile_lounge_sensor_temperature",
-      "sensor.tuya_mobile_lounge_sensor_humidity",
+      "sensor.tuya_mobile_bedroom_sensor_temperature",
+      "sensor.tuya_mobile_bedroom_sensor_humidity",
       "sensor.wifi_temperature_humidity_sensor_temperature",
       "sensor.wifi_temperature_humidity_sensor_humidity",
       "sensor.lounge_temperature",
@@ -101,7 +101,7 @@
     "bedroomHeater": {
       "switchEntityIds": ["switch.bedroom_heater", "switch.tuya_mobile_bedroom_heater"],
       "temperatureEntityIds": [
-        "sensor.tuya_mobile_lounge_sensor_temperature",
+        "sensor.tuya_mobile_bedroom_sensor_temperature",
         "sensor.bedroom_heater_temperature",
         "sensor.tuya_mobile_bedroom_heater_temperature"
       ],
