@@ -225,6 +225,27 @@ export const DashboardConfigSchema = z.object({
     // owns the thermostat loop (lib/bedroom-heater-control.ts). Entity ids are
     // listed most-preferred first so a LAN twin can be put ahead of the cloud
     // one later without touching code. Empty lists == no card.
+    //
+    // temperatureEntityIds deliberately leads with the standalone room puck
+    // rather than the switch's own sensor, and that ordering is the whole
+    // calibration story — do not "tidy" it back.
+    //
+    // The switch's onboard sensor cannot measure the room. Measured against a
+    // co-located reference over 11 hours on 2026-08-08, while the room moved
+    // 4.8 C it moved 0.84 C — a gain of about 0.27 with a ~30 minute lag, so
+    // its error against the truth ranged from +0.7 to +4.8 C depending only on
+    // where the room happened to be. No offset or curve fixes that; a signal
+    // that cannot see the room heating cannot close a thermostat loop. (The
+    // device also exposes a second, livelier temperature register that the
+    // Tuya app displays, but it reads the switch body: it sat 7.8 C above an
+    // unheated room while carrying 2 kW. Neither register is the air.)
+    //
+    // Order matters for safety, not just preference. The onboard sensor is kept
+    // as a LAST resort because it reads HIGH, so falling back to it makes the
+    // thermostat under-heat rather than cook a room nobody is measuring.
+    // Dropping it entirely would be worse, not safer: with no temperature at
+    // all the planner takes no action, which leaves a running 2 kW element on
+    // until the schedule's auto-off edge.
     bedroomHeater: z
       .object({
         switchEntityIds: stringListSchema,

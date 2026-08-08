@@ -15,11 +15,21 @@ import type { BedroomHeaterMode, BedroomHeaterPreferences } from "./types";
  *      switch.turn_on / switch.turn_off. Heat-only: we can warm the room but
  *      never cool it, so being too hot means "off", not "cool".
  *
- *   2. Its temperature sensor is inside the appliance. It reads high while the
- *      element runs (observed rising 23.56 -> 23.92 C within 25 seconds of
- *      firing), so the sensor lags the room on the way down and leads it on the
- *      way up. The tail-off state below exists to stop that self-heating from
- *      ending a heating cycle early.
+ *   2. Its temperature comes from a standalone room puck, NOT from the switch.
+ *      The switch has an onboard sensor and Nova used it until 2026-08-08, when
+ *      a co-located reference showed it moving 0.84 C while the room moved
+ *      4.8 C — too damped to close a loop around, and unfixable by calibration.
+ *      Which entity feeds this is config, not code
+ *      (dashboard.bedroomHeater.temperatureEntityIds), and that file carries
+ *      the measurements.
+ *
+ *      The tail-off state below predates that change: it was written to stop
+ *      the switch's own self-heating from ending a cycle early. A puck across
+ *      the room does not lead the air that way, so the tail is now a small
+ *      deliberate overshoot rather than a correction. It is retained because
+ *      overshooting a bedroom by a fraction of a degree is harmless and
+ *      changing thermostat behaviour was not part of the sensor change; revisit
+ *      it if the room reads consistently warm.
  *
  *   3. It is a 2 kW resistive load on a relay. Short-cycling wears the relay
  *      and does nothing useful, so a minimum dwell time gates every transition.
