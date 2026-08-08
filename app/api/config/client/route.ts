@@ -10,6 +10,8 @@ export async function GET() {
       defaultZoneId: config.dashboard.defaultZoneId,
       aircon: config.dashboard.aircon,
       avatar: config.dashboard.avatar,
+      bedroomHeater: config.dashboard.bedroomHeater,
+      legacyPanelHeaterCardEnabled: config.dashboard.legacyPanelHeaterCardEnabled,
       lighting: config.dashboard.lighting,
       reminders: config.dashboard.reminders,
       specialZones: config.dashboard.specialZones,

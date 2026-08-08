@@ -19,6 +19,16 @@ export async function register() {
   const { startUpdateScheduler } = await import("@/lib/update-scheduler");
   startUpdateScheduler();
 
+  // Nova-side thermostat for the bedroom heater. This one lives on the server
+  // rather than in the dashboard client (as the aircon's does) because it has
+  // to hold temperature overnight with no browser awake.
+  try {
+    const { startBedroomHeaterAuto } = await import("@/lib/bedroom-heater-auto");
+    startBedroomHeaterAuto();
+  } catch (error) {
+    console.error("[bedroom-heater] failed to start auto loop", error);
+  }
+
   // Browser voice-satellite bridge (mTLS relay to Iridium). No-op until a
   // dashboard server certificate is configured, so it stays inert on HTTP.
   try {

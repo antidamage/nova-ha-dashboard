@@ -15,6 +15,10 @@ import {
   PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT,
   PHONOSCOPE_THEME_CHANGE_EFFECT,
   type PhonoscopePlaybackOrder,
 } from "./phonoscope-drivers";
@@ -79,7 +83,19 @@ export type PhonoscopeThemeState = {
    * cut — while the shape within it lives on `transition`.
    */
   transitionSeconds: number;
+  /** The centre slot's transition. */
   transition: PhonoscopeTransition;
+  /**
+   * The backdrop's, resolved from its own four axes at the same instant and by
+   * the same rule. A separate object rather than a mode on the one above
+   * because the two run concurrently and independently: the backdrop can
+   * dissolve while the centrepiece slides.
+   *
+   * `transitionSeconds` stays the CENTRE's length, because that is the number
+   * every existing consumer reads as the palette chase's time constant and the
+   * palette changes with the centre.
+   */
+  backgroundTransition: PhonoscopeTransition;
 };
 
 // `themeId` is deliberately not carried: the store holds the entry's own theme
@@ -157,6 +173,36 @@ function overrideAxis(
 }
 
 /**
+ * The four axes one slot's transition is authored on.
+ *
+ * The centre and the background each have their own set with identical ranges
+ * and meanings, so everything below resolves a set rather than naming the
+ * centre's: the two slots change at the same moment but are not the same
+ * picture, and dissolving the backdrop while the centrepiece slides has to be
+ * authorable.
+ */
+type TransitionAxes = {
+  mode: string;
+  axis: string;
+  divisions: string;
+  returnEdge: string;
+};
+
+const CENTRE_TRANSITION_AXES: TransitionAxes = {
+  mode: PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+  axis: PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
+  divisions: PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
+  returnEdge: PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+};
+
+const BACKGROUND_TRANSITION_AXES: TransitionAxes = {
+  mode: PHONOSCOPE_BG_TRANSITION_EFFECT,
+  axis: PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT,
+  divisions: PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT,
+  returnEdge: PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT,
+};
+
+/**
  * The ramp the transition itself carries, if it carries one.
  *
  * The transition's control set always shows a ramp, because every transition
@@ -172,11 +218,12 @@ function overrideAxis(
  */
 function overrideRamp(
   groups: PhonoscopeSettingsGroup[],
+  modeEffect: string,
 ): [number, number, number] | undefined {
   let resolved: [number, number, number] | undefined;
   for (const { lane } of mergePhonoscopeSettingsGroups(groups).lanes) {
     for (const binding of lane.bindings ?? []) {
-      if (binding.effect !== PHONOSCOPE_CENTRE_TRANSITION_EFFECT) continue;
+      if (binding.effect !== modeEffect) continue;
       if (binding.attackSeconds === undefined && binding.holdSeconds === undefined
         && binding.releaseSeconds === undefined) continue;
       resolved = [
@@ -200,26 +247,23 @@ function transitionFrom(
   config: PhonoscopePreferences,
   settingsGroupIds: string[],
   binding: PhonoscopeEffectBinding,
+  axes: TransitionAxes = CENTRE_TRANSITION_AXES,
 ): PhonoscopeTransition {
   const byId = new Map((config.settingsGroups ?? []).map((group) => [group.id, group]));
   const groups = settingsGroupIds
     .map((id) => byId.get(id))
     .filter((group): group is PhonoscopeSettingsGroup => Boolean(group));
-  const ramp = overrideRamp(groups);
+  const ramp = overrideRamp(groups, axes.mode);
   return {
     attackSeconds: ramp ? ramp[0] : Math.max(0, binding.attackSeconds ?? 0.05),
     holdSeconds: ramp ? ramp[1] : Math.max(0, binding.holdSeconds ?? 0),
     releaseSeconds: ramp ? ramp[2] : Math.max(0, binding.releaseSeconds ?? 0.6),
-    mode: clampInteger(overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_EFFECT, 0), 0, 2),
+    mode: clampInteger(overrideAxis(groups, axes.mode, 0), 0, 2),
     // Wrapped rather than clamped: 360 and 0 are the same direction, and an
     // authored 360 should not read as a different transition from an authored 0.
-    axisDegrees: ((Math.round(
-      overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT, 0),
-    ) % 360) + 360) % 360,
-    divisions: clampInteger(
-      overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT, 0), 0, 10),
-    returnFromOrigin:
-      overrideAxis(groups, PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT, 0) >= 0.5,
+    axisDegrees: ((Math.round(overrideAxis(groups, axes.axis, 0)) % 360) + 360) % 360,
+    divisions: clampInteger(overrideAxis(groups, axes.divisions, 0), 0, 10),
+    returnFromOrigin: overrideAxis(groups, axes.returnEdge, 0) >= 0.5,
   };
 }
 
@@ -244,6 +288,7 @@ const emptyStore = (): ThemeStore => ({
   changedAtMs: Date.now(),
   transitionSeconds: 0,
   transition: cutTransition(),
+  backgroundTransition: cutTransition(),
   baseThemeId: "",
   entryAltThemeId: "",
   altChangedAtMs: Date.now(),
@@ -313,12 +358,13 @@ function resolvedThemeId() {
 function publicState(): PhonoscopeThemeState {
   const {
     groupId, entryId, entryIndex, altActive, settingsGroupIds, paused, revision, changedAtMs,
-    transitionSeconds, transition,
+    transitionSeconds, transition, backgroundTransition,
   } = store;
   return {
     groupId, entryId, entryIndex, themeId: resolvedThemeId(), altActive,
     settingsGroupIds: [...settingsGroupIds], paused, revision, changedAtMs, transitionSeconds,
     transition: { ...transition },
+    backgroundTransition: { ...backgroundTransition },
   };
 }
 
@@ -404,6 +450,10 @@ function select(
   index: number,
   now: number,
   transition: PhonoscopeTransition,
+  // Defaulted to the centre's so a cut is stated once: every caller that hands
+  // a `cutTransition()` here means both slots cut, and none of them has to say
+  // it twice.
+  backgroundTransition: PhonoscopeTransition = transition,
 ) {
   if (!group.entries.length) return;
   store.entryIndex = (index + group.entries.length) % group.entries.length;
@@ -416,6 +466,10 @@ function select(
   store.settingsGroupIds = [...entry.settingsGroupIds];
   store.changedAtMs = now;
   store.transition = transition;
+  store.backgroundTransition = backgroundTransition;
+  // The centre's length, deliberately: this is the palette chase's time
+  // constant and the palette changes with the centre. A longer backdrop
+  // transition runs past it and is timed off `changedAtMs` by the engines.
   store.transitionSeconds = transitionLength(transition);
   store.revision += 1;
 }
@@ -461,6 +515,7 @@ function applySolo(
     // is on screen.
     transitionSeconds: 0,
     transition: cutTransition(),
+    backgroundTransition: cutTransition(),
   };
 }
 
@@ -503,6 +558,8 @@ function applyAltPulse(
   // there is no incoming entry to confuse this with — but the two pulses have to
   // agree on what a transition is or the same picture would change two ways.
   const transition = transitionFrom(config, store.settingsGroupIds, binding);
+  const backgroundTransition = transitionFrom(
+    config, store.settingsGroupIds, binding, BACKGROUND_TRANSITION_AXES);
   const transitionSeconds = transitionLength(transition);
   if (context.held) {
     // Keep the clock under the hold, or releasing a long pause fires the flip
@@ -528,6 +585,7 @@ function applyAltPulse(
   store.altActive = !store.altActive;
   store.altChangedAtMs = now;
   store.transition = transition;
+  store.backgroundTransition = backgroundTransition;
   store.transitionSeconds = transitionSeconds;
   // Bumped even when the showing entry has no alt: the household state really
   // did change, and the next entry that owns an alt must not be told to blend
@@ -600,6 +658,7 @@ export function readPhonoscopeThemeState(
   const rule = themeChangeRule(config, store.settingsGroupIds, group);
   let shouldAdvance = false;
   let transition = store.transition;
+  let backgroundTransition = store.backgroundTransition;
   let transitionSeconds = store.transitionSeconds;
   // Soloing stops the rotation outright rather than letting it run underneath
   // an override: the theme-change effect must not fire while something is held.
@@ -608,6 +667,8 @@ export function readPhonoscopeThemeState(
     // Resolved from the settings groups showing RIGHT NOW, before the advance
     // below replaces them: the entry the change starts from owns it.
     transition = transitionFrom(config, store.settingsGroupIds, binding);
+    backgroundTransition = transitionFrom(
+      config, store.settingsGroupIds, binding, BACKGROUND_TRANSITION_AXES);
     transitionSeconds = transitionLength(transition);
     if (driver.type === "timer") {
       const period = Math.max(0.25, driver.intervalSeconds) * Math.max(1, driver.every);
@@ -632,7 +693,7 @@ export function readPhonoscopeThemeState(
     const index = chooseIndex(store.entryIndex, group.entries.length, 1, order);
     // Null is "play once, and it has finished": hold on the last entry rather
     // than wrapping. The clock still runs, so switching back to loop resumes.
-    if (index !== null) select(group, index, now, transition);
+    if (index !== null) select(group, index, now, transition, backgroundTransition);
     else store.changedAtMs = now;
   } else if (shouldAdvance) {
     store.changedAtMs = now;
@@ -674,9 +735,12 @@ export function commandPhonoscopeTheme(
       // A manual skip is still a change of entry, so it plays the transition the
       // entry being left would have played. Without a rule anywhere on the
       // playlist there is nothing authored to read, so it cuts.
-      select(group, index, now, rule
-        ? transitionFrom(config, store.settingsGroupIds, rule.binding)
-        : cutTransition());
+      select(group, index, now,
+        rule ? transitionFrom(config, store.settingsGroupIds, rule.binding) : cutTransition(),
+        rule
+          ? transitionFrom(config, store.settingsGroupIds, rule.binding,
+            BACKGROUND_TRANSITION_AXES)
+          : cutTransition());
     }
     store.paused = true;
     store.previewActive = false;

@@ -56,10 +56,6 @@ export function HousePartySection({
             brightnessMode: brightnessMode as PhonoscopeHouseParty["brightnessMode"],
           })}
         />
-        <p className="text-xs text-neutral-500">
-          The per-light random hue jitter is now the <strong>Random light hue offset</strong> effect,
-          so it can be bound to a driver like anything else.
-        </p>
       </div>
     </ConfigAccordion>
   );

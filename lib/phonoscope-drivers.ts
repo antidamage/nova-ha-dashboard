@@ -30,8 +30,22 @@ export const PHONOSCOPE_GLOW_OVERDRIVE_EFFECT = "__glowOverdrive";
 export const PHONOSCOPE_GLOW_CLAMP_EFFECT = "__glowClamp";
 export const PHONOSCOPE_GLOW_BLEND_EFFECT = "__glowBlend";
 export const PHONOSCOPE_MESSAGE_SCALE_EFFECT = "__messageScale";
-/** The centre image's base height, as a percentage of the frame. */
+/**
+ * The centre slot's size, as percentages of the frame.
+ *
+ * Width is the AUTHORED axis and height follows from it under `__centreProportional`
+ * — the same rule the background image obeys, so one mental model covers both
+ * slots. `__centreHeight` predates the width axis (it was the authored one when
+ * the centre could only ever keep its source's proportions) and is kept as the
+ * free height for the un-proportional case; `phonoscope-migrate-v6.ts` converts
+ * the old value into the width that draws the same picture.
+ */
 export const PHONOSCOPE_CENTRE_HEIGHT_EFFECT = "__centreHeight";
+export const PHONOSCOPE_CENTRE_WIDTH_EFFECT = "__centreWidth";
+/** Manual / fit to screen / fill screen. APPEND-ONLY; see `ImageFit`. */
+export const PHONOSCOPE_CENTRE_FIT_EFFECT = "__centreFit";
+/** 0/1: height follows the width and the image's native proportions. */
+export const PHONOSCOPE_CENTRE_PROPORTIONAL_EFFECT = "__centreProportional";
 export const PHONOSCOPE_HUE_OFFSET_EFFECT = "__hueOffset";
 export const PHONOSCOPE_THEME_CHANGE_EFFECT = "__themeChange";
 /**
@@ -39,9 +53,27 @@ export const PHONOSCOPE_THEME_CHANGE_EFFECT = "__themeChange";
  * blends to the current entry's alt theme and the next firing blends back.
  */
 export const PHONOSCOPE_ALT_THEME_EFFECT = "__altTheme";
-/** Frame geometry and the vignette framing it. */
+/**
+ * Frame geometry and the vignette framing it.
+ *
+ * Agnostic about what the backdrop actually is: when the colour theme names a
+ * `backgroundImageId` these size that image, and when it does not they size the
+ * procedural band exactly as they always have. That is the whole point of
+ * sizing the backdrop rather than sizing a picture — the controls do not change
+ * when the content does.
+ */
 export const PHONOSCOPE_BG_HEIGHT_EFFECT = "__bgHeight";
 export const PHONOSCOPE_BG_WIDTH_EFFECT = "__bgWidth";
+/**
+ * A multiplier on top of the width and height, and the one axis here worth
+ * binding to a driver lane: it is what makes the backdrop thump on the beat.
+ * Applies in every fit mode, so a fitted or filled image can still be swept.
+ */
+export const PHONOSCOPE_BG_SCALE_EFFECT = "__bgScale";
+/** Manual / fit to screen / fill screen. APPEND-ONLY; see `ImageFit`. */
+export const PHONOSCOPE_BG_FIT_EFFECT = "__bgFit";
+/** 0/1: height follows the width and the image's native proportions. */
+export const PHONOSCOPE_BG_PROPORTIONAL_EFFECT = "__bgProportional";
 export const PHONOSCOPE_VIGNETTE_OPACITY_EFFECT = "__vignetteOpacity";
 export const PHONOSCOPE_VIGNETTE_SIZE_EFFECT = "__vignetteSize";
 /** How the scene layer meets the backdrop. */
@@ -55,6 +87,16 @@ export const PHONOSCOPE_CENTRE_TRANSITION_EFFECT = "__centreTransition";
 export const PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT = "__centreTransitionAxis";
 export const PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT = "__centreTransitionDivisions";
 export const PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT = "__centreTransitionReturn";
+/**
+ * The same four axes for the background image. Separate from the centre's on
+ * purpose: the two slots change at the same moment but are not the same
+ * picture, and dissolving the backdrop while the centrepiece slides is a
+ * combination worth being able to author.
+ */
+export const PHONOSCOPE_BG_TRANSITION_EFFECT = "__bgTransition";
+export const PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT = "__bgTransitionAxis";
+export const PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT = "__bgTransitionDivisions";
+export const PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT = "__bgTransitionReturn";
 
 /**
  * Effects that always combine by `override`, whatever a settings group stored.
@@ -70,10 +112,38 @@ export const PHONOSCOPE_OVERRIDE_ONLY_EFFECTS: ReadonlySet<string> = new Set([
   PHONOSCOPE_CENTRE_TRANSITION_AXIS_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_DIVISIONS_EFFECT,
   PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_AXIS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_DIVISIONS_EFFECT,
+  PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT,
 ]);
 
 export function isPhonoscopeOverrideOnlyEffect(effect: string) {
   return PHONOSCOPE_OVERRIDE_ONLY_EFFECTS.has(effect);
+}
+
+/**
+ * How an image is sized against the frame. APPEND-ONLY: stored bindings hold
+ * these numbers.
+ *
+ * `manual` is the width and height the sliders state. `fit` is the largest the
+ * image goes without any of it leaving the frame, `fill` the smallest that
+ * leaves none of the frame uncovered — both derived from the image's own
+ * proportions, which is why neither offers a width or a height to author. The
+ * scale multiplies whatever the mode arrived at, in every mode.
+ */
+export type PhonoscopeImageFit = "manual" | "fit" | "fill";
+
+export const PHONOSCOPE_IMAGE_FIT_VALUES: Record<PhonoscopeImageFit, number> = {
+  manual: 0,
+  fit: 1,
+  fill: 2,
+};
+
+export function phonoscopeImageFit(value: number | undefined): PhonoscopeImageFit {
+  if ((value ?? 0) >= 1.5) return "fill";
+  if ((value ?? 0) >= 0.5) return "fit";
+  return "manual";
 }
 
 /** The centre-image transition modes. APPEND-ONLY: stored bindings hold these numbers. */

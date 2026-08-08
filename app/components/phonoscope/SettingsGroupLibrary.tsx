@@ -10,20 +10,25 @@ import type {
 } from "../../../lib/types";
 import {
   phonoscopeDriver,
-  PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
+  PHONOSCOPE_BG_FIT_EFFECT,
+  PHONOSCOPE_BG_PROPORTIONAL_EFFECT,
+  PHONOSCOPE_CENTRE_PROPORTIONAL_EFFECT,
 } from "../../../lib/phonoscope-drivers";
+import { isPhonoscopeSizeControlRelevant } from "../../../lib/phonoscope-effect-groups";
 import { ConfigAccordion, SliderControlPanel } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { DriverStack } from "./DriverControls";
 import { CopyActions, PasteIntoButton } from "./ClipboardControls";
 import { SoloButton } from "./SoloControls";
 import { reidBinding, reidLane } from "./clipboard";
+import { useEditLock } from "./editing-lock";
 import { AddEffectControl, EffectEntry } from "./EffectEntry";
 import { EffectGroupEntry } from "./EffectGroupEntry";
 import {
   effectGroupIndex,
   effectOptionFor,
   isCompanionEffect,
+  transitionCompanionsFor,
   laneLabel,
   newEffectBinding,
   type EffectOption,
@@ -61,6 +66,7 @@ export function SettingsGroupCard({
   catalogue,
   effectGroups,
   group,
+  hasImage,
   onChange,
   onDuplicate,
   onRemove,
@@ -72,6 +78,16 @@ export function SettingsGroupCard({
   /** Related effects offered as one entry, with their members as parameters. */
   effectGroups: ResolvedEffectGroup[];
   group: PhonoscopeSettingsGroup;
+  /**
+   * Whether any colour theme names an image in each slot.
+   *
+   * A household fact rather than a per-group one: settings groups and colour
+   * themes are chosen independently by a rotation entry, so there is no "this
+   * group's theme" to ask. If ANY theme can put an image in a slot, that slot's
+   * size mode is worth offering here; if none can, it could never do anything
+   * and the card hides it.
+   */
+  hasImage: { centre: boolean; background: boolean };
   /** `commit` false while typing, so a rename does not write per keystroke. */
   onChange: (group: PhonoscopeSettingsGroup, commit?: boolean) => void;
   onDuplicate?: () => void;
@@ -82,6 +98,10 @@ export function SettingsGroupCard({
   /** The module's undriveable settings, edited directly on the group. */
   staticSettings: ModuleSetting[];
 }) {
+  // Holds the panel's state still while the name is being typed into, so a
+  // save's reply cannot rewrite the field mid-rename.
+  const editLock = useEditLock();
+
   const updateLane = (laneId: string, patch: Partial<PhonoscopeDriverLane>) =>
     onChange({
       ...group,
@@ -97,6 +117,35 @@ export function SettingsGroupCard({
   };
 
   const groupOf = effectGroupIndex(effectGroups);
+
+  /**
+   * A size control's live value in this lane, or its declared default.
+   *
+   * Read from the lane rather than from the resolved picture because this is
+   * the card's own state: the rows shown under a mode have to follow the mode
+   * as it is set right here, not as it resolves after every other lane and
+   * settings group has layered over it.
+   */
+  const sizeControlValue = (lane: PhonoscopeDriverLane, effectId: string) => {
+    let resolved = effectOptionFor(catalogue, effectId)?.default ?? 0;
+    for (const binding of lane.bindings) {
+      if (binding.effect !== effectId) continue;
+      const value = binding.min ?? binding.max;
+      if (typeof value === "number" && Number.isFinite(value)) resolved = value;
+    }
+    return resolved;
+  };
+
+  const memberRelevance = (lane: PhonoscopeDriverLane, groupId: string) => {
+    const centre = groupId === "centre";
+    return (effectId: string) => isPhonoscopeSizeControlRelevant(groupId, effectId, {
+      hasImage: centre ? hasImage.centre : hasImage.background,
+      // The centre has no size mode — it is always manual — so it reports one.
+      fit: centre ? 0 : sizeControlValue(lane, PHONOSCOPE_BG_FIT_EFFECT),
+      proportional: sizeControlValue(lane,
+        centre ? PHONOSCOPE_CENTRE_PROPORTIONAL_EFFECT : PHONOSCOPE_BG_PROPORTIONAL_EFFECT) >= 0.5,
+    });
+  };
 
   /** The bindings a lane puts on screen: companions are shown by their owner. */
   const visibleBindings = (lane: PhonoscopeDriverLane) =>
@@ -160,13 +209,36 @@ export function SettingsGroupCard({
     });
   };
 
-  const renderBinding = (lane: PhonoscopeDriverLane, binding: PhonoscopeEffectBinding) => {
+  /**
+   * One ramp across a parameter group: the same attack/hold/release written to
+   * every parameter of it that can take one, in a single update.
+   */
+  const setSharedRamp = (
+    lane: PhonoscopeDriverLane,
+    effectIds: string[],
+    [attackSeconds, holdSeconds, releaseSeconds]: [number, number, number],
+  ) => {
+    const ramped = new Set(effectIds);
+    updateLane(lane.id, {
+      bindings: lane.bindings.map((entry) => ramped.has(entry.effect)
+        ? { ...entry, attackSeconds, holdSeconds, releaseSeconds }
+        : entry),
+    });
+  };
+
+  const renderBinding = (
+    lane: PhonoscopeDriverLane,
+    binding: PhonoscopeEffectBinding,
+    inGroup = false,
+  ) => {
     // A companion has no entry of its own: the control set that owns it shows
     // it, and only under the mode that uses it.
     if (isCompanionEffect(binding.effect)) return null;
     const effect = optionFor(binding.effect);
     if (!effect) return null;
-    const ownsCompanions = binding.effect === PHONOSCOPE_CENTRE_TRANSITION_EFFECT;
+    // Only the companions of THIS transition: the centre's and the background's
+    // are separate control sets, and removing one must not strip the other's.
+    const owned = new Set(transitionCompanionsFor(binding.effect).map((entry) => entry.id));
     return (
       <EffectEntry
         key={binding.id}
@@ -175,6 +247,7 @@ export function SettingsGroupCard({
         companions={lane.bindings.filter((entry) => isCompanionEffect(entry.effect))}
         driver={lane.driver}
         effect={effect}
+        variant={inGroup ? "row" : "card"}
         onCompanionChange={(effectId, value) => setCompanion(lane, effectId, value)}
         onChange={(next) => updateLane(lane.id, {
           bindings: lane.bindings.map((entry) => entry.id === next.id ? next : entry),
@@ -199,7 +272,7 @@ export function SettingsGroupCard({
           bindings: lane.bindings.filter((entry) => entry.id !== binding.id
             // The companions have no control of their own, so leaving them
             // behind would leave values in the group that nothing can edit.
-            && !(ownsCompanions && isCompanionEffect(entry.effect))),
+            && !owned.has(entry.effect)),
         })}
         onPaste={(pasted) => updateLane(lane.id, {
           bindings: lane.bindings.map((entry) => entry.id === binding.id
@@ -251,7 +324,14 @@ export function SettingsGroupCard({
             className="cyber-text-input"
             value={group.name}
             onChange={(event) => onChange({ ...group, name: event.target.value }, false)}
-            onBlur={() => onChange(group, true)}
+            onFocus={editLock.onFocus}
+            onBlur={() => {
+              // Release before committing: the commit's reply is the one echo
+              // that SHOULD land on this field, because it carries the finished
+              // name.
+              editLock.onBlur();
+              onChange(group, true);
+            }}
           />
         </label>
 
@@ -279,8 +359,7 @@ export function SettingsGroupCard({
                 })}
               />
               <span className="text-xs text-neutral-500">
-                Static: this cannot be driven, and changing it rebuilds the scene. Two settings
-                groups that disagree on it will snap when the playlist moves between them.
+                Static: cannot be driven, and changing it rebuilds the scene.
               </span>
             </div>
           );
@@ -348,25 +427,35 @@ export function SettingsGroupCard({
                   key={`${lane.id}-${item.group.id}`}
                   bindings={item.bindings}
                   group={item.group}
+                  isMemberRelevant={memberRelevance(lane, item.group.id)}
                   laneId={lane.id}
-                  onAdd={(effectId) => {
+                  onAdd={(effectId, [attackSeconds, holdSeconds, releaseSeconds]) => {
                     const member = effectOptionFor(catalogue, effectId);
                     if (!member) return;
+                    const added = newEffectBinding(newId("bind"), member);
                     updateLane(lane.id, {
-                      bindings: [...lane.bindings, newEffectBinding(newId("bind"), member)],
+                      bindings: [...lane.bindings, added.attackSeconds === undefined
+                        // A discrete or pinned parameter takes no ramp at all.
+                        ? added
+                        : { ...added, attackSeconds, holdSeconds, releaseSeconds }],
                     });
                   }}
                   onRemoveAll={() => {
                     const members = new Set(item.group.members.map((member) => member.id));
-                    // Taking the transition away takes its companions with it:
-                    // they belong to its control set, not to the lane.
-                    const companions = members.has(PHONOSCOPE_CENTRE_TRANSITION_EFFECT);
+                    // Taking a transition away takes its companions with it:
+                    // they belong to its control set, not to the lane. Resolved
+                    // from the members actually in this group, so removing the
+                    // Centre group cannot strip the Background group's.
+                    const companions = new Set([...members]
+                      .flatMap((id) => transitionCompanionsFor(id))
+                      .map((companion) => companion.id));
                     updateLane(lane.id, {
                       bindings: lane.bindings.filter((entry) => !members.has(entry.effect)
-                        && !(companions && isCompanionEffect(entry.effect))),
+                        && !companions.has(entry.effect)),
                     });
                   }}
-                  renderMember={(binding) => renderBinding(lane, binding)}
+                  onSharedRampChange={(effectIds, ramp) => setSharedRamp(lane, effectIds, ramp)}
+                  renderMember={(binding) => renderBinding(lane, binding, true)}
                 />
               ) : renderBinding(lane, item.binding))}
               <AddEffectControl
@@ -426,9 +515,7 @@ export function SettingsGroupCard({
             Add driver lane
           </MomentaryFeedbackButton>
           <span className="text-xs text-neutral-500">
-            A lane is one driver and the effects it runs. Add a lane to drive a different set
-            of effects; to make this lane react to a second driver as well, use
-            &ldquo;Combine with another driver&rdquo; inside it.
+            One driver and the effects it runs.
           </span>
         </div>
         <PasteIntoButton

@@ -1866,10 +1866,47 @@ Visualiser controls (the config panel formerly called Physics):
 - "When stacked" offers **Sum**, **Least frequent lane wins**, **Most frequent
   lane wins** and **Override**. The first two keep their original wire values
   (`add`, `strongest`) because saved configurations already hold them.
+- The controls hierarchy is **four levels deep, not three**:
+
+  ```
+  Lane (Beat)
+  └─ Effect (Centre image)
+     ├─ Parameter group (Size)
+     │  ├─ Parameter (Width)
+     │  ├─ Parameter (Height + Auto)
+     │  ├─ Parameter (Scale)
+     │  └─ Ramp            ← ONE, for the whole parameter group
+     └─ Parameter group (Transition)
+  ```
+
+  An effect is one thing you add; inside it, related parameters live TOGETHER in
+  a **parameter group**, not as siblings that happen to share a heading. A
+  parameter group is a labelled block of controls, deliberately not a fourth
+  accordion. The nesting is presentation only: each parameter is still its own
+  effect id with its own binding, so both engines, the wire format and the
+  conformance corpus are untouched and a settings group saved before groups
+  existed renders under the new headings unmigrated.
+- **A parameter group owns exactly ONE ramp. Every group, no exceptions.** The
+  parameters of a group move together, so a ramp per parameter would be a
+  control the user has to keep in sync by hand. The group's ramp is written to
+  every member that can take one; a discrete axis, a toggle and a pinned value
+  cut rather than ramp, so they are simply not part of it, and a parameter added
+  to the group lands carrying the group's current ramp. It is not a property a
+  group declares or opts into — a group that shows a ramp per parameter is a
+  bug. The Glow group is the plainest case: opacity, blur, overdrive, blend mode
+  and clamp are one parameter group under one ramp. The one place the ramp is
+  not drawn by the group is the Transition group, whose control set draws the
+  transition's own motion profile — which is that group's single ramp, not a
+  second one.
 - The **ramp** control has two readings, and the label says which is in play.
   On a pulse it is an envelope: attack rises, hold holds, release falls. On a
   one-shot transition it is a motion profile: attack is the ease-in, hold is the
   flat middle, release is the ease-out, and the transition lasts their sum.
+- Not every slider is a range slider. A width and a height are ONE integer
+  percentage of the screen on a single-thumb slider; the scale on top of them is
+  the swept range worth binding to a lane. The centre image has no size-mode
+  dropdown (it is always manual); the background image does, and its width and
+  height only appear under Manual.
 - The **Centre** effect group carries the transition alongside the height and
   scale, as **one control set rather than four effects**. Picking the mode
   (Cross-fade / Flip / Slide) decides what the rest of the set is: a flip adds

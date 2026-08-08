@@ -147,8 +147,7 @@ export function DriverRow({
       ) : null}
       {driver.type === "random" ? (
         <p className="text-xs text-neutral-500">
-          Fires once somewhere inside each window, then picks a new moment for the next one. The
-          shape of the hit is each effect&rsquo;s own envelope, the same as any other pulse.
+          Fires once at a random moment inside each window.
         </p>
       ) : null}
     </div>

@@ -241,6 +241,33 @@ export type PanelHeaterPreferences = {
   updatedAt?: string;
 };
 
+/**
+ * The bedroom heater is a plain on/off switch with onboard climate sensors and
+ * no setpoint of its own, so the thermostat lives in Nova (see
+ * lib/bedroom-heater-control.ts).
+ *
+ * The auto window is stored as minutes from midday rather than a wall-clock
+ * time so the slider's domain (0..1440) is the stored value, and the
+ * midday-to-midday wrap needs no date arithmetic anywhere. 0 = midday today,
+ * 720 = midnight, 1440 = midday tomorrow.
+ */
+export type BedroomHeaterMode = "auto" | "off";
+
+export type BedroomHeaterPreferences = {
+  /** "manual" is retired and read as "auto"; see bedroomHeaterMode(). */
+  mode?: BedroomHeaterMode | "manual";
+  temperature?: number;
+  autoOnMinutes?: number;
+  autoOffMinutes?: number;
+  /**
+   * Sleep timer. When this passes the server loop switches the heater off and
+   * drops the mode to "off". It lives server-side, like the thermostat loop, so
+   * it still fires with every dashboard client asleep.
+   */
+  offTimerEndsAt?: string | null;
+  updatedAt?: string;
+};
+
 export type LightingPreferences = {
   adaptiveCandlelightZones?: Record<
     string,
@@ -451,6 +478,7 @@ export type DashboardPreferences = {
   followVisualizerWhenActive?: boolean;
   lighting?: LightingPreferences;
   panelHeater?: PanelHeaterPreferences;
+  bedroomHeater?: BedroomHeaterPreferences;
   theme?: Record<string, unknown>;
   themeUpdatedAt?: string;
   themeLibrary?: Record<string, unknown>;
@@ -476,6 +504,17 @@ export type PhonoscopePreferences = {
   activeModuleId?: string;
   activeModuleVersion?: string;
   idleBehavior?: "ambient" | "black" | "return";
+  /**
+   * Seconds of silence before the picture fades to black and a randomly chosen
+   * centre image bounces around the frame. 0 (or absent) disables it.
+   *
+   * Global rather than per-module: it is what the screen does when there is no
+   * music at all, so it cannot belong to whichever visualiser was going to draw
+   * that music. It sits beside `idleBehavior` because it is the same subject —
+   * what happens when nothing is playing — and it reuses that setting's fade to
+   * black rather than introducing a second one.
+   */
+  screensaverSeconds?: number;
   message?: string;
   statusOverlay?: boolean;
   transitionMs?: number;
@@ -669,6 +708,16 @@ export type PhonoscopeColorTheme = {
    * same transition their palettes chase across.
    */
   imageId: string | null;
+  /**
+   * A library id this theme puts BEHIND the whole picture, or null for none.
+   *
+   * When set it replaces the procedural backdrop field entirely; when null the
+   * field runs as it always has. Either way the same `__bg*` effects size it,
+   * so the controls do not change when the content does. It is drawn inside the
+   * backdrop pass, which puts it under the vignette — the frame closes over the
+   * image exactly as it closes over the field.
+   */
+  backgroundImageId: string | null;
 };
 
 /**

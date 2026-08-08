@@ -81,6 +81,20 @@ describe("dashboard preferences", () => {
     expect(onDisk.panelHeater.offTimerEndsAt).toBe("2026-06-16T10:00:00Z");
   });
 
+  it("merges the bedroom heater window without dropping mode or temperature", async () => {
+    // Regression: the top-level spread used to replace the whole bedroomHeater
+    // object, so saving only the auto window erased mode and temperature and
+    // stranded the server thermostat mid-heat.
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await mergeDashboardPreferences({ bedroomHeater: { mode: "auto", temperature: 21 } });
+    await mergeDashboardPreferences({ bedroomHeater: { autoOnMinutes: 300, autoOffMinutes: 600 } });
+    const stored = await readDashboardPreferences();
+    expect(stored.bedroomHeater?.mode).toBe("auto");
+    expect(stored.bedroomHeater?.temperature).toBe(21);
+    expect(stored.bedroomHeater?.autoOnMinutes).toBe(300);
+    expect(stored.bedroomHeater?.autoOffMinutes).toBe(600);
+  });
+
   it("merges voice controls without dropping the other voice fields", async () => {
     const { mergeDashboardPreferences, readDashboardPreferences } = await load();
     await Promise.all([

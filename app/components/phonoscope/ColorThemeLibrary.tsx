@@ -15,6 +15,7 @@ import { CentreImageLibrary } from "./CentreImageLibrary";
 import { CopyActions, PasteIntoButton } from "./ClipboardControls";
 import { SoloButton } from "./SoloControls";
 import { reidColorTheme } from "./clipboard";
+import { useEditLock } from "./editing-lock";
 
 export type PaletteSlot = { id: string; label: string; defaultRgb: [number, number, number] };
 
@@ -62,6 +63,9 @@ export function ColorThemeLibrary({
   onSolo: (themeId: string) => void;
 }) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
+  // One lock for the whole library: only one name can have focus at a time, and
+  // moving between two of them blurs the first before focusing the second.
+  const editLock = useEditLock();
 
   const updateTheme = (id: string, patch: Partial<PhonoscopeColorTheme>, commit = false) =>
     onChange(themes.map((theme) => theme.id === id ? { ...theme, ...patch } : theme), commit);
@@ -116,7 +120,11 @@ export function ColorThemeLibrary({
                   className="cyber-text-input"
                   value={theme.name}
                   onChange={(event) => updateTheme(theme.id, { name: event.target.value })}
-                  onBlur={() => onChange(themes, true)}
+                  onFocus={editLock.onFocus}
+                  onBlur={() => {
+                    editLock.onBlur();
+                    onChange(themes, true);
+                  }}
                 />
               </label>
               {/*
@@ -207,21 +215,28 @@ export function ColorThemeLibrary({
                 <span className="font-black uppercase text-neutral-200">Centre image</span>
                 <CentreImageLibrary
                   emptyLabel="None"
+                  slot="centre"
                   selectedId={theme.imageId ?? null}
                   onSelect={(imageId) => updateTheme(theme.id, { imageId }, true)}
                 />
-                <span className="text-xs text-neutral-500">
-                  Shown in the middle of the picture while this theme is live, and cross-faded to
-                  the next theme&rsquo;s over the same transition the palette chases across. A
-                  message set on the centre slot replaces it.
-                </span>
+              </label>
+
+              <label className="grid gap-2 text-sm">
+                <span className="font-black uppercase text-neutral-200">Background image</span>
+                <CentreImageLibrary
+                  emptyLabel="None"
+                  slot="background"
+                  selectedId={theme.backgroundImageId ?? null}
+                  onSelect={(backgroundImageId) =>
+                    updateTheme(theme.id, { backgroundImageId }, true)}
+                />
               </label>
 
               <PasteIntoButton
                 kind="colorTheme"
                 what="colour theme"
-                // The theme keeps its name, id and centre image; only its
-                // palette is replaced — the image is a picture element rather
+                // The theme keeps its name, id and both images; only its
+                // palette is replaced — an image is a picture element rather
                 // than part of the colours being copied.
                 onPaste={(pasted) => updateTheme(theme.id, { colors: pasted.colors }, true)}
               />
@@ -237,6 +252,7 @@ export function ColorThemeLibrary({
             moduleId,
             colors: Object.fromEntries(paletteSlots.map((slot) => [slot.id, defaultColor(slot)])),
             imageId: null,
+            backgroundImageId: null,
           }], true)}
         >
           <Plus className="h-5 w-5" />

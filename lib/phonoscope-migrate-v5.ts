@@ -29,7 +29,15 @@
  * random lane whose bindings the user deliberately un-ticked looks exactly like
  * a v4 one that has not been converted yet.
  */
-export const PHONOSCOPE_SCHEMA_VERSION = 5;
+/**
+ * The version THIS conversion applies below, on the same terms as
+ * `PHONOSCOPE_PERCENT_GEOMETRY_VERSION` in v4 and for the reason stated there:
+ * gating on "the current schema version" would re-run this over data that has
+ * already had it the moment an unrelated change bumped the schema. It used to
+ * be the current version as well, which was that bug waiting to happen; the
+ * current version now lives in `phonoscope-migrate-v6.ts`.
+ */
+export const PHONOSCOPE_RANDOM_SPLIT_VERSION = 5;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));

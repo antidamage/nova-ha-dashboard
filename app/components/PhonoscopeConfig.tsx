@@ -15,6 +15,9 @@ import { CheckboxRow, ConfigAccordion } from "./ConfigControls";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { ColorThemeLibrary, type PaletteSlot } from "./phonoscope/ColorThemeLibrary";
 import { PhonoscopeClipboardProvider } from "./phonoscope/clipboard";
+import {
+  PhonoscopeEditingLockProvider, useEditLock, usePhonoscopeEditingLock,
+} from "./phonoscope/editing-lock";
 import { SoloIndicator } from "./phonoscope/SoloControls";
 import { ControlSettingsPanel, type ControlSettings } from "./phonoscope/ControlSettingsPanel";
 import type { ModuleSetting } from "./phonoscope/effectCatalogue";
@@ -39,6 +42,7 @@ type Config = {
   activeModuleId: string;
   activeModuleVersion: string;
   idleBehavior: "ambient" | "black" | "return";
+  screensaverSeconds: number;
   message: string;
   statusOverlay: boolean;
   transitionMs: number;
@@ -80,6 +84,11 @@ export function PhonoscopeConfig() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const saveChain = useRef<Promise<void>>(Promise.resolve());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Held while a name field has focus. Nothing that arrives from the server may
+  // replace `config` while it is: the reply describes the name as it was when
+  // the request left, and applying it takes the letters typed since back out of
+  // the input. See phonoscope/editing-lock.tsx.
+  const { value: editingLock, isEditing } = usePhonoscopeEditingLock();
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -87,14 +96,16 @@ export function PhonoscopeConfig() {
       const response = await fetch("/api/phonoscope/config", { cache: "no-store" });
       const payload = await response.json() as Payload;
       if (!response.ok) throw new Error(payload.error ?? "Failed to load Phonoscope");
-      setConfig(payload.config);
+      // The module list is not edited here, so it is always safe to take.
       setModules(payload.modules);
+      if (isEditing()) return;
+      setConfig(payload.config);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to load Phonoscope");
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [isEditing]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -112,7 +123,12 @@ export function PhonoscopeConfig() {
       });
       const payload = await response.json() as { config?: Config; error?: string };
       if (!response.ok || !payload.config) throw new Error(payload.error ?? "Failed to save Phonoscope");
-      setConfig(payload.config);
+      // The echo is the server's normalised copy of what was sent, so it is
+      // authoritative — except over a field someone is still typing into, where
+      // it is a stale snapshot of that field and applying it would undo the
+      // keystrokes that happened during the round trip. The blur that ends the
+      // edit commits, and that reply lands with the lock free.
+      if (!isEditing()) setConfig(payload.config);
       // No "saved" banner: settings commit on every slider release, and the
       // status line sits above the controls, so showing then clearing it shifts
       // the page out from under the gesture. Only failures are announced.
@@ -122,7 +138,7 @@ export function PhonoscopeConfig() {
     } finally {
       if (!quiet) setBusy(false);
     }
-  }, [load]);
+  }, [load, isEditing]);
 
   /**
    * Dot controls emit many preview samples while dragging. Coalesce them to a
@@ -213,6 +229,12 @@ export function PhonoscopeConfig() {
         group can be pasted into another.
       */}
       <PhonoscopeClipboardProvider>
+      {/*
+        One editing lock for the whole panel: any name field below can hold the
+        panel's state still while it is being typed into, wherever in the
+        hierarchy it sits.
+      */}
+      <PhonoscopeEditingLockProvider value={editingLock}>
       {config ? (
         <SoloIndicator
           colorThemeName={config.colorThemes
@@ -257,6 +279,34 @@ export function PhonoscopeConfig() {
               })}
             />
 
+            {/*
+              A picked list rather than a slider: the useful values are a handful
+              of round durations spread over three orders of magnitude, and a
+              linear 0-3600 slider would put all of them in its first inch.
+            */}
+            <ConfigSelect
+              label="Screensaver after"
+              value={String(config.screensaverSeconds)}
+              options={[
+                { value: "0", label: "Off", detail: "The idle behaviour above is the whole story." },
+                ...[60, 300, 600, 1_800, 3_600].map((seconds) => ({
+                  value: String(seconds),
+                  label: seconds < 3_600
+                    ? `${seconds / 60} minute${seconds === 60 ? "" : "s"}`
+                    : "1 hour",
+                })),
+              ]}
+              onChange={(seconds) => void save({
+                ...config,
+                screensaverSeconds: Number(seconds),
+              })}
+            />
+            <p className="-mt-1 text-xs text-neutral-500">
+              With no music for this long the picture fades to black and one of your images bounces
+              around the screen. It is picked at random when the screensaver starts and stays put
+              until music comes back.
+            </p>
+
             <label className="grid gap-2 text-sm">
               <span className="font-black uppercase text-neutral-200">Message</span>
               <input
@@ -266,7 +316,13 @@ export function PhonoscopeConfig() {
                 placeholder="Optional message shown in the visualiser — emojis welcome ✨"
                 value={config.message}
                 onChange={(event) => setConfig({ ...config, message: event.target.value })}
-                onBlur={(event) => void save({ ...config, message: event.currentTarget.value })}
+                // This one holds the lock directly: the provider is below this
+                // component, so `useEditLock` has nothing to read up here.
+                onFocus={editingLock.acquire}
+                onBlur={(event) => {
+                  editingLock.release();
+                  void save({ ...config, message: event.currentTarget.value });
+                }}
               />
               <span className="text-xs text-neutral-500">
                 Overrides whatever centre image the live colour theme supplies. Leave it blank and
@@ -379,6 +435,7 @@ export function PhonoscopeConfig() {
 
         {diagnostics ? <pre className="max-h-72 overflow-auto border border-neutral-800 bg-black p-3 text-xs text-cyan-100">{diagnostics}</pre> : null}
       </div>
+      </PhonoscopeEditingLockProvider>
       </PhonoscopeClipboardProvider>
     </ConfigAccordion>
   );

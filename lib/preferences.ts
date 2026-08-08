@@ -49,6 +49,18 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    // Must deep-merge like aircon/panelHeater above. Without this branch the
+    // top-level spread REPLACES the whole object, so a request that sets only
+    // the auto window silently erases mode and temperature — which strands the
+    // server thermostat (it sees no "auto" and stands down mid-heat).
+    if (next.bedroomHeater) {
+      merged.bedroomHeater = {
+        ...(current.bedroomHeater ?? {}),
+        ...withoutUndefined(next.bedroomHeater as Record<string, unknown>),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     if (next.lighting) {
       const nextLighting = withoutUndefined(next.lighting as Record<string, unknown>);
       merged.lighting = {

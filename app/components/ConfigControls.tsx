@@ -34,7 +34,8 @@ export function CheckboxRow({
   onChange,
 }: {
   checked: boolean;
-  detail: string;
+  /** Optional: most rows are a label and nothing else. */
+  detail?: string;
   disabled?: boolean;
   label: string;
   onChange: (checked: boolean) => void;
@@ -57,7 +58,7 @@ export function CheckboxRow({
       </span>
       <span className="grid min-w-0 gap-1">
         <span className="theme-display-label zone-title-bar">{label}</span>
-        <span className="theme-display-detail">{detail}</span>
+        {detail ? <span className="theme-display-detail">{detail}</span> : null}
       </span>
     </MomentaryFeedbackButton>
   );

@@ -57,7 +57,8 @@ function rotationGroup(
 }
 
 const themes = ["red", "blue", "green"].map((id) => ({
-  id, name: id, moduleId: "particle-ripples", colors: {}, imageId: null,
+  id, name: id, moduleId: "particle-ripples", colors: {},
+  imageId: null, backgroundImageId: null,
 }));
 
 function configWith(

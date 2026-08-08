@@ -19,15 +19,23 @@ async function body(response: Response) {
   }
 }
 
-export async function loadCentreImages(): Promise<CentreImage[]> {
-  const response = await fetch(IMAGES_API_PATH, { cache: "no-store" });
-  if (!response.ok) throw new Error((await body(response)).error ?? "Failed to load centre images");
+/**
+ * Which library to talk to. The centre and the background keep separate ones:
+ * they are different kinds of picture, and one shared list put every centre
+ * logo in the background picker.
+ */
+export type CentreImageSlot = "centre" | "background";
+
+export async function loadCentreImages(slot: CentreImageSlot): Promise<CentreImage[]> {
+  const response = await fetch(`${IMAGES_API_PATH}?slot=${slot}`, { cache: "no-store" });
+  if (!response.ok) throw new Error((await body(response)).error ?? "Failed to load images");
   return (await response.json()).images ?? [];
 }
 
-export async function uploadCentreImage(file: File): Promise<CentreImage> {
+export async function uploadCentreImage(file: File, slot: CentreImageSlot): Promise<CentreImage> {
   const form = new FormData();
   form.set("file", file);
+  form.set("slot", slot);
   const response = await fetch(IMAGES_API_PATH, { method: "POST", body: form });
   if (!response.ok) throw new Error((await body(response)).error ?? "Failed to upload the image");
   return await response.json();
@@ -39,8 +47,11 @@ export async function uploadCentreImage(file: File): Promise<CentreImage> {
  * flattened into a generic failure — "still used by the colour theme Dusk" is
  * the whole answer.
  */
-export async function deleteCentreImage(id: string): Promise<CentreImage[]> {
-  const response = await fetch(`${IMAGES_API_PATH}?id=${encodeURIComponent(id)}`, {
+export async function deleteCentreImage(
+  id: string,
+  slot: CentreImageSlot,
+): Promise<CentreImage[]> {
+  const response = await fetch(`${IMAGES_API_PATH}?id=${encodeURIComponent(id)}&slot=${slot}`, {
     method: "DELETE",
   });
   const payload = await body(response);

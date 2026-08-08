@@ -76,6 +76,11 @@ the named component before introducing a one-off equivalent.
   driver rather than building a second driver editor. Shared labelling
   (`driverLabel`, `laneLabel`, `effectCatalogue`) lives in
   `app/components/phonoscope/effectCatalogue.ts`.
+- `useEditLock` — `app/components/phonoscope/editing-lock.tsx`. This is the
+  Visualiser panel's poll/echo lock for text fields: a focused name field holds
+  it, and while it is held the panel refuses to replace its state from the
+  server. Spread `onFocus`/`onBlur` onto any new text input in that panel —
+  without it, a save's reply rewrites the field mid-rename.
 - `ThemeLibraryControl` and `VoicePersonalityLibraryControl` —
   `app/components/ThemeLibraryControl.tsx` and
   `app/components/VoicePersonalityLibraryControl.tsx`. These are the established
