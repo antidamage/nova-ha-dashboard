@@ -6,6 +6,7 @@ import {
   readVoiceAgentSetting,
   useVoiceAgentSetting,
 } from "./voiceAgentSetting";
+import { useSystemVoiceEnabled } from "./systemVoiceSetting";
 
 // Shared client-side voice-mode state for the status orb and the browser
 // satellite runtime. This is a single module-level store (not per-component
@@ -20,6 +21,9 @@ import {
 // Behaviour mirrors the native satellite rules:
 //   - voice-disabled devices: web voice input is off; tapping does nothing and
 //     no idle turns run. Agent-speech animations/events still play.
+//   - system voice killswitch off: the same as voice-disabled, on every device.
+//     The household master switch wins over the per-device one, so no browser
+//     opens its microphone while voice is switched off system-wide.
 //   - alwaysOn devices (master switch on): voice mode is on from load and never
 //     idle-disables.
 //   - enabled, non-alwaysOn devices: tapping the orb opens a turn; after
@@ -92,6 +96,16 @@ export function endTurn() {
   setStore({ active: stayActive, conversationActive: false });
 }
 
+/**
+ * Force voice mode fully off, ignoring always-on. Used when the device stops
+ * being eligible at all (per-device switch or household killswitch off), where
+ * endTurn's "always-on devices stay listening" rule must not apply.
+ */
+export function deactivateVoice() {
+  clearIdle();
+  setStore({ active: false, conversationActive: false });
+}
+
 /** Ensure always-on devices load with voice mode on (called by the setting hook). */
 export function ensureAlwaysOn(active: boolean) {
   if (active && !store.active) {
@@ -135,7 +149,11 @@ export function useVoiceMode(): VoiceModeState {
   const [setting] = useVoiceAgentSetting();
   const state = useSyncExternalStore(subscribe, getSnapshot, () => SERVER_SNAPSHOT);
 
-  const eligible = isSecureVoiceContext() && setting.voiceEnabled;
+  // The household killswitch is polled only while this device's own web voice
+  // input is on, and gates the mic on top of it.
+  const systemVoiceOn = useSystemVoiceEnabled(setting.voiceEnabled);
+
+  const eligible = isSecureVoiceContext() && setting.voiceEnabled && systemVoiceOn;
   // Voice-disabled devices never open the mic, so tapping does nothing.
   // Always-on devices are already listening, so there is no manual toggle
   // either.

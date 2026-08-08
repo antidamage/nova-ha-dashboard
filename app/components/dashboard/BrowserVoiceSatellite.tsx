@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { effectiveAlwaysOn, useVoiceAgentSetting } from "./voiceAgentSetting";
 import {
+  deactivateVoice,
   ensureAlwaysOn,
   isSecureVoiceContext,
   markInput,
@@ -20,6 +21,10 @@ import { useVoiceSpeechPhase } from "./voiceSpeech";
 // Voice-disabled devices never mount a real satellite here — the browser mic is
 // never opened. A separate native satellite process on the same machine is
 // unaffected and keeps capturing on its own.
+//
+// The household voice killswitch (VoicePreferences.systemVoiceEnabled) gates
+// this too, via voice.eligible: with the master switch off no browser opens its
+// microphone, and an already-open one is torn down.
 
 const SAT_ID_KEY = "nova.dashboard.voiceSatelliteId.v1";
 const DEFAULT_ROOM =
@@ -64,9 +69,15 @@ export default function BrowserVoiceSatellite() {
 
   const alwaysOn = effectiveAlwaysOn(setting);
 
-  // Always-on devices load with voice mode on.
+  // Always-on devices load with voice mode on. Losing eligibility — the device
+  // switch or the household killswitch going off — closes any open turn so the
+  // orb does not keep glowing at a mic that is no longer open.
   useEffect(() => {
-    if (alwaysOn && voice.eligible) {
+    if (!voice.eligible) {
+      deactivateVoice();
+      return;
+    }
+    if (alwaysOn) {
       ensureAlwaysOn(true);
     }
   }, [alwaysOn, voice.eligible]);
