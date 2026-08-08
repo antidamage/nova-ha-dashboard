@@ -317,9 +317,14 @@ export function bedroomHeaterDevices(
 }
 
 /**
- * Bedroom temperature for the environment panels. This reads the bedroom
- * heater's own sensor: the original panel heater it replaced died in August
- * 2026 and its climate entity is permanently unavailable.
+ * Bedroom temperature for the environment panels, resolved from the same
+ * configured priority list the thermostat loop uses so the number on screen is
+ * the number the heater is deciding on.
+ *
+ * That list leads with a standalone room puck. It used to read the bedroom
+ * heater's own onboard sensor, which turned out to be far too damped to be a
+ * room reading at all — see dashboard.bedroomHeater.temperatureEntityIds in
+ * lib/config-schema.ts.
  */
 export function findBedroomTemperature(
   data: DashboardState | null,
