@@ -37,8 +37,9 @@ export const PHONOSCOPE_MESSAGE_SCALE_EFFECT = "__messageScale";
  * — the same rule the background image obeys, so one mental model covers both
  * slots. `__centreHeight` predates the width axis (it was the authored one when
  * the centre could only ever keep its source's proportions) and is kept as the
- * free height for the un-proportional case; `phonoscope-migrate-v6.ts` converts
- * the old value into the width that draws the same picture.
+ * free height for the un-proportional case; `phonoscope-migrate-v6.ts` repoints
+ * the old value at the width axis, unchanged. Neither axis is ever derived from
+ * an image's dimensions: a slider says what was put on it.
  */
 export const PHONOSCOPE_CENTRE_HEIGHT_EFFECT = "__centreHeight";
 export const PHONOSCOPE_CENTRE_WIDTH_EFFECT = "__centreWidth";

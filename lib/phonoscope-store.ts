@@ -33,11 +33,9 @@ import {
   migratePhonoscopeCentreScalars,
   migratePhonoscopeCentreSettingsGroups,
   migratePhonoscopeProportionalDefault,
-  phonoscopeMigrationImageAspect,
   PHONOSCOPE_SCHEMA_VERSION,
   PHONOSCOPE_WIDTH_AUTHORED_VERSION,
 } from "./phonoscope-migrate-v6";
-import { readPhonoscopeImages } from "./phonoscope-images";
 import { phonoscopeEffectDeclarations } from "./phonoscope-effects";
 import { isPhonoscopeThemePulseEffect, PHONOSCOPE_DIVIDE_CHOICES } from "./phonoscope-drivers";
 import type {
@@ -686,16 +684,10 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
   const percentGeometrySettingsGroups = needsPercentGeometry
     ? migratePhonoscopeSettingsGroupsToPercent(normalizedSettingsGroups)
     : normalizedSettingsGroups;
-  // Themes are resolved before the v6 conversion because that conversion needs
-  // one of their images: the old height-authored size only converts into a
-  // width once the source's proportions are known.
   const colorThemes = normalizePhonoscopeColorThemes(
     migrated ? migrated.colorThemes : raw.colorThemes);
-  const centreImageAspect = needsWidthAuthored
-    ? phonoscopeMigrationImageAspect(colorThemes, await readPhonoscopeImages())
-    : 1;
   const settingsGroups = needsWidthAuthored
-    ? migratePhonoscopeCentreSettingsGroups(percentGeometrySettingsGroups, centreImageAspect)
+    ? migratePhonoscopeCentreSettingsGroups(percentGeometrySettingsGroups)
     : percentGeometrySettingsGroups;
   const colorGroups = normalizePhonoscopeColorGroups(
     migrated ? migrated.colorGroups : raw.colorGroups, colorThemes, settingsGroups);
@@ -762,11 +754,10 @@ export async function readPhonoscopeConfig(): Promise<PhonoscopeConfig> {
       ) as Record<string, number>;
       const scaled = needsPercentGeometry ? migratePhonoscopeScalarsToPercent(values) : values;
       if (!needsWidthAuthored) return scaled;
-      // Both halves of v6: the old centre height becomes the width that draws
-      // the same picture, and Proportional is stamped on explicitly so absent
-      // can never later read as "the user turned this off".
-      return migratePhonoscopeProportionalDefault(
-        migratePhonoscopeCentreScalars(scaled, centreImageAspect));
+      // Both halves of v6: the old centre height is repointed at the width axis
+      // with its number intact, and Proportional is stamped on explicitly so
+      // absent can never later read as "the user turned this off".
+      return migratePhonoscopeProportionalDefault(migratePhonoscopeCentreScalars(scaled));
     })(),
     houseParty: normalizeHouseParty(migrated ? migrated.houseParty : raw.houseParty),
     // A solo pointing at something deleted is simply not soloed, rather than a

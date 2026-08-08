@@ -2298,10 +2298,19 @@ a.update-banner-button {
   padding: 0;
 }
 
+/*
+ * Wraps. A deep row — a lane inside a settings group inside the Visualiser —
+ * carries a title plus half a dozen action buttons, and on a phone in portrait
+ * the buttons are wider than the whole column. Without a wrap they win outright
+ * (they are content-sized), the title is squeezed to nothing, and the section
+ * has no visible name at all. On a wide screen there is room for one line and
+ * nothing about this changes.
+ */
 .config-accordion-header {
   position: relative;
   z-index: 1;
   display: flex;
+  flex-wrap: wrap;
   min-height: 64px;
   align-items: stretch;
   justify-content: space-between;
@@ -2311,7 +2320,9 @@ a.update-banner-button {
 .config-accordion-trigger {
   display: inline-flex;
   min-width: 0;
-  flex: 1 1 auto;
+  /* Wide enough to be worth keeping on the buttons' line; below that the
+     actions take a line of their own rather than eating the title. */
+  flex: 1 1 11rem;
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
@@ -2321,10 +2332,18 @@ a.update-banner-button {
   font-family: var(--cyber-mono);
   font-size: clamp(1rem, 2vw, 1.25rem);
   font-weight: 900;
-  line-height: 1;
+  /* Was 1: a title that wraps needs room between its lines. */
+  line-height: 1.15;
   padding: 18px 20px;
   text-align: left;
   text-transform: uppercase;
+}
+
+/* A long name wraps rather than being clipped, and breaks mid-word only when a
+   single word is wider than the column it is in. */
+.config-accordion-trigger > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .config-accordion-trigger:hover,
@@ -2350,14 +2369,29 @@ a.update-banner-button {
 
 .config-accordion-actions {
   display: flex;
-  flex: 0 0 auto;
+  /* Shrinks and wraps within itself before it is allowed to push the header
+     wider than the column. */
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
+  justify-content: flex-end;
+  row-gap: 6px;
   padding-right: 12px;
+}
+
+/* The action clusters are `flex` rows of their own; they wrap on the same terms
+   as the row that holds them. */
+.config-accordion-actions > * {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .config-accordion-body {
   position: relative;
   z-index: 1;
+  min-width: 0;
   padding: 0 20px 20px;
 }
 
@@ -2375,6 +2409,84 @@ a.update-banner-button {
 
 .config-sub-accordion .config-accordion-body {
   padding: 0 16px 16px;
+}
+
+/*
+ * Nested padding, on a phone. Must stay AFTER the rules above: a media query
+ * adds no specificity, so an earlier placement simply loses to the base
+ * padding — which is exactly how the first attempt at this had no effect.
+ *
+ * The Visualiser's controls nest five deep — section, settings group, lane,
+ * effect group, parameter — and each level was spending 64px of the row on its
+ * own padding. That is a third of a portrait phone gone before any control is
+ * drawn, which is how a slider ended up 78px wide inside a 118px box.
+ */
+@media (max-width: 640px), (max-width: 900px) and (orientation: portrait) {
+  .config-accordion-body {
+    padding: 0 10px 14px;
+  }
+
+  .config-sub-accordion .config-accordion-body {
+    padding: 0 8px 12px;
+  }
+
+  .config-accordion-trigger {
+    gap: 8px;
+    padding: 14px 12px;
+  }
+
+  .config-accordion-actions {
+    padding-right: 6px;
+  }
+
+  /* The cards inside a body carry their own Tailwind padding; the nesting is
+     what makes it too much, so it is the nesting that trims it. */
+  .config-accordion-body > .grid {
+    padding: 8px;
+  }
+
+  .config-accordion-body .intensity-panel {
+    padding: 10px;
+  }
+
+  /* The select's own chrome — icon column, gaps, padding — was wider than the
+     column a nested lane leaves it, so the trigger ran past its card. */
+  .config-accordion-body .cyber-select-trigger {
+    grid-template-columns: 32px minmax(0, 1fr) 18px;
+    gap: 8px;
+    min-height: 56px;
+    padding: 8px 10px;
+  }
+
+  .config-accordion-body .cyber-select-trigger.cyber-select-trigger-plain {
+    grid-template-columns: minmax(0, 1fr) 18px;
+  }
+
+  .config-accordion-body .cyber-select-trigger-name {
+    padding: 4px 6px;
+    font-size: 0.9rem;
+  }
+}
+
+/* A small phone in portrait: the same trim again, harder, because five levels of
+   even 10px still adds up to more than that screen has to give. */
+@media (max-width: 420px) {
+  .config-accordion-body,
+  .config-sub-accordion .config-accordion-body {
+    padding: 0 4px 8px;
+  }
+
+  .config-accordion-body > .grid {
+    padding: 4px;
+  }
+
+  .config-accordion-body .intensity-panel {
+    padding: 8px;
+  }
+
+  .config-accordion-trigger {
+    padding: 12px 8px;
+  }
 }
 
 .dashboard-bottom-actions {
@@ -2726,6 +2838,18 @@ a.update-banner-button {
   min-width: 0;
 }
 
+/* The label column shrinks with the trigger; without this the secondary line
+   keeps its full text width and runs out past the card. */
+.cyber-select-trigger-copy {
+  min-width: 0;
+}
+
+.cyber-select-trigger-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cyber-select-trigger-name {
   width: max-content;
   max-width: 100%;
@@ -2892,10 +3016,17 @@ a.update-banner-button {
 
 .theme-library-button {
   display: inline-flex;
+  /* A long action ("Paste Strong beat multiplier") in a narrow column wraps
+     onto a second line instead of running out past the card that holds it. */
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 8px;
+  max-width: 100%;
+  min-width: 0;
   min-height: 44px;
-  padding: 0 14px;
+  overflow-wrap: anywhere;
+  padding: 6px 14px;
   border: 1px solid var(--cyber-border-dim);
   background: rgb(var(--cyber-line-rgb) / 0.05);
   color: var(--cyber-title-on-bg);
@@ -4007,6 +4138,26 @@ a.update-banner-button {
 
 .intensity-panel {
   min-height: 0;
+  /*
+   * The panel measures ITSELF, not the window. Its label/control/readout row is
+   * laid out by a `md:` breakpoint, which asks how wide the screen is — a
+   * question with the wrong answer for a panel five levels deep in the
+   * Visualiser's controls. On a 768px screen that row kept its three columns
+   * inside a 408px card and gave the slider a 2px track: a control that is
+   * simply not there. Below, the row stacks whenever the panel is narrow,
+   * whatever the screen is doing.
+   */
+  container-type: inline-size;
+}
+
+@container (max-width: 520px) {
+  .intensity-panel > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .intensity-panel .config-slider-value {
+    text-align: left;
+  }
 }
 
 .router-grid {
