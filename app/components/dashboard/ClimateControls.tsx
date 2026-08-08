@@ -65,7 +65,6 @@ import {
   formatTemperature,
   temperatureDelta,
   type BedroomHeaterDevices,
-  type LoungeEnvironment,
 } from "./shared";
 import type { DashboardZone } from "../../../lib/types";
 
@@ -867,7 +866,6 @@ function autoPreferenceFallbackAction(entity: DashboardEntity, settings: AirconP
 function AirConditionerControl({
   entity,
   freshAirSwitch,
-  loungeEnvironment,
   preferences,
   quietSwitch,
   turboSwitch,
@@ -875,7 +873,6 @@ function AirConditionerControl({
 }: {
   entity?: DashboardEntity;
   freshAirSwitch?: DashboardEntity;
-  loungeEnvironment?: LoungeEnvironment | null;
   preferences?: AirconPreferences;
   quietSwitch?: DashboardEntity;
   turboSwitch?: DashboardEntity;
@@ -1098,7 +1095,7 @@ function AirConditionerControl({
   const setMode = (mode: AirconMode, label: string) => {
     if (mode === "auto") {
       const actions = buildAirconAutoActions({
-        currentTemperature: airconAutoMeasuredTemperature(entity, loungeEnvironment),
+        currentTemperature: airconAutoMeasuredTemperature(entity),
         entity,
         forceRemember: true,
         preferences: airconSettings,
@@ -1358,13 +1355,11 @@ function legacyPanelHeaterEnabled(payload: unknown) {
 
 export function ClimateControls({
   bedroomHeater,
-  loungeEnvironment,
   onEntityActions,
   preferences,
   zone,
 }: {
   bedroomHeater?: BedroomHeaterDevices;
-  loungeEnvironment?: LoungeEnvironment | null;
   onEntityActions: EntityActionsHandler;
   preferences?: DashboardPreferences;
   zone: DashboardZone;
@@ -1399,7 +1394,6 @@ export function ClimateControls({
       <AirConditionerControl
         entity={aircon}
         freshAirSwitch={freshAirSwitch}
-        loungeEnvironment={loungeEnvironment}
         preferences={preferences?.aircon}
         quietSwitch={quietSwitch}
         turboSwitch={turboSwitch}

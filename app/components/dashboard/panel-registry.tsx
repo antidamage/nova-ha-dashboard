@@ -108,11 +108,10 @@ export const primaryZonePanels: PrimaryZonePanel[] = [
   {
     id: "climate",
     appliesTo: isClimateZone,
-    render: ({ zone, bedroomHeater, loungeEnvironment, preferences, onEntityActions }) => (
+    render: ({ zone, bedroomHeater, preferences, onEntityActions }) => (
       <ClimateControls
         zone={zone}
         bedroomHeater={bedroomHeater}
-        loungeEnvironment={loungeEnvironment}
         preferences={preferences}
         onEntityActions={onEntityActions}
       />

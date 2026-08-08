@@ -18,10 +18,6 @@ export type AirconMode = (typeof AIRCON_MODES)[number];
 export type AirconFanStep = (typeof AIRCON_FAN_STEPS)[number];
 type ActiveAirconMode = "heat" | "cool";
 
-export type AirconTemperatureSource = {
-  temperature: number | null;
-};
-
 /*
  * Dashboard air-con control rules.
  *
@@ -44,7 +40,7 @@ export type AirconTemperatureSource = {
  * power display — so the unit just rests off until the room drifts back out of
  * band, at which point the loop turns it on again.
  *
- * State matters because the lounge sensor updates slowly. After switching off at
+ * State matters because the temperature reading updates slowly. After switching off at
  * target we hold until either the sensor value changes or the user changes the
  * target temperature. Tracking the last target prevents the old failure where a
  * new warm/cold target was ignored just because the sensor had not refreshed.
@@ -145,11 +141,11 @@ export function airconAutoSupported(supportedModes: string[]) {
   return supportedModes.length === 0 || (supportedModes.includes("heat") && supportedModes.includes("cool"));
 }
 
-export function airconAutoMeasuredTemperature(
-  entity?: DashboardEntity,
-  loungeEnvironment?: AirconTemperatureSource | null,
-) {
-  return loungeEnvironment?.temperature ?? (entity ? climateCurrentTemperature(entity) : null);
+// The aircon's own sensor is the measurement the auto loop acts on. It used to
+// prefer the third-party lounge sensor; that sensor is being relocated, so the
+// unit is the source now.
+export function airconAutoMeasuredTemperature(entity?: DashboardEntity) {
+  return entity ? climateCurrentTemperature(entity) : null;
 }
 
 export function airconFanStep(

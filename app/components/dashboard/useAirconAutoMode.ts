@@ -8,7 +8,7 @@ import {
   airconAutoMeasuredTemperature,
   type EntityActionInput,
 } from "../../../lib/aircon-control";
-import { climateDevicesForZone, findLoungeEnvironment, isClimateZone } from "./shared";
+import { climateDevicesForZone, isClimateZone } from "./shared";
 import { emitClientEvent } from "./emitClientEvent";
 import type { ApplyEntityActionsOptions } from "./useDashboardCommands";
 
@@ -77,10 +77,9 @@ export function useAirconAutoMode({
       // per-tick fetch here.
       const snapshot = latestData.current;
 
-      const currentEnvironment = findLoungeEnvironment(snapshot);
       const currentClimateZone = snapshot?.zones.find(isClimateZone) ?? null;
       const { aircon, quietSwitch, turboSwitch } = climateDevicesForZone(currentClimateZone);
-      const measuredTemperature = airconAutoMeasuredTemperature(aircon, currentEnvironment);
+      const measuredTemperature = airconAutoMeasuredTemperature(aircon);
       const { actions } = airconAutoThermostatRef.current!.plan({
         currentTemperature: measuredTemperature,
         entity: aircon,

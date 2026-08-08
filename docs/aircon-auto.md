@@ -34,7 +34,7 @@ When the room reaches the target band, Auto does **not** switch the unit off. It
 
 ## Slow Sensor Behavior
 
-The lounge temperature sensor updates slowly, so after Auto parks the unit on fan idle, the planner waits before starting active heating/cooling again. It resumes when either:
+Auto measures with the aircon's own temperature sensor. That reading updates slowly, so after Auto parks the unit on fan idle, the planner waits before starting active heating/cooling again. It resumes when either:
 
 - the measured sensor value changes and is outside the target band
 - the selected target temperature changes and the current reading is outside the new target band

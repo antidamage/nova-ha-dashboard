@@ -52,7 +52,6 @@ export {
   selectRouterRateEntityId,
 } from "./modules/router/module";
 export { warmWeatherCache } from "./modules/weather/module";
-export { applyLoungeAirconTemperatureOverride } from "./modules/climate/module";
 
 // Default "hidden switch" pattern for the lighting action path; the entity
 // projection uses the configured pattern (see lib/ha/entities).
