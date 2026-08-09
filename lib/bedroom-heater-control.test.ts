@@ -5,6 +5,7 @@ import {
   BedroomHeaterThermostat,
   bedroomHeaterMode,
   bedroomRoomTemperatureEntityIds,
+  bedroomTemperatureStateIsFresh,
   bedroomHeaterSleepTimerExpired,
   createInitialBedroomHeaterAutoState,
   formatMinutesFromMidday,
@@ -23,6 +24,13 @@ describe("bedroom room temperature authority", () => {
       ]),
     ).toEqual(["sensor.tuya_mobile_bedroom_sensor_temperature"]);
     expect(bedroomRoomTemperatureEntityIds(["sensor.tuya_mobile_bedroom_heater_temperature"])).toEqual([]);
+  });
+
+  it("rejects a stale or undated reading", () => {
+    const now = Date.parse("2026-08-09T21:30:00Z");
+    expect(bedroomTemperatureStateIsFresh({ last_reported: "2026-08-09T21:15:00Z" }, now)).toBe(true);
+    expect(bedroomTemperatureStateIsFresh({ last_reported: "2026-08-09T06:08:59Z" }, now)).toBe(false);
+    expect(bedroomTemperatureStateIsFresh({}, now)).toBe(false);
   });
 });
 
@@ -229,10 +237,16 @@ describe("planBedroomHeaterTick", () => {
     expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_on" }]);
   });
 
-  it("does nothing without a temperature reading", () => {
-    const result = plan({ currentTemperature: null });
+  it("forces an active heater off without a temperature reading", () => {
+    const result = plan({ currentTemperature: null, isOn: true });
+    expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_off" }]);
+    expect(result.reason).toBe("sensor-fail-safe-off");
+  });
+
+  it("stays off without a temperature reading", () => {
+    const result = plan({ currentTemperature: null, isOn: false });
     expect(result.actions).toEqual([]);
-    expect(result.reason).toBe("no-temperature");
+    expect(result.reason).toBe("sensor-fail-safe-off");
   });
 
   it("does nothing without an entity", () => {
