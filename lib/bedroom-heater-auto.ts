@@ -1,6 +1,7 @@
 import {
   BEDROOM_HEATER_AUTO_POLL_MS,
   BedroomHeaterThermostat,
+  bedroomRoomTemperatureEntityIds,
   bedroomHeaterMode,
   bedroomHeaterScheduleEdge,
   bedroomHeaterSleepTimerExpired,
@@ -137,7 +138,10 @@ async function tick({ userInitiated = false }: { userInitiated?: boolean } = {})
 
     const states = await haRest<HaState[]>("/api/states");
     const switchState = firstAvailableState(states, heaterConfig.switchEntityIds);
-    const temperatureState = firstAvailableState(states, heaterConfig.temperatureEntityIds ?? []);
+    const temperatureState = firstAvailableState(
+      states,
+      bedroomRoomTemperatureEntityIds(heaterConfig.temperatureEntityIds ?? []),
+    );
     if (!switchState) {
       return;
     }

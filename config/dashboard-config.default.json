@@ -101,9 +101,7 @@
     "bedroomHeater": {
       "switchEntityIds": ["switch.bedroom_heater", "switch.tuya_mobile_bedroom_heater"],
       "temperatureEntityIds": [
-        "sensor.tuya_mobile_bedroom_sensor_temperature",
-        "sensor.bedroom_heater_temperature",
-        "sensor.tuya_mobile_bedroom_heater_temperature"
+        "sensor.tuya_mobile_bedroom_sensor_temperature"
       ],
       "humidityEntityIds": [
         "sensor.bedroom_heater_humidity",
