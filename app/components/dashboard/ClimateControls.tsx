@@ -34,6 +34,7 @@ import {
 import { DotRangeControl } from "../DotControls";
 import {
   AIRCON_FAN_STEPS,
+  airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
   airconAutoSupported,
   airconEntityMode,
@@ -41,6 +42,7 @@ import {
   airconFanStep,
   airconFanStepActions,
   airconModeSupported,
+  airconUserModeIntent,
   buildAirconAutoActions,
   climateCurrentTemperature,
   climateTargetTemperature,
@@ -1004,6 +1006,12 @@ function AirConditionerControl({
     fanMode: preferences?.fanMode ?? String(entity.attributes.fan_mode ?? "medium"),
     quietMode: preferences?.quietMode ?? quietSwitch?.state === "on",
     turboMode: preferences?.turboMode ?? turboSwitch?.state === "on",
+    // Carried through untouched: Auto's cycle bookkeeping, so the handlers below
+    // can read the held direction without reaching past airconSettings.
+    autoLastMode: preferences?.autoLastMode ?? null,
+    autoLastModeAt: preferences?.autoLastModeAt ?? null,
+    autoLastTransitionAt: preferences?.autoLastTransitionAt ?? null,
+    autoRecentStartsAt: preferences?.autoRecentStartsAt ?? [],
   } satisfies AirconPreferences;
   const isControlOn = isOn || airconSettings.autoMode;
   // Auto wins on display: the user's selected power state must stick. Auto now
@@ -1094,12 +1102,18 @@ function AirConditionerControl({
 
   const setMode = (mode: AirconMode, label: string) => {
     if (mode === "auto") {
+      // R3: arming Auto re-seats the direction, so a previous direction's
+      // 30-minute hold does not apply — choosing Auto is an explicit act. The
+      // compressor dwell and the hourly start count ARE carried over: those guard
+      // the hardware, and a person pressing a button twice must not be able to
+      // short-cycle it.
       const actions = buildAirconAutoActions({
         currentTemperature: airconAutoMeasuredTemperature(entity),
         entity,
         forceRemember: true,
         preferences: airconSettings,
         quietSwitch,
+        state: { ...airconAutoCycleStateFromPreferences(airconSettings), lastMode: null, lastModeAt: null },
         turboSwitch,
       });
 
@@ -1110,6 +1124,12 @@ function AirConditionerControl({
       );
     }
 
+    // R1: picking Heat or Cool by hand is unambiguous. It leaves Auto, and it
+    // also seats the direction, so returning to Auto later starts a fresh hold
+    // pointing the way the user last asked for rather than the way the loop
+    // happened to be going.
+    const seatsDirection = mode === "heat" || mode === "cool";
+
     return callClimateActions(
       [
         {
@@ -1117,7 +1137,13 @@ function AirConditionerControl({
           domain: "climate",
           service: "set_hvac_mode",
           data: { hvac_mode: mode },
-          remember: { aircon: { autoMode: false, hvacMode: mode } },
+          remember: {
+            aircon: {
+              autoMode: false,
+              hvacMode: mode,
+              ...(seatsDirection ? { autoLastMode: mode, autoLastModeAt: Date.now() } : {}),
+            },
+          },
         },
       ],
       onEntityActions,
@@ -1125,21 +1151,33 @@ function AirConditionerControl({
     );
   };
 
-  const sendTemperature = (temperature: number) =>
-    callClimateActions(
+  const sendTemperature = (temperature: number) => {
+    // R2: the only place a person moves the aircon target, and therefore the only
+    // place a setpoint can be read as intent. A target that lands more than
+    // AIRCON_INTENT_MARGIN_DEGREES the far side of the room reading means "drive
+    // the other way", and clears Auto's 30-minute direction hold so the next tick
+    // may reverse. A one-degree nudge does not, and neither does a reading that
+    // drifted underneath an unchanged target — the loop never comes through here.
+    const intent = airconUserModeIntent(temperature, airconAutoMeasuredTemperature(entity));
+    const breaksDirectionHold = intent !== undefined && intent !== airconSettings.autoLastMode;
+
+    return callClimateActions(
       [
         {
           entityId: entity.entity_id,
           domain: "climate",
           service: "set_temperature",
           data: { temperature },
-          remember: { aircon: { temperature } },
+          remember: {
+            aircon: { temperature, ...(breaksDirectionHold ? { autoLastModeAt: null } : {}) },
+          },
         },
       ],
       onEntityActions,
       `Air Conditioner ${temperature} degrees`,
       { silent: true },
     );
+  };
 
   // Changing the target updates the dashboard immediately but debounces the
   // actual command: 2s after the last tap a single set_temperature with the final

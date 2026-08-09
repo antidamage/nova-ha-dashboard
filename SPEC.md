@@ -798,31 +798,46 @@ Planner details:
 
 - The planner is React-free and lives in `lib/aircon-control.ts`.
 - Poll interval constant is 1000 ms.
-- Comfort band is 1 degree.
-- Supported modes are heat, cool, fan-only, and auto.
+- Auto measures the Gree unit's own `current_temperature`. That sensor sits
+  downstream of the compressor it controls, and every guard below is sized
+  against its behaviour rather than against comfort. `sensor.lounge_temperature`
+  reads the same attribute and is display-only; it must never feed control.
+- Supported modes are heat, cool, fan-only, and auto. Auto only ever commands
+  heat or cool.
 - Fan steps range from quiet through turbo.
-- Lounge environment sensor temperature is preferred over climate entity
-  current temperature when available.
-- When outside the band, the planner chooses heat or cool from the delta and
-  chooses fan strength from absolute delta.
-- If the desired mode is unsupported, the planner parks the aircon on fan-only
-  at the lowest fan speed instead of using an unsafe fallback.
-- When inside the band, the planner parks the aircon on fan-only at the lowest
-  fan speed and marks the system as idle. Auto never switches the unit off, so a
-  real off on the dashboard is always a deliberate off.
-- After parking on fan idle, it resumes active heating/cooling only when sensor
-  temperature or selected target changes enough to leave the band. The fan-idle
-  actions are idempotent, so the loop does not keep re-sending commands.
+- When driving, the planner chooses fan strength from the absolute delta.
+- Hysteresis is asymmetric: the unit is switched **off** the moment the reading
+  reaches target, and does not resume until the reading is 3 degrees past it.
+  Auto switching the unit off is normal — the remembered `autoMode` preference,
+  not the unit's power, drives the dashboard's power display.
+- Reversing heat/cool is held for 30 minutes from the last direction change;
+  restarting the compressor is held for 10 minutes from the last state change;
+  and at most 3 compressor starts are allowed in any trailing hour. None of these
+  can delay turning the unit **off**.
+- A target the user moved reopens a resting cycle inside the resume band, so a
+  new setpoint is never ignored until the room drifts.
+- Auto's cycle state (`autoLastMode`, `autoLastModeAt`, `autoLastTransitionAt`,
+  `autoRecentStartsAt` in `preferences.aircon`) is persisted on the `remember`
+  payload of every transition, because the loop's own state is per browser tab
+  and would not survive a reload.
+- If the desired mode is unsupported, the planner rests rather than using an
+  unsafe fallback.
 - Force-remember actions can update stored auto preferences without immediately
   requiring an HA mode change.
+- Breaking the 30-minute direction hold is decided in the UI, not the planner:
+  pressing Heat/Cool, or moving the setpoint more than 1 degree past the current
+  reading. See `docs/aircon-auto.md`.
 
 Client behavior:
 
 - The dashboard runs the auto thermostat while `preferences.aircon.autoMode` is
   true.
 - It skips ticks while hidden or while another climate action is applying.
-- It fetches fresh state before each planner tick.
+- It decides from the shared SSE/poll snapshot; it must not fetch per tick.
+- It reconciles the durable cycle state from preferences before each tick.
 - It applies the planned HA actions through `/api/entity`.
+- It emits `aircon-auto` per acting tick and `aircon-auto-held` once per change
+  of blocking reason, both carrying the planner's `reason` and `wantedMode`.
 
 ## 16. Outside, Weather, and Map
 
