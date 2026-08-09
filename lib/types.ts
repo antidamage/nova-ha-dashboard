@@ -233,6 +233,19 @@ export type AirconPreferences = {
   quietMode?: boolean;
   turboMode?: boolean;
   offTimerEndsAt?: string | null;
+  /*
+   * Auto's cycle bookkeeping (see AirconAutoState in lib/aircon-control.ts).
+   *
+   * It lives in preferences because the thermostat loop runs per browser tab: a
+   * 30-minute direction hold kept only in a ref would reset on every kiosk
+   * reload, and two open dashboards would each keep their own idea of when the
+   * compressor last started. It rides along on the `remember` payloads the loop
+   * already writes with every transition, so it adds no preference writes.
+   */
+  autoLastMode?: "heat" | "cool" | null;
+  autoLastModeAt?: number | null;
+  autoLastTransitionAt?: number | null;
+  autoRecentStartsAt?: number[];
   updatedAt?: string;
 };
 
