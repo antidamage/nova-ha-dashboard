@@ -4,6 +4,7 @@ import {
   BEDROOM_HEATER_TAIL_OFF_MS,
   BedroomHeaterThermostat,
   bedroomHeaterMode,
+  bedroomRoomTemperatureEntityIds,
   bedroomHeaterSleepTimerExpired,
   createInitialBedroomHeaterAutoState,
   formatMinutesFromMidday,
@@ -12,6 +13,18 @@ import {
   planBedroomHeaterTick,
   type BedroomHeaterAutoState,
 } from "./bedroom-heater-control";
+
+describe("bedroom room temperature authority", () => {
+  it("permits only the Bedroom sensor and never falls back to the heater plug", () => {
+    expect(
+      bedroomRoomTemperatureEntityIds([
+        "sensor.tuya_mobile_bedroom_sensor_temperature",
+        "sensor.tuya_mobile_bedroom_heater_temperature",
+      ]),
+    ).toEqual(["sensor.tuya_mobile_bedroom_sensor_temperature"]);
+    expect(bedroomRoomTemperatureEntityIds(["sensor.tuya_mobile_bedroom_heater_temperature"])).toEqual([]);
+  });
+});
 
 const ENTITY = "switch.tuya_mobile_bedroom_heater";
 // 18:00 -> 07:00 next day, the shipped default window.

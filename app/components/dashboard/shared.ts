@@ -7,6 +7,7 @@ import {
   numericClimateAttribute,
   stringListAttribute,
 } from "../../../lib/aircon-control";
+import { bedroomRoomTemperatureEntityIds } from "../../../lib/bedroom-heater-control";
 import type { DashboardEntity, DashboardState, DashboardZone, HaDomain, RouterStatus } from "../../../lib/types";
 import { isEntityOn, zoneBrightnessPct } from "../../../lib/entity-semantics";
 
@@ -316,7 +317,10 @@ export function bedroomHeaterDevices(
     humidityEntityIds?: readonly string[];
   } | null,
 ): BedroomHeaterDevices {
-  const temperatureEntity = findConfiguredEntity(data, config?.temperatureEntityIds ?? []);
+  const temperatureEntity = findConfiguredEntity(
+    data,
+    bedroomRoomTemperatureEntityIds(config?.temperatureEntityIds ?? []),
+  );
   const humidityEntity = findConfiguredEntity(data, config?.humidityEntityIds ?? []);
 
   return {
@@ -342,7 +346,9 @@ export function findBedroomTemperature(
   data: DashboardState | null,
   config?: { temperatureEntityIds?: readonly string[] } | null,
 ) {
-  return numericEntityState(findConfiguredEntity(data, config?.temperatureEntityIds ?? []));
+  return numericEntityState(
+    findConfiguredEntity(data, bedroomRoomTemperatureEntityIds(config?.temperatureEntityIds ?? [])),
+  );
 }
 
 export function countDomainsForZone(zone: DashboardZone): HaDomain[] {
