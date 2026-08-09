@@ -56,6 +56,7 @@ export const BEDROOM_HEATER_TAIL_OFF_MS = 2 * 60_000;
 export const BEDROOM_HEATER_DEFAULT_TARGET_C = 18;
 export const BEDROOM_HEATER_MIN_TARGET_C = 5;
 export const BEDROOM_HEATER_MAX_TARGET_C = 30;
+export const BEDROOM_SENSOR_MAX_AGE_MS = 30 * 60_000;
 
 /** Minutes from midday. 0 = 12:00 today, 720 = 00:00, 1440 = 12:00 tomorrow. */
 export const BEDROOM_HEATER_WINDOW_MAX_MINUTES = 1440;
@@ -75,6 +76,18 @@ export function bedroomRoomTemperatureEntityIds(entityIds: readonly string[]) {
   return entityIds.includes(BEDROOM_ROOM_TEMPERATURE_ENTITY_ID)
     ? [BEDROOM_ROOM_TEMPERATURE_ENTITY_ID]
     : [];
+}
+
+export function bedroomTemperatureStateIsFresh(
+  state: { last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
+  now: number = Date.now(),
+) {
+  const stamp = state?.last_reported ?? state?.last_updated ?? state?.last_changed;
+  if (!stamp) {
+    return false;
+  }
+  const reportedAt = Date.parse(stamp);
+  return Number.isFinite(reportedAt) && reportedAt <= now + 60_000 && now - reportedAt <= BEDROOM_SENSOR_MAX_AGE_MS;
 }
 
 export type BedroomHeaterAction = {
@@ -273,7 +286,14 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
   const active = state;
 
   if (input.currentTemperature === null) {
-    return { actions: [], nextState: active, reason: "no-temperature" };
+    return {
+      actions: input.isOn ? [turnOff(entityId)] : [],
+      nextState: {
+        ...createInitialBedroomHeaterAutoState(),
+        lastTransitionAt: input.isOn ? now : active.lastTransitionAt,
+      },
+      reason: "sensor-fail-safe-off",
+    };
   }
 
   // A new target reopens a settled cycle — otherwise a warmer setpoint would be

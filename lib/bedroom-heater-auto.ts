@@ -2,6 +2,7 @@ import {
   BEDROOM_HEATER_AUTO_POLL_MS,
   BedroomHeaterThermostat,
   bedroomRoomTemperatureEntityIds,
+  bedroomTemperatureStateIsFresh,
   bedroomHeaterMode,
   bedroomHeaterScheduleEdge,
   bedroomHeaterSleepTimerExpired,
@@ -178,7 +179,9 @@ async function tick({ userInitiated = false }: { userInitiated?: boolean } = {})
       return;
     }
 
-    const measured = Number(temperatureState?.state);
+    const measured = Number(
+      bedroomTemperatureStateIsFresh(temperatureState, now) ? temperatureState?.state : Number.NaN,
+    );
     const plan = thermostat.plan({
       currentTemperature: Number.isFinite(measured) ? measured : null,
       entityId: switchState.entity_id,

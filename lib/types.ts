@@ -16,6 +16,7 @@ export type HaState = {
   attributes: Record<string, unknown>;
   last_changed?: string;
   last_updated?: string;
+  last_reported?: string;
 };
 
 /**
@@ -94,6 +95,9 @@ export type DashboardEntity = {
   // entities by label without re-reading the registry.
   labels?: string[];
   attributes: Record<string, unknown>;
+  last_changed?: string;
+  last_updated?: string;
+  last_reported?: string;
 };
 
 export type DashboardZone = {
