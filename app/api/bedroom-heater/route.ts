@@ -8,11 +8,7 @@ import {
 import { publishDashboardState } from "../../../lib/dashboard-events";
 import { buildDashboardState } from "../../../lib/ha";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
-import {
-  bedroomSensorHasFreshReading,
-  evaluateBedroomHeaterNow,
-  noteBedroomHeaterUserCommand,
-} from "../../../lib/bedroom-heater-auto";
+import { evaluateBedroomHeaterNow, noteBedroomHeaterUserCommand } from "../../../lib/bedroom-heater-auto";
 import type { BedroomHeaterPreferences } from "../../../lib/types";
 
 export const dynamic = "force-dynamic";
@@ -75,9 +71,13 @@ export async function POST(request: Request) {
   try {
     const update = parseUpdate(await request.json());
 
-    if (update.mode === "auto" && !(await bedroomSensorHasFreshReading())) {
-      throw new Error("Bedroom Auto is unavailable until the room sensor reports a fresh temperature");
-    }
+    // Pressing Auto must always be allowed to succeed, even with no usable room
+    // reading right now: planBedroomHeaterTick's own grace window (see
+    // BEDROOM_HEATER_SENSOR_GRACE_MS in lib/bedroom-heater-control.ts) is what
+    // decides whether to try heating or rest, and it never disables Auto
+    // itself. Rejecting the request here with a 400 pre-empted that entirely —
+    // the button read as permanently broken whenever the sensor was stale,
+    // which is exactly the state Auto exists to recover from.
 
     // The server thermostat loop must stand down briefly after any user action,
     // for the same reason the aircon's client loop honours isPollingPaused():
