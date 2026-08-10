@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, ImagePlus, Loader2, MousePointer2, RotateCcw, Save, Trash2, Undo2 } from "lucide-react";
+import { Bell, BellOff, ImagePlus, Loader2, Moon, MousePointer2, RotateCcw, Save, SunMedium, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
@@ -17,11 +17,13 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
   const [message, setMessage] = useState("Loading analysis zones…");
   const [saving, setSaving] = useState(false);
   const [frameVersion, setFrameVersion] = useState(Date.now());
+  const [frameMode, setFrameMode] = useState<"daylight" | "live">("daylight");
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [referenceKind, setReferenceKind] = useState<"cat" | "ute">("cat");
   const [referenceName, setReferenceName] = useState("");
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef<{ pointerId: number; pointIndex: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -34,7 +36,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         if (!alive) return;
         setSettings(value);
         setSelectedId(value.zones[0]?.id ?? null);
-        setMessage("Click the image to add points to the selected polygon.");
+        setMessage("Drag an existing point to refine it, or click empty space to add a point.");
       })
       .catch((error) => alive && setMessage(error instanceof Error ? error.message : "Could not load analysis zones"));
     return () => { alive = false; };
@@ -60,8 +62,42 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
       Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
       Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
     ];
+    const nearest = selected.points.reduce((best, candidate, index) => {
+      const distance = Math.hypot(candidate[0] - point[0], candidate[1] - point[1]);
+      return distance < best.distance ? { index, distance } : best;
+    }, { index: -1, distance: Number.POSITIVE_INFINITY });
+    if (nearest.distance <= 0.04) {
+      draggingRef.current = { pointerId: event.pointerId, pointIndex: nearest.index };
+      stageRef.current.setPointerCapture(event.pointerId);
+      setMessage(`Dragging point ${nearest.index + 1} of ${selected.label}.`);
+      return;
+    }
     replaceZone({ ...selected, points: [...selected.points, point] });
   }, [replaceZone, selected]);
+
+  const dragPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const dragging = draggingRef.current;
+    if (!dragging || dragging.pointerId !== event.pointerId || !stageRef.current || !selectedId) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    const point: Point = [
+      Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+      Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+    ];
+    setSettings((current) => current ? {
+      ...current,
+      zones: current.zones.map((zone) => zone.id === selectedId ? {
+        ...zone,
+        points: zone.points.map((value, index) => index === dragging.pointIndex ? point : value),
+      } : zone),
+    } : current);
+  }, [selectedId]);
+
+  const finishDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (draggingRef.current?.pointerId !== event.pointerId) return;
+    draggingRef.current = null;
+    if (stageRef.current?.hasPointerCapture(event.pointerId)) stageRef.current.releasePointerCapture(event.pointerId);
+    setMessage("Point moved. Save zones when the polygon is correct.");
+  }, []);
 
   const save = useCallback(async (next = settings) => {
     if (!next) return;
@@ -135,13 +171,13 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
           <button key={zone.id} type="button" className={selectedId === zone.id ? "is-active" : ""} style={{ "--zone-color": COLORS[zone.kind] } as React.CSSProperties} onClick={() => setSelectedId(zone.id)}>{zone.label}</button>
         ))}
       </div>
-      <div ref={stageRef} className="camera-analysis-stage" onPointerDown={addPoint}>
-        <img src={`/api/camera/${cameraId}/analysis/frame?v=${frameVersion}`} alt="Current Outside camera frame for zone calibration" draggable={false} />
+      <div ref={stageRef} className="camera-analysis-stage" onPointerDown={addPoint} onPointerMove={dragPoint} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
+        <img src={`/api/camera/${cameraId}/analysis/frame?daylight=${frameMode === "daylight"}&v=${frameVersion}`} alt={`${frameMode === "daylight" ? "Daytime reference" : "Current"} Outside camera frame for zone calibration`} draggable={false} />
         <svg viewBox="0 0 1000 562.5" preserveAspectRatio="none" aria-hidden="true">
           {settings.zones.map((zone) => (
             <g key={zone.id} opacity={selectedId === zone.id ? 1 : 0.45}>
               <polygon points={zone.points.map(([x, y]) => `${x * 1000},${y * 562.5}`).join(" ")} fill={`${COLORS[zone.kind]}26`} stroke={COLORS[zone.kind]} strokeWidth={selectedId === zone.id ? 4 : 2} vectorEffect="non-scaling-stroke" />
-              {selectedId === zone.id ? zone.points.map(([x, y], index) => <circle key={index} cx={x * 1000} cy={y * 562.5} r="7" fill={COLORS[zone.kind]} vectorEffect="non-scaling-stroke" />) : null}
+              {selectedId === zone.id ? zone.points.map(([x, y], index) => <circle key={index} cx={x * 1000} cy={y * 562.5} r="10" fill={COLORS[zone.kind]} stroke="#05070a" strokeWidth="3" vectorEffect="non-scaling-stroke" />) : null}
             </g>
           ))}
         </svg>
@@ -150,6 +186,9 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         <div className="camera-analysis-actions">
           <MomentaryFeedbackButton type="button" className="config-page-button" disabled={!selected?.points.length} onClick={() => selected && replaceZone({ ...selected, points: selected.points.slice(0, -1) })}><Undo2 className="h-4 w-4" /> Undo point</MomentaryFeedbackButton>
           <MomentaryFeedbackButton type="button" className="config-page-button" disabled={!selected?.points.length} onClick={() => selected && replaceZone({ ...selected, points: [] })}><Trash2 className="h-4 w-4" /> Redraw polygon</MomentaryFeedbackButton>
+          <MomentaryFeedbackButton type="button" className="config-page-button" onClick={() => { setFrameMode((value) => value === "daylight" ? "live" : "daylight"); setFrameVersion(Date.now()); }}>
+            {frameMode === "daylight" ? <SunMedium className="h-4 w-4" /> : <Moon className="h-4 w-4" />} {frameMode === "daylight" ? "Daytime frame" : "Live frame"}
+          </MomentaryFeedbackButton>
           <MomentaryFeedbackButton type="button" className="config-page-button" onClick={() => setFrameVersion(Date.now())}><RotateCcw className="h-4 w-4" /> Refresh frame</MomentaryFeedbackButton>
           <MomentaryFeedbackButton type="button" className="config-page-button" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save zones</MomentaryFeedbackButton>
         </div>

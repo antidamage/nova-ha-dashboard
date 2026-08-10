@@ -40,6 +40,7 @@ LOG = logging.getLogger("nova-camera-events")
 DATA_ROOT = Path(os.environ.get("NOVA_CAMERA_EVENTS_DATA", "/data"))
 EVENT_ROOT = DATA_ROOT / "events"
 REFERENCE_ROOT = DATA_ROOT / "references"
+DAYLIGHT_FRAME_PATH = DATA_ROOT / "calibration-daylight.jpg"
 DB_PATH = DATA_ROOT / "events.sqlite3"
 SOURCE_URL = os.environ.get(
     "NOVA_CAMERA_EVENTS_SOURCE",
@@ -98,6 +99,10 @@ class SettingsBody(BaseModel):
     enabled: bool = True
     alertsEnabled: bool = False
     zones: list[dict[str, Any]]
+
+
+class BulkDeleteBody(BaseModel):
+    ids: list[str]
 
 
 class Store:
@@ -322,6 +327,7 @@ class Pipeline:
         self.active: dict[str, Any] | None = None
         self.catalog: list[dict[str, Any]] = []
         self.vehicle_proximity_since: float | None = None
+        self.last_daylight_frame_saved = 0.0
 
     def load_detector(self) -> Any:
         if self.detector is None:
@@ -527,6 +533,9 @@ class Pipeline:
                     self.last_frame = frame.copy()
                 good, _, _ = frame_quality(frame)
                 if good:
+                    if time.time() - self.last_daylight_frame_saved >= 300:
+                        cv2.imwrite(str(DAYLIGHT_FRAME_PATH), frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                        self.last_daylight_frame_saved = time.time()
                     self.observe(frame, segment["at"] + index / native_fps, self.detections(frame))
             index += 1
         capture.release()
@@ -838,6 +847,18 @@ def delete_event(event_id: str) -> dict[str, bool]:
     return {"ok": True}
 
 
+@app.delete("/events")
+def delete_events(body: BulkDeleteBody) -> dict[str, Any]:
+    event_ids = list(dict.fromkeys(body.ids))
+    if not event_ids or len(event_ids) > 200:
+        raise HTTPException(400, "Select between one and 200 events")
+    deleted: list[str] = []
+    for event_id in event_ids:
+        if STORE.delete(event_id):
+            deleted.append(event_id)
+    return {"ok": True, "deleted": deleted, "count": len(deleted)}
+
+
 def asset(event_id: str, column: str, media_type: str) -> FileResponse:
     row = STORE.raw(event_id)
     if not row or not row[column]:
@@ -875,7 +896,17 @@ def update_settings(body: SettingsBody) -> dict[str, Any]:
 
 
 @app.get("/frame")
-def current_frame() -> Response:
+def current_frame(daylight: bool = False) -> Response:
+    if daylight:
+        path = DAYLIGHT_FRAME_PATH
+        if not path.is_file():
+            with STORE.lock:
+                row = STORE.connection.execute(
+                    "SELECT thumbnail FROM events WHERE thumbnail IS NOT NULL ORDER BY started_at DESC LIMIT 1"
+                ).fetchone()
+            path = Path(row["thumbnail"]) if row and row["thumbnail"] else path
+        if path.is_file():
+            return Response(path.read_bytes(), media_type="image/jpeg", headers={"Cache-Control": "no-store"})
     with PIPELINE.last_frame_lock:
         frame = PIPELINE.last_frame.copy() if PIPELINE.last_frame is not None else None
     if frame is None:

@@ -3960,10 +3960,15 @@ a.update-banner-button {
 .camera-events-close, .camera-event-filters button, .camera-event-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--cyber-border-dim); background: var(--cyber-panel-soft); color: var(--cyber-cyan); cursor: pointer; font: 800 .7rem var(--cyber-mono); text-transform: uppercase; }
 .camera-event-filters { display: flex; gap: 8px; padding: 10px 18px; overflow-x: auto; border-bottom: 1px solid var(--cyber-border-dim); }
 .camera-event-filters button.is-active, .camera-event-actions button.is-active { border-color: var(--cyber-highlight); color: var(--cyber-highlight); }
-.camera-event-actions button.is-danger { color: #ff8a8a; }
+.camera-event-filters button.is-danger, .camera-event-actions button.is-danger { color: #ff8a8a; }
+.camera-event-filters button:disabled { cursor: not-allowed; opacity: .42; }
+.camera-event-bulk-spacer { flex: 1 1 auto; }
 .camera-events-workspace { display: grid; grid-template-columns: minmax(250px,32%) 1fr; min-height: 0; flex: 1; }
 .camera-events-list { overflow-y: auto; border-right: 1px solid var(--cyber-border-dim); }
 .camera-events-list-row { display: grid; grid-template-columns: 82px minmax(0,1fr); gap: 10px; padding: 9px; background: transparent; border-bottom: 1px solid var(--cyber-border-dim); }
+.camera-events-list-row.is-selecting { grid-template-columns: 24px 82px minmax(0,1fr); }
+.camera-events-list-row.is-checked { background: color-mix(in srgb,var(--cyber-highlight) 12%,transparent); }
+.camera-event-select-indicator { display: grid; place-items: center; align-self: center; color: var(--cyber-highlight); }
 .camera-events-list-row.is-selected { background: color-mix(in srgb,var(--cyber-cyan) 12%,transparent); }
 .camera-events-list-row.is-important { box-shadow: inset 3px 0 #ffd56b; }
 .camera-events-list-row.is-urgent { box-shadow: inset 3px 0 #ff5d73; }
