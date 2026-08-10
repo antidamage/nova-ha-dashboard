@@ -23,7 +23,23 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
   const [referenceName, setReferenceName] = useState("");
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef<{ pointerId: number; pointIndex: number } | null>(null);
+  const draggingRef = useRef<{ pointerId: number; pointIndex: number; before: AnalysisSettings; changed: boolean } | null>(null);
+  const historyRef = useRef<AnalysisSettings[]>([]);
+  const [historyDepth, setHistoryDepth] = useState(0);
+
+  const remember = useCallback((value: AnalysisSettings) => {
+    historyRef.current = [...historyRef.current.slice(-99), value];
+    setHistoryDepth(historyRef.current.length);
+  }, []);
+
+  const undoLastChange = useCallback(() => {
+    const previous = historyRef.current.pop();
+    if (!previous) return false;
+    setSettings(previous);
+    setHistoryDepth(historyRef.current.length);
+    setMessage("Last polygon change undone. Save zones when the polygon is correct.");
+    return true;
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -35,6 +51,8 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
       .then((value) => {
         if (!alive) return;
         setSettings(value);
+        historyRef.current = [];
+        setHistoryDepth(0);
         setSelectedId(value.zones[0]?.id ?? null);
         setMessage("Drag an existing point to refine it, or click empty space to add a point.");
       })
@@ -52,11 +70,24 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
   const selected = useMemo(() => settings?.zones.find((zone) => zone.id === selectedId) ?? null, [selectedId, settings]);
 
   const replaceZone = useCallback((zone: SceneZone) => {
-    setSettings((current) => current ? { ...current, zones: current.zones.map((item) => item.id === zone.id ? zone : item) } : current);
-  }, []);
+    if (!settings) return;
+    remember(settings);
+    setSettings({ ...settings, zones: settings.zones.map((item) => item.id === zone.id ? zone : item) });
+  }, [remember, settings]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "z" || event.altKey || event.shiftKey) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (undoLastChange()) event.preventDefault();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undoLastChange]);
 
   const addPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (!selected || !stageRef.current) return;
+    if (!selected || !settings || !stageRef.current) return;
     const rect = stageRef.current.getBoundingClientRect();
     const point: Point = [
       Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
@@ -67,17 +98,21 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
       return distance < best.distance ? { index, distance } : best;
     }, { index: -1, distance: Number.POSITIVE_INFINITY });
     if (nearest.distance <= 0.04) {
-      draggingRef.current = { pointerId: event.pointerId, pointIndex: nearest.index };
+      draggingRef.current = { pointerId: event.pointerId, pointIndex: nearest.index, before: settings, changed: false };
       stageRef.current.setPointerCapture(event.pointerId);
       setMessage(`Dragging point ${nearest.index + 1} of ${selected.label}.`);
       return;
     }
     replaceZone({ ...selected, points: [...selected.points, point] });
-  }, [replaceZone, selected]);
+  }, [replaceZone, selected, settings]);
 
   const dragPoint = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const dragging = draggingRef.current;
     if (!dragging || dragging.pointerId !== event.pointerId || !stageRef.current || !selectedId) return;
+    if (!dragging.changed) {
+      remember(dragging.before);
+      dragging.changed = true;
+    }
     const rect = stageRef.current.getBoundingClientRect();
     const point: Point = [
       Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
@@ -90,13 +125,14 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         points: zone.points.map((value, index) => index === dragging.pointIndex ? point : value),
       } : zone),
     } : current);
-  }, [selectedId]);
+  }, [remember, selectedId]);
 
   const finishDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (draggingRef.current?.pointerId !== event.pointerId) return;
+    const changed = draggingRef.current.changed;
     draggingRef.current = null;
     if (stageRef.current?.hasPointerCapture(event.pointerId)) stageRef.current.releasePointerCapture(event.pointerId);
-    setMessage("Point moved. Save zones when the polygon is correct.");
+    if (changed) setMessage("Point moved. Save zones when the polygon is correct.");
   }, []);
 
   const save = useCallback(async (next = settings) => {
@@ -171,7 +207,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
           <button key={zone.id} type="button" className={selectedId === zone.id ? "is-active" : ""} style={{ "--zone-color": COLORS[zone.kind] } as React.CSSProperties} onClick={() => setSelectedId(zone.id)}>{zone.label}</button>
         ))}
       </div>
-      <div ref={stageRef} className="camera-analysis-stage" onPointerDown={addPoint} onPointerMove={dragPoint} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
+      <div ref={stageRef} className="camera-analysis-stage" data-nova-no-drag-scroll onPointerDown={addPoint} onPointerMove={dragPoint} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
         <img src={`/api/camera/${cameraId}/analysis/frame?daylight=${frameMode === "daylight"}&v=${frameVersion}`} alt={`${frameMode === "daylight" ? "Daytime reference" : "Current"} Outside camera frame for zone calibration`} draggable={false} />
         <svg viewBox="0 0 1000 562.5" preserveAspectRatio="none" aria-hidden="true">
           {settings.zones.map((zone) => (
@@ -184,7 +220,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
       </div>
       <div className="camera-analysis-footer">
         <div className="camera-analysis-actions">
-          <MomentaryFeedbackButton type="button" className="config-page-button" disabled={!selected?.points.length} onClick={() => selected && replaceZone({ ...selected, points: selected.points.slice(0, -1) })}><Undo2 className="h-4 w-4" /> Undo point</MomentaryFeedbackButton>
+          <MomentaryFeedbackButton type="button" className="config-page-button" disabled={historyDepth === 0} onClick={undoLastChange}><Undo2 className="h-4 w-4" /> Undo change</MomentaryFeedbackButton>
           <MomentaryFeedbackButton type="button" className="config-page-button" disabled={!selected?.points.length} onClick={() => selected && replaceZone({ ...selected, points: [] })}><Trash2 className="h-4 w-4" /> Redraw polygon</MomentaryFeedbackButton>
           <MomentaryFeedbackButton type="button" className="config-page-button" onClick={() => { setFrameMode((value) => value === "daylight" ? "live" : "daylight"); setFrameVersion(Date.now()); }}>
             {frameMode === "daylight" ? <SunMedium className="h-4 w-4" /> : <Moon className="h-4 w-4" />} {frameMode === "daylight" ? "Daytime frame" : "Live frame"}
