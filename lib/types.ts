@@ -250,6 +250,8 @@ export type AirconPreferences = {
   autoLastModeAt?: number | null;
   autoLastTransitionAt?: number | null;
   autoRecentStartsAt?: number[];
+  /** See AirconAutoState.sensorPendingSinceAt in lib/aircon-control.ts. */
+  autoSensorPendingSinceAt?: number | null;
   updatedAt?: string;
 };
 
