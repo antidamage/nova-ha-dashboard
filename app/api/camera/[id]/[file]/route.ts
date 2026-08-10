@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCamera } from "../../../../../lib/camera/config";
 import { ensureRecorder, readRecordingFile } from "../../../../../lib/camera/recorder";
+import { sliceLivePlaylist } from "../../../../../lib/camera/hls-playlist";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,7 +13,7 @@ export const runtime = "nodejs";
  * recorder is started lazily on first request so the stream spins up the moment
  * the panel mounts. Retention is enforced inside `readRecordingFile`.
  */
-export async function GET(_request: Request, context: { params: Promise<{ id: string; file: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string; file: string }> }) {
   const { id, file } = await context.params;
   const camera = getCamera(id);
   if (!camera) {
@@ -39,11 +40,15 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   // Copy onto a fresh ArrayBuffer-backed view so the body matches the DOM
   // `BufferSource` type (Node's Buffer is generic over ArrayBufferLike).
-  const body = Uint8Array.from(result.data);
+  const requestedStart = new URL(request.url).searchParams.get("start");
+  const data = file.endsWith(".m3u8") && requestedStart !== null
+    ? Buffer.from(sliceLivePlaylist(result.data.toString("utf8"), Number.parseInt(requestedStart, 10)), "utf8")
+    : result.data;
+  const body = Uint8Array.from(data);
   return new NextResponse(body, {
     headers: {
       "Content-Type": result.contentType,
-      "Content-Length": String(result.data.byteLength),
+      "Content-Length": String(data.byteLength),
       // The playlist must never be cached (it mutates every segment); segments
       // are immutable so they can be cached for their full retention lifetime.
       "Cache-Control": file.endsWith(".m3u8")

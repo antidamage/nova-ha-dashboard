@@ -7,7 +7,8 @@ import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 type Point = [number, number];
 type SceneZone = { id: string; label: string; kind: "activity" | "vehicle" | "exclude"; points: Point[] };
 type AnalysisSettings = { enabled: boolean; alertsEnabled: boolean; zones: SceneZone[] };
-type ReferenceImage = { id: string; kind: "cat" | "ute"; name: string; created_at: string };
+type ReferenceKind = "cat" | "ute" | "person";
+type ReferenceImage = { id: string; kind: ReferenceKind; name: string; role?: "owner" | null; created_at: string };
 
 const COLORS: Record<SceneZone["kind"], string> = { activity: "#54f5d0", vehicle: "#ffd56b", exclude: "#ff6b80" };
 
@@ -19,7 +20,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
   const [frameVersion, setFrameVersion] = useState(Date.now());
   const [frameMode, setFrameMode] = useState<"daylight" | "live">("daylight");
   const [references, setReferences] = useState<ReferenceImage[]>([]);
-  const [referenceKind, setReferenceKind] = useState<"cat" | "ute">("cat");
+  const [referenceKind, setReferenceKind] = useState<ReferenceKind>("cat");
   const [referenceName, setReferenceName] = useState("");
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -164,6 +165,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
     const body = new FormData();
     body.set("kind", referenceKind);
     body.set("name", referenceName.trim());
+    if (referenceKind === "person") body.set("role", "owner");
     body.set("image", referenceFile);
     setSaving(true);
     try {
@@ -231,19 +233,19 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         <span className="text-xs text-neutral-400">{message}</span>
       </div>
       <div className="camera-reference-gallery">
-        <div><p className="camera-events-kicker">Reference gallery</p><h4>Household cats and black ute</h4></div>
+        <div><p className="camera-events-kicker">Reference gallery</p><h4>Household cats, black ute, and owner</h4></div>
         <div className="camera-analysis-zone-tabs">
-          {(["cat", "ute"] as const).map((kind) => <button key={kind} type="button" className={referenceKind === kind ? "is-active" : ""} style={{ "--zone-color": kind === "cat" ? "#54f5d0" : "#ffd56b" } as React.CSSProperties} onClick={() => setReferenceKind(kind)}>{kind}</button>)}
+          {(["cat", "ute", "person"] as const).map((kind) => <button key={kind} type="button" className={referenceKind === kind ? "is-active" : ""} style={{ "--zone-color": kind === "cat" ? "#54f5d0" : kind === "ute" ? "#ffd56b" : "#8bb8ff" } as React.CSSProperties} onClick={() => setReferenceKind(kind)}>{kind === "person" ? "owner" : kind}</button>)}
         </div>
         <div className="camera-reference-add">
-          <input aria-label="Reference name" placeholder={referenceKind === "cat" ? "Cat name" : "Black ute"} value={referenceName} onChange={(event) => setReferenceName(event.target.value)} />
+          <input aria-label="Reference name" placeholder={referenceKind === "cat" ? "Cat name" : referenceKind === "ute" ? "Black ute" : "Owner name"} value={referenceName} onChange={(event) => setReferenceName(event.target.value)} />
           <label className="config-page-button"><ImagePlus className="h-4 w-4" /> {referenceFile?.name ?? "Choose image"}<input type="file" accept="image/*" onChange={(event) => setReferenceFile(event.target.files?.[0] ?? null)} /></label>
           <MomentaryFeedbackButton type="button" className="config-page-button" disabled={saving || !referenceFile || !referenceName.trim()} onClick={() => void uploadReference()}><Save className="h-4 w-4" /> Add reference</MomentaryFeedbackButton>
         </div>
         <ul className="camera-reference-list">
           {references.map((reference) => <li key={reference.id}><span>{reference.kind} · {reference.name}</span><button type="button" aria-label={`Delete ${reference.name} reference`} onClick={() => void deleteReference(reference.id)}><Trash2 className="h-4 w-4" /></button></li>)}
         </ul>
-        <p className="text-xs text-neutral-400">Use at least five varied daylight images per cat and several parked positions/wheel views for the ute. Matches remain tentative unless calibration reaches the required confidence.</p>
+        <p className="text-xs text-neutral-400">Use at least five varied daylight images per cat, several parked positions/wheel views for the ute, and multiple close-cropped face/full-body angles for the owner. Owner suppression requires strong agreement across multiple event frames.</p>
       </div>
     </section>
   );

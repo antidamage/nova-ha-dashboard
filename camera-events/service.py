@@ -31,7 +31,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from core import Box, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
 
 
 logging.basicConfig(level=os.environ.get("NOVA_CAMERA_EVENTS_LOG_LEVEL", "INFO"))
@@ -42,6 +42,7 @@ EVENT_ROOT = DATA_ROOT / "events"
 REFERENCE_ROOT = DATA_ROOT / "references"
 DAYLIGHT_FRAME_PATH = DATA_ROOT / "calibration-daylight.jpg"
 DB_PATH = DATA_ROOT / "events.sqlite3"
+POLICY_PATH = Path(os.environ.get("NOVA_CAMERA_EVENTS_POLICY", str(DATA_ROOT / "policy.json")))
 SOURCE_URL = os.environ.get(
     "NOVA_CAMERA_EVENTS_SOURCE",
     "http://nocturnium.local:8080/camera/outside/index.m3u8",
@@ -64,6 +65,30 @@ SUBJECT_NAMES = {
     15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow", 20: "elephant",
     21: "bear", 22: "zebra", 23: "giraffe",
 }
+
+FALLBACK_POLICY: dict[str, Any] = {
+    "version": 1,
+    "candidateSubjects": ["person", "cat", "dog"],
+    "zones": {"road": ["road"], "property": [], "laneway": [], "frontage": [], "blackUte": []},
+    "thresholds": {"vehicleStopSeconds": 8, "vehicleProximitySeconds": 2, "groupDistance": 0.25, "ownerSimilarity": 0.82, "ownerMinimumFrames": 2},
+    # Fail open for review if the local policy is unavailable; never silently
+    # discard safety footage because a private runtime file was lost.
+    "rules": [{"id": "policy_unavailable", "match": {}, "retain": True, "alert": False, "priority": "important"}],
+}
+
+
+def load_policy() -> tuple[dict[str, Any], bool]:
+    try:
+        value = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+        if not isinstance(value, dict) or not isinstance(value.get("rules"), list):
+            raise ValueError("policy must be an object with a rules array")
+        return value, True
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        LOG.warning("private camera policy unavailable; retaining candidates for review: %s", error)
+        return FALLBACK_POLICY, False
+
+
+POLICY, POLICY_CONFIGURED = load_policy()
 
 DEFAULT_ZONES = [
     {"id": "far_footpath", "label": "Opposite footpath", "kind": "activity", "points": [[0.08, 0.055], [0.95, 0.055], [0.94, 0.145], [0.07, 0.145]]},
@@ -140,6 +165,19 @@ class Store:
         columns = {row[1] for row in self.connection.execute("PRAGMA table_info(events)")}
         if "detail_attempts" not in columns:
             self.connection.execute("ALTER TABLE events ADD COLUMN detail_attempts INTEGER NOT NULL DEFAULT 0")
+        for column, definition in (
+            ("retained", "INTEGER NOT NULL DEFAULT 1"),
+            ("retained_reason", "TEXT"),
+            ("alert_reason", "TEXT"),
+            ("behavior_confidence", "REAL"),
+            ("owner_present", "INTEGER NOT NULL DEFAULT 0"),
+            ("policy_version", "INTEGER"),
+        ):
+            if column not in columns:
+                self.connection.execute(f"ALTER TABLE events ADD COLUMN {column} {definition}")
+        reference_columns = {row[1] for row in self.connection.execute("PRAGMA table_info(subject_references)")}
+        if "role" not in reference_columns:
+            self.connection.execute("ALTER TABLE subject_references ADD COLUMN role TEXT")
         # A container restart can interrupt an in-flight offline pass. Return it
         # to the bounded retry path instead of leaving it stuck forever.
         self.connection.execute(
@@ -191,10 +229,15 @@ class Store:
             ("detail_model", "detailModel"), ("corrected_identity", "correctedIdentity"),
             ("alert_state", "alertState"), ("detail_error", "detailError"),
             ("detail_attempts", "detailAttempts"),
+            ("retained_reason", "retainedReason"), ("alert_reason", "alertReason"),
+            ("behavior_confidence", "behaviorConfidence"), ("owner_present", "ownerPresent"),
+            ("policy_version", "policyVersion"),
         ):
             value[target] = value.pop(source)
         value["reviewed"] = bool(value["reviewed"])
         value["starred"] = bool(value["starred"])
+        value["ownerPresent"] = bool(value["ownerPresent"])
+        value.pop("retained", None)
         value["thumbnailUrl"] = f"/api/camera/{value['cameraId']}/events/{value['id']}/thumbnail" if value["thumbnail"] else None
         value["clipUrl"] = f"/api/camera/{value['cameraId']}/events/{value['id']}/clip" if value["clip"] else None
         value.pop("thumbnail", None)
@@ -206,13 +249,13 @@ class Store:
             self.connection.execute(
                 """INSERT INTO events(
                   id,camera_id,started_at,ended_at,created_at,updated_at,status,priority,title,summary,
-                  zones_json,subjects_json,labels_json,evidence_json,detector_model,thumbnail,clip
-                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                  zones_json,subjects_json,labels_json,evidence_json,detector_model,thumbnail,clip,retained,policy_version
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (
                     event["id"], CAMERA_ID, event["startedAt"], None, utc_now(), utc_now(), "collecting",
                     event["priority"], event["title"], event["summary"], json.dumps(event["zones"]),
                     json.dumps(event["subjects"]), json.dumps(event["labels"]), json.dumps(event["evidence"]),
-                    DETECTOR_MODEL, event.get("thumbnail"), None,
+                    DETECTOR_MODEL, event.get("thumbnail"), None, 0, int(POLICY.get("version", 1)),
                 ),
             )
             self.connection.commit()
@@ -248,7 +291,7 @@ class Store:
             return self.connection.execute("SELECT * FROM events WHERE id=?", (event_id,)).fetchone()
 
     def list(self, *, limit: int, priority: str | None, zone: str | None, subject: str | None, reviewed: bool | None, starred: bool | None) -> list[dict[str, Any]]:
-        clauses, values = ["camera_id=?"], [CAMERA_ID]
+        clauses, values = ["camera_id=?", "retained=1"], [CAMERA_ID]
         if priority:
             clauses.append("priority=?"); values.append(priority)
         if reviewed is not None:
@@ -298,12 +341,18 @@ class Store:
 STORE = Store()
 
 
-def zone_for(box: Box, zones: list[dict[str, Any]]) -> str | None:
+def zones_for(box: Box, zones: list[dict[str, Any]]) -> list[str]:
     for zone in zones:
         if zone.get("kind") == "exclude" and point_in_polygon(box.foot, zone.get("points", [])):
-            return None
-    candidates = [zone for zone in zones if zone.get("kind") != "exclude" and point_in_polygon(box.foot, zone.get("points", []))]
-    return candidates[-1]["id"] if candidates else "unmapped"
+            return []
+    return [zone["id"] for zone in zones if zone.get("kind") != "exclude" and point_in_polygon(box.foot, zone.get("points", []))]
+
+
+def zone_for(box: Box, zones: list[dict[str, Any]]) -> str | None:
+    candidates = zones_for(box, zones)
+    return candidates[-1] if candidates else (None if any(
+        zone.get("kind") == "exclude" and point_in_polygon(box.foot, zone.get("points", [])) for zone in zones
+    ) else "unmapped")
 
 
 def frame_quality(frame: np.ndarray) -> tuple[bool, float, float]:
@@ -327,6 +376,10 @@ class Pipeline:
         self.active: dict[str, Any] | None = None
         self.catalog: list[dict[str, Any]] = []
         self.vehicle_proximity_since: float | None = None
+        self.road_vehicle_state: dict[str, Any] | None = None
+        self.identity_model: Any = None
+        self.identity_processor: Any = None
+        self.identity_cache: dict[str, np.ndarray] = {}
 
     def load_detector(self) -> Any:
         if self.detector is None:
@@ -394,7 +447,8 @@ class Pipeline:
             zone = zone_for(box, zones)
             if zone is None:
                 continue
-            detection = {**detection, "zone": zone}
+            memberships = zones_for(box, zones)
+            detection = {**detection, "zone": zone, "zones": memberships or ["unmapped"]}
             resolved.append(detection)
             if detection["class"] in {"car", "truck", "bus", "motorcycle"}:
                 vehicles.append((detection, box))
@@ -403,27 +457,79 @@ class Pipeline:
             elif detection["class"] not in {"bicycle"}:
                 animals.append((detection, box))
 
-        meaningful = [item for item in resolved if item["class"] not in {"car", "truck", "bus", "motorcycle"}]
-        vehicle_near = any(vehicle_proximity(person_box, vehicle_box) for _, person_box in people for _, vehicle_box in vehicles)
+        candidate_subjects = set(POLICY.get("candidateSubjects", ["person", "cat", "dog"]))
+        meaningful = [item for item in resolved if item["class"] in candidate_subjects]
+        black_ute_zones = set(POLICY.get("zones", {}).get("blackUte", []))
+        person_in_black_ute_zone = any(black_ute_zones & set(person.get("zones", [])) for person, _ in people)
+        vehicle_near = person_in_black_ute_zone or any(vehicle_proximity(person_box, vehicle_box) for _, person_box in people for _, vehicle_box in vehicles)
         near_animal = any(
             hypot(cat_box.centre[0] - dog_box.centre[0], cat_box.centre[1] - dog_box.centre[1]) < 0.16
             for cat, cat_box in animals if cat["class"] == "cat"
             for dog, dog_box in animals if dog["class"] == "dog"
         )
+        thresholds = POLICY.get("thresholds", {})
         if vehicle_near:
             self.vehicle_proximity_since = self.vehicle_proximity_since or timestamp
         else:
             self.vehicle_proximity_since = None
-        confirmed_vehicle_near = self.vehicle_proximity_since is not None and timestamp - self.vehicle_proximity_since >= 2.0
-        if not meaningful and not confirmed_vehicle_near:
+        confirmed_vehicle_near = self.vehicle_proximity_since is not None and timestamp - self.vehicle_proximity_since >= float(thresholds.get("vehicleProximitySeconds", 2))
+
+        frontage_zones = set(POLICY.get("zones", {}).get("frontage", []))
+        frontage_vehicles = [(item, box) for item, box in vehicles if frontage_zones & set(item["zones"])]
+        vehicle_stopped = False
+        if frontage_vehicles:
+            item, box = max(frontage_vehicles, key=lambda pair: pair[0]["confidence"])
+            centre = box.centre
+            state = self.road_vehicle_state
+            if state is None or timestamp - state["last"] > 4:
+                state = {"centre": centre, "last": timestamp, "moving": False, "stoppedSince": None}
+            else:
+                distance = hypot(centre[0] - state["centre"][0], centre[1] - state["centre"][1])
+                if distance > 0.012:
+                    state["moving"] = True
+                    state["stoppedSince"] = None
+                elif state["moving"]:
+                    state["stoppedSince"] = state["stoppedSince"] or timestamp
+                state["centre"] = centre
+                state["last"] = timestamp
+            self.road_vehicle_state = state
+            vehicle_stopped = state["stoppedSince"] is not None and timestamp - state["stoppedSince"] >= float(thresholds.get("vehicleStopSeconds", 8))
+        elif self.road_vehicle_state is not None and timestamp - self.road_vehicle_state["last"] > 4:
+            self.road_vehicle_state = None
+
+        if not meaningful and not confirmed_vehicle_near and not vehicle_stopped:
             return
 
         labels = {item["class"] for item in resolved}
         if confirmed_vehicle_near:
             labels.add("vehicle_proximity")
+            if person_in_black_ute_zone:
+                labels.add("black_ute_candidate")
         if near_animal:
             labels.add("animal_close_proximity")
-        zone_ids = {item["zone"] for item in resolved}
+        if vehicle_stopped:
+            labels.add("vehicle_stopped_at_house")
+        zone_ids = {zone for item in resolved for zone in item["zones"]}
+        road_zones = set(POLICY.get("zones", {}).get("road", []))
+        property_zones = set(POLICY.get("zones", {}).get("property", []))
+        group_distance = float(thresholds.get("groupDistance", 0.25))
+        if any(item["class"] == "cat" and road_zones & set(item["zones"]) for item in resolved):
+            labels.add("cat_in_road")
+        if any(item["class"] == "dog" and property_zones & set(item["zones"]) for item in resolved):
+            labels.add("dog_on_property")
+        dog_accompanied = any(
+            hypot(dog_box.centre[0] - person_box.centre[0], dog_box.centre[1] - person_box.centre[1]) <= group_distance
+            for dog, dog_box in animals if dog["class"] == "dog"
+            for _, person_box in people
+        ) if any(item["class"] == "dog" for item, _ in animals) else False
+        if "dog" in labels and not dog_accompanied:
+            labels.add("dog_unaccompanied_candidate")
+        if "cat" in labels and "person" in labels and any(
+            hypot(cat_box.centre[0] - person_box.centre[0], cat_box.centre[1] - person_box.centre[1]) <= 0.20
+            for cat, cat_box in animals if cat["class"] == "cat"
+            for _, person_box in people
+        ):
+            labels.add("person_cat_proximity")
 
         if self.active is None:
             event_id = uuid.uuid4().hex
@@ -457,13 +563,16 @@ class Pipeline:
                     "class": detection["class"], "confidence": detection["confidence"],
                     "zone": detection["zone"], "box": detection["box"],
                 }
-            if detection["class"] == "person" and detection["zone"] == "road":
+            if detection["class"] == "person" and "road" in detection.get("zones", [detection["zone"]]):
                 box = Box(*detection["box"])
                 self.active["roadObservations"].append((timestamp, box.foot[0], box.foot[1]))
         self.active["subjects"] = sorted(subjects.values(), key=lambda item: item["class"])
         if timestamp - self.active["lastEvidence"] >= 4.0 and len(self.active["evidence"]) < 12:
             path = self.evidence_frame(self.active["id"], frame, timestamp)
-            self.active["evidence"].append({"at": iso_time(timestamp), "frame": path})
+            self.active["evidence"].append({
+                "at": iso_time(timestamp), "frame": path,
+                "subjects": [{"class": item["class"], "box": item["box"], "confidence": item["confidence"], "zones": item.get("zones", [item["zone"]])} for item in detections],
+            })
             self.active["lastEvidence"] = timestamp
         zones = self.active["zones"]
         labels = self.active["labels"]
@@ -502,13 +611,13 @@ class Pipeline:
         observations = event.get("roadObservations", [])
         if observations:
             event["labels"] = sorted(set(event["labels"]) | {
-                "prompt_road_crossing" if prompt_road_crossing(observations) else "unusual_road_behavior"
+                "prompt_road_crossing" if prompt_road_crossing(observations) else "road_behavior_candidate"
             })
             event["priority"] = priority_for(event["labels"], event["zones"])
             event["summary"] = (
                 "A person crossed the road promptly. Detailed analysis pending."
                 if "prompt_road_crossing" in event["labels"]
-                else "A person remained in or moved unusually through the road. Detailed analysis pending."
+                else "Roadside pedestrian behavior requires detailed analysis."
             )
             STORE.update_collection(event)
         clip = self.event_clip(event)
@@ -621,6 +730,75 @@ class Pipeline:
         threshold = 0.88 if kind == "cat" else 0.82
         return (name, score) if score >= threshold and score - runner_up >= 0.08 else None
 
+    def identity_embedding(self, image: Any, cache_key: str | None = None) -> np.ndarray | None:
+        if cache_key and cache_key in self.identity_cache:
+            return self.identity_cache[cache_key]
+        try:
+            import torch
+            from transformers import AutoImageProcessor, AutoModel
+            if self.identity_model is None or self.identity_processor is None:
+                model_name = os.environ.get("NOVA_CAMERA_EVENTS_IDENTITY_MODEL", "facebook/dinov2-small")
+                LOG.info("loading local person identity embedding model %s", model_name)
+                self.identity_processor = AutoImageProcessor.from_pretrained(model_name)
+                self.identity_model = AutoModel.from_pretrained(model_name).eval()
+            inputs = self.identity_processor(images=image, return_tensors="pt")
+            with torch.no_grad():
+                vector = self.identity_model(**inputs).last_hidden_state[:, 0].float().cpu().numpy()[0]
+            vector /= max(float(np.linalg.norm(vector)), 1e-9)
+            if cache_key:
+                self.identity_cache[cache_key] = vector
+            return vector
+        except Exception as error:
+            LOG.warning("person identity embedding unavailable: %s", error)
+            return None
+
+    def owner_identity(self, evidence: list[dict[str, Any]]) -> tuple[str, float] | None:
+        from PIL import Image
+        with STORE.lock:
+            rows = STORE.connection.execute(
+                "SELECT name,path FROM subject_references WHERE kind='person' AND role='owner'"
+            ).fetchall()
+        if not rows:
+            return None
+        references: dict[str, list[np.ndarray]] = {}
+        for row in rows:
+            path = Path(row["path"])
+            if not path.is_file():
+                continue
+            vector = self.identity_embedding(Image.open(path).convert("RGB"), str(path))
+            if vector is not None:
+                references.setdefault(row["name"], []).append(vector)
+
+        event_vectors: list[np.ndarray] = []
+        for item in evidence:
+            subjects = [subject for subject in item.get("subjects", []) if subject.get("class") == "person"]
+            path = Path(item.get("frame", ""))
+            if not subjects or not path.is_file():
+                continue
+            subject = max(subjects, key=lambda value: float(value.get("confidence", 0)))
+            image = Image.open(path).convert("RGB")
+            x1, y1, x2, y2 = subject["box"]
+            width, height = image.size
+            margin_x, margin_y = (x2 - x1) * 0.12, (y2 - y1) * 0.08
+            crop = image.crop((max(0, (x1 - margin_x) * width), max(0, (y1 - margin_y) * height), min(width, (x2 + margin_x) * width), min(height, (y2 + margin_y) * height)))
+            vector = self.identity_embedding(crop)
+            if vector is not None:
+                event_vectors.append(vector)
+        threshold = float(POLICY.get("thresholds", {}).get("ownerSimilarity", 0.82))
+        minimum = int(POLICY.get("thresholds", {}).get("ownerMinimumFrames", 2))
+        candidates: list[tuple[str, float, int]] = []
+        for name, vectors in references.items():
+            scores = [max(float(np.dot(event, reference)) for reference in vectors) for event in event_vectors]
+            passing = [score for score in scores if score >= threshold]
+            if len(passing) >= minimum:
+                candidates.append((name, sum(passing) / len(passing), len(passing)))
+        candidates.sort(key=lambda item: (item[2], item[1]), reverse=True)
+        if not candidates:
+            return None
+        name, score, _ = candidates[0]
+        runner_up = candidates[1][1] if len(candidates) > 1 else 0.0
+        return (name, score) if score - runner_up >= 0.04 else None
+
     def detail_event(self, row: sqlite3.Row) -> None:
         from PIL import Image
         frames = json.loads(row["evidence_json"])
@@ -628,8 +806,9 @@ class Pipeline:
         model = self.load_detail_model()
         prompt = (
             "Describe only observable activity in this daytime security-camera frame. "
-            "Mention people, cats, dogs, other non-bird animals, packages, road behavior, and interaction with a black ute. "
-            "Do not infer identity or intent. Use 'unclear' when uncertain."
+            "Mention people, cats, dogs, other non-bird animals, packages, road behavior, whether a dog and person move together, "
+            "and any observable touching, reaching, chasing, following, waiting, damage, dumping, fighting, or interaction with a cat or black ute. "
+            "Do not infer identity or intent. Distinguish an observed action from an unclear possibility. Use 'unclear' when uncertain."
         )
         frame_paths: list[Path] = []
         selected_frames = frames if len(frames) <= 2 else [frames[0], frames[-1]]
@@ -662,8 +841,32 @@ class Pipeline:
             labels.append("possible_vehicle_interaction")
         if "person" in labels and "road" in json.loads(row["zones_json"]) and any(word in lower for word in ("standing", "waiting", "fallen", "lying", "stopped")):
             labels.append("unusual_road_behavior")
+        if "person" in labels and any(word in lower for word in ("waiting", "standing still", "stopped", "pausing", "lingering")):
+            labels.append("person_pausing_outside")
+        if "person" in labels and any(word in lower for word in ("damage", "vandal", "dumping", "throwing rubbish", "harass", "threaten", "fighting", "prowling", "trying a door")):
+            labels.append("possible_antisocial_behavior")
+        if "person_cat_proximity" in labels and any(word in lower for word in ("touch", "reach", "pick up", "grab", "chase", "follow", "interact", "approach the cat")):
+            labels.append("possible_person_cat_interaction")
         if "dog" in labels and "cat" in labels and any(word in lower for word in ("chasing", "attack", "fight", "lunging")):
             labels.append("possible_animal_attack")
+
+        if "dog" in labels:
+            group_distance = float(POLICY.get("thresholds", {}).get("groupDistance", 0.25))
+            dog_frames = 0
+            grouped_frames = 0
+            for evidence in frames:
+                frame_subjects = evidence.get("subjects", [])
+                dogs = [Box(*item["box"]) for item in frame_subjects if item.get("class") == "dog"]
+                people = [Box(*item["box"]) for item in frame_subjects if item.get("class") == "person"]
+                if dogs:
+                    dog_frames += 1
+                if any(hypot(dog.centre[0] - person.centre[0], dog.centre[1] - person.centre[1]) <= group_distance for dog in dogs for person in people):
+                    grouped_frames += 1
+            text_supports_group = any(phrase in lower for phrase in ("walking a dog", "on a leash", "moving together", "accompanied by"))
+            if grouped_frames >= 2 and grouped_frames >= max(1, dog_frames // 2) and text_supports_group:
+                labels.append("dog_accompanied")
+            else:
+                labels.append("dog_unaccompanied")
         subjects = json.loads(row["subjects_json"])
         if "cat" in labels:
             identity = self.reference_identity("cat", frame_paths)
@@ -678,18 +881,43 @@ class Pipeline:
             ute_match = self.reference_identity("ute", frame_paths)
             if ute_match:
                 labels.append("black_ute_candidate")
+
+        owner_match = self.owner_identity(frames) if "person" in labels else None
+        owner_present = owner_match is not None
+        if owner_match:
+            owner_name, owner_confidence = owner_match
+            labels.append("owner_present")
+            for subject in subjects:
+                if subject.get("class") == "person":
+                    subject.update({"identity": owner_name, "identityConfidence": owner_confidence, "identityTentative": False})
         labels = sorted(set(labels))
-        priority = priority_for(labels, json.loads(row["zones_json"]))
+        zones = json.loads(row["zones_json"])
+        decision = evaluate_policy(POLICY, labels, zones, owner_present=owner_present)
+        if not decision["retain"]:
+            LOG.info("event %s discarded by private policy: labels=%s zones=%s", row["id"], labels, zones)
+            STORE.delete(row["id"])
+            return
+        priority = decision["priority"]
         summary = text[:1200] if text else row["summary"]
-        title = next((label.replace("_", " ").title() for label in ("possible_animal_attack", "possible_vehicle_interaction", "possible_delivery", "unusual_road_behavior") if label in labels), row["title"])
+        title = next((label.replace("_", " ").title() for label in (
+            "possible_animal_attack", "cat_in_road", "dog_on_property", "dog_unaccompanied",
+            "possible_person_cat_interaction", "possible_vehicle_interaction", "vehicle_stopped_at_house",
+            "possible_antisocial_behavior", "person_pausing_outside", "unusual_road_behavior",
+        ) if label in labels), row["title"])
+        behavior_confidence = 0.8 if any(label.startswith("possible_") or label in {"person_pausing_outside", "unusual_road_behavior"} for label in labels) else None
         with STORE.lock:
             STORE.connection.execute(
                 """UPDATE events SET status='analysed',updated_at=?,priority=?,title=?,summary=?,labels_json=?,subjects_json=?,
-                   detail_model=?,detail_error=NULL WHERE id=?""",
-                (utc_now(), priority, title, summary, json.dumps(labels), json.dumps(subjects), MOONDREAM_MODEL, row["id"]),
+                   detail_model=?,detail_error=NULL,retained=1,retained_reason=?,alert_reason=?,behavior_confidence=?,
+                   owner_present=?,policy_version=? WHERE id=?""",
+                (
+                    utc_now(), priority, title, summary, json.dumps(labels), json.dumps(subjects), MOONDREAM_MODEL,
+                    ",".join(decision["reasons"]), ",".join(decision["alertReasons"]) or None,
+                    behavior_confidence, int(owner_present), int(POLICY.get("version", 1)), row["id"],
+                ),
             )
             STORE.connection.commit()
-        if priority in {"important", "urgent"}:
+        if decision["alert"]:
             self.notify(row["id"], title, summary)
 
     def notify(self, event_id: str, title: str, summary: str) -> None:
@@ -747,9 +975,24 @@ class Pipeline:
             except Exception as error:
                 self.detail_error = str(error)
                 LOG.exception("detail analysis failed for %s", row["id"])
+                exhausted = int(row["detail_attempts"]) >= 2
+                labels = json.loads(row["labels_json"])
+                zones = json.loads(row["zones_json"])
+                fallback_decision = evaluate_policy(POLICY, labels, zones) if exhausted else None
                 with STORE.lock:
-                    STORE.connection.execute("UPDATE events SET status='analysis_failed',detail_error=?,updated_at=? WHERE id=?", (str(error)[:1000], utc_now(), row["id"]))
+                    STORE.connection.execute(
+                        """UPDATE events SET status='analysis_failed',detail_error=?,updated_at=?,retained=?,
+                           retained_reason=?,priority=?,policy_version=? WHERE id=?""",
+                        (
+                            str(error)[:1000], utc_now(), int(exhausted),
+                            "detail_analysis_failed_fail_open" if exhausted else None,
+                            fallback_decision["priority"] if fallback_decision and fallback_decision["retain"] else "important",
+                            int(POLICY.get("version", 1)), row["id"],
+                        ),
+                    )
                     STORE.connection.commit()
+                if exhausted and fallback_decision and fallback_decision["alert"]:
+                    self.notify(row["id"], "Camera safety event", row["summary"])
 
     def retention(self) -> None:
         while not self.stop.wait(3600):
@@ -808,6 +1051,8 @@ def health() -> dict[str, Any]:
         "queueDepth": queued,
         "detectorError": PIPELINE.detector_error,
         "detailError": PIPELINE.detail_error,
+        "policyConfigured": POLICY_CONFIGURED,
+        "policyVersion": POLICY.get("version", 1),
         "freeBytes": usage.free,
     }
 
@@ -917,16 +1162,17 @@ def current_frame(daylight: bool = False) -> Response:
 def references(kind: str | None = None) -> dict[str, Any]:
     with STORE.lock:
         rows = STORE.connection.execute(
-            "SELECT id,kind,name,created_at FROM subject_references" + (" WHERE kind=?" if kind else "") + " ORDER BY name,created_at",
+            "SELECT id,kind,name,role,created_at FROM subject_references" + (" WHERE kind=?" if kind else "") + " ORDER BY name,created_at",
             (kind,) if kind else (),
         ).fetchall()
     return {"references": [dict(row) for row in rows]}
 
 
 @app.post("/references")
-async def add_reference(kind: str, name: str, image: UploadFile = File(...)) -> dict[str, Any]:
-    if kind not in {"cat", "ute"} or not name.strip():
-        raise HTTPException(400, "Reference kind must be cat or ute and name is required")
+async def add_reference(kind: str, name: str, image: UploadFile = File(...), role: str | None = None) -> dict[str, Any]:
+    if kind not in {"cat", "ute", "person"} or not name.strip():
+        raise HTTPException(400, "Reference kind must be cat, ute, or person and name is required")
+    normalized_role = "owner" if kind == "person" and role == "owner" else None
     data = await image.read()
     if len(data) > 10 * 1024 * 1024:
         raise HTTPException(413, "Reference image is too large")
@@ -939,9 +1185,9 @@ async def add_reference(kind: str, name: str, image: UploadFile = File(...)) -> 
     path = directory / f"{reference_id}.jpg"
     cv2.imwrite(str(path), decoded, [cv2.IMWRITE_JPEG_QUALITY, 92])
     with STORE.lock:
-        STORE.connection.execute("INSERT INTO subject_references(id,kind,name,path,created_at) VALUES(?,?,?,?,?)", (reference_id, kind, name.strip(), str(path), utc_now()))
+        STORE.connection.execute("INSERT INTO subject_references(id,kind,name,path,created_at,role) VALUES(?,?,?,?,?,?)", (reference_id, kind, name.strip(), str(path), utc_now(), normalized_role))
         STORE.connection.commit()
-    return {"id": reference_id, "kind": kind, "name": name.strip()}
+    return {"id": reference_id, "kind": kind, "name": name.strip(), "role": normalized_role}
 
 
 @app.delete("/references/{reference_id}")

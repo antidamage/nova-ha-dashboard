@@ -1,6 +1,6 @@
 import unittest
 
-from core import Box, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
 
 
 class CameraEventCoreTests(unittest.TestCase):
@@ -29,7 +29,28 @@ class CameraEventCoreTests(unittest.TestCase):
         self.assertEqual(priority_for(["person"], ["front_path"]), "important")
         self.assertEqual(priority_for(["possible_animal_attack"], ["front_path"]), "urgent")
 
+    def test_policy_separates_retention_from_alerting(self):
+        policy = {"rules": [
+            {"id": "lane", "match": {"allLabels": ["person"], "anyZones": ["lane"]}, "retain": True, "alert": False, "priority": "important"},
+            {"id": "danger", "match": {"allLabels": ["danger"]}, "retain": True, "alert": True, "priority": "urgent"},
+        ]}
+        lane = evaluate_policy(policy, ["person"], ["lane"])
+        self.assertTrue(lane["retain"])
+        self.assertFalse(lane["alert"])
+        danger = evaluate_policy(policy, ["danger"], ["road"])
+        self.assertTrue(danger["alert"])
+        self.assertEqual(danger["priority"], "urgent")
+
+    def test_owner_suppression_keeps_safety_override(self):
+        policy = {"rules": [
+            {"id": "ordinary", "match": {"allLabels": ["person"]}, "retain": True, "suppressWhenOwner": True},
+            {"id": "safety", "match": {"allLabels": ["cat_in_road"]}, "retain": True, "alert": True, "priority": "urgent", "suppressWhenOwner": True, "safetyOverride": True},
+        ]}
+        ordinary = evaluate_policy(policy, ["person"], ["path"], owner_present=True)
+        self.assertFalse(ordinary["retain"])
+        safety = evaluate_policy(policy, ["person", "cat_in_road"], ["road"], owner_present=True)
+        self.assertTrue(safety["alert"])
+
 
 if __name__ == "__main__":
     unittest.main()
-

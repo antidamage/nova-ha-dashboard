@@ -125,15 +125,22 @@ model crash cannot interrupt recording or the live camera.
 
 - YOLO samples daytime frames on the GPU, assigns detections to visually configured
   polygons, ignores bird-only activity, and groups people/animals into events.
-- People, cats, dogs and other non-bird animals are recorded. Vehicle detections
-  are supporting context unless a person remains in the expanded vehicle area.
+- People, cats, dogs and other non-bird animals become hidden candidates. A
+  versioned, installation-private policy independently decides whether each
+  candidate is retained, prioritised, and notified; discarded candidates and
+  clips are removed after the detailed pass.
+- Vehicle detections are supporting context unless a configured dwell or
+  person-proximity condition is met.
 - Road tracks distinguish prompt curb-to-curb crossings from lingering,
   reversal, falls, or other activity worth detailed review.
 - Each event is preserved as a JPEG thumbnail plus an H.264 MP4 remux covering
   ten seconds before activity through twenty seconds after it.
 - A durable detail queue asks local Moondream2 to describe source-resolution
-  evidence frames. Home Assistant alerts are emitted only after this pass and
-  only when enabled in Camera configuration.
+  evidence frames. Home Assistant alerts are emitted only for explicit policy
+  alert rules after this pass and only when enabled in Camera configuration.
+- Owner reference images use local multi-frame visual embeddings. An identity
+  can suppress an event only after a high-confidence match; policy safety
+  overrides remain independent of that suppression.
 - Unstarred events retain fourteen days or 50 GB. Starred clips are preserved;
   a free-space reserve prevents activity media from filling the host.
 - The review modal can select individual or all currently filtered events for a
@@ -141,6 +148,11 @@ model crash cannot interrupt recording or the live camera.
   polygon vertices and uses a saved daylight calibration frame after dark.
   The injected calibration frame is outside event retention and is not
   automatically expired or replaced.
+
+The DVR timeline uses recorder-reported wall-clock bounds rather than treating
+the browser's currently buffered range as the complete archive. Timestamped
+manifest views let native-HLS clients reopen older footage while retaining the
+stable WebKit playback path.
 
 The service stores SQLite state, clips, model caches, and private cat/ute
 reference images under `data/camera-events/`. None of this runtime data is

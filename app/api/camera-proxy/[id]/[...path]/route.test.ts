@@ -66,6 +66,26 @@ describe("same-origin camera proxy", () => {
     expect(response.status).toBe(200);
   });
 
+  it("serves a timestamp-addressed DVR manifest without forwarding the private selector", async () => {
+    readConfigMock.mockResolvedValue({
+      dashboard: { camera: { outside: { videoHostUrl: "http://nocturnium.local:8080" } } },
+    } as Awaited<ReturnType<typeof readDashboardConfig>>);
+    const playlist = `#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:10\n#EXTINF:2,\n#EXT-X-PROGRAM-DATE-TIME:2026-08-10T10:00:00Z\nseg_000010.ts\n#EXTINF:2,\n#EXT-X-PROGRAM-DATE-TIME:2026-08-10T10:00:02Z\nseg_000011.ts\n`;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(playlist, { headers: { "Content-Type": "application/vnd.apple.mpegurl" } }),
+    );
+
+    const response = await GET(
+      new Request(`https://nova.local/api/camera-proxy/outside/index.m3u8?start=${Date.parse("2026-08-10T10:00:03Z")}&_=123`),
+      context(["index.m3u8"]),
+    );
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe("http://nocturnium.local:8080/camera/outside/index.m3u8?_=123");
+    const result = await response.text();
+    expect(result).not.toContain("seg_000010.ts");
+    expect(result).toContain("seg_000011.ts");
+  });
+
   it("fails closed when no valid remote host is configured", async () => {
     readConfigMock.mockResolvedValue({
       dashboard: { camera: { outside: { videoHostUrl: "javascript:alert(1)" } } },

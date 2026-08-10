@@ -202,6 +202,10 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const [seekable, setSeekable] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [currentTime, setCurrentTime] = useState(0);
   const [playingDate, setPlayingDate] = useState<Date | null>(null);
+  const [streamStartAt, setStreamStartAt] = useState<number | null>(null);
+  const [scrubTargetMs, setScrubTargetMs] = useState<number | null>(null);
+  const statusRef = useRef<CameraStatus | null>(null);
+  const streamStartAtRef = useRef<number | null>(null);
   // Suppresses live-follow while the user is dragging the scrubber.
   const scrubbingRef = useRef(false);
   const scrubHapticsRef = useRef(new SliderHapticController());
@@ -214,6 +218,14 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     isLiveRef.current = live;
     setIsLive(live);
   }, []);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    streamStartAtRef.current = streamStartAt;
+  }, [streamStartAt]);
 
   // Saved-capture ("snapshot") state. The whole group lives behind a closed-by-
   // default accordion, so this stays idle until the user opens it.
@@ -272,13 +284,25 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     // manifest can never be served from an intermediate cache (browser HTTP
     // cache, a CDN/proxy, or an OS-level PWA cache on mobile) after a node
     // restart on the source host.
-    const src = `${cameraUrl(cameraId, "index.m3u8")}?_=${Date.now()}`;
+    const query = new URLSearchParams({ _: String(Date.now()) });
+    if (streamStartAt !== null) query.set("start", String(Math.round(streamStartAt)));
+    const src = `${cameraUrl(cameraId, "index.m3u8")}?${query}`;
     let cancelled = false;
+    let positionedHistoricalStream = false;
     let cleanup = () => {};
 
     const onReady = () => {
       if (!cancelled) {
         setStreamReady(true);
+        if (streamStartAt !== null && !positionedHistoricalStream) {
+          positionedHistoricalStream = true;
+          const range = video.seekable;
+          if (range.length > 0) video.currentTime = range.start(0);
+          setLive(false);
+          setPlayingDate(new Date(streamStartAt));
+          setScrubTargetMs(null);
+          void video.play().catch(() => {});
+        }
       }
     };
 
@@ -355,7 +379,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       cleanup();
       setStreamReady(false);
     };
-  }, [cameraId, reattachToken]);
+  }, [cameraId, reattachToken, setLive, streamStartAt]);
 
   // Self-heal a stuck stream: if the backend says the device is recording but
   // this tab's hls.js never reaches LEVEL_LOADED within STUCK_STREAM_TIMEOUT_MS,
@@ -438,7 +462,18 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       }
       setCurrentTime(video.currentTime);
       const hlsPlayingDate = hlsRef.current?.playingDate ?? null;
-      setPlayingDate(hlsPlayingDate ?? null);
+      if (hlsPlayingDate) {
+        setPlayingDate(hlsPlayingDate);
+      } else if (seekableRange.length > 0) {
+        const rangeStart = seekableRange.start(0);
+        const rangeEnd = seekableRange.end(seekableRange.length - 1);
+        const requestedStart = streamStartAtRef.current;
+        const newest = statusRef.current?.newestSegment ? Date.parse(statusRef.current.newestSegment) : Number.NaN;
+        const wallClockMs = requestedStart !== null
+          ? requestedStart + Math.max(0, video.currentTime - rangeStart) * 1000
+          : Number.isFinite(newest) ? newest - Math.max(0, rangeEnd - video.currentTime) * 1000 : Number.NaN;
+        setPlayingDate(Number.isFinite(wallClockMs) ? new Date(wallClockMs) : null);
+      }
       raf = requestAnimationFrame(sample);
     };
     raf = requestAnimationFrame(sample);
@@ -460,6 +495,12 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     if (!video) {
       return;
     }
+    if (streamStartAtRef.current !== null) {
+      setStreamStartAt(null);
+      setScrubTargetMs(null);
+      setLive(true);
+      return;
+    }
     const seekableRange = video.seekable;
     if (seekableRange.length > 0) {
       const end = seekableRange.end(seekableRange.length - 1);
@@ -468,6 +509,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     scrubbingRef.current = false;
     video.playbackRate = 1;
     setLive(true);
+    setScrubTargetMs(null);
     void video.play().catch(() => {});
   }, [setLive]);
 
@@ -491,14 +533,31 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       return;
     }
     scrubbingRef.current = true;
-    const normalizedValue = (values[0] - seekable.start) / Math.max(1, seekable.end - seekable.start);
+    const oldestMs = status?.oldestSegment ? Date.parse(status.oldestSegment) : 0;
+    const newestMs = status?.newestSegment ? Date.parse(status.newestSegment) : 0;
+    if (!(newestMs > oldestMs)) {
+      const mediaTime = values[0] / 1000;
+      setLive(false);
+      setScrubTargetMs(null);
+      video.currentTime = mediaTime;
+      setCurrentTime(mediaTime);
+      return;
+    }
+    const normalizedValue = (values[0] - oldestMs) / Math.max(1, newestMs - oldestMs);
     const previous = lastScrubHapticValueRef.current;
     if (previous !== null) scrubHapticsRef.current.move(normalizedValue - previous, { value: values[0] });
     lastScrubHapticValueRef.current = normalizedValue;
     setLive(false);
-    video.currentTime = values[0];
-    setCurrentTime(values[0]);
-  }, [seekable.end, seekable.start, setLive]);
+    setScrubTargetMs(values[0]);
+    const range = video.seekable;
+    if (range.length > 0 && newestMs > 0) {
+      const candidate = range.end(range.length - 1) - (newestMs - values[0]) / 1000;
+      if (candidate >= range.start(0) && candidate <= range.end(range.length - 1)) {
+        video.currentTime = candidate;
+        setCurrentTime(candidate);
+      }
+    }
+  }, [setLive, status?.newestSegment, status?.oldestSegment]);
 
   const commitScrub = useCallback((values: number[]) => {
     const video = videoRef.current;
@@ -506,10 +565,27 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     scrubHapticsRef.current.stop();
     lastScrubHapticValueRef.current = null;
     if (video && values.length > 0) {
-      video.currentTime = values[0];
-      void video.play().catch(() => {});
+      const newestMs = status?.newestSegment ? Date.parse(status.newestSegment) : 0;
+      const oldestMs = status?.oldestSegment ? Date.parse(status.oldestSegment) : 0;
+      if (!(newestMs > oldestMs)) {
+        video.currentTime = values[0] / 1000;
+        void video.play().catch(() => {});
+        return;
+      }
+      const range = video.seekable;
+      const candidate = range.length > 0 && newestMs > 0
+        ? range.end(range.length - 1) - (newestMs - values[0]) / 1000
+        : Number.NaN;
+      if (range.length > 0 && candidate >= range.start(0) && candidate <= range.end(range.length - 1)) {
+        video.currentTime = candidate;
+        setScrubTargetMs(null);
+        void video.play().catch(() => {});
+      } else {
+        setStreamStartAt(values[0]);
+        setReattachToken((token) => token + 1);
+      }
     }
-  }, []);
+  }, [status?.newestSegment]);
 
   const refreshSnapshots = useCallback(async () => {
     try {
@@ -574,12 +650,15 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     return () => window.removeEventListener("keydown", onKey);
   }, [confirmSnapshot, snapshotBusy]);
 
-  const windowSeconds = Math.max(1, seekable.end - seekable.start);
-  const behindLiveSeconds = Math.max(0, seekable.end - currentTime);
+  const oldestMs = status?.oldestSegment ? Date.parse(status.oldestSegment) : Number.NaN;
+  const newestMs = status?.newestSegment ? Date.parse(status.newestSegment) : Number.NaN;
+  const hasAuthoritativeWindow = Number.isFinite(oldestMs) && Number.isFinite(newestMs) && newestMs > oldestMs;
+  const windowSeconds = hasAuthoritativeWindow ? Math.max(1, (newestMs - oldestMs) / 1000) : Math.max(1, seekable.end - seekable.start);
+  const selectedWallClockMs = isLive ? newestMs : scrubTargetMs ?? playingDate?.getTime() ?? newestMs;
+  const behindLiveSeconds = Number.isFinite(newestMs) && Number.isFinite(selectedWallClockMs) ? Math.max(0, (newestMs - selectedWallClockMs) / 1000) : Math.max(0, seekable.end - currentTime);
   const liveEdgeDate = status?.newestSegment ? new Date(status.newestSegment) : new Date();
-  const currentDate =
-    playingDate ?? (behindLiveSeconds >= 0 ? new Date(liveEdgeDate.getTime() - behindLiveSeconds * 1000) : liveEdgeDate);
-  const windowStartDate = new Date(liveEdgeDate.getTime() - windowSeconds * 1000);
+  const currentDate = Number.isFinite(selectedWallClockMs) ? new Date(selectedWallClockMs) : playingDate ?? liveEdgeDate;
+  const windowStartDate = hasAuthoritativeWindow ? new Date(oldestMs) : new Date(liveEdgeDate.getTime() - windowSeconds * 1000);
   const hasDvr = !DEMO_MODE && streamReady && windowSeconds > LIVE_EDGE_THRESHOLD_SECONDS;
   // While following live the player constantly re-seeks, which fires transient
   // pause/play events; treat live as "playing" so the control icon stays stable.
@@ -627,16 +706,18 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         <div className="camera-timeline">
           <Slider.Root
             className="camera-slider"
-            min={seekable.start}
-            max={seekable.end}
-            value={[isLive ? seekable.end : Math.min(Math.max(currentTime, seekable.start), seekable.end)]}
-            step={0.5}
+            min={hasAuthoritativeWindow ? oldestMs : seekable.start * 1000}
+            max={hasAuthoritativeWindow ? newestMs : seekable.end * 1000}
+            value={[hasAuthoritativeWindow
+              ? Math.min(Math.max(selectedWallClockMs, oldestMs), newestMs)
+              : (isLive ? seekable.end : Math.min(Math.max(currentTime, seekable.start), seekable.end)) * 1000]}
+            step={500}
             disabled={!hasDvr}
             onPointerDown={() => {
               if (!hasDvr) return;
               scrubHapticsRef.current.start({
-                value: isLive ? seekable.end : Math.min(Math.max(currentTime, seekable.start), seekable.end),
-                step: 0.5,
+                value: hasAuthoritativeWindow ? selectedWallClockMs : (isLive ? seekable.end : Math.min(Math.max(currentTime, seekable.start), seekable.end)) * 1000,
+                step: 500,
               });
               lastScrubHapticValueRef.current = null;
             }}
