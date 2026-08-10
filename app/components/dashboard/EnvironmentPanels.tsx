@@ -28,7 +28,7 @@ export function LoungeEnvironmentPanel({ environment }: { environment: LoungeEnv
           </p>
           <p className="temp-readout num-xl mt-2 font-mono text-4xl font-black tabular-nums text-neutral-50">
             {formatTemperature(environment?.temperature ?? null)}
-            <span className="text-lg">&deg;</span>
+            {environment?.temperature == null ? null : <span className="text-lg">&deg;</span>}
           </p>
         </div>
         <div className="lounge-environment-metric border border-neutral-700 bg-neutral-950/70 p-4">
@@ -66,7 +66,7 @@ export function BedroomTemperaturePanel({ temperature }: { temperature: number |
         </p>
         <p className="temp-readout num-xl mt-2 font-mono text-4xl font-black tabular-nums text-neutral-50">
           {formatTemperature(temperature)}
-          <span className="text-lg">&deg;</span>
+          {temperature === null ? null : <span className="text-lg">&deg;</span>}
         </p>
       </div>
     </section>

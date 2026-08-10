@@ -200,14 +200,14 @@ function TemperatureStepper({
           <p className="text-sm font-black uppercase text-cyan-300">{label}</p>
           <p className="climate-temp-readout mt-1 font-black tabular-nums text-neutral-50">
             {formatTemperature(target)}
-            <span>&deg;</span>
+            {target === null ? null : <span>&deg;</span>}
           </p>
         </div>
         <div className="text-right">
           <p className="text-xs font-black uppercase text-neutral-400">Current</p>
           <p className="temp-readout climate-current-readout font-mono font-black tabular-nums text-neutral-100">
             {formatTemperature(current)}
-            <span>&deg;</span>
+            {current === null ? null : <span>&deg;</span>}
           </p>
         </div>
       </div>
