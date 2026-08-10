@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
 import {
   BEDROOM_HEATER_MIN_CYCLE_MS,
+  BEDROOM_HEATER_SENSOR_GRACE_MS,
   BEDROOM_HEATER_TAIL_OFF_MS,
   BedroomHeaterThermostat,
   bedroomHeaterMode,
@@ -270,16 +271,61 @@ describe("planBedroomHeaterTick", () => {
     expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_on" }]);
   });
 
-  it("forces an active heater off without a temperature reading", () => {
-    const result = plan({ currentTemperature: null, isOn: true });
-    expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_off" }]);
-    expect(result.reason).toBe("sensor-fail-safe-off");
+  it("tries heating first without a temperature reading, inside a 2-minute grace window", () => {
+    const result = plan({ currentTemperature: null, isOn: false });
+    expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_on" }]);
+    expect(result.reason).toBe("sensor-pending");
+    expect(result.nextState.sensorPendingSinceAt).toBe(1_000_000);
   });
 
-  it("stays off without a temperature reading", () => {
-    const result = plan({ currentTemperature: null, isOn: false });
+  it("leaves an already-on heater running without a reading, inside the grace window", () => {
+    const result = plan({
+      currentTemperature: null,
+      isOn: true,
+      state: { ...createInitialBedroomHeaterAutoState(), sensorPendingSinceAt: 1_000_000 },
+      now: 1_000_000 + 60_000,
+    });
     expect(result.actions).toEqual([]);
+    expect(result.reason).toBe("sensor-pending");
+  });
+
+  it("switches off, but stays in Auto, once the grace window expires with still no reading", () => {
+    const result = plan({
+      currentTemperature: null,
+      isOn: true,
+      state: { ...createInitialBedroomHeaterAutoState(), sensorPendingSinceAt: 1_000_000 },
+      now: 1_000_000 + BEDROOM_HEATER_SENSOR_GRACE_MS,
+    });
+    expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_off" }]);
     expect(result.reason).toBe("sensor-fail-safe-off");
+    expect(result.nextState.sensorPendingSinceAt).toBe(null);
+  });
+
+  it("retries heating on its own once the grace window and dwell both clear", () => {
+    const timedOut = plan({
+      currentTemperature: null,
+      isOn: true,
+      state: { ...createInitialBedroomHeaterAutoState(), sensorPendingSinceAt: 1_000_000 },
+      now: 1_000_000 + BEDROOM_HEATER_SENSOR_GRACE_MS,
+    });
+    const retry = plan({
+      currentTemperature: null,
+      isOn: false,
+      state: timedOut.nextState,
+      now: 1_000_000 + BEDROOM_HEATER_SENSOR_GRACE_MS + BEDROOM_HEATER_MIN_CYCLE_MS + 1,
+    });
+    expect(retry.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_on" }]);
+    expect(retry.reason).toBe("sensor-pending");
+  });
+
+  it("a valid reading clears the sensor-pending clock", () => {
+    const result = plan({
+      currentTemperature: 20,
+      isOn: false,
+      state: { ...createInitialBedroomHeaterAutoState(), sensorPendingSinceAt: 1_000_000 },
+      now: 1_000_000 + 60_000,
+    });
+    expect(result.nextState.sensorPendingSinceAt).toBe(null);
   });
 
   it("does nothing without an entity", () => {
