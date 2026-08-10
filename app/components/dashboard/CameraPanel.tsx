@@ -8,6 +8,7 @@ import { classNames } from "./shared";
 import { cameraUrl } from "./cameraHost";
 import { arePageUpdatesPaused } from "./pageUpdatePause";
 import { SliderHapticController } from "../haptics";
+import { CameraEventReport } from "./CameraEventReport";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
@@ -668,6 +669,8 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           Live
         </button>
       </div>
+
+      {!DEMO_MODE ? <CameraEventReport cameraId={cameraId} /> : null}
 
       {!DEMO_MODE ? (
         <div className="camera-snapshots">

@@ -5,10 +5,11 @@
  * (currently Nocturnium); nova is a pure consumer. The configured host (a
  * `dashboard.camera.outside.videoHostUrl` text field) is seeded onto the client
  * by the layout head bootstrap as `window.__NOVA_VIDEO_HOST__`. When it is set,
- * the client embeds the stream DIRECTLY from that host (Nocturnium serves it at
- * `/camera/<id>/…`); when it is empty we fall back to nova's own same-origin
- * `/api/camera/<id>/…` routes — the transition state before the capture hardware
- * is physically moved to the configured host.
+ * the browser uses Nova's same-origin `/api/camera-proxy/...` route, which fetches
+ * the stream from that host server-side. This is required for HTTPS dashboard
+ * clients: WebKit correctly blocks a direct `http://nocturnium.local:8080`
+ * subresource as mixed content. When it is empty we fall back to Nova's local
+ * `/api/camera/<id>/...` recorder routes.
  *
  * This is the only machine-specific value on nova, and it lives in config, never
  * as a hard-coded constant (the golden rule).
@@ -27,12 +28,17 @@ export function cameraHostBase(): string {
 }
 
 /**
- * Build a camera URL. With a video host configured the path is the remote
- * service's `<host>/camera/<id>/<path>`; otherwise it is nova's same-origin
- * `/api/camera/<id>/<path>`. Pass `hostOverride` to target a specific host (e.g.
- * the config panel's editable field before it has been persisted + reloaded).
+ * Build a browser-safe, same-origin camera URL. With a video host configured,
+ * Nova's server-side proxy resolves the configured host and forwards the path;
+ * otherwise the local recorder route is used. `hostOverride` only selects which
+ * route family to use — the server deliberately reads the persisted host rather
+ * than accepting an arbitrary client-supplied proxy target.
  */
 export function cameraUrl(cameraId: string, path: string, hostOverride?: string): string {
   const base = hostOverride !== undefined ? normalizeVideoHost(hostOverride) : cameraHostBase();
-  return base ? `${base}/camera/${cameraId}/${path}` : `/api/camera/${cameraId}/${path}`;
+  const encodedId = encodeURIComponent(cameraId);
+  const cleanPath = path.replace(/^\/+/, "");
+  return base
+    ? `/api/camera-proxy/${encodedId}/${cleanPath}`
+    : `/api/camera/${encodedId}/${cleanPath}`;
 }

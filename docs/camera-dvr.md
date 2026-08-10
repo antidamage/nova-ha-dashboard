@@ -53,8 +53,11 @@ is no ffmpeg or API, so `CameraPanel` renders an equivalent live clock on a
 - `GET /api/camera/<id>/status` — JSON: source, recording state, device
   connectivity, retention window and the oldest/newest segment timestamps.
 
-The browser player (`app/components/dashboard/CameraPanel.tsx`) uses **hls.js**
-(with native HLS fallback for Safari/tvOS). The scrubber is driven by the
+The browser player (`app/components/dashboard/CameraPanel.tsx`) uses native HLS
+first on Safari/WebKit and **hls.js** on browsers without native HLS. Remote
+camera bytes are relayed through `/api/camera-proxy/...`, keeping HTTPS iPhone
+and iPad clients on the dashboard's secure origin instead of exposing the
+HTTP-only capture host as a blocked mixed-content subresource. The scrubber is driven by the
 `<video>` element's `seekable` range; **Live** seeks just behind the live edge.
 
 ## Deployment requirement (Nova)
@@ -113,3 +116,27 @@ restarts only the camera recorder.
 Restart with `docker stop nova-ha-dashboard` after changing these values. To
 restore the signal test, unset `NOVA_CAMERA_OUTSIDE_DEVICE` and restart; the
 generator code and DVR path remain installed.
+
+## Daytime activity events
+
+The dashboard host runs a separate `nova-camera-events.service`. It consumes
+completed segments from this HLS feed without opening the capture device, so a
+model crash cannot interrupt recording or the live camera.
+
+- YOLO samples daytime frames on CPU, assigns detections to visually configured
+  polygons, ignores bird-only activity, and groups people/animals into events.
+- People, cats, dogs and other non-bird animals are recorded. Vehicle detections
+  are supporting context unless a person remains in the expanded vehicle area.
+- Road tracks distinguish prompt curb-to-curb crossings from lingering,
+  reversal, falls, or other activity worth detailed review.
+- Each event is preserved as a JPEG thumbnail plus an H.264 MP4 remux covering
+  ten seconds before activity through twenty seconds after it.
+- A durable detail queue asks local Moondream2 to describe source-resolution
+  evidence frames. Home Assistant alerts are emitted only after this pass and
+  only when enabled in Camera configuration.
+- Unstarred events retain fourteen days or 50 GB. Starred clips are preserved;
+  a free-space reserve prevents activity media from filling the host.
+
+The service stores SQLite state, clips, model caches, and private cat/ute
+reference images under `data/camera-events/`. None of this runtime data is
+committed or included in dashboard exports.
