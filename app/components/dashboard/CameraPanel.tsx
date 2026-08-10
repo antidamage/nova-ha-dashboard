@@ -27,6 +27,14 @@ const LIVE_EDGE_THRESHOLD_SECONDS = 8;
 const LIVE_TARGET_LATENCY_SECONDS = 6;
 const LIVE_RESYNC_DRIFT_SECONDS = 12;
 const STATUS_POLL_MS = 15000;
+// If the backend reports the device recording but hls.js never reaches
+// LEVEL_LOADED within this long, the player is stuck on a dead stream — most
+// often a node/container restart that left the tab's hls.js instance
+// attached to a manifest that no longer resolves. Force a fresh, cache-busted
+// re-attach rather than wait forever; there is no "hard refresh" affordance on
+// a mobile device running this as an installed web-app, so the panel has to
+// self-heal.
+const STUCK_STREAM_TIMEOUT_MS = 12000;
 
 // Non-live (rewound) playback runs faster so you catch up to the present without
 // scrubbing, then eases back to real time as you approach the live edge. Above
@@ -185,6 +193,9 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
   const [status, setStatus] = useState<CameraStatus | null>(null);
   const [streamReady, setStreamReady] = useState(false);
+  // Bumping this forces the HLS-attach effect below to tear down and rebuild
+  // with a cache-busted URL — the actual "cache-break", not a page reload.
+  const [reattachToken, setReattachToken] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [isLive, setIsLive] = useState(true);
   const [seekable, setSeekable] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
@@ -256,7 +267,11 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       return;
     }
 
-    const src = cameraUrl(cameraId, "index.m3u8");
+    // Cache-bust: a query param that changes on every re-attach so a stale
+    // manifest can never be served from an intermediate cache (browser HTTP
+    // cache, a CDN/proxy, or an OS-level PWA cache on mobile) after a node
+    // restart on the source host.
+    const src = `${cameraUrl(cameraId, "index.m3u8")}?_=${Date.now()}`;
     let cancelled = false;
     let cleanup = () => {};
 
@@ -325,7 +340,39 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       cleanup();
       setStreamReady(false);
     };
-  }, [cameraId]);
+  }, [cameraId, reattachToken]);
+
+  // Self-heal a stuck stream: if the backend says the device is recording but
+  // this tab's hls.js never reaches LEVEL_LOADED within STUCK_STREAM_TIMEOUT_MS,
+  // force a cache-busted re-attach instead of sitting on the placeholder clock
+  // forever. Covers the case a page reload doesn't fix (a mobile installed
+  // web-app has no hard-refresh gesture, and even a soft reload can rehydrate
+  // into the same stuck hls.js state).
+  useEffect(() => {
+    if (DEMO_MODE || streamReady || !status?.recording) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setReattachToken((token) => token + 1);
+    }, STUCK_STREAM_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [status?.recording, streamReady]);
+
+  // Also re-attach whenever the tab/PWA comes back to the foreground — mobile
+  // devices suspend timers while backgrounded, so a stream that died while the
+  // screen was locked would otherwise wait for the next natural re-render.
+  useEffect(() => {
+    if (DEMO_MODE) {
+      return;
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !streamReady) {
+        setReattachToken((token) => token + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [streamReady]);
 
   // Track playback position + seekable window from the <video> element.
   useEffect(() => {
