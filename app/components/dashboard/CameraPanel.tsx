@@ -283,6 +283,28 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
     (async () => {
       const canNativeHls = video.canPlayType("application/vnd.apple.mpegurl");
+
+      // Prefer native HLS whenever the platform offers it (Safari/WebKit on
+      // macOS and iOS). Hls.isSupported() only checks for a MediaSource
+      // implementation, and WebKit exposes just enough of one to pass that
+      // check — but its MSE path for LIVE HLS is the well-documented flaky
+      // one: it silently never reaches a ready state, no error, no console
+      // output, just the placeholder forever (verified live via a WebKit
+      // repro — currentSrc stayed "", zero manifest requests). Safari's
+      // native engine (this canPlayType branch) is the reliable, hardware-
+      // backed one; hls.js/MSE is the correct choice only where there is no
+      // native engine at all (Chrome, Firefox, Brave, desktop generally).
+      if (canNativeHls) {
+        video.src = src;
+        video.addEventListener("loadedmetadata", onReady);
+        cleanup = () => {
+          video.removeEventListener("loadedmetadata", onReady);
+          video.removeAttribute("src");
+          video.load();
+        };
+        return;
+      }
+
       const { default: HlsLib } = await import("hls.js");
 
       if (HlsLib.isSupported()) {
@@ -323,14 +345,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         cleanup = () => {
           hls.destroy();
           hlsRef.current = null;
-        };
-      } else if (canNativeHls) {
-        video.src = src;
-        video.addEventListener("loadedmetadata", onReady);
-        cleanup = () => {
-          video.removeEventListener("loadedmetadata", onReady);
-          video.removeAttribute("src");
-          video.load();
         };
       }
     })();
