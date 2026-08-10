@@ -327,7 +327,6 @@ class Pipeline:
         self.active: dict[str, Any] | None = None
         self.catalog: list[dict[str, Any]] = []
         self.vehicle_proximity_since: float | None = None
-        self.last_daylight_frame_saved = 0.0
 
     def load_detector(self) -> Any:
         if self.detector is None:
@@ -533,9 +532,6 @@ class Pipeline:
                     self.last_frame = frame.copy()
                 good, _, _ = frame_quality(frame)
                 if good:
-                    if time.time() - self.last_daylight_frame_saved >= 300:
-                        cv2.imwrite(str(DAYLIGHT_FRAME_PATH), frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
-                        self.last_daylight_frame_saved = time.time()
                     self.observe(frame, segment["at"] + index / native_fps, self.detections(frame))
             index += 1
         capture.release()
