@@ -44,6 +44,19 @@ const AIRCON_AUTO_MODE_HOLD_MS = 30 * 60_000;
 const AIRCON_AUTO_MIN_CYCLE_MS = 10 * 60_000;
 const AIRCON_AUTO_MAX_STARTS_PER_HOUR = 3;
 const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
+/**
+ * How long Auto is allowed to run with NO usable room-temperature reading
+ * before it fails safe.
+ *
+ * The Gree's own thermistor (see airconAutoMeasuredTemperature) only pushes
+ * fresh readings while the unit is actively running — while off, Home
+ * Assistant reports the attribute stale or unavailable. Failing safe the
+ * instant the reading is missing therefore deadlocks Auto: it can never turn
+ * itself on, because turning on is the only thing that produces a reading.
+ * This grace window lets Auto attempt to run first; only if the sensor is
+ * STILL unusable after it does the old fail-safe-off apply.
+ */
+const AIRCON_AUTO_SENSOR_GRACE_MS = 2 * 60_000;
 
 export const AIRCON_MODES = ["heat", "cool", "fan_only", "auto"] as const;
 export const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
@@ -113,6 +126,12 @@ export type AirconAutoState = {
    * so it cannot trip this itself.
    */
   lastTargetTemperature: number | null;
+  /**
+   * When Auto first started trying to run without a usable sensor reading.
+   * Null once a usable reading arrives or the fail-safe fires. Used to bound
+   * AIRCON_AUTO_SENSOR_GRACE_MS — see its comment above.
+   */
+  sensorPendingSinceAt: number | null;
 };
 
 export const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
@@ -121,6 +140,7 @@ export const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
   lastTransitionAt: null,
   recentStartsAt: [],
   lastTargetTemperature: null,
+  sensorPendingSinceAt: null,
 };
 
 /**
@@ -133,6 +153,7 @@ export type AirconAutoReason =
   | "no-entity"
   | "no-target"
   | "sensor-fail-safe-off"
+  | "sensor-pending"
   | "driving"
   | "reached-target"
   | "resting"
@@ -179,6 +200,10 @@ function normalizeAirconAutoState(state?: Partial<AirconAutoState>): AirconAutoS
     recentStartsAt: Array.isArray(merged.recentStartsAt)
       ? merged.recentStartsAt.filter((at): at is number => typeof at === "number" && Number.isFinite(at))
       : [],
+    sensorPendingSinceAt:
+      typeof merged.sensorPendingSinceAt === "number" && Number.isFinite(merged.sensorPendingSinceAt)
+        ? merged.sensorPendingSinceAt
+        : null,
   };
 }
 
@@ -377,6 +402,7 @@ export function airconAutoCycleRemember(state: AirconAutoState): AirconPreferenc
     autoLastModeAt: state.lastModeAt,
     autoLastTransitionAt: state.lastTransitionAt,
     autoRecentStartsAt: state.recentStartsAt,
+    autoSensorPendingSinceAt: state.sensorPendingSinceAt,
   };
 }
 
@@ -389,6 +415,7 @@ export function airconAutoCycleStateFromPreferences(
     lastModeAt: preferences?.autoLastModeAt ?? null,
     lastTransitionAt: preferences?.autoLastTransitionAt ?? null,
     recentStartsAt: preferences?.autoRecentStartsAt ?? [],
+    sensorPendingSinceAt: preferences?.autoSensorPendingSinceAt ?? null,
   };
 }
 
@@ -617,35 +644,16 @@ export function planAirconAutoTick({
 
   const selectedMode = isAirconMode(preferences?.hvacMode) ? preferences?.hvacMode : undefined;
 
-  if (currentTemperature === null) {
-    return {
-      actions: [
-        {
-          entityId: entity.entity_id,
-          domain: "climate",
-          service: "turn_off",
-          remember: {
-            aircon: {
-              ...inactiveAutoRemember(targetTemperature, selectedMode, currentState),
-              autoMode: false,
-              offTimerEndsAt: null,
-            },
-          },
-        },
-      ],
-      nextState: autoPlanState(currentState, { lastTargetTemperature: targetTemperature }),
-      reason: "sensor-fail-safe-off",
-    };
-  }
-
   // A target the user moved, versus one that merely differs from a fresh (null)
-  // state. Only the former reopens a resting cycle.
+  // state. Only the former reopens a resting cycle. Computed before the
+  // sensor-null branch below because a fresh command also restarts the sensor
+  // grace clock — see reopened's use there.
   const targetChanged =
     currentState.lastTargetTemperature !== null && currentState.lastTargetTemperature !== targetTemperature;
   if (targetChanged) {
     // A changed setpoint is an explicit human override, not sensor drift. It
     // clears every behavioural guard so the next decision can reverse direction
-    // and start immediately. Sensor freshness is checked separately above and
+    // and start immediately. Sensor freshness is checked separately below and
     // remains non-overridable: a target change cannot create real input.
     currentState = {
       ...currentState,
@@ -656,11 +664,108 @@ export function planAirconAutoTick({
     };
   }
   const reopened = targetChanged || forceRemember;
+  const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
+
+  if (currentTemperature === null) {
+    // pendingSinceAt tracks when Auto FIRST started running blind. A reopened
+    // cycle (user changed the target, or just pressed Auto) gets a fresh grace
+    // window rather than inheriting a clock that may already be near expiry.
+    const pendingSinceAt = reopened ? now : (currentState.sensorPendingSinceAt ?? now);
+    const elapsedMs = now - pendingSinceAt;
+    const pendingBase = autoPlanState(currentState, {
+      recentStartsAt,
+      lastTargetTemperature: targetTemperature,
+    });
+
+    if (elapsedMs >= AIRCON_AUTO_SENSOR_GRACE_MS) {
+      // Ran blind for the whole grace window and still no usable reading: give
+      // up and fail safe, same as the old immediate behaviour.
+      return {
+        actions: [
+          {
+            entityId: entity.entity_id,
+            domain: "climate",
+            service: "turn_off",
+            remember: {
+              aircon: {
+                ...inactiveAutoRemember(targetTemperature, selectedMode, currentState),
+                autoMode: false,
+                offTimerEndsAt: null,
+              },
+            },
+          },
+        ],
+        nextState: autoPlanState(pendingBase, { sensorPendingSinceAt: null }),
+        reason: "sensor-fail-safe-off",
+      };
+    }
+
+    // Still inside the grace window: try to run rather than sit off waiting for
+    // a reading that (per airconAutoMeasuredTemperature) only arrives once the
+    // unit is actually running. Without a delta to compute a direction from,
+    // drive whichever direction is already running, or failing that the
+    // user's selected Heat/Cool — never guess between them.
+    const pendingState = autoPlanState(pendingBase, { sensorPendingSinceAt: pendingSinceAt });
+    const runningNow = drivingMode(entity);
+    const attemptMode: ActiveAirconMode | undefined =
+      runningNow ?? (selectedMode === "heat" || selectedMode === "cool" ? selectedMode : undefined);
+
+    if (!attemptMode || !airconSupportsHvacMode(entity, attemptMode) || runningNow) {
+      // Nothing safe to try (no direction, or unsupported), or already trying —
+      // just let the clock run out.
+      return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
+    }
+
+    // Respect the normal start guards even for a blind attempt, so a sensor
+    // that flaps between missing and present cannot short-cycle the compressor.
+    const holdBlocked =
+      (currentState.lastMode &&
+        currentState.lastMode !== attemptMode &&
+        currentState.lastModeAt !== null &&
+        now - currentState.lastModeAt < AIRCON_AUTO_MODE_HOLD_MS) ||
+      (currentState.lastTransitionAt !== null && now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS) ||
+      recentStartsAt.length >= AIRCON_AUTO_MAX_STARTS_PER_HOUR;
+
+    if (holdBlocked) {
+      return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
+    }
+
+    const modeChanged = currentState.lastMode !== attemptMode;
+    const cycle: AirconAutoState = {
+      ...pendingState,
+      lastMode: attemptMode,
+      lastModeAt: modeChanged ? now : (currentState.lastModeAt ?? now),
+      lastTransitionAt: now,
+      recentStartsAt: [...recentStartsAt, now],
+    };
+
+    return {
+      actions: activeAutoActions({
+        cycle,
+        desiredMode: attemptMode,
+        entity,
+        fanStep: "medium",
+        forceRemember,
+        quietSwitch,
+        targetTemperature,
+        turboSwitch,
+      }),
+      nextState: cycle,
+      reason: "sensor-pending",
+      wantedMode: attemptMode,
+    };
+  }
+
   const delta = currentTemperature - targetTemperature;
   const absDelta = Math.abs(delta);
   const running = drivingMode(entity);
-  const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
-  const cycleBase: AirconAutoState = { ...currentState, recentStartsAt, lastTargetTemperature: targetTemperature };
+  // A usable reading arrived: whatever blind-attempt clock was running is moot.
+  const cycleBase: AirconAutoState = {
+    ...currentState,
+    recentStartsAt,
+    lastTargetTemperature: targetTemperature,
+    sensorPendingSinceAt: null,
+  };
 
   // A person can deliberately move the target across the measured room
   // temperature to swap heating and cooling. Do that directly: stopping first

@@ -54,6 +54,7 @@ function restingState(overrides: Partial<AirconAutoState> = {}): AirconAutoState
     lastTransitionAt: null,
     recentStartsAt: [],
     lastTargetTemperature: null,
+    sensorPendingSinceAt: null,
     ...overrides,
   };
 }
@@ -95,12 +96,40 @@ test("the shared aircon selector cannot mistake a panel heater for Auto's input"
   assert.equal(dashboardAirconEntity([panel]), undefined);
 });
 
-test("missing temperature input forces the air conditioner off and clears Auto", () => {
+test("missing temperature input tries to run first, within a 2-minute grace window", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "off" }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+  });
+
+  assert.equal(plan.reason, "sensor-pending");
+  assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
+  assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
+});
+
+test("missing temperature input keeps letting an already-running unit try", () => {
   const plan = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
-    now: NOW,
-    preferences: { autoMode: true, temperature: 22 },
+    now: NOW + MINUTE,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: restingState({ sensorPendingSinceAt: NOW }),
+  });
+
+  assert.equal(plan.reason, "sensor-pending");
+  assert.equal(plan.actions.length, 0);
+  assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
+});
+
+test("missing temperature input forces the air conditioner off and clears Auto once the grace window expires", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "heat" }),
+    now: NOW + 2 * MINUTE,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: restingState({ sensorPendingSinceAt: NOW }),
   });
 
   assert.equal(plan.reason, "sensor-fail-safe-off");
@@ -108,6 +137,19 @@ test("missing temperature input forces the air conditioner off and clears Auto",
   assert.equal(plan.actions[0]?.service, "turn_off");
   assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, false);
   assert.equal(plan.actions[0]?.remember?.aircon?.offTimerEndsAt, null);
+  assert.equal(plan.nextState.sensorPendingSinceAt, null);
+});
+
+test("a valid reading clears the sensor-pending clock", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 20,
+    entity: climateEntity({ state: "heat" }),
+    now: NOW + MINUTE,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: restingState({ sensorPendingSinceAt: NOW }),
+  });
+
+  assert.equal(plan.nextState.sensorPendingSinceAt, null);
 });
 
 test("dashboard auto heats when the room is well below the aircon target", () => {
@@ -649,6 +691,7 @@ test("cycle state read back out of preferences round-trips", () => {
     lastModeAt: NOW,
     lastTransitionAt: NOW - MINUTE,
     recentStartsAt: [NOW - MINUTE],
+    sensorPendingSinceAt: null,
   });
 });
 
