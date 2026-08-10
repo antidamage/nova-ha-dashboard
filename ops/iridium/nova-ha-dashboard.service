@@ -25,6 +25,7 @@ ExecStartPre=-/usr/bin/docker rm -f nova-ha-dashboard
 # a runaway dashboard from ever reaching nova-voice.service's 8.3 GB peak on a
 # 22 GB box.
 ExecStart=/usr/bin/docker run --rm --name nova-ha-dashboard --network host \
+  --add-host nocturnium.local:192.168.8.17 \
   --memory-reservation=1536m --memory=3g \
   --env-file /opt/nova-ha-dashboard/.env.local \
   -e NODE_ENV=production -e PORT=80 \
