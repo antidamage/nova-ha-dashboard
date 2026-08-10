@@ -23,6 +23,11 @@ export type CameraEvent = {
   starred: boolean;
   alertState: string;
   detailError?: string | null;
+  retainedReason?: string | null;
+  alertReason?: string | null;
+  behaviorConfidence?: number | null;
+  ownerPresent?: boolean;
+  policyVersion?: number | null;
 };
 
 type AnalysisStatus = {
@@ -31,6 +36,8 @@ type AnalysisStatus = {
   queueDepth: number;
   detectorError?: string | null;
   detailError?: string | null;
+  policyConfigured?: boolean;
+  policyVersion?: number;
 };
 
 function when(value: string) {
@@ -167,6 +174,7 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
           {importantCount ? `${importantCount} important` : status?.queueDepth ? `${status.queueDepth} queued` : "View events"}
         </span>
       </button>
+      {status?.policyConfigured === false ? <p className="camera-event-empty"><AlertTriangle className="h-4 w-4" /> Private camera policy unavailable; candidates are being retained for review.</p> : null}
       {loading ? (
         <p className="camera-event-empty"><Loader2 className="h-4 w-4 animate-spin" /> Loading activity…</p>
       ) : message && events.length === 0 ? (
@@ -229,6 +237,9 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
                   <div><dt>Subjects</dt><dd>{selected.subjects.map((item) => `${item.identity ? `possibly ${item.identity} · ` : ""}${item.class} ${Math.round(item.confidence * 100)}%`).join(", ") || "Unknown"}</dd></div>
                   <div><dt>Zones</dt><dd>{selected.zones.join(", ")}</dd></div>
                   <div><dt>Labels</dt><dd>{selected.labels.join(", ")}</dd></div>
+                  <div><dt>Retained because</dt><dd>{selected.retainedReason?.replaceAll("_", " ") || "Fail-open review"}</dd></div>
+                  <div><dt>Owner present</dt><dd>{selected.ownerPresent ? "High-confidence match" : "No high-confidence match"}</dd></div>
+                  {selected.behaviorConfidence != null ? <div><dt>Behaviour confidence</dt><dd>{Math.round(selected.behaviorConfidence * 100)}%</dd></div> : null}
                   <div><dt>Alert</dt><dd>{selected.alertState}</dd></div>
                 </dl>
               </>

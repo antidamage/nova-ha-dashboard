@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readDashboardConfig } from "../../../../../lib/dashboard-config";
+import { sliceLivePlaylist } from "../../../../../lib/camera/hls-playlist";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,6 +54,8 @@ async function proxyCameraRequest(request: Request, context: RouteContext) {
     `${host.toString().replace(/\/+$/, "")}/camera/${encodeURIComponent(id)}/${path.map(encodeURIComponent).join("/")}`,
   );
   upstream.search = new URL(request.url).search;
+  const requestedStart = upstream.searchParams.get("start");
+  upstream.searchParams.delete("start");
 
   const headers = new Headers();
   for (const name of FORWARDED_REQUEST_HEADERS) {
@@ -75,6 +78,21 @@ async function proxyCameraRequest(request: Request, context: RouteContext) {
       redirect: "manual",
       signal: AbortSignal.timeout(20_000),
     });
+
+    const isTimestampedPlaylist = path.at(-1)?.endsWith(".m3u8") && requestedStart !== null;
+    if (isTimestampedPlaylist && upstreamResponse.ok) {
+      const startAtMs = Number.parseInt(requestedStart, 10);
+      const body = sliceLivePlaylist(await upstreamResponse.text(), startAtMs);
+      return new Response(method === "HEAD" ? null : body, {
+        status: upstreamResponse.status,
+        statusText: upstreamResponse.statusText,
+        headers: {
+          "Cache-Control": "no-store",
+          "Content-Type": upstreamResponse.headers.get("content-type") ?? "application/vnd.apple.mpegurl",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
 
     const responseHeaders = new Headers();
     for (const name of FORWARDED_RESPONSE_HEADERS) {

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import hypot
-from typing import Iterable
+from typing import Any, Iterable
 
 
 @dataclass(frozen=True)
@@ -130,3 +130,55 @@ def priority_for(labels: Iterable[str], zones: Iterable[str]) -> str:
         return "important"
     return "routine"
 
+
+PRIORITY_ORDER = {"routine": 0, "important": 1, "urgent": 2}
+
+
+def evaluate_policy(
+    policy: dict[str, Any],
+    labels: Iterable[str],
+    zones: Iterable[str],
+    *,
+    owner_present: bool = False,
+) -> dict[str, Any]:
+    """Evaluate declarative retain/alert rules without household constants.
+
+    Matching rules accumulate. Owner suppression applies per rule so an
+    explicit safety override can still alert even when the owner is present.
+    """
+
+    label_set, zone_set = set(labels), set(zones)
+    reasons: list[str] = []
+    alert_reasons: list[str] = []
+    priority = "routine"
+    for rule in policy.get("rules", []):
+        match = rule.get("match", {})
+        all_labels = set(match.get("allLabels", []))
+        any_labels = set(match.get("anyLabels", []))
+        all_zones = set(match.get("allZones", []))
+        any_zones = set(match.get("anyZones", []))
+        if all_labels and not all_labels <= label_set:
+            continue
+        if any_labels and not any_labels & label_set:
+            continue
+        if all_zones and not all_zones <= zone_set:
+            continue
+        if any_zones and not any_zones & zone_set:
+            continue
+        if owner_present and rule.get("suppressWhenOwner", False) and not rule.get("safetyOverride", False):
+            continue
+        rule_id = str(rule.get("id", "policy_rule"))
+        if rule.get("retain", False):
+            reasons.append(rule_id)
+        if rule.get("alert", False):
+            alert_reasons.append(rule_id)
+        candidate_priority = str(rule.get("priority", "routine"))
+        if PRIORITY_ORDER.get(candidate_priority, 0) > PRIORITY_ORDER.get(priority, 0):
+            priority = candidate_priority
+    return {
+        "retain": bool(reasons),
+        "alert": bool(alert_reasons),
+        "priority": priority,
+        "reasons": reasons,
+        "alertReasons": alert_reasons,
+    }
