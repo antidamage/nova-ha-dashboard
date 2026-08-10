@@ -123,7 +123,7 @@ The dashboard host runs a separate `nova-camera-events.service`. It consumes
 completed segments from this HLS feed without opening the capture device, so a
 model crash cannot interrupt recording or the live camera.
 
-- YOLO samples daytime frames on CPU, assigns detections to visually configured
+- YOLO samples daytime frames on the GPU, assigns detections to visually configured
   polygons, ignores bird-only activity, and groups people/animals into events.
 - People, cats, dogs and other non-bird animals are recorded. Vehicle detections
   are supporting context unless a person remains in the expanded vehicle area.
@@ -136,6 +136,9 @@ model crash cannot interrupt recording or the live camera.
   only when enabled in Camera configuration.
 - Unstarred events retain fourteen days or 50 GB. Starred clips are preserved;
   a free-space reserve prevents activity media from filling the host.
+- The review modal can select individual or all currently filtered events for a
+  single confirmed bulk deletion. Camera configuration permits dragging existing
+  polygon vertices and uses a saved daylight calibration frame after dark.
 
 The service stores SQLite state, clips, model caches, and private cat/ute
 reference images under `data/camera-events/`. None of this runtime data is

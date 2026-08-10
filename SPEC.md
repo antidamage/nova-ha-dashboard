@@ -920,10 +920,14 @@ v4l2-ctl -d /dev/v4l/by-id/usb-MACROSILICON_AV_TO_USB2.0_20200909-video-index0 -
 - Daytime YOLO detection records people, cats, dogs and other non-bird animals;
   vehicles supply proximity context rather than generating ordinary traffic
   events. Normalized activity, vehicle and exclusion polygons are edited
-  visually in Camera configuration.
+  visually in Camera configuration; existing vertices are draggable. The editor
+  defaults to the last persisted daylight frame so zones remain editable after
+  dark, with an explicit switch back to the live frame.
 - Event media is a representative JPEG and an MP4 remux with 10-second pre-roll
   and 20-second post-roll. Unstarred retention is 14 days or 50 GB, with a
   20-GB host reserve; starring excludes an event from automatic retention.
+- Event review supports a selection mode, selecting every event visible under
+  the current filter, and one confirmed bulk deletion of selected clips.
 - Moondream2 performs queued, best-effort observable-behavior descriptions.
   Important/urgent Home Assistant alerts wait for that detailed pass. Machine
   labels never claim human identity or intent and uncertain cat/ute reference

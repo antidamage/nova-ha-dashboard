@@ -4,11 +4,12 @@ import { cameraEventsFetch } from "../../../../../../lib/camera-events-client";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   if (!getCamera(id)) return Response.json({ error: "Unknown camera" }, { status: 404 });
   try {
-    const upstream = await cameraEventsFetch("/frame");
+    const daylight = new URL(request.url).searchParams.get("daylight") === "true";
+    const upstream = await cameraEventsFetch(`/frame${daylight ? "?daylight=true" : ""}`);
     return new Response(upstream.body, {
       status: upstream.status,
       headers: { "Content-Type": upstream.headers.get("content-type") ?? "image/jpeg", "Cache-Control": "no-store" },

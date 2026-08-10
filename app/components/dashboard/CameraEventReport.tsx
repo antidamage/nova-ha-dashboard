@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Cat, Check, Clock3, Dog, Eye, Loader2, PersonStanding, Star, Trash2, Video } from "lucide-react";
+import { AlertTriangle, Cat, Check, CheckSquare2, Clock3, Dog, Eye, ListChecks, Loader2, PersonStanding, Square, Star, Trash2, Video } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModalOverlay } from "../ModalOverlay";
 import { classNames } from "./shared";
@@ -67,6 +67,9 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
   const [filter, setFilter] = useState<"all" | "important" | "animals" | "unreviewed">("all");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [selecting, setSelecting] = useState(false);
 
   const refresh = useCallback(async (full = false) => {
     try {
@@ -124,6 +127,38 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
     setSelectedId(null);
   }, [cameraId]);
 
+  const toggleForDelete = useCallback((eventId: string) => {
+    setSelectedForDelete((current) => {
+      const next = new Set(current);
+      if (next.has(eventId)) next.delete(eventId); else next.add(eventId);
+      return next;
+    });
+  }, []);
+
+  const bulkDelete = useCallback(async () => {
+    const ids = [...selectedForDelete];
+    if (!ids.length || !window.confirm(`Delete ${ids.length} selected events and their recorded clips? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/camera/${cameraId}/events`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!response.ok) throw new Error("Could not delete the selected events.");
+      const payload = (await response.json()) as { deleted: string[] };
+      const deleted = new Set(payload.deleted);
+      setEvents((current) => current.filter((event) => !deleted.has(event.id)));
+      if (selectedId && deleted.has(selectedId)) setSelectedId(null);
+      setSelectedForDelete(new Set());
+      setMessage(`${deleted.size} events deleted.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not delete the selected events.");
+    } finally {
+      setDeleting(false);
+    }
+  }, [cameraId, selectedForDelete, selectedId]);
+
   return (
     <div className="camera-event-report">
       <button type="button" className="camera-event-report-header" onClick={() => { setOpen(true); void refresh(true); }}>
@@ -159,11 +194,19 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
           {(["all", "important", "animals", "unreviewed"] as const).map((value) => (
             <button key={value} type="button" className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{value}</button>
           ))}
+          <span className="camera-event-bulk-spacer" />
+          <button type="button" className={selecting ? "is-active" : ""} onClick={() => setSelecting((value) => !value)}><ListChecks className="h-4 w-4" /> Select</button>
+          {selecting ? <button type="button" onClick={() => setSelectedForDelete(new Set(visible.map((event) => event.id)))}>All visible</button> : null}
+          {selectedForDelete.size ? <button type="button" onClick={() => setSelectedForDelete(new Set())}>Clear</button> : null}
+          <button type="button" className="is-danger" disabled={!selectedForDelete.size || deleting} onClick={() => void bulkDelete()}>
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete {selectedForDelete.size || "selected"}
+          </button>
         </div>
         <div className="camera-events-workspace">
           <aside className="camera-events-list" aria-label="Camera events">
             {visible.map((event) => (
-              <button key={event.id} type="button" className={classNames("camera-events-list-row", selected?.id === event.id && "is-selected", `is-${event.priority}`)} onClick={() => setSelectedId(event.id)}>
+              <button key={event.id} type="button" className={classNames("camera-events-list-row", selecting && "is-selecting", selected?.id === event.id && "is-selected", selectedForDelete.has(event.id) && "is-checked", `is-${event.priority}`)} onClick={() => selecting ? toggleForDelete(event.id) : setSelectedId(event.id)}>
+                {selecting ? <span className="camera-event-select-indicator">{selectedForDelete.has(event.id) ? <CheckSquare2 className="h-5 w-5" /> : <Square className="h-5 w-5" />}</span> : null}
                 {event.thumbnailUrl ? <img src={event.thumbnailUrl} alt="" /> : <span className="camera-event-no-thumb"><Video className="h-5 w-5" /></span>}
                 <span><strong>{event.title}</strong><small>{when(event.startedAt)}</small><small>{event.zones.join(" · ")}</small></span>
               </button>
