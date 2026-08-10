@@ -201,15 +201,16 @@ async function tick({ userInitiated = false }: { userInitiated?: boolean } = {})
     });
 
     if (plan.reason === "sensor-fail-safe-off") {
+      // Auto must never go unavailable and force a manual re-press: it stays
+      // on, the heater just switches off (if it was on) and rests, same as
+      // hitting target normally. planBedroomHeaterTick already tried heating
+      // blind for BEDROOM_HEATER_SENSOR_GRACE_MS first; this only fires once
+      // that has run out. Do NOT set mode: "off" here.
       if (switchState.state === "on") {
         await callService("switch", "turn_off", { entity_id: switchState.entity_id });
       }
       lastCommandedOn = false;
-      thermostat.reset();
-      await mergeDashboardPreferences({
-        bedroomHeater: { mode: "off", offTimerEndsAt: null, updatedAt: new Date().toISOString() },
-      });
-      console.error("[bedroom-heater] room sensor unavailable or stale -> locked out and off");
+      console.error("[bedroom-heater] room sensor unavailable or stale for 2 min -> resting off, Auto stays on");
       return;
     }
 

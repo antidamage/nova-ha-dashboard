@@ -54,6 +54,18 @@ export const BEDROOM_HEATER_AUTO_POLL_MS = 30_000;
 export const BEDROOM_HEATER_BAND_DEGREES = 0.5;
 export const BEDROOM_HEATER_MIN_CYCLE_MS = 10 * 60_000;
 export const BEDROOM_HEATER_TAIL_OFF_MS = 2 * 60_000;
+/**
+ * How long Auto is allowed to run with NO usable room-temperature reading
+ * before it fails safe. Same rationale as AIRCON_AUTO_SENSOR_GRACE_MS in
+ * lib/aircon-control.ts: failing safe the instant a reading is missing would
+ * mean Auto can never turn itself on from cold if the sensor is slow to
+ * populate. This grace window lets it try heating first (heat-only, so there
+ * is only one direction to guess); only if the sensor is STILL unusable after
+ * it does the heater switch off. Auto itself is NEVER disabled by this — see
+ * the caller in bedroom-heater-auto.ts, which must not fold this into
+ * mode: "off".
+ */
+export const BEDROOM_HEATER_SENSOR_GRACE_MS = 2 * 60_000;
 export const BEDROOM_HEATER_DEFAULT_TARGET_C = 18;
 export const BEDROOM_HEATER_MIN_TARGET_C = 5;
 export const BEDROOM_HEATER_MAX_TARGET_C = 30;
@@ -113,6 +125,12 @@ export type BedroomHeaterAutoState = {
   tailedOff: boolean;
   /** Tracks the target so a user's new setpoint reopens a settled cycle. */
   lastTargetTemperature: number | null;
+  /**
+   * When Auto first started trying to run without a usable sensor reading.
+   * Null once a usable reading arrives or the fail-safe fires. Bounds
+   * BEDROOM_HEATER_SENSOR_GRACE_MS — see its comment above.
+   */
+  sensorPendingSinceAt: number | null;
 };
 
 export const INITIAL_BEDROOM_HEATER_AUTO_STATE: BedroomHeaterAutoState = {
@@ -120,6 +138,7 @@ export const INITIAL_BEDROOM_HEATER_AUTO_STATE: BedroomHeaterAutoState = {
   enteredBandAt: null,
   tailedOff: false,
   lastTargetTemperature: null,
+  sensorPendingSinceAt: null,
 };
 
 export function createInitialBedroomHeaterAutoState(): BedroomHeaterAutoState {
@@ -294,13 +313,38 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
   const active = state;
 
   if (input.currentTemperature === null) {
+    const pendingSinceAt = active.sensorPendingSinceAt ?? now;
+    const elapsedMs = now - pendingSinceAt;
+    const minCycleElapsed =
+      active.lastTransitionAt === null || now - active.lastTransitionAt >= BEDROOM_HEATER_MIN_CYCLE_MS;
+
+    if (elapsedMs >= BEDROOM_HEATER_SENSOR_GRACE_MS) {
+      // Ran blind for the whole grace window and still no usable reading:
+      // switch off (if on) and rest. Auto itself is not this function's to
+      // disable — the caller decides that, and must not.
+      return {
+        actions: input.isOn ? [turnOff(entityId)] : [],
+        nextState: {
+          ...createInitialBedroomHeaterAutoState(),
+          lastTransitionAt: input.isOn ? now : active.lastTransitionAt,
+          sensorPendingSinceAt: null,
+        },
+        reason: "sensor-fail-safe-off",
+      };
+    }
+
+    // Still inside the grace window: try heating rather than sit off waiting
+    // for a reading that may simply be slow to populate. Heat-only, so there
+    // is only one direction to attempt. Still respects the compressor^H^H
+    // relay's minimum dwell so a flapping sensor cannot short-cycle it.
+    const pendingState: BedroomHeaterAutoState = { ...active, sensorPendingSinceAt: pendingSinceAt };
+    if (input.isOn || !minCycleElapsed) {
+      return { actions: [], nextState: pendingState, reason: "sensor-pending" };
+    }
     return {
-      actions: input.isOn ? [turnOff(entityId)] : [],
-      nextState: {
-        ...createInitialBedroomHeaterAutoState(),
-        lastTransitionAt: input.isOn ? now : active.lastTransitionAt,
-      },
-      reason: "sensor-fail-safe-off",
+      actions: [turnOn(entityId)],
+      nextState: { ...pendingState, lastTransitionAt: now },
+      reason: "sensor-pending",
     };
   }
 
@@ -320,6 +364,8 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
   const nextState: BedroomHeaterAutoState = {
     ...base,
     lastTargetTemperature: target,
+    // A usable reading arrived: whatever blind-attempt clock was running is moot.
+    sensorPendingSinceAt: null,
   };
 
   if (tooCold) {
