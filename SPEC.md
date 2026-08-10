@@ -867,7 +867,10 @@ Outside camera and DVR:
   anamorphic/widescreen, so the video uses `object-fit: fill` to map the complete
   frame into 16:9, correcting its apparent vertical stretch without cropping or
   changing the recorded pixels.
-- Browser playback uses hls.js with native HLS fallback where supported.
+- Browser playback prefers native HLS where supported (notably Safari/WebKit)
+  and uses hls.js elsewhere. A configured remote video host is fetched through
+  Nova's same-origin `/api/camera-proxy/...` route so HTTPS clients never load
+  an HTTP camera stream as mixed content.
 - Recorder startup is idempotent, automatically retries failed ffmpeg processes
   with bounded backoff, and pauses during dashboard self-update builds.
 - When `NOVA_CAMERA_OUTSIDE_DEVICE` is unset or its path is absent, the recorder
@@ -910,6 +913,21 @@ v4l2-ctl -d /dev/v4l/by-id/usb-MACROSILICON_AV_TO_USB2.0_20200909-video-index0 -
   and the dashboard and Home Assistant remain running.
 - A Reset button restores the panel defaults: brightness -0.12, contrast 1.1,
   and sharpness 0.6.
+- Iridium runs the recorder-independent `nova-camera-events.service`, consuming
+  the configured remote HLS feed and exposing its private API on localhost
+  port 8098. The dashboard proxies event metadata/media through same-origin
+  `/api/camera/<id>/events` routes.
+- Daytime YOLO detection records people, cats, dogs and other non-bird animals;
+  vehicles supply proximity context rather than generating ordinary traffic
+  events. Normalized activity, vehicle and exclusion polygons are edited
+  visually in Camera configuration.
+- Event media is a representative JPEG and an MP4 remux with 10-second pre-roll
+  and 20-second post-roll. Unstarred retention is 14 days or 50 GB, with a
+  20-GB host reserve; starring excludes an event from automatic retention.
+- Moondream2 performs queued, best-effort observable-behavior descriptions.
+  Important/urgent Home Assistant alerts wait for that detailed pass. Machine
+  labels never claim human identity or intent and uncertain cat/ute reference
+  matches remain explicitly tentative.
 
 Weather panel:
 
@@ -2081,6 +2099,17 @@ Camera:
 - `PUT /api/camera/outside/settings`: validate and persist brightness, contrast,
   and sharpness, then restart only the outside recorder so the preview and live
   dashboard receive the new processing chain.
+- `GET /api/camera/<id>/events`: list recent analysis events with limit,
+  priority, zone, subject, reviewed, and starred filters.
+- `GET|PUT|DELETE /api/camera/<id>/events/<event-id>`: inspect, review/star or
+  correct, and explicitly remove an event. `/thumbnail` and `/clip` stream its
+  media; clip responses preserve HTTP range semantics.
+- `GET|PUT /api/camera/<id>/analysis`: read or replace the normalized scene
+  polygons and analysis/alert switches. `/status` reports model, cursor,
+  backlog, queue, errors, and storage health; `/frame` supplies the calibration
+  editor background.
+- `GET|POST|DELETE /api/camera/<id>/analysis/references`: manage private named
+  cat and ute reference images used for tentative visual matching.
 
 Control:
 

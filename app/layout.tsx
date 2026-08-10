@@ -120,9 +120,9 @@ async function readInitialAgentName(): Promise<string> {
 
 // Where the Outside camera stream is embedded FROM. Capture now lives on
 // Nocturnium; nova is a pure consumer. Seed the
-// configured host onto the client so CameraPanel/CameraConfig embed the stream
-// directly (see app/components/dashboard/cameraHost.ts). Empty = same-origin
-// fallback.
+// configured host onto the client so CameraPanel/CameraConfig know whether to
+// use the server-side same-origin camera proxy (see cameraHost.ts). Empty means
+// the recorder on this dashboard host is used instead.
 export async function generateMetadata(): Promise<Metadata> {
   const agentName = await readInitialAgentName();
   return {

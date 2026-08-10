@@ -7,6 +7,7 @@ import { ConfigAccordion } from "./ConfigControls";
 import { DotLineControl } from "./DotControls";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { cameraUrl, cameraHostBase, normalizeVideoHost } from "./dashboard/cameraHost";
+import { CameraAnalysisConfig } from "./CameraAnalysisConfig";
 import { useAgentName } from "./AgentNameContext";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
@@ -223,15 +224,27 @@ export function CameraConfig() {
     let retry: ReturnType<typeof setTimeout> | undefined;
     const onPlaying = () => setMessage("Live preview");
     video.addEventListener("playing", onPlaying);
+
+    // Safari/WebKit's native HLS engine is more reliable than its partial MSE
+    // implementation. Select it before importing hls.js; recent iOS versions
+    // can otherwise pass Hls.isSupported() and then never request the manifest.
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = `${cameraUrl("outside", "index.m3u8", videoHostUrl)}?preview=${Date.now()}`;
+      void video.play().catch(() => undefined);
+      destroy = () => {
+        video.removeAttribute("src");
+        video.load();
+      };
+      return () => {
+        disposed = true;
+        video.removeEventListener("playing", onPlaying);
+        destroy?.();
+      };
+    }
+
     void import("hls.js").then(({ default: Hls }) => {
       if (disposed) return;
-      if (!Hls.isSupported()) {
-        if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = `${cameraUrl("outside", "index.m3u8", videoHostUrl)}?preview=${Date.now()}`;
-          void video.play().catch(() => undefined);
-        }
-        return;
-      }
+      if (!Hls.isSupported()) return;
 
       // Applying processing stops ffmpeg, purges the segment dir and restarts it,
       // so the playlist 404s for a second or two while it warms up. hls.js gives
@@ -321,7 +334,7 @@ export function CameraConfig() {
       setVideoHostDraft(saved);
       setVideoHostMessage(
         normalizeVideoHost(saved)
-          ? "Saved. Embedding the stream directly from this host."
+          ? "Saved. Nova will relay this host through the dashboard's secure origin."
           : "Cleared. Falling back to this dashboard's own camera routes.",
       );
     } catch {
@@ -359,7 +372,7 @@ export function CameraConfig() {
             </div>
             <span className="text-xs text-neutral-400">
               {videoHostMessage ??
-                "Where the Outside camera stream is served from (currently Nocturnium, e.g. http://nocturnium.local:8080). Leave blank to use this dashboard's own camera routes."}
+                "Where the Outside camera stream originates (currently Nocturnium, e.g. http://nocturnium.local:8080). Nova relays it over this dashboard's secure origin. Leave blank to use this host's recorder."}
             </span>
           </div>
 
@@ -447,6 +460,8 @@ export function CameraConfig() {
           <video ref={videoRef} className="camera-config-preview" autoPlay muted playsInline />
         </div>
       </div>
+
+      {!DEMO_MODE ? <CameraAnalysisConfig cameraId="outside" /> : null}
 
       {confirmStage !== 0 && typeof document !== "undefined"
         ? createPortal(
