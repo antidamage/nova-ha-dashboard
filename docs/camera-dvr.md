@@ -139,6 +139,8 @@ model crash cannot interrupt recording or the live camera.
 - The review modal can select individual or all currently filtered events for a
   single confirmed bulk deletion. Camera configuration permits dragging existing
   polygon vertices and uses a saved daylight calibration frame after dark.
+  The injected calibration frame is outside event retention and is not
+  automatically expired or replaced.
 
 The service stores SQLite state, clips, model caches, and private cat/ute
 reference images under `data/camera-events/`. None of this runtime data is

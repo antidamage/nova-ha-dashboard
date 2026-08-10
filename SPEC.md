@@ -922,7 +922,9 @@ v4l2-ctl -d /dev/v4l/by-id/usb-MACROSILICON_AV_TO_USB2.0_20200909-video-index0 -
   events. Normalized activity, vehicle and exclusion polygons are edited
   visually in Camera configuration; existing vertices are draggable. The editor
   defaults to the last persisted daylight frame so zones remain editable after
-  dark, with an explicit switch back to the live frame.
+  dark, with an explicit switch back to the live frame. That calibration cache
+  is permanent runtime data: event retention does not remove it and camera
+  processing never replaces it automatically.
 - Event media is a representative JPEG and an MP4 remux with 10-second pre-roll
   and 20-second post-roll. Unstarred retention is 14 days or 50 GB, with a
   20-GB host reserve; starring excludes an event from automatic retention.
