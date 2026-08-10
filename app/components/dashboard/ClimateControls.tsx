@@ -42,7 +42,6 @@ import {
   airconFanStep,
   airconFanStepActions,
   airconModeSupported,
-  airconUserModeIntent,
   buildAirconAutoActions,
   climateCurrentTemperature,
   climateTargetTemperature,
@@ -172,7 +171,7 @@ function TemperatureStepper({
 }) {
   const serverTarget = climateTargetTemperature(entity);
   const displayedTarget = targetTemperature ?? serverTarget;
-  const current = currentTemperature ?? climateCurrentTemperature(entity);
+  const current = currentTemperature === undefined ? climateCurrentTemperature(entity) : currentTemperature;
   const [target, setTarget] = useState(displayedTarget);
 
   useEffect(() => {
@@ -506,13 +505,15 @@ function BedroomHeaterControl({
   temperature: number | null;
 }) {
   const persistedMode = bedroomHeaterMode(preferences);
+  const sensorLockedOut = temperature === null;
+  const effectivePersistedMode: BedroomHeaterMode = sensorLockedOut ? "off" : persistedMode;
   const persistedTarget = bedroomHeaterTargetTemperature(preferences);
   const persistedWindow = bedroomHeaterWindow(preferences);
 
   // Mode, target, and window are all optimistic: the server is authoritative
   // but a tap must land instantly, and the auto loop stands down for its
   // cooldown while the write propagates.
-  const [mode, setMode] = useState<BedroomHeaterMode>(persistedMode);
+  const [mode, setMode] = useState<BedroomHeaterMode>(effectivePersistedMode);
   const [target, setTarget] = useState(persistedTarget);
   const [window_, setWindow] = useState<[number, number]>([persistedWindow.start, persistedWindow.end]);
   const temperatureSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -527,8 +528,8 @@ function BedroomHeaterControl({
   const timerIncrementMs = airconOffTimerIncrementMs(timerIncrementMinutes);
 
   useEffect(() => {
-    setMode(persistedMode);
-  }, [persistedMode]);
+    setMode(effectivePersistedMode);
+  }, [effectivePersistedMode]);
 
   useEffect(() => {
     setTarget(persistedTarget);
@@ -598,6 +599,9 @@ function BedroomHeaterControl({
   const isOn = switchEntity.state === "on";
 
   const chooseMode = (next: BedroomHeaterMode) => {
+    if (next === "auto" && sensorLockedOut) {
+      return Promise.resolve();
+    }
     if (next === mode) {
       return Promise.resolve();
     }
@@ -609,7 +613,7 @@ function BedroomHeaterControl({
       setLocalTimerEndsAt(null);
     }
     const save = saveBedroomHeater(clearTimer ? { mode: next, offTimerEndsAt: null } : { mode: next }).catch(() => {
-      setMode(persistedMode);
+      setMode(effectivePersistedMode);
       if (clearTimer) {
         setLocalTimerEndsAt(persistedTimerEndsAt);
       }
@@ -678,7 +682,7 @@ function BedroomHeaterControl({
         */}
         <TemperatureStepper
           currentTemperature={temperature}
-          disabled={entityUnavailable || mode === "off"}
+          disabled={entityUnavailable || sensorLockedOut || mode === "off"}
           entity={switchEntity}
           label="Temperature"
           maxTemperature={BEDROOM_HEATER_MAX_TARGET_C}
@@ -698,7 +702,7 @@ function BedroomHeaterControl({
                 type="button"
                 aria-pressed={active}
                 className={classNames("aircon-state-button border", active && "aircon-state-button-active")}
-                disabled={entityUnavailable}
+                disabled={entityUnavailable || (state === "auto" && sensorLockedOut)}
                 onClick={() => chooseMode(state)}
               >
                 <Icon className="h-6 w-6" />
@@ -717,7 +721,7 @@ function BedroomHeaterControl({
                 : `Start ${timerIncrementMinutes} minute bedroom heater sleep timer`
             }
             className={classNames("climate-timer-button border", offTimerActive && "climate-timer-button-active")}
-            disabled={entityUnavailable || mode === "off"}
+            disabled={entityUnavailable || sensorLockedOut || mode === "off"}
             onClick={addOffTimer}
           >
             <Clock className="h-6 w-6" />
@@ -996,9 +1000,10 @@ function AirConditionerControl({
   const isOn = isClimateEntityOn(entity);
   const supportedModes = stringListAttribute(entity, "hvac_modes");
   const entityUnavailable = ["unavailable", "unknown"].includes(entity.state);
+  const airconSensorLockedOut = airconAutoMeasuredTemperature(entity) === null;
 
   const airconSettings = {
-    autoMode: preferences?.autoMode ?? false,
+    autoMode: (preferences?.autoMode ?? false) && !airconSensorLockedOut,
     hvacMode:
       preferences?.hvacMode ??
       (isOn && entity.state !== "off" && entity.state !== "unavailable" && entity.state !== "unknown" ? entity.state : undefined),
@@ -1102,6 +1107,9 @@ function AirConditionerControl({
 
   const setMode = (mode: AirconMode, label: string) => {
     if (mode === "auto") {
+      if (airconSensorLockedOut) {
+        return Promise.resolve();
+      }
       // R3: arming Auto re-seats the direction, so a previous direction's
       // 30-minute hold does not apply — choosing Auto is an explicit act. The
       // compressor dwell and the hourly start count ARE carried over: those guard
@@ -1152,15 +1160,10 @@ function AirConditionerControl({
   };
 
   const sendTemperature = (temperature: number) => {
-    // R2: the only place a person moves the aircon target, and therefore the only
-    // place a setpoint can be read as intent. A target that lands more than
-    // AIRCON_INTENT_MARGIN_DEGREES the far side of the room reading means "drive
-    // the other way", and clears Auto's 30-minute direction hold so the next tick
-    // may reverse. A one-degree nudge does not, and neither does a reading that
-    // drifted underneath an unchanged target — the loop never comes through here.
-    const intent = airconUserModeIntent(temperature, airconAutoMeasuredTemperature(entity));
-    const breaksDirectionHold = intent !== undefined && intent !== airconSettings.autoLastMode;
-
+    // Any explicit setpoint change is fresh human intent. Clear every behavioural
+    // guard durably so all clients agree that the next Auto tick may reverse or
+    // restart immediately. The separate fresh-input interlock is intentionally
+    // not represented here and cannot be cleared by changing a target.
     return callClimateActions(
       [
         {
@@ -1169,7 +1172,13 @@ function AirConditionerControl({
           service: "set_temperature",
           data: { temperature },
           remember: {
-            aircon: { temperature, ...(breaksDirectionHold ? { autoLastModeAt: null } : {}) },
+            aircon: {
+              temperature,
+              autoLastMode: null,
+              autoLastModeAt: null,
+              autoLastTransitionAt: null,
+              autoRecentStartsAt: [],
+            },
           },
         },
       ],
@@ -1268,6 +1277,7 @@ function AirConditionerControl({
     <ClimateCard entity={entity} kicker="Air Control" title="Lounge">
       <div className="grid gap-4">
         <TemperatureStepper
+          currentTemperature={airconAutoMeasuredTemperature(entity)}
           disabled={!isControlOn}
           entity={entity}
           label="Temperature"
@@ -1280,7 +1290,9 @@ function AirConditionerControl({
         <div className="aircon-state-grid grid grid-cols-3 gap-2">
           {AIRCON_POWER_BUTTONS.map(({ Icon, label, state }) => {
             const active = activePowerState === state;
-            const disabled = entityUnavailable || (state === "auto" && !airconAutoSupported(supportedModes));
+            const disabled =
+              entityUnavailable ||
+              (state === "auto" && (airconSensorLockedOut || !airconAutoSupported(supportedModes)));
             return (
               <button
                 key={state}

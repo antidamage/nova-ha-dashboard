@@ -1,4 +1,5 @@
 import type { BedroomHeaterMode, BedroomHeaterPreferences } from "./types";
+import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
 
 /*
  * Dashboard bedroom-heater control rules.
@@ -56,7 +57,6 @@ export const BEDROOM_HEATER_TAIL_OFF_MS = 2 * 60_000;
 export const BEDROOM_HEATER_DEFAULT_TARGET_C = 18;
 export const BEDROOM_HEATER_MIN_TARGET_C = 5;
 export const BEDROOM_HEATER_MAX_TARGET_C = 30;
-export const BEDROOM_SENSOR_MAX_AGE_MS = 30 * 60_000;
 
 /** Minutes from midday. 0 = 12:00 today, 720 = 00:00, 1440 = 12:00 tomorrow. */
 export const BEDROOM_HEATER_WINDOW_MAX_MINUTES = 1440;
@@ -69,7 +69,7 @@ export const BEDROOM_ROOM_TEMPERATURE_ENTITY_ID = "sensor.tuya_mobile_bedroom_se
 
 /**
  * Return the only temperature source permitted to drive or display Bedroom.
- * An unavailable room sensor therefore pauses Auto rather than silently
+ * An unavailable room sensor therefore disables Auto rather than silently
  * substituting the plug's switch-body temperature.
  */
 export function bedroomRoomTemperatureEntityIds(entityIds: readonly string[]) {
@@ -82,12 +82,20 @@ export function bedroomTemperatureStateIsFresh(
   state: { last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
   now: number = Date.now(),
 ) {
-  const stamp = state?.last_reported ?? state?.last_updated ?? state?.last_changed;
-  if (!stamp) {
-    return false;
-  }
-  const reportedAt = Date.parse(stamp);
-  return Number.isFinite(reportedAt) && reportedAt <= now + 60_000 && now - reportedAt <= BEDROOM_SENSOR_MAX_AGE_MS;
+  return autonomousClimateInputIsUsable(
+    state ? { ...state, measurement: 0, sourceState: "available" } : undefined,
+    now,
+  );
+}
+
+export function bedroomTemperatureStateIsUsable(
+  state: { state?: string; last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
+  now: number = Date.now(),
+) {
+  return autonomousClimateInputIsUsable(
+    state ? { ...state, measurement: state.state, sourceState: state.state } : undefined,
+    now,
+  );
 }
 
 export type BedroomHeaterAction = {

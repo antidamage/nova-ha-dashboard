@@ -3,6 +3,7 @@
 import {
   climateCurrentTemperature,
   climateTargetTemperature,
+  dashboardAirconEntity,
   isClimateEntityOn,
   numericClimateAttribute,
   stringListAttribute,
@@ -139,7 +140,7 @@ export function temperatureDelta(entity: DashboardEntity, delta: number, step: n
 
 export function formatTemperature(value: number | null) {
   if (value === null) {
-    return "--.-";
+    return "--";
   }
 
   return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1);
@@ -385,9 +386,7 @@ export function climateDevicesForZone(zone?: DashboardZone | null) {
   const heater =
     climateEntities.find((entity) => matchesEntity(entity, ["panel", "heater"])) ??
     climateEntities.find((entity) => entity.entity_id.includes("panel_heater"));
-  const aircon =
-    climateEntities.find((entity) => matchesEntity(entity, ["air conditioner", "air con", "c6780cad"])) ??
-    climateEntities.find((entity) => entity.entity_id !== heater?.entity_id);
+  const aircon = dashboardAirconEntity(climateEntities.filter((entity) => entity.entity_id !== heater?.entity_id));
   const switches = zone?.entities.filter((entity) => entity.domain === "switch") ?? [];
 
   return {

@@ -3,6 +3,7 @@ import {
   BedroomHeaterThermostat,
   bedroomRoomTemperatureEntityIds,
   bedroomTemperatureStateIsFresh,
+  bedroomTemperatureStateIsUsable,
   bedroomHeaterMode,
   bedroomHeaterScheduleEdge,
   bedroomHeaterSleepTimerExpired,
@@ -60,6 +61,15 @@ function firstAvailableState(states: HaState[], entityIds: readonly string[]) {
     }
   }
   return undefined;
+}
+
+export async function bedroomSensorHasFreshReading(now: number = Date.now()) {
+  const config = await readDashboardConfig();
+  const entityIds = bedroomRoomTemperatureEntityIds(
+    config.dashboard.bedroomHeater?.temperatureEntityIds ?? [],
+  );
+  const states = await haRest<HaState[]>("/api/states");
+  return bedroomTemperatureStateIsUsable(firstAvailableState(states, entityIds), now);
 }
 
 /**
@@ -189,6 +199,19 @@ async function tick({ userInitiated = false }: { userInitiated?: boolean } = {})
       now,
       preferences: settings,
     });
+
+    if (plan.reason === "sensor-fail-safe-off") {
+      if (switchState.state === "on") {
+        await callService("switch", "turn_off", { entity_id: switchState.entity_id });
+      }
+      lastCommandedOn = false;
+      thermostat.reset();
+      await mergeDashboardPreferences({
+        bedroomHeater: { mode: "off", offTimerEndsAt: null, updatedAt: new Date().toISOString() },
+      });
+      console.error("[bedroom-heater] room sensor unavailable or stale -> locked out and off");
+      return;
+    }
 
     if (!plan.actions.length) {
       return;

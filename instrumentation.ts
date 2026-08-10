@@ -19,6 +19,17 @@ export async function register() {
   const { startUpdateScheduler } = await import("@/lib/update-scheduler");
   startUpdateScheduler();
 
+  // Safety watchdog for the lounge air conditioner's browser-driven Auto.
+  // It deliberately does not drive temperature itself; it only guarantees
+  // that a sleeping/closed browser cannot leave Auto armed after its real
+  // temperature input becomes stale.
+  try {
+    const { startAirconAutoSafetyWatchdog } = await import("@/lib/aircon-auto-safety");
+    startAirconAutoSafetyWatchdog();
+  } catch (error) {
+    console.error("[aircon-auto-safety] failed to start watchdog", error);
+  }
+
   // Nova-side thermostat for the bedroom heater. This one lives on the server
   // rather than in the dashboard client (as the aircon's does) because it has
   // to hold temperature overnight with no browser awake.
