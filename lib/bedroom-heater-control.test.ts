@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
 import {
   BEDROOM_HEATER_MIN_CYCLE_MS,
   BEDROOM_HEATER_TAIL_OFF_MS,
@@ -6,6 +7,7 @@ import {
   bedroomHeaterMode,
   bedroomRoomTemperatureEntityIds,
   bedroomTemperatureStateIsFresh,
+  bedroomTemperatureStateIsUsable,
   bedroomHeaterSleepTimerExpired,
   createInitialBedroomHeaterAutoState,
   formatMinutesFromMidday,
@@ -31,6 +33,37 @@ describe("bedroom room temperature authority", () => {
     expect(bedroomTemperatureStateIsFresh({ last_reported: "2026-08-09T21:15:00Z" }, now)).toBe(true);
     expect(bedroomTemperatureStateIsFresh({ last_reported: "2026-08-09T06:08:59Z" }, now)).toBe(false);
     expect(bedroomTemperatureStateIsFresh({}, now)).toBe(false);
+  });
+
+  it("allows Auto only for a fresh numeric reading", () => {
+    const now = Date.parse("2026-08-09T21:30:00Z");
+    expect(bedroomTemperatureStateIsUsable({ state: "28", last_reported: "2026-08-09T21:15:00Z" }, now)).toBe(true);
+    expect(bedroomTemperatureStateIsUsable({ state: "20", last_reported: "2026-08-09T06:08:59Z" }, now)).toBe(false);
+    expect(bedroomTemperatureStateIsUsable({ state: "unavailable", last_reported: "2026-08-09T21:29:00Z" }, now)).toBe(false);
+  });
+});
+
+describe("autonomous climate golden rule", () => {
+  it("requires a fresh numeric input for every autonomous climate controller", () => {
+    const now = Date.parse("2026-08-09T21:30:00Z");
+    expect(
+      autonomousClimateInputIsUsable(
+        { measurement: 28, sourceState: "heat", last_reported: "2026-08-09T21:15:00Z" },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      autonomousClimateInputIsUsable(
+        { measurement: 20, sourceState: "cool", last_reported: "2026-08-09T06:08:59Z" },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      autonomousClimateInputIsUsable(
+        { measurement: null, sourceState: "heat", last_reported: "2026-08-09T21:29:00Z" },
+        now,
+      ),
+    ).toBe(false);
   });
 });
 

@@ -8,7 +8,11 @@ import {
 import { publishDashboardState } from "../../../lib/dashboard-events";
 import { buildDashboardState } from "../../../lib/ha";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
-import { evaluateBedroomHeaterNow, noteBedroomHeaterUserCommand } from "../../../lib/bedroom-heater-auto";
+import {
+  bedroomSensorHasFreshReading,
+  evaluateBedroomHeaterNow,
+  noteBedroomHeaterUserCommand,
+} from "../../../lib/bedroom-heater-auto";
 import type { BedroomHeaterPreferences } from "../../../lib/types";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +74,10 @@ function parseUpdate(body: unknown): BedroomHeaterPreferences {
 export async function POST(request: Request) {
   try {
     const update = parseUpdate(await request.json());
+
+    if (update.mode === "auto" && !(await bedroomSensorHasFreshReading())) {
+      throw new Error("Bedroom Auto is unavailable until the room sensor reports a fresh temperature");
+    }
 
     // The server thermostat loop must stand down briefly after any user action,
     // for the same reason the aircon's client loop honours isPollingPaused():

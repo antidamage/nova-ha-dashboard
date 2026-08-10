@@ -1,4 +1,5 @@
 import type { AirconPreferences, DashboardEntity, DashboardPreferences, HaDomain } from "./types";
+import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
 
 export type EntityActionInput = {
   entityId: string;
@@ -131,7 +132,7 @@ export const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
 export type AirconAutoReason =
   | "no-entity"
   | "no-target"
-  | "no-temperature"
+  | "sensor-fail-safe-off"
   | "driving"
   | "reached-target"
   | "resting"
@@ -191,8 +192,14 @@ export function stringListAttribute(entity: DashboardEntity, name: string) {
   return Array.isArray(value) ? value.map(String) : [];
 }
 
-export function numericClimateAttribute(entity: DashboardEntity, name: string) {
-  const value = Number(entity.attributes[name]);
+export function numericClimateAttribute(entity: Pick<DashboardEntity, "attributes">, name: string) {
+  const raw = entity.attributes[name];
+  const value =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string" && raw.trim() !== ""
+        ? Number(raw)
+        : Number.NaN;
   return Number.isFinite(value) ? value : null;
 }
 
@@ -200,7 +207,7 @@ export function climateTargetTemperature(entity: DashboardEntity) {
   return numericClimateAttribute(entity, "temperature") ?? numericClimateAttribute(entity, "current_temperature");
 }
 
-export function climateCurrentTemperature(entity: DashboardEntity) {
+export function climateCurrentTemperature(entity: Pick<DashboardEntity, "attributes">) {
   return numericClimateAttribute(entity, "current_temperature");
 }
 
@@ -242,8 +249,49 @@ export function airconAutoSupported(supportedModes: string[]) {
 // The aircon's own sensor is the measurement the auto loop acts on. It used to
 // prefer the third-party lounge sensor; that sensor is being relocated, so the
 // unit is the source now.
-export function airconAutoMeasuredTemperature(entity?: DashboardEntity) {
-  return entity ? climateCurrentTemperature(entity) : null;
+type AirconTemperatureSource = Pick<
+  DashboardEntity,
+  "attributes" | "entity_id" | "state" | "last_changed" | "last_updated" | "last_reported"
+>;
+
+export function airconAutoMeasuredTemperature(entity?: AirconTemperatureSource, now: number = Date.now()) {
+  const measurement = entity ? climateCurrentTemperature(entity) : null;
+  return autonomousClimateInputIsUsable(
+    entity
+      ? {
+          measurement,
+          sourceState: entity.state,
+          last_changed: entity.last_changed,
+          last_updated: entity.last_updated,
+          last_reported: entity.last_reported,
+        }
+      : undefined,
+    now,
+  )
+    ? measurement
+    : null;
+}
+
+function airconIdentityText(entity: Pick<DashboardEntity, "attributes" | "entity_id">) {
+  return `${entity.entity_id} ${String(entity.attributes.friendly_name ?? "")}`.toLowerCase();
+}
+
+/**
+ * Locate Nova's autonomous air conditioner without ever falling back to a
+ * heater. Both the browser controller and the server watchdog use this exact
+ * selector so the safety monitor cannot watch a different device from Auto.
+ */
+export function dashboardAirconEntity<T extends Pick<DashboardEntity, "attributes" | "entity_id">>(
+  entities: readonly T[],
+) {
+  const climates = entities.filter((entity) => entity.entity_id.startsWith("climate."));
+  const explicit = climates.find((entity) =>
+    ["air conditioner", "air con", "gree", "c6780cad"].some((token) => airconIdentityText(entity).includes(token)),
+  );
+  if (explicit) {
+    return explicit;
+  }
+  return climates.find((entity) => !["heater", "panel"].some((token) => airconIdentityText(entity).includes(token)));
 }
 
 export function airconFanStep(
@@ -556,7 +604,7 @@ export function planAirconAutoTick({
   state,
   turboSwitch,
 }: AirconAutoPlanInput): AirconAutoPlan {
-  const currentState = normalizeAirconAutoState(state);
+  let currentState = normalizeAirconAutoState(state);
 
   if (!entity) {
     return noAirconActions(currentState, "no-entity");
@@ -570,24 +618,23 @@ export function planAirconAutoTick({
   const selectedMode = isAirconMode(preferences?.hvacMode) ? preferences?.hvacMode : undefined;
 
   if (currentTemperature === null) {
-    if (!forceRemember) {
-      return noAirconActions(currentState, "no-temperature", { lastTargetTemperature: targetTemperature });
-    }
-
-    // The user pressed Auto but there is no reading to act on. Persist the
-    // intent and nothing else.
     return {
       actions: [
         {
           entityId: entity.entity_id,
           domain: "climate",
-          service: "set_temperature",
-          data: { temperature: targetTemperature },
-          remember: { aircon: inactiveAutoRemember(targetTemperature, selectedMode, currentState) },
+          service: "turn_off",
+          remember: {
+            aircon: {
+              ...inactiveAutoRemember(targetTemperature, selectedMode, currentState),
+              autoMode: false,
+              offTimerEndsAt: null,
+            },
+          },
         },
       ],
       nextState: autoPlanState(currentState, { lastTargetTemperature: targetTemperature }),
-      reason: "no-temperature",
+      reason: "sensor-fail-safe-off",
     };
   }
 
@@ -595,12 +642,60 @@ export function planAirconAutoTick({
   // state. Only the former reopens a resting cycle.
   const targetChanged =
     currentState.lastTargetTemperature !== null && currentState.lastTargetTemperature !== targetTemperature;
+  if (targetChanged) {
+    // A changed setpoint is an explicit human override, not sensor drift. It
+    // clears every behavioural guard so the next decision can reverse direction
+    // and start immediately. Sensor freshness is checked separately above and
+    // remains non-overridable: a target change cannot create real input.
+    currentState = {
+      ...currentState,
+      lastMode: null,
+      lastModeAt: null,
+      lastTransitionAt: null,
+      recentStartsAt: [],
+    };
+  }
   const reopened = targetChanged || forceRemember;
   const delta = currentTemperature - targetTemperature;
   const absDelta = Math.abs(delta);
   const running = drivingMode(entity);
   const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
   const cycleBase: AirconAutoState = { ...currentState, recentStartsAt, lastTargetTemperature: targetTemperature };
+
+  // A person can deliberately move the target across the measured room
+  // temperature to swap heating and cooling. Do that directly: stopping first
+  // would create a brand-new dwell lock and defeat the override on the next
+  // tick. The fresh-input gate has already passed above.
+  const changedTargetMode = targetChanged && absDelta > 0 ? desiredModeForDelta(delta) : null;
+  if (
+    running &&
+    changedTargetMode &&
+    changedTargetMode !== running &&
+    airconSupportsHvacMode(entity, changedTargetMode)
+  ) {
+    const fanStep = airconFanStepForTemperatureDelta(delta);
+    const cycle = autoPlanState(cycleBase, {
+      lastMode: changedTargetMode,
+      lastModeAt: now,
+      lastTransitionAt: now,
+      recentStartsAt: [now],
+    });
+    return {
+      actions: activeAutoActions({
+        cycle,
+        desiredMode: changedTargetMode,
+        entity,
+        fanStep,
+        forceRemember,
+        quietSwitch,
+        targetTemperature,
+        turboSwitch,
+      }),
+      nextState: cycle,
+      reason: "driving",
+      wantedMode: changedTargetMode,
+    };
+  }
 
   const rest = (reason: AirconAutoReason, overrides: Partial<AirconAutoState> = {}): AirconAutoPlan => {
     const base = autoPlanState(cycleBase, overrides);

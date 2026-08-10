@@ -4,8 +4,10 @@ import {
   AIRCON_INTENT_MARGIN_DEGREES,
   AirconAutoThermostat,
   airconAutoCycleStateFromPreferences,
+  airconAutoMeasuredTemperature,
   airconUserModeIntent,
   buildAirconAutoActions,
+  dashboardAirconEntity,
   planAirconAutoTick,
   type AirconAutoState,
   type EntityActionInput,
@@ -59,6 +61,54 @@ function restingState(overrides: Partial<AirconAutoState> = {}): AirconAutoState
 function actionFor(actions: EntityActionInput[], service: string) {
   return actions.find((action) => action.service === service);
 }
+
+test("Auto accepts only a fresh Gree temperature report", () => {
+  const fresh = climateEntity({
+    state: "heat",
+    last_reported: new Date(NOW - 29 * MINUTE).toISOString(),
+  });
+  const stale = climateEntity({
+    state: "heat",
+    last_reported: new Date(NOW - 30 * MINUTE - 1).toISOString(),
+  });
+
+  assert.equal(airconAutoMeasuredTemperature(fresh, NOW), 22);
+  assert.equal(airconAutoMeasuredTemperature(stale, NOW), null);
+  assert.equal(
+    airconAutoMeasuredTemperature(
+      climateEntity({
+        state: "heat",
+        attributes: { current_temperature: null },
+        last_reported: new Date(NOW - MINUTE).toISOString(),
+      }),
+      NOW,
+    ),
+    null,
+  );
+  assert.equal(airconAutoMeasuredTemperature(climateEntity({ state: "unavailable" }), NOW), null);
+});
+
+test("the shared aircon selector cannot mistake a panel heater for Auto's input", () => {
+  const panel = climateEntity({ entity_id: "climate.panel_heater", attributes: { friendly_name: "Panel Heater" } });
+  const gree = climateEntity({ entity_id: "climate.gree_lounge", attributes: { friendly_name: "Gree Air Conditioner" } });
+  assert.equal(dashboardAirconEntity([panel, gree])?.entity_id, gree.entity_id);
+  assert.equal(dashboardAirconEntity([panel]), undefined);
+});
+
+test("missing temperature input forces the air conditioner off and clears Auto", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "heat" }),
+    now: NOW,
+    preferences: { autoMode: true, temperature: 22 },
+  });
+
+  assert.equal(plan.reason, "sensor-fail-safe-off");
+  assert.equal(plan.actions.length, 1);
+  assert.equal(plan.actions[0]?.service, "turn_off");
+  assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, false);
+  assert.equal(plan.actions[0]?.remember?.aircon?.offTimerEndsAt, null);
+});
 
 test("dashboard auto heats when the room is well below the aircon target", () => {
   const plan = planAirconAutoTick({
@@ -433,6 +483,30 @@ test("a fan step is not a compressor cycle", () => {
 // ---------------------------------------------------------------------------
 // What a person is allowed to override.
 // ---------------------------------------------------------------------------
+
+test("any user setpoint change clears every behavioural lock and may reverse immediately", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 26,
+    entity: climateEntity({ state: "heat", attributes: { current_temperature: 26, temperature: 20 } }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - MINUTE,
+      lastTransitionAt: NOW - MINUTE,
+      recentStartsAt: [NOW - 3 * MINUTE, NOW - 2 * MINUTE, NOW - MINUTE],
+      lastTargetTemperature: 22,
+    }),
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "cool");
+  assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "cool");
+  assert.equal(plan.nextState.lastMode, "cool");
+  assert.equal(plan.nextState.lastModeAt, NOW);
+  assert.equal(plan.nextState.lastTransitionAt, NOW);
+  assert.deepEqual(plan.nextState.recentStartsAt, [NOW]);
+});
 
 test("a setpoint past the room reading reads as asking for the other direction", () => {
   assert.equal(airconUserModeIntent(21, 24), "cool");
