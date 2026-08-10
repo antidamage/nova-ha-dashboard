@@ -54,7 +54,10 @@ const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
  * instant the reading is missing therefore deadlocks Auto: it can never turn
  * itself on, because turning on is the only thing that produces a reading.
  * This grace window lets Auto attempt to run first; only if the sensor is
- * STILL unusable after it does the old fail-safe-off apply.
+ * STILL unusable after it does the unit switch off. Auto itself is NEVER
+ * disabled by this — it must not go unavailable and require a manual
+ * re-press — it just rests off, same as reaching target, and tries again
+ * once AIRCON_AUTO_MIN_CYCLE_MS clears.
  */
 const AIRCON_AUTO_SENSOR_GRACE_MS = 2 * 60_000;
 
@@ -678,24 +681,18 @@ export function planAirconAutoTick({
     });
 
     if (elapsedMs >= AIRCON_AUTO_SENSOR_GRACE_MS) {
-      // Ran blind for the whole grace window and still no usable reading: give
-      // up and fail safe, same as the old immediate behaviour.
+      // Ran blind for the whole grace window and still no usable reading: switch
+      // the unit off and rest, exactly like the normal reached-target/resting
+      // paths below. Auto stays ON (autoMode: true) — it must never go
+      // unavailable and force a manual re-press; it simply keeps resting off
+      // and will try again once the compressor dwell clears, same as any other
+      // rest cycle. Stamping lastTransitionAt here (as rest() does) is what
+      // makes that retry obey AIRCON_AUTO_MIN_CYCLE_MS instead of hammering the
+      // compressor every tick.
+      const cycle = autoPlanState(pendingBase, { sensorPendingSinceAt: null, lastTransitionAt: now });
       return {
-        actions: [
-          {
-            entityId: entity.entity_id,
-            domain: "climate",
-            service: "turn_off",
-            remember: {
-              aircon: {
-                ...inactiveAutoRemember(targetTemperature, selectedMode, currentState),
-                autoMode: false,
-                offTimerEndsAt: null,
-              },
-            },
-          },
-        ],
-        nextState: autoPlanState(pendingBase, { sensorPendingSinceAt: null }),
+        actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
+        nextState: cycle,
         reason: "sensor-fail-safe-off",
       };
     }
