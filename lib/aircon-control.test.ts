@@ -123,7 +123,7 @@ test("missing temperature input keeps letting an already-running unit try", () =
   assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
 });
 
-test("missing temperature input forces the air conditioner off and clears Auto once the grace window expires", () => {
+test("missing temperature input switches the air conditioner off once the grace window expires, but Auto stays enabled", () => {
   const plan = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
@@ -135,9 +135,45 @@ test("missing temperature input forces the air conditioner off and clears Auto o
   assert.equal(plan.reason, "sensor-fail-safe-off");
   assert.equal(plan.actions.length, 1);
   assert.equal(plan.actions[0]?.service, "turn_off");
-  assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, false);
-  assert.equal(plan.actions[0]?.remember?.aircon?.offTimerEndsAt, null);
+  // Auto must never go unavailable and force a manual re-press: it stays on
+  // and simply rests, exactly like a normal reached-target/resting cycle.
+  assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, true);
   assert.equal(plan.nextState.sensorPendingSinceAt, null);
+  assert.equal(plan.nextState.lastTransitionAt, NOW + 2 * MINUTE);
+});
+
+test("Auto retries on its own after the min-cycle dwell once the sensor is still missing", () => {
+  const firstTimeout = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "heat" }),
+    now: NOW + 2 * MINUTE,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: restingState({ sensorPendingSinceAt: NOW }),
+  });
+
+  // Immediately after failing safe, a retry is held by the compressor dwell —
+  // no action, but reason stays sensor-pending rather than surfacing as an
+  // error state.
+  const heldRetry = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "off" }),
+    now: NOW + 2 * MINUTE + 1,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: firstTimeout.nextState,
+  });
+  assert.equal(heldRetry.reason, "sensor-pending");
+  assert.equal(heldRetry.actions.length, 0);
+
+  // Once the dwell clears, Auto tries again on its own — no user action needed.
+  const laterRetry = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "off" }),
+    now: NOW + 2 * MINUTE + 10 * MINUTE + 1,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: firstTimeout.nextState,
+  });
+  assert.equal(laterRetry.reason, "sensor-pending");
+  assert.equal(actionFor(laterRetry.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
 });
 
 test("a valid reading clears the sensor-pending clock", () => {
