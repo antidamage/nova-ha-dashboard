@@ -11,7 +11,7 @@ RestartSec=10
 ExecStartPre=-/usr/bin/docker rm -f nova-camera-events
 ExecStartPre=/usr/bin/install -d -m 0755 /opt/nova-ha-dashboard/data/camera-events
 ExecStart=/usr/bin/docker run --rm --name nova-camera-events --network host --gpus all \
-  --memory-reservation=2500m --memory=5g --shm-size=1g \
+  --memory-reservation=3g --memory=7g --shm-size=1g \
   --env-file /opt/nova-ha-dashboard/.env.local \
   -e NOVA_CAMERA_EVENTS_DATA=/data \
   -e NOVA_CAMERA_EVENTS_SOURCE=http://192.168.8.17:8080/camera/outside/index.m3u8 \

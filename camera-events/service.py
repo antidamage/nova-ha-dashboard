@@ -121,7 +121,7 @@ class Store:
               thumbnail TEXT, clip TEXT, reviewed INTEGER NOT NULL DEFAULT 0,
               starred INTEGER NOT NULL DEFAULT 0, corrected_labels_json TEXT,
               corrected_identity TEXT, alert_state TEXT NOT NULL DEFAULT 'none',
-              detail_error TEXT
+              detail_error TEXT, detail_attempts INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS events_started ON events(started_at DESC);
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -131,6 +131,15 @@ class Store:
               path TEXT NOT NULL, created_at TEXT NOT NULL
             );
             """
+        )
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(events)")}
+        if "detail_attempts" not in columns:
+            self.connection.execute("ALTER TABLE events ADD COLUMN detail_attempts INTEGER NOT NULL DEFAULT 0")
+        # A container restart can interrupt an in-flight offline pass. Return it
+        # to the bounded retry path instead of leaving it stuck forever.
+        self.connection.execute(
+            "UPDATE events SET status='analysis_failed', detail_error='analysis interrupted by restart', updated_at=? WHERE status='analysing'",
+            (utc_now(),),
         )
         self.connection.commit()
         if self.get_setting("analysis") is None:
@@ -176,6 +185,7 @@ class Store:
             ("created_at", "createdAt"), ("updated_at", "updatedAt"), ("detector_model", "detectorModel"),
             ("detail_model", "detailModel"), ("corrected_identity", "correctedIdentity"),
             ("alert_state", "alertState"), ("detail_error", "detailError"),
+            ("detail_attempts", "detailAttempts"),
         ):
             value[target] = value.pop(source)
         value["reviewed"] = bool(value["reviewed"])
@@ -554,23 +564,18 @@ class Pipeline:
         if self.detail_model is not None:
             return self.detail_model
         import torch
-        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
-        device = "cuda" if torch.cuda.is_available() and torch.cuda.mem_get_info()[0] >= 2800 * 1024**2 else "cpu"
-        if device == "cuda":
-            torch.cuda.set_per_process_memory_fraction(0.30)
+        from transformers import AutoModelForCausalLM
+        # Iridium's GPU is deliberately reserved for the always-on voice stack
+        # and the tiny fast detector. The detailed pass is asynchronous, so run
+        # Moondream in host RAM rather than risking a voice-model CUDA OOM.
+        device = os.environ.get("NOVA_CAMERA_EVENTS_DETAIL_DEVICE", "cpu")
         LOG.info("loading Moondream detail model on %s", device)
-        quantization = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.float16,
-        ) if device == "cuda" else None
         self.detail_model = AutoModelForCausalLM.from_pretrained(
             MOONDREAM_MODEL,
             revision=os.environ.get("NOVA_CAMERA_EVENTS_MOONDREAM_REVISION", "2025-06-21"),
             trust_remote_code=True,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            device_map="auto" if device == "cuda" else {"": "cpu"},
-            quantization_config=quantization,
+            torch_dtype=torch.bfloat16,
+            device_map={"": device},
             low_cpu_mem_usage=True,
         )
         return self.detail_model
@@ -622,11 +627,16 @@ class Pipeline:
             "Do not infer identity or intent. Use 'unclear' when uncertain."
         )
         frame_paths: list[Path] = []
-        for evidence in frames[:8]:
+        selected_frames = frames if len(frames) <= 2 else [frames[0], frames[-1]]
+        for evidence in selected_frames:
             path = Path(evidence["frame"])
             if path.exists():
                 frame_paths.append(path)
-                result = model.query(Image.open(path).convert("RGB"), prompt)
+                result = model.query(
+                    Image.open(path).convert("RGB"),
+                    prompt,
+                    settings={"max_tokens": 96, "temperature": 0.1, "variant": None},
+                )
                 answers.append(str(result.get("answer", result) if isinstance(result, dict) else result))
         text = " ".join(answers).strip()
         lower = text.lower()
@@ -709,9 +719,19 @@ class Pipeline:
                 self.stop.wait(30)
                 continue
             with STORE.lock:
-                row = STORE.connection.execute("SELECT * FROM events WHERE status='queued' ORDER BY started_at LIMIT 1").fetchone()
+                retry_before = iso_time(time.time() - 60)
+                row = STORE.connection.execute(
+                    """SELECT * FROM events
+                       WHERE status='queued'
+                          OR (status='analysis_failed' AND detail_attempts<3 AND updated_at<=?)
+                       ORDER BY started_at LIMIT 1""",
+                    (retry_before,),
+                ).fetchone()
                 if row:
-                    STORE.connection.execute("UPDATE events SET status='analysing',updated_at=? WHERE id=?", (utc_now(), row["id"]))
+                    STORE.connection.execute(
+                        "UPDATE events SET status='analysing',detail_attempts=detail_attempts+1,updated_at=? WHERE id=?",
+                        (utc_now(), row["id"]),
+                    )
                     STORE.connection.commit()
             if not row:
                 self.stop.wait(10)
