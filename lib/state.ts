@@ -102,7 +102,7 @@ export async function buildDashboardState(): Promise<DashboardState> {
     sun: buildSunStatus(states, config),
     weather: await buildWeatherStatus(states, warnings, config),
     preferences,
-    climateControl: climateControlState(),
+    climateControl: await climateControlState(),
     warnings,
     haHealth: context.haHealth,
   };
