@@ -2,13 +2,24 @@
 
 import { Bell, BellOff, ImagePlus, Loader2, Moon, MousePointer2, RotateCcw, Save, SunMedium, Trash2, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { NormalizedRectangle } from "../../lib/reference-selection";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import { VehicleReferenceEditor } from "./VehicleReferenceEditor";
 
 type Point = [number, number];
 type SceneZone = { id: string; label: string; kind: "activity" | "vehicle" | "exclude"; points: Point[] };
 type AnalysisSettings = { enabled: boolean; alertsEnabled: boolean; zones: SceneZone[] };
-type ReferenceKind = "cat" | "ute" | "person";
-type ReferenceImage = { id: string; kind: ReferenceKind; name: string; role?: "owner" | null; created_at: string };
+type ReferenceKind = "cat" | "vehicle" | "person";
+type ReferenceImage = {
+  id: string;
+  kind: ReferenceKind;
+  name: string;
+  role?: "owner" | null;
+  source_name?: string | null;
+  crop?: NormalizedRectangle | null;
+  legacy?: boolean;
+  created_at: string;
+};
 
 const COLORS: Record<SceneZone["kind"], string> = { activity: "#54f5d0", vehicle: "#ffd56b", exclude: "#ff6b80" };
 
@@ -157,26 +168,41 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
     }
   }, [cameraId, settings]);
 
-  const uploadReference = useCallback(async () => {
-    if (!referenceFile || !referenceName.trim()) {
-      setMessage("Choose an image and enter the cat or ute name first.");
-      return;
+  const uploadReference = useCallback(async (options?: {
+    crop?: NormalizedRectangle;
+    file?: File;
+    kind?: ReferenceKind;
+    name?: string;
+  }) => {
+    const file = options?.file ?? referenceFile;
+    const kind = options?.kind ?? referenceKind;
+    const name = options?.name?.trim() ?? referenceName.trim();
+    if (!file || !name) {
+      setMessage("Choose an image and enter the reference name first.");
+      return false;
     }
     const body = new FormData();
-    body.set("kind", referenceKind);
-    body.set("name", referenceName.trim());
-    if (referenceKind === "person") body.set("role", "owner");
-    body.set("image", referenceFile);
+    body.set("kind", kind);
+    body.set("name", name);
+    if (kind === "person") body.set("role", "owner");
+    if (options?.crop) body.set("crop", JSON.stringify(options.crop));
+    body.set("sourceName", file.name);
+    body.set("image", file);
     setSaving(true);
     try {
       const response = await fetch(`/api/camera/${cameraId}/analysis/references`, { method: "POST", body });
-      if (!response.ok) throw new Error("Could not save that reference image");
-      setReferenceFile(null);
-      setReferenceName("");
+      const result = await response.json().catch(() => ({})) as { detail?: string; error?: string };
+      if (!response.ok) throw new Error(result.detail ?? result.error ?? "Could not save that reference image");
+      if (kind !== "vehicle") {
+        setReferenceFile(null);
+        setReferenceName("");
+      }
       await loadReferences();
-      setMessage("Reference image saved for detailed matching.");
+      setMessage(`${name} reference saved for detailed matching.`);
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save that reference image");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -233,20 +259,32 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         <span className="text-xs text-neutral-400">{message}</span>
       </div>
       <div className="camera-reference-gallery">
-        <div><p className="camera-events-kicker">Reference gallery</p><h4>Household cats, black ute, and owner</h4></div>
+        <div><p className="camera-events-kicker">Reference gallery</p><h4>Recognised household subjects</h4></div>
         <div className="camera-analysis-zone-tabs">
-          {(["cat", "ute", "person"] as const).map((kind) => <button key={kind} type="button" className={referenceKind === kind ? "is-active" : ""} style={{ "--zone-color": kind === "cat" ? "#54f5d0" : kind === "ute" ? "#ffd56b" : "#8bb8ff" } as React.CSSProperties} onClick={() => setReferenceKind(kind)}>{kind === "person" ? "owner" : kind}</button>)}
+          {(["cat", "vehicle", "person"] as const).map((kind) => <button key={kind} type="button" className={referenceKind === kind ? "is-active" : ""} style={{ "--zone-color": kind === "cat" ? "#54f5d0" : kind === "vehicle" ? "#ffd56b" : "#8bb8ff" } as React.CSSProperties} onClick={() => { setReferenceKind(kind); setReferenceFile(null); }}>{kind === "person" ? "owner" : kind}</button>)}
         </div>
         <div className="camera-reference-add">
-          <input aria-label="Reference name" placeholder={referenceKind === "cat" ? "Cat name" : referenceKind === "ute" ? "Black ute" : "Owner name"} value={referenceName} onChange={(event) => setReferenceName(event.target.value)} />
-          <label className="config-page-button"><ImagePlus className="h-4 w-4" /> {referenceFile?.name ?? "Choose image"}<input type="file" accept="image/*" onChange={(event) => setReferenceFile(event.target.files?.[0] ?? null)} /></label>
-          <MomentaryFeedbackButton type="button" className="config-page-button" disabled={saving || !referenceFile || !referenceName.trim()} onClick={() => void uploadReference()}><Save className="h-4 w-4" /> Add reference</MomentaryFeedbackButton>
+          {referenceKind !== "vehicle" ? <input aria-label="Reference name" placeholder={referenceKind === "cat" ? "Cat name" : "Owner name"} value={referenceName} onChange={(event) => setReferenceName(event.target.value)} /> : null}
+          <label className="config-page-button"><ImagePlus className="h-4 w-4" /> {referenceFile?.name ?? (referenceKind === "vehicle" ? "Choose photo and designate" : "Choose image")}<input type="file" accept="image/*" onChange={(event) => { setReferenceFile(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} /></label>
+          {referenceKind !== "vehicle" ? <MomentaryFeedbackButton type="button" className="config-page-button" disabled={saving || !referenceFile || !referenceName.trim()} onClick={() => void uploadReference()}><Save className="h-4 w-4" /> Add reference</MomentaryFeedbackButton> : null}
         </div>
         <ul className="camera-reference-list">
-          {references.map((reference) => <li key={reference.id}><span>{reference.kind} · {reference.name}</span><button type="button" aria-label={`Delete ${reference.name} reference`} onClick={() => void deleteReference(reference.id)}><Trash2 className="h-4 w-4" /></button></li>)}
+          {references.filter((reference) => reference.kind === referenceKind).map((reference) => <li key={reference.id}>
+            <img src={`/api/camera/${cameraId}/analysis/references/${reference.id}/image`} alt="" />
+            <span><strong>{reference.name}</strong><small>{reference.legacy ? "Legacy whole-photo reference" : reference.crop ? `Designated from ${reference.source_name ?? "photo"}` : reference.kind === "person" ? "Owner reference" : "Image reference"}</small></span>
+            <button type="button" aria-label={`Delete ${reference.name} reference`} onClick={() => void deleteReference(reference.id)}><Trash2 className="h-4 w-4" /></button>
+          </li>)}
         </ul>
-        <p className="text-xs text-neutral-400">Use at least five varied daylight images per cat, several parked positions/wheel views for the ute, and multiple close-cropped face/full-body angles for the owner. Owner suppression requires strong agreement across multiple event frames.</p>
+        {references.every((reference) => reference.kind !== referenceKind) ? <p className="camera-reference-empty">No {referenceKind === "person" ? "owner" : referenceKind} references remembered yet.</p> : null}
+        <p className="text-xs text-neutral-400">For vehicles, designate the vehicle tightly in several daylight photos from different angles. Cat and owner references should also use varied close views. Recognition remains tentative unless local analysis agrees across multiple event frames.</p>
       </div>
+      {referenceKind === "vehicle" && referenceFile ? <VehicleReferenceEditor
+        file={referenceFile}
+        initialName={referenceName}
+        saving={saving}
+        onClose={() => setReferenceFile(null)}
+        onSave={(name, crop) => uploadReference({ crop, file: referenceFile, kind: "vehicle", name })}
+      /> : null}
     </section>
   );
 }

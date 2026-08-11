@@ -56,10 +56,11 @@ the named component before introducing a one-off equivalent.
 - `ModalOverlay` — `app/components/ModalOverlay.tsx`. This is the accessible
   modal/popover surface used by colour editors, reminder icon selection, and
   system confirmation flows.
-- `CameraEventReport` and `CameraAnalysisConfig` — the Outside-camera activity
-  review surface and visual polygon/reference editor. Event review uses the
-  shared `ModalOverlay`; scene geometry stays normalized to the source frame
-  and is edited visually rather than as raw coordinate fields.
+- `CameraEventReport`, `CameraAnalysisConfig`, and `VehicleReferenceEditor` —
+  the Outside-camera activity review, visual polygon editor, and photo-region
+  vehicle reference editor. These use the shared `ModalOverlay`; scene and
+  reference geometry stays normalized to the source frame and is edited
+  visually rather than as raw coordinate fields.
 - `IconButton` — `app/components/dashboard/IconButton.tsx`. This is the
   dashboard's themed icon action used by zone lighting controls.
 - `LabeledSwitch` — `app/components/dashboard/ClimateControls.tsx`. This is the

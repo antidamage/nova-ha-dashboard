@@ -1,9 +1,16 @@
 import unittest
 
-from core import Box, evaluate_policy, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, normalized_crop_bounds, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
 
 
 class CameraEventCoreTests(unittest.TestCase):
+    def test_normalized_crop_bounds_orders_clamps_and_rounds_outward(self):
+        self.assertEqual(normalized_crop_bounds((0.8, -0.2, 0.2, 0.75), 100, 80), (20, 0, 80, 60))
+
+    def test_normalized_crop_bounds_rejects_tiny_designations(self):
+        with self.assertRaisesRegex(ValueError, "at least 32 pixels"):
+            normalized_crop_bounds((0.1, 0.1, 0.11, 0.11), 1000, 600)
+
     def test_zone_uses_boundary_and_ground_point(self):
         polygon = [(0.1, 0.2), (0.9, 0.2), (0.9, 0.8), (0.1, 0.8)]
         self.assertTrue(point_in_polygon((0.5, 0.8), polygon))
