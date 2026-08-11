@@ -138,9 +138,12 @@ model crash cannot interrupt recording or the live camera.
 - A durable detail queue asks local Moondream2 to describe source-resolution
   evidence frames. Home Assistant alerts are emitted only for explicit policy
   alert rules after this pass and only when enabled in Camera configuration.
-- Owner reference images use local multi-frame visual embeddings. An identity
-  can suppress an event only after a high-confidence match; policy safety
-  overrides remain independent of that suppression.
+- Owner and named vehicle reference images use local multi-frame visual
+  embeddings. Vehicle references are designated as tight normalized regions
+  inside existing photos, cropped server-side, and compared only with vehicle
+  detections rather than whole camera frames. An owner identity can suppress an
+  event only after a high-confidence match; policy safety overrides remain
+  independent of that suppression.
 - Unstarred events retain fourteen days or 50 GB. Starred clips are preserved;
   a free-space reserve prevents activity media from filling the host.
 - The review modal can select individual or all currently filtered events for a
@@ -154,6 +157,7 @@ the browser's currently buffered range as the complete archive. Timestamped
 manifest views let native-HLS clients reopen older footage while retaining the
 stable WebKit playback path.
 
-The service stores SQLite state, clips, model caches, and private cat/ute
-reference images under `data/camera-events/`. None of this runtime data is
+The service stores SQLite state, clips, model caches, and private cat/vehicle
+reference images under `data/camera-events/`. Legacy ute references remain
+available to the vehicle matcher. None of this runtime data is
 committed or included in dashboard exports.

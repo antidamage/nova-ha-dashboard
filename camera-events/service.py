@@ -31,7 +31,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from core import Box, evaluate_policy, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, normalized_crop_bounds, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
 
 
 logging.basicConfig(level=os.environ.get("NOVA_CAMERA_EVENTS_LOG_LEVEL", "INFO"))
@@ -178,6 +178,14 @@ class Store:
         reference_columns = {row[1] for row in self.connection.execute("PRAGMA table_info(subject_references)")}
         if "role" not in reference_columns:
             self.connection.execute("ALTER TABLE subject_references ADD COLUMN role TEXT")
+        for column, definition in (
+            ("source_name", "TEXT"),
+            ("crop_json", "TEXT"),
+            ("image_width", "INTEGER"),
+            ("image_height", "INTEGER"),
+        ):
+            if column not in reference_columns:
+                self.connection.execute(f"ALTER TABLE subject_references ADD COLUMN {column} {definition}")
         # A container restart can interrupt an in-flight offline pass. Return it
         # to the bounded retry path instead of leaving it stuck forever.
         self.connection.execute(
@@ -738,7 +746,7 @@ class Pipeline:
             from transformers import AutoImageProcessor, AutoModel
             if self.identity_model is None or self.identity_processor is None:
                 model_name = os.environ.get("NOVA_CAMERA_EVENTS_IDENTITY_MODEL", "facebook/dinov2-small")
-                LOG.info("loading local person identity embedding model %s", model_name)
+                LOG.info("loading local visual identity embedding model %s", model_name)
                 self.identity_processor = AutoImageProcessor.from_pretrained(model_name)
                 self.identity_model = AutoModel.from_pretrained(model_name).eval()
             inputs = self.identity_processor(images=image, return_tensors="pt")
@@ -798,6 +806,65 @@ class Pipeline:
         name, score, _ = candidates[0]
         runner_up = candidates[1][1] if len(candidates) > 1 else 0.0
         return (name, score) if score - runner_up >= 0.04 else None
+
+    def vehicle_identity(self, evidence: list[dict[str, Any]]) -> tuple[str, float, bool] | None:
+        """Match detected vehicle crops against new and legacy vehicle references."""
+
+        from PIL import Image
+        with STORE.lock:
+            rows = STORE.connection.execute(
+                "SELECT kind,name,path FROM subject_references WHERE kind IN ('vehicle','ute')"
+            ).fetchall()
+        if not rows:
+            return None
+        references: dict[str, list[np.ndarray]] = {}
+        legacy_names: set[str] = set()
+        for row in rows:
+            path = Path(row["path"])
+            if not path.is_file():
+                continue
+            with Image.open(path) as opened:
+                vector = self.identity_embedding(opened.convert("RGB"), str(path))
+            if vector is not None:
+                references.setdefault(row["name"], []).append(vector)
+                if row["kind"] == "ute":
+                    legacy_names.add(row["name"])
+
+        vehicle_classes = {"car", "truck", "bus", "motorcycle"}
+        event_vectors: list[np.ndarray] = []
+        for item in evidence:
+            subjects = [subject for subject in item.get("subjects", []) if subject.get("class") in vehicle_classes]
+            path = Path(item.get("frame", ""))
+            if not subjects or not path.is_file():
+                continue
+            subject = max(subjects, key=lambda value: float(value.get("confidence", 0)))
+            with Image.open(path) as opened:
+                image = opened.convert("RGB")
+                expanded = Box(*subject["box"]).expanded(0.1)
+                x1, y1, x2, y2 = expanded.x1, expanded.y1, expanded.x2, expanded.y2
+                width, height = image.size
+                crop = image.crop((x1 * width, y1 * height, x2 * width, y2 * height))
+                vector = self.identity_embedding(crop)
+            if vector is not None:
+                event_vectors.append(vector)
+        if not event_vectors:
+            return None
+
+        thresholds = POLICY.get("thresholds", {})
+        threshold = float(thresholds.get("vehicleSimilarity", 0.76))
+        minimum = int(thresholds.get("vehicleMinimumFrames", 2))
+        candidates: list[tuple[str, float, int]] = []
+        for name, vectors in references.items():
+            scores = [max(float(np.dot(event, reference)) for reference in vectors) for event in event_vectors]
+            passing = [score for score in scores if score >= threshold]
+            if len(passing) >= minimum:
+                candidates.append((name, sum(passing) / len(passing), len(passing)))
+        candidates.sort(key=lambda item: (item[2], item[1]), reverse=True)
+        if not candidates:
+            return None
+        name, score, _ = candidates[0]
+        runner_up = candidates[1][1] if len(candidates) > 1 else 0.0
+        return (name, score, name in legacy_names) if score - runner_up >= 0.04 else None
 
     def detail_event(self, row: sqlite3.Row) -> None:
         from PIL import Image
@@ -877,10 +944,22 @@ class Pipeline:
                     if subject.get("class") == "cat":
                         subject.update({"identity": name, "identityConfidence": confidence, "identityTentative": True})
                 text = f"Possible household cat {name} ({confidence:.0%} visual match). {text}"
-        if "vehicle_proximity" in labels:
-            ute_match = self.reference_identity("ute", frame_paths)
-            if ute_match:
+        vehicle_match = self.vehicle_identity(frames) if any(
+            subject.get("class") in {"car", "truck", "bus", "motorcycle"} for subject in subjects
+        ) else None
+        if vehicle_match is None and "vehicle_proximity" in labels:
+            legacy_match = self.reference_identity("ute", frame_paths)
+            if legacy_match:
+                vehicle_match = (legacy_match[0], legacy_match[1], True)
+        if vehicle_match:
+            vehicle_name, vehicle_confidence, legacy_ute = vehicle_match
+            labels.append("known_vehicle_candidate")
+            if legacy_ute:
                 labels.append("black_ute_candidate")
+            for subject in subjects:
+                if subject.get("class") in {"car", "truck", "bus", "motorcycle"}:
+                    subject.update({"identity": vehicle_name, "identityConfidence": vehicle_confidence, "identityTentative": True})
+            text = f"Possible known vehicle {vehicle_name} ({vehicle_confidence:.0%} visual match). {text}"
 
         owner_match = self.owner_identity(frames) if "person" in labels else None
         owner_present = owner_match is not None
@@ -1160,34 +1239,103 @@ def current_frame(daylight: bool = False) -> Response:
 
 @app.get("/references")
 def references(kind: str | None = None) -> dict[str, Any]:
+    requested_kind = "vehicle" if kind == "ute" else kind
+    where = " WHERE kind IN ('vehicle','ute')" if requested_kind == "vehicle" else (" WHERE kind=?" if requested_kind else "")
     with STORE.lock:
         rows = STORE.connection.execute(
-            "SELECT id,kind,name,role,created_at FROM subject_references" + (" WHERE kind=?" if kind else "") + " ORDER BY name,created_at",
-            (kind,) if kind else (),
+            "SELECT id,kind,name,role,created_at,source_name,crop_json,image_width,image_height FROM subject_references" + where + " ORDER BY name,created_at",
+            (requested_kind,) if requested_kind and requested_kind != "vehicle" else (),
         ).fetchall()
-    return {"references": [dict(row) for row in rows]}
+    values = []
+    for row in rows:
+        value = dict(row)
+        if value["kind"] == "ute":
+            value["kind"] = "vehicle"
+            value["legacy"] = True
+        crop_json = value.pop("crop_json", None)
+        value["crop"] = json.loads(crop_json) if crop_json else None
+        values.append(value)
+    return {"references": values}
 
 
 @app.post("/references")
-async def add_reference(kind: str, name: str, image: UploadFile = File(...), role: str | None = None) -> dict[str, Any]:
-    if kind not in {"cat", "ute", "person"} or not name.strip():
-        raise HTTPException(400, "Reference kind must be cat, ute, or person and name is required")
-    normalized_role = "owner" if kind == "person" and role == "owner" else None
+async def add_reference(
+    kind: str,
+    name: str,
+    image: UploadFile = File(...),
+    role: str | None = None,
+    crop: str | None = None,
+    source_name: str | None = None,
+) -> dict[str, Any]:
+    normalized_kind = "vehicle" if kind == "ute" else kind
+    normalized_name = name.strip()
+    if normalized_kind not in {"cat", "vehicle", "person"} or not normalized_name:
+        raise HTTPException(400, "Reference kind must be cat, vehicle, or person and name is required")
+    if len(normalized_name) > 80:
+        raise HTTPException(400, "Reference name must be 80 characters or fewer")
+    normalized_role = "owner" if normalized_kind == "person" and role == "owner" else None
     data = await image.read()
     if len(data) > 10 * 1024 * 1024:
         raise HTTPException(413, "Reference image is too large")
     decoded = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if decoded is None:
         raise HTTPException(400, "Reference is not a supported image")
+    image_height, image_width = decoded.shape[:2]
+    normalized_crop = None
+    if crop is not None:
+        try:
+            crop_value = json.loads(crop)
+            normalized_crop = {
+                "x": float(crop_value["x"]), "y": float(crop_value["y"]),
+                "width": float(crop_value["width"]), "height": float(crop_value["height"]),
+            }
+            if normalized_crop["width"] <= 0 or normalized_crop["height"] <= 0:
+                raise ValueError("crop width and height must be positive")
+            x1, y1, x2, y2 = normalized_crop_bounds(
+                (
+                    normalized_crop["x"], normalized_crop["y"],
+                    normalized_crop["x"] + normalized_crop["width"],
+                    normalized_crop["y"] + normalized_crop["height"],
+                ),
+                image_width,
+                image_height,
+            )
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise HTTPException(400, f"Invalid reference crop: {error}") from error
+        decoded = decoded[y1:y2, x1:x2]
+    elif normalized_kind == "vehicle":
+        raise HTTPException(400, "Vehicle references require a designated crop")
     reference_id = uuid.uuid4().hex
-    directory = REFERENCE_ROOT / kind
+    directory = REFERENCE_ROOT / normalized_kind
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{reference_id}.jpg"
-    cv2.imwrite(str(path), decoded, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if not cv2.imwrite(str(path), decoded, [cv2.IMWRITE_JPEG_QUALITY, 92]):
+        raise HTTPException(500, "Could not store reference image")
+    safe_source_name = Path(source_name or image.filename or "photo").name[:255]
     with STORE.lock:
-        STORE.connection.execute("INSERT INTO subject_references(id,kind,name,path,created_at,role) VALUES(?,?,?,?,?,?)", (reference_id, kind, name.strip(), str(path), utc_now(), normalized_role))
+        STORE.connection.execute(
+            """INSERT INTO subject_references(
+                 id,kind,name,path,created_at,role,source_name,crop_json,image_width,image_height
+               ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+            (
+                reference_id, normalized_kind, normalized_name, str(path), utc_now(), normalized_role,
+                safe_source_name, json.dumps(normalized_crop) if normalized_crop else None, image_width, image_height,
+            ),
+        )
         STORE.connection.commit()
-    return {"id": reference_id, "kind": kind, "name": name.strip(), "role": normalized_role}
+    return {
+        "id": reference_id, "kind": normalized_kind, "name": normalized_name, "role": normalized_role,
+        "source_name": safe_source_name, "crop": normalized_crop,
+    }
+
+
+@app.get("/references/{reference_id}/image")
+def reference_image(reference_id: str) -> FileResponse:
+    with STORE.lock:
+        row = STORE.connection.execute("SELECT path FROM subject_references WHERE id=?", (reference_id,)).fetchone()
+    if not row or not Path(row["path"]).is_file():
+        raise HTTPException(404, "Reference image not found")
+    return FileResponse(row["path"], media_type="image/jpeg", headers={"Cache-Control": "private, no-store"})
 
 
 @app.delete("/references/{reference_id}")

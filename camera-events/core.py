@@ -7,7 +7,7 @@ container. Coordinates are normalized to the source frame.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import hypot
+from math import ceil, floor, hypot, isfinite
 from typing import Any, Iterable
 
 
@@ -35,6 +35,28 @@ class Box:
             min(1.0, self.x2 + width * fraction),
             min(1.0, self.y2 + height * fraction),
         )
+
+
+def normalized_crop_bounds(
+    rectangle: tuple[float, float, float, float],
+    image_width: int,
+    image_height: int,
+    *,
+    minimum_pixels: int = 32,
+) -> tuple[int, int, int, int]:
+    """Convert an unordered normalized rectangle into safe pixel crop bounds."""
+
+    if image_width <= 0 or image_height <= 0:
+        raise ValueError("image dimensions must be positive")
+    if len(rectangle) != 4 or not all(isfinite(value) for value in rectangle):
+        raise ValueError("crop rectangle must contain four finite coordinates")
+    left, right = sorted((max(0.0, min(1.0, rectangle[0])), max(0.0, min(1.0, rectangle[2]))))
+    top, bottom = sorted((max(0.0, min(1.0, rectangle[1])), max(0.0, min(1.0, rectangle[3]))))
+    x1, y1 = floor(left * image_width), floor(top * image_height)
+    x2, y2 = ceil(right * image_width), ceil(bottom * image_height)
+    if x2 - x1 < minimum_pixels or y2 - y1 < minimum_pixels:
+        raise ValueError(f"crop must be at least {minimum_pixels} pixels wide and high")
+    return x1, y1, x2, y2
 
 
 def point_in_polygon(point: tuple[float, float], polygon: Iterable[tuple[float, float]]) -> bool:
