@@ -23,6 +23,22 @@ export function actuatorChangeIsExternal(input: {
     input.now > input.commandSettleUntil;
 }
 
+export function poweredActuatorRecoveryIsExternal(input: {
+  wasAvailable: boolean | null;
+  currentSignature: string | null;
+  commandSettleUntil: number;
+  now: number;
+}) {
+  if (input.wasAvailable !== false || input.currentSignature === null || input.now <= input.commandSettleUntil) {
+    return false;
+  }
+  try {
+    return JSON.parse(input.currentSignature).power !== "off";
+  } catch {
+    return false;
+  }
+}
+
 export function planManualAirconTick(input: {
   direction: ManualAirconDirection;
   isOn: boolean;

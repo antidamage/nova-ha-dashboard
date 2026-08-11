@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { actuatorChangeIsExternal, climateActionReclaimsOwnership, planManualAirconTick } from "./climate-control-policy";
+import {
+  actuatorChangeIsExternal,
+  climateActionReclaimsOwnership,
+  planManualAirconTick,
+  poweredActuatorRecoveryIsExternal,
+} from "./climate-control-policy";
 
 describe("climate controller ownership", () => {
   it("treats an unmatched actuator change as external", () => {
@@ -25,6 +30,21 @@ describe("climate controller ownership", () => {
     expect(climateActionReclaimsOwnership({ room: "lounge", service: "set_fan_mode", autoMode: false })).toBe(false);
     expect(climateActionReclaimsOwnership({ room: "lounge", service: "set_temperature", autoMode: true })).toBe(true);
     expect(climateActionReclaimsOwnership({ room: "bedroom", service: "turn_on" })).toBe(true);
+  });
+
+  it("preserves a device that reconnects already powered on", () => {
+    expect(poweredActuatorRecoveryIsExternal({
+      wasAvailable: false,
+      currentSignature: JSON.stringify({ power: "on" }),
+      commandSettleUntil: 0,
+      now: 100,
+    })).toBe(true);
+    expect(poweredActuatorRecoveryIsExternal({
+      wasAvailable: false,
+      currentSignature: JSON.stringify({ power: "off" }),
+      commandSettleUntil: 0,
+      now: 100,
+    })).toBe(false);
   });
 });
 
