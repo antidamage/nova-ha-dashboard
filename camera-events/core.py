@@ -164,15 +164,21 @@ def subject_gap_seconds(
     *,
     default_gap: float,
     person_gap: float,
+    minimum: float = 0.0,
 ) -> float:
     """How long a subject may go undetected before the event is considered over.
 
     People disappear from the detector for long stretches when they pass behind
     the tree, the hedge or a parked vehicle, so one traverse needs a wider gap
     than a transient animal to stay a single event.
+
+    `minimum` keeps the gap clear of the clip's post-roll. The clip is cut at
+    finalisation, so if the gap only just reaches the post-roll the trailing
+    segments may not have been published yet and the clip loses its tail —
+    observed live as a 10.9s event that produced a 14s clip instead of ~41s.
     """
 
-    return person_gap if "person" in set(subjects) else default_gap
+    return max(minimum, person_gap if "person" in set(subjects) else default_gap)
 
 
 def event_window_closed(

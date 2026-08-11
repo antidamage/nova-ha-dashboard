@@ -55,6 +55,12 @@ class CameraEventCoreTests(unittest.TestCase):
         self.assertEqual(subject_gap_seconds(["cat"], default_gap=20, person_gap=45), 20)
         self.assertEqual(subject_gap_seconds(["cat", "person"], default_gap=20, person_gap=45), 45)
 
+    def test_gap_never_closes_before_the_post_roll_has_been_published(self):
+        # A 20s gap with a 20s post-roll cuts the clip at the live edge and loses
+        # the tail; the floor keeps finalisation clear of it.
+        self.assertEqual(subject_gap_seconds(["cat"], default_gap=20, person_gap=45, minimum=26), 26)
+        self.assertEqual(subject_gap_seconds(["person"], default_gap=20, person_gap=45, minimum=26), 45)
+
     def test_event_stays_open_while_the_analysed_position_trails_the_subject(self):
         # A backlogged fast pass has only looked 8s past the last detection, so the
         # subject may still be walking through segments awaiting analysis.
