@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMMANDED_STATE_TIMEOUT_MS,
   actuatorChangeIsExternal,
   climateActionReclaimsOwnership,
   planManualAirconTick,
   poweredActuatorRecoveryIsExternal,
+  resolveCommandedState,
 } from "./climate-control-policy";
 
 describe("climate controller ownership", () => {
@@ -45,6 +47,91 @@ describe("climate controller ownership", () => {
       commandSettleUntil: 0,
       now: 100,
     })).toBe(false);
+  });
+});
+
+describe("commanded state display", () => {
+  // Pressing Off while Auto is armed. The controller keeps reporting "auto"
+  // until its own tick sees the Gree off, which is the state the press just
+  // cancelled.
+  const pressedOff = { value: "off" as const, observedAtPress: "auto" as const, sentAt: 1_000 };
+
+  it("shows the pressed state while the controller still reports the old one", () => {
+    expect(resolveCommandedState({
+      intent: pressedOff,
+      observed: "auto",
+      owner: "nova",
+      now: 1_500,
+    })).toEqual({ display: "off", intent: pressedOff });
+  });
+
+  it("hands back to the controller once it reports what was asked for", () => {
+    expect(resolveCommandedState({
+      intent: pressedOff,
+      observed: "off",
+      owner: "nova",
+      now: 1_500,
+    })).toEqual({ display: "off", intent: null });
+  });
+
+  it("holds the press through the controller's transitional reading", () => {
+    // Off clears autoMode before the Gree reports off, so the controller reads
+    // "manual" for a tick. That is this dashboard's own command in flight, not a
+    // new one, and must not flicker the highlight onto Manual.
+    expect(resolveCommandedState({
+      intent: pressedOff,
+      observed: "manual",
+      owner: "nova",
+      now: 1_500,
+    })).toEqual({ display: "off", intent: pressedOff });
+  });
+
+  it("yields to someone working the unit itself", () => {
+    expect(resolveCommandedState({
+      intent: pressedOff,
+      observed: "manual",
+      owner: "external",
+      now: 1_500,
+    })).toEqual({ display: "manual", intent: null });
+  });
+
+  it("ignores an external reading left over from before the press", () => {
+    // A press reclaims Nova, but this client has not polled that yet, so the
+    // stale override must not discard the press.
+    expect(resolveCommandedState({
+      intent: pressedOff,
+      observed: "auto",
+      owner: "external",
+      now: 1_500,
+    })).toEqual({ display: "off", intent: pressedOff });
+  });
+
+  it("stops claiming a command that never landed", () => {
+    expect(resolveCommandedState({
+      intent: pressedOff,
+      observed: "auto",
+      owner: "nova",
+      now: 1_000 + COMMANDED_STATE_TIMEOUT_MS,
+    })).toEqual({ display: "auto", intent: null });
+  });
+
+  it("shows no selection when a press asked for none", () => {
+    const clearedMode = { value: null, observedAtPress: "cool" as const, sentAt: 1_000 };
+    expect(resolveCommandedState({
+      intent: clearedMode,
+      observed: "cool",
+      owner: "nova",
+      now: 1_500,
+    })).toEqual({ display: null, intent: clearedMode });
+  });
+
+  it("follows the controller with no press outstanding", () => {
+    expect(resolveCommandedState({
+      intent: null,
+      observed: "auto",
+      owner: "nova",
+      now: 1_500,
+    })).toEqual({ display: "auto", intent: null });
   });
 });
 
