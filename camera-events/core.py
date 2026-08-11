@@ -59,6 +59,12 @@ def normalized_crop_bounds(
     return x1, y1, x2, y2
 
 
+def point_distance(left: tuple[float, float], right: tuple[float, float]) -> float:
+    """Distance between normalized image points, shared by runtime rules."""
+
+    return hypot(left[0] - right[0], left[1] - right[1])
+
+
 def point_in_polygon(point: tuple[float, float], polygon: Iterable[tuple[float, float]]) -> bool:
     """Ray-cast a point into a normalized polygon, including its boundary."""
 

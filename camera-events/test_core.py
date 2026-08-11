@@ -1,9 +1,12 @@
 import unittest
 
-from core import Box, evaluate_policy, normalized_crop_bounds, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, normalized_crop_bounds, point_distance, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
 
 
 class CameraEventCoreTests(unittest.TestCase):
+    def test_point_distance_supports_runtime_proximity_rules(self):
+        self.assertAlmostEqual(point_distance((0.1, 0.2), (0.4, 0.6)), 0.5)
+
     def test_normalized_crop_bounds_orders_clamps_and_rounds_outward(self):
         self.assertEqual(normalized_crop_bounds((0.8, -0.2, 0.2, 0.75), 100, 80), (20, 0, 80, 60))
 

@@ -31,7 +31,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from core import Box, evaluate_policy, normalized_crop_bounds, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, normalized_crop_bounds, point_distance, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
 
 
 logging.basicConfig(level=os.environ.get("NOVA_CAMERA_EVENTS_LOG_LEVEL", "INFO"))
@@ -471,7 +471,7 @@ class Pipeline:
         person_in_black_ute_zone = any(black_ute_zones & set(person.get("zones", [])) for person, _ in people)
         vehicle_near = person_in_black_ute_zone or any(vehicle_proximity(person_box, vehicle_box) for _, person_box in people for _, vehicle_box in vehicles)
         near_animal = any(
-            hypot(cat_box.centre[0] - dog_box.centre[0], cat_box.centre[1] - dog_box.centre[1]) < 0.16
+            point_distance(cat_box.centre, dog_box.centre) < 0.16
             for cat, cat_box in animals if cat["class"] == "cat"
             for dog, dog_box in animals if dog["class"] == "dog"
         )
@@ -492,7 +492,7 @@ class Pipeline:
             if state is None or timestamp - state["last"] > 4:
                 state = {"centre": centre, "last": timestamp, "moving": False, "stoppedSince": None}
             else:
-                distance = hypot(centre[0] - state["centre"][0], centre[1] - state["centre"][1])
+                distance = point_distance(centre, state["centre"])
                 if distance > 0.012:
                     state["moving"] = True
                     state["stoppedSince"] = None
@@ -526,14 +526,14 @@ class Pipeline:
         if any(item["class"] == "dog" and property_zones & set(item["zones"]) for item in resolved):
             labels.add("dog_on_property")
         dog_accompanied = any(
-            hypot(dog_box.centre[0] - person_box.centre[0], dog_box.centre[1] - person_box.centre[1]) <= group_distance
+            point_distance(dog_box.centre, person_box.centre) <= group_distance
             for dog, dog_box in animals if dog["class"] == "dog"
             for _, person_box in people
         ) if any(item["class"] == "dog" for item, _ in animals) else False
         if "dog" in labels and not dog_accompanied:
             labels.add("dog_unaccompanied_candidate")
         if "cat" in labels and "person" in labels and any(
-            hypot(cat_box.centre[0] - person_box.centre[0], cat_box.centre[1] - person_box.centre[1]) <= 0.20
+            point_distance(cat_box.centre, person_box.centre) <= 0.20
             for cat, cat_box in animals if cat["class"] == "cat"
             for _, person_box in people
         ):
@@ -927,7 +927,7 @@ class Pipeline:
                 people = [Box(*item["box"]) for item in frame_subjects if item.get("class") == "person"]
                 if dogs:
                     dog_frames += 1
-                if any(hypot(dog.centre[0] - person.centre[0], dog.centre[1] - person.centre[1]) <= group_distance for dog in dogs for person in people):
+                if any(point_distance(dog.centre, person.centre) <= group_distance for dog in dogs for person in people):
                     grouped_frames += 1
             text_supports_group = any(phrase in lower for phrase in ("walking a dog", "on a leash", "moving together", "accompanied by"))
             if grouped_frames >= 2 and grouped_frames >= max(1, dog_frames // 2) and text_supports_group:
