@@ -31,7 +31,12 @@ import type {
   HaDomain,
   HaState,
 } from "./types";
-import { actuatorChangeIsExternal, climateActionReclaimsOwnership, planManualAirconTick } from "./climate-control-policy";
+import {
+  actuatorChangeIsExternal,
+  climateActionReclaimsOwnership,
+  planManualAirconTick,
+  poweredActuatorRecoveryIsExternal,
+} from "./climate-control-policy";
 
 const STATE_PATH = process.env.NOVA_CLIMATE_CONTROL_STATE ?? path.join(process.cwd(), "data", "climate-control.json");
 const POLL_MS = 5_000;
@@ -48,6 +53,7 @@ type PersistedRoom = {
   owner: "nova" | "external";
   observedSignature: string | null;
   commandSettleUntil: number;
+  actuatorWasAvailable: boolean | null;
   overrideReason: string | null;
   lastStopReason: string | null;
   lastTransitionAt: number | null;
@@ -70,6 +76,7 @@ function defaultRoom(): PersistedRoom {
     owner: "nova",
     observedSignature: null,
     commandSettleUntil: 0,
+    actuatorWasAvailable: null,
     overrideReason: null,
     lastStopReason: null,
     lastTransitionAt: null,
@@ -253,6 +260,24 @@ function observeExternalChanges(room: RoomId, signature: string | null, now: num
   state.observedSignature = signature;
 }
 
+function observeActuator(room: RoomId, signature: string | null, now: number) {
+  const state = persisted[room];
+  const available = signature !== null;
+  const recoveredPowered = poweredActuatorRecoveryIsExternal({
+    wasAvailable: state.actuatorWasAvailable,
+    currentSignature: signature,
+    commandSettleUntil: state.commandSettleUntil,
+    now,
+  });
+  state.actuatorWasAvailable = available;
+  if (recoveredPowered && state.owner === "nova" && signature) {
+    setExternal(room, "device-reconnected-on");
+    state.observedSignature = signature;
+    return;
+  }
+  observeExternalChanges(room, signature, now);
+}
+
 async function statesAndDevices() {
   const config = await readDashboardConfig();
   const states = await haRest<HaState[]>("/api/states");
@@ -277,7 +302,7 @@ async function executeActions(room: RoomId, actions: EntityActionInput[], allowW
     const signature = room === "lounge"
       ? loungeSignature(before)
       : bedroomSignature(before.find((state) => state.entity_id === action.entityId));
-    observeExternalChanges(room, signature, Date.now());
+    observeActuator(room, signature, Date.now());
     if (persisted[room].owner !== "nova" && !allowWhileExternal) return;
     persisted[room].commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
     const result = await callService(action.domain, action.service, {
@@ -338,8 +363,8 @@ async function tick() {
     const { states, aircon, quiet, turbo, heater, sensor } = await statesAndDevices();
     const preferences = await readDashboardPreferences();
 
-    observeExternalChanges("lounge", loungeSignature(states), now);
-    observeExternalChanges("bedroom", bedroomSignature(heater), now);
+    observeActuator("lounge", loungeSignature(states), now);
+    observeActuator("bedroom", bedroomSignature(heater), now);
 
     const rawLoungeTemperature = airconAutoMeasuredTemperature(aircon, now);
     noteSample(rawLoungeTemperature);
@@ -421,6 +446,9 @@ async function tick() {
         await stopAndCancel("bedroom", heater.entity_id, "schedule-ended");
       } else if (bedroomHeaterSleepTimerExpired(bedroomPreferences, now)) {
         await stopAndCancel("bedroom", heater.entity_id, "timer-expired");
+      } else if (bedroomMode === "off" && heater.state === "on") {
+        persisted.bedroom.lastStopReason = "nova-off";
+        await executeActions("bedroom", [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);
       } else if (bedroomMode === "auto") {
         bedroomThermostat.reconcile({
           lastTransitionAt: persisted.bedroom.lastTransitionAt,

@@ -1014,8 +1014,8 @@ class Bridge:
         )
 
     def publish_sensor_state(self, target: SensorTarget) -> None:
-        self.mqtt.publish(target.availability_topic, "online" if target.online else "offline", retain=True)
         self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
+        self.mqtt.publish(target.availability_topic, "online" if target.online else "offline", retain=True)
         if not target.online:
             return
         values = [
@@ -1028,10 +1028,10 @@ class Bridge:
                 self.mqtt.publish(topic, value, retain=True)
 
     def publish_heater_switch_state(self, target: HeaterSwitchTarget) -> None:
+        self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
         self.mqtt.publish(
             target.availability_topic, "online" if target.online else "offline", retain=True
         )
-        self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
         if not target.online:
             return
         is_on = bool(target.dps.get(target.dp_key))
@@ -1052,8 +1052,8 @@ class Bridge:
 
     def publish_climate_state(self, target: ClimateTarget) -> None:
         is_on = bool(target.dps.get("1"))
-        self.mqtt.publish(target.availability_topic, "online" if target.online else "offline", retain=True)
         self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
+        self.mqtt.publish(target.availability_topic, "online" if target.online else "offline", retain=True)
         if not target.online:
             return
         self.mqtt.publish(target.mode_state_topic, "heat" if is_on else "off", retain=True)
