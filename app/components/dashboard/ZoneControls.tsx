@@ -4,6 +4,7 @@ import { Flame, PartyPopper, Power, PowerOff, Sun } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DashboardPreferences,
+  ClimateControlState,
   DashboardZone,
   RouterStatus,
   SpectrumCursor,
@@ -141,6 +142,7 @@ function IntensityControl({
 export function ZoneControls({
   bedroomHeater,
   bedroomTemperature,
+  climateControl,
   desktopSleepBusy,
   desktopWakeBusy,
   loungeEnvironment,
@@ -157,6 +159,7 @@ export function ZoneControls({
 }: {
   bedroomHeater?: BedroomHeaterDevices;
   bedroomTemperature?: number | null;
+  climateControl?: ClimateControlState;
   desktopSleepBusy?: boolean;
   desktopWakeBusy?: boolean;
   loungeEnvironment?: LoungeEnvironment | null;
@@ -304,6 +307,7 @@ export function ZoneControls({
               preferences,
               loungeEnvironment,
               bedroomHeater,
+              climateControl,
               onDesktopSleep,
               onDesktopWake,
               onEntityActions,

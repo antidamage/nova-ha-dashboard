@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { parseAirconTimerUpdateRequest } from "../../../../lib/api/dashboard-requests";
 import { publishDashboardState } from "../../../../lib/dashboard-events";
 import { buildDashboardState } from "../../../../lib/ha";
-import { mergeDashboardPreferences, readDashboardPreferences } from "../../../../lib/preferences";
+import { readDashboardPreferences } from "../../../../lib/preferences";
+import { applyClimateControlIntent } from "../../../../lib/climate-control";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const next = parseAirconTimerUpdateRequest(await request.json());
 
-    await mergeDashboardPreferences({ aircon: { offTimerEndsAt: next.offTimerEndsAt } });
+    await applyClimateControlIntent({ room: "lounge", offTimerEndsAt: next.offTimerEndsAt });
     try {
       publishDashboardState(await buildDashboardState(), { force: true });
     } catch (error) {

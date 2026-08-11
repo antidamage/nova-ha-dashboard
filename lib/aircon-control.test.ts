@@ -123,7 +123,7 @@ test("missing temperature input keeps letting an already-running unit try", () =
   assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
 });
 
-test("missing temperature input switches the air conditioner off once the grace window expires, but Auto stays enabled", () => {
+test("missing temperature input emits a safe stop when the grace window expires", () => {
   const plan = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
@@ -137,12 +137,11 @@ test("missing temperature input switches the air conditioner off once the grace 
   assert.equal(plan.actions[0]?.service, "turn_off");
   // Auto must never go unavailable and force a manual re-press: it stays on
   // and simply rests, exactly like a normal reached-target/resting cycle.
-  assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, true);
   assert.equal(plan.nextState.sensorPendingSinceAt, null);
   assert.equal(plan.nextState.lastTransitionAt, NOW + 2 * MINUTE);
 });
 
-test("Auto retries on its own after the min-cycle dwell once the sensor is still missing", () => {
+test("the low-level planner can retry only if a caller wrongly leaves Auto armed after timeout", () => {
   const firstTimeout = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
@@ -164,7 +163,8 @@ test("Auto retries on its own after the min-cycle dwell once the sensor is still
   assert.equal(heldRetry.reason, "sensor-pending");
   assert.equal(heldRetry.actions.length, 0);
 
-  // Once the dwell clears, Auto tries again on its own — no user action needed.
+  // This documents why the unified controller must clear Auto at timeout: the
+  // pure planner deliberately has no authority to persist that cancellation.
   const laterRetry = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "off" }),
@@ -562,7 +562,7 @@ test("a fan step is not a compressor cycle", () => {
 // What a person is allowed to override.
 // ---------------------------------------------------------------------------
 
-test("any user setpoint change clears every behavioural lock and may reverse immediately", () => {
+test("a user setpoint change never clears compressor guards or reverses heat directly into cool", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 26,
     entity: climateEntity({ state: "heat", attributes: { current_temperature: 26, temperature: 20 } }),
@@ -577,13 +577,13 @@ test("any user setpoint change clears every behavioural lock and may reverse imm
     }),
   });
 
-  assert.equal(plan.reason, "driving");
-  assert.equal(plan.wantedMode, "cool");
-  assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "cool");
-  assert.equal(plan.nextState.lastMode, "cool");
-  assert.equal(plan.nextState.lastModeAt, NOW);
+  assert.equal(plan.reason, "reached-target");
+  assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
+  assert.equal(actionFor(plan.actions, "set_hvac_mode"), undefined);
+  assert.equal(plan.nextState.lastMode, "heat");
+  assert.equal(plan.nextState.lastModeAt, NOW - MINUTE);
   assert.equal(plan.nextState.lastTransitionAt, NOW);
-  assert.deepEqual(plan.nextState.recentStartsAt, [NOW]);
+  assert.deepEqual(plan.nextState.recentStartsAt, [NOW - 3 * MINUTE, NOW - 2 * MINUTE, NOW - MINUTE]);
 });
 
 test("a setpoint past the room reading reads as asking for the other direction", () => {

@@ -24,13 +24,9 @@ import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
  *      retained for discovery/config compatibility, but it must contain this
  *      entity; a plug sensor is never an acceptable fallback.
  *
- *      The tail-off state below predates that change: it was written to stop
- *      the switch's own self-heating from ending a cycle early. A puck across
- *      the room does not lead the air that way, so the tail is now a small
- *      deliberate overshoot rather than a correction. It is retained because
- *      overshooting a bedroom by a fraction of a degree is harmless and
- *      changing thermostat behaviour was not part of the sensor change; revisit
- *      it if the room reads consistently warm.
+ *      The former post-target tail was removed with that change. A puck across
+ *      the room does not lead the air through appliance self-heating, so the
+ *      relay now cuts immediately at target.
  *
  *   3. It is a 2 kW resistive load on a relay. Short-cycling wears the relay
  *      and does nothing useful, so a minimum dwell time gates every transition.
@@ -53,7 +49,8 @@ import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
 export const BEDROOM_HEATER_AUTO_POLL_MS = 30_000;
 export const BEDROOM_HEATER_BAND_DEGREES = 0.5;
 export const BEDROOM_HEATER_MIN_CYCLE_MS = 10 * 60_000;
-export const BEDROOM_HEATER_TAIL_OFF_MS = 2 * 60_000;
+/** Compatibility export: the remote room puck requires no post-target tail. */
+export const BEDROOM_HEATER_TAIL_OFF_MS = 0;
 /**
  * How long Auto is allowed to run with NO usable room-temperature reading
  * before it fails safe. Same rationale as AIRCON_AUTO_SENSOR_GRACE_MS in
@@ -61,9 +58,8 @@ export const BEDROOM_HEATER_TAIL_OFF_MS = 2 * 60_000;
  * mean Auto can never turn itself on from cold if the sensor is slow to
  * populate. This grace window lets it try heating first (heat-only, so there
  * is only one direction to guess); only if the sensor is STILL unusable after
- * it does the heater switch off. Auto itself is NEVER disabled by this — see
- * the caller in bedroom-heater-auto.ts, which must not fold this into
- * mode: "off".
+ * it does the heater switch off. The unified controller then clears Auto so it
+ * cannot retry without a later user action or schedule edge.
  */
 export const BEDROOM_HEATER_SENSOR_GRACE_MS = 2 * 60_000;
 export const BEDROOM_HEATER_DEFAULT_TARGET_C = 18;
@@ -91,21 +87,33 @@ export function bedroomRoomTemperatureEntityIds(entityIds: readonly string[]) {
 }
 
 export function bedroomTemperatureStateIsFresh(
-  state: { last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
+  state: { attributes?: Record<string, unknown>; last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
   now: number = Date.now(),
 ) {
+  const sourceReportedAt = state?.attributes?.source_reported_at;
   return autonomousClimateInputIsUsable(
-    state ? { ...state, measurement: 0, sourceState: "available" } : undefined,
+    state ? {
+      ...state,
+      last_reported: typeof sourceReportedAt === "string" ? sourceReportedAt : state.last_reported,
+      measurement: 0,
+      sourceState: "available",
+    } : undefined,
     now,
   );
 }
 
 export function bedroomTemperatureStateIsUsable(
-  state: { state?: string; last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
+  state: { state?: string; attributes?: Record<string, unknown>; last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
   now: number = Date.now(),
 ) {
+  const sourceReportedAt = state?.attributes?.source_reported_at;
   return autonomousClimateInputIsUsable(
-    state ? { ...state, measurement: state.state, sourceState: state.state } : undefined,
+    state ? {
+      ...state,
+      last_reported: typeof sourceReportedAt === "string" ? sourceReportedAt : state.last_reported,
+      measurement: state.state,
+      sourceState: state.state,
+    } : undefined,
     now,
   );
 }
@@ -121,7 +129,7 @@ export type BedroomHeaterAutoState = {
   lastTransitionAt: number | null;
   /** Set once the room first reaches target, cleared when it drifts back out. */
   enteredBandAt: number | null;
-  /** True once we have completed the post-target tail-off and switched off. */
+  /** Legacy compatibility bit: true after the immediate at-target stop. */
   tailedOff: boolean;
   /** Tracks the target so a user's new setpoint reopens a settled cycle. */
   lastTargetTemperature: number | null;
@@ -320,8 +328,7 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
 
     if (elapsedMs >= BEDROOM_HEATER_SENSOR_GRACE_MS) {
       // Ran blind for the whole grace window and still no usable reading:
-      // switch off (if on) and rest. Auto itself is not this function's to
-      // disable — the caller decides that, and must not.
+      // switch off (if on). The unified controller also clears Auto.
       return {
         actions: input.isOn ? [turnOff(entityId)] : [],
         nextState: {
@@ -370,7 +377,7 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
 
   if (tooCold) {
     // Below band: heat. Clearing the band marks means the next approach to
-    // target gets its own full tail-off.
+    // target gets a fresh at-target decision.
     if (input.isOn) {
       return {
         actions: [],
@@ -392,11 +399,9 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
     };
   }
 
-  // At or above target. Run on briefly after first reaching the band: the
-  // appliance sensor leads the room, so cutting the moment it reads target
-  // leaves the room short.
+  // The standalone puck does not self-heat with the relay. At or above target
+  // therefore means stop immediately; relay dwell gates starts only.
   const enteredBandAt = withinBand ? base.enteredBandAt ?? now : null;
-  const tailElapsed = enteredBandAt !== null && now - enteredBandAt >= BEDROOM_HEATER_TAIL_OFF_MS;
 
   if (!input.isOn) {
     return {
@@ -406,22 +411,6 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
     };
   }
 
-  // Above the band entirely (not merely at target) means stop now — no tail.
-  const shouldStop = !withinBand || tailElapsed;
-  if (!shouldStop) {
-    return {
-      actions: [],
-      nextState: { ...nextState, enteredBandAt, tailedOff: false },
-      reason: "tail-off",
-    };
-  }
-  if (!minCycleElapsed) {
-    return {
-      actions: [],
-      nextState: { ...nextState, enteredBandAt, tailedOff: false },
-      reason: "min-cycle-hold-on",
-    };
-  }
   return {
     actions: [turnOff(entityId)],
     nextState: { ...nextState, enteredBandAt, tailedOff: true, lastTransitionAt: now },
@@ -453,13 +442,28 @@ export class BedroomHeaterThermostat {
    * dwell at all (observed 2026-08-08: three turn_on commands in 12 seconds).
    *
    * The dwell guards the hardware and must survive user input. What the user
-   * legitimately needs cleared is the band/tail bookkeeping, so a fresh request
+   * legitimately needs cleared is the band bookkeeping, so a fresh request
    * is not swallowed by an already-settled cycle.
    */
   resetForUserRequest() {
     this.state = {
       ...createInitialBedroomHeaterAutoState(),
       lastTransitionAt: this.state.lastTransitionAt,
+    };
+  }
+
+  snapshot() {
+    return { ...this.state };
+  }
+
+  /** Restore safety state that must survive a dashboard process restart. */
+  reconcile(durable: Partial<BedroomHeaterAutoState>) {
+    const later = (a: number | null | undefined, b: number | null | undefined) =>
+      Math.max(a ?? 0, b ?? 0) || null;
+    this.state = {
+      ...this.state,
+      lastTransitionAt: later(this.state.lastTransitionAt, durable.lastTransitionAt),
+      sensorPendingSinceAt: this.state.sensorPendingSinceAt ?? durable.sensorPendingSinceAt ?? null,
     };
   }
 }

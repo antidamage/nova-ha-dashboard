@@ -54,10 +54,8 @@ const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
  * instant the reading is missing therefore deadlocks Auto: it can never turn
  * itself on, because turning on is the only thing that produces a reading.
  * This grace window lets Auto attempt to run first; only if the sensor is
- * STILL unusable after it does the unit switch off. Auto itself is NEVER
- * disabled by this — it must not go unavailable and require a manual
- * re-press — it just rests off, same as reaching target, and tries again
- * once AIRCON_AUTO_MIN_CYCLE_MS clears.
+ * STILL unusable after it does the unit switch off. The unified controller
+ * then clears Auto, preventing an unattended retry until a later user action.
  */
 const AIRCON_AUTO_SENSOR_GRACE_MS = 2 * 60_000;
 
@@ -110,7 +108,7 @@ type ActiveAirconMode = "heat" | "cool";
  * The state below therefore has to survive a page reload, because a 30-minute
  * hold that resets whenever the kiosk reloads is not a hold. It is mirrored into
  * preferences.aircon by the same `remember` payloads the loop already writes on
- * every transition, and reconciled back in useAirconAutoMode.
+ * every transition, and reconciled by the server climate controller.
  */
 
 export type AirconAutoState = {
@@ -653,19 +651,8 @@ export function planAirconAutoTick({
   // grace clock — see reopened's use there.
   const targetChanged =
     currentState.lastTargetTemperature !== null && currentState.lastTargetTemperature !== targetTemperature;
-  if (targetChanged) {
-    // A changed setpoint is an explicit human override, not sensor drift. It
-    // clears every behavioural guard so the next decision can reverse direction
-    // and start immediately. Sensor freshness is checked separately below and
-    // remains non-overridable: a target change cannot create real input.
-    currentState = {
-      ...currentState,
-      lastMode: null,
-      lastModeAt: null,
-      lastTransitionAt: null,
-      recentStartsAt: [],
-    };
-  }
+  // A setpoint change reopens the comfort decision, but it must not erase the
+  // compressor dwell, direction hold, or starts-per-hour history.
   const reopened = targetChanged || forceRemember;
   const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
 
@@ -681,14 +668,8 @@ export function planAirconAutoTick({
     });
 
     if (elapsedMs >= AIRCON_AUTO_SENSOR_GRACE_MS) {
-      // Ran blind for the whole grace window and still no usable reading: switch
-      // the unit off and rest, exactly like the normal reached-target/resting
-      // paths below. Auto stays ON (autoMode: true) — it must never go
-      // unavailable and force a manual re-press; it simply keeps resting off
-      // and will try again once the compressor dwell clears, same as any other
-      // rest cycle. Stamping lastTransitionAt here (as rest() does) is what
-      // makes that retry obey AIRCON_AUTO_MIN_CYCLE_MS instead of hammering the
-      // compressor every tick.
+      // Ran blind for the whole grace window and still no usable reading. The
+      // planner emits the safe stop; the unified controller clears Auto.
       const cycle = autoPlanState(pendingBase, { sensorPendingSinceAt: null, lastTransitionAt: now });
       return {
         actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
@@ -768,7 +749,9 @@ export function planAirconAutoTick({
   // temperature to swap heating and cooling. Do that directly: stopping first
   // would create a brand-new dwell lock and defeat the override on the next
   // tick. The fresh-input gate has already passed above.
-  const changedTargetMode = targetChanged && absDelta > 0 ? desiredModeForDelta(delta) : null;
+  // Reversals always stop first and pass through the normal off-dwell. A target
+  // edit is not permission to drive heat and cool back-to-back.
+  const changedTargetMode: ActiveAirconMode | null = null;
   if (
     running &&
     changedTargetMode &&
@@ -941,7 +924,7 @@ export class AirconAutoThermostat {
    * Clear the per-cycle bookkeeping for a user request WITHOUT clearing the
    * guards.
    *
-   * reset() is what useAirconAutoMode calls on every autoMode transition, and on
+   * reset() used to run on every autoMode transition, and on
    * a compressor that must not also wipe the dwell, the direction hold and the
    * hourly start count — that is exactly how the bedroom heater ended up flapping
    * a 2 kW relay three times in twelve seconds on 2026-08-08. Breaking the
@@ -980,6 +963,7 @@ export class AirconAutoThermostat {
       // by another client is not silently reverted by this one's stale memory.
       lastMode: durableModeAt > memoryModeAt ? durable.lastMode ?? this.state.lastMode : this.state.lastMode,
       recentStartsAt: Array.from(new Set([...this.state.recentStartsAt, ...(durable.recentStartsAt ?? [])])),
+      sensorPendingSinceAt: this.state.sensorPendingSinceAt ?? durable.sensorPendingSinceAt ?? null,
     };
   }
 

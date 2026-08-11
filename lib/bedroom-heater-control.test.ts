@@ -3,7 +3,6 @@ import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
 import {
   BEDROOM_HEATER_MIN_CYCLE_MS,
   BEDROOM_HEATER_SENSOR_GRACE_MS,
-  BEDROOM_HEATER_TAIL_OFF_MS,
   BedroomHeaterThermostat,
   bedroomHeaterMode,
   bedroomRoomTemperatureEntityIds,
@@ -33,6 +32,10 @@ describe("bedroom room temperature authority", () => {
     const now = Date.parse("2026-08-09T21:30:00Z");
     expect(bedroomTemperatureStateIsFresh({ last_reported: "2026-08-09T21:15:00Z" }, now)).toBe(true);
     expect(bedroomTemperatureStateIsFresh({ last_reported: "2026-08-09T06:08:59Z" }, now)).toBe(false);
+    expect(bedroomTemperatureStateIsFresh({
+      attributes: { source_reported_at: "2026-08-09T06:08:59Z" },
+      last_reported: "2026-08-09T21:29:59Z",
+    }, now)).toBe(false);
     expect(bedroomTemperatureStateIsFresh({}, now)).toBe(false);
   });
 
@@ -154,7 +157,7 @@ describe("planBedroomHeaterTick", () => {
     expect(result.reason).toBe("heating");
   });
 
-  it("runs on past target for the tail-off period rather than cutting immediately", () => {
+  it("cuts immediately at target because the remote room puck needs no tail", () => {
     const entered = 1_000_000;
     const state: BedroomHeaterAutoState = {
       ...createInitialBedroomHeaterAutoState(),
@@ -162,17 +165,8 @@ describe("planBedroomHeaterTick", () => {
       lastTargetTemperature: 20,
     };
     const during = plan({ currentTemperature: 20, isOn: true, state, now: entered + 30_000 });
-    expect(during.actions).toEqual([]);
-    expect(during.reason).toBe("tail-off");
-
-    const after = plan({
-      currentTemperature: 20,
-      isOn: true,
-      state,
-      now: entered + BEDROOM_HEATER_TAIL_OFF_MS + 1,
-    });
-    expect(after.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_off" }]);
-    expect(after.reason).toBe("reached-target");
+    expect(during.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_off" }]);
+    expect(during.reason).toBe("reached-target");
   });
 
   it("stops immediately when the room is above the band, with no tail", () => {
@@ -242,9 +236,7 @@ describe("planBedroomHeaterTick", () => {
     expect(tick(19.2).actions).toEqual([]);
     expect(isOn).toBe(true);
 
-    // Reaches target, runs the tail, then cuts.
-    expect(tick(20).reason).toBe("tail-off");
-    now += BEDROOM_HEATER_TAIL_OFF_MS + 1;
+    // Reaches target and cuts immediately.
     expect(tick(20).actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_off" }]);
     expect(isOn).toBe(false);
 
@@ -416,5 +408,14 @@ describe("BedroomHeaterThermostat.resetForUserRequest", () => {
       preferences: { ...PREFS, mode: "auto" as const, temperature: 20 },
     });
     expect(plan.actions.map((a) => a.service)).toEqual(["turn_on"]);
+  });
+
+  it("restores dwell and sensor grace state after a process restart", () => {
+    const thermostat = new BedroomHeaterThermostat();
+    thermostat.reconcile({ lastTransitionAt: 50_000, sensorPendingSinceAt: 60_000 });
+    expect(thermostat.snapshot()).toMatchObject({
+      lastTransitionAt: 50_000,
+      sensorPendingSinceAt: 60_000,
+    });
   });
 });

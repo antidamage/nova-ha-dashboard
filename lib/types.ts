@@ -287,6 +287,28 @@ export type BedroomHeaterPreferences = {
   updatedAt?: string;
 };
 
+export type ClimateControlOwner = "nova" | "external";
+export type ClimateControlMode = "auto" | "manual" | "off";
+export type ClimateControlPhase = "driving" | "grace" | "resting" | "off" | "fault";
+
+export type ClimateControlRoomState = {
+  owner: ClimateControlOwner;
+  mode: ClimateControlMode;
+  phase: ClimateControlPhase;
+  direction: "heat" | "cool" | "fan_only" | null;
+  sensorAvailable: boolean;
+  sensorReportedAt: string | null;
+  sensorGraceEndsAt: string | null;
+  actuatorAvailable: boolean;
+  overrideReason: string | null;
+  lastStopReason: string | null;
+};
+
+export type ClimateControlState = {
+  lounge: ClimateControlRoomState;
+  bedroom: ClimateControlRoomState;
+};
+
 export type LightingPreferences = {
   adaptiveCandlelightZones?: Record<
     string,
@@ -808,6 +830,8 @@ export type DashboardState = {
   sun: SunStatus | null;
   weather: WeatherStatus | null;
   preferences: DashboardPreferences;
+  /** Server-owned thermostat and device-ownership state. */
+  climateControl: ClimateControlState;
   warnings: string[];
   /** HA snapshot freshness. Absent/`ok` = trust the snapshot; `degraded` = holding
    *  last-known-good through a transient HA outage (show a reconnecting hint). */
