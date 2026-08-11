@@ -31,7 +31,7 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
-from core import Box, evaluate_policy, normalized_crop_bounds, point_distance, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, event_window_closed, normalized_crop_bounds, point_distance, point_in_polygon, priority_for, prompt_road_crossing, subject_gap_seconds, vehicle_proximity
 
 
 logging.basicConfig(level=os.environ.get("NOVA_CAMERA_EVENTS_LOG_LEVEL", "INFO"))
@@ -57,6 +57,22 @@ MOONDREAM_MODEL = os.environ.get("NOVA_CAMERA_EVENTS_MOONDREAM", "vikhyatk/moond
 RETENTION_DAYS = 14
 RETENTION_BYTES = 50 * 1024**3
 MIN_FREE_BYTES = 20 * 1024**3
+
+# Event windows are measured in analysed media time, never against the live edge.
+# The fast pass is deliberately allowed to lag realtime, so a subject can still be
+# walking through segments this process has not looked at yet.
+EVENT_GAP_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_GAP_SECONDS", "20"))
+# People drop out of the detector for long stretches when they pass behind the
+# tree, the hedge or a parked vehicle. One traverse should stay one event rather
+# than fragmenting into several short clips.
+PERSON_GAP_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_PERSON_GAP_SECONDS", "45"))
+# Upper bound so a stuck detection cannot grow an unbounded clip.
+MAX_EVENT_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_MAX_SECONDS", "600"))
+CLIP_PRE_ROLL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_PRE_ROLL", "10"))
+CLIP_POST_ROLL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_POST_ROLL", "20"))
+# If the recorder stops publishing, analysed media time stops advancing too. Close
+# the open event on wall clock rather than holding it open forever.
+STALL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_STALL_SECONDS", "120"))
 
 COCO_INTEREST = {0, 1, 2, 3, 5, 7, 15, 16, 17, 18, 19, 20, 21, 22, 23}
 BIRD_CLASS = 14
@@ -380,6 +396,8 @@ class Pipeline:
         self.last_frame: np.ndarray | None = None
         self.last_frame_lock = threading.Lock()
         self.last_processed_at: str | None = STORE.state("last_processed_at")
+        self.analysed_through: float = parse_time(self.last_processed_at) if self.last_processed_at else 0.0
+        self.last_progress_wall: float = time.monotonic()
         self.backlog_seconds = 0.0
         self.active: dict[str, Any] | None = None
         self.catalog: list[dict[str, Any]] = []
@@ -590,7 +608,7 @@ class Pipeline:
         self.active["summary"] = f"Fast pass detected {noun} in {', '.join(zones)}. Detailed analysis pending."
 
     def event_clip(self, event: dict[str, Any]) -> str | None:
-        start, end = event["start"] - 10, event["last"] + 20
+        start, end = event["start"] - CLIP_PRE_ROLL_SECONDS, event["last"] + CLIP_POST_ROLL_SECONDS
         selected = [segment for segment in self.catalog if segment["at"] + segment["duration"] >= start and segment["at"] <= end]
         if not selected:
             return None
@@ -611,8 +629,24 @@ class Pipeline:
             LOG.warning("clip creation failed for %s: %s", event["id"], error)
             return None
 
-    def finalize_if_ready(self, newest_time: float) -> None:
-        if self.active is None or newest_time < self.active["last"] + 20:
+    def finalize_if_ready(self, analysed_through: float, stalled: bool = False) -> None:
+        """Close the open event once analysed media time shows the subject has gone.
+
+        `analysed_through` is how far the fast pass has actually looked, not how far
+        the recorder has published; see `event_window_closed`.
+        """
+        if self.active is None:
+            return
+        gap = subject_gap_seconds(
+            {item["class"] for item in self.active.get("subjects", [])} | set(self.active.get("labels", [])),
+            default_gap=EVENT_GAP_SECONDS,
+            person_gap=PERSON_GAP_SECONDS,
+        )
+        closed = event_window_closed(
+            self.active["start"], self.active["last"], analysed_through,
+            gap=gap, max_duration=MAX_EVENT_SECONDS,
+        )
+        if not stalled and not closed:
             return
         event = self.active
         self.active = None
@@ -670,12 +704,17 @@ class Pipeline:
                         break
                     self.process_segment(segment)
                     self.last_processed_at = iso_time(segment["at"])
+                    self.analysed_through = segment["at"] + segment["duration"]
+                    self.last_progress_wall = time.monotonic()
                     STORE.set_state("last_processed_at", self.last_processed_at)
-                    self.finalize_if_ready(segment["at"] + segment["duration"])
+                    self.finalize_if_ready(self.analysed_through)
                 if self.catalog:
                     newest = self.catalog[-1]["at"] + self.catalog[-1]["duration"]
                     self.backlog_seconds = max(0.0, newest - (parse_time(self.last_processed_at) if self.last_processed_at else newest))
-                    self.finalize_if_ready(newest)
+                    self.finalize_if_ready(self.analysed_through)
+                if self.active is not None and time.monotonic() - self.last_progress_wall >= STALL_SECONDS:
+                    LOG.warning("recorder stalled; closing event %s at the analysed position", self.active["id"])
+                    self.finalize_if_ready(self.analysed_through, stalled=True)
                 self.detector_error = None
             except Exception as error:  # keep the recorder-independent service alive
                 self.detector_error = str(error)

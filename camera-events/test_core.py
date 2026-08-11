@@ -1,6 +1,6 @@
 import unittest
 
-from core import Box, evaluate_policy, normalized_crop_bounds, point_distance, point_in_polygon, priority_for, prompt_road_crossing, vehicle_proximity
+from core import Box, evaluate_policy, event_window_closed, normalized_crop_bounds, point_distance, point_in_polygon, priority_for, prompt_road_crossing, subject_gap_seconds, vehicle_proximity
 
 
 class CameraEventCoreTests(unittest.TestCase):
@@ -50,6 +50,23 @@ class CameraEventCoreTests(unittest.TestCase):
         danger = evaluate_policy(policy, ["danger"], ["road"])
         self.assertTrue(danger["alert"])
         self.assertEqual(danger["priority"], "urgent")
+
+    def test_person_holds_the_event_open_longer_than_a_transient_subject(self):
+        self.assertEqual(subject_gap_seconds(["cat"], default_gap=20, person_gap=45), 20)
+        self.assertEqual(subject_gap_seconds(["cat", "person"], default_gap=20, person_gap=45), 45)
+
+    def test_event_stays_open_while_the_analysed_position_trails_the_subject(self):
+        # A backlogged fast pass has only looked 8s past the last detection, so the
+        # subject may still be walking through segments awaiting analysis.
+        self.assertFalse(event_window_closed(100, 130, 138, gap=45, max_duration=600))
+        # Once analysis passes the gap without seeing them again, the event is over.
+        self.assertTrue(event_window_closed(100, 130, 176, gap=45, max_duration=600))
+
+    def test_detection_dropout_shorter_than_the_gap_does_not_split_the_event(self):
+        self.assertFalse(event_window_closed(0, 30, 60, gap=45, max_duration=600))
+
+    def test_event_is_capped_so_a_stuck_detection_cannot_grow_forever(self):
+        self.assertTrue(event_window_closed(0, 700, 701, gap=45, max_duration=600))
 
     def test_owner_suppression_keeps_safety_override(self):
         policy = {"rules": [

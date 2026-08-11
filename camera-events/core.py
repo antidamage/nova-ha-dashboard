@@ -159,6 +159,41 @@ def priority_for(labels: Iterable[str], zones: Iterable[str]) -> str:
     return "routine"
 
 
+def subject_gap_seconds(
+    subjects: Iterable[str],
+    *,
+    default_gap: float,
+    person_gap: float,
+) -> float:
+    """How long a subject may go undetected before the event is considered over.
+
+    People disappear from the detector for long stretches when they pass behind
+    the tree, the hedge or a parked vehicle, so one traverse needs a wider gap
+    than a transient animal to stay a single event.
+    """
+
+    return person_gap if "person" in set(subjects) else default_gap
+
+
+def event_window_closed(
+    start: float,
+    last: float,
+    analysed_through: float,
+    *,
+    gap: float,
+    max_duration: float,
+) -> bool:
+    """Decide whether an open event is finished.
+
+    Every argument is analysed media time — how far the fast pass has actually
+    looked — never the recorder's live edge. Comparing against the live edge ends
+    events while the subject is still on camera in segments awaiting analysis,
+    which truncates the clip to whatever had been analysed at that moment.
+    """
+
+    return analysed_through - last >= gap or last - start >= max_duration
+
+
 PRIORITY_ORDER = {"routine": 0, "important": 1, "urgent": 2}
 
 
