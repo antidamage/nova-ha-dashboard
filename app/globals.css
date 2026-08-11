@@ -1,4 +1,4 @@
-/* Theme fonts (Rajdhani, Share Tech Mono, and every selectable font) are loaded
+﻿/* Theme fonts (Rajdhani, Share Tech Mono, and every selectable font) are loaded
    via the combined Google Fonts <link> in app/layout.tsx, generated from the
    registry in app/components/themeFonts.ts. The active --cyber-display /
    --cyber-clock stacks are seeded on first paint by the head bootstrap. */
@@ -59,6 +59,15 @@
   --cyber-title-glow-cyan: color-mix(in srgb, var(--cyber-title-on-cyan) 28%, transparent);
   --cyber-text: var(--cyber-title-on-bg);
   --cyber-muted: color-mix(in srgb, var(--cyber-title-on-bg) 58%, var(--cyber-bg));
+  /* Secondary label text. This was never defined, so every `var(--cyber-text-dim)`
+     without a fallback resolved to the inherited body colour — which is the accent
+     line colour, and disappears against the background on most themes. Derived from
+     --cyber-title-on-bg so it stays readable whichever way that token flips. */
+  --cyber-text-dim: color-mix(in srgb, var(--cyber-title-on-bg) 86%, var(--cyber-bg));
+  /* Accent-tinted text. --cyber-cyan is a fill colour and sits at any luminance the
+     theme picks, so text keeps only a tint of it and rests on the readable title
+     colour. Use this instead of --cyber-cyan/--cyber-highlight for foreground text. */
+  --cyber-accent-on-bg: color-mix(in srgb, var(--cyber-cyan) 20%, var(--cyber-title-on-bg));
   --cyber-display: "Rajdhani", "Share Tech Mono", "Arial Narrow", system-ui, sans-serif;
   --cyber-mono: "Share Tech Mono", "Consolas", "Courier New", monospace;
   --cyber-clock: "Share Tech Mono", "Consolas", "Courier New", monospace;
@@ -3717,7 +3726,7 @@ a.update-banner-button {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--cyber-cyan);
+  color: var(--cyber-accent-on-bg);
 }
 
 .camera-stage {
@@ -3818,7 +3827,7 @@ a.update-banner-button {
   gap: 6px;
   border: 1px solid var(--cyber-border-dim);
   background: var(--cyber-panel-soft);
-  color: var(--cyber-cyan);
+  color: var(--cyber-title-on-bg);
   cursor: pointer;
   transition: border-color 150ms ease, color 150ms ease;
 }
@@ -3928,15 +3937,15 @@ a.update-banner-button {
 }
 
 .camera-timeline-current {
-  color: var(--cyber-cyan);
+  color: var(--cyber-accent-on-bg);
   font-weight: 800;
 }
 
 /* ===== Saved captures (snapshots) — closed-by-default accordion ===== */
 /* ===== Camera event report + review modal ===== */
-.camera-event-report { border: 1px solid var(--cyber-border-dim); background: var(--cyber-panel-soft); }
+.camera-event-report { border: 1px solid var(--cyber-border-dim); background: var(--cyber-panel-soft); color: var(--cyber-text); }
 .camera-event-report-header, .camera-event-mini-row, .camera-events-list-row { width: 100%; border: 0; color: inherit; text-align: left; cursor: pointer; }
-.camera-event-report-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; background: transparent; color: var(--cyber-cyan); font-family: var(--cyber-mono); font-size: .72rem; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.camera-event-report-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; background: transparent; color: var(--cyber-accent-on-bg); font-family: var(--cyber-mono); font-size: .72rem; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
 .camera-event-report-heading, .camera-event-empty, .camera-event-error { display: flex; align-items: center; gap: 7px; }
 .camera-event-report-health { color: var(--cyber-text-dim); }
 .camera-event-report-health.is-error, .camera-event-error { color: #ff8a8a; }
@@ -3946,20 +3955,21 @@ a.update-banner-button {
 .camera-event-mini-row:hover { background: color-mix(in srgb,var(--cyber-cyan) 7%,transparent); }
 .camera-event-mini-row.is-important { border-left: 3px solid #ffd56b; }
 .camera-event-mini-row.is-urgent { border-left: 3px solid #ff5d73; }
-.camera-event-mini-row.is-unreviewed strong { color: var(--cyber-highlight); }
+.camera-event-mini-row.is-unreviewed strong { color: var(--cyber-accent-on-bg); }
 .camera-event-mini-copy { display: flex; flex-direction: column; min-width: 0; }
 .camera-event-mini-copy strong, .camera-events-list-row strong { overflow: hidden; color: var(--cyber-title-on-bg); font-family: var(--cyber-mono); font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
 .camera-event-mini-copy small, .camera-events-list-row small { overflow: hidden; color: var(--cyber-text-dim); font-family: var(--cyber-mono); font-size: .64rem; text-overflow: ellipsis; white-space: nowrap; }
 .camera-event-mini-status { color: var(--cyber-text-dim); font-family: var(--cyber-mono); font-size: .62rem; text-transform: uppercase; }
 .camera-event-empty { margin: 0; padding: 12px; color: var(--cyber-text-dim); font-size: .75rem; }
-.camera-events-modal { display: flex; flex-direction: column; width: min(1180px,calc(100vw - 32px)); height: min(820px,calc(100vh - 32px)); overflow: hidden; border: 1px solid var(--cyber-cyan); background: var(--cyber-bg); box-shadow: 0 24px 90px rgba(0,0,0,.72); }
+.camera-events-modal { display: flex; flex-direction: column; width: min(1180px,calc(100vw - 32px)); height: min(820px,calc(100vh - 32px)); overflow: hidden; border: 1px solid var(--cyber-cyan); background: var(--cyber-bg); color: var(--cyber-text); box-shadow: 0 24px 90px rgba(0,0,0,.72); }
 .camera-events-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--cyber-border-dim); }
 .camera-events-kicker, .camera-events-modal-header h2, .camera-event-detail-title h3 { margin: 0; }
-.camera-events-kicker { color: var(--cyber-cyan); font: 800 .68rem var(--cyber-mono); text-transform: uppercase; letter-spacing: .1em; }
+.camera-events-kicker { color: var(--cyber-accent-on-bg); font: 800 .68rem var(--cyber-mono); text-transform: uppercase; letter-spacing: .1em; }
 .camera-events-modal-header h2 { color: var(--cyber-title-on-bg); font-size: 1.45rem; text-transform: uppercase; }
-.camera-events-close, .camera-event-filters button, .camera-event-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--cyber-border-dim); background: var(--cyber-panel-soft); color: var(--cyber-cyan); cursor: pointer; font: 800 .7rem var(--cyber-mono); text-transform: uppercase; }
+.camera-events-close, .camera-event-filters button, .camera-event-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1px solid var(--cyber-border-dim); background: var(--cyber-panel-soft); color: var(--cyber-title-on-bg); cursor: pointer; font: 800 .7rem var(--cyber-mono); text-transform: uppercase; }
 .camera-event-filters { display: flex; gap: 8px; padding: 10px 18px; overflow-x: auto; border-bottom: 1px solid var(--cyber-border-dim); }
-.camera-event-filters button.is-active, .camera-event-actions button.is-active { border-color: var(--cyber-highlight); color: var(--cyber-highlight); }
+.camera-event-filters button.is-active, .camera-event-actions button.is-active { border-color: var(--cyber-highlight); background: var(--cyber-highlight); color: var(--cyber-title-on-highlight); }
+.camera-event-filters button.is-active svg, .camera-event-actions button.is-active svg { color: var(--cyber-title-on-highlight); }
 .camera-event-filters button.is-danger, .camera-event-actions button.is-danger { color: #ff8a8a; }
 .camera-event-filters button:disabled { cursor: not-allowed; opacity: .42; }
 .camera-event-bulk-spacer { flex: 1 1 auto; }
@@ -3968,28 +3978,28 @@ a.update-banner-button {
 .camera-events-list-row { display: grid; grid-template-columns: 82px minmax(0,1fr); gap: 10px; padding: 9px; background: transparent; border-bottom: 1px solid var(--cyber-border-dim); }
 .camera-events-list-row.is-selecting { grid-template-columns: 24px 82px minmax(0,1fr); }
 .camera-events-list-row.is-checked { background: color-mix(in srgb,var(--cyber-highlight) 12%,transparent); }
-.camera-event-select-indicator { display: grid; place-items: center; align-self: center; color: var(--cyber-highlight); }
+.camera-event-select-indicator { display: grid; place-items: center; align-self: center; color: var(--cyber-title-on-bg); }
 .camera-events-list-row.is-selected { background: color-mix(in srgb,var(--cyber-cyan) 12%,transparent); }
 .camera-events-list-row.is-important { box-shadow: inset 3px 0 #ffd56b; }
 .camera-events-list-row.is-urgent { box-shadow: inset 3px 0 #ff5d73; }
 .camera-events-list-row img, .camera-event-no-thumb { width: 82px; aspect-ratio: 16/9; object-fit: cover; background: #05070a; }
-.camera-event-no-thumb { display: grid; place-items: center; }
+.camera-event-no-thumb { display: grid; place-items: center; color: var(--cyber-text-dim); }
 .camera-events-list-row>span:last-child { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .camera-event-detail { min-width: 0; overflow-y: auto; padding: 18px; }
 .camera-event-detail-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .camera-event-detail-title p { margin: 4px 0 0; color: var(--cyber-text-dim); font: .7rem var(--cyber-mono); }
 .camera-event-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
-.camera-event-priority { display: inline-block; margin-bottom: 4px; color: var(--cyber-cyan); font: 900 .64rem var(--cyber-mono); text-transform: uppercase; }
+.camera-event-priority { display: inline-block; margin-bottom: 4px; color: var(--cyber-text-dim); font: 900 .64rem var(--cyber-mono); text-transform: uppercase; }
 .camera-event-priority.is-important { color: #ffd56b; }
 .camera-event-priority.is-urgent { color: #ff8a8a; }
 .camera-event-video, .camera-event-image { display: block; width: 100%; max-height: 52vh; background: #05070a; object-fit: contain; border: 1px solid var(--cyber-border-dim); }
 .camera-event-summary { margin-top: 14px; padding: 12px; border: 1px solid var(--cyber-border-dim); background: var(--cyber-panel-soft); }
-.camera-event-summary h4 { margin: 0 0 6px; color: var(--cyber-cyan); font: 900 .7rem var(--cyber-mono); text-transform: uppercase; }
-.camera-event-summary p { margin: 0; line-height: 1.5; }
+.camera-event-summary h4 { margin: 0 0 6px; color: var(--cyber-accent-on-bg); font: 900 .7rem var(--cyber-mono); text-transform: uppercase; }
+.camera-event-summary p { margin: 0; color: var(--cyber-text); line-height: 1.5; }
 .camera-event-evidence { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 12px; }
 .camera-event-evidence div { padding: 9px; border: 1px solid var(--cyber-border-dim); }
 .camera-event-evidence dt { color: var(--cyber-text-dim); font: 800 .62rem var(--cyber-mono); text-transform: uppercase; }
-.camera-event-evidence dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: .75rem; }
+.camera-event-evidence dd { margin: 3px 0 0; color: var(--cyber-text); overflow-wrap: anywhere; font-size: .75rem; }
 @media (max-width:760px) {
   .camera-events-modal { width: calc(100vw - 16px); height: calc(100vh - 16px); }
   .camera-events-workspace { grid-template-columns: 1fr; overflow-y: auto; }
@@ -4054,7 +4064,7 @@ a.update-banner-button {
   width: 100%;
   padding: 8px 10px;
   background: transparent;
-  color: var(--cyber-cyan);
+  color: var(--cyber-accent-on-bg);
   cursor: pointer;
   font-family: var(--cyber-mono);
   font-size: 0.72rem;
@@ -4064,7 +4074,7 @@ a.update-banner-button {
 }
 
 .camera-snapshots-toggle:hover {
-  color: var(--cyber-highlight);
+  color: var(--cyber-title-on-bg);
 }
 
 .camera-snapshots-chevron {
@@ -4111,7 +4121,7 @@ a.update-banner-button {
   padding: 0 12px;
   border: 1px solid var(--cyber-border-dim);
   background: var(--cyber-panel);
-  color: var(--cyber-cyan);
+  color: var(--cyber-title-on-bg);
   cursor: pointer;
   font-family: var(--cyber-mono);
   font-size: 0.72rem;
@@ -4125,7 +4135,7 @@ a.update-banner-button {
 .camera-snapshot-save:hover:not(:disabled),
 .camera-snapshot-download:hover {
   border-color: var(--cyber-cyan);
-  color: var(--cyber-highlight);
+  color: var(--cyber-accent-on-bg);
 }
 
 .camera-snapshot-save:disabled {
@@ -4136,7 +4146,7 @@ a.update-banner-button {
 .camera-snapshots-message {
   font-family: var(--cyber-mono);
   font-size: 0.7rem;
-  color: var(--cyber-highlight);
+  color: var(--cyber-accent-on-bg);
 }
 
 .camera-snapshots-hint,
