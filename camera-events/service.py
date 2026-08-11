@@ -70,6 +70,10 @@ PERSON_GAP_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_PERSON_GAP_SECONDS
 MAX_EVENT_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_MAX_SECONDS", "600"))
 CLIP_PRE_ROLL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_PRE_ROLL", "10"))
 CLIP_POST_ROLL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_POST_ROLL", "20"))
+# The clip is cut at finalisation, so the gap must clear the post-roll by more
+# than one segment or the trailing segments are not published yet and the clip
+# loses its tail.
+CLIP_TAIL_MARGIN_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_TAIL_MARGIN", "6"))
 # If the recorder stops publishing, analysed media time stops advancing too. Close
 # the open event on wall clock rather than holding it open forever.
 STALL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_STALL_SECONDS", "120"))
@@ -641,6 +645,7 @@ class Pipeline:
             {item["class"] for item in self.active.get("subjects", [])} | set(self.active.get("labels", [])),
             default_gap=EVENT_GAP_SECONDS,
             person_gap=PERSON_GAP_SECONDS,
+            minimum=CLIP_POST_ROLL_SECONDS + CLIP_TAIL_MARGIN_SECONDS,
         )
         closed = event_window_closed(
             self.active["start"], self.active["last"], analysed_through,
