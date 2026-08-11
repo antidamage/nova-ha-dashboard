@@ -19,6 +19,7 @@ import type {
   BedroomHeaterPreferences,
   DashboardEntity,
   DashboardPreferences,
+  ClimateControlMode,
   ClimateControlRoomState,
   PanelHeaterPreferences,
 } from "../../../lib/types";
@@ -58,6 +59,7 @@ import {
   airconOffTimerIncrementMs,
   normalizeAirconOffTimerIncrementMinutes,
 } from "../../../lib/aircon-config";
+import { resolveCommandedState, type CommandedState } from "../../../lib/climate-control-policy";
 import { DotLineControl } from "../DotControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { loadSharedClientConfig, readCachedClientConfig } from "../sharedConfigCache";
@@ -912,6 +914,78 @@ function AirConditionerControl({
   const offTimerRemainingMs = offTimerEndsAtMs !== null ? Math.max(0, offTimerEndsAtMs - timerNow) : 0;
   const timerIncrementMs = airconOffTimerIncrementMs(timerIncrementMinutes);
 
+  // A press must light its own button immediately. The controller's view of the
+  // room lags a press by a poll or more — it only reports "off" once the Gree
+  // itself says so — and until then it still reads "auto", which would leave the
+  // control claiming the very state the user just cancelled. So the pressed
+  // selection is held over the controller's until the controller agrees, someone
+  // works the unit itself, or the command is plainly not coming.
+  const [powerIntent, setPowerIntent] = useState<CommandedState<ClimateControlMode> | null>(null);
+  const [modeIntent, setModeIntent] = useState<CommandedState<AirconMode> | null>(null);
+  const [intentNow, setIntentNow] = useState(() => Date.now());
+
+  const controlOwner = controlState?.owner ?? "nova";
+  const observedPowerState: ClimateControlMode =
+    controlState?.mode ?? (preferences?.autoMode ? "auto" : entity && isClimateEntityOn(entity) ? "manual" : "off");
+  const rememberedHvacMode = preferences?.hvacMode;
+  const rememberedMode: AirconMode | null =
+    isAirconMode(rememberedHvacMode) && rememberedHvacMode !== "auto" ? rememberedHvacMode : null;
+  const observedMode: AirconMode | null =
+    entity && isClimateEntityOn(entity) ? airconEntityMode(entity) ?? rememberedMode : null;
+
+  const resolvedPower = resolveCommandedState({
+    intent: powerIntent,
+    observed: observedPowerState,
+    owner: controlOwner,
+    now: intentNow,
+  });
+  const resolvedMode = resolveCommandedState({
+    intent: modeIntent,
+    observed: observedMode,
+    owner: controlOwner,
+    now: intentNow,
+  });
+
+  useEffect(() => {
+    if (powerIntent && !resolvedPower.intent) {
+      setPowerIntent(null);
+    }
+  }, [powerIntent, resolvedPower.intent]);
+
+  useEffect(() => {
+    if (modeIntent && !resolvedMode.intent) {
+      setModeIntent(null);
+    }
+  }, [modeIntent, resolvedMode.intent]);
+
+  // While a press is unconfirmed its hold has to be able to time out on its own,
+  // not only when a poll happens to land.
+  useEffect(() => {
+    if (!powerIntent && !modeIntent) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setIntentNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [powerIntent, modeIntent]);
+
+  // Record what a press asked for. Omitting `mode` means the press does not
+  // choose a direction — Auto picks its own, so the mode row keeps following the
+  // unit rather than being held to a guess.
+  const commandControl = (input: { power: ClimateControlMode; mode?: AirconMode | null }) => {
+    const sentAt = Date.now();
+    setIntentNow(sentAt);
+    setPowerIntent({ value: input.power, observedAtPress: observedPowerState, sentAt });
+    setModeIntent(
+      input.mode === undefined ? null : { value: input.mode, observedAtPress: observedMode, sentAt },
+    );
+  };
+
   useEffect(() => {
     setDisplayedFanStep(AIRCON_FAN_STEPS[currentFanIndex] ?? "medium");
   }, [currentFanIndex]);
@@ -1020,20 +1094,18 @@ function AirConditionerControl({
     autoLastTransitionAt: preferences?.autoLastTransitionAt ?? null,
     autoRecentStartsAt: preferences?.autoRecentStartsAt ?? [],
   } satisfies AirconPreferences;
-  const isControlOn = isOn || airconSettings.autoMode;
-  // Auto wins on display: the user's selected power state must stick. Auto now
-  // switches the unit OFF at homeostasis, so the unit being off does NOT mean the
-  // user pressed Off — while autoMode is remembered the control stays on "Auto"
-  // (the unit just resting). Only with autoMode cleared does on/off follow the
-  // unit, and that only changes by a deliberate user press because the auto loop
-  // stands down the moment autoMode is cleared.
-  const activePowerState = controlState?.mode ?? (airconSettings.autoMode ? "auto" : isOn ? "manual" : "off");
-  const activeMode = isOn
-    ? airconEntityMode(entity) ??
-      (isAirconMode(airconSettings.hvacMode) && airconSettings.hvacMode !== "auto" ? airconSettings.hvacMode : undefined)
-    : undefined;
+  // The selected power state, not the unit's: Auto and Manual both switch the
+  // unit OFF at homeostasis, so a resting unit does not mean the user pressed
+  // Off. `resolvedPower` lays the last press over the controller's view until
+  // the controller catches up, so the highlight always names the last command —
+  // this dashboard's or the remote's.
+  const activePowerState = resolvedPower.display ?? "off";
+  const isControlOn = activePowerState !== "off";
+  const activeMode = resolvedMode.display ?? undefined;
 
   const setOff = () => {
+    commandControl({ power: "off", mode: null });
+
     return callClimateActions(
       [
         {
@@ -1055,6 +1127,8 @@ function AirConditionerControl({
       preferredMode && airconModeSupported(supportedModes, preferredMode)
         ? preferredMode
         : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
+
+    commandControl({ power: "manual", mode: isAirconMode(hvacMode) ? hvacMode : null });
 
     if (hvacMode) {
       actions.push({
@@ -1109,6 +1183,8 @@ function AirConditionerControl({
 
   const setMode = (mode: AirconMode, label: string) => {
     if (mode === "auto") {
+      commandControl({ power: "auto" });
+
       // R3: arming Auto re-seats the direction, so a previous direction's
       // 30-minute hold does not apply — choosing Auto is an explicit act. The
       // compressor dwell and the hourly start count ARE carried over: those guard
@@ -1136,6 +1212,8 @@ function AirConditionerControl({
     // pointing the way the user last asked for rather than the way the loop
     // happened to be going.
     const seatsDirection = mode === "heat" || mode === "cool";
+
+    commandControl({ power: "manual", mode });
 
     return callClimateActions(
       [
@@ -1222,23 +1300,27 @@ function AirConditionerControl({
 
   const setFanStep = (step: AirconFanStep) => {
     const fanMode = airconFanModeServiceValue(step);
+    const actions = airconFanStepActions({
+      entity,
+      quietSwitch,
+      remember: {
+        autoMode: false,
+        fanMode,
+        quietMode: step === "quiet",
+        turboMode: step === "turbo",
+      },
+      step,
+      turboSwitch,
+    });
 
-    return callClimateActions(
-      airconFanStepActions({
-        entity,
-        quietSwitch,
-        remember: {
-          autoMode: false,
-          fanMode,
-          quietMode: step === "quiet",
-          turboMode: step === "turbo",
-        },
-        step,
-        turboSwitch,
-      }),
-      onEntityActions,
-      `Air Conditioner fan ${step}`,
-    );
+    // Choosing a fan speed by hand carries autoMode: false, so it leaves Auto —
+    // but only when it actually sends something, since the remember rides on the
+    // last action and a no-op change sends none.
+    if (actions.length) {
+      commandControl({ power: "manual" });
+    }
+
+    return callClimateActions(actions, onEntityActions, `Air Conditioner fan ${step}`);
   };
 
   const setOffTimer = (offTimerEndsAt: string | null) => {
