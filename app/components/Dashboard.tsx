@@ -17,7 +17,6 @@ import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
 import { useDashboardState } from "./dashboard/state";
 import { Warnings } from "./dashboard/Warnings";
 import { buildZoneTree, ZonesPanel } from "./dashboard/ZonesPanel";
-import { useAirconAutoMode } from "./dashboard/useAirconAutoMode";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useDashboardCommands } from "./dashboard/useDashboardCommands";
@@ -60,7 +59,7 @@ export function Dashboard() {
     });
   }, [activeVariant, themeReady]);
 
-  const { data, error, eventClientId, isPollingPaused, pausePolling, refresh, setData } = useDashboardState();
+  const { data, error, eventClientId, pausePolling, refresh, setData } = useDashboardState();
   const [toast, setToast] = useState<string | null>(null);
   const { selectedZone, selectedZoneId, selectZone, tasksZoneSelected } = useDashboardSelection(data);
   const zoneTree = useMemo(() => buildZoneTree(data), [data]);
@@ -88,7 +87,6 @@ export function Dashboard() {
     setData,
     setToast,
   });
-  useAirconAutoMode({ applyEntityActions, data, isPollingPaused, setData });
 
   return (
     <Tooltip.Provider delayDuration={250}>
@@ -156,6 +154,7 @@ export function Dashboard() {
                   zone={selectedZone}
                   bedroomHeater={bedroomHeater}
                   bedroomTemperature={bedroomTemperature}
+                  climateControl={data?.climateControl}
                   desktopSleepBusy={desktopSleepBusy}
                   desktopWakeBusy={desktopWakeBusy}
                   loungeEnvironment={loungeEnvironment}

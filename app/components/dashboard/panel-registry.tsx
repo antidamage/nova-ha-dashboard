@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type {
   DashboardPreferences,
+  ClimateControlState,
   DashboardZone,
   RouterStatus,
   WeatherStatus,
@@ -68,6 +69,7 @@ export type PrimaryPanelContext = {
   preferences?: DashboardPreferences;
   loungeEnvironment?: LoungeEnvironment | null;
   bedroomHeater?: BedroomHeaterDevices;
+  climateControl?: ClimateControlState;
   onDesktopSleep?: (computer: { id: string; name: string }) => void;
   onDesktopWake?: (computer: { id: string; name: string }) => void;
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
@@ -108,10 +110,11 @@ export const primaryZonePanels: PrimaryZonePanel[] = [
   {
     id: "climate",
     appliesTo: isClimateZone,
-    render: ({ zone, bedroomHeater, preferences, onEntityActions }) => (
+    render: ({ zone, bedroomHeater, climateControl, preferences, onEntityActions }) => (
       <ClimateControls
         zone={zone}
         bedroomHeater={bedroomHeater}
+        climateControl={climateControl}
         preferences={preferences}
         onEntityActions={onEntityActions}
       />

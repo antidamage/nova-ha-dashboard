@@ -38,7 +38,6 @@ import {
 import { housePartyNativeTransitionSeconds, randomHueOffsetRgb } from "./house-party";
 import { PHONOSCOPE_HUE_OFFSET_EFFECT } from "./phonoscope-drivers";
 import { PHONOSCOPE_PICTURE_EFFECTS } from "./phonoscope-effects";
-import { enforceFreshAirconAutoInput } from "./aircon-auto-safety";
 
 const PHONOSCOPE_HUE_OFFSET_DEFAULT = PHONOSCOPE_PICTURE_EFFECTS
   .find((effect) => effect.id === PHONOSCOPE_HUE_OFFSET_EFFECT)?.default ?? 0;
@@ -1059,15 +1058,6 @@ export async function setEntityAction(input: {
 
   if (!allowed[input.domain]?.includes(input.service)) {
     throw new Error(`Service ${input.domain}.${input.service} is not allowed`);
-  }
-
-  // This is the server-side gate for Nova's autonomous climate mode. UI
-  // disabling is useful feedback, but it cannot be the safety boundary: an old
-  // browser or a direct request could otherwise arm Auto with a stale reading.
-  if (input.domain === "climate" && input.remember?.aircon?.autoMode === true) {
-    if (!(await enforceFreshAirconAutoInput(input.entityId))) {
-      throw new Error("Climate Auto requires a fresh temperature reading");
-    }
   }
 
   const isAirconRelated =

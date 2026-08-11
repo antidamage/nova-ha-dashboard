@@ -8,6 +8,8 @@ import {
 import { parseEntityActionRequest, type EntityActionRequest } from "../../../lib/api/dashboard-requests";
 import { emitDashboardEvent } from "../../../lib/event-spool";
 import { setEntityAction } from "../../../lib/ha";
+import { buildDashboardState } from "../../../lib/ha";
+import { handleLegacyClimateAction } from "../../../lib/climate-control";
 import {
   claimLatestLightingCommand,
   INTERACTIVE_LIGHTING_COMMAND_KEY,
@@ -86,12 +88,15 @@ export async function POST(request: Request) {
           request.signal,
         )
       : null;
-    const state = await setEntityAction({
-      ...action,
-      isCurrent: latestClaim?.isCurrent,
-      signal: request.signal,
-      traceId: id,
-    });
+    const handledByClimateController = await handleLegacyClimateAction(action);
+    const state = handledByClimateController
+      ? await buildDashboardState()
+      : await setEntityAction({
+          ...action,
+          isCurrent: latestClaim?.isCurrent,
+          signal: request.signal,
+          traceId: id,
+        });
     latestClaim?.assertCurrent();
 
     if (entityActionAffectsLighting(state, action)) {

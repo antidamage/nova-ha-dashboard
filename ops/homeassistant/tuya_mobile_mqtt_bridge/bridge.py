@@ -58,6 +58,7 @@ SENSOR_TARGETS = {
 # room reading=dp4). Do NOT swap these back. Both the published state AND the temperature
 # command below must use dp3 for the setpoint, dp4 for the room reading.
 CLIMATE_TARGET_NAMES = ["Panel Heater"]
+TELEMETRY_MAX_STALE_SECONDS = 10 * 60
 # Smart sockets that power illumination, exposed over the cloud as on/off
 # lights so they twin with their tuya_local entity (dashboard prefers the LAN
 # twin and falls back to these). Keyed by the Tuya device name; dp is the
@@ -78,8 +79,9 @@ PLUG_LIGHT_TARGETS = {
 #   dp13 = temperature, x100 C   — verified: fell 2401->2356 while idle, rose
 #                                  2356->2392 within 25s of the element firing.
 #   dp14 = relative humidity, x10 %.
-# NOTE: dp13 sits in the appliance, so it reads high while the element runs.
-# The Nova thermostat loop must tail off rather than trust it instantaneously.
+# NOTE: dp13 sits in the appliance and reads high while the element runs. Nova
+# never uses it as the bedroom room thermostat; the separate pinned puck is the
+# only control input.
 # NOTE: dp9 is NOT the switch. Setting dp2 clears dp9 as a side effect; dp9 is
 # restored to True as part of turning the heater off.
 HEATER_SWITCH_TARGETS = {
@@ -155,6 +157,10 @@ class LightTarget:
     def availability_topic(self) -> str:
         return f"{BASE_TOPIC}/{self.slug}/availability"
 
+    @property
+    def attributes_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/attributes"
+
 
 @dataclass
 class SensorTarget:
@@ -188,12 +194,18 @@ class SensorTarget:
     def availability_topic(self) -> str:
         return f"{BASE_TOPIC}/{self.slug}/availability"
 
+    @property
+    def attributes_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/attributes"
+
 
 @dataclass
 class ClimateTarget:
     name: str
     dev_id: str
     dps: dict[str, Any]
+    device_update_ms: int | None = None
+    max_stale_seconds: int = TELEMETRY_MAX_STALE_SECONDS
     online: bool = True
 
     @property
@@ -227,6 +239,10 @@ class ClimateTarget:
     @property
     def availability_topic(self) -> str:
         return f"{BASE_TOPIC}/{self.slug}/availability"
+
+    @property
+    def attributes_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/attributes"
 
 
 @dataclass
@@ -267,6 +283,8 @@ class HeaterSwitchTarget:
     temperature_divisor: float
     humidity_dp: str
     humidity_divisor: float
+    device_update_ms: int | None = None
+    max_stale_seconds: int = TELEMETRY_MAX_STALE_SECONDS
     suggested_area: str | None = None
     online: bool = True
     slug_name: str | None = None
@@ -295,6 +313,10 @@ class HeaterSwitchTarget:
     def availability_topic(self) -> str:
         return f"{BASE_TOPIC}/{self.slug}/availability"
 
+    @property
+    def attributes_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/attributes"
+
 
 TuyaTarget = LightTarget | SensorTarget | ClimateTarget | PlugLightTarget | HeaterSwitchTarget
 
@@ -312,6 +334,14 @@ def tuya_sensor_data_fresh(dev: dict[str, Any], max_stale_seconds: int) -> bool:
         return False
     age_seconds = time.time() - update_seconds
     return -60 <= age_seconds <= max_stale_seconds
+
+
+def source_report_attributes(device_update_ms: int | None) -> str:
+    try:
+        reported_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(float(device_update_ms) / 1000))
+    except (TypeError, ValueError, OSError):
+        reported_at = None
+    return json.dumps({"source_reported_at": reported_at}, separators=(",", ":"))
 
 
 class TuyaMobileApi:
@@ -398,7 +428,8 @@ class TuyaMobileApi:
                         name=name,
                         dev_id=dev["devId"],
                         dps=dict(dev.get("dps") or {}),
-                        online=tuya_device_online(dev),
+                        device_update_ms=dev.get("dpMaxTime"),
+                        online=tuya_device_online(dev) and tuya_sensor_data_fresh(dev, TELEMETRY_MAX_STALE_SECONDS),
                     )
                     targets[target.slug] = target
                 elif name in HEATER_SWITCH_TARGETS:
@@ -412,8 +443,9 @@ class TuyaMobileApi:
                         temperature_divisor=spec["temperature_divisor"],
                         humidity_dp=spec["humidity_dp"],
                         humidity_divisor=spec["humidity_divisor"],
+                        device_update_ms=dev.get("dpMaxTime"),
                         suggested_area=spec.get("suggested_area"),
-                        online=tuya_device_online(dev),
+                        online=tuya_device_online(dev) and tuya_sensor_data_fresh(dev, TELEMETRY_MAX_STALE_SECONDS),
                         slug_name=spec["slug"],
                     )
                     targets[target.slug] = target
@@ -509,6 +541,10 @@ class Bridge:
         self.targets: dict[str, TuyaTarget] = {}
         self.lock = threading.Lock()
         self.stop_event = threading.Event()
+        # A command-level DEVICE_OFFLINE result is stronger evidence than an
+        # omitted isOnline flag. Keep the target unavailable until Tuya shows a
+        # newer device report, rather than flipping it online every poll.
+        self.offline_latches: dict[str, int | None] = {}
         self.mqtt = mqtt.Client(
             mqtt.CallbackAPIVersion.VERSION2,
             client_id="tuya-mobile-mqtt-bridge",
@@ -549,6 +585,15 @@ class Bridge:
         try:
             with self.lock:
                 self.targets = self.api.list_targets()
+                for target in self.targets.values():
+                    latched_at = self.offline_latches.get(target.dev_id)
+                    if target.dev_id not in self.offline_latches:
+                        continue
+                    current_at = getattr(target, "device_update_ms", None)
+                    if current_at is not None and (latched_at is None or current_at > latched_at):
+                        self.offline_latches.pop(target.dev_id, None)
+                    else:
+                        target.online = False
                 for target in self.targets.values():
                     self.publish_discovery(target)
                     self.publish_state(target)
@@ -695,8 +740,11 @@ class Bridge:
             LOG.info("Tuya session expired during command; retrying once")
             self.api.login()
             self.on_message(client, userdata, msg)
-        except Exception:
+        except Exception as error:
             LOG.exception("Command failed for %s", target.name)
+            if "DEVICE_OFFLINE" in str(error).upper() or "DEVICE OFFLINE" in str(error).upper():
+                self.offline_latches[target.dev_id] = getattr(target, "device_update_ms", None)
+            target.online = False
             self.mqtt.publish(target.availability_topic, "offline", retain=True)
 
     def publish_discovery(self, target: TuyaTarget) -> None:
@@ -782,6 +830,7 @@ class Bridge:
             "availability_topic": target.availability_topic,
             "payload_available": "online",
             "payload_not_available": "offline",
+            "json_attributes_topic": target.attributes_topic,
             "device": device,
             "origin": {"name": "Nova Tuya mobile bridge", "sw": "1.0"},
         }
@@ -844,6 +893,7 @@ class Bridge:
             "availability_topic": target.availability_topic,
             "payload_available": "online",
             "payload_not_available": "offline",
+            "json_attributes_topic": target.attributes_topic,
             "device": {
                 "identifiers": [f"tuya_mobile_{target.dev_id}"],
                 "name": target.name,
@@ -861,6 +911,7 @@ class Bridge:
             "availability_topic": target.availability_topic,
             "payload_available": "online",
             "payload_not_available": "offline",
+            "json_attributes_topic": target.attributes_topic,
             "device": {
                 "identifiers": [f"tuya_mobile_{target.dev_id}"],
                 "name": target.name,
@@ -964,6 +1015,7 @@ class Bridge:
 
     def publish_sensor_state(self, target: SensorTarget) -> None:
         self.mqtt.publish(target.availability_topic, "online" if target.online else "offline", retain=True)
+        self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
         if not target.online:
             return
         values = [
@@ -979,6 +1031,9 @@ class Bridge:
         self.mqtt.publish(
             target.availability_topic, "online" if target.online else "offline", retain=True
         )
+        self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
+        if not target.online:
+            return
         is_on = bool(target.dps.get(target.dp_key))
         self.mqtt.publish(target.state_topic, "ON" if is_on else "OFF", retain=True)
         values = [
@@ -998,6 +1053,9 @@ class Bridge:
     def publish_climate_state(self, target: ClimateTarget) -> None:
         is_on = bool(target.dps.get("1"))
         self.mqtt.publish(target.availability_topic, "online" if target.online else "offline", retain=True)
+        self.mqtt.publish(target.attributes_topic, source_report_attributes(target.device_update_ms), retain=True)
+        if not target.online:
+            return
         self.mqtt.publish(target.mode_state_topic, "heat" if is_on else "off", retain=True)
         target_temp = self.scaled_number(target.dps.get("3"))
         if target_temp is not None:

@@ -111,7 +111,7 @@ export function useDashboardState() {
   //
   // `pausePolling(ms)` sets a deadline; EVERY code path that pushes a *server* snapshot
   // into `setData` MUST honour it (see `refresh`, the background poll loop, the SSE
-  // handler, and `useAirconAutoMode`). `isPollingPaused()` is the shared predicate for
+  // handler and server-owned climate controller). `isPollingPaused()` is the shared predicate for
   // callers that fetch outside of `refresh`. If you add a new poller, gate its `setData`
   // on `isPollingPaused()` or you WILL reintroduce the flicker.
   const pausePolling = useCallback((durationMs: number) => {

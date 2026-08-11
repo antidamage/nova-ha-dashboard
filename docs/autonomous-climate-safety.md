@@ -1,34 +1,41 @@
-# Autonomous climate input safety
+# Nova climate safety and ownership
 
-This is a non-negotiable rule for every Nova-controlled heating or cooling
-device:
+`lib/climate-control.ts` is the only active thermostat loop. It runs in the
+Next.js server, so closing a browser or sleeping the kiosk does not stop room
+control. The former browser Auto hook, stale-input watchdog, and separate
+Bedroom loop were removed.
 
-> Auto mode cannot start or continue without a fresh, real input from the
-> temperature source assigned to that controller.
+## Missing temperature
 
-An input is usable only when it is numeric, its source is available, and its
-newest Home Assistant report timestamp is no more than 30 minutes old. Missing
-timestamps, empty values, invalid values, `unknown`, `unavailable`, and readings
-older than 30 minutes all fail closed.
+Auto may be selected before a sensor report exists. Lounge starts only in its
+remembered direction; Bedroom may heat blind. If a usable reading still has
+not arrived after two minutes, the controller turns the actuator off, clears
+Auto and its timer, records `sensor-timeout`, and does not retry. A later user
+selection or eligible Bedroom schedule edge may start a new session.
 
-On failure, the controller must:
+The Bedroom puck is the sole Bedroom control source. The plug's onboard
+temperature is never a fallback. Missing, nonnumeric, `unknown`, `unavailable`,
+or older-than-30-minute data is not usable.
 
-1. attempt to turn the heating or cooling output off;
-2. persist Auto as off and clear any pending off timer;
-3. display the measured room temperature as `--`;
-4. disable the Auto control while input remains unusable; and
-5. reject stale clients and direct API requests that try to arm Auto.
+## Device ownership
 
-Fresh telemetry only removes the lockout. It must not silently restore the old
-Auto session; a person or a later valid schedule edge must choose Auto again.
+Nova persists the last observed actuator fingerprint and compares power, HVAC
+mode, target, fan, and accessory states on every tick. Temperature and report
+timestamps are excluded. Nova commands are correlated inside a bounded settle
+window and the actuator is re-read before every autonomous command.
 
-This input interlock is distinct from behavioural guards. Any explicit user
-setpoint change clears Auto's direction hold, compressor dwell, and hourly-start
-history, allowing the next decision to swap heating and cooling immediately.
-Changing a setpoint cannot clear the input interlock because it does not create
-a temperature measurement.
+An unmatched physical-remote, Tuya-app, or direct-Home-Assistant change sets
+the room owner to `external`. Nova sends no corrective command, cancels its
+authority, and suppresses Bedroom schedule edges. The dashboard shows Manual
+and a device-override warning. Only an explicit Nova Auto, Manual/direction, or
+Off selection reclaims the room; editing a target or schedule alone does not.
 
-The shared validator is `lib/autonomous-climate-safety.ts`. The Bedroom heater
-enforces it in its server thermostat and API. Lounge/Gree enforces it in the
-browser controller, the generic climate action boundary, and a server watchdog
-that remains active when dashboard browsers are hidden or closed.
+Actuator unavailability is a fault, not an external interaction. It blocks
+commands without rewriting the user's selected mode.
+
+## Hardware guards
+
+Stopping at target is immediate. Starts retain the 10-minute off-dwell and the
+Lounge three-starts-per-hour cap. Auto retains its 30-minute direction hold.
+A setpoint edit reopens the comfort decision but never erases hardware history
+or permits a direct heat-to-cool reversal.

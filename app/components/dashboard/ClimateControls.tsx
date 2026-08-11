@@ -19,6 +19,7 @@ import type {
   BedroomHeaterPreferences,
   DashboardEntity,
   DashboardPreferences,
+  ClimateControlRoomState,
   PanelHeaterPreferences,
 } from "../../../lib/types";
 import {
@@ -492,12 +493,14 @@ async function saveBedroomHeater(update: BedroomHeaterPreferences) {
 }
 
 function BedroomHeaterControl({
+  controlState,
   humidity,
   onEntityActions,
   preferences,
   switchEntity,
   temperature,
 }: {
+  controlState?: ClimateControlRoomState;
   humidity: number | null;
   onEntityActions: EntityActionsHandler;
   preferences?: BedroomHeaterPreferences;
@@ -505,8 +508,7 @@ function BedroomHeaterControl({
   temperature: number | null;
 }) {
   const persistedMode = bedroomHeaterMode(preferences);
-  const sensorLockedOut = temperature === null;
-  const effectivePersistedMode: BedroomHeaterMode = sensorLockedOut ? "off" : persistedMode;
+  const effectivePersistedMode: BedroomHeaterMode = persistedMode;
   const persistedTarget = bedroomHeaterTargetTemperature(preferences);
   const persistedWindow = bedroomHeaterWindow(preferences);
 
@@ -599,9 +601,6 @@ function BedroomHeaterControl({
   const isOn = switchEntity.state === "on";
 
   const chooseMode = (next: BedroomHeaterMode) => {
-    if (next === "auto" && sensorLockedOut) {
-      return Promise.resolve();
-    }
     if (next === mode) {
       return Promise.resolve();
     }
@@ -622,14 +621,7 @@ function BedroomHeaterControl({
     // Auto hands over to the server thermostat, which the save above evaluates
     // immediately — pressing Auto must not itself force the element on, only
     // ask the thermostat to decide. Off drives the switch directly.
-    if (next === "auto") {
-      return save;
-    }
-    return callClimateActions(
-      [{ entityId: switchEntity.entity_id, domain: "switch", service: "turn_off" }],
-      onEntityActions,
-      "Bedroom Heater off",
-    );
+    return save;
   };
 
   // Same debounce shape as the air conditioner's target: only the last value is
@@ -645,7 +637,7 @@ function BedroomHeaterControl({
     }, AIRCON_TEMPERATURE_SEND_DEBOUNCE_MS);
   };
 
-  // Expiry is enforced by the server loop (lib/bedroom-heater-auto.ts), not
+  // Expiry is enforced by the unified server climate controller, not
   // here: the whole point of a bedroom sleep timer is that it fires with every
   // dashboard client asleep. This side only sets and displays it.
   const setOffTimer = (offTimerEndsAt: string | null) => {
@@ -675,6 +667,15 @@ function BedroomHeaterControl({
   return (
     <ClimateCard entity={switchEntity} kicker="Heating Unit" title="Bedroom">
       <div className="grid gap-4">
+        {controlState?.owner === "external" ? (
+          <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
+            Manual — device override. Nova automation and schedule are paused.
+          </p>
+        ) : controlState?.phase === "grace" ? (
+          <p className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
+            Waiting for Bedroom sensor — Auto will stop after two minutes.
+          </p>
+        ) : null}
         {/*
           Off is the only mode with no target to set: it means auto off and the
           heater off. Under Auto the heater's own switch may well be idle, but
@@ -682,7 +683,7 @@ function BedroomHeaterControl({
         */}
         <TemperatureStepper
           currentTemperature={temperature}
-          disabled={entityUnavailable || sensorLockedOut || mode === "off"}
+          disabled={entityUnavailable || mode === "off"}
           entity={switchEntity}
           label="Temperature"
           maxTemperature={BEDROOM_HEATER_MAX_TARGET_C}
@@ -702,7 +703,7 @@ function BedroomHeaterControl({
                 type="button"
                 aria-pressed={active}
                 className={classNames("aircon-state-button border", active && "aircon-state-button-active")}
-                disabled={entityUnavailable || (state === "auto" && sensorLockedOut)}
+                disabled={entityUnavailable}
                 onClick={() => chooseMode(state)}
               >
                 <Icon className="h-6 w-6" />
@@ -721,7 +722,7 @@ function BedroomHeaterControl({
                 : `Start ${timerIncrementMinutes} minute bedroom heater sleep timer`
             }
             className={classNames("climate-timer-button border", offTimerActive && "climate-timer-button-active")}
-            disabled={entityUnavailable || sensorLockedOut || mode === "off"}
+            disabled={entityUnavailable || mode === "off"}
             onClick={addOffTimer}
           >
             <Clock className="h-6 w-6" />
@@ -870,6 +871,7 @@ function autoPreferenceFallbackAction(entity: DashboardEntity, settings: AirconP
 }
 
 function AirConditionerControl({
+  controlState,
   entity,
   freshAirSwitch,
   preferences,
@@ -877,6 +879,7 @@ function AirConditionerControl({
   turboSwitch,
   onEntityActions,
 }: {
+  controlState?: ClimateControlRoomState;
   entity?: DashboardEntity;
   freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
@@ -1000,10 +1003,9 @@ function AirConditionerControl({
   const isOn = isClimateEntityOn(entity);
   const supportedModes = stringListAttribute(entity, "hvac_modes");
   const entityUnavailable = ["unavailable", "unknown"].includes(entity.state);
-  const airconSensorLockedOut = airconAutoMeasuredTemperature(entity) === null;
 
   const airconSettings = {
-    autoMode: (preferences?.autoMode ?? false) && !airconSensorLockedOut,
+    autoMode: preferences?.autoMode ?? false,
     hvacMode:
       preferences?.hvacMode ??
       (isOn && entity.state !== "off" && entity.state !== "unavailable" && entity.state !== "unknown" ? entity.state : undefined),
@@ -1025,7 +1027,7 @@ function AirConditionerControl({
   // (the unit just resting). Only with autoMode cleared does on/off follow the
   // unit, and that only changes by a deliberate user press because the auto loop
   // stands down the moment autoMode is cleared.
-  const activePowerState = airconSettings.autoMode ? "auto" : isOn ? "manual" : "off";
+  const activePowerState = controlState?.mode ?? (airconSettings.autoMode ? "auto" : isOn ? "manual" : "off");
   const activeMode = isOn
     ? airconEntityMode(entity) ??
       (isAirconMode(airconSettings.hvacMode) && airconSettings.hvacMode !== "auto" ? airconSettings.hvacMode : undefined)
@@ -1054,8 +1056,6 @@ function AirConditionerControl({
         ? preferredMode
         : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
 
-    actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_on" });
-
     if (hvacMode) {
       actions.push({
         entityId: entity.entity_id,
@@ -1064,6 +1064,8 @@ function AirConditionerControl({
         data: { hvac_mode: hvacMode },
         remember: { aircon: { autoMode: false, hvacMode } },
       });
+    } else {
+      actions.push({ entityId: entity.entity_id, domain: "climate", service: "turn_on" });
     }
 
     if (typeof airconSettings.temperature === "number") {
@@ -1107,9 +1109,6 @@ function AirConditionerControl({
 
   const setMode = (mode: AirconMode, label: string) => {
     if (mode === "auto") {
-      if (airconSensorLockedOut) {
-        return Promise.resolve();
-      }
       // R3: arming Auto re-seats the direction, so a previous direction's
       // 30-minute hold does not apply — choosing Auto is an explicit act. The
       // compressor dwell and the hourly start count ARE carried over: those guard
@@ -1174,10 +1173,6 @@ function AirConditionerControl({
           remember: {
             aircon: {
               temperature,
-              autoLastMode: null,
-              autoLastModeAt: null,
-              autoLastTransitionAt: null,
-              autoRecentStartsAt: [],
             },
           },
         },
@@ -1276,6 +1271,15 @@ function AirConditionerControl({
   return (
     <ClimateCard entity={entity} kicker="Air Control" title="Lounge">
       <div className="grid gap-4">
+        {controlState?.owner === "external" ? (
+          <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
+            Manual — device override. Nova automation is paused.
+          </p>
+        ) : controlState?.phase === "grace" ? (
+          <p className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
+            Waiting for Gree temperature — Auto will stop after two minutes.
+          </p>
+        ) : null}
         <TemperatureStepper
           currentTemperature={airconAutoMeasuredTemperature(entity)}
           disabled={!isControlOn}
@@ -1292,7 +1296,7 @@ function AirConditionerControl({
             const active = activePowerState === state;
             const disabled =
               entityUnavailable ||
-              (state === "auto" && (airconSensorLockedOut || !airconAutoSupported(supportedModes)));
+              (state === "auto" && !airconAutoSupported(supportedModes));
             return (
               <button
                 key={state}
@@ -1405,11 +1409,13 @@ function legacyPanelHeaterEnabled(payload: unknown) {
 
 export function ClimateControls({
   bedroomHeater,
+  climateControl,
   onEntityActions,
   preferences,
   zone,
 }: {
   bedroomHeater?: BedroomHeaterDevices;
+  climateControl?: import("../../../lib/types").ClimateControlState;
   onEntityActions: EntityActionsHandler;
   preferences?: DashboardPreferences;
   zone: DashboardZone;
@@ -1442,6 +1448,7 @@ export function ClimateControls({
   return (
     <div className="climate-control-grid grid gap-5">
       <AirConditionerControl
+        controlState={climateControl?.lounge}
         entity={aircon}
         freshAirSwitch={freshAirSwitch}
         preferences={preferences?.aircon}
@@ -1450,6 +1457,7 @@ export function ClimateControls({
         onEntityActions={onEntityActions}
       />
       <BedroomHeaterControl
+        controlState={climateControl?.bedroom}
         humidity={bedroomHeater?.humidity ?? null}
         preferences={preferences?.bedroomHeater}
         switchEntity={bedroomHeater?.switchEntity}

@@ -20,6 +20,7 @@ import { buildRouterStatus } from "./modules/router/module";
 import { buildSunStatus, buildWeatherStatus } from "./modules/weather/module";
 import { readDashboardPreferences } from "./preferences";
 import { withComputedWatchfacePreferences } from "./watchface-preferences";
+import { climateControlState } from "./climate-control";
 
 function entityProjectionOptions(config: DashboardConfig): EntityProjectionOptions {
   const ha = config.homeAssistant;
@@ -101,6 +102,7 @@ export async function buildDashboardState(): Promise<DashboardState> {
     sun: buildSunStatus(states, config),
     weather: await buildWeatherStatus(states, warnings, config),
     preferences,
+    climateControl: climateControlState(),
     warnings,
     haHealth: context.haHealth,
   };
