@@ -63,6 +63,8 @@ type PersistedState = {
   bedroom: PersistedRoom;
 };
 
+type PersistedSnapshot = PersistedState & { publicState?: ClimateControlState };
+
 function defaultRoom(): PersistedRoom {
   return {
     owner: "nova",
@@ -78,16 +80,6 @@ function defaultRoom(): PersistedRoom {
   };
 }
 
-let persisted: PersistedState = { version: 1, lounge: defaultRoom(), bedroom: defaultRoom() };
-let loaded = false;
-let writeQueue = Promise.resolve();
-let timer: ReturnType<typeof setInterval> | null = null;
-let running = false;
-let scheduleCursor: number | null = null;
-const airconThermostat = new AirconAutoThermostat();
-const bedroomThermostat = new BedroomHeaterThermostat();
-const loungeSamples: number[] = [];
-
 const emptyPublicRoom = (): ClimateControlRoomState => ({
   owner: "nova",
   mode: "off",
@@ -101,7 +93,38 @@ const emptyPublicRoom = (): ClimateControlRoomState => ({
   lastStopReason: null,
 });
 
-let publicState: ClimateControlState = { lounge: emptyPublicRoom(), bedroom: emptyPublicRoom() };
+type ClimateControlRuntime = {
+  persisted: PersistedState;
+  loaded: boolean;
+  writeQueue: Promise<void>;
+  timer: ReturnType<typeof setInterval> | null;
+  running: boolean;
+  scheduleCursor: number | null;
+  airconThermostat: AirconAutoThermostat;
+  bedroomThermostat: BedroomHeaterThermostat;
+  loungeSamples: number[];
+  publicState: ClimateControlState;
+};
+
+const climateGlobal = globalThis as typeof globalThis & {
+  __novaClimateControlRuntime?: ClimateControlRuntime;
+};
+const runtime = climateGlobal.__novaClimateControlRuntime ??= {
+  persisted: { version: 1, lounge: defaultRoom(), bedroom: defaultRoom() },
+  loaded: false,
+  writeQueue: Promise.resolve(),
+  timer: null,
+  running: false,
+  scheduleCursor: null,
+  airconThermostat: new AirconAutoThermostat(),
+  bedroomThermostat: new BedroomHeaterThermostat(),
+  loungeSamples: [],
+  publicState: { lounge: emptyPublicRoom(), bedroom: emptyPublicRoom() },
+};
+const persisted = runtime.persisted;
+const airconThermostat = runtime.airconThermostat;
+const bedroomThermostat = runtime.bedroomThermostat;
+const loungeSamples = runtime.loungeSamples;
 
 function rawAsDashboardEntity(state: HaState): DashboardEntity {
   const domain = state.entity_id.split(".", 1)[0] as HaDomain;
@@ -154,29 +177,32 @@ function bedroomSignature(switchState?: HaState) {
 }
 
 async function loadPersisted() {
-  if (loaded) return;
-  loaded = true;
+  if (runtime.loaded) return;
+  runtime.loaded = true;
   try {
-    const value = JSON.parse(await readFile(STATE_PATH, "utf8")) as Partial<PersistedState>;
-    persisted = {
+    const value = JSON.parse(await readFile(STATE_PATH, "utf8")) as Partial<PersistedSnapshot>;
+    Object.assign(persisted, {
       version: 1,
       lounge: { ...defaultRoom(), ...(value.lounge ?? {}) },
       bedroom: { ...defaultRoom(), ...(value.bedroom ?? {}) },
-    };
+    });
+    if (value.publicState?.lounge && value.publicState?.bedroom) {
+      runtime.publicState = value.publicState;
+    }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
 }
 
 function persistSoon() {
-  const snapshot = JSON.stringify(persisted, null, 2) + "\n";
-  writeQueue = writeQueue.then(async () => {
+  const snapshot = JSON.stringify({ ...persisted, publicState: runtime.publicState }, null, 2) + "\n";
+  runtime.writeQueue = runtime.writeQueue.then(async () => {
     await mkdir(path.dirname(STATE_PATH), { recursive: true });
     const temporary = `${STATE_PATH}.${process.pid}.tmp`;
     await writeFile(temporary, snapshot, "utf8");
     await rename(temporary, STATE_PATH);
   });
-  return writeQueue;
+  return runtime.writeQueue;
 }
 
 function median(values: number[]) {
@@ -286,8 +312,8 @@ async function stopAndCancel(room: RoomId, entityId: string, reason: string) {
 
 async function applyBedroomSchedule(settings: BedroomHeaterPreferences | undefined, nowDate: Date) {
   const nowMinutes = minutesFromMidday(nowDate);
-  const previous = scheduleCursor;
-  scheduleCursor = nowMinutes;
+  const previous = runtime.scheduleCursor;
+  runtime.scheduleCursor = nowMinutes;
   if (previous === null || persisted.bedroom.scheduleBlocked) return null;
   const window = bedroomHeaterWindow(settings);
   const edge = bedroomHeaterScheduleEdge(previous, nowMinutes, window.start, window.end);
@@ -304,8 +330,8 @@ function publicRoom(args: Partial<ClimateControlRoomState> & Pick<ClimateControl
 }
 
 async function tick() {
-  if (running) return;
-  running = true;
+  if (runtime.running) return;
+  runtime.running = true;
   try {
     await loadPersisted();
     const now = Date.now();
@@ -421,7 +447,7 @@ async function tick() {
     const latest = await readDashboardPreferences();
     const loungeSensorPendingAt = airconThermostat.snapshot().sensorPendingSinceAt;
     const bedroomSensorPendingAt = bedroomThermostat.snapshot().sensorPendingSinceAt;
-    publicState = {
+    runtime.publicState = {
       lounge: publicRoom({
         owner: persisted.lounge.owner,
         mode: loungeExternal ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : (latest.aircon?.autoMode ? "auto" : loungeMode),
@@ -457,12 +483,26 @@ async function tick() {
   } catch (error) {
     console.error("[climate-control] tick failed", error);
   } finally {
-    running = false;
+    runtime.running = false;
   }
 }
 
-export function climateControlState(): ClimateControlState {
-  return structuredClone(publicState);
+export async function climateControlState(): Promise<ClimateControlState> {
+  await loadPersisted();
+  try {
+    // Next can evaluate instrumentation and route chunks in different module
+    // contexts. The process-global store handles duplicated chunks in one
+    // context; the durable snapshot is the boundary for separate contexts.
+    const snapshot = JSON.parse(await readFile(STATE_PATH, "utf8")) as PersistedSnapshot;
+    if (snapshot.publicState?.lounge && snapshot.publicState?.bedroom) {
+      return structuredClone(snapshot.publicState);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn("[climate-control] could not read public snapshot", error);
+    }
+  }
+  return structuredClone(runtime.publicState);
 }
 
 export async function claimClimateControl(room: RoomId) {
@@ -587,15 +627,15 @@ export async function evaluateClimateControlNow() {
 }
 
 export function startClimateControl() {
-  if (timer) return;
-  timer = setInterval(() => void tick(), POLL_MS);
-  timer.unref?.();
+  if (runtime.timer) return;
+  runtime.timer = setInterval(() => void tick(), POLL_MS);
+  runtime.timer.unref?.();
   void tick();
   console.log("[climate-control] unified server controller started");
 }
 
 export function stopClimateControlForTest() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  running = false;
+  if (runtime.timer) clearInterval(runtime.timer);
+  runtime.timer = null;
+  runtime.running = false;
 }
