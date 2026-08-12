@@ -83,6 +83,85 @@ export function poweredActuatorRecoveryIsExternal(input: {
   }
 }
 
+/**
+ * Infer the equilibrium input of a first-order thermal sensor from one point
+ * on its post-step response:
+ *
+ *   measured(t) = settled + (atTransition - settled) * exp(-t / tau)
+ *
+ * This is deliberately a small, inspectable model. It returns null where the
+ * transient is too young or malformed rather than manufacturing a prediction.
+ */
+export function estimateFirstOrderSettledTemperature(input: {
+  atTransition: number;
+  current: number;
+  elapsedMs: number;
+  timeConstantMs: number;
+}) {
+  if (
+    !Number.isFinite(input.atTransition) ||
+    !Number.isFinite(input.current) ||
+    !Number.isFinite(input.elapsedMs) ||
+    !Number.isFinite(input.timeConstantMs) ||
+    input.elapsedMs <= 0 ||
+    input.timeConstantMs <= 0
+  ) {
+    return null;
+  }
+  const remainingFraction = Math.exp(-input.elapsedMs / input.timeConstantMs);
+  const observedFraction = 1 - remainingFraction;
+  if (observedFraction <= 0) return null;
+  const estimate = (input.current - input.atTransition * remainingFraction) / observedFraction;
+  return Number.isFinite(estimate) ? estimate : null;
+}
+
+/**
+ * Whether a post-stop trend is strong enough to resume the SAME HVAC direction
+ * before the conservative full-settling timeout.
+ *
+ * The direction test matters as much as the extrapolation: after Heat stops the
+ * biased indoor-unit reading must be moving down; after Cool stops it must be
+ * moving up. A flat, opposite, or cross-direction trace is never accelerated.
+ */
+export function settlingTrendSupportsSameDirectionRestart(input: {
+  direction: ManualAirconDirection;
+  atTransition: number | null;
+  current: number;
+  target: number;
+  elapsedMs: number;
+  timeConstantMs: number;
+  resumeDriftC: number;
+  measurementResolutionC: number;
+}) {
+  if (input.atTransition === null || !Number.isFinite(input.atTransition)) return false;
+  const drift = input.current - input.atTransition;
+  const expectedDirection = input.direction === "heat" ? drift < 0 : drift > 0;
+  if (!expectedDirection) return false;
+  const halfStep = Number.isFinite(input.measurementResolutionC) && input.measurementResolutionC > 0
+    ? input.measurementResolutionC / 2
+    : 0;
+  // Use the least favourable values allowed by whole-degree quantisation: the
+  // warmest possible equilibrium for Heat, and coldest for Cool. An early
+  // restart must survive this bound, not merely fit the displayed integers.
+  const conservativeAtTransition = input.direction === "heat"
+    ? input.atTransition - halfStep
+    : input.atTransition + halfStep;
+  const conservativeCurrent = input.direction === "heat"
+    ? input.current + halfStep
+    : input.current - halfStep;
+  const estimated = estimateFirstOrderSettledTemperature({
+    atTransition: conservativeAtTransition,
+    current: conservativeCurrent,
+    elapsedMs: input.elapsedMs,
+    timeConstantMs: input.timeConstantMs,
+  });
+  if (estimated === null) return false;
+  const minimumTrueDrift = Math.max(0, input.resumeDriftC - halfStep);
+  return input.direction === "heat"
+    ? estimated <= input.target - minimumTrueDrift
+    : estimated >= input.target + minimumTrueDrift;
+}
+
 export function planManualAirconTick(input: {
   direction: ManualAirconDirection;
   isOn: boolean;
@@ -91,8 +170,11 @@ export function planManualAirconTick(input: {
   targetTemperature: number;
   now: number;
   lastTransitionAt: number | null;
+  settlingFromTemperature: number | null;
   minOffMs: number;
   sensorSettleMs: number;
+  sensorTimeConstantMs: number;
+  sensorResolutionC: number;
   resumeDriftC: number;
 }) {
   const reachedTarget = input.rawTemperature !== null &&
@@ -104,9 +186,20 @@ export function planManualAirconTick(input: {
   const drifted = input.direction === "heat"
     ? input.filteredTemperature <= input.targetTemperature - input.resumeDriftC
     : input.filteredTemperature >= input.targetTemperature + input.resumeDriftC;
-  const dwellDone = input.lastTransitionAt === null || input.now - input.lastTransitionAt >= input.minOffMs;
-  const sensorSettled = input.lastTransitionAt === null || input.now - input.lastTransitionAt >= input.sensorSettleMs;
-  return drifted && dwellDone && sensorSettled
+  const elapsedMs = input.lastTransitionAt === null ? Number.POSITIVE_INFINITY : input.now - input.lastTransitionAt;
+  const dwellDone = elapsedMs >= input.minOffMs;
+  const sensorSettled = elapsedMs >= input.sensorSettleMs;
+  const trendSupportsRestart = elapsedMs >= input.minOffMs && settlingTrendSupportsSameDirectionRestart({
+    direction: input.direction,
+    atTransition: input.settlingFromTemperature,
+    current: input.filteredTemperature,
+    target: input.targetTemperature,
+    elapsedMs,
+    timeConstantMs: input.sensorTimeConstantMs,
+    resumeDriftC: input.resumeDriftC,
+    measurementResolutionC: input.sensorResolutionC,
+  });
+  return drifted && dwellDone && (sensorSettled || trendSupportsRestart)
     ? "start" as const
     : "hold" as const;
 }

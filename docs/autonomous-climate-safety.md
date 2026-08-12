@@ -35,11 +35,14 @@ commands without rewriting the user's selected mode.
 
 ## Hardware and sensor-transition guards
 
-Stopping at target is immediate. Autonomous Lounge restarts wait 30 minutes for
-the Gree's low-airflow sensor to settle, then fixed Heat or Cool can resume its
-same direction on a one-degree error. There is no starts-per-hour cap. The
-10-minute compressor off-dwell remains as an independent hardware floor,
-including for explicit user requests. Auto retains its 30-minute direction hold
-and requires three degrees of evidence to reverse direction. A setpoint edit
-reopens the comfort decision but never erases hardware history or permits a
-direct heat-to-cool reversal.
+Stopping at target is immediate. At shutdown Nova records the Gree reading and
+original direction. After the 10-minute compressor dwell, a monotonic correction
+in the expected direction may resume that same Heat or Cool cycle when a
+first-order equilibrium estimate still misses the unchanged target, even under
+the Gree's +/-0.5 C whole-degree quantisation bound. The displayed reading must
+still be a whole degree past target. Ambiguous traces wait for the 30-minute
+settling fallback. There is no
+starts-per-hour cap. Auto retains its 30-minute direction hold and three-degree
+threshold for reversals; the early predictor can never reverse direction. A
+setpoint edit reopens the comfort decision but never erases hardware history or
+permits a direct heat-to-cool reversal.

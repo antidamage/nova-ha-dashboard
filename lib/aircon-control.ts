@@ -1,5 +1,6 @@
 import type { AirconPreferences, DashboardEntity, DashboardPreferences, HaDomain } from "./types";
 import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
+import { settlingTrendSupportsSameDirectionRestart } from "./climate-control-policy";
 
 export type EntityActionInput = {
   entityId: string;
@@ -36,23 +37,32 @@ export const AIRCON_AUTO_POLL_MS = 1_000;
 const AIRCON_AUTO_DIRECTION_CHANGE_DEGREES = 3;
 /** The Gree reports whole degrees, so this is the smallest observable drift. */
 const AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES = 1;
+/** Gree current_temperature is quantised to whole degrees. */
+export const AIRCON_SENSOR_RESOLUTION_DEGREES = 1;
 /**
- * How long an off Gree sensor is left to return toward room air before its
- * reading may START the compressor again.
+ * Conservative fallback for an off Gree sensor whose transient is ambiguous.
  *
  * Nova's 2026-08-11 HA history has the reading continue moving for 14-21
  * minutes after heat stops. Laboratory work on common enclosed HVAC room
  * sensors measured low-airflow cooling time constants around 9-11 minutes
  * (Hayashi et al., 2002, DOI 10.18948/shase.27.84_31); a first-order thermal
  * sensor is about 95% settled after three time constants. Thirty minutes is
- * therefore a conservative, evidence-based estimate for this unforced indoor
- * unit. Once it expires, a one-degree same-direction error is actionable.
+ * therefore a conservative, evidence-based fallback for this unforced indoor
+ * unit. A consistent same-direction trace may act earlier using the time
+ * constant below, but never before the compressor dwell.
  *
  * This is intentionally asymmetric. A running sensor reaching target may stop
  * the unit immediately: a possibly early stop is safe, while a possibly early
  * start is the transition that caused the observed flip-flopping.
  */
 export const AIRCON_SENSOR_SETTLE_MS = 30 * 60_000;
+/**
+ * First-order time constant used to extrapolate the post-stop equilibrium.
+ * Published low-airflow means are about 9-11 minutes. This Gree's recent first
+ * and second whole-degree corrections had medians of about 6.5 and 15.5
+ * minutes, respectively, so 10 minutes is also centred on the local evidence.
+ */
+export const AIRCON_SENSOR_TIME_CONSTANT_MS = 10 * 60_000;
 /** Flip-flop guard: having chosen a direction, hold it this long. */
 const AIRCON_AUTO_MODE_HOLD_MS = 30 * 60_000;
 /** Dwell before STARTING the compressor again, matching BEDROOM_HEATER_MIN_CYCLE_MS. */
@@ -103,23 +113,24 @@ type ActiveAirconMode = "heat" | "cool";
  * rests off until the room drifts far enough out, at which point the loop turns
  * it on again.
  *
- * The hysteresis is asymmetric and deliberately so: cut off AT target, wait for
- * AIRCON_SENSOR_SETTLE_MS, then resume the SAME direction on the first whole
- * degree of drift. A direction reversal still needs three degrees of evidence.
- * Which side of that hysteresis we are on is read from the unit itself (is it
- * running in heat or cool?) rather than from a local flag, so every dashboard
- * client and every page reload agree without sharing anything.
+ * The hysteresis is asymmetric and deliberately so: cut off AT target, then
+ * resume the SAME direction when either (a) a monotonic post-stop drift plus a
+ * first-order equilibrium estimate says the unchanged target is still missed,
+ * after the 10-minute compressor dwell, or (b) the conservative 30-minute
+ * settling fallback expires. A direction reversal still needs three degrees of
+ * evidence and never uses the early predictor. The last direction, transition
+ * reading, and clocks are durable so every dashboard and reload agrees.
  *
  * Three transition guards sit on top, because the measurement cannot be trusted
  * to mean what it says:
  *
  *   - a 30-minute hold on changing direction (AIRCON_AUTO_MODE_HOLD_MS),
- *   - a 30-minute post-stop sensor-settling gate on autonomous starts,
+ *   - a directional first-order sensor model with a 30-minute fallback,
  *   - a 10-minute dwell before restarting the compressor,
  *
  * There is deliberately no starts-per-hour cap. Fixed Heat may heat again and
- * fixed Cool may cool again whenever the sensor-settling and compressor dwell
- * gates clear. The 30-minute settling gate itself prevents rapid cycling.
+ * fixed Cool may cool again whenever the sensor model and compressor dwell
+ * gates clear. The 10-minute hardware dwell remains the absolute lower bound.
  *
  * None of these guards can stop the unit turning OFF. Stopping is always safe and always
  * cheap; a guard that delays it would leave the unit driving the room the wrong
@@ -138,6 +149,8 @@ export type AirconAutoState = {
   lastModeAt: number | null;
   /** Last on/off/mode change, for the minimum-cycle dwell. */
   lastTransitionAt: number | null;
+  /** Sensor reading captured when the current off-settling transient began. */
+  settlingFromTemperature: number | null;
   /** Start telemetry, oldest first, pruned to the trailing hour; never a limit. */
   recentStartsAt: number[];
   /**
@@ -159,6 +172,7 @@ export const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
   lastMode: null,
   lastModeAt: null,
   lastTransitionAt: null,
+  settlingFromTemperature: null,
   recentStartsAt: [],
   lastTargetTemperature: null,
   sensorPendingSinceAt: null,
@@ -224,6 +238,10 @@ function normalizeAirconAutoState(state?: Partial<AirconAutoState>): AirconAutoS
     sensorPendingSinceAt:
       typeof merged.sensorPendingSinceAt === "number" && Number.isFinite(merged.sensorPendingSinceAt)
         ? merged.sensorPendingSinceAt
+        : null,
+    settlingFromTemperature:
+      typeof merged.settlingFromTemperature === "number" && Number.isFinite(merged.settlingFromTemperature)
+        ? merged.settlingFromTemperature
         : null,
   };
 }
@@ -423,6 +441,7 @@ export function airconAutoCycleRemember(state: AirconAutoState): AirconPreferenc
     autoLastModeAt: state.lastModeAt,
     autoLastTransitionAt: state.lastTransitionAt,
     autoRecentStartsAt: state.recentStartsAt,
+    autoSettlingFromTemperature: state.settlingFromTemperature,
     autoSensorPendingSinceAt: state.sensorPendingSinceAt,
   };
 }
@@ -436,6 +455,7 @@ export function airconAutoCycleStateFromPreferences(
     lastModeAt: preferences?.autoLastModeAt ?? null,
     lastTransitionAt: preferences?.autoLastTransitionAt ?? null,
     recentStartsAt: preferences?.autoRecentStartsAt ?? [],
+    settlingFromTemperature: preferences?.autoSettlingFromTemperature ?? null,
     sensorPendingSinceAt: preferences?.autoSensorPendingSinceAt ?? null,
   };
 }
@@ -690,7 +710,11 @@ export function planAirconAutoTick({
     if (elapsedMs >= AIRCON_AUTO_SENSOR_GRACE_MS) {
       // Ran blind for the whole grace window and still no usable reading. The
       // planner emits the safe stop; the unified controller clears Auto.
-      const cycle = autoPlanState(pendingBase, { sensorPendingSinceAt: null, lastTransitionAt: now });
+      const cycle = autoPlanState(pendingBase, {
+        sensorPendingSinceAt: null,
+        lastTransitionAt: now,
+        settlingFromTemperature: currentTemperature,
+      });
       return {
         actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
         nextState: cycle,
@@ -734,6 +758,7 @@ export function planAirconAutoTick({
       lastModeAt: modeChanged ? now : (currentState.lastModeAt ?? now),
       lastTransitionAt: now,
       recentStartsAt: [...recentStartsAt, now],
+      settlingFromTemperature: null,
     };
 
     return {
@@ -783,6 +808,7 @@ export function planAirconAutoTick({
       lastModeAt: now,
       lastTransitionAt: now,
       recentStartsAt: [now],
+      settlingFromTemperature: null,
     });
     return {
       actions: activeAutoActions({
@@ -809,7 +835,10 @@ export function planAirconAutoTick({
     // Stopping is never rate-limited, but it IS a transition: the dwell before the
     // next start counts from here. Stamp it BEFORE building the actions, because
     // the stamped value is what rides out on the turn_off's remember payload.
-    const cycle = autoPlanState(base, { lastTransitionAt: now });
+    const cycle = autoPlanState(base, {
+      lastTransitionAt: now,
+      settlingFromTemperature: currentTemperature,
+    });
     return {
       actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
       nextState: cycle,
@@ -830,7 +859,11 @@ export function planAirconAutoTick({
     }
 
     const fanStep = airconFanStepForTemperatureDelta(delta);
-    const cycle = autoPlanState(cycleBase, { lastMode: running, lastModeAt: currentState.lastModeAt ?? now });
+    const cycle = autoPlanState(cycleBase, {
+      lastMode: running,
+      lastModeAt: currentState.lastModeAt ?? now,
+      settlingFromTemperature: null,
+    });
     return {
       actions: activeAutoActions({
         cycle,
@@ -885,14 +918,32 @@ export function planAirconAutoTick({
     return { ...rest("mode-hold"), wantedMode };
   }
 
-  // A stopped indoor unit has almost no airflow over its enclosed sensor. Do
-  // not act on its post-run drift until the low-airflow thermal response has
-  // had time to settle. An explicit user request still reaches the independent
-  // compressor dwell below; this gate is for autonomous restarts only.
+  const settlingElapsedMs = currentState.lastTransitionAt === null
+    ? Number.POSITIVE_INFINITY
+    : now - currentState.lastTransitionAt;
+  const sameDirectionTrendSupportsRestart =
+    currentState.lastMode === wantedMode &&
+    settlingElapsedMs >= AIRCON_AUTO_MIN_CYCLE_MS &&
+    settlingTrendSupportsSameDirectionRestart({
+      direction: wantedMode,
+      atTransition: currentState.settlingFromTemperature,
+      current: currentTemperature,
+      target: targetTemperature,
+      elapsedMs: settlingElapsedMs,
+      timeConstantMs: AIRCON_SENSOR_TIME_CONSTANT_MS,
+      resumeDriftC: AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES,
+      measurementResolutionC: AIRCON_SENSOR_RESOLUTION_DEGREES,
+    });
+
+  // A stopped indoor unit has almost no airflow over its enclosed sensor. Before
+  // the full fallback timeout, start only when its monotonic post-stop trend and
+  // first-order extrapolated equilibrium both say the unchanged target is still
+  // unmet in the SAME direction. Ambiguous traces wait the full 30 minutes.
   if (
     !reopened &&
     currentState.lastTransitionAt !== null &&
-    now - currentState.lastTransitionAt < AIRCON_SENSOR_SETTLE_MS
+    settlingElapsedMs < AIRCON_SENSOR_SETTLE_MS &&
+    !sameDirectionTrendSupportsRestart
   ) {
     return { ...rest("sensor-settling-hold"), wantedMode };
   }
@@ -920,6 +971,7 @@ export function planAirconAutoTick({
     lastModeAt: modeChanged ? now : currentState.lastModeAt ?? now,
     lastTransitionAt: now,
     recentStartsAt: [...recentStartsAt, now],
+    settlingFromTemperature: null,
   };
 
   return {
@@ -968,6 +1020,7 @@ export class AirconAutoThermostat {
       lastModeAt: this.state.lastModeAt,
       lastTransitionAt: this.state.lastTransitionAt,
       recentStartsAt: this.state.recentStartsAt,
+      settlingFromTemperature: this.state.settlingFromTemperature,
     };
   }
 
@@ -985,6 +1038,8 @@ export class AirconAutoThermostat {
       Math.max(a ?? 0, b ?? 0) || null;
     const durableModeAt = durable.lastModeAt ?? 0;
     const memoryModeAt = this.state.lastModeAt ?? 0;
+    const durableTransitionAt = durable.lastTransitionAt ?? 0;
+    const memoryTransitionAt = this.state.lastTransitionAt ?? 0;
     this.state = {
       ...this.state,
       lastTransitionAt: later(this.state.lastTransitionAt, durable.lastTransitionAt),
@@ -994,6 +1049,12 @@ export class AirconAutoThermostat {
       lastMode: durableModeAt > memoryModeAt ? durable.lastMode ?? this.state.lastMode : this.state.lastMode,
       recentStartsAt: Array.from(new Set([...this.state.recentStartsAt, ...(durable.recentStartsAt ?? [])])),
       sensorPendingSinceAt: this.state.sensorPendingSinceAt ?? durable.sensorPendingSinceAt ?? null,
+      settlingFromTemperature:
+        durableTransitionAt > memoryTransitionAt
+          ? durable.settlingFromTemperature ?? null
+          : memoryTransitionAt > durableTransitionAt
+            ? this.state.settlingFromTemperature
+            : this.state.settlingFromTemperature ?? durable.settlingFromTemperature ?? null,
     };
   }
 
