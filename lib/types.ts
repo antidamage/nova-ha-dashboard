@@ -251,6 +251,8 @@ export type AirconPreferences = {
   autoLastTransitionAt?: number | null;
   /** Trailing-hour start telemetry retained for diagnostics; never a limit. */
   autoRecentStartsAt?: number[];
+  /** Reading at the start of the current post-stop sensor transient. */
+  autoSettlingFromTemperature?: number | null;
   /** See AirconAutoState.sensorPendingSinceAt in lib/aircon-control.ts. */
   autoSensorPendingSinceAt?: number | null;
   updatedAt?: string;

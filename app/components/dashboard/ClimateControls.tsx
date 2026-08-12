@@ -1093,6 +1093,7 @@ function AirConditionerControl({
     autoLastModeAt: preferences?.autoLastModeAt ?? null,
     autoLastTransitionAt: preferences?.autoLastTransitionAt ?? null,
     autoRecentStartsAt: preferences?.autoRecentStartsAt ?? [],
+    autoSettlingFromTemperature: preferences?.autoSettlingFromTemperature ?? null,
   } satisfies AirconPreferences;
   // The selected power state, not the unit's: Auto and Manual both switch the
   // unit OFF at homeostasis, so a resting unit does not mean the user pressed

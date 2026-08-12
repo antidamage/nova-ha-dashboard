@@ -3,6 +3,8 @@ import path from "node:path";
 import {
   AirconAutoThermostat,
   AIRCON_SENSOR_SETTLE_MS,
+  AIRCON_SENSOR_RESOLUTION_DEGREES,
+  AIRCON_SENSOR_TIME_CONSTANT_MS,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
   dashboardAirconEntity,
@@ -57,6 +59,7 @@ type PersistedRoom = {
   overrideReason: string | null;
   lastStopReason: string | null;
   lastTransitionAt: number | null;
+  settlingFromTemperature: number | null;
   sensorPendingSinceAt: number | null;
   recentStartsAt: number[];
   scheduleBlocked: boolean;
@@ -80,6 +83,7 @@ function defaultRoom(): PersistedRoom {
     overrideReason: null,
     lastStopReason: null,
     lastTransitionAt: null,
+    settlingFromTemperature: null,
     sensorPendingSinceAt: null,
     recentStartsAt: [],
     scheduleBlocked: false,
@@ -324,6 +328,7 @@ async function stopAndCancel(room: RoomId, entityId: string, reason: string) {
   persisted[room].lastStopReason = reason;
   persisted[room].lastTransitionAt = now;
   persisted[room].sensorPendingSinceAt = null;
+  persisted[room].settlingFromTemperature = null;
   if (room === "lounge") {
     airconThermostat.resetForUserRequest();
     await executeActions(room, [{ entityId, domain: "climate", service: "turn_off" }]);
@@ -412,16 +417,21 @@ async function tick() {
           targetTemperature: target,
           now,
           lastTransitionAt: persisted.lounge.lastTransitionAt,
+          settlingFromTemperature: persisted.lounge.settlingFromTemperature,
           minOffMs: AIRCON_MIN_OFF_MS,
           sensorSettleMs: AIRCON_SENSOR_SETTLE_MS,
+          sensorResolutionC: AIRCON_SENSOR_RESOLUTION_DEGREES,
+          sensorTimeConstantMs: AIRCON_SENSOR_TIME_CONSTANT_MS,
           resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
         }) : "hold";
         if (decision === "stop") {
           persisted.lounge.lastTransitionAt = now;
+          persisted.lounge.settlingFromTemperature = rawLoungeTemperature;
           persisted.lounge.lastStopReason = "target-reached";
           await executeActions("lounge", [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
         } else if (decision === "start") {
             persisted.lounge.lastTransitionAt = now;
+            persisted.lounge.settlingFromTemperature = null;
             persisted.lounge.recentStartsAt.push(now);
             await executeActions("lounge", [{
               entityId: aircon.entity_id,

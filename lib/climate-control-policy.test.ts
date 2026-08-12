@@ -3,9 +3,11 @@ import {
   COMMANDED_STATE_TIMEOUT_MS,
   actuatorChangeIsExternal,
   climateActionReclaimsOwnership,
+  estimateFirstOrderSettledTemperature,
   planManualAirconTick,
   poweredActuatorRecoveryIsExternal,
   resolveCommandedState,
+  settlingTrendSupportsSameDirectionRestart,
 } from "./climate-control-policy";
 
 describe("climate controller ownership", () => {
@@ -142,8 +144,11 @@ describe("fixed-direction Manual thermostat", () => {
     targetTemperature: 25,
     now: 20 * 60_000,
     lastTransitionAt: 0,
+    settlingFromTemperature: null,
     minOffMs: 10 * 60_000,
     sensorSettleMs: 30 * 60_000,
+    sensorResolutionC: 1,
+    sensorTimeConstantMs: 10 * 60_000,
     resumeDriftC: 1,
   };
 
@@ -175,5 +180,77 @@ describe("fixed-direction Manual thermostat", () => {
       filteredTemperature: 26,
       now: 30 * 60_000 + 1,
     })).toBe("start");
+  });
+
+  it("restarts fixed heat early when the predicted equilibrium still misses the target", () => {
+    expect(planManualAirconTick({
+      ...common,
+      isOn: false,
+      filteredTemperature: 24,
+      rawTemperature: 24,
+      settlingFromTemperature: 25,
+      now: 10 * 60_000 + 1,
+    })).toBe("start");
+  });
+
+  it("restarts fixed cooling early on the symmetric upward trend", () => {
+    expect(planManualAirconTick({
+      ...common,
+      direction: "cool",
+      isOn: false,
+      filteredTemperature: 26,
+      rawTemperature: 26,
+      settlingFromTemperature: 25,
+      now: 10 * 60_000 + 1,
+    })).toBe("start");
+  });
+});
+
+describe("first-order sensor settling estimate", () => {
+  it("projects the equilibrium from the observed ten-minute heat recovery", () => {
+    const estimate = estimateFirstOrderSettledTemperature({
+      atTransition: 24,
+      current: 23,
+      elapsedMs: 10 * 60_000,
+      timeConstantMs: 10 * 60_000,
+    });
+    expect(estimate).toBeCloseTo(22.418, 3);
+  });
+
+  it("accelerates only the original direction and only when its target remains unmet", () => {
+    const common = {
+      atTransition: 24,
+      elapsedMs: 10 * 60_000,
+      timeConstantMs: 10 * 60_000,
+      resumeDriftC: 1,
+      measurementResolutionC: 1,
+      target: 24,
+    };
+    expect(settlingTrendSupportsSameDirectionRestart({ ...common, direction: "heat", current: 23 })).toBe(true);
+    expect(settlingTrendSupportsSameDirectionRestart({ ...common, direction: "heat", current: 25 })).toBe(false);
+    expect(settlingTrendSupportsSameDirectionRestart({ ...common, direction: "cool", current: 25 })).toBe(true);
+    expect(settlingTrendSupportsSameDirectionRestart({ ...common, direction: "cool", current: 23 })).toBe(false);
+  });
+
+  it("does not mistake ordinary recovery from an overshot stop for an unmet target", () => {
+    const common = {
+      elapsedMs: 10 * 60_000,
+      timeConstantMs: 10 * 60_000,
+      resumeDriftC: 1,
+      measurementResolutionC: 1,
+      target: 24,
+    };
+    expect(settlingTrendSupportsSameDirectionRestart({
+      ...common,
+      direction: "heat",
+      atTransition: 25,
+      current: 24,
+    })).toBe(false);
+    expect(settlingTrendSupportsSameDirectionRestart({
+      ...common,
+      direction: "cool",
+      atTransition: 23,
+      current: 24,
+    })).toBe(false);
   });
 });

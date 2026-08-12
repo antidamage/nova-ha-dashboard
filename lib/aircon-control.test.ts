@@ -53,6 +53,7 @@ function restingState(overrides: Partial<AirconAutoState> = {}): AirconAutoState
     lastMode: null,
     lastModeAt: null,
     lastTransitionAt: null,
+    settlingFromTemperature: null,
     recentStartsAt: [],
     lastTargetTemperature: null,
     sensorPendingSinceAt: null,
@@ -288,22 +289,115 @@ test("a resting unit resumes the same direction one degree off target after sett
   assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
 });
 
-test("the live 22 C / 24 C heating case resumes after the 30-minute settling window", () => {
+test("a known downward settling trend resumes the original heating cycle after the compressor dwell", () => {
   const plan = planAirconAutoTick({
-    currentTemperature: 22,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 24 } }),
+    currentTemperature: 23,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 23, temperature: 24 } }),
     now: NOW,
     preferences: { autoMode: true, hvacMode: "heat" },
     state: restingState({
       lastMode: "heat",
       lastModeAt: NOW - 60 * MINUTE,
-      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      lastTransitionAt: NOW - 10 * MINUTE - 1,
+      settlingFromTemperature: 24,
       lastTargetTemperature: 24,
     }),
   });
 
   assert.equal(plan.reason, "driving");
   assert.equal(plan.wantedMode, "heat");
+  assert.deepEqual(actionFor(plan.actions, "set_temperature")?.data, { hvac_mode: "heat", temperature: 24 });
+});
+
+test("the same heating trend cannot bypass the ten-minute compressor dwell", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 23,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 23, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "heat" },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 60 * MINUTE,
+      lastTransitionAt: NOW - 9 * MINUTE,
+      settlingFromTemperature: 24,
+      lastTargetTemperature: 24,
+    }),
+  });
+
+  assert.equal(plan.reason, "sensor-settling-hold");
+  assert.deepEqual(plan.actions, []);
+});
+
+test("a known upward settling trend resumes the original cooling cycle after the compressor dwell", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 25,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 25, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "cool" },
+    state: restingState({
+      lastMode: "cool",
+      lastModeAt: NOW - 60 * MINUTE,
+      lastTransitionAt: NOW - 10 * MINUTE - 1,
+      settlingFromTemperature: 24,
+      lastTargetTemperature: 24,
+    }),
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "cool");
+  assert.deepEqual(actionFor(plan.actions, "set_temperature")?.data, { hvac_mode: "cool", temperature: 24 });
+});
+
+test("a flat or opposite post-stop trace cannot earn an early restart", () => {
+  const common = {
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 23, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "heat" },
+  };
+  const flat = planAirconAutoTick({
+    ...common,
+    currentTemperature: 23,
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 60 * MINUTE,
+      lastTransitionAt: NOW - 15 * MINUTE,
+      settlingFromTemperature: 23,
+      lastTargetTemperature: 24,
+    }),
+  });
+  const opposite = planAirconAutoTick({
+    ...common,
+    currentTemperature: 23,
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 60 * MINUTE,
+      lastTransitionAt: NOW - 15 * MINUTE,
+      settlingFromTemperature: 22,
+      lastTargetTemperature: 24,
+    }),
+  });
+
+  assert.equal(flat.reason, "sensor-settling-hold");
+  assert.equal(opposite.reason, "sensor-settling-hold");
+});
+
+test("a one-degree recovery from an overshot heating stop does not restart early", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 24,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 24, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "heat" },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 60 * MINUTE,
+      lastTransitionAt: NOW - 10 * MINUTE - 1,
+      settlingFromTemperature: 25,
+      lastTargetTemperature: 24,
+    }),
+  });
+
+  assert.equal(plan.reason, "resting");
+  assert.deepEqual(plan.actions, []);
 });
 
 test("a unit already driving keeps going short of target rather than resting", () => {
@@ -781,6 +875,7 @@ test("a turn_off carries the guards too, so the dwell survives a reload", () => 
   });
 
   assert.equal(actionFor(plan.actions, "turn_off")?.remember?.aircon?.autoLastTransitionAt, NOW);
+  assert.equal(actionFor(plan.actions, "turn_off")?.remember?.aircon?.autoSettlingFromTemperature, 22);
 });
 
 test("cycle state read back out of preferences round-trips", () => {
@@ -789,6 +884,7 @@ test("cycle state read back out of preferences round-trips", () => {
     autoLastModeAt: NOW,
     autoLastTransitionAt: NOW - MINUTE,
     autoRecentStartsAt: [NOW - MINUTE],
+    autoSettlingFromTemperature: 24,
   });
 
   assert.deepEqual(state, {
@@ -796,6 +892,7 @@ test("cycle state read back out of preferences round-trips", () => {
     lastModeAt: NOW,
     lastTransitionAt: NOW - MINUTE,
     recentStartsAt: [NOW - MINUTE],
+    settlingFromTemperature: 24,
     sensorPendingSinceAt: null,
   });
 });
@@ -892,6 +989,27 @@ test("reconcile does not let a stale durable copy walk the guards backwards", ()
   assert.equal(state.lastTransitionAt, NOW);
 });
 
+test("reconcile does not attach an older settling origin to a newer start", () => {
+  const thermostat = new AirconAutoThermostat();
+  thermostat.plan({
+    currentTemperature: 18,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 18, temperature: 22 } }),
+    now: NOW,
+    preferences: { autoMode: true },
+  });
+
+  thermostat.reconcile({
+    lastMode: "heat",
+    lastModeAt: NOW - 20 * MINUTE,
+    lastTransitionAt: NOW - 20 * MINUTE,
+    recentStartsAt: [],
+    settlingFromTemperature: 22,
+  });
+
+  assert.equal(thermostat.snapshot().lastTransitionAt, NOW);
+  assert.equal(thermostat.snapshot().settlingFromTemperature, null);
+});
+
 test("a fresh tab picks the guards up from preferences on its first tick", () => {
   // The point of persisting them: without this, a kiosk reload re-armed a
   // compressor that had just stopped.
@@ -913,4 +1031,28 @@ test("a fresh tab picks the guards up from preferences on its first tick", () =>
   });
 
   assert.equal(plan.reason, "sensor-settling-hold");
+});
+
+test("a fresh tab can use the persisted settling origin for an early same-mode restart", () => {
+  const thermostat = new AirconAutoThermostat();
+  thermostat.reconcile(
+    airconAutoCycleStateFromPreferences({
+      autoLastMode: "heat",
+      autoLastModeAt: NOW - 60 * MINUTE,
+      autoLastTransitionAt: NOW - 10 * MINUTE - 1,
+      autoRecentStartsAt: [],
+      autoSettlingFromTemperature: 24,
+    }),
+  );
+
+  const plan = thermostat.plan({
+    currentTemperature: 23,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 23, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "heat" },
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "heat");
+  assert.deepEqual(actionFor(plan.actions, "set_temperature")?.data, { hvac_mode: "heat", temperature: 24 });
 });
