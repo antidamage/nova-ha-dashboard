@@ -59,6 +59,8 @@ const taskCommandDocs = {
     },
   },
   annoy: "Optional. When true the reminder keeps chiming until dismissed. Otherwise it chimes once per occurrence, across all screens.",
+  follows:
+    "Optional. Schedules this reminder from another reminder's completion instead of a clock interval: { taskId, offsetDays, hour }. Completing the anchor moves this reminder to offsetDays later at that local hour and clears its completion. Mutually exclusive with repeat.",
   repeatFormats: [
     { kind: "hourly" },
     { kind: "morning-night" },
@@ -101,6 +103,7 @@ async function runJsonCommand(command: TaskCommand, body: Record<string, unknown
       end: body.end,
       repeat: body.repeat,
       annoy: body.annoy,
+      follows: body.follows,
       source: "local",
     });
     return NextResponse.json(task);
