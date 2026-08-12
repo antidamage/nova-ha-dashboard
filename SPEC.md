@@ -643,6 +643,10 @@ Zone lighting UI:
   controllable light devices.
 - Local spectrum state is retained during the 10 second lighting remote-setting
   hold to avoid visual flicker and slider rubber-banding.
+- The intensity control never interpolates. It takes every value whole via
+  `DotLineControl`'s `snapRemote`, so its number and thumb are always a real
+  value and never a frame of an animation between two of them. Other sliders
+  keep the eased glide on incoming values; the prop is opt-in per control.
 - The intensity control shows the brightness that was entered until the zone
   reports having reached it (within 3 percent), not for a fixed time. A zone's
   reported brightness is an average over its lit fixtures, each fading at its

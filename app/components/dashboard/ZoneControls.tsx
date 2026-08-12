@@ -133,6 +133,7 @@ function IntensityControl({
             intensity={brightness}
             max={100}
             min={0}
+            snapRemote
             step={1}
             value={brightness}
             onChange={(value) => {

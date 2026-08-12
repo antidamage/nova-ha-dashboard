@@ -13,6 +13,9 @@ the named component before introducing a one-off equivalent.
   `app/components/DotControls.tsx`. These are Nova's custom magnitude/step
   slider and colour-spectrum controls. They are used by `SliderControlPanel`,
   camera/climate settings, and zone brightness/colour controls.
+  `DotLineControl` eases its thumb toward incoming values by default; pass
+  `snapRemote` for a control whose displayed number must always be a real value
+  rather than a frame of that animation (zone intensity does).
 - `DotRangeControl` — `app/components/DotControls.tsx`. This is Nova's
   two-thumb, touch-sized minimum/maximum range control. Use it through
   `RangeSliderControlPanel` for driven visualiser parameters and future bounded

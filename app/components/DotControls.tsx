@@ -127,8 +127,11 @@ function isBottomGestureBlindSpot(event: React.PointerEvent<HTMLElement>) {
 
 // Animates a 1D number toward target, snapping during local drag and easing on remote changes.
 // In lite mode the easing rAF loop is skipped and remote changes snap directly.
-function useRemoteEasedNumber(target: number) {
-  const lite = useLiteMode();
+// `snapRemote` opts a control out of the easing entirely: its value is always the
+// exact target, never a frame part-way there. Used where the number shown must be
+// the value that was set — see DotLineControl's `snapRemote` prop.
+function useRemoteEasedNumber(target: number, snapRemote = false) {
+  const lite = useLiteMode() || snapRemote;
   const [displayValue, setDisplayValue] = useState(target);
   const [releaseRevision, setReleaseRevision] = useState(0);
   const displayValueRef = useRef(target);
@@ -318,6 +321,7 @@ export function DotLineControl({
   min = 0,
   onChange,
   onCommit,
+  snapRemote = false,
   snapTolerance,
   snapValue,
   step: requestedStep = 1,
@@ -342,6 +346,11 @@ export function DotLineControl({
   min?: number;
   onChange: (value: number) => void;
   onCommit?: (value: number) => void;
+  /** Take incoming values instantly instead of easing the thumb toward them, so the
+   *  slider only ever shows a real value — never a frame of an animation between
+   *  two of them. Set for controls whose number must be exactly what was set (zone
+   *  intensity); left off elsewhere, where the glide is wanted. */
+  snapRemote?: boolean;
   /** Magnetic zone around `snapValue` (in value units). When a pointer drag lands
    *  within it, the value snaps exactly to `snapValue`. Defaults to a couple of
    *  steps / ~3% of the range so a fixed default marker is easy to settle on. */
@@ -360,7 +369,10 @@ export function DotLineControl({
   const incomingValueHoldUntilRef = useRef(0);
   const [interacting, setInteracting] = useState(false);
   const [lineWidth, setLineWidth] = useState(0);
-  const { displayValue, releaseLocalValue, releaseRevision, setLocalValue } = useRemoteEasedNumber(value);
+  const { displayValue, releaseLocalValue, releaseRevision, setLocalValue } = useRemoteEasedNumber(
+    value,
+    snapRemote,
+  );
   const range = Math.max(step, max - min);
   const displayRatio = clamp((displayValue - min) / range, 0, 1);
   // Thumb centre is inset by half its width so it never overflows the track ends;

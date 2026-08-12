@@ -91,6 +91,51 @@ describe("DotLineControl reconciliation hold", () => {
   });
 });
 
+describe("DotLineControl snapRemote", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-20T00:00:00Z"));
+    // Full experience mode: lite already snaps, so the easing path is only
+    // reachable — and this prop only meaningful — here.
+    window.localStorage.setItem("nova.dashboard.experienceMode.v1", "full");
+    resetControlInteractionCooldownForTests();
+  });
+
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+    resetControlInteractionCooldownForTests();
+    vi.useRealTimers();
+  });
+
+  it("takes an incoming value whole instead of easing the thumb toward it", () => {
+    const view = render(
+      <DotLineControl ariaLabel="Snapping slider" max={100} min={0} snapRemote step={1} value={20} onChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("slider")).toHaveAttribute("aria-valuenow", "20");
+
+    view.rerender(
+      <DotLineControl ariaLabel="Snapping slider" max={100} min={0} snapRemote step={1} value={80} onChange={vi.fn()} />,
+    );
+
+    // No animation frames have run, so an eased control would still be at 20.
+    expect(screen.getByRole("slider")).toHaveAttribute("aria-valuenow", "80");
+  });
+
+  it("still eases when the prop is not set, so other sliders keep their glide", () => {
+    const view = render(
+      <DotLineControl ariaLabel="Easing slider" max={100} min={0} step={1} value={20} onChange={vi.fn()} />,
+    );
+
+    view.rerender(
+      <DotLineControl ariaLabel="Easing slider" max={100} min={0} step={1} value={80} onChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole("slider")).toHaveAttribute("aria-valuenow", "20");
+  });
+});
+
 describe("DotEnvelopeControl", () => {
   afterEach(cleanup);
 
