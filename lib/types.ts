@@ -243,12 +243,13 @@ export type AirconPreferences = {
    * It lives in preferences because the thermostat loop runs per browser tab: a
    * 30-minute direction hold kept only in a ref would reset on every kiosk
    * reload, and two open dashboards would each keep their own idea of when the
-   * compressor last started. It rides along on the `remember` payloads the loop
-   * already writes with every transition, so it adds no preference writes.
+   * compressor last transitioned. It rides along on the `remember` payloads the
+   * loop already writes with every transition, so it adds no preference writes.
    */
   autoLastMode?: "heat" | "cool" | null;
   autoLastModeAt?: number | null;
   autoLastTransitionAt?: number | null;
+  /** Trailing-hour start telemetry retained for diagnostics; never a limit. */
   autoRecentStartsAt?: number[];
   /** See AirconAutoState.sensorPendingSinceAt in lib/aircon-control.ts. */
   autoSensorPendingSinceAt?: number | null;

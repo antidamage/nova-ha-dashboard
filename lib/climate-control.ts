@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   AirconAutoThermostat,
+  AIRCON_SENSOR_SETTLE_MS,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
   dashboardAirconEntity,
@@ -41,10 +42,9 @@ import {
 const STATE_PATH = process.env.NOVA_CLIMATE_CONTROL_STATE ?? path.join(process.cwd(), "data", "climate-control.json");
 const POLL_MS = 5_000;
 const COMMAND_SETTLE_MS = 12_000;
-const AIRCON_RESTART_DRIFT_C = 3;
+const AIRCON_SAME_DIRECTION_RESUME_DRIFT_C = 1;
 const AIRCON_MIN_OFF_MS = 10 * 60_000;
 const AIRCON_START_WINDOW_MS = 60 * 60_000;
-const AIRCON_MAX_STARTS_PER_HOUR = 3;
 
 type RoomId = "lounge" | "bedroom";
 type Direction = "heat" | "cool" | "fan_only";
@@ -412,10 +412,9 @@ async function tick() {
           targetTemperature: target,
           now,
           lastTransitionAt: persisted.lounge.lastTransitionAt,
-          recentStartsAt: persisted.lounge.recentStartsAt,
           minOffMs: AIRCON_MIN_OFF_MS,
-          resumeDriftC: AIRCON_RESTART_DRIFT_C,
-          maxStartsPerHour: AIRCON_MAX_STARTS_PER_HOUR,
+          sensorSettleMs: AIRCON_SENSOR_SETTLE_MS,
+          resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
         }) : "hold";
         if (decision === "stop") {
           persisted.lounge.lastTransitionAt = now;

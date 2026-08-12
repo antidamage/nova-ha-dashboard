@@ -26,23 +26,38 @@ export const AIRCON_AUTO_POLL_MS = 1_000;
  */
 
 /**
- * Off at target, but do not restart until the reading is this far past it. Wide
- * hysteresis rather than a symmetric band: the reading swings 2-3 C on every
- * compressor transition, so a band narrower than that is noise, not measurement.
+ * A reversal still needs this much evidence after the sensor has settled. The
+ * reading swings 2-3 C on compressor transitions, so a smaller cross-direction
+ * threshold could turn residual heat/cold around the indoor unit into a reversal.
  *
  * A target the USER moved bypasses this (see reopened, below) — the threshold
  * exists to ignore a drifting sensor, never to ignore a person.
  */
-const AIRCON_AUTO_RESUME_DEGREES = 3;
+const AIRCON_AUTO_DIRECTION_CHANGE_DEGREES = 3;
+/** The Gree reports whole degrees, so this is the smallest observable drift. */
+const AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES = 1;
 /**
- * Flip-flop guard: having chosen a direction, hold it this long. Also the
- * settling time the thermistor needs before its reading means anything again.
- * Caps Auto at two direction changes an hour.
+ * How long an off Gree sensor is left to return toward room air before its
+ * reading may START the compressor again.
+ *
+ * Nova's 2026-08-11 HA history has the reading continue moving for 14-21
+ * minutes after heat stops. Laboratory work on common enclosed HVAC room
+ * sensors measured low-airflow cooling time constants around 9-11 minutes
+ * (Hayashi et al., 2002, DOI 10.18948/shase.27.84_31); a first-order thermal
+ * sensor is about 95% settled after three time constants. Thirty minutes is
+ * therefore a conservative, evidence-based estimate for this unforced indoor
+ * unit. Once it expires, a one-degree same-direction error is actionable.
+ *
+ * This is intentionally asymmetric. A running sensor reaching target may stop
+ * the unit immediately: a possibly early stop is safe, while a possibly early
+ * start is the transition that caused the observed flip-flopping.
  */
+export const AIRCON_SENSOR_SETTLE_MS = 30 * 60_000;
+/** Flip-flop guard: having chosen a direction, hold it this long. */
 const AIRCON_AUTO_MODE_HOLD_MS = 30 * 60_000;
 /** Dwell before STARTING the compressor again, matching BEDROOM_HEATER_MIN_CYCLE_MS. */
 const AIRCON_AUTO_MIN_CYCLE_MS = 10 * 60_000;
-const AIRCON_AUTO_MAX_STARTS_PER_HOUR = 3;
+/** Retain one hour of start telemetry; it is not a start limit. */
 const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
 /**
  * How long Auto is allowed to run with NO usable room-temperature reading
@@ -88,20 +103,25 @@ type ActiveAirconMode = "heat" | "cool";
  * rests off until the room drifts far enough out, at which point the loop turns
  * it on again.
  *
- * The hysteresis is asymmetric and deliberately so: cut off AT target, resume
- * only AIRCON_AUTO_RESUME_DEGREES past it. Which side of that hysteresis we are
- * on is read from the unit itself (is it running in heat or cool?) rather than
- * from a local flag, so every dashboard client and every page reload agree
- * without sharing anything.
+ * The hysteresis is asymmetric and deliberately so: cut off AT target, wait for
+ * AIRCON_SENSOR_SETTLE_MS, then resume the SAME direction on the first whole
+ * degree of drift. A direction reversal still needs three degrees of evidence.
+ * Which side of that hysteresis we are on is read from the unit itself (is it
+ * running in heat or cool?) rather than from a local flag, so every dashboard
+ * client and every page reload agree without sharing anything.
  *
- * Three rate limits sit on top, because the measurement cannot be trusted to
- * mean what it says:
+ * Three transition guards sit on top, because the measurement cannot be trusted
+ * to mean what it says:
  *
  *   - a 30-minute hold on changing direction (AIRCON_AUTO_MODE_HOLD_MS),
+ *   - a 30-minute post-stop sensor-settling gate on autonomous starts,
  *   - a 10-minute dwell before restarting the compressor,
- *   - at most AIRCON_AUTO_MAX_STARTS_PER_HOUR starts in any hour.
  *
- * None of them can stop the unit turning OFF. Stopping is always safe and always
+ * There is deliberately no starts-per-hour cap. Fixed Heat may heat again and
+ * fixed Cool may cool again whenever the sensor-settling and compressor dwell
+ * gates clear. The 30-minute settling gate itself prevents rapid cycling.
+ *
+ * None of these guards can stop the unit turning OFF. Stopping is always safe and always
  * cheap; a guard that delays it would leave the unit driving the room the wrong
  * way. Only starting is rate-limited.
  *
@@ -118,11 +138,11 @@ export type AirconAutoState = {
   lastModeAt: number | null;
   /** Last on/off/mode change, for the minimum-cycle dwell. */
   lastTransitionAt: number | null;
-  /** Compressor starts, oldest first, pruned to the trailing hour. */
+  /** Start telemetry, oldest first, pruned to the trailing hour; never a limit. */
   recentStartsAt: number[];
   /**
    * Tracks the target so a setpoint the USER moved reopens a resting cycle.
-   * Without it a warmer target sits ignored until the room drifts three degrees,
+   * Without it a new comfort request can sit behind the sensor-settling gate,
    * which reads as a dead control. Auto only ever writes back the target it read,
    * so it cannot trip this itself.
    */
@@ -159,8 +179,8 @@ export type AirconAutoReason =
   | "reached-target"
   | "resting"
   | "mode-hold"
+  | "sensor-settling-hold"
   | "min-cycle-hold"
-  | "starts-per-hour-hold"
   | "unsupported-direction";
 
 export type AirconAutoPlan = {
@@ -652,7 +672,7 @@ export function planAirconAutoTick({
   const targetChanged =
     currentState.lastTargetTemperature !== null && currentState.lastTargetTemperature !== targetTemperature;
   // A setpoint change reopens the comfort decision, but it must not erase the
-  // compressor dwell, direction hold, or starts-per-hour history.
+  // compressor dwell, direction hold, or diagnostic start history.
   const reopened = targetChanged || forceRemember;
   const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
 
@@ -694,15 +714,14 @@ export function planAirconAutoTick({
       return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
     }
 
-    // Respect the normal start guards even for a blind attempt, so a sensor
-    // that flaps between missing and present cannot short-cycle the compressor.
+    // Respect the hardware guards even for a blind attempt, so a sensor that
+    // flaps between missing and present cannot short-cycle the compressor.
     const holdBlocked =
       (currentState.lastMode &&
         currentState.lastMode !== attemptMode &&
         currentState.lastModeAt !== null &&
         now - currentState.lastModeAt < AIRCON_AUTO_MODE_HOLD_MS) ||
-      (currentState.lastTransitionAt !== null && now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS) ||
-      recentStartsAt.length >= AIRCON_AUTO_MAX_STARTS_PER_HOUR;
+      (currentState.lastTransitionAt !== null && now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS);
 
     if (holdBlocked) {
       return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
@@ -802,8 +821,8 @@ export function planAirconAutoTick({
   //
   // While driving, the wanted direction cannot disagree with the running one —
   // "not yet at target" and "wanted the other way" are contradictory — so no
-  // reversal is reachable from here at all. The asymmetric hysteresis lives in
-  // the two thresholds: off AT target below, resume RESUME_DEGREES past it.
+  // reversal is reachable from here at all. The asymmetric behavior is: stop at
+  // target now, but only restart from the trusted post-settling reading below.
   if (running) {
     const reachedTarget = running === "heat" ? currentTemperature >= targetTemperature : currentTemperature <= targetTemperature;
     if (reachedTarget) {
@@ -834,13 +853,16 @@ export function planAirconAutoTick({
   // ---- Resting: decide whether to start, and whether we are allowed to. ----
   //
   // A target the user moved (or a freshly pressed Auto) only has to point away
-  // from the room at all; a drifting reading has to be RESUME_DEGREES out.
-  const needsDriving = reopened ? absDelta > 0 : absDelta >= AIRCON_AUTO_RESUME_DEGREES;
+  // from the room at all. Normal same-direction cycling resumes on the first
+  // whole degree after the off sensor has settled; a reversal needs three.
+  const wantedMode = desiredModeForDelta(delta);
+  const resumeDegrees = currentState.lastMode && currentState.lastMode !== wantedMode
+    ? AIRCON_AUTO_DIRECTION_CHANGE_DEGREES
+    : AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES;
+  const needsDriving = reopened ? absDelta > 0 : absDelta >= resumeDegrees;
   if (!needsDriving) {
     return rest("resting");
   }
-
-  const wantedMode = desiredModeForDelta(delta);
 
   if (!airconSupportsHvacMode(entity, wantedMode)) {
     // Can't drive the room toward target in the needed direction; rest rather
@@ -863,6 +885,18 @@ export function planAirconAutoTick({
     return { ...rest("mode-hold"), wantedMode };
   }
 
+  // A stopped indoor unit has almost no airflow over its enclosed sensor. Do
+  // not act on its post-run drift until the low-airflow thermal response has
+  // had time to settle. An explicit user request still reaches the independent
+  // compressor dwell below; this gate is for autonomous restarts only.
+  if (
+    !reopened &&
+    currentState.lastTransitionAt !== null &&
+    now - currentState.lastTransitionAt < AIRCON_SENSOR_SETTLE_MS
+  ) {
+    return { ...rest("sensor-settling-hold"), wantedMode };
+  }
+
   // Minimum dwell before restarting the compressor. Unlike the bedroom heater's
   // equivalent this gates STARTS ONLY — see the header note on why a guard must
   // never be the reason the unit keeps running.
@@ -876,10 +910,6 @@ export function planAirconAutoTick({
     now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS
   ) {
     return { ...rest("min-cycle-hold"), wantedMode };
-  }
-
-  if (recentStartsAt.length >= AIRCON_AUTO_MAX_STARTS_PER_HOUR) {
-    return { ...rest("starts-per-hour-hold"), wantedMode };
   }
 
   const fanStep = airconFanStepForTemperatureDelta(delta);
@@ -926,7 +956,7 @@ export class AirconAutoThermostat {
    *
    * reset() used to run on every autoMode transition, and on
    * a compressor that must not also wipe the dwell, the direction hold and the
-   * hourly start count — that is exactly how the bedroom heater ended up flapping
+   * start history — that is exactly how the bedroom heater ended up flapping
    * a 2 kW relay three times in twelve seconds on 2026-08-08. Breaking the
    * direction hold is a deliberate act with its own rules (see ClimateControls),
    * not a side effect of pressing a button.

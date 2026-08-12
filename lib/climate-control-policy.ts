@@ -91,10 +91,9 @@ export function planManualAirconTick(input: {
   targetTemperature: number;
   now: number;
   lastTransitionAt: number | null;
-  recentStartsAt: number[];
   minOffMs: number;
+  sensorSettleMs: number;
   resumeDriftC: number;
-  maxStartsPerHour: number;
 }) {
   const reachedTarget = input.rawTemperature !== null &&
     (input.direction === "heat"
@@ -106,7 +105,8 @@ export function planManualAirconTick(input: {
     ? input.filteredTemperature <= input.targetTemperature - input.resumeDriftC
     : input.filteredTemperature >= input.targetTemperature + input.resumeDriftC;
   const dwellDone = input.lastTransitionAt === null || input.now - input.lastTransitionAt >= input.minOffMs;
-  return drifted && dwellDone && input.recentStartsAt.length < input.maxStartsPerHour
+  const sensorSettled = input.lastTransitionAt === null || input.now - input.lastTransitionAt >= input.sensorSettleMs;
+  return drifted && dwellDone && sensorSettled
     ? "start" as const
     : "hold" as const;
 }

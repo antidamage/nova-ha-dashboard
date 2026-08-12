@@ -10,12 +10,26 @@ recent fresh reports for starts and Auto direction selection.
 
 - Heat stops immediately at or above target.
 - Cool stops immediately at or below target.
-- Manual later resumes only its selected direction after a 3 °C drift.
+- A stopped unit waits 30 minutes for its low-airflow sensor to settle.
+- Heat then resumes heat, and Cool resumes cool, on the first whole-degree
+  error (the sensor reports only whole degrees).
 - Auto may choose a direction only while resting.
 - Fan-only Manual is continuous and sensor-independent.
-- Starts observe a 10-minute off-dwell and three-starts-per-hour cap.
-- Auto direction changes observe a 30-minute hold.
-- No guard may delay a stop or permit direct heat↔cool reversal.
+- Starts still observe a 10-minute compressor off-dwell, including explicit
+  user requests made before the longer sensor-settling window expires.
+- Heating and cooling have no starts-per-hour cap. The 30-minute sensor gate
+  bounds autonomous cycling without delaying later valid calls for the same
+  direction.
+- Auto direction changes observe a 30-minute hold and require a 3 C error.
+- No guard may delay a stop or permit a direct heat-to-cool reversal.
+
+The 30-minute estimate is based on both this unit and published sensor physics.
+Home Assistant history on 2026-08-11 shows the Gree reading still moving 14-21
+minutes after heat stopped. Hayashi et al. measured low-airflow cooling time
+constants of roughly 9-11 minutes for common enclosed HVAC room sensors
+(DOI 10.18948/shase.27.84_31); a first-order sensor is approximately 95%
+settled after three time constants. Thirty minutes is therefore conservative
+without retaining the former 1-3 hour comfort lockout.
 
 Auto may wait two minutes for a usable temperature. Timeout turns the unit off,
 clears Auto, and requires a later Nova action. It does not retry forever.
