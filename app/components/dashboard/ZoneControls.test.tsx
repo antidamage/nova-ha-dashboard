@@ -2,7 +2,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DashboardEntity, DashboardZone, RouterStatus } from "../../../lib/types";
-import { LIGHT_REMOTE_SETTING_HOLD_MS } from "./lighting";
+import { REMOTE_SETTING_MIN_HOLD_MS, REMOTE_SETTING_SETTLE_MS } from "./useRemoteSetting";
 import { ZoneControls } from "./ZoneControls";
 
 type DotLineControlProps = {
@@ -170,31 +170,59 @@ describe("ZoneControls", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Sleep Studio Desktop" })).toBeInTheDocument());
   });
 
-  it("holds local lighting brightness before accepting remote averages", () => {
+  it("shows the set brightness while the zone fades toward it, never the fade", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-02T00:00:00Z"));
 
-    const { rerender } = render(renderZoneControls(loungeZone({ brightnessPct: 45 })));
+    const { rerender } = render(renderZoneControls(loungeZone({ brightnessPct: 100 })));
 
-    expect(latestLineControl?.value).toBe(45);
-
-    act(() => {
-      latestLineControl?.onChange(100);
-    });
-    expect(latestLineControl?.value).toBe(100);
-
-    rerender(renderZoneControls(loungeZone({ brightnessPct: 45 })));
     expect(latestLineControl?.value).toBe(100);
 
     act(() => {
-      vi.advanceTimersByTime(LIGHT_REMOTE_SETTING_HOLD_MS - 1);
+      latestLineControl?.onChange(40);
     });
-    expect(latestLineControl?.value).toBe(100);
+    expect(latestLineControl?.value).toBe(40);
+
+    // Mid-fade zone averages keep arriving and must never reach the control,
+    // however long the fade takes.
+    for (const fadingPct of [100, 92, 78, 61, 49]) {
+      rerender(renderZoneControls(loungeZone({ brightnessPct: fadingPct })));
+      act(() => {
+        vi.advanceTimersByTime(REMOTE_SETTING_SETTLE_MS - 1);
+      });
+      expect(latestLineControl?.value).toBe(40);
+    }
+
+    // Arrived: a fixture settling a point off still reads as the set value.
+    rerender(renderZoneControls(loungeZone({ brightnessPct: 39 })));
+    act(() => {
+      vi.advanceTimersByTime(REMOTE_SETTING_MIN_HOLD_MS + REMOTE_SETTING_SETTLE_MS);
+    });
+    expect(latestLineControl?.value).toBe(40);
+  });
+
+  it("adopts a brightness change made elsewhere once it settles", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-02T00:00:00Z"));
+
+    const { rerender } = render(renderZoneControls(loungeZone({ brightnessPct: 100 })));
 
     act(() => {
-      vi.advanceTimersByTime(1);
+      latestLineControl?.onChange(40);
     });
-    expect(latestLineControl?.value).toBe(45);
+    expect(latestLineControl?.value).toBe(40);
+
+    // Something else set the zone to 80 and it stays there.
+    rerender(renderZoneControls(loungeZone({ brightnessPct: 80 })));
+    act(() => {
+      vi.advanceTimersByTime(REMOTE_SETTING_SETTLE_MS);
+    });
+    expect(latestLineControl?.value).toBe(40);
+
+    act(() => {
+      vi.advanceTimersByTime(REMOTE_SETTING_MIN_HOLD_MS);
+    });
+    expect(latestLineControl?.value).toBe(80);
   });
 
   it("sends lighting commands only when the control is released, not while dragging", () => {

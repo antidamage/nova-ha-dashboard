@@ -26,6 +26,7 @@ import {
   type LoungeEnvironment,
 } from "./shared";
 import {
+  BRIGHTNESS_CONVERGENCE_TOLERANCE_PCT,
   CANDLELIGHT_SPECTRUM,
   LIGHT_REMOTE_SETTING_HOLD_MS,
   WHITE_SPECTRUM,
@@ -38,6 +39,15 @@ import {
   type SpectrumValue,
 } from "./lighting";
 import { useRemoteSetting } from "./useRemoteSetting";
+
+/**
+ * Whether a zone's reported brightness has reached what was set. The zone value
+ * is an average over its lit fixtures, so allow for per-fixture rounding of the
+ * commanded percent into Home Assistant's `0..255` scale.
+ */
+function brightnessPctConverged(remotePct: number, localPct: number) {
+  return Math.abs(remotePct - localPct) <= BRIGHTNESS_CONVERGENCE_TOLERANCE_PCT;
+}
 
 function spectrumValuesEqual(left: SpectrumValue, right: SpectrumValue) {
   return (
@@ -180,9 +190,9 @@ export function ZoneControls({
     [spectrumCursor?.x, spectrumCursor?.y, zone],
   );
   const { setLocalValue: setLocalBrightness, value: brightness } = useRemoteSetting({
+    isConverged: brightnessPctConverged,
     key: zone.id,
     remoteValue: zone.brightnessPct,
-    timeoutMs: LIGHT_REMOTE_SETTING_HOLD_MS,
   });
   const { setLocalValue: setLocalSpectrum, value: spectrum } = useRemoteSetting({
     isEqual: spectrumValuesEqual,

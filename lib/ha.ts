@@ -25,12 +25,23 @@ import {
 } from "./lighting-presets";
 import { callService, haRest, subscribeHaStateChanges } from "./ha/client";
 import { SupersededLightingCommandError } from "./lighting-command-coordinator";
+import {
+  brightnessPctFromAttribute,
+  claimLightingBrightnessTargets,
+  lightingBrightnessTargetEntityIds,
+  lightingBrightnessTargetFor,
+  needsBrightnessConvergence,
+  releaseLightingBrightnessTarget,
+  releaseLightingBrightnessTargets,
+  LIGHTING_CONVERGENCE_RETRY_DELAYS_MS,
+} from "./lighting-convergence";
 import { isEntityOn } from "./entity-semantics";
 import { DEFAULT_SUPPORT_SWITCH_RE } from "./ha/entities";
 import { lightLayerEntities } from "./ha/zones";
 import { buildDashboardState } from "./state";
 import {
   deferLightingForHouseParty,
+  hasActiveHousePartySession,
   housePartyIgnoresBrightness,
   isHousePartyZoneSuppressed,
   setHousePartyZonePower,
@@ -263,6 +274,51 @@ async function rememberAdaptiveCandlelightZone(zoneId: string, enabled: boolean,
   });
 }
 
+/**
+ * Mark every adaptive zone containing these entities as already settled for the
+ * current sun state.
+ *
+ * The scheduled transition (`applyAdaptiveCandlelightTransitions`) fires when a
+ * zone's remembered sun state differs from the live one, and it re-drives the
+ * zone's on-lights to the adaptive brightness for that state — 100% by day.
+ * Overnight it has nothing to act on, so the pending sunrise transition sits
+ * there until lights come on, and then the next 60s tick overwrites whatever
+ * brightness was just chosen. Stamping the sun state when the user sets a
+ * brightness or colour themselves is what consumes that pending transition: the
+ * value they just entered *is* the current intent for this sun state, and the
+ * next real horizon crossing still transitions normally.
+ *
+ * Every overlapping zone is stamped, not just the commanded one, because the
+ * aggregate "Home" zone contains the same lights — leaving its transition
+ * pending would let it override a single room's edit.
+ */
+async function acknowledgeAdaptiveSunStateForEntities(
+  dashboard: DashboardState,
+  entities: DashboardEntity[],
+) {
+  const sunState = normalizedSunState(dashboard.sun);
+  if (!sunState) {
+    return;
+  }
+
+  const adaptiveZones = dashboard.preferences.lighting?.adaptiveCandlelightZones ?? {};
+  const entityIds = new Set(entities.map((entity) => entity.entity_id));
+
+  for (const zone of dashboard.zones) {
+    const preference = adaptiveZones[zone.id];
+    // A zone that is not following adaptive candlelight, or is already stamped
+    // with the live sun state, has no pending transition to consume.
+    if (!preference?.enabled || preference.lastSunState === sunState) {
+      continue;
+    }
+    if (!zone.entities.some((entity) => entityIds.has(entity.entity_id))) {
+      continue;
+    }
+
+    await rememberAdaptiveCandlelightZone(zone.id, true, sunState);
+  }
+}
+
 async function callMany(tasks: Promise<unknown>[]) {
   const results = await Promise.allSettled(tasks);
   const failures = results.filter((result) => result.status === "rejected") as PromiseRejectedResult[];
@@ -436,6 +492,20 @@ export async function setZoneAction(input: {
       }),
     ]);
     assertLatestCommandCurrent(input);
+
+    // The brightness just entered is the zone's intent for this sun state, so
+    // the pending sunrise/sunset transition must not overwrite it, and the
+    // lights must actually arrive at it rather than wherever a fade stopped.
+    await acknowledgeAdaptiveSunStateForEntities(dashboard, lightPlan.active);
+    assertLatestCommandCurrent(input);
+    scheduleLightingBrightnessConvergence(
+      claimLightingBrightnessTargets(
+        lightPlan.active
+          .filter((entity) => supportsBrightness(entity) && !isPinnedLightEntity(entity, dashboard.lighting))
+          .map((entity) => ({ entityId: entity.entity_id, brightnessPct: brightness })),
+      ),
+    );
+
     return buildDashboardState();
   }
 
@@ -464,6 +534,9 @@ export async function setZoneAction(input: {
     ]);
     assertLatestCommandCurrent(input);
     await rememberAdaptiveCandlelightZone(input.zoneId, false, normalizedSunState(dashboard.sun));
+    // Overlapping zones (notably aggregate "Home") keep their own adaptive
+    // memory, so their pending transition would otherwise repaint this colour.
+    await acknowledgeAdaptiveSunStateForEntities(dashboard, lightPlan.active);
     assertLatestCommandCurrent(input);
     return buildDashboardState();
   }
@@ -849,6 +922,83 @@ export async function setAllLightingAction(input: {
   return buildDashboardState();
 }
 
+/**
+ * Check back on a commanded brightness and re-drive anything that did not get
+ * there. Bulbs ease toward a target and occasionally stop short; without this
+ * the dashboard shows what was asked for while the room sits at something else.
+ *
+ * Bounded on purpose — a fixed, short retry schedule that then forgets the
+ * target — so it corrects a fade that missed without ever becoming a standing
+ * override of a change made from Home Assistant, a wall switch, or voice.
+ */
+function scheduleLightingBrightnessConvergence(token: number, attempt = 0) {
+  const delayMs = LIGHTING_CONVERGENCE_RETRY_DELAYS_MS[attempt];
+  if (delayMs === undefined) {
+    releaseLightingBrightnessTargets(token);
+    return;
+  }
+  if (!lightingBrightnessTargetEntityIds(token).length) {
+    return;
+  }
+
+  const timer = setTimeout(() => {
+    void runLightingBrightnessConvergence(token, attempt);
+  }, delayMs);
+  timer.unref?.();
+}
+
+async function runLightingBrightnessConvergence(token: number, attempt: number) {
+  const entityIds = lightingBrightnessTargetEntityIds(token);
+  if (!entityIds.length) {
+    return;
+  }
+
+  // A house party drives the lights on its own cadence; correcting toward an
+  // older manual brightness mid-party would fight it.
+  if (hasActiveHousePartySession()) {
+    releaseLightingBrightnessTargets(token);
+    return;
+  }
+
+  try {
+    const dashboard = await buildDashboardState();
+    const tasks: Promise<unknown>[] = [];
+
+    for (const entityId of entityIds) {
+      const targetPct = lightingBrightnessTargetFor(entityId, token);
+      if (targetPct === null) {
+        // A newer command owns this light now; its own follow-up applies.
+        continue;
+      }
+
+      const entity = dashboard.entities.find((candidate) => candidate.entity_id === entityId);
+      // Turned off, gone, or unavailable since the command: the target is void.
+      if (!entity || entity.domain !== "light" || entity.state !== "on") {
+        releaseLightingBrightnessTarget(entityId, token);
+        continue;
+      }
+
+      const currentPct = brightnessPctFromAttribute(numericAttribute(entity, "brightness"));
+      if (!needsBrightnessConvergence(currentPct, targetPct)) {
+        releaseLightingBrightnessTarget(entityId, token);
+        continue;
+      }
+
+      tasks.push(
+        callLightingService("light", "turn_on", { entity_id: entityId, brightness_pct: targetPct }),
+      );
+    }
+
+    if (tasks.length) {
+      await callMany(tasks);
+    }
+  } catch (error) {
+    console.error("[nova-dashboard] brightness convergence check failed", { error });
+  }
+
+  scheduleLightingBrightnessConvergence(token, attempt + 1);
+}
+
 export async function applyAdaptiveCandlelightTransitions(housePartyBypass = false) {
   if (!housePartyBypass && deferLightingForHouseParty("automation:adaptive-candlelight", async () => {
     await applyAdaptiveCandlelightTransitions(true);
@@ -878,6 +1028,12 @@ export async function applyAdaptiveCandlelightTransitions(housePartyBypass = fal
 
     const zoneActiveLights = zone.entities.filter((entity) => entity.domain === "light" && entity.state === "on");
     if (!zoneActiveLights.length) {
+      // Nothing on to transition, so this crossing is done for the zone. Stamp
+      // it rather than leaving the transition pending: the turn-on paths already
+      // apply the preset for the live sun state themselves, so a stale stamp
+      // only lets this pass ambush the next manual set — which is what made a
+      // dimmed morning zone jump to full a minute later.
+      await rememberAdaptiveCandlelightZone(zoneId, true, sunState);
       continue;
     }
 
