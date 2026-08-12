@@ -26,6 +26,7 @@ export const REMOTE_SETTING_MIN_HOLD_MS = 12000;
 export function useRemoteSetting<T>({
   isConverged,
   isEqual = Object.is,
+  isTransitional = false,
   key,
   minHoldMs = REMOTE_SETTING_MIN_HOLD_MS,
   onRemoteAccept,
@@ -40,6 +41,13 @@ export function useRemoteSetting<T>({
    */
   isConverged?: (remote: T, local: T) => boolean;
   isEqual?: (left: T, right: T) => boolean;
+  /**
+   * The server has told us this reading is mid-transition and a final value is
+   * still coming. While true a locally set value is never given up, and no
+   * settle time accrues toward believing the incoming one — it is not a result
+   * yet, so it cannot outlast what the user chose.
+   */
+  isTransitional?: boolean;
   key: string;
   minHoldMs?: number;
   onRemoteAccept?: (value: T) => void;
@@ -128,9 +136,10 @@ export function useRemoteSetting<T>({
         return;
       }
 
-      if (isConverged(next, latch.target)) {
-        // Arrived. Keep showing the entered value rather than the device's own
-        // rounding of it, and stop counting toward an external change.
+      if (isTransitional || isConverged(next, latch.target)) {
+        // Either arrived, or explicitly still on its way. Keep showing the
+        // entered value — not the device's rounding of it, and not a waypoint —
+        // and stop counting toward an external change.
         pendingRemoteRef.current = null;
         clearTimer();
         return;
@@ -142,7 +151,7 @@ export function useRemoteSetting<T>({
       }
       scheduleLatchRelease();
     },
-    [applyRemoteValue, clearTimer, isConverged, isEqual, scheduleLatchRelease],
+    [applyRemoteValue, clearTimer, isConverged, isEqual, isTransitional, scheduleLatchRelease],
   );
 
   useEffect(() => {

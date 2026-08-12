@@ -96,6 +96,26 @@ export function releaseLightingBrightnessTargets(token: number) {
   }
 }
 
+/**
+ * Every entity with a commanded brightness still outstanding, as
+ * `entityId -> targetPct`.
+ *
+ * This is the definition of "transitional": a target is recorded when the
+ * command is sent and dropped as soon as the light is observed to have arrived
+ * (or the follow-up schedule ends), so an entry here means the light is still
+ * moving and its reported brightness is not a result yet. The state projection
+ * publishes these as `brightnessTransition` so every client — not just the one
+ * that issued the command — knows a final value is still coming and can show the
+ * target instead of the fade.
+ */
+export function lightingBrightnessTargetSnapshot(): Record<string, number> {
+  const snapshot: Record<string, number> = {};
+  for (const [entityId, target] of store.targetsByEntityId) {
+    snapshot[entityId] = target.brightnessPct;
+  }
+  return snapshot;
+}
+
 /** Home Assistant reports brightness as `0..255`; the dashboard commands percent. */
 export function brightnessPctFromAttribute(raw: number | null): number | null {
   if (raw === null || !Number.isFinite(raw)) {

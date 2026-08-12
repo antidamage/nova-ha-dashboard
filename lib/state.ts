@@ -1,5 +1,6 @@
 import type { DashboardConfig } from "./config-schema";
-import type { DashboardState, HaState } from "./types";
+import type { DashboardEntity, DashboardState, DashboardZone, HaState } from "./types";
+import { lightingBrightnessTargetSnapshot } from "./lighting-convergence";
 import { haRest } from "./ha/client";
 import { reconcileHaStates } from "./ha/health";
 import { readDashboardConfig } from "./dashboard-config";
@@ -71,6 +72,47 @@ async function loadModuleContext(): Promise<ModuleStateContext> {
   return { config, states, registry, index, entities, warnings: [...registry.warnings], haHealth };
 }
 
+/**
+ * Label lights that are still travelling toward a commanded brightness, and the
+ * zones containing them, so a reading taken mid-fade is published as
+ * transitional rather than as a result.
+ *
+ * Lights are meant to interpolate — that is the look. What must not happen is a
+ * client writing a point on that curve into a control as though the move had
+ * finished, which is how a zone slider ends up drifting or snapping to a value
+ * nobody chose. Marking is per-entity because a zone's brightness is an average:
+ * one slow fixture makes the whole zone's number provisional.
+ */
+export function markLightingTransitions(entities: DashboardEntity[], zones: DashboardZone[]) {
+  const targets = lightingBrightnessTargetSnapshot();
+  if (!Object.keys(targets).length) {
+    return;
+  }
+
+  for (const entity of entities) {
+    const targetPct = targets[entity.entity_id];
+    // A light that has been turned off is not on its way anywhere.
+    if (targetPct === undefined || entity.domain !== "light" || entity.state !== "on") {
+      continue;
+    }
+    entity.brightnessTransition = { targetPct };
+  }
+
+  for (const zone of zones) {
+    const memberTargets = zone.entities.flatMap((entity) =>
+      entity.brightnessTransition ? [entity.brightnessTransition.targetPct] : [],
+    );
+    if (!memberTargets.length) {
+      continue;
+    }
+    // Averaged the same way zoneBrightnessPct is, so a uniform zone command
+    // reports exactly the percent that was commanded.
+    zone.brightnessTransition = {
+      targetPct: Math.round(memberTargets.reduce((sum, pct) => sum + pct, 0) / memberTargets.length),
+    };
+  }
+}
+
 export async function buildDashboardState(): Promise<DashboardState> {
   const context = await loadModuleContext();
   const { config, states, registry, entities, warnings } = context;
@@ -89,6 +131,8 @@ export async function buildDashboardState(): Promise<DashboardState> {
   if (!entities.some((entity) => ["light", "switch", "climate"].includes(entity.domain))) {
     warnings.push("Home Assistant currently has no light, switch, or climate entities.");
   }
+
+  markLightingTransitions(entities, zones);
 
   const preferences = withComputedWatchfacePreferences(await readDashboardPreferences());
 

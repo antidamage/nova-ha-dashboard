@@ -643,6 +643,22 @@ Zone lighting UI:
   controllable light devices.
 - Local spectrum state is retained during the 10 second lighting remote-setting
   hold to avoid visual flicker and slider rubber-banding.
+- Lights themselves still interpolate: fades are the intended look, and nothing
+  here shortens them. What is forbidden is a *client* reading a point on that
+  curve into a control as though the move had finished.
+- In-flight results are published as such. While a light is still travelling
+  toward a commanded brightness, the state carries `brightnessTransition` with
+  the `targetPct` it is heading for — on the entity, and on every zone holding
+  it, since one slow fixture makes a zone's averaged brightness provisional. The
+  mark appears when the command is sent and clears as soon as the light is
+  observed to have arrived, so its presence means a final value is still coming.
+- Every client uses it, not just the one that issued the command: a zone's
+  intensity control binds to `targetPct` while the mark is present, so a second
+  dashboard shows the destination immediately rather than watching the fade, and
+  no transitional reading can outlast a locally set value however long it holds.
+- The spectrum dot may pan toward incoming colour readings, including
+  mid-transition ones. That panning is display only — the spectrum issues light
+  commands from pointer input alone and never from its own animation.
 - The intensity control never interpolates. It takes every value whole via
   `DotLineControl`'s `snapRemote`, so its number and thumb are always a real
   value and never a frame of an animation between two of them. Other sliders

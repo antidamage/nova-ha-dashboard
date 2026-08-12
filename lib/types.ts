@@ -95,6 +95,11 @@ export type DashboardEntity = {
   // entities by label without re-reading the registry.
   labels?: string[];
   attributes: Record<string, unknown>;
+  // Set while the light is still moving toward a commanded brightness. Its
+  // reported brightness is a point on the way there, not a result — clients must
+  // show `targetPct` and wait for the field to clear rather than treating the
+  // reading as final. See lib/lighting-convergence.
+  brightnessTransition?: { targetPct: number };
   last_changed?: string;
   last_updated?: string;
   last_reported?: string;
@@ -107,6 +112,11 @@ export type DashboardZone = {
   counts: Record<HaDomain, number>;
   isOn: boolean;
   brightnessPct: number;
+  // Present while any lit member of the zone is still moving toward a commanded
+  // brightness, in which case `brightnessPct` is a mid-transition average and
+  // `targetPct` is where the zone is going. Controls bind to the target and hold
+  // it until this clears; the lights themselves still fade normally.
+  brightnessTransition?: { targetPct: number };
   special?: "power" | "tasks" | "world";
   // HA-native area sensor bindings for this zone's room, if set. Drives the
   // environment panel without any per-home configuration.
