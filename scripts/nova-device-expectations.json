@@ -1,0 +1,93 @@
+{
+  "_comment": [
+    "Declared intent for nova-device-doctor.sh. This file is NOT read from the",
+    "router -- the TP-Link NX620v admin UI needs an authenticated session, and",
+    "its Address Reservation table is hard-capped at 32 entries. So this is what",
+    "we believe was reserved, and the doctor checks reality against it.",
+    "Reconciling this file with the router's actual table is an agent job; see",
+    "the nova-devices skill.",
+    "",
+    "Reservations were created 2026-08-12. They only take effect on DHCP",
+    "DISCOVER -- a router reboot does NOT migrate an existing lease, so a device",
+    "may legitimately sit on its old address until it next power-cycles."
+  ],
+
+  "reservations": {
+    "192.168.8.101": "Kitchen light 1",
+    "192.168.8.102": "Hallway 2",
+    "192.168.8.103": "Desk",
+    "192.168.8.104": "Wardrobe",
+    "192.168.8.105": "Conservatory",
+    "192.168.8.106": "Bedroom",
+    "192.168.8.107": "Lounge",
+    "192.168.8.110": "Nook light",
+    "192.168.8.111": "Mirror light",
+    "192.168.8.112": "TV light",
+    "192.168.8.113": "Hallway light",
+    "192.168.8.114": "Outside light",
+    "192.168.8.115": "Kitchen light 2",
+    "192.168.8.116": "Cupboard",
+    "192.168.8.117": "Bedroom heater",
+    "192.168.8.120": "Apple TV",
+    "192.168.8.121": "Google Home",
+    "192.168.8.122": "Google Nest Mini",
+    "192.168.8.125": "Sure Petcare Hub"
+  },
+
+  "_pre_staged": [
+    "192.168.8.107 (Lounge) was reserved while the bulb was physically",
+    "disconnected. Absence there is expected, not a fault."
+  ],
+  "pre_staged": ["192.168.8.107"],
+
+  "_scope_comment": [
+    "Only these integrations describe smart-home devices reachable by the",
+    "protocol probes this tool runs. Everything else in Home Assistant --",
+    "backup sensors, helpers, the sun -- is not a network device and must not",
+    "be graded as one. `mqtt` is included only for cloud twins published by the",
+    "Tuya bridge; Nova's own MQTT helpers are filtered out separately because",
+    "they resolve no Tuya device id.",
+    "",
+    "esphome is deliberately absent: the voice satellites live there and have",
+    "their own monitoring. They are counted and named as out-of-scope rather",
+    "than silently dropped."
+  ],
+  "device_domains": ["tuya_local", "mqtt", "lifx", "tplink", "tapo", "tapo_control", "kasa", "nanoleaf", "matter"],
+
+  "_expected_unavailable_comment": [
+    "Unavailable right now for a known, understood reason -- unlike",
+    "retired_entities these may legitimately come back. Reported as expected so",
+    "the run stays quiet enough that a real fault stands out."
+  ],
+  "expected_unavailable_entities": {
+    "light.lounge_light": "LIFX bulb physically disconnected; .107 was reserved for it in advance",
+    "lock.cupboard_child_lock": "the Cupboard socket does not expose a child-lock datapoint; the light half works"
+  },
+
+  "_retired_comment": [
+    "Devices that are SUPPOSED to be unavailable. Without this list every run",
+    "cries wolf about hardware that is meant to be gone. Entries here are",
+    "reported as EXPECTED, never repaired. Remove an entry if the device comes",
+    "back for real."
+  ],
+  "retired_entities": {
+    "climate.panel_heater_2": "dead panel heater, replaced 2026-08-07 by the Bedroom heater Tuya switch",
+    "lock.panel_heater_child_lock": "belongs to the dead panel heater",
+    "time.panel_heater_timer": "belongs to the dead panel heater",
+    "climate.tuya_mobile_panel_heater": "cloud twin of the dead panel heater",
+    "light.kitchen_light_2_2": "retired Kitchen light 2 (Tuya 7463034340f520c1cf42), last reported 2026-05-08",
+    "light.tuya_mobile_kitchen_light_2": "cloud twin of the retired Kitchen light 2"
+  },
+  "retired_tuya_device_ids": {
+    "7463034340f520c1cf42": "retired Kitchen light 2, last reported to Tuya 2026-05-08",
+    "0014083040f52014bd20": "dead panel heater"
+  },
+
+  "_battery_comment": [
+    "Battery/sleepy devices go quiet for long stretches by design. They must not",
+    "be graded as off-network just because a protocol probe found nothing."
+  ],
+  "sleepy_tuya_device_ids": {
+    "eb7da36c9c4d149965wfsk": "Bedroom sensor puck (battery)"
+  }
+}
