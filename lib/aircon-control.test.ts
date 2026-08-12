@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   AIRCON_INTENT_MARGIN_DEGREES,
+  AIRCON_SENSOR_SETTLE_MS,
   AirconAutoThermostat,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
@@ -232,7 +233,7 @@ test("a mode change goes out on its own, without a turn_on ahead of it", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Resting band: off AT target, resume AIRCON_AUTO_RESUME_DEGREES past it.
+// Resting behavior: stop at target, then trust the off sensor after settling.
 // ---------------------------------------------------------------------------
 
 test("auto switches a running unit off the moment the reading reaches target", () => {
@@ -249,33 +250,60 @@ test("auto switches a running unit off the moment the reading reaches target", (
   assert.equal(actionFor(plan.actions, "set_hvac_mode"), undefined);
 });
 
-test("a resting unit stays resting two degrees off target", () => {
-  // The whole failure being guarded against: the Gree's thermistor moves this far
-  // on its own the second the fan stops. Two degrees is not a reason to start a
-  // compressor.
-  const plan = planAirconAutoTick({
-    currentTemperature: 20,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 20, temperature: 22 } }),
-    now: NOW,
-    preferences: { autoMode: true },
-    state: restingState({ lastTargetTemperature: 22 }),
-  });
-
-  assert.equal(plan.reason, "resting");
-  assert.deepEqual(plan.actions, []);
-});
-
-test("a resting unit resumes three degrees off target", () => {
+test("a resting unit ignores even a large same-direction drift while the sensor is settling", () => {
+  // The Gree's thermistor can move 2-3 C after the fan stops. Magnitude does not
+  // make an unsettled reading trustworthy.
   const plan = planAirconAutoTick({
     currentTemperature: 19,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 19, temperature: 22 } }),
     now: NOW,
     preferences: { autoMode: true },
-    state: restingState({ lastTargetTemperature: 22 }),
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 40 * MINUTE,
+      lastTransitionAt: NOW - 20 * MINUTE,
+      lastTargetTemperature: 22,
+    }),
+  });
+
+  assert.equal(plan.reason, "sensor-settling-hold");
+  assert.deepEqual(plan.actions, []);
+});
+
+test("a resting unit resumes the same direction one degree off target after settling", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 21,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 21, temperature: 22 } }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 40 * MINUTE,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      lastTargetTemperature: 22,
+    }),
   });
 
   assert.equal(plan.reason, "driving");
   assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
+});
+
+test("the live 22 C / 24 C heating case resumes after the 30-minute settling window", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 22,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true, hvacMode: "heat" },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 60 * MINUTE,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      lastTargetTemperature: 24,
+    }),
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "heat");
 });
 
 test("a unit already driving keeps going short of target rather than resting", () => {
@@ -287,15 +315,14 @@ test("a unit already driving keeps going short of target rather than resting", (
     state: restingState({ lastMode: "heat", lastModeAt: NOW - MINUTE, lastTransitionAt: NOW - MINUTE, lastTargetTemperature: 22 }),
   });
 
-  // One degree short of target is inside the resume band but the unit is already
-  // running: the hysteresis is asymmetric, so it runs on to target.
+  // A running unit does not enter the post-stop settling path, so it runs on to
+  // target.
   assert.equal(plan.reason, "driving");
   assert.equal(actionFor(plan.actions, "turn_off"), undefined);
 });
 
-test("a target the user moved reopens a resting cycle inside the resume band", () => {
-  // Otherwise asking for two degrees warmer does nothing at all until the room
-  // drifts three degrees, which reads as a dead control.
+test("a target the user moved reopens a resting cycle inside the settling window", () => {
+  // A direct comfort request should not look like an unresponsive control.
   const plan = planAirconAutoTick({
     currentTemperature: 22,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 24 } }),
@@ -309,9 +336,9 @@ test("a target the user moved reopens a resting cycle inside the resume band", (
   assert.deepEqual(actionFor(plan.actions, "set_temperature")?.data, { hvac_mode: "heat", temperature: 24 });
 });
 
-test("a fresh state is not mistaken for a target the user moved", () => {
+test("a fresh state is not mistaken for a target the user moved, but responds to a valid reading", () => {
   // lastTargetTemperature is null after a reload. That must read as "unknown",
-  // not as a change, or every page load would bypass the resume band.
+  // not as a change, or every page load would bypass transition guards.
   const plan = planAirconAutoTick({
     currentTemperature: 22,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 24 } }),
@@ -319,8 +346,8 @@ test("a fresh state is not mistaken for a target the user moved", () => {
     preferences: { autoMode: true },
   });
 
-  assert.equal(plan.reason, "resting");
-  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "heat");
 });
 
 test("auto stops re-issuing off commands once the unit is already off", () => {
@@ -381,6 +408,24 @@ test("auto reverses direction once the 30-minute hold has run out", () => {
   assert.equal(plan.nextState.lastModeAt, NOW);
 });
 
+test("a settled reading still needs three degrees of evidence to reverse direction", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 24,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 24, temperature: 22 } }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      lastTargetTemperature: 22,
+    }),
+  });
+
+  assert.equal(plan.reason, "resting");
+  assert.deepEqual(plan.actions, []);
+});
+
 test("being blocked by the hold does not extend the hold", () => {
   // If a blocked tick restamped lastModeAt, a persistently wrong reading would
   // freeze the direction forever instead of for half an hour.
@@ -423,7 +468,7 @@ test("continuing in the same direction is never blocked by the hold", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Minimum cycle dwell and the hourly start cap.
+// Sensor settling, minimum cycle dwell, and uncapped start history.
 // ---------------------------------------------------------------------------
 
 test("auto will not restart the compressor inside the minimum cycle", () => {
@@ -431,6 +476,7 @@ test("auto will not restart the compressor inside the minimum cycle", () => {
     currentTemperature: 18,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 18, temperature: 22 } }),
     now: NOW,
+    forceRemember: true,
     preferences: { autoMode: true },
     state: restingState({ lastTransitionAt: NOW - 5 * MINUTE, lastTargetTemperature: 22 }),
   });
@@ -439,11 +485,12 @@ test("auto will not restart the compressor inside the minimum cycle", () => {
   assert.deepEqual(plan.actions, []);
 });
 
-test("auto restarts the compressor once the minimum cycle has elapsed", () => {
+test("an explicit Auto request restarts once the minimum cycle has elapsed", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 18,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 18, temperature: 22 } }),
     now: NOW,
+    forceRemember: true,
     preferences: { autoMode: true },
     state: restingState({ lastTransitionAt: NOW - (10 * MINUTE + 1), lastTargetTemperature: 22 }),
   });
@@ -483,7 +530,7 @@ test("the mode hold never delays turning the unit OFF either", () => {
   assert.equal(actionFor(plan.actions, "set_hvac_mode"), undefined);
 });
 
-test("auto stops after three compressor starts in an hour", () => {
+test("same-direction heating is not capped after three starts in an hour", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 18,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 18, temperature: 22 } }),
@@ -492,17 +539,39 @@ test("auto stops after three compressor starts in an hour", () => {
     state: restingState({
       lastMode: "heat",
       lastModeAt: NOW - 40 * MINUTE,
-      lastTransitionAt: NOW - 11 * MINUTE,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
       recentStartsAt: [NOW - 50 * MINUTE, NOW - 30 * MINUTE, NOW - 11 * MINUTE],
       lastTargetTemperature: 22,
     }),
   });
 
-  assert.equal(plan.reason, "starts-per-hour-hold");
-  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "heat");
+  assert.deepEqual(plan.nextState.recentStartsAt, [NOW - 50 * MINUTE, NOW - 30 * MINUTE, NOW - 11 * MINUTE, NOW]);
 });
 
-test("the hourly start cap releases as the oldest start rolls out of the window", () => {
+test("same-direction cooling is not capped after three starts in an hour", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 25,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 25, temperature: 24 } }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({
+      lastMode: "cool",
+      lastModeAt: NOW - 40 * MINUTE,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      recentStartsAt: [NOW - 50 * MINUTE, NOW - 30 * MINUTE, NOW - 11 * MINUTE],
+      lastTargetTemperature: 24,
+    }),
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "cool");
+  assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "cool");
+  assert.deepEqual(plan.nextState.recentStartsAt, [NOW - 50 * MINUTE, NOW - 30 * MINUTE, NOW - 11 * MINUTE, NOW]);
+});
+
+test("start telemetry still prunes entries older than an hour", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 18,
     entity: climateEntity({ state: "off", attributes: { current_temperature: 18, temperature: 22 } }),
@@ -511,7 +580,7 @@ test("the hourly start cap releases as the oldest start rolls out of the window"
     state: restingState({
       lastMode: "heat",
       lastModeAt: NOW - 90 * MINUTE,
-      lastTransitionAt: NOW - 11 * MINUTE,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
       recentStartsAt: [NOW - 61 * MINUTE, NOW - 30 * MINUTE, NOW - 11 * MINUTE],
       lastTargetTemperature: 22,
     }),
@@ -522,8 +591,8 @@ test("the hourly start cap releases as the oldest start rolls out of the window"
 });
 
 test("being held off a start still stops a unit left in a mode auto never picks", () => {
-  // fan_only/dry can only have come from someone else. The dwell is a reason not
-  // to START the compressor, not a reason to leave the unit running.
+  // fan_only/dry can only have come from someone else. A settling hold is a
+  // reason not to START the compressor, not a reason to leave the unit running.
   const plan = planAirconAutoTick({
     currentTemperature: 18,
     entity: climateEntity({ state: "fan_only", attributes: { current_temperature: 18, temperature: 22 } }),
@@ -532,7 +601,7 @@ test("being held off a start still stops a unit left in a mode auto never picks"
     state: restingState({ lastTransitionAt: NOW - MINUTE, lastTargetTemperature: 22 }),
   });
 
-  assert.equal(plan.reason, "min-cycle-hold");
+  assert.equal(plan.reason, "sensor-settling-hold");
   assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
 });
 
@@ -622,7 +691,7 @@ test("clearing lastModeAt is what lets the next tick reverse", () => {
 test("pressing Auto acts immediately but still respects the compressor dwell", () => {
   const entity = climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 24 } });
 
-  // forceRemember is the user-pressed-Auto path: it bypasses the resume band.
+  // forceRemember is the user-pressed-Auto path: it bypasses the settling gate.
   const armed = buildAirconAutoActions({
     currentTemperature: 22,
     entity,
@@ -843,5 +912,5 @@ test("a fresh tab picks the guards up from preferences on its first tick", () =>
     preferences: { autoMode: true },
   });
 
-  assert.equal(plan.reason, "min-cycle-hold");
+  assert.equal(plan.reason, "sensor-settling-hold");
 });

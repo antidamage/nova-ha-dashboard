@@ -142,18 +142,38 @@ describe("fixed-direction Manual thermostat", () => {
     targetTemperature: 25,
     now: 20 * 60_000,
     lastTransitionAt: 0,
-    recentStartsAt: [] as number[],
     minOffMs: 10 * 60_000,
-    resumeDriftC: 3,
-    maxStartsPerHour: 3,
+    sensorSettleMs: 30 * 60_000,
+    resumeDriftC: 1,
   };
 
   it("stops heat immediately when the raw Gree reading reaches target", () => {
     expect(planManualAirconTick({ ...common, isOn: true, rawTemperature: 26 })).toBe("stop");
   });
 
-  it("restarts only the selected direction after drift and dwell", () => {
-    expect(planManualAirconTick({ ...common, isOn: false, rawTemperature: 24 })).toBe("start");
-    expect(planManualAirconTick({ ...common, isOn: false, rawTemperature: 24, filteredTemperature: 23 })).toBe("hold");
+  it("waits for the sensor to settle, then restarts the selected direction on one degree of drift", () => {
+    expect(planManualAirconTick({ ...common, isOn: false, rawTemperature: 24 })).toBe("hold");
+    expect(planManualAirconTick({ ...common, isOn: false, rawTemperature: 24, now: 30 * 60_000 + 1 })).toBe("start");
+    expect(planManualAirconTick({ ...common, isOn: false, rawTemperature: 24, filteredTemperature: 25, now: 30 * 60_000 + 1 })).toBe("hold");
+  });
+
+  it("does not impose a starts-per-hour limit after settling", () => {
+    expect(planManualAirconTick({
+      ...common,
+      isOn: false,
+      rawTemperature: 24,
+      now: 30 * 60_000 + 1,
+    })).toBe("start");
+  });
+
+  it("applies the same settled one-degree restart rule to fixed cooling", () => {
+    expect(planManualAirconTick({
+      ...common,
+      direction: "cool",
+      isOn: false,
+      rawTemperature: 26,
+      filteredTemperature: 26,
+      now: 30 * 60_000 + 1,
+    })).toBe("start");
   });
 });

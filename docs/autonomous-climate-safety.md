@@ -33,9 +33,13 @@ Off selection reclaims the room; editing a target or schedule alone does not.
 Actuator unavailability is a fault, not an external interaction. It blocks
 commands without rewriting the user's selected mode.
 
-## Hardware guards
+## Hardware and sensor-transition guards
 
-Stopping at target is immediate. Starts retain the 10-minute off-dwell and the
-Lounge three-starts-per-hour cap. Auto retains its 30-minute direction hold.
-A setpoint edit reopens the comfort decision but never erases hardware history
-or permits a direct heat-to-cool reversal.
+Stopping at target is immediate. Autonomous Lounge restarts wait 30 minutes for
+the Gree's low-airflow sensor to settle, then fixed Heat or Cool can resume its
+same direction on a one-degree error. There is no starts-per-hour cap. The
+10-minute compressor off-dwell remains as an independent hardware floor,
+including for explicit user requests. Auto retains its 30-minute direction hold
+and requires three degrees of evidence to reverse direction. A setpoint edit
+reopens the comfort decision but never erases hardware history or permits a
+direct heat-to-cool reversal.
