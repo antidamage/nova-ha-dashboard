@@ -287,6 +287,11 @@ class HeaterSwitchTarget:
     max_stale_seconds: int = TELEMETRY_MAX_STALE_SECONDS
     suggested_area: str | None = None
     online: bool = True
+    # Report freshness gates the two onboard SENSORS only, never the switch.
+    # An idle wall switch has no reason to push a datapoint every few minutes,
+    # so folding freshness into `online` made a healthy heater flap unavailable
+    # between reports -- and an unavailable switch cannot be commanded OFF.
+    telemetry_fresh: bool = True
     slug_name: str | None = None
 
     @property
@@ -312,6 +317,10 @@ class HeaterSwitchTarget:
     @property
     def availability_topic(self) -> str:
         return f"{BASE_TOPIC}/{self.slug}/availability"
+
+    @property
+    def telemetry_availability_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/telemetry/availability"
 
     @property
     def attributes_topic(self) -> str:
@@ -445,7 +454,8 @@ class TuyaMobileApi:
                         humidity_divisor=spec["humidity_divisor"],
                         device_update_ms=dev.get("dpMaxTime"),
                         suggested_area=spec.get("suggested_area"),
-                        online=tuya_device_online(dev) and tuya_sensor_data_fresh(dev, TELEMETRY_MAX_STALE_SECONDS),
+                        online=tuya_device_online(dev),
+                        telemetry_fresh=tuya_sensor_data_fresh(dev, TELEMETRY_MAX_STALE_SECONDS),
                         slug_name=spec["slug"],
                     )
                     targets[target.slug] = target
@@ -564,6 +574,8 @@ class Bridge:
         finally:
             for target in self.targets.values():
                 self.mqtt.publish(target.availability_topic, "offline", retain=True)
+                if isinstance(target, HeaterSwitchTarget):
+                    self.mqtt.publish(target.telemetry_availability_topic, "offline", retain=True)
             self.mqtt.loop_stop()
             self.mqtt.disconnect()
 
@@ -857,6 +869,10 @@ class Bridge:
         for suffix, state_topic, name, device_class, unit in sensors:
             config = {
                 **common,
+                # Sensors follow report freshness, not the switch: hours-old
+                # numbers must go unavailable rather than sit on the dashboard
+                # looking like a live room reading.
+                "availability_topic": target.telemetry_availability_topic,
                 "name": name,
                 "unique_id": f"nova_tuya_mobile_{target.slug}_{suffix}",
                 "default_entity_id": f"sensor.tuya_mobile_{target.slug}_{suffix}",
@@ -1032,10 +1048,18 @@ class Bridge:
         self.mqtt.publish(
             target.availability_topic, "online" if target.online else "offline", retain=True
         )
+        telemetry_online = target.online and target.telemetry_fresh
+        self.mqtt.publish(
+            target.telemetry_availability_topic,
+            "online" if telemetry_online else "offline",
+            retain=True,
+        )
         if not target.online:
             return
         is_on = bool(target.dps.get(target.dp_key))
         self.mqtt.publish(target.state_topic, "ON" if is_on else "OFF", retain=True)
+        if not telemetry_online:
+            return
         values = [
             (
                 target.temperature_state_topic,
