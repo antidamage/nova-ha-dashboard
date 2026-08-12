@@ -148,6 +148,25 @@ export type TaskRepeat =
       intervalDays: number;
     };
 
+/**
+ * A reminder whose schedule is derived from another reminder's completion
+ * rather than from a clock interval.
+ *
+ * The follow-on has no cadence of its own: completing the anchor is what puts
+ * it back on the board, `offsetDays` clear days later at `hour` local time. Its
+ * effective cycle is therefore whatever the anchor's turns out to be, which is
+ * the point — a chore that only makes sense "the evening after the injection"
+ * has to move when the injection moves.
+ */
+export type TaskFollows = {
+  /** The anchor reminder's id. */
+  taskId: string;
+  /** Whole days after the anchor's completion. 0 is the same day. */
+  offsetDays: number;
+  /** Local hour of day the follow-on lands on. */
+  hour: number;
+};
+
 export type Task = {
   id: string;
   name: string;
@@ -173,6 +192,12 @@ export type Task = {
    */
   annoy?: boolean;
   repeat?: TaskRepeat;
+  /**
+   * Scheduled from another reminder's completion. Mutually exclusive with
+   * `repeat` — a follow-on borrows the anchor's cadence, so giving it a second,
+   * independent one would just make the two fight over `start`.
+   */
+  follows?: TaskFollows;
   source: TaskSource;
   sourceId?: string;
   sourceCalendar?: string;

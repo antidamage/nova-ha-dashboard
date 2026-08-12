@@ -237,6 +237,7 @@ const tools: ToolDefinition[] = [
         start: { type: "string" },
         end: { type: ["string", "null"] },
         repeat: { type: ["object", "null"] },
+        follows: { type: ["object", "null"] },
         ...confirmSchema,
       },
       additionalProperties: false,
@@ -256,6 +257,7 @@ const tools: ToolDefinition[] = [
         start: { type: "string" },
         end: { type: ["string", "null"] },
         repeat: { type: ["object", "null"] },
+        follows: { type: ["object", "null"] },
         ...confirmSchema,
       },
       additionalProperties: false,
@@ -371,8 +373,8 @@ function assertConfirmed(name: string, args: Record<string, unknown>, config: Da
 }
 
 function updatePatchFrom(args: Record<string, unknown>) {
-  const patch: { name?: unknown; start?: unknown; end?: unknown; repeat?: unknown } = {};
-  for (const key of ["name", "start", "end", "repeat"] as const) {
+  const patch: { name?: unknown; start?: unknown; end?: unknown; repeat?: unknown; follows?: unknown } = {};
+  for (const key of ["name", "start", "end", "repeat", "follows"] as const) {
     if (Object.prototype.hasOwnProperty.call(args, key)) {
       patch[key] = args[key];
     }
@@ -528,6 +530,7 @@ async function callTool(name: string, args: Record<string, unknown>) {
       end: args.end,
       name: args.name,
       repeat: args.repeat,
+      follows: args.follows,
       source: "local",
       start: args.start,
     }));

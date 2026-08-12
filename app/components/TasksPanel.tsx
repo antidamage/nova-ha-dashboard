@@ -26,8 +26,10 @@ import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
 import { jsonFetch } from "./tasks/task-api";
 import {
   defaultDraft,
+  draftFollows,
   draftRepeat,
   fallbackEndInput,
+  followsLabel,
   hasTaskAlertChimed,
   isTaskAlerting,
   isTaskAlertSilenced,
@@ -104,7 +106,10 @@ const repeatOptions: Array<{ label: string; value: TaskRepeatDraftKind }> = [
   { label: "Hourly", value: "hourly" },
   { label: "Morning/night", value: "morning-night" },
   { label: "N days after completion", value: "days" },
+  { label: "After another reminder", value: "after" },
 ];
+
+const FOLLOW_HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 const IMPORT_TEMPLATE = [
   "# start,end,name,repeat",
@@ -170,12 +175,15 @@ function TaskCheckbox({
 }
 
 function TaskEditor({
+  anchorOptions,
   busy,
   initial,
   onCancel,
   onSave,
   submitLabel,
 }: {
+  /** Reminders this one may be scheduled from — local ones, never itself. */
+  anchorOptions: Task[];
   busy: boolean;
   initial: TaskDraft;
   onCancel: () => void;
@@ -196,6 +204,9 @@ function TaskEditor({
     initial.repeatDays,
     initial.repeatEnabled,
     initial.repeatKind,
+    initial.followTaskId,
+    initial.followOffsetDays,
+    initial.followHour,
     initial.start,
   ]);
 
@@ -227,9 +238,27 @@ function TaskEditor({
         return;
       }
     }
+    if (draft.repeatEnabled && draft.repeatKind === "after") {
+      if (!draft.followTaskId) {
+        setError("Choose the reminder this one follows");
+        return;
+      }
+      const offsetDays = Number(draft.followOffsetDays);
+      if (!Number.isInteger(offsetDays) || offsetDays < 0 || offsetDays > 365) {
+        setError("Follow-on offset must be between 0 and 365 days");
+        return;
+      }
+    }
 
     setError(null);
-    await onSave({ name: draft.name.trim(), start, end, repeat: draftRepeat(draft), annoy: draft.annoy });
+    await onSave({
+      name: draft.name.trim(),
+      start,
+      end,
+      repeat: draftRepeat(draft),
+      follows: draftFollows(draft),
+      annoy: draft.annoy,
+    });
   };
 
   return (
@@ -328,6 +357,53 @@ function TaskEditor({
                   onChange={(event) => setDraft((current) => ({ ...current, repeatDays: event.target.value }))}
                 />
               </label>
+            ) : null}
+            {draft.repeatKind === "after" ? (
+              <>
+                <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                  Follows
+                  <select
+                    className={inputClassName}
+                    value={draft.followTaskId}
+                    onChange={(event) => setDraft((current) => ({ ...current, followTaskId: event.target.value }))}
+                  >
+                    <option value="">Choose a reminder</option>
+                    {anchorOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                  Days after
+                  <input
+                    className={inputClassName}
+                    type="number"
+                    min={0}
+                    max={365}
+                    step={1}
+                    value={draft.followOffsetDays}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, followOffsetDays: event.target.value }))
+                    }
+                  />
+                </label>
+                <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+                  At
+                  <select
+                    className={inputClassName}
+                    value={draft.followHour}
+                    onChange={(event) => setDraft((current) => ({ ...current, followHour: event.target.value }))}
+                  >
+                    {FOLLOW_HOURS.map((hour) => (
+                      <option key={hour} value={String(hour)}>
+                        {`${String(hour).padStart(2, "0")}:00`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
             ) : null}
           </div>
         ) : null}
@@ -1075,6 +1151,16 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       .sort((left, right) => taskStartMs(left) - taskStartMs(right));
   }, [nowMs, tab, tasks]);
 
+  // Only local reminders can anchor a follow-on: an iCloud mirror is completed
+  // upstream, so nothing here would ever see the completion that moves it.
+  const anchorOptions = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.source === "local" && !task.readOnly && !task.follows)
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    [tasks],
+  );
+
   const selectedCount = selectedTaskIds.size;
 
   const saveNewTask = async (draft: TaskEditorSaveDraft) => {
@@ -1338,6 +1424,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
             <div className="grid gap-3">
               {createOpen ? (
                 <TaskEditor
+                  anchorOptions={anchorOptions}
                   busy={busyId === "create"}
                   initial={createDraft}
                   onCancel={() => setCreateOpen(false)}
@@ -1349,7 +1436,9 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
               {visibleTasks.length ? (
                 visibleTasks.map((task) => {
                   const status = statusForTask(task, nowMs);
-                  const repeat = repeatLabel(task.repeat);
+                  const repeat =
+                    repeatLabel(task.repeat) ??
+                    followsLabel(task.follows, tasks.find((candidate) => candidate.id === task.follows?.taskId)?.name);
                   const selected = selectedTaskIds.has(task.id);
                   const expanded = expandedTaskId === task.id;
                   const canComplete = status !== "Done";
@@ -1422,6 +1511,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                           <ReadOnlyTaskPanel busy={busyId === task.id} onConvert={convertTaskToLocal} task={task} />
                         ) : (
                           <TaskEditor
+                            anchorOptions={anchorOptions.filter((candidate) => candidate.id !== task.id)}
                             busy={busyId === task.id}
                             initial={taskDraft(task)}
                             onCancel={() => setExpandedTaskId(null)}

@@ -1,11 +1,20 @@
-import type { Task, TaskRepeat, TaskSource } from "../../../lib/types";
+import type { Task, TaskFollows, TaskRepeat, TaskSource } from "../../../lib/types";
 
 export type TaskTab = "today" | "upcoming";
-export type TaskRepeatDraftKind = TaskRepeat["kind"];
+/**
+ * The editor's schedule modes. `after` is not a `TaskRepeat` — it produces a
+ * `follows` link instead — but it belongs in the same picker because it answers
+ * the same question: when does this come back?
+ */
+export type TaskRepeatDraftKind = TaskRepeat["kind"] | "after";
 
 // Day repeats are measured from completion, so a few clear days is the useful
 // default rather than "back tomorrow".
 export const DEFAULT_REPEAT_DAYS = 3;
+// A follow-on is nearly always "the day after", and evening is the half of the
+// day the 7am day-repeat return does not already cover.
+export const DEFAULT_FOLLOW_OFFSET_DAYS = 1;
+export const DEFAULT_FOLLOW_HOUR = 18;
 
 export type TaskDraft = {
   name: string;
@@ -15,6 +24,9 @@ export type TaskDraft = {
   repeatEnabled: boolean;
   repeatKind: TaskRepeatDraftKind;
   repeatDays: string;
+  followTaskId: string;
+  followOffsetDays: string;
+  followHour: string;
   annoy: boolean;
 };
 
@@ -29,6 +41,7 @@ export type TaskEditorSaveDraft = {
   start: string;
   end?: string | null;
   repeat: TaskRepeat | null;
+  follows: TaskFollows | null;
   annoy: boolean;
 };
 
@@ -81,6 +94,9 @@ export function defaultDraft(): TaskDraft {
     repeatEnabled: false,
     repeatKind: "days",
     repeatDays: String(DEFAULT_REPEAT_DAYS),
+    followTaskId: "",
+    followOffsetDays: String(DEFAULT_FOLLOW_OFFSET_DAYS),
+    followHour: String(DEFAULT_FOLLOW_HOUR),
     annoy: false,
   };
 }
@@ -93,9 +109,12 @@ export function taskDraft(task: Task): TaskDraft {
     start,
     end: task.end ? isoToLocalInput(task.end) : fallbackEndInput(start),
     hasEnd: Boolean(task.end),
-    repeatEnabled: Boolean(task.repeat),
-    repeatKind: task.repeat?.kind ?? "days",
+    repeatEnabled: Boolean(task.repeat) || Boolean(task.follows),
+    repeatKind: task.follows ? "after" : (task.repeat?.kind ?? "days"),
     repeatDays: task.repeat?.kind === "days" ? String(task.repeat.intervalDays) : String(DEFAULT_REPEAT_DAYS),
+    followTaskId: task.follows?.taskId ?? "",
+    followOffsetDays: String(task.follows?.offsetDays ?? DEFAULT_FOLLOW_OFFSET_DAYS),
+    followHour: String(task.follows?.hour ?? DEFAULT_FOLLOW_HOUR),
     annoy: task.annoy === true,
   };
 }
@@ -116,6 +135,18 @@ export function draftRepeat(draft: TaskDraft): TaskRepeat | null {
   return null;
 }
 
+export function draftFollows(draft: TaskDraft): TaskFollows | null {
+  if (!draft.repeatEnabled || draft.repeatKind !== "after" || !draft.followTaskId) {
+    return null;
+  }
+
+  return {
+    taskId: draft.followTaskId,
+    offsetDays: Number(draft.followOffsetDays),
+    hour: Number(draft.followHour),
+  };
+}
+
 export function repeatLabel(repeat: TaskRepeat | undefined) {
   if (!repeat) {
     return null;
@@ -127,6 +158,21 @@ export function repeatLabel(repeat: TaskRepeat | undefined) {
     return "Repeats morning/night";
   }
   return `Repeats ${repeat.intervalDays} day${repeat.intervalDays === 1 ? "" : "s"} after completion`;
+}
+
+export function followsLabel(follows: TaskFollows | undefined, anchorName: string | undefined) {
+  if (!follows) {
+    return null;
+  }
+
+  const when =
+    follows.offsetDays === 0
+      ? "same day"
+      : follows.offsetDays === 1
+        ? "next day"
+        : `${follows.offsetDays} days later`;
+
+  return `Follows ${anchorName ?? "another reminder"} · ${when} ${String(follows.hour).padStart(2, "0")}:00`;
 }
 
 function startOfLocalDay(date: Date) {

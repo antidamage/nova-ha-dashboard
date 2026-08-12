@@ -3,7 +3,7 @@ import path from "path";
 import { publishTaskDismiss, publishTasks } from "./dashboard-events";
 import { assignReminderIcons, reconcileReminderIcons } from "./reminder-icon-hook";
 import { parseTaskCsv } from "./parse-task-csv";
-import type { Task, TaskRepeat, TaskSource } from "./types";
+import type { Task, TaskFollows, TaskRepeat, TaskSource } from "./types";
 
 export { parseTaskCsv };
 export type { ParseTaskCsvError, ParseTaskCsvResult } from "./parse-task-csv";
@@ -25,6 +25,7 @@ type TaskInput = {
   occurrenceDate?: string;
   readOnly?: boolean;
   annoy?: unknown;
+  follows?: unknown;
 };
 
 type TaskPatch = Partial<{
@@ -33,6 +34,7 @@ type TaskPatch = Partial<{
   end: unknown;
   repeat: unknown;
   annoy: unknown;
+  follows: unknown;
 }>;
 
 let writeQueue = Promise.resolve();
@@ -41,6 +43,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const MIN_REPEAT_DAYS = 1;
 const MAX_REPEAT_DAYS = 365;
+const MAX_FOLLOW_OFFSET_DAYS = 365;
 // Local hour a completed day-interval reminder comes back at.
 const REPEAT_MORNING_HOUR = 7;
 
@@ -102,6 +105,76 @@ function normalizedRepeat(value: unknown): TaskRepeat | undefined {
   }
 
   return undefined;
+}
+
+function normalizedFollows(value: unknown, selfId: string | undefined): TaskFollows | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+
+  const candidate = value as { taskId?: unknown; offsetDays?: unknown; hour?: unknown };
+  const taskId = typeof candidate.taskId === "string" ? candidate.taskId.trim() : "";
+  if (!taskId) {
+    return undefined;
+  }
+  if (selfId && taskId === selfId) {
+    throw new Error("A reminder cannot follow itself");
+  }
+
+  const offsetDays = Number(candidate.offsetDays);
+  if (!Number.isInteger(offsetDays) || offsetDays < 0 || offsetDays > MAX_FOLLOW_OFFSET_DAYS) {
+    throw new Error(`Follow-on offset must be between 0 and ${MAX_FOLLOW_OFFSET_DAYS} days`);
+  }
+
+  const hour = Number(candidate.hour);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+    throw new Error("Follow-on hour must be between 0 and 23");
+  }
+
+  return { taskId, offsetDays, hour };
+}
+
+/**
+ * Where a follow-on lands once its anchor has been ticked off: `offsetDays`
+ * later, at its chosen hour, in local time. Deliberately date arithmetic rather
+ * than a millisecond offset so a DST boundary between the two still leaves the
+ * reminder at the hour that was asked for.
+ */
+function followOnStart(anchorCompletedAtMs: number, follows: TaskFollows) {
+  const next = new Date(anchorCompletedAtMs);
+  next.setDate(next.getDate() + follows.offsetDays);
+  next.setHours(follows.hour, 0, 0, 0);
+  return next;
+}
+
+/**
+ * Move every reminder that follows `anchorId` to its next occurrence.
+ *
+ * Called when the anchor is completed, so the follow-on is rescheduled and
+ * un-completed in the same write — the point of the link is that confirming the
+ * anchor refreshes it.
+ */
+function rescheduledFollowers(tasks: Task[], anchorId: string, anchorCompletedAtMs: number) {
+  return tasks.map((task) => {
+    if (!task.follows || task.follows.taskId !== anchorId || task.source !== "local") {
+      return task;
+    }
+
+    const start = followOnStart(anchorCompletedAtMs, task.follows);
+    const startMs = new Date(task.start).getTime();
+    const endMs = task.end ? new Date(task.end).getTime() : NaN;
+    const durationMs = Number.isFinite(startMs) && Number.isFinite(endMs) ? endMs - startMs : 0;
+
+    return {
+      ...task,
+      start: start.toISOString(),
+      end: task.end && durationMs > 0 ? new Date(start.getTime() + durationMs).toISOString() : task.end,
+      dismissedAt: undefined,
+      alertDismissedAt: undefined,
+      alertDismissedFor: undefined,
+      alertChimedFor: undefined,
+    } satisfies Task;
+  });
 }
 
 function repeatIntervalMs(repeat: TaskRepeat) {
@@ -273,7 +346,8 @@ function normalizedTask(value: unknown): Task | null {
 
   const start = normalizedDate(candidate.start, "Reminder start");
   const end = normalizedOptionalDate(candidate.end, "Reminder end");
-  const repeat = source === "local" ? normalizedRepeat(candidate.repeat) : undefined;
+  const follows = source === "local" ? normalizedFollows(candidate.follows, candidate.id) : undefined;
+  const repeat = source === "local" && !follows ? normalizedRepeat(candidate.repeat) : undefined;
   ensureEndAfterStart(start, end);
   ensureRepeatWindow(start, end, repeat);
 
@@ -295,6 +369,7 @@ function normalizedTask(value: unknown): Task | null {
       : undefined,
     annoy: candidate.annoy === true ? true : undefined,
     repeat,
+    follows,
     source,
     sourceId: candidate.sourceId,
     sourceCalendar: candidate.sourceCalendar,
@@ -336,7 +411,8 @@ function validatedNewTask(input: TaskInput): Task {
   const end = normalizedOptionalDate(input.end, "Reminder end");
   ensureEndAfterStart(start, end);
   const source = input.source ?? "local";
-  const repeat = source === "local" ? normalizedRepeat(input.repeat) : undefined;
+  const follows = source === "local" ? normalizedFollows(input.follows, undefined) : undefined;
+  const repeat = source === "local" && !follows ? normalizedRepeat(input.repeat) : undefined;
   ensureRepeatWindow(start, end, repeat);
 
   const task: Task = {
@@ -346,6 +422,7 @@ function validatedNewTask(input: TaskInput): Task {
     end,
     createdAt: new Date().toISOString(),
     repeat,
+    follows,
     source,
     sourceId: input.sourceId,
     sourceCalendar: input.sourceCalendar,
@@ -362,7 +439,8 @@ function validatedParsedTask(task: Task): Task {
   const end = normalizedOptionalDate(task.end, "Reminder end");
   ensureEndAfterStart(start, end);
   const source = task.source ?? "local";
-  const repeat = source === "local" ? normalizedRepeat(task.repeat) : undefined;
+  const follows = source === "local" ? normalizedFollows(task.follows, task.id) : undefined;
+  const repeat = source === "local" && !follows ? normalizedRepeat(task.repeat) : undefined;
   ensureRepeatWindow(start, end, repeat);
 
   const normalized: Task = {
@@ -382,6 +460,7 @@ function validatedParsedTask(task: Task): Task {
       : undefined,
     annoy: task.annoy === true ? true : undefined,
     repeat,
+    follows,
     source,
     readOnly: task.readOnly ?? source !== "local",
   };
@@ -494,8 +573,18 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
     const start = patch.start === undefined ? current.start : normalizedDate(patch.start, "Reminder start");
     const end = patch.end === undefined ? current.end : normalizedOptionalDate(patch.end, "Reminder end");
     ensureEndAfterStart(start, end);
+    const hasFollowsPatch = Object.prototype.hasOwnProperty.call(patch, "follows");
     const hasRepeatPatch = Object.prototype.hasOwnProperty.call(patch, "repeat");
-    const repeat = hasRepeatPatch ? normalizedRepeat(patch.repeat) : current.repeat;
+    const patchedFollows = hasFollowsPatch ? normalizedFollows(patch.follows, id) : current.follows;
+    const patchedRepeat = hasRepeatPatch ? normalizedRepeat(patch.repeat) : current.repeat;
+    // A follow-on takes its cadence from its anchor, so the two are exclusive:
+    // setting one clears the other rather than leaving both to fight over
+    // `start`.
+    const follows = hasRepeatPatch && patchedRepeat && !hasFollowsPatch ? undefined : patchedFollows;
+    const repeat = follows ? undefined : patchedRepeat;
+    if (follows && !tasks.some((candidate) => candidate.id === follows.taskId)) {
+      throw new Error("The reminder this one follows no longer exists");
+    }
     ensureRepeatWindow(start, end, repeat);
     const hasAnnoyPatch = Object.prototype.hasOwnProperty.call(patch, "annoy");
     const annoy = hasAnnoyPatch ? (patch.annoy === true ? true : undefined) : current.annoy;
@@ -507,6 +596,7 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
       start,
       end,
       repeat,
+      follows,
       annoy,
       dismissedAt: sameOccurrence ? current.dismissedAt : undefined,
       alertDismissedAt: sameOccurrence ? current.alertDismissedAt : undefined,
@@ -525,7 +615,12 @@ export async function deleteTasks(ids: string[]): Promise<void> {
   const idSet = new Set(ids);
 
   const remaining = await mutateTasks((tasks) => {
-    const nextTasks = tasks.filter((task) => !idSet.has(task.id));
+    // Deleting an anchor leaves its followers with nothing to be scheduled
+    // from, so they revert to plain one-off reminders sitting at whatever their
+    // last occurrence was, rather than keeping a link that can never fire again.
+    const nextTasks = tasks
+      .filter((task) => !idSet.has(task.id))
+      .map((task) => (task.follows && idSet.has(task.follows.taskId) ? { ...task, follows: undefined } : task));
     return { tasks: nextTasks, result: nextTasks };
   });
 
@@ -597,7 +692,16 @@ export async function markTaskAlertChimed(id: string): Promise<Task> {
 // that shape. The journal is in-process and deliberately unpersisted — an undo
 // window is a few minutes of grace for a fat finger on a wall panel, not
 // durable state worth surviving a restart.
-type TaskUndoRecord = { task: Task; completedAt: number };
+type TaskUndoRecord = {
+  task: Task;
+  /**
+   * Pre-completion state of the reminders that follow this one. Completing an
+   * anchor reschedules them, so taking the completion back has to put them
+   * where they were as well.
+   */
+  followers: Task[];
+  completedAt: number;
+};
 
 const undoJournal = new Map<string, TaskUndoRecord>();
 
@@ -622,7 +726,7 @@ export function completedTaskUndoDeadline(id: string, windowMs: number): number 
 export async function completeTask(id: string): Promise<Task> {
   const dismissedAt = new Date().toISOString();
   const nowMs = Date.now();
-  const { task, snapshot } = await mutateTasks((tasks) => {
+  const { task, snapshot, followerSnapshots } = await mutateTasks((tasks) => {
     const index = tasks.findIndex((candidate) => candidate.id === id);
     if (index < 0) {
       throw new Error("Reminder not found");
@@ -637,14 +741,20 @@ export async function completeTask(id: string): Promise<Task> {
       alertChimedFor: undefined,
     };
     const updated = refreshedRepeatingTask(dismissed, nowMs).task;
+    const followerSnapshots = tasks.filter((candidate) => candidate.follows?.taskId === id);
+    const nextTasks = rescheduledFollowers(
+      tasks.map((candidate) => (candidate.id === id ? updated : candidate)),
+      id,
+      nowMs,
+    );
 
     return {
-      tasks: tasks.map((candidate) => (candidate.id === id ? updated : candidate)),
-      result: { task: updated, snapshot },
+      tasks: nextTasks,
+      result: { task: updated, snapshot, followerSnapshots },
     };
   });
 
-  undoJournal.set(id, { task: snapshot, completedAt: nowMs });
+  undoJournal.set(id, { task: snapshot, followers: followerSnapshots, completedAt: nowMs });
 
   publishTaskDismiss(id);
   return task;
@@ -670,14 +780,17 @@ export async function uncompleteTask(id: string, windowMs: number): Promise<Task
 
   const restored = await mutateTasks((tasks) => {
     const exists = tasks.some((candidate) => candidate.id === id);
+    const followersById = new Map(record.followers.map((follower) => [follower.id, follower]));
+
+    // The task is normally still present (completion mutates in place), but
+    // a concurrent delete or an iCloud resync could have removed it; putting
+    // the snapshot back is the honest interpretation of "undo" either way.
+    const withRestoredFollowers = tasks.map((candidate) => followersById.get(candidate.id) ?? candidate);
 
     return {
-      // The task is normally still present (completion mutates in place), but
-      // a concurrent delete or an iCloud resync could have removed it; putting
-      // the snapshot back is the honest interpretation of "undo" either way.
       tasks: exists
-        ? tasks.map((candidate) => (candidate.id === id ? record.task : candidate))
-        : [...tasks, record.task],
+        ? withRestoredFollowers.map((candidate) => (candidate.id === id ? record.task : candidate))
+        : [...withRestoredFollowers, record.task],
       result: record.task,
     };
   });

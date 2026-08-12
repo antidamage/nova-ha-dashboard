@@ -143,3 +143,92 @@ describe("task notification dismissal", () => {
     expect(repaired.dismissedAt).toBeUndefined();
   });
 });
+
+describe("follow-on reminders", () => {
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })));
+  });
+
+  it("reschedules a follower when its anchor is completed", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({ id: "anchor", name: "Estrogen", repeat: { kind: "days", intervalDays: 3 } }),
+      task({
+        id: "follower",
+        name: "Drink fluids",
+        start: new Date(Date.now() - 86_400_000).toISOString(),
+        dismissedAt: new Date(Date.now() - 86_000_000).toISOString(),
+        follows: { taskId: "anchor", offsetDays: 1, hour: 18 },
+      }),
+    ]);
+
+    await store.completeTask("anchor");
+    const follower = (await store.readTasks()).find((candidate) => candidate.id === "follower");
+    const expected = new Date();
+    expected.setDate(expected.getDate() + 1);
+
+    expect(follower?.dismissedAt).toBeUndefined();
+    expect(new Date(follower!.start).toDateString()).toBe(expected.toDateString());
+    expect(new Date(follower!.start).getHours()).toBe(18);
+  });
+
+  it("puts a follower back where it was when the anchor's completion is undone", async () => {
+    const store = await isolatedTaskStore();
+    const followerStart = new Date(Date.now() - 86_400_000).toISOString();
+    await store.writeTasks([
+      task({ id: "anchor", name: "Estrogen" }),
+      task({
+        id: "follower",
+        name: "Drink fluids",
+        start: followerStart,
+        follows: { taskId: "anchor", offsetDays: 1, hour: 18 },
+      }),
+    ]);
+
+    await store.completeTask("anchor");
+    await store.uncompleteTask("anchor", 60_000);
+    const follower = (await store.readTasks()).find((candidate) => candidate.id === "follower");
+
+    expect(follower?.start).toBe(followerStart);
+  });
+
+  it("refuses a repeat and a follow link on the same reminder", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({ id: "anchor", name: "Estrogen" }),
+      task({
+        id: "follower",
+        name: "Drink fluids",
+        repeat: { kind: "days", intervalDays: 3 },
+        follows: { taskId: "anchor", offsetDays: 1, hour: 18 },
+      }),
+    ]);
+
+    const follower = (await store.readTasks()).find((candidate) => candidate.id === "follower");
+
+    expect(follower?.follows?.taskId).toBe("anchor");
+    expect(follower?.repeat).toBeUndefined();
+  });
+
+  it("drops the link when the anchor is deleted rather than leaving it dangling", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({ id: "anchor", name: "Estrogen" }),
+      task({ id: "follower", name: "Drink fluids", follows: { taskId: "anchor", offsetDays: 1, hour: 18 } }),
+    ]);
+
+    await store.deleteTasks(["anchor"]);
+    const follower = (await store.readTasks()).find((candidate) => candidate.id === "follower");
+
+    expect(follower?.follows).toBeUndefined();
+  });
+
+  it("rejects a reminder that follows itself", async () => {
+    const store = await isolatedTaskStore();
+
+    await expect(
+      store.writeTasks([task({ id: "loop", follows: { taskId: "loop", offsetDays: 1, hour: 18 } })]),
+    ).rejects.toThrow(/cannot follow itself/i);
+  });
+});

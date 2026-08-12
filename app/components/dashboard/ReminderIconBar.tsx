@@ -2,9 +2,10 @@
 
 // The reminder sigil bar that sits between the clock and the zones panel.
 //
-// The row is FIXED: every reminder in the roster keeps its tile whether or not
-// anything is due, so the bar is a stable piece of furniture you learn the
-// shape of rather than a list that reflows. State is carried in opacity:
+// Every reminder in the roster keeps its tile whether or not anything is due —
+// the row never empties out — but the tiles are ordered by when each reminder
+// is next due, with everything already dealt with pushed to the back. State is
+// carried in opacity:
 //
 //   nothing due            dimmed to `inactiveOpacity`
 //   due or active          full opacity
@@ -51,9 +52,25 @@ type Tile = {
   taskId: string | null;
   /** Set while this tile's completion can still be held-to-undone. */
   undoUntil: number | null;
+  /** Start of the soonest outstanding occurrence; Infinity when nothing is due. */
+  nextDueMs: number;
+  /** The roster's manual position, kept as a stable tiebreak. */
+  order: number;
 };
 
 const TICK_MS = 1000;
+
+/**
+ * Soonest first, so the tile you are most likely to want is nearest the clock,
+ * and everything already dealt with (`nextDueMs` of Infinity) collects at the
+ * far end. The roster's manual order survives only as the tiebreak between
+ * reminders due at the same moment.
+ */
+export function compareReminderTiles(left: TileOrder, right: TileOrder) {
+  return left.nextDueMs - right.nextDueMs || left.order - right.order || left.key.localeCompare(right.key);
+}
+
+type TileOrder = Pick<Tile, "key" | "nextDueMs" | "order">;
 
 function parseRoster(raw: string): RosterEntry[] {
   const payload = JSON.parse(raw) as { entries?: unknown };
@@ -205,8 +222,6 @@ export function ReminderIconBar() {
       // They are only presentation metadata, though: an entry without a live
       // reminder must never become a permanent, empty tile in the bar.
       .filter((entry) => entry.showInBar && byKey.has(entry.key))
-      .sort((left, right) => left.order - right.order || left.key.localeCompare(right.key))
-      .slice(0, settings.maxTiles)
       .map((entry) => {
         const candidates = (byKey.get(entry.key) ?? [])
           .filter((task) => !isTaskComplete(task))
@@ -225,6 +240,11 @@ export function ReminderIconBar() {
           (task) => recentCompletions[task.id] !== undefined,
         );
 
+        // Nothing outstanding means the tile is done for now, whether it is a
+        // one-off that has been ticked off or a repeater that has rolled
+        // forward past the horizon we can see. Either way it sorts to the back.
+        const nextDueMs = candidates.length ? taskStartMs(candidates[0]) : Number.POSITIVE_INFINITY;
+
         return {
           key: entry.key,
           displayName: entry.displayName,
@@ -232,8 +252,12 @@ export function ReminderIconBar() {
           state: overdue ? "overdue" : current ? "due" : "idle",
           taskId: active?.id ?? null,
           undoUntil: completed ? (recentCompletions[completed.id] ?? null) : null,
+          nextDueMs: Number.isFinite(nextDueMs) ? nextDueMs : Number.POSITIVE_INFINITY,
+          order: entry.order,
         } satisfies Tile;
-      });
+      })
+      .sort(compareReminderTiles)
+      .slice(0, settings.maxTiles);
   }, [nowMs, recentCompletions, roster, settings.maxTiles, settings.overduePulseAfterMs, tasks]);
 
   const markBusy = useCallback((key: string, busy: boolean) => {

@@ -34,8 +34,15 @@ export function taskIdsFrom(value: unknown, fallback?: unknown) {
 }
 
 export function taskUpdatePatchFrom(body: Record<string, unknown>) {
-  const patch: { name?: unknown; start?: unknown; end?: unknown; repeat?: unknown; annoy?: unknown } = {};
-  for (const key of ["name", "start", "end", "repeat", "annoy"] as const) {
+  const patch: {
+    name?: unknown;
+    start?: unknown;
+    end?: unknown;
+    repeat?: unknown;
+    annoy?: unknown;
+    follows?: unknown;
+  } = {};
+  for (const key of ["name", "start", "end", "repeat", "annoy", "follows"] as const) {
     if (Object.prototype.hasOwnProperty.call(body, key)) {
       patch[key] = body[key];
     }
@@ -45,13 +52,23 @@ export function taskUpdatePatchFrom(body: Record<string, unknown>) {
 
 export function taskRoutePatchFrom(value: unknown) {
   const body = TaskRequestBodySchema.parse(value);
-  const patch: { name: unknown; start: unknown; end: unknown; repeat?: unknown; annoy?: unknown } = {
+  const patch: {
+    name: unknown;
+    start: unknown;
+    end: unknown;
+    repeat?: unknown;
+    annoy?: unknown;
+    follows?: unknown;
+  } = {
     name: body.name,
     start: body.start,
     end: body.end,
   };
   if (Object.prototype.hasOwnProperty.call(body, "repeat")) {
     patch.repeat = body.repeat;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "follows")) {
+    patch.follows = body.follows;
   }
   if (Object.prototype.hasOwnProperty.call(body, "annoy")) {
     patch.annoy = body.annoy;
