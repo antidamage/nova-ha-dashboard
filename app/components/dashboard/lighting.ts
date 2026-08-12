@@ -16,6 +16,14 @@ export type SpectrumValue = {
 export const LIGHT_COMMAND_POLL_HOLD_MS = 10000;
 export const LIGHT_REMOTE_SETTING_HOLD_MS = LIGHT_COMMAND_POLL_HOLD_MS;
 
+/**
+ * Percent either side of a set brightness that counts as the zone having
+ * reached it. Mirrors the server's convergence tolerance
+ * (`lib/lighting-convergence`) so the display and the re-drive agree on
+ * "arrived".
+ */
+export const BRIGHTNESS_CONVERGENCE_TOLERANCE_PCT = 3;
+
 export const CANDLELIGHT_SPECTRUM: SpectrumValue = {
   cursor: { x: 0.08, y: 0.12 },
   preview: [255, 147, 41],

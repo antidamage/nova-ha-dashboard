@@ -617,6 +617,22 @@ Adaptive candlelight:
   poller updates already-on lights when sunrise/sunset changes the sun state.
 - The adaptive transition does not turn off lights on.
 - Manual white or custom color disables remembered adaptive mode for the zone.
+- The transition applies only to lights that were already on across the
+  crossing. A zone with nothing on records the new sun state without sending
+  anything, because the turn-on paths apply the preset for the live sun state
+  themselves. Leaving it pending instead let the transition ambush the next
+  manual set — a zone dimmed in the morning jumped to full a minute later.
+- Setting a brightness or a custom colour records the live sun state for every
+  adaptive zone containing the affected lights, including the aggregate `Home`
+  zone. An entered value is the zone's intent for the current sun state, so the
+  pending transition is consumed rather than allowed to overwrite it; the next
+  real horizon crossing still transitions normally.
+- After a `brightness` command the server checks back at 3 and 9 seconds and
+  re-sends the commanded brightness to any light that is on and further than 2
+  percent from it, then forgets the target. This makes a stalled fade reach the
+  target without ever becoming a standing override of a change made from Home
+  Assistant, a wall switch, or voice. Pinned fixtures are excluded (their own
+  pass owns them), and an active house party suspends it.
 
 Zone lighting UI:
 
@@ -625,8 +641,16 @@ Zone lighting UI:
 - An intensity control sends brightness.
 - Spectrum and brightness controls are disabled when there are no active
   controllable light devices.
-- Local spectrum and brightness state is retained during the 10 second lighting
-  remote-setting hold to avoid visual flicker and slider rubber-banding.
+- Local spectrum state is retained during the 10 second lighting remote-setting
+  hold to avoid visual flicker and slider rubber-banding.
+- The intensity control shows the brightness that was entered until the zone
+  reports having reached it (within 3 percent), not for a fixed time. A zone's
+  reported brightness is an average over its lit fixtures, each fading at its
+  own rate, so values arriving mid-fade are interpolation artefacts and are
+  never displayed. A brightness change made elsewhere is still adopted: it
+  settles on one value, which a fade does not, so a non-matching value that
+  holds for 4 seconds — and at least 12 seconds after the local set, leaving
+  room for the server's convergence re-drive — replaces the entered value.
 - The spectrum and intensity controls preview locally while dragging and send
   the color/brightness command to Home Assistant only when the control is
   released, so a drag never sends intermediate commands.
