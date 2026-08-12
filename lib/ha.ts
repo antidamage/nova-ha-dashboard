@@ -319,6 +319,28 @@ async function acknowledgeAdaptiveSunStateForEntities(
   }
 }
 
+/**
+ * Record what brightness these lights were just sent to. That record does two
+ * jobs: it publishes their in-flight readings as transitional (see
+ * `markLightingTransitions` in lib/state) so no client mistakes a point on the
+ * fade for the result, and it drives the bounded follow-up that re-sends the
+ * value to any light that stopped short.
+ *
+ * Pinned fixtures are excluded — their own scheduled pass owns their look.
+ */
+function trackLightingBrightnessTargets(
+  targets: Array<{ entity: DashboardEntity; brightnessPct: number }>,
+  lighting: DashboardState["lighting"],
+) {
+  scheduleLightingBrightnessConvergence(
+    claimLightingBrightnessTargets(
+      targets
+        .filter(({ entity }) => supportsBrightness(entity) && !isPinnedLightEntity(entity, lighting))
+        .map(({ entity, brightnessPct }) => ({ entityId: entity.entity_id, brightnessPct })),
+    ),
+  );
+}
+
 async function callMany(tasks: Promise<unknown>[]) {
   const results = await Promise.allSettled(tasks);
   const failures = results.filter((result) => result.status === "rejected") as PromiseRejectedResult[];
@@ -498,12 +520,9 @@ export async function setZoneAction(input: {
     // lights must actually arrive at it rather than wherever a fade stopped.
     await acknowledgeAdaptiveSunStateForEntities(dashboard, lightPlan.active);
     assertLatestCommandCurrent(input);
-    scheduleLightingBrightnessConvergence(
-      claimLightingBrightnessTargets(
-        lightPlan.active
-          .filter((entity) => supportsBrightness(entity) && !isPinnedLightEntity(entity, dashboard.lighting))
-          .map((entity) => ({ entityId: entity.entity_id, brightnessPct: brightness })),
-      ),
+    trackLightingBrightnessTargets(
+      lightPlan.active.map((entity) => ({ entity, brightnessPct: brightness })),
+      dashboard.lighting,
     );
 
     return buildDashboardState();
@@ -533,6 +552,10 @@ export async function setZoneAction(input: {
       }),
     ]);
     assertLatestCommandCurrent(input);
+    trackLightingBrightnessTargets(
+      lightPlan.active.map((entity) => ({ entity, brightnessPct: brightness })),
+      dashboard.lighting,
+    );
     await rememberAdaptiveCandlelightZone(input.zoneId, false, normalizedSunState(dashboard.sun));
     // Overlapping zones (notably aggregate "Home") keep their own adaptive
     // memory, so their pending transition would otherwise repaint this colour.
@@ -583,6 +606,7 @@ export async function setZoneAction(input: {
     }),
   ]);
   assertLatestCommandCurrent(input);
+  trackLightingBrightnessTargets(lightPlan.active, dashboard.lighting);
 
   if (input.action === "on" || input.action === "candlelight") {
     await rememberAdaptiveCandlelightZone(input.zoneId, true, normalizedSunState(dashboard.sun));
@@ -855,6 +879,7 @@ export async function setZoneLightingAction(input: {
     }),
   ]);
   assertLatestCommandCurrent(input);
+  trackLightingBrightnessTargets(lightPlan.active, dashboard.lighting);
 
   await rememberAdaptiveCandlelightZone(input.zoneId, true, normalizedSunState(dashboard.sun));
   assertLatestCommandCurrent(input);
@@ -918,6 +943,7 @@ export async function setAllLightingAction(input: {
     }),
   ]);
   assertLatestCommandCurrent(input);
+  trackLightingBrightnessTargets(lightPlan.active, dashboard.lighting);
 
   return buildDashboardState();
 }

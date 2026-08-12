@@ -1,7 +1,13 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTROL_INTERACTION_COOLDOWN_MS, resetControlInteractionCooldownForTests } from "./controlInteractionCooldown";
-import { DotEnvelopeControl, DotLineControl, DotRangeControl, precisionDragScale } from "./DotControls";
+import {
+  DotEnvelopeControl,
+  DotLineControl,
+  DotRangeControl,
+  DotSpectrumControl,
+  precisionDragScale,
+} from "./DotControls";
 
 describe("precision drag scaling", () => {
   it("keeps full speed in the dead zone and reaches quarter speed at 100 pixels", () => {
@@ -133,6 +139,50 @@ describe("DotLineControl snapRemote", () => {
     );
 
     expect(screen.getByRole("slider")).toHaveAttribute("aria-valuenow", "20");
+  });
+});
+
+describe("DotSpectrumControl remote cursor panning", () => {
+  beforeEach(() => {
+    window.localStorage.setItem("nova.dashboard.experienceMode.v1", "full");
+  });
+
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+  });
+
+  it("pans toward an incoming cursor without ever writing back to the lights", () => {
+    const onChange = vi.fn();
+    const onCommit = vi.fn();
+    const rgbAtPosition = () => [255, 180, 90] as [number, number, number];
+    const view = render(
+      <DotSpectrumControl
+        ariaLabel="Zone color spectrum"
+        cursor={{ x: 0.1, y: 0.2 }}
+        rgbAtPosition={rgbAtPosition}
+        onChange={onChange}
+        onCommit={onCommit}
+      />,
+    );
+
+    // Colour readings arriving mid-fade move the dot — that pan is allowed —
+    // but panning is display only: it must never issue a light command, or the
+    // dashboard would drive the lights from its own animation.
+    for (const cursor of [{ x: 0.3, y: 0.4 }, { x: 0.5, y: 0.55 }, { x: 0.62, y: 0.61 }]) {
+      view.rerender(
+        <DotSpectrumControl
+          ariaLabel="Zone color spectrum"
+          cursor={cursor}
+          rgbAtPosition={rgbAtPosition}
+          onChange={onChange}
+          onCommit={onCommit}
+        />,
+      );
+    }
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
   });
 });
 

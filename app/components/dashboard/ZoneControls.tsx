@@ -190,10 +190,15 @@ export function ZoneControls({
     () => spectrumWithCursor(spectrumFromZone(zone), spectrumCursor) ?? spectrumByZone.current[zone.id] ?? CANDLELIGHT_SPECTRUM,
     [spectrumCursor?.x, spectrumCursor?.y, zone],
   );
+  // While the zone is mid-transition the server publishes where it is going, so
+  // the control binds to that target rather than to the averaged waypoint the
+  // fixtures currently report. A client that did not issue the command therefore
+  // shows the destination immediately instead of watching the fade.
   const { setLocalValue: setLocalBrightness, value: brightness } = useRemoteSetting({
     isConverged: brightnessPctConverged,
+    isTransitional: Boolean(zone.brightnessTransition),
     key: zone.id,
-    remoteValue: zone.brightnessPct,
+    remoteValue: zone.brightnessTransition?.targetPct ?? zone.brightnessPct,
   });
   const { setLocalValue: setLocalSpectrum, value: spectrum } = useRemoteSetting({
     isEqual: spectrumValuesEqual,
