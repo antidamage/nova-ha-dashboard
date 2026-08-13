@@ -431,6 +431,14 @@ export type VoicePreferences = {
   /** Learn local voice templates and personalize turns for recognized household members. */
   speakerRecognitionEnabled?: boolean;
   /**
+   * Voice training. On, an unrecognized voice may still wake the assistant and
+   * issue commands, and every accepted turn refines recognition — the mode for
+   * enrolling someone, adding a microphone or room, or a day when a familiar
+   * voice sounds different. Off, only recognized household voices are heard.
+   * Bypassed entirely when speaker recognition is unavailable.
+   */
+  voiceTrainingEnabled?: boolean;
+  /**
    * Per-satellite killswitch: satellite ids that are individually switched off.
    * The voice server drops their microphone frames while they are listed, so one
    * satellite can be silenced (e.g. while testing other devices) without stopping
@@ -503,6 +511,12 @@ export type VoicePreferences = {
   personality?: string;
   /** Seconds a conversation stays open without a turn before the wake word is required again. */
   conversationIdleSeconds?: number;
+  /**
+   * Absolute seconds a conversation may live from the wake word that opened it.
+   * The idle window is refreshed by every engaged turn and so cannot bound a
+   * conversation on its own; this is the backstop that always closes it.
+   */
+  conversationMaxSeconds?: number;
   /** Milliseconds of streamed audio the satellite buffers before starting playback. */
   ttsPrerollMs?: number;
   /** Milliseconds of audio per steady-state frame sent to satellites. */

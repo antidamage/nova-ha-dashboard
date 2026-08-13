@@ -209,14 +209,16 @@ const PRONOUN_FORMS = ["subjective", "objective", "possessive"] as const;
 export type VoiceSettings = Required<
   Pick<
     VoicePreferences,
-    | "agentName" | "agentNamePronunciation" | "systemVoiceEnabled" | "speakerRecognitionEnabled" | "disabledSatellites"
+    | "agentName" | "agentNamePronunciation" | "systemVoiceEnabled" | "speakerRecognitionEnabled"
+    | "voiceTrainingEnabled" | "disabledSatellites"
     | "satelliteNoiseGateEnabled"
     | "speaker" | "customSpeaker" | "trainedSpeaker" | "language" | "accent" | "speechRate"
     | "pitch" | "emotion" | "emotionMirroring" | "temperature" | "longResponseProbability"
     | "commandReplyMinWords" | "commandReplyMaxWords"
     | "webAccessEnabled" | "webBackend" | "webAnswerMaxSentences"
     | "wakeWords" | "wakePrefixes" | "volumeDay" | "volumeNight" | "personality"
-    | "conversationIdleSeconds" | "ttsPrerollMs" | "ttsFrameMs" | "dotsNumSteps" | "transcriptTemplate"
+    | "conversationIdleSeconds" | "conversationMaxSeconds"
+    | "ttsPrerollMs" | "ttsFrameMs" | "dotsNumSteps" | "transcriptTemplate"
     | "speakerMatchThreshold" | "speakerMatchMargin" | "speakerClusterThreshold"
     | "speakerConversationMatchThreshold"
   >
@@ -280,6 +282,9 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   // Voice is on by default; the killswitch is opt-in.
   systemVoiceEnabled: true,
   speakerRecognitionEnabled: true,
+  // On after installation so a fresh house can enrol its first voice; the
+  // owner turns it off once recognition is settled.
+  voiceTrainingEnabled: true,
   // Indium is the primary microphone. Keep Nocturnium connected but muted by
   // default so a fresh/reset config never processes both co-located mics.
   disabledSatellites: ["nocturnium"],
@@ -312,6 +317,7 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   volumeNight: 100,
   personality: "You are a bright, bubbly helper!",
   conversationIdleSeconds: 60,
+  conversationMaxSeconds: 300,
   // Recommended starting point for the fast-start streaming pipeline: a
   // 700ms preroll was tuned for the old ~2s first codec chunk. Sliders can
   // be moved back up from here if pacing deficits show up in /health.
@@ -344,6 +350,7 @@ export const VOICE_SETTINGS_RANGES = {
   volumeDay: { min: 0, max: 100, step: 5 },
   volumeNight: { min: 0, max: 100, step: 5 },
   conversationIdleSeconds: { min: 10, max: 300, step: 5 },
+  conversationMaxSeconds: { min: 60, max: 1800, step: 30, default: 300 },
   ttsPrerollMs: { min: 20, max: 2000, step: 10 },
   ttsFrameMs: { min: 20, max: 200, step: 10 },
   dotsNumSteps: DOTS_NUM_STEPS_RANGE,
@@ -515,6 +522,9 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
     // keeps voice on, so a partial/legacy preferences blob never mutes the house.
     systemVoiceEnabled: source.systemVoiceEnabled !== false,
     speakerRecognitionEnabled: source.speakerRecognitionEnabled !== false,
+    // Only an explicit false turns training off, so a partial or legacy
+    // preferences blob can never silently stop listening to the household.
+    voiceTrainingEnabled: source.voiceTrainingEnabled !== false,
     disabledSatellites: storedDisabledSatellites(source.disabledSatellites),
     // Only an explicit false bypasses the gate; legacy settings stay on the
     // bandwidth-saving and privacy-preserving default.
@@ -617,6 +627,13 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
       VOICE_SETTINGS_RANGES.conversationIdleSeconds.min,
       VOICE_SETTINGS_RANGES.conversationIdleSeconds.max,
       VOICE_SETTINGS_RANGES.conversationIdleSeconds.step,
+    ),
+    conversationMaxSeconds: storedNumber(
+      source.conversationMaxSeconds,
+      VOICE_SETTINGS_DEFAULTS.conversationMaxSeconds,
+      VOICE_SETTINGS_RANGES.conversationMaxSeconds.min,
+      VOICE_SETTINGS_RANGES.conversationMaxSeconds.max,
+      VOICE_SETTINGS_RANGES.conversationMaxSeconds.step,
     ),
     ttsPrerollMs: storedNumber(
       source.ttsPrerollMs,
@@ -924,6 +941,7 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     agentNamePronunciation: updateAgentNamePronunciation(source),
     systemVoiceEnabled: updateBoolean(source, "systemVoiceEnabled"),
     speakerRecognitionEnabled: updateBoolean(source, "speakerRecognitionEnabled"),
+    voiceTrainingEnabled: updateBoolean(source, "voiceTrainingEnabled"),
     disabledSatellites: updateDisabledSatellites(source),
     satelliteNoiseGateEnabled: updateBoolean(source, "satelliteNoiseGateEnabled"),
     speaker: updateChoice(source, "speaker", SPEAKERS),
@@ -971,6 +989,11 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
       source,
       "conversationIdleSeconds",
       VOICE_SETTINGS_RANGES.conversationIdleSeconds,
+    ),
+    conversationMaxSeconds: updateNumber(
+      source,
+      "conversationMaxSeconds",
+      VOICE_SETTINGS_RANGES.conversationMaxSeconds,
     ),
     ttsPrerollMs: updateNumber(source, "ttsPrerollMs", VOICE_SETTINGS_RANGES.ttsPrerollMs),
     ttsFrameMs: updateNumber(source, "ttsFrameMs", VOICE_SETTINGS_RANGES.ttsFrameMs),

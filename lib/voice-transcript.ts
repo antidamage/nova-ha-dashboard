@@ -11,6 +11,23 @@ export type VoiceTranscriptRole = "user" | "assistant";
  */
 export type VoiceTranscriptKind = "command" | "exchange" | "thinking";
 
+/**
+ * What became of the turn. `kind` says whether it was a command; it cannot say
+ * whether the command ran, so a command that took effect, one withheld by
+ * shadow mode or a dry run, and one that failed all look identical without
+ * this.
+ */
+export const VOICE_TRANSCRIPT_OUTCOMES = [
+  "executed",
+  "dry-run",
+  "shadowed",
+  "failed",
+  "ignored",
+  "answered",
+] as const;
+
+export type VoiceTranscriptOutcome = (typeof VOICE_TRANSCRIPT_OUTCOMES)[number];
+
 export type VoiceTranscriptEvent = {
   id: string;
   at: string;
@@ -20,6 +37,9 @@ export type VoiceTranscriptEvent = {
   /** Recognized local speaker-profile name for user turns. */
   speakerName?: string;
   kind?: VoiceTranscriptKind;
+  outcome?: VoiceTranscriptOutcome;
+  /** The interpreter's verdict for this turn: execute, reply, clarify, ignore. */
+  decision?: string;
   wakeWords?: string[];
   /** Legacy runtime field retained while older transcript events age out. */
   wakeWord?: string;
@@ -34,6 +54,8 @@ export type VoiceTranscriptReplaceInput = {
   text: string;
   at: string;
   kind?: VoiceTranscriptKind;
+  outcome?: VoiceTranscriptOutcome;
+  decision?: string;
   speakerName?: string;
 };
 
@@ -55,6 +77,18 @@ function optionalLabel(value: unknown): string | undefined {
 
 function optionalKind(value: unknown): VoiceTranscriptKind | undefined {
   return value === "command" || value === "exchange" || value === "thinking"
+    ? value
+    : undefined;
+}
+
+function optionalOutcome(value: unknown): VoiceTranscriptOutcome | undefined {
+  return VOICE_TRANSCRIPT_OUTCOMES.includes(value as VoiceTranscriptOutcome)
+    ? (value as VoiceTranscriptOutcome)
+    : undefined;
+}
+
+function optionalDecision(value: unknown): string | undefined {
+  return value === "execute" || value === "reply" || value === "clarify" || value === "ignore"
     ? value
     : undefined;
 }
@@ -99,6 +133,8 @@ export function parseVoiceTranscriptInput(
   const agentName = optionalLabel(source.agentName);
   const speakerName = optionalLabel(source.speakerName);
   const kind = optionalKind(source.kind);
+  const outcome = optionalOutcome(source.outcome);
+  const decision = optionalDecision(source.decision);
   const wakeWords = optionalWords(source.wakeWords);
   const wakeWord = optionalLabel(source.wakeWord);
   const satelliteId = optionalLabel(source.satelliteId);
@@ -111,6 +147,8 @@ export function parseVoiceTranscriptInput(
     ...(agentName ? { agentName } : {}),
     ...(speakerName ? { speakerName } : {}),
     ...(kind ? { kind } : {}),
+    ...(outcome ? { outcome } : {}),
+    ...(decision ? { decision } : {}),
     ...(wakeWords ? { wakeWords } : {}),
     ...(wakeWord ? { wakeWord } : {}),
     ...(satelliteId ? { satelliteId } : {}),
@@ -140,12 +178,16 @@ export function parseVoiceTranscriptReplaceInput(
   const suppliedAt = typeof source.at === "string" ? new Date(source.at) : now;
   const at = Number.isNaN(suppliedAt.getTime()) ? now : suppliedAt;
   const kind = optionalKind(source.kind);
+  const outcome = optionalOutcome(source.outcome);
+  const decision = optionalDecision(source.decision);
   const speakerName = optionalLabel(source.speakerName);
   return {
     replacesId,
     text,
     at: at.toISOString(),
     ...(kind ? { kind } : {}),
+    ...(outcome ? { outcome } : {}),
+    ...(decision ? { decision } : {}),
     ...(speakerName ? { speakerName } : {}),
   };
 }
@@ -162,7 +204,33 @@ export type VoiceTranscriptLineParts = {
   bodyPrefix: string;
   text: string;
   role: VoiceTranscriptRole;
+  /** Carried through so a failed or withheld turn can be styled differently. */
+  outcome?: VoiceTranscriptOutcome;
 };
+
+/**
+ * The `%m%` label. A command that ran and one that failed must not read the
+ * same, so a command turn's outcome qualifies the tag — but only when it says
+ * something the tag does not: a plain executed command stays "COMMAND".
+ */
+export function voiceTranscriptModeLabel(entry: VoiceTranscriptEvent): string {
+  if (entry.kind === "thinking") {
+    return "THINKING";
+  }
+  if (entry.kind !== "command") {
+    return "EXCHANGE";
+  }
+  switch (entry.outcome) {
+    case "failed":
+      return "COMMAND FAILED";
+    case "dry-run":
+      return "COMMAND DRY-RUN";
+    case "shadowed":
+      return "COMMAND SHADOWED";
+    default:
+      return "COMMAND";
+  }
+}
 
 const TRANSCRIPT_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -212,14 +280,16 @@ export function formatVoiceTranscriptParts(
       : displayAgentName(entry.agentName || fallbackAgentName).toLocaleUpperCase(),
     "%d%": transcriptDate(date),
     "%t%": transcriptTime(date),
-    "%m%": entry.kind === "command"
-      ? "COMMAND"
-      : entry.kind === "thinking"
-        ? "THINKING"
-        : "EXCHANGE",
+    "%m%": voiceTranscriptModeLabel(entry),
   };
   const prefix = template.replace(/%[uadtm]%/g, (token) => substitutions[token] ?? token);
-  return { prefix, bodyPrefix: VOICE_TRANSCRIPT_BODY_PREFIX, text: entry.text, role: entry.role };
+  return {
+    prefix,
+    bodyPrefix: VOICE_TRANSCRIPT_BODY_PREFIX,
+    text: entry.text,
+    role: entry.role,
+    ...(entry.outcome ? { outcome: entry.outcome } : {}),
+  };
 }
 
 export function formatVoiceTranscriptLine(

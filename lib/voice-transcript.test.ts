@@ -1,10 +1,77 @@
 import { describe, expect, it } from "vitest";
 import {
   formatVoiceTranscriptLine,
+  formatVoiceTranscriptParts,
   parseVoiceTranscriptInput,
   parseVoiceTranscriptReplaceInput,
+  voiceTranscriptModeLabel,
   type VoiceTranscriptEvent,
 } from "./voice-transcript";
+
+describe("voice transcript outcome", () => {
+  const command = (extra: Partial<VoiceTranscriptEvent> = {}): VoiceTranscriptEvent => ({
+    at: "2026-08-13T02:00:00.000Z",
+    id: "aaaaaaaa",
+    kind: "command",
+    role: "user",
+    text: "turn on the kitchen lights",
+    ...extra,
+  });
+
+  it("distinguishes a command that ran from one that did not", () => {
+    // `kind` alone collapses these into one label, which is how a failed
+    // command used to read exactly like a successful one.
+    expect(voiceTranscriptModeLabel(command({ outcome: "executed" }))).toBe("COMMAND");
+    expect(voiceTranscriptModeLabel(command())).toBe("COMMAND");
+    expect(voiceTranscriptModeLabel(command({ outcome: "failed" }))).toBe("COMMAND FAILED");
+    expect(voiceTranscriptModeLabel(command({ outcome: "dry-run" }))).toBe("COMMAND DRY-RUN");
+    expect(voiceTranscriptModeLabel(command({ outcome: "shadowed" }))).toBe("COMMAND SHADOWED");
+  });
+
+  it("leaves conversational and thinking turns alone", () => {
+    expect(voiceTranscriptModeLabel(command({ kind: undefined, outcome: "answered" })))
+      .toBe("EXCHANGE");
+    expect(voiceTranscriptModeLabel(command({ kind: "thinking" }))).toBe("THINKING");
+  });
+
+  it("carries the outcome through parsing and into the rendered parts", () => {
+    const parsed = parseVoiceTranscriptInput({
+      decision: "execute",
+      kind: "command",
+      outcome: "failed",
+      role: "assistant",
+      text: "I could not reach the kitchen light.",
+    });
+
+    expect(parsed.outcome).toBe("failed");
+    expect(parsed.decision).toBe("execute");
+    expect(formatVoiceTranscriptParts({ ...parsed, id: "b" } as VoiceTranscriptEvent).outcome)
+      .toBe("failed");
+  });
+
+  it("ignores an outcome or decision it does not recognise", () => {
+    const parsed = parseVoiceTranscriptInput({
+      decision: "improvise",
+      outcome: "probably-fine",
+      role: "user",
+      text: "hello",
+    });
+
+    expect(parsed.outcome).toBeUndefined();
+    expect(parsed.decision).toBeUndefined();
+  });
+
+  it("carries the outcome on an in-place upgrade", () => {
+    // The [COMMAND] tag arrives on this upgrade, so its qualifier has to as
+    // well or the line reads as a plain successful command.
+    expect(parseVoiceTranscriptReplaceInput({
+      kind: "command",
+      outcome: "dry-run",
+      replacesId: "aaaaaaaa",
+      text: "turn on the kitchen lights",
+    })).toMatchObject({ kind: "command", outcome: "dry-run" });
+  });
+});
 
 describe("voice transcript", () => {
   it("normalizes an Iridium transcript payload", () => {
