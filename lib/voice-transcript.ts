@@ -28,6 +28,25 @@ export const VOICE_TRANSCRIPT_OUTCOMES = [
 
 export type VoiceTranscriptOutcome = (typeof VOICE_TRANSCRIPT_OUTCOMES)[number];
 
+/**
+ * How long a user line may sit without an outcome before it is read as having
+ * failed. Every turn now resolves its line, so an unresolved one means the
+ * runtime died mid-turn — that is a failure, not an eternal working state.
+ */
+export const VOICE_TRANSCRIPT_PENDING_TIMEOUT_MS = 2 * 60 * 1_000;
+
+/** Working / succeeded / failed, as shown after the question body. */
+export type VoiceTranscriptStatus = "working" | "success" | "failure";
+
+export const VOICE_TRANSCRIPT_STATUS_GLYPHS: Record<VoiceTranscriptStatus, string> = {
+  working: "🧰",
+  success: "⭕",
+  failure: "❌",
+};
+
+/** Gap between the question text and its status glyph. */
+export const VOICE_TRANSCRIPT_STATUS_SEPARATOR = "   ";
+
 export type VoiceTranscriptEvent = {
   id: string;
   at: string;
@@ -206,7 +225,38 @@ export type VoiceTranscriptLineParts = {
   role: VoiceTranscriptRole;
   /** Carried through so a failed or withheld turn can be styled differently. */
   outcome?: VoiceTranscriptOutcome;
+  /** Working/succeeded/failed, for styling; absent when nothing is claimed. */
+  status?: VoiceTranscriptStatus;
+  /** The glyph itself, already spaced away from the body text. */
+  statusGlyph?: string;
 };
+
+/**
+ * What to show after the question. A turn in flight is working; once it
+ * resolves only a command turn makes a success/failure claim, because an
+ * exchange has nothing to have succeeded or failed at. Assistant lines never
+ * carry a marker — the claim belongs to the question, not the reply.
+ */
+export function voiceTranscriptStatus(
+  entry: VoiceTranscriptEvent,
+  now: Date = new Date(),
+): VoiceTranscriptStatus | undefined {
+  if (entry.role !== "user") {
+    return undefined;
+  }
+  if (!entry.outcome) {
+    // No outcome yet: in flight, until it has been waiting long enough that
+    // the turn plainly never came back.
+    const waited = now.getTime() - new Date(entry.at).getTime();
+    return waited >= VOICE_TRANSCRIPT_PENDING_TIMEOUT_MS ? "failure" : "working";
+  }
+  if (entry.kind !== "command") {
+    return undefined;
+  }
+  // A dry run or a shadowed command was understood and resolved; only the
+  // header tag needs to say it was withheld.
+  return entry.outcome === "failed" || entry.outcome === "ignored" ? "failure" : "success";
+}
 
 /**
  * The `%m%` label. A command that ran and one that failed must not read the
@@ -268,6 +318,7 @@ export function formatVoiceTranscriptParts(
   entry: VoiceTranscriptEvent,
   fallbackAgentName = "Nova",
   template = DEFAULT_TRANSCRIPT_TEMPLATE,
+  now: Date = new Date(),
 ): VoiceTranscriptLineParts {
   const date = new Date(entry.at);
   // One template serves both roles, so the speaker tokens are conditional:
@@ -283,12 +334,16 @@ export function formatVoiceTranscriptParts(
     "%m%": voiceTranscriptModeLabel(entry),
   };
   const prefix = template.replace(/%[uadtm]%/g, (token) => substitutions[token] ?? token);
+  const status = voiceTranscriptStatus(entry, now);
   return {
     prefix,
     bodyPrefix: VOICE_TRANSCRIPT_BODY_PREFIX,
     text: entry.text,
     role: entry.role,
     ...(entry.outcome ? { outcome: entry.outcome } : {}),
+    ...(status
+      ? { status, statusGlyph: VOICE_TRANSCRIPT_STATUS_GLYPHS[status] }
+      : {}),
   };
 }
 
@@ -296,7 +351,14 @@ export function formatVoiceTranscriptLine(
   entry: VoiceTranscriptEvent,
   fallbackAgentName = "Nova",
   template = DEFAULT_TRANSCRIPT_TEMPLATE,
+  now: Date = new Date(),
 ): string {
-  const { prefix, bodyPrefix, text } = formatVoiceTranscriptParts(entry, fallbackAgentName, template);
-  return `${prefix}\n${bodyPrefix}${text}`;
+  const { prefix, bodyPrefix, text, statusGlyph } = formatVoiceTranscriptParts(
+    entry,
+    fallbackAgentName,
+    template,
+    now,
+  );
+  const status = statusGlyph ? `${VOICE_TRANSCRIPT_STATUS_SEPARATOR}${statusGlyph}` : "";
+  return `${prefix}\n${bodyPrefix}${text}${status}`;
 }

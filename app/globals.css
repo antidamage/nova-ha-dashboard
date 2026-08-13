@@ -696,6 +696,18 @@ html[data-nova-hide-orb-info]
   text-shadow: 0 0 8px rgb(255 64 91 / 0.4);
 }
 
+/* The status marker after the question body. Upright and unslanted so the
+   glyph is not sheared by the body style, and never dimmed by the role rules
+   above — the whole point is that it reads at a glance. */
+.voice-transcript-status {
+  font-style: normal;
+  white-space: pre;
+}
+
+.voice-transcript-status--working {
+  opacity: 0.7;
+}
+
 /* Withheld, not done: dimmed rather than alarming. */
 .voice-transcript-meta--dry-run,
 .voice-transcript-meta--shadowed {

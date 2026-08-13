@@ -5,6 +5,8 @@ import {
   parseVoiceTranscriptInput,
   parseVoiceTranscriptReplaceInput,
   voiceTranscriptModeLabel,
+  voiceTranscriptStatus,
+  VOICE_TRANSCRIPT_PENDING_TIMEOUT_MS,
   type VoiceTranscriptEvent,
 } from "./voice-transcript";
 
@@ -102,6 +104,9 @@ describe("voice transcript", () => {
       role: "user",
       text: "Turn it on",
       speakerName: "Adeline",
+      // Resolved, so no status marker trails the body and these assertions
+      // stay about the decoration.
+      outcome: "answered",
     };
     const assistant: VoiceTranscriptEvent = {
       id: "turn-2",
@@ -134,7 +139,13 @@ describe("voice transcript", () => {
 
   it("substitutes custom template variables per role and leaves unknown tokens alone", () => {
     const at = "2026-07-17T00:42:37.000Z";
-    const user: VoiceTranscriptEvent = { id: "turn-1", at, role: "user", text: "Turn it on" };
+    const user: VoiceTranscriptEvent = {
+      id: "turn-1",
+      at,
+      role: "user",
+      text: "Turn it on",
+      outcome: "answered",
+    };
     const assistant: VoiceTranscriptEvent = {
       id: "turn-2",
       at,
@@ -208,5 +219,88 @@ describe("voice transcript", () => {
     expect(() =>
       parseVoiceTranscriptReplaceInput({ replacesId: "3f2a4b1c9d8e7f60", text: "  " }),
     ).toThrow(/text/);
+  });
+});
+
+describe("voice transcript status marker", () => {
+  const AT = "2026-08-13T02:00:00.000Z";
+  const DURING = new Date("2026-08-13T02:00:05.000Z");
+  const turn = (extra: Partial<VoiceTranscriptEvent> = {}): VoiceTranscriptEvent => ({
+    at: AT,
+    id: "aaaaaaaa",
+    role: "user",
+    text: "make it brighter",
+    ...extra,
+  });
+
+  it("shows a working marker while the turn is still in flight", () => {
+    expect(voiceTranscriptStatus(turn(), DURING)).toBe("working");
+    // The runtime does not know it is a command until the turn resolves, so
+    // the working state cannot wait for the [COMMAND] tag.
+    expect(voiceTranscriptStatus(turn({ kind: "command" }), DURING)).toBe("working");
+  });
+
+  it("resolves a command turn to success or failure", () => {
+    const command = (outcome: VoiceTranscriptEvent["outcome"]) =>
+      voiceTranscriptStatus(turn({ kind: "command", outcome }), DURING);
+
+    expect(command("executed")).toBe("success");
+    expect(command("answered")).toBe("success");
+    // Every runtime-test turn comes back dry-run; a test suite must not read
+    // as a wall of failures because the harness withheld the side effect.
+    expect(command("dry-run")).toBe("success");
+    expect(command("shadowed")).toBe("success");
+    expect(command("failed")).toBe("failure");
+    expect(command("ignored")).toBe("failure");
+  });
+
+  it("claims nothing for a resolved turn that was not a command", () => {
+    expect(voiceTranscriptStatus(turn({ outcome: "answered" }), DURING)).toBeUndefined();
+    expect(voiceTranscriptStatus(turn({ kind: "thinking", outcome: "answered" }), DURING))
+      .toBeUndefined();
+  });
+
+  it("never marks the agent's reply", () => {
+    expect(voiceTranscriptStatus(turn({ role: "assistant" }), DURING)).toBeUndefined();
+    expect(
+      voiceTranscriptStatus(turn({ role: "assistant", kind: "command", outcome: "executed" }), DURING),
+    ).toBeUndefined();
+  });
+
+  it("gives up on a turn that never came back", () => {
+    const started = new Date(AT).getTime();
+    const justBefore = new Date(started + VOICE_TRANSCRIPT_PENDING_TIMEOUT_MS - 1);
+    const atTimeout = new Date(started + VOICE_TRANSCRIPT_PENDING_TIMEOUT_MS);
+
+    expect(voiceTranscriptStatus(turn(), justBefore)).toBe("working");
+    expect(voiceTranscriptStatus(turn(), atTimeout)).toBe("failure");
+  });
+
+  it("appends the glyph to the rendered parts and line", () => {
+    const parts = formatVoiceTranscriptParts(
+      turn({ kind: "command", outcome: "executed" }),
+      "Nova",
+      undefined,
+      DURING,
+    );
+    expect(parts.status).toBe("success");
+    expect(parts.statusGlyph).toBe("⭕");
+
+    const line = formatVoiceTranscriptLine(
+      turn({ kind: "command", outcome: "failed" }),
+      "Nova",
+      undefined,
+      DURING,
+    );
+    expect(line).toContain("make it brighter   ❌");
+
+    // An unmarked line keeps its trailing text exactly as it was.
+    const plain = formatVoiceTranscriptLine(
+      turn({ outcome: "answered" }),
+      "Nova",
+      undefined,
+      DURING,
+    );
+    expect(plain.endsWith("make it brighter")).toBe(true);
   });
 });

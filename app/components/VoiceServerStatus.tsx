@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   voiceServerOverall,
   voiceServerServiceRows,
+  voiceServerWarmth,
   type VoiceServerStatusPayload,
 } from "../../lib/voice-server-status";
 
@@ -62,6 +63,10 @@ export function VoiceServerStatus() {
 
   const overall = voiceServerOverall(payload, probeFailed);
   const rows = payload?.reachable === true ? voiceServerServiceRows(payload.health) : [];
+  // Sits with the service dots rather than in the headline alone: this is the
+  // row someone checks when a reply took too long, and it is the only one that
+  // can be amber — the others are up or down.
+  const warmth = payload?.reachable === true ? voiceServerWarmth(payload.health) : null;
   const toneText =
     overall.tone === "ok" ? "text-cyan-200/80" : overall.tone === "warning" ? "text-yellow-200" : "text-red-200";
 
@@ -79,7 +84,7 @@ export function VoiceServerStatus() {
           <p role="status" className={`text-xs font-semibold ${toneText}`}>{overall.text}</p>
         </div>
       </div>
-      {rows.length > 0 ? (
+      {rows.length > 0 || warmth ? (
         <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
           {rows.map((row) => (
             <li key={row.label} className="flex items-center gap-1.5 text-xs font-semibold text-neutral-300">
@@ -90,6 +95,21 @@ export function VoiceServerStatus() {
               {row.label}
             </li>
           ))}
+          {warmth ? (
+            <li className="flex items-center gap-1.5 text-xs font-semibold text-neutral-300">
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 rounded-full ${
+                  warmth.tone === "ok"
+                    ? "bg-cyan-300"
+                    : warmth.tone === "warning"
+                      ? "bg-yellow-300"
+                      : "bg-red-400"
+                }`}
+              />
+              {warmth.text}
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </section>

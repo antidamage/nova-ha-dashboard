@@ -44,6 +44,9 @@ describe("VoiceTranscriptPanel", () => {
               role: "user",
               text: "Turn it on",
               speakerName: "Adeline",
+              // A resolved exchange: no status marker, which keeps these
+              // decoration assertions about the decoration.
+              outcome: "answered",
             }],
           },
       ok: true,
@@ -107,6 +110,7 @@ describe("VoiceTranscriptPanel", () => {
                 at: "2026-07-17T00:42:37.000Z",
                 role: "user",
                 text: "Turn it on",
+                outcome: "answered",
               }],
             }),
           }));
@@ -122,6 +126,85 @@ describe("VoiceTranscriptPanel", () => {
     // lands on a re-render; wait for it rather than asserting immediately.
     await waitFor(() =>
       expect(userLine.textContent).toMatch(/^<EXCHANGE> USER @ \d{1,2}:\d{2}(am|pm)\n/));
+  });
+
+  it("marks a turn as working, then resolves it in place", async () => {
+    render(<VoiceTranscriptPanel />);
+    await findTranscriptLine(/╰─ Turn it on/);
+
+    // A turn arriving now has no outcome yet: it is still being processed.
+    act(() => {
+      stream.handlers["voice-transcript"]?.(new MessageEvent("voice-transcript", {
+        data: JSON.stringify({
+          id: "user-2",
+          at: new Date().toISOString(),
+          role: "user",
+          text: "make it brighter",
+        }),
+      }));
+    });
+    const working = await findTranscriptLine(/make it brighter/);
+    expect(working.textContent).toContain("make it brighter   🧰");
+
+    // The runtime upgrades the same line once the command has run — one line
+    // per utterance, not a second entry underneath it.
+    act(() => {
+      stream.handlers["voice-transcript-replaced"]?.(new MessageEvent("voice-transcript-replaced", {
+        data: JSON.stringify({
+          id: "user-2",
+          at: new Date().toISOString(),
+          role: "user",
+          text: "make it brighter",
+          kind: "command",
+          outcome: "executed",
+        }),
+      }));
+    });
+    const resolved = await findTranscriptLine(/make it brighter/);
+    expect(resolved.textContent).toContain("make it brighter   ⭕");
+    expect(resolved.textContent).not.toContain("🧰");
+    expect(screen.getByRole("log").querySelectorAll("p")).toHaveLength(2);
+  });
+
+  it("shows a failed command with the failure marker", async () => {
+    render(<VoiceTranscriptPanel />);
+    await findTranscriptLine(/╰─ Turn it on/);
+
+    act(() => {
+      stream.handlers["voice-transcript"]?.(new MessageEvent("voice-transcript", {
+        data: JSON.stringify({
+          id: "user-3",
+          at: new Date().toISOString(),
+          role: "user",
+          text: "unlock the door",
+          kind: "command",
+          outcome: "failed",
+        }),
+      }));
+    });
+    const failed = await findTranscriptLine(/unlock the door/);
+    expect(failed.textContent).toContain("unlock the door   ❌");
+    expect(failed.querySelector(".voice-transcript-status"))
+      .toHaveClass("voice-transcript-status--failure");
+  });
+
+  it("leaves the agent's reply unmarked", async () => {
+    render(<VoiceTranscriptPanel />);
+
+    act(() => {
+      stream.handlers["voice-transcript"]?.(new MessageEvent("voice-transcript", {
+        data: JSON.stringify({
+          id: "assistant-3",
+          at: new Date().toISOString(),
+          role: "assistant",
+          text: "Brightened.",
+          kind: "command",
+          outcome: "executed",
+        }),
+      }));
+    });
+    const reply = await findTranscriptLine(/╰─ Brightened\.$/);
+    expect(reply.querySelector(".voice-transcript-status")).toBeNull();
   });
 
   it("collapses the log and clears the shared history", async () => {
