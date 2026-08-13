@@ -140,6 +140,31 @@ describe("voice settings", () => {
     });
   });
 
+  it("normalizes and updates the absolute conversation limit", () => {
+    // The idle window is refreshed by every engaged turn, so it cannot bound a
+    // conversation on its own; this is the backstop that always closes it.
+    expect(normalizeVoiceSettings(null).conversationMaxSeconds).toBe(300);
+    expect(normalizeVoiceSettings({ conversationMaxSeconds: 100 }).conversationMaxSeconds).toBe(90);
+    expect(normalizeVoiceSettings({ conversationMaxSeconds: 9999 }).conversationMaxSeconds)
+      .toBe(1800);
+    expect(parseVoiceSettingsUpdate({ conversationMaxSeconds: 600 })).toEqual({
+      conversationMaxSeconds: 600,
+    });
+  });
+
+  it("defaults voice training on and only an explicit false turns it off", () => {
+    // A partial or legacy preferences blob must never silently stop the
+    // household being listened to.
+    expect(normalizeVoiceSettings(null).voiceTrainingEnabled).toBe(true);
+    expect(normalizeVoiceSettings({}).voiceTrainingEnabled).toBe(true);
+    expect(normalizeVoiceSettings({ voiceTrainingEnabled: false }).voiceTrainingEnabled).toBe(false);
+    expect(parseVoiceSettingsUpdate({ voiceTrainingEnabled: false })).toEqual({
+      voiceTrainingEnabled: false,
+    });
+    expect(() => parseVoiceSettingsUpdate({ voiceTrainingEnabled: "no" }))
+      .toThrow(/must be true or false/);
+  });
+
   it("normalizes and updates the transcript decoration template", () => {
     expect(normalizeVoiceSettings(null).transcriptTemplate).toBe(
       "╭─[ %u%%a% ➤ %d% %t% ➤ [%m%] ]",

@@ -122,6 +122,18 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
           ...(current.phonoscope?.moduleSettings ?? {}),
           ...(next.phonoscope.moduleSettings ?? {}),
         },
+        // House Party carries an on/off plus two colour-behaviour modes, and
+        // callers legitimately write only one of them — the voice `nova.mode`
+        // tool flips `enabled` alone. Without this branch the outer spread
+        // replaces the whole object and silently drops the other two.
+        ...(next.phonoscope.houseParty
+          ? {
+            houseParty: {
+              ...(current.phonoscope?.houseParty ?? {}),
+              ...withoutUndefined(next.phonoscope.houseParty as Record<string, unknown>),
+            } as NonNullable<typeof current.phonoscope>["houseParty"],
+          }
+          : {}),
         updatedAt: new Date().toISOString(),
       };
     }

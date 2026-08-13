@@ -155,7 +155,12 @@ export function VoiceTranscriptPanel() {
                     key={line.id}
                     className={`voice-transcript-line voice-transcript-line--${line.role} whitespace-pre-wrap break-words`}
                   >
-                    <span className={`voice-transcript-meta voice-transcript-meta--${line.role}`}>
+                    <span
+                      className={
+                        `voice-transcript-meta voice-transcript-meta--${line.role}`
+                        + (line.outcome ? ` voice-transcript-meta--${line.outcome}` : "")
+                      }
+                    >
                       {line.prefix}
                     </span>
                     {"\n"}

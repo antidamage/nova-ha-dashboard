@@ -51,6 +51,8 @@ export async function POST(request: Request) {
         replace.at,
         replace.kind,
         replace.speakerName,
+        replace.outcome,
+        replace.decision,
       );
       if (replaced) {
         return NextResponse.json({ ok: true, transcript: replaced });

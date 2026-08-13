@@ -22,6 +22,7 @@ import {
   VOICE_TRANSCRIPT_RETENTION_MS,
   type VoiceTranscriptEvent,
   type VoiceTranscriptKind,
+  type VoiceTranscriptOutcome,
 } from "./voice-transcript";
 import {
   adaptiveLightBrightnessPctForEntity,
@@ -388,6 +389,8 @@ export function replaceVoiceTranscript(
   at: string,
   kind?: VoiceTranscriptKind,
   speakerName?: string,
+  outcome?: VoiceTranscriptOutcome,
+  decision?: string,
 ): VoiceTranscriptEvent | null {
   const entry = store.voiceTranscripts.find((item) => item.id === replacesId);
   if (!entry) {
@@ -400,6 +403,14 @@ export function replaceVoiceTranscript(
   }
   if (speakerName) {
     entry.speakerName = speakerName;
+  }
+  // The command tag arrives on this upgrade, so the outcome that qualifies it
+  // has to arrive with it or the line reads as a plain successful command.
+  if (outcome) {
+    entry.outcome = outcome;
+  }
+  if (decision) {
+    entry.decision = decision;
   }
   broadcast(sseEvent("voice-transcript-replaced", JSON.stringify(entry)));
   return { ...entry };

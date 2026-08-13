@@ -604,6 +604,7 @@ function EngineVoicesPanel() {
 type SyncResult = { ok: boolean; error?: string };
 type PipelineKey =
   | "conversationIdleSeconds"
+  | "conversationMaxSeconds"
   | "ttsPrerollMs"
   | "ttsFrameMs"
   | "webAnswerMaxSentences"
@@ -615,8 +616,22 @@ type PipelineSettingKey =
   | PipelineKey
   | "satelliteNoiseGateEnabled"
   | "speakerRecognitionEnabled"
+  | "voiceTrainingEnabled"
   | "webAccessEnabled"
   | "webBackend";
+
+// Switches and selects, not sliders: they have no drag to forget.
+const PIPELINE_NON_SLIDER_KEYS = [
+  "satelliteNoiseGateEnabled",
+  "speakerRecognitionEnabled",
+  "voiceTrainingEnabled",
+  "webAccessEnabled",
+  "webBackend",
+] as const;
+
+function isPipelineSliderKey(key: PipelineSettingKey): key is PipelineKey {
+  return !(PIPELINE_NON_SLIDER_KEYS as readonly string[]).includes(key);
+}
 
 type SpeakerMatchKey =
   | "speakerMatchThreshold"
@@ -864,12 +879,7 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
     markInteraction();
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
-    if (
-      key !== "satelliteNoiseGateEnabled"
-      && key !== "speakerRecognitionEnabled"
-      && key !== "webAccessEnabled"
-      && key !== "webBackend"
-    ) {
+    if (isPipelineSliderKey(key)) {
       draggingRef.current.delete(key);
     }
     setSettings((current) => ({ ...current, [key]: value }));
@@ -950,6 +960,37 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
           Enrollment is local and transparent. Nova stores voice embeddings, never enrollment audio;
           unnamed templates expire after 30 days.
         </p>
+      </div>
+
+      <div className="grid gap-1.5">
+        <MomentaryFeedbackButton
+          type="button"
+          role="switch"
+          aria-checked={settings.voiceTrainingEnabled}
+          className={`cyber-checkbox-row border p-4 text-left ${
+            settings.voiceTrainingEnabled ? "cyber-checkbox-row-active" : ""
+          }`}
+          onClick={() => void commit("voiceTrainingEnabled", !settings.voiceTrainingEnabled)}
+        >
+          <span
+            className={`cyber-checkbox ${
+              settings.voiceTrainingEnabled ? "cyber-checkbox-checked" : ""
+            }`}
+            aria-hidden="true"
+          >
+            {settings.voiceTrainingEnabled
+              ? <Check className="h-6 w-6" strokeWidth={3} />
+              : null}
+          </span>
+          <span className="grid min-w-0 gap-1">
+            <span className="theme-display-label zone-title-bar">Voice training</span>
+            <span className="theme-display-detail">
+              {settings.voiceTrainingEnabled
+                ? "On: unknown voices may wake and command, and every turn refines recognition"
+                : "Off: only recognized household voices are heard"}
+            </span>
+          </span>
+        </MomentaryFeedbackButton>
       </div>
 
       <div className="grid gap-1.5">
@@ -1117,6 +1158,32 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
         <p className="px-1 text-xs leading-snug text-neutral-500">
           How long a conversation stays open after {agentName}&apos;s last turn before the wake
           word is needed again.
+        </p>
+      </div>
+
+      <div className="grid gap-1.5">
+        <SliderControlPanel
+          ariaLabel="Conversation limit"
+          ariaValueText={`${settings.conversationMaxSeconds} seconds`}
+          color={[80, 240, 160]}
+          intensity={100}
+          label="Conversation limit"
+          max={VOICE_SETTINGS_RANGES.conversationMaxSeconds.max}
+          min={VOICE_SETTINGS_RANGES.conversationMaxSeconds.min}
+          step={VOICE_SETTINGS_RANGES.conversationMaxSeconds.step}
+          value={settings.conversationMaxSeconds}
+          valueText={`${settings.conversationMaxSeconds}s`}
+          onPreview={(conversationMaxSeconds) => {
+            draggingRef.current.add("conversationMaxSeconds");
+            markInteraction();
+            setSettings((current) => ({ ...current, conversationMaxSeconds }));
+          }}
+          onCommit={(conversationMaxSeconds) =>
+            void commit("conversationMaxSeconds", conversationMaxSeconds)}
+        />
+        <p className="px-1 text-xs leading-snug text-neutral-500">
+          Longest a conversation may run before the wake word is needed again, however much is
+          said.
         </p>
       </div>
 
