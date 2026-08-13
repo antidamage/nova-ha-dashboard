@@ -4,6 +4,7 @@ import { ChevronDown, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   MAX_VOICE_TRANSCRIPTS,
+  VOICE_TRANSCRIPT_STATUS_SEPARATOR,
   formatVoiceTranscriptParts,
   type VoiceTranscriptEvent,
 } from "../../lib/voice-transcript";
@@ -31,6 +32,10 @@ export function VoiceTranscriptPanel() {
   const [open, setOpen] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
+  // Drives the working -> failed handover for a turn that never came back.
+  // Only ticks while something is actually in flight (see below), so an idle
+  // dashboard never re-renders on a timer.
+  const [now, setNow] = useState(() => new Date());
   const bodyId = useId();
   const logRef = useRef<HTMLDivElement | null>(null);
 
@@ -89,11 +94,21 @@ export function VoiceTranscriptPanel() {
     () => transcripts
       .map((entry) => ({
         id: entry.id,
-        ...formatVoiceTranscriptParts(entry, agentName, transcriptTemplate),
+        ...formatVoiceTranscriptParts(entry, agentName, transcriptTemplate, now),
       }))
       .reverse(),
-    [agentName, transcriptTemplate, transcripts],
+    [agentName, now, transcriptTemplate, transcripts],
   );
+
+  const hasWorkingLine = lines.some((line) => line.status === "working");
+
+  useEffect(() => {
+    if (!hasWorkingLine) {
+      return;
+    }
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, [hasWorkingLine]);
 
   const clearTranscript = async () => {
     setClearing(true);
@@ -168,6 +183,12 @@ export function VoiceTranscriptPanel() {
                       {line.bodyPrefix}
                     </span>
                     {line.text}
+                    {line.statusGlyph ? (
+                      <span className={`voice-transcript-status voice-transcript-status--${line.status}`}>
+                        {VOICE_TRANSCRIPT_STATUS_SEPARATOR}
+                        {line.statusGlyph}
+                      </span>
+                    ) : null}
                   </p>
                 ))
               ) : (

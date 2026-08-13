@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { voiceServerOverall, voiceServerServiceRows } from "./voice-server-status";
+import {
+  voiceServerOverall,
+  voiceServerServiceRows,
+  voiceServerWarmth,
+} from "./voice-server-status";
 
 const healthyPayload = {
   ok: true,
@@ -71,5 +75,68 @@ describe("voiceServerOverall", () => {
 
   it("shows a pending state before the first probe lands", () => {
     expect(voiceServerOverall(null, false)).toEqual({ text: "Checking…", tone: "warning" });
+  });
+});
+
+describe("voiceServerWarmth", () => {
+  it("shows a warm stack as healthy", () => {
+    expect(voiceServerWarmth({ ...healthyPayload, warmth: { ok: true, state: "warm" } })).toEqual({
+      text: "Warm",
+      tone: "ok",
+    });
+  });
+
+  it("separates a stack that is starting from one that is broken", () => {
+    // The whole point of the readout: these two used to look identical from
+    // the kitchen, and one of them needs no action at all.
+    expect(voiceServerWarmth({ warmth: { state: "warming" } })?.tone).toBe("warning");
+    expect(voiceServerWarmth({ warmth: { state: "cold" } })?.tone).toBe("error");
+  });
+
+  it("does not colour a training handover as a fault", () => {
+    const warmth = voiceServerWarmth({ warmth: { ok: true, state: "training" } });
+    expect(warmth?.tone).toBe("warning");
+    expect(warmth?.text).toContain("Training");
+  });
+
+  it("shows nothing for a voice server that does not report warmth", () => {
+    expect(voiceServerWarmth(healthyPayload)).toBeNull();
+    expect(voiceServerWarmth(undefined)).toBeNull();
+  });
+});
+
+describe("voiceServerOverall warmth", () => {
+  const reachable = (state?: string) => ({
+    reachable: true,
+    latencyMs: 12,
+    health: { ...healthyPayload, ...(state ? { warmth: { state } } : {}) },
+  });
+
+  it("says online and nothing more when the stack is warm", () => {
+    expect(voiceServerOverall(reachable("warm") as never, false)).toEqual({
+      text: "Online · 12 ms",
+      tone: "ok",
+    });
+  });
+
+  it("says it is warming rather than leaving a slow reply unexplained", () => {
+    const overall = voiceServerOverall(reachable("warming") as never, false);
+    expect(overall.tone).toBe("warning");
+    expect(overall.text).toContain("warming up");
+  });
+
+  it("escalates a stack whose warm-up keeps failing", () => {
+    const overall = voiceServerOverall(reachable("cold") as never, false);
+    expect(overall.tone).toBe("error");
+    expect(overall.text).toContain("cold");
+  });
+
+  it("names training as the reason the voice is down", () => {
+    const overall = voiceServerOverall(reachable("training") as never, false);
+    expect(overall.text).toContain("Training");
+  });
+
+  it("still reads as plain online against a server with no warmth field", () => {
+    expect(voiceServerOverall(reachable() as never, false).tone).toBe("ok");
   });
 });
