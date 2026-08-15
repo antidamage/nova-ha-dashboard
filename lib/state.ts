@@ -140,6 +140,13 @@ export async function buildDashboardState(): Promise<DashboardState> {
     generatedAt: new Date().toISOString(),
     zones,
     entities,
+    // Which optional capabilities this installation has actually configured.
+    // The client uses it to decide whether a capability's zone exists at all,
+    // so an unconfigured module costs nothing rather than rendering an empty
+    // panel the operator cannot act on.
+    activeModuleIds: moduleStatuses(context)
+      .filter((status) => status.active)
+      .map((status) => status.id),
     totals: countDomains(entities, controlDomains),
     lighting: config.dashboard.lighting,
     router: buildRouterStatus(states, config),

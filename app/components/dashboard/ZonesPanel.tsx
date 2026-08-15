@@ -35,7 +35,9 @@ export function buildZoneTree(data: DashboardState | null) {
     network,
     outside,
     world: WORLD_ZONE,
-    power: POWER_ZONE,
+    // Null when this installation has not configured power estimation, so a
+    // home with no tariff and no device ratings never sees an empty Power zone.
+    power: data?.activeModuleIds?.includes("power") ? POWER_ZONE : null,
   };
 }
 
@@ -132,12 +134,14 @@ export function ZonesPanel({
           />
         ) : null}
 
-        <ZoneButton
-          zone={zones.power}
-          selected={powerZoneSelected}
-          onClick={() => onSelectZone(POWER_ZONE_ID)}
-          hideCounts
-        />
+        {zones.power ? (
+          <ZoneButton
+            zone={zones.power}
+            selected={powerZoneSelected}
+            onClick={() => onSelectZone(POWER_ZONE_ID)}
+            hideCounts
+          />
+        ) : null}
 
         <ZoneButton
           zone={TASKS_ZONE}

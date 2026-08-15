@@ -132,7 +132,6 @@ const SHIPPED_HOUSEHOLD_WAIVERS: Array<{ path: string; reason: string }> = [
   { path: "dashboard.lighting.entityPresets", reason: "Phase 4: moves to the household package." },
   { path: "dashboard.bedroomHeater", reason: "Phase 4: becomes dashboard.heaters[] and moves out." },
   { path: "homeAssistant", reason: "Phase 5: router/weather/sun bindings move to the household package." },
-  { path: "power.deviceRatings", reason: "Phase 3: moves to the household package and ships empty." },
 ];
 
 const ENTITY_ID_RE = /^(?:light|switch|sensor|binary_sensor|climate|media_player|button|lock|fan|cover|camera|person|device_tracker|assist_satellite)\.[a-z0-9_]+$/;

@@ -69,6 +69,43 @@ const PowerDeviceRatingSchema = z.object({
 });
 export type PowerDeviceRating = z.infer<typeof PowerDeviceRatingSchema>;
 
+const monthlyRateSchema = z.array(z.number().nonnegative()).length(12);
+
+/**
+ * One electricity plan's published unit rates, by calendar month.
+ *
+ * These used to be four arrays in lib/power.ts named after a specific retailer
+ * and region, which meant every install inherited one household's tariff.
+ */
+const PowerTariffSchema = z.object({
+  planName: z.string().min(1),
+  dailyCents: z.number().nonnegative(),
+  anytimeCPerKwh: monthlyRateSchema,
+  peakCPerKwh: monthlyRateSchema,
+  offPeakCPerKwh: monthlyRateSchema,
+  /**
+   * Superseded rate series, each applying to years up to and including
+   * `throughYear`. Historical graphs need the rate that was actually in force.
+   */
+  historicalAnytimeCPerKwh: z
+    .array(z.object({ throughYear: z.number().int(), cPerKwh: monthlyRateSchema }))
+    .default([]),
+});
+export type PowerTariff = z.infer<typeof PowerTariffSchema>;
+
+/** One month of billed usage, as read off the retailer's account. */
+const PowerAccountUsagePointSchema = z.object({
+  label: z.string().min(1),
+  kwh: z.number().nonnegative(),
+  source: z.string().min(1),
+  days: z.number().int().positive().optional(),
+  kwhPerDay: z.number().nonnegative().optional(),
+  costNzd: z.number().nonnegative().optional(),
+  costPerDayNzd: z.number().nonnegative().optional(),
+  avgUnitCents: z.number().nonnegative().optional(),
+});
+export type PowerAccountUsagePoint = z.infer<typeof PowerAccountUsagePointSchema>;
+
 const ThemeColorValueSchema = z.object({
   cursor: z.object({
     x: z.number().min(0).max(1),
@@ -376,21 +413,32 @@ export const DashboardConfigSchema = z.object({
       rateCheckIntervalMs: millisecondsSchema,
       maxIntegrationHours: z.number().positive(),
     }),
+    // Where this home buys electricity. Every field is optional because a
+    // dashboard with no retailer configured is a supported state: the power
+    // module simply reports itself inactive. There are deliberately no shipped
+    // defaults — a retailer, a plan and a set of unit rates are facts about one
+    // household in one country, and guessing them would be worse than absent.
     rates: z.object({
-      pageUrl: z.string().url(),
-      ratecardUrl: z.string().url(),
+      pageUrl: z.string().url().optional(),
+      ratecardUrl: z.string().url().optional(),
+      tariff: PowerTariffSchema.optional(),
     }),
+    // Billing history imported from the retailer's account. Personal data:
+    // ships empty and lives in the household package.
+    accountHistory: z.array(PowerAccountUsagePointSchema).default([]),
     // The devices power estimation knows about. This lives in config rather
     // than in lib/power.ts so that renaming or retiring a Home Assistant
     // device is a config edit, not a source change.
-    deviceRatings: z.array(PowerDeviceRatingSchema),
+    deviceRatings: z.array(PowerDeviceRatingSchema).default([]),
     modeledBaseLoads: z.object({
       desktopActiveStartHour: z.number().min(0).max(24),
       desktopActiveEndHour: z.number().min(0).max(24),
       desktopActiveWatts: z.number().nonnegative(),
       desktopStandbyWatts: z.number().nonnegative(),
       novaAioAverageWatts: z.number().nonnegative(),
-      aucklandMonthlyTempsC: z.array(z.number()).length(12),
+      // Climate normals for wherever this home is, used to model fridge and
+      // water-heater load. Was named for one city; the name was the giveaway.
+      monthlyOutdoorTempsC: z.array(z.number()).length(12),
       monthWeights: z.array(z.number().positive()).length(12),
     }),
   }),

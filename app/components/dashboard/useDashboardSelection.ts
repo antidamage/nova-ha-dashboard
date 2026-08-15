@@ -18,8 +18,14 @@ import {
 export function useDashboardSelection(data: DashboardState | null) {
   const [selectedZoneId, setSelectedZoneId] = useState(selectedZoneIdFromStorage);
 
+  // Until the first payload arrives we cannot know whether power is configured,
+  // so treat it as available and let the effect below correct a stale choice
+  // once the server has told us. That keeps a configured home from flickering
+  // off its remembered zone on every reload.
+  const powerAvailable = !data || (data.activeModuleIds?.includes("power") ?? false);
+
   const selectedZone = useMemo(() => {
-    if (selectedZoneId === POWER_ZONE_ID) {
+    if (selectedZoneId === POWER_ZONE_ID && powerAvailable) {
       return POWER_ZONE;
     }
     if (selectedZoneId === WORLD_ZONE_ID) {
@@ -29,13 +35,13 @@ export function useDashboardSelection(data: DashboardState | null) {
       return null;
     }
     return data.zones.find((zone) => zone.id === selectedZoneId) ?? data.zones[0] ?? null;
-  }, [data, selectedZoneId]);
+  }, [data, powerAvailable, selectedZoneId]);
 
   useEffect(() => {
     if (
       data &&
       selectedZoneId !== TASKS_ZONE_ID &&
-      selectedZoneId !== POWER_ZONE_ID &&
+      (selectedZoneId !== POWER_ZONE_ID || !powerAvailable) &&
       selectedZoneId !== WORLD_ZONE_ID &&
       !data.zones.some((zone) => zone.id === selectedZoneId)
     ) {
@@ -43,7 +49,7 @@ export function useDashboardSelection(data: DashboardState | null) {
       setSelectedZoneId(fallbackZoneId);
       writeSelectedZoneToStorage(fallbackZoneId);
     }
-  }, [data, selectedZoneId]);
+  }, [data, powerAvailable, selectedZoneId]);
 
   useEffect(() => {
     removeLegacySelectedZoneParam();
