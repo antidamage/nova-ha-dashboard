@@ -24,12 +24,20 @@ ExecStartPre=-/usr/bin/docker rm -f nova-ha-dashboard
 # reclaiming against it under contention. --memory 3g is the backstop that keeps
 # a runaway dashboard from ever reaching nova-voice.service's 8.3 GB peak on a
 # 22 GB box.
+#
+# /opt/nova-household is mounted read-only for the optional household config
+# overlay (NOVA_DASHBOARD_HOUSEHOLD_CONFIG). It is deliberately a separate mount
+# rather than a file inside /app: the deploy replaces /app wholesale, and this
+# home's devices must not ship with the dashboard. Docker creates the host
+# directory empty when it does not exist, which the config loader treats as "no
+# household layer" — an installation without one is a supported state.
 ExecStart=/usr/bin/docker run --rm --name nova-ha-dashboard --network host \
   --add-host nocturnium.local:192.168.8.17 \
   --memory-reservation=1536m --memory=3g \
   --env-file /opt/nova-ha-dashboard/.env.local \
   -e NODE_ENV=production -e PORT=80 \
   -v /opt/nova-ha-dashboard:/app -w /app \
+  -v /opt/nova-household:/opt/nova-household:ro \
   nova-ha-dashboard:plain npm start
 ExecStop=/usr/bin/docker stop nova-ha-dashboard
 
