@@ -501,6 +501,7 @@ function BedroomHeaterControl({
   preferences,
   switchEntity,
   temperature,
+  title,
 }: {
   controlState?: ClimateControlRoomState;
   humidity: number | null;
@@ -508,6 +509,8 @@ function BedroomHeaterControl({
   preferences?: BedroomHeaterPreferences;
   switchEntity?: DashboardEntity;
   temperature: number | null;
+  /** Usually the room, from dashboard.bedroomHeater.title in config. */
+  title: string;
 }) {
   const persistedMode = bedroomHeaterMode(preferences);
   const effectivePersistedMode: BedroomHeaterMode = persistedMode;
@@ -596,7 +599,7 @@ function BedroomHeaterControl({
   }, []);
 
   if (!switchEntity) {
-    return <ClimateCard kicker="Heating Unit" title="Bedroom" />;
+    return <ClimateCard kicker="Heating Unit" title={title} />;
   }
 
   const entityUnavailable = ["unavailable", "unknown"].includes(switchEntity.state);
@@ -667,7 +670,7 @@ function BedroomHeaterControl({
   };
 
   return (
-    <ClimateCard entity={switchEntity} kicker="Heating Unit" title="Bedroom">
+    <ClimateCard entity={switchEntity} kicker="Heating Unit" title={title}>
       <div className="grid gap-4">
         {controlState?.owner === "external" ? (
           <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
@@ -878,6 +881,7 @@ function AirConditionerControl({
   freshAirSwitch,
   preferences,
   quietSwitch,
+  title,
   turboSwitch,
   onEntityActions,
 }: {
@@ -886,6 +890,8 @@ function AirConditionerControl({
   freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
   quietSwitch?: DashboardEntity;
+  /** Usually the room, from dashboard.aircon.title in config. */
+  title: string;
   turboSwitch?: DashboardEntity;
   onEntityActions: EntityActionsHandler;
 }) {
@@ -1071,7 +1077,7 @@ function AirConditionerControl({
   }, [entity, offTimerEndsAtMs, onEntityActions, timerNow]);
 
   if (!entity) {
-    return <ClimateCard kicker="Air Control" title="Lounge" />;
+    return <ClimateCard kicker="Air Control" title={title} />;
   }
 
   const isOn = isClimateEntityOn(entity);
@@ -1352,7 +1358,7 @@ function AirConditionerControl({
   };
 
   return (
-    <ClimateCard entity={entity} kicker="Air Control" title="Lounge">
+    <ClimateCard entity={entity} kicker="Air Control" title={title}>
       <div className="grid gap-4">
         {controlState?.owner === "external" ? (
           <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
@@ -1490,6 +1496,22 @@ function legacyPanelHeaterEnabled(payload: unknown) {
   return config?.dashboard?.legacyPanelHeaterCardEnabled === true;
 }
 
+/**
+ * What each climate card calls itself. Usually the room it sits in, which is a
+ * fact about one floor plan — the components used to say "Lounge" and "Bedroom"
+ * outright, so every install inherited this house's rooms.
+ */
+function climateCardTitles(payload: unknown) {
+  const dashboard = (payload as { dashboard?: { aircon?: { title?: unknown }; bedroomHeater?: { title?: unknown } } } | null)
+    ?.dashboard;
+  const text = (value: unknown, fallback: string) =>
+    typeof value === "string" && value.trim() ? value.trim() : fallback;
+  return {
+    aircon: text(dashboard?.aircon?.title, "Climate"),
+    heater: text(dashboard?.bedroomHeater?.title, "Heater"),
+  };
+}
+
 export function ClimateControls({
   bedroomHeater,
   climateControl,
@@ -1509,6 +1531,7 @@ export function ClimateControls({
   const [showLegacyPanelHeater, setShowLegacyPanelHeater] = useState(() =>
     legacyPanelHeaterEnabled(readCachedClientConfig()),
   );
+  const [titles, setTitles] = useState(() => climateCardTitles(readCachedClientConfig()));
 
   useEffect(() => {
     let alive = true;
@@ -1517,6 +1540,7 @@ export function ClimateControls({
       .then((payload) => {
         if (alive) {
           setShowLegacyPanelHeater(legacyPanelHeaterEnabled(payload));
+          setTitles(climateCardTitles(payload));
         }
       })
       .catch(() => {
@@ -1530,23 +1554,35 @@ export function ClimateControls({
 
   return (
     <div className="climate-control-grid grid gap-5">
-      <AirConditionerControl
-        controlState={climateControl?.lounge}
-        entity={aircon}
-        freshAirSwitch={freshAirSwitch}
-        preferences={preferences?.aircon}
-        quietSwitch={quietSwitch}
-        turboSwitch={turboSwitch}
-        onEntityActions={onEntityActions}
-      />
-      <BedroomHeaterControl
-        controlState={climateControl?.bedroom}
-        humidity={bedroomHeater?.humidity ?? null}
-        preferences={preferences?.bedroomHeater}
-        switchEntity={bedroomHeater?.switchEntity}
-        temperature={bedroomHeater?.temperature ?? null}
-        onEntityActions={onEntityActions}
-      />
+      {/*
+        Each card renders only when this home actually has the device. A home
+        with no air conditioner used to get an empty card headed "Lounge", and
+        one with no heater an empty "Bedroom" — a room it may not have, holding
+        controls that do nothing.
+      */}
+      {aircon ? (
+        <AirConditionerControl
+          controlState={climateControl?.lounge}
+          entity={aircon}
+          freshAirSwitch={freshAirSwitch}
+          preferences={preferences?.aircon}
+          quietSwitch={quietSwitch}
+          title={titles.aircon}
+          turboSwitch={turboSwitch}
+          onEntityActions={onEntityActions}
+        />
+      ) : null}
+      {bedroomHeater?.switchEntity ? (
+        <BedroomHeaterControl
+          controlState={climateControl?.bedroom}
+          humidity={bedroomHeater?.humidity ?? null}
+          preferences={preferences?.bedroomHeater}
+          switchEntity={bedroomHeater?.switchEntity}
+          temperature={bedroomHeater?.temperature ?? null}
+          title={titles.heater}
+          onEntityActions={onEntityActions}
+        />
+      ) : null}
       {showLegacyPanelHeater ? (
         <PanelHeaterControl entity={heater} preferences={preferences?.panelHeater} onEntityActions={onEntityActions} />
       ) : null}

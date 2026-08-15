@@ -67,12 +67,14 @@
     },
     "aircon": {
       "offTimerIncrementMinutes": 10,
-      "matchTokens": []
+      "matchTokens": [],
+      "title": "Climate"
     },
     "bedroomHeater": {
       "switchEntityIds": [],
       "temperatureEntityIds": [],
-      "humidityEntityIds": []
+      "humidityEntityIds": [],
+      "title": "Heater"
     },
     "legacyPanelHeaterCardEnabled": false,
     "camera": {

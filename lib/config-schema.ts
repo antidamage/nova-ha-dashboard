@@ -329,6 +329,12 @@ export const DashboardConfigSchema = z.object({
        * manufacturer or nothing at all.
        */
       matchTokens: stringListSchema,
+      /**
+       * What to call this unit on its card — usually the room it is in. The
+       * component used to say "Lounge", which is one house's floor plan
+       * compiled into the product.
+       */
+      title: z.string().min(1).default("Climate"),
     }),
     // The bedroom heater is a bare switch with onboard climate sensors; Nova
     // owns the thermostat loop (lib/bedroom-heater-control.ts). Entity ids are
@@ -355,13 +361,23 @@ export const DashboardConfigSchema = z.object({
     // Dropping it entirely would be worse, not safer: with no temperature at
     // all the planner takes no action, which leaves a running 2 kW element on
     // until the schedule's auto-off edge.
+    //
+    // The key is still `bedroomHeater` for compatibility with deployed configs;
+    // `title` is what the card actually shows, so the room name is this
+    // installation's to choose rather than the product's to assume.
     bedroomHeater: z
       .object({
         switchEntityIds: stringListSchema,
         temperatureEntityIds: stringListSchema,
         humidityEntityIds: stringListSchema,
+        title: z.string().min(1).default("Heater"),
       })
-      .default({ switchEntityIds: [], temperatureEntityIds: [], humidityEntityIds: [] }),
+      .default({
+        switchEntityIds: [],
+        temperatureEntityIds: [],
+        humidityEntityIds: [],
+        title: "Heater",
+      }),
     // The original panel heater died in August 2026 and was replaced by the
     // bedroom heater above. Its card is retained but hidden; set this true to
     // bring it back if an equivalent unit is installed.
