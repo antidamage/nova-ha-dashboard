@@ -7,12 +7,18 @@ import {
   ORB_MODULE_GROUP_LABELS,
   orbModuleById,
 } from "../../lib/orb-info/catalogue";
-import { normalizeOrbDisplay, resolveOrbDisplay, resolveOrbModuleId } from "../../lib/orb-info/preferences";
+import {
+  normalizeOrbDisplay,
+  resolveOrbDisplay,
+  resolveOrbModuleId,
+  resolveOrbParams,
+} from "../../lib/orb-info/preferences";
 import type {
   OrbDisplayUnit,
   OrbInfoDisplay,
   OrbInfoFormat,
   OrbInfoPreferences,
+  OrbModuleParams,
   OrbRounding,
 } from "../../lib/orb-info/types";
 import {
@@ -72,9 +78,15 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
   const moduleId = resolveOrbModuleId(preferences);
   const module = orbModuleById(moduleId);
   const display = resolveOrbDisplay(preferences, moduleId);
+  const params = resolveOrbParams(preferences, moduleId);
   // The preview runs the real modules through the real formatter, so what is
   // shown here is exactly what the orb will draw.
-  const preview = useOrbInfo({ enabled: true, moduleIdOverride: moduleId, displayOverride: display });
+  const preview = useOrbInfo({
+    enabled: true,
+    moduleIdOverride: moduleId,
+    displayOverride: display,
+    paramsOverride: params,
+  });
 
   const load = useCallback(async () => {
     if (isCoolingDown()) return;
@@ -142,6 +154,19 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
     // the other modules' saved displays survive.
     void save({ modules: { [module.id]: { display: next } } });
   }, [display, markInteraction, module, save]);
+
+  const updateParams = useCallback((patch: OrbModuleParams) => {
+    markInteraction();
+    const next = { ...params, ...patch };
+    setPreferences((current) => ({
+      ...current,
+      modules: {
+        ...(current?.modules ?? {}),
+        [module.id]: { ...current?.modules?.[module.id], params: next },
+      },
+    }));
+    void save({ modules: { [module.id]: { display, params: next } } });
+  }, [display, markInteraction, module, params, save]);
 
   const commitThresholdHours = useCallback(async (hours: number) => {
     markInteraction();
@@ -216,6 +241,65 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
               <span className="orb-info-preview-label">Preview</span>
               <span className="orb-info-preview-value">{preview.text}</span>
             </div>
+
+            {(module.params ?? []).map((spec) => {
+              if (spec.kind === "number") {
+                const value = Number(params[spec.key] ?? spec.fallback);
+                return (
+                  <SliderControlPanel
+                    key={spec.key}
+                    ariaLabel={spec.label}
+                    ariaValueText={`${value}`}
+                    color={[60, 220, 240]}
+                    intensity={100}
+                    label={spec.label}
+                    max={spec.max}
+                    min={spec.min}
+                    step={spec.step}
+                    value={value}
+                    valueText={`${value}`}
+                    onPreview={(next) => updateParams({ [spec.key]: next })}
+                    onCommit={(next) => updateParams({ [spec.key]: next })}
+                  />
+                );
+              }
+              if (spec.kind === "date") {
+                return (
+                  <div key={spec.key} className="grid gap-2">
+                    <p className="text-sm font-black uppercase text-cyan-200">{spec.label}</p>
+                    <input
+                      type="date"
+                      className="cyber-date-input"
+                      aria-label={spec.label}
+                      value={typeof params[spec.key] === "string" ? String(params[spec.key]).slice(0, 10) : ""}
+                      onChange={(event) => updateParams({ [spec.key]: event.target.value })}
+                    />
+                  </div>
+                );
+              }
+              const choices: ConfigSelectOption<string>[] = spec.kind === "zone"
+                ? preview.zoneChoices.map((zone) => ({ value: zone.id, label: zone.name }))
+                : preview.entityChoices
+                  .filter((entity) => !spec.domain || entity.entityId.startsWith(`${spec.domain}.`))
+                  .map((entity) => ({
+                    value: entity.entityId,
+                    label: entity.name,
+                    detail: entity.unit ? `${entity.value ?? "—"} ${entity.unit}` : undefined,
+                  }));
+              if (choices.length === 0) {
+                return null;
+              }
+              return (
+                <ConfigSelect
+                  key={spec.key}
+                  label={spec.label}
+                  ariaLabel={spec.label}
+                  options={choices}
+                  value={typeof params[spec.key] === "string" ? String(params[spec.key]) : choices[0].value}
+                  onChange={(next) => updateParams({ [spec.key]: next })}
+                />
+              );
+            })}
 
             {formatOptions.length > 1 ? (
               <ConfigSelect

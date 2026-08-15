@@ -1,10 +1,11 @@
-import { DEFAULT_ORB_MODULE_ID, ORB_INFO_MODULES_BY_ID, orbModuleById } from "./catalogue";
+import { DEFAULT_ORB_MODULE_ID, ORB_INFO_MODULES_BY_ID, orbModuleById, type OrbModule } from "./catalogue";
 import { DEFAULT_ORB_DISPLAY } from "./format";
 import type {
   OrbDisplayUnit,
   OrbInfoDisplay,
   OrbInfoFormat,
   OrbInfoPreferences,
+  OrbModuleParams,
   OrbPercentBasis,
   OrbRounding,
 } from "./types";
@@ -84,6 +85,38 @@ export function resolveOrbDisplay(preferences: OrbInfoPreferences | undefined, m
   return resolved;
 }
 
+/**
+ * Normalise a module's saved parameters against what it declares. Unknown keys
+ * are dropped and numbers are clamped, so hand-edited or stale preferences
+ * cannot feed a module something it never asked for.
+ */
+export function normalizeOrbParams(value: unknown, module: OrbModule): OrbModuleParams {
+  const raw = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
+  const params: OrbModuleParams = {};
+  for (const spec of module.params ?? []) {
+    const saved = raw[spec.key];
+    if (spec.kind === "number") {
+      const parsed = Number(saved);
+      params[spec.key] = Number.isFinite(parsed)
+        ? Math.min(spec.max, Math.max(spec.min, parsed))
+        : spec.fallback;
+      continue;
+    }
+    if (typeof saved === "string" && saved.length > 0 && saved.length <= 200) {
+      params[spec.key] = saved;
+    }
+  }
+  return params;
+}
+
+export function resolveOrbParams(
+  preferences: OrbInfoPreferences | undefined,
+  moduleId: string,
+): OrbModuleParams {
+  const module = orbModuleById(moduleId);
+  return normalizeOrbParams(preferences?.modules?.[module.id]?.params, module);
+}
+
 export function resolveOrbModuleId(preferences: OrbInfoPreferences | undefined): string {
   const id = preferences?.moduleId;
   return typeof id === "string" && ORB_INFO_MODULES_BY_ID[id] ? id : DEFAULT_ORB_MODULE_ID;
@@ -99,7 +132,7 @@ export function normalizedOrbInfoPreferences(value: OrbInfoPreferences | undefin
     if (!module || !entry || typeof entry !== "object") continue;
     modules[id] = {
       display: normalizeOrbDisplay(entry.display, module.defaultDisplay),
-      ...(entry.params && typeof entry.params === "object" ? { params: entry.params } : {}),
+      ...(module.params?.length ? { params: normalizeOrbParams(entry.params, module) } : {}),
     };
   }
   return { ...value, moduleId, modules };

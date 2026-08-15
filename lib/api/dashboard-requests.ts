@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { normalizeGymAlertThresholdHours, normalizeWatchfaceIdleTimeoutMs } from "../watchface-preferences";
 import { ORB_INFO_MODULES_BY_ID } from "../orb-info/catalogue";
-import { normalizeOrbDisplay } from "../orb-info/preferences";
+import { normalizeOrbDisplay, normalizeOrbParams } from "../orb-info/preferences";
 import type { OrbInfoPreferences } from "../orb-info/types";
 import type { DashboardPreferences, HaDomain, SpectrumCursor } from "../types";
 
@@ -244,9 +244,7 @@ export function parseOrbInfoUpdateRequest(value: unknown): OrbInfoPreferences {
       const record = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
       modules[id] = {
         display: normalizeOrbDisplay(record.display, module.defaultDisplay),
-        ...(record.params && typeof record.params === "object"
-          ? { params: record.params as Record<string, unknown> }
-          : {}),
+        ...(module.params?.length ? { params: normalizeOrbParams(record.params, module) } : {}),
       };
     }
     next.modules = modules;

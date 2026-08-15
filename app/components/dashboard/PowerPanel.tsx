@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BatteryCharging, CircleDollarSign, PlugZap } from "lucide-react";
+import { Activity, BatteryCharging, ChevronDown, CircleDollarSign, PlugZap } from "lucide-react";
 import type { ComponentType } from "react";
 import { useMemo, useState } from "react";
 import type {
@@ -26,6 +26,7 @@ import {
 import { classNames } from "./shared";
 import { usePowerDashboard } from "./usePowerDashboard";
 import { useAgentName } from "../AgentNameContext";
+import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 
 function CurveChart({
   points,
@@ -193,12 +194,13 @@ function SummaryRow({
 
 function BackgroundRow({ agentName, point }: { agentName: string; point: PowerBackgroundEstimatePoint }) {
   return (
-    <div className="grid grid-cols-[72px_repeat(4,minmax(0,1fr))] gap-2 border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-xs font-black uppercase">
+    <div className="grid grid-cols-[72px_repeat(5,minmax(0,1fr))] gap-2 border border-neutral-800 bg-neutral-900/60 px-3 py-2 text-xs font-black uppercase">
       <span className="text-neutral-100">{point.label.replace(" 20", " '")}</span>
       <span className="tabular-nums text-cyan-100">F {Math.round(point.fridgeKwh)}</span>
       <span className="tabular-nums text-yellow-100">W {Math.round(point.waterHeaterKwh)}</span>
       <span className="tabular-nums text-fuchsia-100">PC {Math.round(point.computerKwh)}</span>
       <span className="tabular-nums text-lime-100">{agentName.charAt(0).toLocaleUpperCase()} {Math.round(point.novaKwh)}</span>
+      <span className="tabular-nums text-neutral-300" title="Unattributed usage">O {Math.round(point.otherKwh)}</span>
     </div>
   );
 }
@@ -207,6 +209,7 @@ export function PowerPanel() {
   const { agentName } = useAgentName();
   const state = usePowerDashboard();
   const [displayMode, setDisplayMode] = useState<PowerDisplayMode>("credits");
+  const [baseLoadsExpanded, setBaseLoadsExpanded] = useState(false);
 
   const data = state.data;
   const topDevices = useMemo(() => data?.devices.slice(0, 8) ?? [], [data?.devices]);
@@ -355,17 +358,29 @@ export function PowerPanel() {
 
         <div className="power-device-list border border-neutral-700 bg-neutral-950/70 p-4">
           <div className="mb-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-black uppercase text-fuchsia-200">Inferred base loads</p>
-              <p className="text-xs font-black uppercase text-neutral-500">
+            <MomentaryFeedbackButton
+              type="button"
+              className="mb-3 flex w-full items-center gap-2 text-left"
+              aria-controls="power-inferred-base-loads"
+              aria-expanded={baseLoadsExpanded}
+              onClick={() => setBaseLoadsExpanded((expanded) => !expanded)}
+            >
+              <ChevronDown
+                className={classNames("h-4 w-4 shrink-0 text-fuchsia-200 transition-transform", baseLoadsExpanded && "rotate-180")}
+                aria-hidden="true"
+              />
+              <span className="flex-1 text-sm font-black uppercase text-fuchsia-200">Inferred base loads</span>
+              <span className="text-xs font-black uppercase text-neutral-500">
                 {displayMode === "credits" ? formatMoney(data.baseLoad.costPerDayNzd) : `${formatKwh(data.baseLoad.kwhPerDay)} kWh`} / day
-              </p>
-            </div>
-            <div className="grid gap-2">
-              {backgroundRows.map((point) => (
-                <BackgroundRow key={point.label} agentName={agentName} point={point} />
-              ))}
-            </div>
+              </span>
+            </MomentaryFeedbackButton>
+            {baseLoadsExpanded ? (
+              <div id="power-inferred-base-loads" className="grid gap-2">
+                {backgroundRows.map((point) => (
+                  <BackgroundRow key={point.label} agentName={agentName} point={point} />
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="mb-3 flex items-center justify-between gap-3">

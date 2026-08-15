@@ -129,7 +129,21 @@ export type OrbModuleGroup =
  * sources its selected module declares, so selecting `none` (or the clock)
  * starts no polling at all.
  */
-export type OrbSourceId = "watchface" | "novaLoad" | "power" | "dashboardState" | "clock";
+export type OrbSourceId = "watchface" | "novaLoad" | "power" | "dashboardState" | "clock" | "tasks";
+
+/**
+ * A module parameter. "Zone temperature" is meaningless without knowing WHICH
+ * zone, so parameterised modules declare what they need and the config page
+ * renders the right picker for it.
+ */
+export type OrbParamSpec =
+  | { key: string; label: string; kind: "zone" }
+  /** Any entity; `domain` narrows the picker (e.g. only `sensor`). */
+  | { key: string; label: string; kind: "entity"; domain?: string }
+  | { key: string; label: string; kind: "date" }
+  | { key: string; label: string; kind: "number"; min: number; max: number; step: number; fallback: number };
+
+export type OrbModuleParams = Record<string, string | number | undefined>;
 
 export type OrbModuleDefinition = {
   id: string;
@@ -141,12 +155,14 @@ export type OrbModuleDefinition = {
   sources: OrbSourceId[];
   supportedFormats: OrbInfoFormat[];
   defaultDisplay: OrbInfoDisplay;
+  /** What this module must be told before it can read anything. */
+  params?: OrbParamSpec[];
 };
 
 export type OrbModulePreference = {
   display?: Partial<OrbInfoDisplay>;
-  /** Module-specific parameters (which zone, which date). Phase 2 surface. */
-  params?: Record<string, unknown>;
+  /** Module-specific parameters (which zone, which entity, which date). */
+  params?: OrbModuleParams;
 };
 
 export type OrbInfoPreferences = {

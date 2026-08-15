@@ -5,6 +5,8 @@ import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
 import type { PowerAccountUsagePoint, PowerDeviceRating, PowerTariff } from "./config-schema";
+import { mergePowershopAccountUsage } from "./powershop-account-usage";
+import { readAllPowershopUsage } from "./powershop-usage";
 
 // Timings, billing days, the timezone and the tariff all come from config.
 // There are deliberately no constants shadowing them here: a `config ?? LOCAL`
@@ -370,9 +372,10 @@ function readRatings(): PowerDeviceRating[] {
 }
 
 async function readAccountUsage() {
+  let accountHistory: PowerAccountUsagePoint[];
   try {
     const usage = JSON.parse(await readFile(POWER_ACCOUNT_USAGE_PATH, "utf8")) as PowerAccountUsagePoint[];
-    return usage
+    accountHistory = usage
       .filter((point) => typeof point.label === "string" && Number.isFinite(Number(point.kwh)))
       .map((point) => ({
         ...point,
@@ -392,8 +395,11 @@ async function readAccountUsage() {
     if (configured.length) {
       await writeJsonAtomic(POWER_ACCOUNT_USAGE_PATH, configured);
     }
-    return configured;
+    accountHistory = configured;
   }
+
+  const config = powerConfig();
+  return mergePowershopAccountUsage(accountHistory, await readAllPowershopUsage(), config.billing);
 }
 
 function stateIsLive(state?: HaState) {

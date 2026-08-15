@@ -1,5 +1,5 @@
 import path from "path";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, stat } from "fs/promises";
 
 const POWERSHOP_DATA_DIR =
   process.env.POWERSHOP_DATA_DIR ?? path.join(process.cwd(), "data", "power", "powershop");
@@ -47,6 +47,13 @@ async function readUsageFile(filePath: string) {
   }
 }
 
+type DailyUsageCacheEntry = {
+  directoryMtimeMs: number;
+  records: PowershopDailyUsageRecord[];
+};
+
+const dailyUsageCache = new Map<string, DailyUsageCacheEntry>();
+
 export async function readPowershopDailyUsage(date: string, dataDir = POWERSHOP_DATA_DIR) {
   if (!isDateKey(date)) {
     return null;
@@ -58,23 +65,44 @@ export async function readLatestPowershopUsage(dataDir = POWERSHOP_DATA_DIR) {
   return readUsageFile(path.join(dataDir, "latest.json"));
 }
 
+export async function readAllPowershopUsage(dataDir = POWERSHOP_DATA_DIR) {
+  const dailyDir = path.join(dataDir, "daily");
+  let directoryMtimeMs: number;
+  try {
+    directoryMtimeMs = (await stat(dailyDir)).mtimeMs;
+  } catch {
+    return [];
+  }
+
+  const cached = dailyUsageCache.get(dailyDir);
+  if (cached?.directoryMtimeMs === directoryMtimeMs) {
+    return cached.records.slice();
+  }
+
+  let files: string[];
+  try {
+    files = await readdir(dailyDir);
+  } catch {
+    return [];
+  }
+
+  const records = await Promise.all(
+    files
+      .filter((file) => /^\d{4}-\d{2}-\d{2}\.json$/.test(file))
+      .map((file) => file.slice(0, -5))
+      .sort()
+      .map((date) => readPowershopDailyUsage(date, dataDir)),
+  );
+  const validRecords = records.filter((record): record is PowershopDailyUsageRecord => Boolean(record));
+  dailyUsageCache.set(dailyDir, { directoryMtimeMs, records: validRecords });
+  return validRecords.slice();
+}
+
 export async function readPowershopUsageRange(startDate: string, endDate: string, dataDir = POWERSHOP_DATA_DIR) {
   if (!isDateKey(startDate) || !isDateKey(endDate)) {
     return [];
   }
-  let files: string[] = [];
-  try {
-    files = await readdir(path.join(dataDir, "daily"));
-  } catch {
-    return [];
-  }
-  const records = await Promise.all(
-    files
-      .filter((file) => file.endsWith(".json"))
-      .map((file) => file.slice(0, -5))
-      .filter((date) => date >= startDate && date <= endDate)
-      .sort()
-      .map((date) => readPowershopDailyUsage(date, dataDir)),
+  return (await readAllPowershopUsage(dataDir)).filter(
+    (record) => record.targetDate >= startDate && record.targetDate <= endDate,
   );
-  return records.filter((record): record is PowershopDailyUsageRecord => Boolean(record));
 }
