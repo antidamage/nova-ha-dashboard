@@ -274,24 +274,14 @@ const defaultRatings: PowerDeviceRating[] = [
     source: "User supplied: 0.03 kW",
   },
   {
+    // The lounge's original A21 was disconnected in August 2026 and the bedroom
+    // A21 was physically moved in to replace it, so the bedroom has no bulb of
+    // its own any more. Same model, so this rating covers the fixture unchanged.
     id: "lounge_lifx",
     name: "Lounge light",
     zone: "Lounge",
     kind: "light",
     entityIds: ["light.lounge_light"],
-    ratedWatts: 15.5,
-    standbyWatts: 0.2,
-    confidence: "high",
-    manufacturer: "LIFX",
-    model: "A21 1600lm",
-    source: "LIFX A21 1600lm specification",
-  },
-  {
-    id: "bedroom_lifx",
-    name: "Bedroom light",
-    zone: "Bedroom",
-    kind: "light",
-    entityIds: ["light.bedroom_light"],
     ratedWatts: 15.5,
     standbyWatts: 0.2,
     confidence: "high",

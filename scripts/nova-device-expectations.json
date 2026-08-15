@@ -18,8 +18,8 @@
     "192.168.8.103": "Desk",
     "192.168.8.104": "Wardrobe",
     "192.168.8.105": "Conservatory",
-    "192.168.8.106": "Bedroom",
-    "192.168.8.107": "Lounge",
+    "192.168.8.106": "Lounge",
+    "192.168.8.107": "(free)",
     "192.168.8.110": "Nook light",
     "192.168.8.111": "Mirror light",
     "192.168.8.112": "TV light",
@@ -35,8 +35,12 @@
   },
 
   "_pre_staged": [
-    "192.168.8.107 (Lounge) was reserved while the bulb was physically",
-    "disconnected. Absence there is expected, not a fault."
+    "192.168.8.107 was reserved for the lounge A21 while it was physically",
+    "disconnected. That bulb was retired on 2026-08-15 and the bedroom A21 was",
+    "moved into the lounge in its place, keeping its own .106 reservation. So",
+    ".107 now has nothing behind it at all: absence there is expected, not a",
+    "fault. The reservation is left in place rather than deleted because the",
+    "router's table is capped at 32 and freeing a slot is a separate job."
   ],
   "pre_staged": ["192.168.8.107"],
 
@@ -60,7 +64,6 @@
     "the run stays quiet enough that a real fault stands out."
   ],
   "expected_unavailable_entities": {
-    "light.lounge_light": "LIFX bulb physically disconnected; .107 was reserved for it in advance",
     "lock.cupboard_child_lock": "the Cupboard socket does not expose a child-lock datapoint; the light half works"
   },
 

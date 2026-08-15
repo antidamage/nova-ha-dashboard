@@ -30,21 +30,6 @@
         "source":  "LIFX A21 1600lm specification"
     },
     {
-        "id":  "bedroom_lifx",
-        "name":  "Bedroom light",
-        "zone":  "Bedroom",
-        "kind":  "light",
-        "entityIds":  [
-                          "light.bedroom_light"
-                      ],
-        "ratedWatts":  15.5,
-        "standbyWatts":  0.2,
-        "confidence":  "high",
-        "manufacturer":  "LIFX",
-        "model":  "A21 1600lm",
-        "source":  "LIFX A21 1600lm specification"
-    },
-    {
         "id":  "conservatory_lifx",
         "name":  "Conservatory light",
         "zone":  "Conservatory",
