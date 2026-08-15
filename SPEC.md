@@ -351,7 +351,7 @@ Preference writes and task writes are queued and atomic.
   watchface compatibility, but now represents the latest scraped GymMaster gym
   visit timestamp rather than a user tap/reset timestamp.
 - Status orb info preferences (`orbInfo`): the selected readout module id and a
-  per-module map of display configuration. `mergeDashboardPreferences` merges
+  per-module map of display configuration and parameters. `mergeDashboardPreferences` merges
   BOTH levels — the object and its `modules` map — so saving one module's
   display never wipes another's, and changing the selection never wipes the
   saved displays.
@@ -1161,6 +1161,11 @@ Powershop scrape:
   data directory, and headful/headless options. `--fresh-login` deliberately
   ignores the saved state for one run but replaces it only after a successful
   login, so a failed refresh leaves the working state recoverable.
+- `--start-date YYYY-MM-DD --end-date YYYY-MM-DD` refreshes an inclusive date
+  range in one authenticated browser session. Range refreshes use the direct
+  hourly-measurements API, retain separate raw evidence and daily output for
+  every date, pause briefly between requests, continue past isolated failures,
+  and update `latest.json` only after the end date has completed.
 - MFA challenge pages are not treated as authenticated dashboard sessions; a
   successful dashboard check refreshes the saved Playwright storage state at
   `storage-state.json` in the Powershop data directory.
@@ -1624,8 +1629,10 @@ Config page:
   `ConfigSelect` module picker, a live preview rendered through the real
   formatter, and only those display controls the chosen format actually uses
   (unit, decimals, rounding, unit symbol and sign; clamp/count-down for
-  percentages; 12-hour/seconds for clocks). The gym alert-hours slider stays
-  here and appears for the gym modules. Selecting `None` collapses the section
+  percentages; 12-hour/seconds for clocks), plus a picker for each parameter the
+  chosen module declares — a room list, a sensor list showing each sensor's
+  current value and unit, a date field, or a slider. The gym alert-hours slider
+  stays here and appears for the gym modules. Selecting `None` collapses the section
   to the picker and the orb renders with no readout.
 - The forced config preview avatar always renders the gym-alert pulse so the
   configured alert color can be inspected even when the real counter is below
@@ -1747,11 +1754,27 @@ Status orb readout (info modules):
   and `clock` start no network traffic at all. Host modules are fed by the orb's
   existing 2-second `/api/nova-load` poll rather than a second one, and the
   sample is stored only when the displayed value would change.
-- The catalogue (`lib/orb-info/catalogue.ts`) covers: `none`; gym time-since and
-  gym progress-to-threshold; host CPU/GPU/network/composite load; the clock;
-  time until sunset/sunrise; outside temperature, feels-like and rain chance;
-  live power draw and cost rate; lights on; devices unavailable; and Home
-  Assistant health.
+- The catalogue (`lib/orb-info/catalogue.ts`) covers: `none`; gym time-since,
+  gym progress-to-threshold and a generic time-since-a-date streak; host
+  CPU/GPU/network/composite load; the clock; time until sunset/sunrise; outside
+  temperature, feels-like, humidity, rain chance, UV, wind and forecast
+  high/low; per-zone temperature and humidity; the indoor/outdoor delta; any
+  numeric Home Assistant sensor; live power draw, cost rate and headroom
+  against a ceiling; next reminder and overdue reminders; lights on; doors and
+  windows open; devices unavailable; WAN status; and Home Assistant health.
+- Modules that need to be told WHICH thing they read declare `params`
+  (`kind: zone | entity | date | number`), and the config page renders the
+  matching picker. Parameters are normalised against the declaration on both
+  read and save, so unknown keys are dropped and numbers are clamped.
+- `entity-numeric` adopts the chosen sensor's own unit as its base unit, so a
+  °C sensor converts like a temperature and a `%` sensor is already a
+  percentage rather than a ratio to be scaled again.
+- Both surfaces keep their own catalogue (the Apple TV has different sources —
+  it does not call `/api/power` or `/api/tasks`, and reports those modules as
+  unavailable rather than inventing a number), but the module IDS must match.
+  `catalogue.test.ts` reads the Swift catalogue and fails if either side has a
+  module the other lacks, because a missing id would silently fall back to the
+  gym counter on the TV.
 - The default selection is `gym` at its default display, which reproduces the
   original whole-hours readout exactly.
 - The readout is read-only; tapping/clicking it does not reset or mutate

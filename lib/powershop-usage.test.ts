@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readLatestPowershopUsage, readPowershopDailyUsage, readPowershopUsageRange } from "./powershop-usage";
+import { readAllPowershopUsage, readLatestPowershopUsage, readPowershopDailyUsage, readPowershopUsageRange } from "./powershop-usage";
 
 let dir: string;
 
@@ -72,5 +72,18 @@ describe("readPowershopUsageRange", () => {
 
   it("returns an empty array when the directory is missing", async () => {
     expect(await readPowershopUsageRange("2026-06-01", "2026-06-09", path.join(dir, "nope"))).toEqual([]);
+  });
+});
+
+describe("readAllPowershopUsage", () => {
+  it("returns all date-named daily records in order", async () => {
+    await writeDaily("2026-06-03", record("2026-06-03"));
+    await writeDaily("2026-06-01", record("2026-06-01"));
+    await writeDaily("summary", record("2026-06-02"));
+
+    expect((await readAllPowershopUsage(dir)).map((entry) => entry.targetDate)).toEqual([
+      "2026-06-01",
+      "2026-06-03",
+    ]);
   });
 });

@@ -175,6 +175,46 @@ function addDaysToDateKey(value, days) {
   return dateKey(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
 }
 
+function isDateKey(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day, 12));
+  return dateKey(parsed.getUTCFullYear(), parsed.getUTCMonth() + 1, parsed.getUTCDate()) === value;
+}
+
+export function dateKeysBetween(startDate, endDate) {
+  if (!isDateKey(startDate) || !isDateKey(endDate)) {
+    throw new Error(`Invalid Powershop date range: ${startDate} through ${endDate}`);
+  }
+  if (startDate > endDate) {
+    throw new Error(`Powershop start date ${startDate} is after end date ${endDate}`);
+  }
+  const dates = [];
+  for (let current = startDate; current <= endDate; current = addDaysToDateKey(current, 1)) {
+    dates.push(current);
+  }
+  return dates;
+}
+
+export function summarizeRangeResults(records, failedDates, startDate, endDate, total) {
+  const partialDates = records
+    .filter((record) => record.status !== "ok")
+    .map((record) => record.targetDate);
+  return {
+    completed: records.length,
+    endDate,
+    failed: failedDates.length,
+    failedDates,
+    partial: partialDates.length,
+    partialDates,
+    startDate,
+    status: failedDates.length || partialDates.length ? "range_partial" : "range_ok",
+    total,
+  };
+}
+
 function yesterdayKey(timeZone = DEFAULT_TIME_ZONE) {
   const parts = localParts(new Date(), timeZone);
   const noonUtc = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12));
@@ -856,11 +896,75 @@ function normalizeRecord(targetDate, pages, capturedResponses, template) {
   };
 }
 
+async function scrapeTargetDate(page, targetDate, capturedResponses, template, dataDir, { directOnly, writeLatest }) {
+  const responseStartIndex = capturedResponses.length;
+  const pages = [];
+  try {
+    pages.push(await scrapeDirectMeasurements(page, targetDate, capturedResponses));
+  } catch (error) {
+    pages.push({
+      candidates: [],
+      error: error instanceof Error ? error.message : String(error),
+      expectedField: "costNzd,kwh",
+      name: "directMeasurements",
+      optional: true,
+      textHash: null,
+      url: "https://api.powershop.nz/v1/graphql/?opName=measurements",
+    });
+  }
+
+  if (!directOnly) {
+    for (const pageConfig of template.pages) {
+      try {
+        pages.push(await scrapePage(page, pageConfig, template, targetDate, capturedResponses));
+      } catch (error) {
+        if (!pageConfig.optional) {
+          throw error;
+        }
+        pages.push({
+          candidates: [],
+          error: error instanceof Error ? error.message : String(error),
+          expectedField: pageConfig.expectedField,
+          name: pageConfig.name,
+          optional: true,
+          textHash: null,
+          url: renderTemplate(pageConfig.urlTemplate, { date: targetDate }),
+        });
+      }
+    }
+  }
+
+  const dateResponses = capturedResponses.slice(responseStartIndex);
+  const record = normalizeRecord(targetDate, pages, dateResponses, template);
+  const rawPath = path.join(dataDir, template.output.rawDirectory, `${targetDate}-${Date.now()}.json`);
+  await writeJson(rawPath, {
+    capturedAt: record.capturedAt,
+    responses: dateResponses,
+    targetDate,
+  });
+  record.rawEvidencePath = rawPath;
+
+  await writeJson(path.join(dataDir, template.output.dailyDirectory, `${targetDate}.json`), record);
+  if (writeLatest) {
+    await writeJson(path.join(dataDir, template.output.latestFile), record);
+  }
+  return record;
+}
+
 export async function main() {
   const templatePath = argValue("--template") ?? process.env.POWERSHOP_TEMPLATE_PATH ?? DEFAULT_TEMPLATE_PATH;
   const dataDir = argValue("--data-dir") ?? process.env.POWERSHOP_DATA_DIR ?? DEFAULT_DATA_DIR;
   const template = await readJson(templatePath);
-  const targetDate = argValue("--date") ?? yesterdayKey(template.timezone ?? DEFAULT_TIME_ZONE);
+  const requestedStartDate = argValue("--start-date") ?? process.env.POWERSHOP_START_DATE;
+  const requestedEndDate = argValue("--end-date") ?? process.env.POWERSHOP_END_DATE;
+  if (Boolean(requestedStartDate) !== Boolean(requestedEndDate)) {
+    throw new Error("Powershop range refresh requires both --start-date and --end-date.");
+  }
+  const rangeMode = Boolean(requestedStartDate && requestedEndDate);
+  const targetDates = rangeMode
+    ? dateKeysBetween(requestedStartDate, requestedEndDate)
+    : [argValue("--date") ?? yesterdayKey(template.timezone ?? DEFAULT_TIME_ZONE)];
+  const targetDate = targetDates.at(-1);
   const dryRun = hasArg("--dry-run");
   const loginOnly = hasArg("--login-only");
   const force = hasArg("--force") || process.env.POWERSHOP_ALLOW_DAYTIME === "1";
@@ -869,7 +973,7 @@ export async function main() {
   );
   const freshLogin = hasArg("--fresh-login");
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+  if (!isDateKey(targetDate)) {
     throw new Error(`Invalid --date value: ${targetDate}`);
   }
 
@@ -887,7 +991,14 @@ export async function main() {
   }
 
   if (dryRun) {
-    console.log(JSON.stringify({ dataDir, status: "dry_run_ok", targetDate, templatePath }));
+    console.log(JSON.stringify({
+      dataDir,
+      dateCount: targetDates.length,
+      endDate: targetDate,
+      startDate: targetDates[0],
+      status: "dry_run_ok",
+      templatePath,
+    }));
     return;
   }
 
@@ -952,51 +1063,52 @@ export async function main() {
       console.log(JSON.stringify({ authMode, status: "login_ok", targetDate }));
       return;
     }
-    const pages = [];
-    try {
-      pages.push(await scrapeDirectMeasurements(page, targetDate, capturedResponses));
-    } catch (error) {
-      pages.push({
-        candidates: [],
-        error: error instanceof Error ? error.message : String(error),
-        expectedField: "costNzd,kwh",
-        name: "directMeasurements",
-        optional: true,
-        textHash: null,
-        url: "https://api.powershop.nz/v1/graphql/?opName=measurements",
-      });
-    }
-    for (const pageConfig of template.pages) {
+    const records = [];
+    const failedDates = [];
+    for (const [index, date] of targetDates.entries()) {
       try {
-        pages.push(await scrapePage(page, pageConfig, template, targetDate, capturedResponses));
-      } catch (error) {
-        if (!pageConfig.optional) {
-          throw error;
-        }
-        pages.push({
-          candidates: [],
-          error: error instanceof Error ? error.message : String(error),
-          expectedField: pageConfig.expectedField,
-          name: pageConfig.name,
-          optional: true,
-          textHash: null,
-          url: renderTemplate(pageConfig.urlTemplate, { date: targetDate }),
+        const record = await scrapeTargetDate(page, date, capturedResponses, template, dataDir, {
+          directOnly: rangeMode,
+          writeLatest: !rangeMode,
         });
+        records.push(record);
+        console.log(JSON.stringify({
+          costNzd: record.values.costNzd,
+          index: index + 1,
+          kwh: record.values.kwh,
+          status: record.status,
+          targetDate: date,
+          total: targetDates.length,
+        }));
+      } catch (error) {
+        const warning = error instanceof Error ? error.message : String(error);
+        const failure = {
+          capturedAt: new Date().toISOString(),
+          source: "powershop",
+          status: "error",
+          targetDate: date,
+          warning,
+        };
+        failedDates.push(date);
+        await writeJson(path.join(dataDir, "failures", `${date}-${Date.now()}.json`), failure);
+        console.error(`Powershop range refresh failed for ${date}: ${warning}`);
+      }
+      if (rangeMode && index < targetDates.length - 1) {
+        await page.waitForTimeout(250);
       }
     }
 
-    const record = normalizeRecord(targetDate, pages, capturedResponses, template);
-    const rawPath = path.join(dataDir, template.output.rawDirectory, `${targetDate}-${Date.now()}.json`);
-    await writeJson(rawPath, {
-      capturedAt: record.capturedAt,
-      responses: capturedResponses,
-      targetDate,
-    });
-    record.rawEvidencePath = rawPath;
-
-    await writeJson(path.join(dataDir, template.output.dailyDirectory, `${targetDate}.json`), record);
-    await writeJson(path.join(dataDir, template.output.latestFile), record);
-    console.log(JSON.stringify({ costNzd: record.values.costNzd, kwh: record.values.kwh, status: record.status, targetDate }));
+    if (rangeMode) {
+      const finalRecord = records.find((record) => record.targetDate === targetDate);
+      if (finalRecord) {
+        await writeJson(path.join(dataDir, template.output.latestFile), finalRecord);
+      }
+      const summary = summarizeRangeResults(records, failedDates, targetDates[0], targetDate, targetDates.length);
+      console.log(JSON.stringify(summary));
+      if (summary.status !== "range_ok") {
+        process.exitCode = 1;
+      }
+    }
   } catch (error) {
     const status = error?.code === "requires_mfa" || error?.code === "requires_interaction" ? error.code : "error";
     const warning = error instanceof Error ? error.message : String(error);
