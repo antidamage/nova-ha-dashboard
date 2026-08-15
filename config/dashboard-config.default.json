@@ -12,12 +12,7 @@
     ],
     "illuminationNamePattern": "\\b(neon|light|lights|lamp|lamps|led|strip|glow|fairy|sign|illumination)\\b",
     "supportSwitchPattern": "\\bauto[-_ ]?update\\b",
-    "everythingExcludedEntityIds": [
-      "light.outside_light",
-      "light.tuya_mobile_outside_light",
-      "switch.bedroom_heater",
-      "switch.tuya_mobile_bedroom_heater"
-    ],
+    "everythingExcludedEntityIds": [],
     "climateAreaNames": [
       "climate",
       "heating"
@@ -25,22 +20,15 @@
     "networkZoneId": "network",
     "weatherEntityId": "weather.forecast_home",
     "sunEntityId": "sun.sun",
-    "loungeSensorEntityIds": [
-      "sensor.tuya_mobile_bedroom_sensor_temperature",
-      "sensor.tuya_mobile_bedroom_sensor_humidity",
-      "sensor.wifi_temperature_humidity_sensor_temperature",
-      "sensor.wifi_temperature_humidity_sensor_humidity",
-      "sensor.lounge_temperature",
-      "sensor.lounge_humidity"
-    ],
+    "loungeSensorEntityIds": [],
     "router": {
-      "name": "NX620v",
-      "wanStatusEntityId": "binary_sensor.nx620v_wan_status",
-      "externalIpEntityId": "sensor.nx620v_external_ip",
-      "downloadSpeedEntityId": "sensor.nx620v_download_speed",
-      "uploadSpeedEntityId": "sensor.nx620v_upload_speed"
+      "name": "Router",
+      "wanStatusEntityId": "binary_sensor.router_wan_status",
+      "externalIpEntityId": "sensor.router_external_ip",
+      "downloadSpeedEntityId": "sensor.router_download_speed",
+      "uploadSpeedEntityId": "sensor.router_upload_speed"
     },
-    "novaAssistSatelliteEntityId": "assist_satellite.iridium_assist_satellite",
+    "novaAssistSatelliteEntityId": "assist_satellite.assist_satellite",
     "classification": {
       "illuminationLabels": [
         "nova_illumination"
@@ -55,7 +43,8 @@
       "forceHiddenEntityIds": [],
       "environmentSensorEntityIds": [],
       "environmentSensorExcludeEntityIds": []
-    }
+    },
+    "zoneEnvironmentFallbacks": []
   },
   "dashboard": {
     "defaultZoneId": "everything",
@@ -70,46 +59,17 @@
       }
     },
     "lighting": {
-      "intensityThresholds": [
-        {
-          "name": "Neon Lights",
-          "thresholdPct": 61,
-          "entityIds": [
-            "light.cupboard_socket_1",
-            "light.tuya_mobile_neon_lights"
-          ]
-        }
-      ],
-      "entityPresets": [
-        {
-          "entityId": "light.conservatory_light",
-          "pinned": true,
-          "targetBrightnessPct": {
-            "daytime": 100,
-            "evening": 100
-          },
-          "colorTemperatureOverrideKelvin": {
-            "candlelight": 3000,
-            "daylight": 3000
-          }
-        }
-      ]
+      "intensityThresholds": [],
+      "entityPresets": []
     },
     "aircon": {
-      "offTimerIncrementMinutes": 10
+      "offTimerIncrementMinutes": 10,
+      "matchTokens": []
     },
     "bedroomHeater": {
-      "switchEntityIds": [
-        "switch.bedroom_heater",
-        "switch.tuya_mobile_bedroom_heater"
-      ],
-      "temperatureEntityIds": [
-        "sensor.tuya_mobile_bedroom_sensor_temperature"
-      ],
-      "humidityEntityIds": [
-        "sensor.bedroom_heater_humidity",
-        "sensor.tuya_mobile_bedroom_heater_humidity"
-      ]
+      "switchEntityIds": [],
+      "temperatureEntityIds": [],
+      "humidityEntityIds": []
     },
     "legacyPanelHeaterCardEnabled": false,
     "camera": {

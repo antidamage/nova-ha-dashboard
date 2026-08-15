@@ -884,6 +884,15 @@ export type DashboardState = {
   activeModuleIds?: string[];
   totals: Record<HaDomain, number>;
   lighting: DashboardLightingConfig;
+  /**
+   * Last-resort environment sensors per zone, from config. Carried on state
+   * like `lighting` so the client can apply them without a second config fetch.
+   */
+  zoneEnvironmentFallbacks?: Array<{
+    zoneId: string;
+    temperatureEntityIds: string[];
+    humidityEntityIds: string[];
+  }>;
   router: RouterStatus;
   spectrumCursors?: Record<string, SpectrumCursor>;
   sun: SunStatus | null;

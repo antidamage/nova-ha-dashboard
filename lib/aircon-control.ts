@@ -345,12 +345,25 @@ function airconIdentityText(entity: Pick<DashboardEntity, "attributes" | "entity
  * heater. Both the browser controller and the server watchdog use this exact
  * selector so the safety monitor cannot watch a different device from Auto.
  */
+/**
+ * Words that identify an air conditioner in any home. Deliberately generic: the
+ * list used to include one manufacturer and one household's entity id, which
+ * meant another installation's unit could only be found by the weaker
+ * "not a heater" fallback below. Installations whose unit is named unusually add
+ * their own via `dashboard.aircon.matchTokens`.
+ */
+const AIRCON_MATCH_TOKENS = ["air conditioner", "air con", "aircon", "heat pump"];
+
 export function dashboardAirconEntity<T extends Pick<DashboardEntity, "attributes" | "entity_id">>(
   entities: readonly T[],
+  configuredMatchTokens: readonly string[] = [],
 ) {
+  const tokens = [...configuredMatchTokens, ...AIRCON_MATCH_TOKENS]
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
   const climates = entities.filter((entity) => entity.entity_id.startsWith("climate."));
   const explicit = climates.find((entity) =>
-    ["air conditioner", "air con", "gree", "c6780cad"].some((token) => airconIdentityText(entity).includes(token)),
+    tokens.some((token) => airconIdentityText(entity).includes(token)),
   );
   if (explicit) {
     return explicit;

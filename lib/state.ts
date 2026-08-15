@@ -149,6 +149,7 @@ export async function buildDashboardState(): Promise<DashboardState> {
       .map((status) => status.id),
     totals: countDomains(entities, controlDomains),
     lighting: config.dashboard.lighting,
+    zoneEnvironmentFallbacks: ha.zoneEnvironmentFallbacks,
     router: buildRouterStatus(states, config),
     sun: buildSunStatus(states, config),
     weather: await buildWeatherStatus(states, warnings, config),

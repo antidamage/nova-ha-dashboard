@@ -72,18 +72,22 @@ export const BEDROOM_HEATER_WINDOW_STEP_MINUTES = 15;
 export const BEDROOM_HEATER_DEFAULT_AUTO_ON_MINUTES = 360; // 18:00
 export const BEDROOM_HEATER_DEFAULT_AUTO_OFF_MINUTES = 1140; // 07:00 next day
 
-/** The relocated standalone room sensor; never substitute the plug sensor. */
-export const BEDROOM_ROOM_TEMPERATURE_ENTITY_ID = "sensor.tuya_mobile_bedroom_sensor_temperature";
-
 /**
- * Return the only temperature source permitted to drive or display Bedroom.
- * An unavailable room sensor therefore disables Auto rather than silently
- * substituting the plug's switch-body temperature.
+ * The only temperature sources permitted to drive or display the heater's room.
+ *
+ * The safety rule is unchanged: nothing outside this list may stand in, so an
+ * unavailable room sensor disables Auto rather than silently substituting the
+ * heater plug's own body temperature — which is far too damped to be a room
+ * reading and would let Auto heat an already-warm room.
+ *
+ * What changed is where the list comes from. Callers already passed
+ * `dashboard.bedroomHeater.temperatureEntityIds` in, and this function then
+ * filtered it against a single hard-coded entity id — so the configured value
+ * could never actually change anything, and one household's sensor was the only
+ * one the product could ever trust. The configured list IS the trust list.
  */
-export function bedroomRoomTemperatureEntityIds(entityIds: readonly string[]) {
-  return entityIds.includes(BEDROOM_ROOM_TEMPERATURE_ENTITY_ID)
-    ? [BEDROOM_ROOM_TEMPERATURE_ENTITY_ID]
-    : [];
+export function roomTemperatureEntityIds(entityIds: readonly string[]) {
+  return entityIds.filter((entityId) => entityId.trim().length > 0);
 }
 
 export function bedroomTemperatureStateIsFresh(
