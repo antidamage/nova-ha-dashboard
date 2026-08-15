@@ -89,6 +89,76 @@ describe("NovaAvatar", () => {
     expect(host.querySelector(".nova-avatar-gym-counter")).toHaveStyle("color: rgba(255, 0, 93, 0.94)");
   });
 
+  function mockOrbFetch({ orbInfo, watchface }: { orbInfo?: unknown; watchface?: unknown }) {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/orb-info") return jsonResponse({ orbInfo });
+      if (url === "/api/watchface") return jsonResponse({ watchface: watchface ?? {} });
+      if (url === "/api/theme") return jsonResponse({ theme: null });
+      if (url === "/api/nova-load") return jsonResponse({ load: 0, cpu: 0, gpu: 0, net: 0 });
+      if (url === "/api/orb-modules") return jsonResponse({ modules: [] });
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("renders whole hours since the last gym visit, as it did before modules", async () => {
+    // 46.75 hours ago: the readout must floor to 46, exactly as the hardcoded
+    // counter did.
+    const lastVisit = new Date(Date.now() - 46.75 * 3_600_000).toISOString();
+    mockOrbFetch({
+      orbInfo: { moduleId: "gym", modules: {} },
+      watchface: { gymLastResetAt: lastVisit, gymAlertThresholdHours: 46 },
+    });
+
+    render(<NovaAvatar forceVisible size={64} />);
+
+    await waitFor(() => {
+      expect(document.querySelector(".nova-avatar-gym-counter")?.textContent).toBe("46");
+    });
+  });
+
+  it("shows the empty glyph rather than a misleading zero before the first scrape", async () => {
+    mockOrbFetch({ orbInfo: { moduleId: "gym", modules: {} }, watchface: {} });
+
+    render(<NovaAvatar forceVisible size={64} />);
+
+    await waitFor(() => {
+      expect(document.querySelector(".nova-avatar-gym-counter")?.textContent).toBe("—");
+    });
+  });
+
+  it("renders the orb with no readout at all when the module is None", async () => {
+    mockOrbFetch({ orbInfo: { moduleId: "none", modules: {} } });
+
+    render(<NovaAvatar forceVisible size={64} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("group", { name: "Nova avatar" })).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(document.querySelector(".nova-avatar-gym-counter")).toBeNull();
+    });
+  });
+
+  it("honours a saved display: hours since the gym, shown in days", async () => {
+    const lastVisit = new Date(Date.now() - 46 * 3_600_000).toISOString();
+    mockOrbFetch({
+      orbInfo: {
+        moduleId: "gym",
+        modules: { gym: { display: { format: "duration", unit: "days", decimals: 1, showUnit: true } } },
+      },
+      watchface: { gymLastResetAt: lastVisit, gymAlertThresholdHours: 46 },
+    });
+
+    render(<NovaAvatar forceVisible size={64} />);
+
+    await waitFor(() => {
+      expect(document.querySelector(".nova-avatar-gym-counter")?.textContent).toBe("1.9d");
+    });
+  });
+
   it("unmounts entirely and never polls its endpoints on a lite-mode device", async () => {
     window.localStorage.setItem("nova.dashboard.experienceMode.v1", "lite");
     const fetchMock = vi.fn(async (_input: RequestInfo | URL) => jsonResponse({}));

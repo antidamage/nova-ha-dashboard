@@ -86,6 +86,24 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    // Two levels deep, and BOTH need merging. The top-level spread would replace
+    // the whole orbInfo object (losing every module's display config when only
+    // the selected module changes), and a plain orbInfo spread would replace the
+    // whole `modules` map (losing every OTHER module's config when one is
+    // edited). Saving the gym's decimal places must not wipe the clock's
+    // 12-hour setting.
+    if (next.orbInfo) {
+      merged.orbInfo = {
+        ...(current.orbInfo ?? {}),
+        ...withoutUndefined(next.orbInfo as Record<string, unknown>),
+        modules: {
+          ...(current.orbInfo?.modules ?? {}),
+          ...(next.orbInfo.modules ?? {}),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
     if (next.agent) {
       merged.agent = {
         ...(current.agent ?? {}),

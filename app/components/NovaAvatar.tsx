@@ -21,6 +21,8 @@ import { markInput as markVoiceInput, useVoiceMode } from "./dashboard/voiceMode
 import { arePageUpdatesPaused } from "./dashboard/pageUpdatePause";
 import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
+import { useOrbInfo } from "./orb-info/useOrbInfo";
+import type { OrbInfoDisplay } from "../../lib/orb-info/types";
 import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
 import { useAgentName } from "./AgentNameContext";
 
@@ -30,13 +32,6 @@ type LoadResponse = {
   gpu: number;
   listening: boolean;
   load: number;
-};
-
-type WatchfaceResponse = {
-  watchface?: {
-    gymAlertThresholdHours?: number;
-    gymLastResetAt?: string;
-  };
 };
 
 // Default rendered size in CSS pixels; callers can override via the `size`
@@ -56,8 +51,6 @@ const ORB_RADIUS_FRACTION = 0.48;
 // which the page froze and the watchdog killed the browser. Keep this well above
 // the easing time constant.
 const POLL_MS = 2000;
-const MS_PER_HOUR = 60 * 60 * 1000;
-const GYM_COUNTER_POLL_MS = 5 * 60 * 1000;
 const LOAD_EASE = 1.0; // ease toward server-reported load
 
 // While the voice agent speaks, the canvas backing store is rendered at a
@@ -70,39 +63,6 @@ const SPEECH_RETURN_FALLBACK_MS = 600;
 function speechScaleFor(viewportWidth: number, viewportHeight: number, size: number) {
   const target = Math.min(viewportWidth, viewportHeight) * 0.45;
   return Math.max(1.3, Math.min(3, target / size));
-}
-
-function hoursSinceGymReset(lastTappedAt: number, now: number) {
-  const elapsed = Math.max(0, now - lastTappedAt);
-  return Math.max(0, Math.floor(elapsed / MS_PER_HOUR));
-}
-
-function msUntilNextGymHour(lastTappedAt: number, now: number) {
-  const elapsed = Math.max(0, now - lastTappedAt);
-  const currentHours = Math.floor(elapsed / MS_PER_HOUR);
-  const nextAt = lastTappedAt + (currentHours + 1) * MS_PER_HOUR;
-  return Math.max(1000, Math.min(MS_PER_HOUR, nextAt - now + 50));
-}
-
-function millisFromIso(value: unknown) {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-async function readSharedGymSettings() {
-  const response = await fetch("/api/watchface", { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Watchface settings request failed: ${response.status}`);
-  }
-  const data = await response.json() as WatchfaceResponse;
-  const threshold = Number(data.watchface?.gymAlertThresholdHours);
-  return {
-    gymAlertThresholdHours: Number.isFinite(threshold) ? threshold : null,
-    gymLastResetAt: millisFromIso(data.watchface?.gymLastResetAt),
-  };
 }
 
 function percentRatio(value: number | undefined) {
@@ -130,6 +90,10 @@ type NovaAvatarProps = {
   // dark/light variant on the first render (SSR included) instead of the
   // hour-of-day guess. Null when the server has no state snapshot yet.
   initialSun?: SunThemeStatus | null;
+  // Status orb info module overrides. The config preview drives both directly
+  // so it renders the setting being edited rather than the saved one.
+  orbInfoModuleId?: string;
+  orbInfoDisplay?: OrbInfoDisplay;
 };
 
 // Status-orb feature gate: when the status orb is turned off the visual never
@@ -165,6 +129,8 @@ function NovaAvatarVisual({
   themeOverride,
   initialTheme,
   initialSun,
+  orbInfoModuleId,
+  orbInfoDisplay,
   speechOnly = false,
 }: NovaAvatarProps & { speechOnly?: boolean }) {
   const { agentName } = useAgentName();
@@ -255,9 +221,18 @@ function NovaAvatarVisual({
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [gymLastResetAt, setGymLastResetAt] = useState<number | null>(null);
-  const [gymAlertThresholdHours, setGymAlertThresholdHours] = useState<number | null>(null);
-  const [gymNow, setGymNow] = useState(0);
+  // The readout is a selectable "status orb info module" (lib/orb-info): the orb
+  // asks the module for its output and renders whatever the module's display
+  // config formats it into. It knows nothing about gyms, CPUs or thermometers.
+  const orbInfo = useOrbInfo({
+    enabled: !hidden && !orbOptedOut,
+    moduleIdOverride: orbInfoModuleId,
+    displayOverride: orbInfoDisplay,
+  });
+  // Read by the load poll without making the hook a dependency of that effect
+  // (which would tear the 2s poll down and rebuild it on every readout change).
+  const ingestNovaLoadRef = useRef(orbInfo.ingestNovaLoad);
+  ingestNovaLoadRef.current = orbInfo.ingestNovaLoad;
   // Mutable references — avoid re-creating the animation loop on data tick.
   const targetLoadRef = useRef(0);
   const currentLoadRef = useRef(0);
@@ -283,42 +258,6 @@ function NovaAvatarVisual({
 
   useEffect(() => {
     if (hidden || orbOptedOut) return;
-
-    let alive = true;
-    const loadSharedCounter = async () => {
-      try {
-        const settings = await readSharedGymSettings();
-        if (!alive) {
-          return;
-        }
-        setGymAlertThresholdHours(settings.gymAlertThresholdHours);
-        setGymLastResetAt(settings.gymLastResetAt);
-        setGymNow(Date.now());
-      } catch (error) {
-        console.error("[nova-dashboard] failed to sync gym counter", error);
-      }
-    };
-
-    void loadSharedCounter();
-    const id = window.setInterval(loadSharedCounter, GYM_COUNTER_POLL_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(id);
-    };
-  }, [hidden, orbOptedOut]);
-
-  useEffect(() => {
-    if (hidden || gymLastResetAt === null) return;
-
-    const id = window.setTimeout(() => {
-      setGymNow(Date.now());
-    }, msUntilNextGymHour(gymLastResetAt, gymNow || Date.now()));
-
-    return () => window.clearTimeout(id);
-  }, [gymLastResetAt, gymNow, hidden]);
-
-  useEffect(() => {
-    if (hidden || orbOptedOut) return;
     let alive = true;
     const tick = async () => {
       try {
@@ -333,6 +272,16 @@ function NovaAvatarVisual({
         if (!alive) return;
         const load = Math.max(0, Math.min(1, Number(data.load) || 0));
         targetLoadRef.current = load;
+        // Host modules read this same sample rather than opening a second poll.
+        // The hook drops it unless a host module is selected.
+        ingestNovaLoadRef.current({
+          cpu: Number(data.cpu) || 0,
+          gpu: Number(data.gpu) || 0,
+          net: Number(data.net) || 0,
+          load,
+          listening: Boolean(data.listening),
+          ts: Date.now(),
+        });
       } catch {
         // ignore — keep previous target
       }
@@ -513,8 +462,7 @@ function NovaAvatarVisual({
 
   if (hidden) return null;
 
-  const gymHours = gymLastResetAt === null ? 0 : hoursSinceGymReset(gymLastResetAt, gymNow || Date.now());
-  gymAlertActiveRef.current = forceGymAlert || gymHours >= (gymAlertThresholdHours ?? theme.gymAlertThresholdHours);
+  gymAlertActiveRef.current = forceGymAlert || orbInfo.alert;
   const gymRgb = appliedThemeRgb(theme.gymNumberColor);
   const gymOpacity = percentRatio(theme.gymNumberOpacity);
   const gymCounterStyle = {
@@ -577,10 +525,6 @@ function NovaAvatarVisual({
         }
       : {}),
   } as CSSProperties;
-  const gymCounterLabel = gymLastResetAt === null
-    ? "Hours since last gym visit: no scraped visit found yet."
-    : `Hours since last gym visit: ${gymHours}.`;
-
   return (
     <>
       {showTapAnywhere ? (
@@ -649,14 +593,15 @@ function NovaAvatarVisual({
           regular `filter:` on the backdrop copy above. So mount it whenever the
           glass is on. */}
       {glassEnabled ? <NovaOrbGlassFilter filterId={glassFilterId} glass={glass} size={size} /> : null}
-      {forceVisible || statusOrbInfoVisible ? (
+      {(forceVisible || statusOrbInfoVisible) && !orbInfo.empty ? (
         <div
           className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}
           style={gymCounterStyle}
-          aria-label={gymCounterLabel}
+          aria-label={orbInfo.ariaLabel}
+          data-nova-orb-info-module={orbInfo.module.id}
           suppressHydrationWarning
         >
-          {gymHours}
+          {orbInfo.text}
         </div>
       ) : null}
     </div>

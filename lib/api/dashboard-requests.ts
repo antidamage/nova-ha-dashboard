@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { normalizeGymAlertThresholdHours, normalizeWatchfaceIdleTimeoutMs } from "../watchface-preferences";
+import { ORB_INFO_MODULES_BY_ID } from "../orb-info/catalogue";
+import { normalizeOrbDisplay } from "../orb-info/preferences";
+import type { OrbInfoPreferences } from "../orb-info/types";
 import type { DashboardPreferences, HaDomain, SpectrumCursor } from "../types";
 
 export const DashboardRequestBodySchema = z.record(z.string(), z.unknown()).catch({});
@@ -215,6 +218,45 @@ export function isoTimestampFrom(value: unknown) {
 
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toISOString() : undefined;
+}
+
+export function parseOrbInfoUpdateRequest(value: unknown): OrbInfoPreferences {
+  const body = requestRecord(value);
+  const next: OrbInfoPreferences = {};
+
+  if (body.moduleId !== undefined) {
+    if (typeof body.moduleId !== "string" || !ORB_INFO_MODULES_BY_ID[body.moduleId]) {
+      throw new Error(`Unknown status orb module: ${String(body.moduleId)}`);
+    }
+    next.moduleId = body.moduleId;
+  }
+
+  if (body.modules !== undefined) {
+    if (!body.modules || typeof body.modules !== "object") {
+      throw new Error("Status orb modules must be an object");
+    }
+    const modules: NonNullable<OrbInfoPreferences["modules"]> = {};
+    for (const [id, entry] of Object.entries(body.modules as Record<string, unknown>)) {
+      const module = ORB_INFO_MODULES_BY_ID[id];
+      if (!module) {
+        throw new Error(`Unknown status orb module: ${id}`);
+      }
+      const record = (entry && typeof entry === "object" ? entry : {}) as Record<string, unknown>;
+      modules[id] = {
+        display: normalizeOrbDisplay(record.display, module.defaultDisplay),
+        ...(record.params && typeof record.params === "object"
+          ? { params: record.params as Record<string, unknown> }
+          : {}),
+      };
+    }
+    next.modules = modules;
+  }
+
+  if (next.moduleId === undefined && next.modules === undefined) {
+    throw new Error("No status orb info settings provided");
+  }
+
+  return next;
 }
 
 export function parseWatchfaceUpdateRequest(value: unknown) {

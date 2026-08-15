@@ -26,7 +26,11 @@ the named component before introducing a one-off equivalent.
   release phases.
 - `ConfigSelect` — `app/components/ConfigSelect.tsx`. This is the generic
   portalled cyber-listbox for configuration choices; use it instead of a native
-  `<select>` when a specialised library or font picker is not required.
+  `<select>` when a specialised library or font picker is not required. Options
+  may carry an optional `group`, which emits a heading the first time each group
+  appears — use it for long lists (the status-orb module picker) rather than
+  building a second grouped picker. Lists that set no `group` render exactly as
+  before.
 - `SliderControlPanel`, `ColorSpectrum`, and `ColorIntensitySlider` —
   `app/components/ConfigControls.tsx`. These are the standard configuration-page
   slider and colour wrappers, with separate preview and commit boundaries. They

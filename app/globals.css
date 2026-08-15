@@ -3162,6 +3162,46 @@ a.update-banner-button {
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
+.orb-info-preview {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--cyber-panel-border, rgba(115, 115, 115, 0.5));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.orb-info-preview-label {
+  color: var(--cyber-text-dim);
+  font-family: var(--cyber-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.orb-info-preview-value {
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.cyber-select-group-heading {
+  padding: 10px 12px 4px;
+  color: var(--cyber-text-dim);
+  font-family: var(--cyber-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cyber-select-group-heading + li .cyber-select-option {
+  border-top: none;
+}
+
 .cyber-select-option {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 18px;

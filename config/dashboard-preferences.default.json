@@ -893,6 +893,10 @@
     "updatedAt": "2026-07-31T12:00:15.882Z",
     "idleTimeoutMs": 60000
   },
+  "orbInfo": {
+    "moduleId": "gym",
+    "modules": {}
+  },
   "panelHeater": {
     "offTimerEndsAt": null,
     "updatedAt": "2026-07-31T10:08:34.947Z"
