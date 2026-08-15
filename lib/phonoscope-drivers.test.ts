@@ -720,7 +720,7 @@ describe("randomValue bindings", () => {
 
   it("agrees with the C++ and Swift engines value for value", () => {
     // These numbers were printed by the Swift evaluator on indium and by the
-    // C++ one on iridium, from this exact frame sequence. The corpus digest
+    // C++ one on voiceHost, from this exact frame sequence. The corpus digest
     // proves those two agree with each other; this is what ties the TypeScript
     // reference to them, because it is the one engine the corpus never runs.
     const frames = Array.from({ length: 8 }, (unused, tick) => frameAt({

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  createIridiumAgentAutomation,
-  feedbackIridiumProactiveIntervention,
-  fetchIridiumAgentAutomations,
-  fetchIridiumProactiveInterventions,
-  transitionIridiumAgentAutomation,
+  createVoiceHostAgentAutomation,
+  feedbackVoiceHostProactiveIntervention,
+  fetchVoiceHostAgentAutomations,
+  fetchVoiceHostProactiveInterventions,
+  transitionVoiceHostAgentAutomation,
 } from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const [automations, interventions] = await Promise.all([
-    fetchIridiumAgentAutomations(),
-    fetchIridiumProactiveInterventions(),
+    fetchVoiceHostAgentAutomations(),
+    fetchVoiceHostProactiveInterventions(),
   ]);
   return automations && interventions
     ? NextResponse.json({ automations, interventions }, { headers: { "Cache-Control": "no-store" } })
@@ -29,12 +29,12 @@ export async function POST(request: NextRequest) {
   }
   let result;
   if (body.action === "draft" && typeof body.ownerId === "string" && body.draft && typeof body.draft === "object") {
-    result = await createIridiumAgentAutomation(body.ownerId, body.draft as Record<string, unknown>);
+    result = await createVoiceHostAgentAutomation(body.ownerId, body.draft as Record<string, unknown>);
   } else if (
     (body.action === "simulate" || body.action === "approve" || body.action === "activate" || body.action === "rollback")
     && typeof body.automationId === "string"
   ) {
-    result = await transitionIridiumAgentAutomation(
+    result = await transitionVoiceHostAgentAutomation(
       body.automationId,
       body.action,
       typeof body.ownerId === "string" ? body.ownerId : undefined,
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     && typeof body.ownerId === "string"
     && (body.outcome === "accepted" || body.outcome === "dismissed" || body.outcome === "redundant" || body.outcome === "annoying")
   ) {
-    result = await feedbackIridiumProactiveIntervention(
+    result = await feedbackVoiceHostProactiveIntervention(
       body.interventionId,
       body.ownerId,
       body.outcome,

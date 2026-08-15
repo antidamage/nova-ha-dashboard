@@ -70,7 +70,7 @@ export function AgentConfig({ initialSettings }: { initialSettings?: AgentPrefer
       const data = await response.json() as {
         agent?: AgentPreferences;
         error?: string;
-        iridium?: SyncResult;
+        voiceHost?: SyncResult;
       };
       if (!response.ok) {
         throw new Error(data.error || `Agent settings update failed: ${response.status}`);
@@ -81,8 +81,8 @@ export function AgentConfig({ initialSettings }: { initialSettings?: AgentPrefer
       if (requestVersion !== requestVersionRef.current) {
         return;
       }
-      if (!data.iridium?.ok) {
-        setMessage(`Saved locally. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
+      if (!data.voiceHost?.ok) {
+        setMessage(`Saved locally. ${data.voiceHost?.error ?? "The voice host did not confirm the refresh."}`);
         setMessageTone("warning");
       }
     } catch (error) {

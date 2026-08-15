@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  buildIridiumEngineVoice,
-  fetchIridiumEngineVoices,
+  buildVoiceHostEngineVoice,
+  fetchVoiceHostEngineVoices,
 } from "../../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ type Context = { params: Promise<{ engineId: string }> };
 // the panel simply has nothing to render.
 export async function GET(_request: Request, context: Context) {
   const { engineId } = await context.params;
-  const voices = await fetchIridiumEngineVoices(engineId);
+  const voices = await fetchVoiceHostEngineVoices(engineId);
   return NextResponse.json({ voices: voices ?? [] });
 }
 
@@ -34,7 +34,7 @@ export async function POST(request: Request, context: Context) {
   if (body.length === 0) {
     return NextResponse.json({ error: "At least one file is required" }, { status: 400 });
   }
-  const result = await buildIridiumEngineVoice(engineId, body, contentType);
+  const result = await buildVoiceHostEngineVoice(engineId, body, contentType);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status ?? 502 });
   }

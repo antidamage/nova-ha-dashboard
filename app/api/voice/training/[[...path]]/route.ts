@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { relayIridiumTraining } from "../../../../../lib/voice-host-settings";
+import { relayVoiceHostTraining } from "../../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ function target(path: string[] | undefined, search: string): string {
   return `/v1/training${suffix ? `/${suffix}` : ""}${search}`;
 }
 
-function respond(result: Awaited<ReturnType<typeof relayIridiumTraining>>) {
+function respond(result: Awaited<ReturnType<typeof relayVoiceHostTraining>>) {
   return new NextResponse(result.body, {
     status: result.status,
     headers: { "content-type": result.contentType },
@@ -29,7 +29,7 @@ function respond(result: Awaited<ReturnType<typeof relayIridiumTraining>>) {
 export async function GET(request: Request, context: Context) {
   const { path } = await context.params;
   const search = new URL(request.url).search;
-  return respond(await relayIridiumTraining(target(path, search), { method: "GET", timeoutMs: 15_000 }));
+  return respond(await relayVoiceHostTraining(target(path, search), { method: "GET", timeoutMs: 15_000 }));
 }
 
 export async function POST(request: Request, context: Context) {
@@ -40,7 +40,7 @@ export async function POST(request: Request, context: Context) {
   // Both are forwarded byte-for-byte with their original content-type.
   const body = raw.length > 0 ? raw : Buffer.from("{}");
   return respond(
-    await relayIridiumTraining(target(path, ""), {
+    await relayVoiceHostTraining(target(path, ""), {
       method: "POST",
       body,
       contentType: contentType || "application/json",
@@ -53,5 +53,5 @@ export async function POST(request: Request, context: Context) {
 
 export async function DELETE(_request: Request, context: Context) {
   const { path } = await context.params;
-  return respond(await relayIridiumTraining(target(path, ""), { method: "DELETE", timeoutMs: 30_000 }));
+  return respond(await relayVoiceHostTraining(target(path, ""), { method: "DELETE", timeoutMs: 30_000 }));
 }

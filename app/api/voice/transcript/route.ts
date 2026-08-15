@@ -6,7 +6,7 @@ import {
   publishVoiceTranscript,
   replaceVoiceTranscript,
 } from "../../../../lib/dashboard-events";
-import { endIridiumConversations } from "../../../../lib/voice-host-settings";
+import { endVoiceHostConversations } from "../../../../lib/voice-host-settings";
 import {
   parseVoiceTranscriptInput,
   parseVoiceTranscriptReplaceInput,
@@ -27,7 +27,7 @@ export async function GET() {
 // effort and its outcome is reported rather than thrown.
 export async function DELETE() {
   const cleared = clearVoiceTranscripts();
-  const ended = await endIridiumConversations();
+  const ended = await endVoiceHostConversations();
   return NextResponse.json({
     ok: true,
     ...cleared,
@@ -35,7 +35,7 @@ export async function DELETE() {
   });
 }
 
-// Iridium posts each accepted user transcript and each spoken response here.
+// voice host posts each accepted user transcript and each spoken response here.
 // The dashboard keeps only a bounded process-local snapshot and publishes the
 // new line to every connected client over the existing shared SSE stream.
 // A body carrying replacesId upgrades an already-displayed line in place (a

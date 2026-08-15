@@ -192,7 +192,7 @@ export function VoiceTranscriptPanel() {
                   </p>
                 ))
               ) : (
-                <p className="text-neutral-600">Waiting for a voice turn from Iridium...</p>
+                <p className="text-neutral-600">Waiting for a voice turn from the voice host...</p>
               )}
             </div>
           </div>

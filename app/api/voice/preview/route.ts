@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchIridiumVoicePreview } from "../../../../lib/voice-host-settings";
+import { fetchVoiceHostPreview } from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 const MAX_TEXT = 200;
 
 // The personality Test button posts here; the dashboard forwards the synthesis
-// request to Iridium over mTLS and streams the WAV straight back so the browser
-// can play it locally. The body is optional — with no text Iridium picks a
+// request to voice host over mTLS and streams the WAV straight back so the browser
+// can play it locally. The body is optional — with no text voice host picks a
 // default sample line naming the agent.
 export async function POST(request: Request) {
   let text: string | undefined;
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     // An empty or non-JSON body is fine.
   }
 
-  const result = await fetchIridiumVoicePreview(text);
+  const result = await fetchVoiceHostPreview(text);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 502 });
   }

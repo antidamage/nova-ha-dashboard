@@ -938,7 +938,7 @@ export async function writePhonoscopeConfig(value: unknown): Promise<PhonoscopeC
   };
 
   await mergeDashboardPreferences({ phonoscope: next as PhonoscopePreferences });
-  // Nudge the GPU renderer on iridium. It re-reads the config itself, so this
+  // Nudge the GPU renderer on voiceHost. It re-reads the config itself, so this
   // stays a notification rather than a second serialisation of the same state.
   publishPhonoscopeConfig("config");
   return readPhonoscopeConfig();

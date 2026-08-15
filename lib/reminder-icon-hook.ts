@@ -2,7 +2,7 @@
 //
 // Exists as its own module for two reasons. First, it keeps lib/tasks.ts from
 // statically depending on lib/reminder-icons.ts, which pulls in the dashboard
-// config reader and the iridium client — tasks.ts is loaded by the SSE layer
+// config reader and the voiceHost client — tasks.ts is loaded by the SSE layer
 // and should stay cheap. Second, it makes the "never block, never throw"
 // contract a single obvious place rather than a `void`+`catch` repeated at
 // every call site.

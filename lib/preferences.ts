@@ -9,13 +9,38 @@ const PREFERENCES_PATH =
 
 let writeQueue = Promise.resolve();
 
+/**
+ * Serialise a preference write behind every earlier one.
+ *
+ * The queue deliberately tracks only COMPLETION, never failure. Chaining with a
+ * plain `writeQueue = writeQueue.then(work)` looks equivalent but is a trap: one
+ * rejected write leaves `writeQueue` permanently rejected, so every later
+ * `.then` short-circuits and the whole process can never write preferences again
+ * until it restarts — each caller getting the first failure's stale error rather
+ * than its own. Observed 2026-08-15: a single unparseable preferences file made
+ * every subsequent save fail while reads kept working.
+ *
+ * Passing `work` as BOTH handlers runs it whether the previous write settled or
+ * threw, which keeps ordering intact while isolating failures to their caller.
+ */
+function enqueueWrite<T>(work: () => Promise<T>): Promise<T> {
+  const result = writeQueue.then(work, work);
+  writeQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
 function withoutUndefined<T extends Record<string, unknown>>(input: T): Partial<T> {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<T>;
 }
 
 export async function readDashboardPreferences(): Promise<DashboardPreferences> {
   try {
-    return JSON.parse(await readFile(PREFERENCES_PATH, "utf8")) as DashboardPreferences;
+    const raw = await readFile(PREFERENCES_PATH, "utf8");
+    // Strip a UTF-8 BOM before parsing. JSON.parse rejects one outright, and any
+    // Windows-side tool that rewrites this file (PowerShell's `Out-File
+    // -Encoding utf8` is the usual culprit) adds one silently — which otherwise
+    // makes the whole preference store unreadable over an invisible character.
+    return JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw) as DashboardPreferences;
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
@@ -26,7 +51,7 @@ export async function readDashboardPreferences(): Promise<DashboardPreferences> 
 }
 
 export async function mergeDashboardPreferences(next: DashboardPreferences) {
-  writeQueue = writeQueue.then(async () => {
+  await enqueueWrite(async () => {
     const current = await readDashboardPreferences();
     const merged: DashboardPreferences = {
       ...current,
@@ -167,8 +192,6 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
     await ensureGenesis(current);
     await recordPreferencesRevision(current, merged);
   });
-
-  await writeQueue;
 }
 
 /**
@@ -181,7 +204,7 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
  * branches, so it has to be able to take things away.
  */
 export async function replaceDashboardPreferences(next: DashboardPreferences) {
-  writeQueue = writeQueue.then(async () => {
+  await enqueueWrite(async () => {
     const current = await readDashboardPreferences();
     await mkdir(path.dirname(PREFERENCES_PATH), { recursive: true });
     const tempPath = `${PREFERENCES_PATH}.${process.pid}.tmp`;
@@ -190,6 +213,4 @@ export async function replaceDashboardPreferences(next: DashboardPreferences) {
     await ensureGenesis(current);
     await recordPreferencesRevision(current, next);
   });
-
-  await writeQueue;
 }

@@ -4,7 +4,7 @@
 // cannot talk to the voice server's mTLS /v1/satellites endpoint directly. This
 // Caddy terminates the browser's same-origin WSS connection, then proxies over
 // loopback to this bridge's household-CA TLS listener. The bridge relays every
-// frame to Iridium over a fresh mTLS WebSocket using the dashboard's client identity
+// frame to voice host over a fresh mTLS WebSocket using the dashboard's client identity
 // (data/nova-voice-tls/). It is a dumb pipe: NVAF binary frames and JSON control
 // messages pass through untouched in both directions, so all audio DSP, turn
 // gating, and the push-to-talk begin_turn frame are handled server-side exactly
@@ -17,7 +17,7 @@
 import { readFile } from "node:fs/promises";
 import https from "node:https";
 import { WebSocket, WebSocketServer } from "ws";
-import { iridiumBaseUrl, readVoiceTlsIdentity } from "./voice-host-settings";
+import { voiceHostBaseUrl, readVoiceTlsIdentity } from "./voice-host-settings";
 
 const BRIDGE_PATH = "/voice-satellite";
 
@@ -32,9 +32,9 @@ function requiredToken(): string | null {
   return token ? token : null;
 }
 
-function iridiumSatelliteWsUrl(): string {
-  // Reuse the configured Iridium base (https://host:8766) and swap to wss.
-  const base = new URL(iridiumBaseUrl());
+function voiceHostSatelliteWsUrl(): string {
+  // Reuse the configured voice host base (https://host:8766) and swap to wss.
+  const base = new URL(voiceHostBaseUrl());
   base.protocol = base.protocol === "http:" ? "ws:" : "wss:";
   base.pathname = "/v1/satellites";
   base.search = "";
@@ -77,7 +77,7 @@ export async function startVoiceSatelliteBridge(): Promise<void> {
     return;
   }
 
-  const upstreamUrl = iridiumSatelliteWsUrl();
+  const upstreamUrl = voiceHostSatelliteWsUrl();
   const token = requiredToken();
 
   const httpsServer = https.createServer({ cert: serverTls.cert, key: serverTls.key });

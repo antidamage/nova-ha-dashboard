@@ -5,13 +5,24 @@ import path from "node:path";
 import { isReminderIconId, REMINDER_ICON_IDS } from "./reminder-glyph";
 import type { VoiceEngineCapabilities } from "./voice-settings";
 
-export type IridiumVoiceRefreshResult =
+export type VoiceHostRefreshResult =
   | { ok: true; status: number }
   | { ok: false; error: string; status?: number };
 
-// Deployments set NOVA_VOICE_IRIDIUM_URL (see PRIVATEREF.md#1.3); this
-// fallback is a generic placeholder for unconfigured installs.
-const DEFAULT_IRIDIUM_URL = "https://voice-server.local:8766";
+// Where the voice server lives. Named for the ROLE, not for whichever machine
+// currently fills it: the same build must run against any host configured for
+// it (SPEC.md §2). `NOVA_VOICE_IRIDIUM_URL` is the previous, machine-named
+// spelling and is still honoured so existing deployments keep working — new
+// installs should set NOVA_VOICE_HOST_URL.
+const DEFAULT_VOICE_HOST_URL = "https://voice-server.local:8766";
+
+function configuredVoiceHostUrl(): string {
+  return (
+    process.env.NOVA_VOICE_HOST_URL?.trim() ||
+    process.env.NOVA_VOICE_IRIDIUM_URL?.trim() ||
+    DEFAULT_VOICE_HOST_URL
+  );
+}
 const REFRESH_PATH = "/v1/settings/refresh";
 const VOICES_PATH = "/v1/voices";
 const PREVIEW_PATH = "/v1/voices/preview";
@@ -34,13 +45,13 @@ const ENGINE_VOICE_BUILD_TIMEOUT_MS = 60_000;
 // for it. The dashboard renders off this array (and its capabilities) instead
 // of a hardcoded classic/custom pair, so a new engine the server advertises
 // needs no dashboard code change to appear in the picker.
-export type IridiumEngineDescriptor = {
+export type VoiceHostEngineDescriptor = {
   id: string;
   label: string;
   capabilities?: VoiceEngineCapabilities;
 };
 
-export type IridiumVoiceCatalog = {
+export type VoiceHostCatalog = {
   voices: { value: string; label: string; detail: string }[];
   languages: string[];
   accents: string[];
@@ -49,7 +60,7 @@ export type IridiumVoiceCatalog = {
   current?: unknown;
   /** Id of the resident TTS engine module, from the server's engine registry. */
   engine?: string;
-  engines?: IridiumEngineDescriptor[];
+  engines?: VoiceHostEngineDescriptor[];
   /** The resident engine's own voice catalogue (custom clones / trained checkpoints), if it has one. */
   engineVoices?: { id: string; name?: string; language?: string }[];
 };
@@ -57,9 +68,9 @@ export type IridiumVoiceCatalog = {
 // GET /v1/engine: the resident engine plus the root-side switcher's progress
 // file, which outlives orchestrator restarts so the dashboard can follow a
 // switch across the downtime it intentionally causes.
-export type IridiumEngineStatus = {
+export type VoiceHostEngineStatus = {
   engine: string;
-  engines?: IridiumEngineDescriptor[];
+  engines?: VoiceHostEngineDescriptor[];
   switch?: {
     target?: string;
     phase?: "preparing" | "restarting" | "warming" | "ready" | "failed";
@@ -69,8 +80,8 @@ export type IridiumEngineStatus = {
   tts?: { ok?: boolean; ready?: boolean; error?: string; speaker?: string };
 };
 
-function iridiumUrl(path: string) {
-  const baseUrl = process.env.NOVA_VOICE_IRIDIUM_URL?.trim() || DEFAULT_IRIDIUM_URL;
+function voiceHostUrl(path: string) {
+  const baseUrl = configuredVoiceHostUrl();
   return new URL(path, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
 }
 
@@ -84,14 +95,14 @@ const TRAINING_PORT = process.env.NOVA_VOICE_TRAINING_PORT?.trim() || "8097";
 function trainingUrl(path: string) {
   const base = new URL(
     "/",
-    (process.env.NOVA_VOICE_IRIDIUM_URL?.trim() || DEFAULT_IRIDIUM_URL).replace(/\/$/, "") + "/",
+    (configuredVoiceHostUrl()).replace(/\/$/, "") + "/",
   );
   base.port = TRAINING_PORT;
   return new URL(path, base);
 }
 
 function refreshUrl() {
-  return iridiumUrl(REFRESH_PATH);
+  return voiceHostUrl(REFRESH_PATH);
 }
 
 async function tlsIdentity() {
@@ -104,27 +115,27 @@ async function tlsIdentity() {
   return { ca, cert, key };
 }
 
-/** The mTLS client identity used to reach Iridium (ca/cert/key buffers). */
+/** The mTLS client identity used to reach voice host (ca/cert/key buffers). */
 export async function readVoiceTlsIdentity() {
   return tlsIdentity();
 }
 
-/** The configured Iridium base URL (e.g. https://voice-server.local:8766). */
-export function iridiumBaseUrl(): string {
-  return process.env.NOVA_VOICE_IRIDIUM_URL?.trim() || DEFAULT_IRIDIUM_URL;
+/** The configured voice host base URL (e.g. https://voice-server.local:8766). */
+export function voiceHostBaseUrl(): string {
+  return configuredVoiceHostUrl();
 }
 
-export async function triggerIridiumVoiceSettingsRefresh(): Promise<IridiumVoiceRefreshResult> {
+export async function triggerVoiceHostSettingsRefresh(): Promise<VoiceHostRefreshResult> {
   let url: URL;
   try {
     url = refreshUrl();
   } catch (error) {
-    console.error("[nova-dashboard] invalid Iridium voice URL", error);
-    return { ok: false, error: "Iridium voice refresh URL is invalid" };
+    console.error("[nova-dashboard] invalid voice host URL", error);
+    return { ok: false, error: "Voice host refresh URL is invalid" };
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { ok: false, error: "Iridium voice refresh URL must use HTTP or HTTPS" };
+    return { ok: false, error: "Voice host refresh URL must use HTTP or HTTPS" };
   }
 
   let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
@@ -132,12 +143,12 @@ export async function triggerIridiumVoiceSettingsRefresh(): Promise<IridiumVoice
     try {
       identity = await tlsIdentity();
     } catch (error) {
-      console.error("[nova-dashboard] Iridium voice TLS identity is unavailable", error);
-      return { ok: false, error: "Iridium voice refresh TLS identity is unavailable" };
+      console.error("[nova-dashboard] voice host TLS identity is unavailable", error);
+      return { ok: false, error: "Voice host refresh TLS identity is unavailable" };
     }
   }
 
-  return await new Promise<IridiumVoiceRefreshResult>((resolve) => {
+  return await new Promise<VoiceHostRefreshResult>((resolve) => {
     const requester = url.protocol === "https:" ? https.request : http.request;
     const request = requester(
       url,
@@ -155,33 +166,33 @@ export async function triggerIridiumVoiceSettingsRefresh(): Promise<IridiumVoice
             resolve({ ok: true, status });
             return;
           }
-          console.error(`[nova-dashboard] Iridium voice refresh returned HTTP ${status}`);
-          resolve({ ok: false, error: "Iridium rejected the voice settings refresh", status });
+          console.error(`[nova-dashboard] voice host refresh returned HTTP ${status}`);
+          resolve({ ok: false, error: "Voice host rejected the voice settings refresh", status });
         });
       },
     );
     request.once("timeout", () => request.destroy(new Error("request timed out")));
     request.once("error", (error) => {
-      console.error("[nova-dashboard] Iridium voice refresh request failed", error);
-      resolve({ ok: false, error: "Iridium voice refresh request failed" });
+      console.error("[nova-dashboard] voice host refresh request failed", error);
+      resolve({ ok: false, error: "Voice host refresh request failed" });
     });
     request.end();
   });
 }
 
-export type IridiumVoicePreviewResult =
+export type VoiceHostPreviewResult =
   | { ok: true; audio: Buffer; contentType: string }
   | { ok: false; error: string; status?: number };
 
-// POST a short synthesis request to Iridium and hand back the raw WAV bytes.
+// POST a short synthesis request to voice host and hand back the raw WAV bytes.
 // The personality Test button plays this in the browser; the dashboard makes
 // the mTLS round trip so no browser ever needs the voice-server TLS identity.
-export async function fetchIridiumVoicePreview(text?: string): Promise<IridiumVoicePreviewResult> {
+export async function fetchVoiceHostPreview(text?: string): Promise<VoiceHostPreviewResult> {
   let url: URL;
   try {
-    url = iridiumUrl(PREVIEW_PATH);
+    url = voiceHostUrl(PREVIEW_PATH);
   } catch (error) {
-    console.error("[nova-dashboard] invalid Iridium voice preview URL", error);
+    console.error("[nova-dashboard] invalid voice host preview URL", error);
     return { ok: false, error: "configured voice server URL is invalid" };
   }
   let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
@@ -189,12 +200,12 @@ export async function fetchIridiumVoicePreview(text?: string): Promise<IridiumVo
     try {
       identity = await tlsIdentity();
     } catch (error) {
-      console.error("[nova-dashboard] Iridium voice preview TLS identity is unavailable", error);
+      console.error("[nova-dashboard] voice host preview TLS identity is unavailable", error);
       return { ok: false, error: "voice server TLS identity is unavailable" };
     }
   }
   const body = JSON.stringify({ text: typeof text === "string" ? text : null });
-  return await new Promise<IridiumVoicePreviewResult>((resolve) => {
+  return await new Promise<VoiceHostPreviewResult>((resolve) => {
     const requester = url.protocol === "https:" ? https.request : http.request;
     const request = requester(
       url,
@@ -214,7 +225,7 @@ export async function fetchIridiumVoicePreview(text?: string): Promise<IridiumVo
         response.once("end", () => {
           const status = response.statusCode ?? 502;
           if (status < 200 || status >= 300) {
-            console.error(`[nova-dashboard] Iridium voice preview returned HTTP ${status}`);
+            console.error(`[nova-dashboard] voice host preview returned HTTP ${status}`);
             resolve({ ok: false, error: `HTTP ${status}`, status });
             return;
           }
@@ -228,7 +239,7 @@ export async function fetchIridiumVoicePreview(text?: string): Promise<IridiumVo
     );
     request.once("timeout", () => request.destroy(new Error("request timed out")));
     request.once("error", (error) => {
-      console.error("[nova-dashboard] Iridium voice preview request failed", error);
+      console.error("[nova-dashboard] voice host preview request failed", error);
       const code = (error as NodeJS.ErrnoException).code;
       resolve({ ok: false, error: code || error.message });
     });
@@ -237,7 +248,7 @@ export async function fetchIridiumVoicePreview(text?: string): Promise<IridiumVo
   });
 }
 
-export type IridiumSatelliteStatus = {
+export type VoiceHostSatelliteStatus = {
   satelliteId: string;
   roomId?: string;
   connected?: boolean;
@@ -250,20 +261,20 @@ export type IridiumSatelliteStatus = {
 // since it started. `connected` can be optimistic: a half-open socket keeps a
 // satellite listed as connected until the server notices, so treat this as
 // advisory status, not proof of a working pipeline.
-export async function fetchIridiumSatelliteRegistry(): Promise<IridiumSatelliteStatus[] | null> {
-  const payload = await fetchIridiumJson(SATELLITES_PATH, "satellite registry");
+export async function fetchVoiceHostSatelliteRegistry(): Promise<VoiceHostSatelliteStatus[] | null> {
+  const payload = await fetchVoiceHostJson(SATELLITES_PATH, "satellite registry");
   if (!payload || !Array.isArray((payload as { satellites?: unknown }).satellites)) {
     return null;
   }
-  return (payload as { satellites: IridiumSatelliteStatus[] }).satellites
+  return (payload as { satellites: VoiceHostSatelliteStatus[] }).satellites
     .filter((satellite) => typeof satellite?.satelliteId === "string");
 }
 
-// Iridium is authoritative for the voices and parameter ranges the deployed
+// voice host is authoritative for the voices and parameter ranges the deployed
 // TTS/LLM stack supports; the dashboard's Voice Agent section populates its
 // dropdowns from this instead of hard-coding model knowledge.
-export async function fetchIridiumEngineStatus(): Promise<IridiumEngineStatus | null> {
-  const payload = await fetchIridiumJson("/v1/engine", "engine status");
+export async function fetchVoiceHostEngineStatus(): Promise<VoiceHostEngineStatus | null> {
+  const payload = await fetchVoiceHostJson("/v1/engine", "engine status");
   const engine = (payload as { engine?: unknown } | null)?.engine;
   // Accept any non-empty engine id the server advertises rather than a
   // hardcoded pair, so a newly-registered engine (e.g. "trained") is usable
@@ -271,31 +282,31 @@ export async function fetchIridiumEngineStatus(): Promise<IridiumEngineStatus | 
   if (typeof engine !== "string" || !engine) {
     return null;
   }
-  return payload as IridiumEngineStatus;
+  return payload as VoiceHostEngineStatus;
 }
 
 // Ask the voice server to swap the resident TTS engine. The server hands the
 // swap to its root-side switcher and restarts itself, so a successful request
 // is an acceptance, not a completion — callers follow progress by polling
-// fetchIridiumEngineStatus() until the engine matches and its TTS is ready.
+// fetchVoiceHostEngineStatus() until the engine matches and its TTS is ready.
 // The engine id is validated against the registry server-side (api.py's
 // EngineSwitchRequest); the dashboard just passes through what the picker,
 // itself populated from the server's own engine list, offered.
-export async function requestIridiumEngineSwitch(
+export async function requestVoiceHostEngineSwitch(
   engine: string,
-): Promise<IridiumJsonResult> {
-  return requestIridiumJson("/v1/engine", "engine switch", { method: "POST", body: { engine } });
+): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson("/v1/engine", "engine switch", { method: "POST", body: { engine } });
 }
 
-export async function fetchIridiumVoiceCatalog(): Promise<IridiumVoiceCatalog | null> {
-  const payload = await fetchIridiumJson(VOICES_PATH, "voices");
+export async function fetchVoiceHostCatalog(): Promise<VoiceHostCatalog | null> {
+  const payload = await fetchVoiceHostJson(VOICES_PATH, "voices");
   if (payload && Array.isArray((payload as { voices?: unknown }).voices)) {
-    return payload as IridiumVoiceCatalog;
+    return payload as VoiceHostCatalog;
   }
   return null;
 }
 
-export type IridiumEngineVoice = {
+export type VoiceHostEngineVoice = {
   id: string;
   name?: string;
   language?: string;
@@ -306,37 +317,37 @@ export type IridiumEngineVoice = {
 // checkpoints), straight from that engine's own service registry -- the Voice
 // Infrastructure catalogue panel renders this list. Engines with no
 // catalogue (Classic) 404 server-side; treat that the same as "no voices".
-export async function fetchIridiumEngineVoices(engineId: string): Promise<IridiumEngineVoice[] | null> {
-  const payload = await fetchIridiumJson(
+export async function fetchVoiceHostEngineVoices(engineId: string): Promise<VoiceHostEngineVoice[] | null> {
+  const payload = await fetchVoiceHostJson(
     `${VOICES_PATH}/${encodeURIComponent(engineId)}`,
     `${engineId} voices`,
   );
   if (!payload || !Array.isArray((payload as { voices?: unknown }).voices)) {
     return null;
   }
-  return (payload as { voices: IridiumEngineVoice[] }).voices;
+  return (payload as { voices: VoiceHostEngineVoice[] }).voices;
 }
 
-export type IridiumEngineVoiceBuildResult =
+export type VoiceHostEngineVoiceBuildResult =
   | { ok: true; voice?: Record<string, unknown> }
   | { ok: false; error: string; status?: number };
 
-// Relay a multipart voice-catalogue upload through to Iridium unchanged for
+// Relay a multipart voice-catalogue upload through to voice host unchanged for
 // the given engine -- the dashboard never parses the multipart body itself,
 // it just forwards the browser's request bytes and content-type, exactly like
 // the orchestrator's own relay to the engine's voice service does. For Custom
 // this builds a reference.wav from sample clips (CPU ffmpeg, no GPU); for
 // Trained this stores an already-trained checkpoint bundle.
-export async function buildIridiumEngineVoice(
+export async function buildVoiceHostEngineVoice(
   engineId: string,
   body: Buffer,
   contentType: string,
-): Promise<IridiumEngineVoiceBuildResult> {
+): Promise<VoiceHostEngineVoiceBuildResult> {
   let url: URL;
   try {
-    url = iridiumUrl(`${VOICES_PATH}/${encodeURIComponent(engineId)}`);
+    url = voiceHostUrl(`${VOICES_PATH}/${encodeURIComponent(engineId)}`);
   } catch (error) {
-    console.error(`[nova-dashboard] invalid Iridium ${engineId} voice URL`, error);
+    console.error(`[nova-dashboard] invalid voice host ${engineId} voice URL`, error);
     return { ok: false, error: "configured voice server URL is invalid" };
   }
   let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
@@ -344,11 +355,11 @@ export async function buildIridiumEngineVoice(
     try {
       identity = await tlsIdentity();
     } catch (error) {
-      console.error(`[nova-dashboard] Iridium ${engineId} voice TLS identity is unavailable`, error);
+      console.error(`[nova-dashboard] voice host ${engineId} voice TLS identity is unavailable`, error);
       return { ok: false, error: "voice server TLS identity is unavailable" };
     }
   }
-  return await new Promise<IridiumEngineVoiceBuildResult>((resolve) => {
+  return await new Promise<VoiceHostEngineVoiceBuildResult>((resolve) => {
     const requester = url.protocol === "https:" ? https.request : http.request;
     const request = requester(
       url,
@@ -369,7 +380,7 @@ export async function buildIridiumEngineVoice(
           const status = response.statusCode ?? 502;
           const raw = Buffer.concat(chunks).toString("utf8");
           if (status < 200 || status >= 300) {
-            console.error(`[nova-dashboard] Iridium ${engineId} voice build returned HTTP ${status}`);
+            console.error(`[nova-dashboard] voice host ${engineId} voice build returned HTTP ${status}`);
             resolve({ ok: false, error: raw || `HTTP ${status}`, status });
             return;
           }
@@ -377,7 +388,7 @@ export async function buildIridiumEngineVoice(
             const payload = JSON.parse(raw) as { voice?: Record<string, unknown> };
             resolve({ ok: true, voice: payload.voice });
           } catch (error) {
-            console.error(`[nova-dashboard] Iridium ${engineId} voice build payload was invalid`, error);
+            console.error(`[nova-dashboard] voice host ${engineId} voice build payload was invalid`, error);
             resolve({ ok: false, error: "invalid JSON payload from voice server", status });
           }
         });
@@ -385,7 +396,7 @@ export async function buildIridiumEngineVoice(
     );
     request.once("timeout", () => request.destroy(new Error("request timed out")));
     request.once("error", (error) => {
-      console.error(`[nova-dashboard] Iridium ${engineId} voice build request failed`, error);
+      console.error(`[nova-dashboard] voice host ${engineId} voice build request failed`, error);
       const code = (error as NodeJS.ErrnoException).code;
       resolve({ ok: false, error: code || error.message });
     });
@@ -396,18 +407,18 @@ export async function buildIridiumEngineVoice(
 
 // Remove a registered voice from an engine's catalogue. Irreversible -- the
 // engine's voice service deletes the voice's stored data outright.
-export async function deleteIridiumEngineVoice(
+export async function deleteVoiceHostEngineVoice(
   engineId: string,
   voiceId: string,
-): Promise<IridiumJsonResult> {
-  return requestIridiumJson(
+): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson(
     `${VOICES_PATH}/${encodeURIComponent(engineId)}/${encodeURIComponent(voiceId)}`,
     `${engineId} voice delete`,
     { method: "DELETE" },
   );
 }
 
-export type IridiumRelayResult = {
+export type VoiceHostRelayResult = {
   status: number;
   body: string;
   contentType: string;
@@ -421,7 +432,7 @@ export type IridiumRelayResult = {
 // error messages are written to be shown to the user as-is.
 //
 // The timeout is generous because a sample upload can be a hundred files.
-export async function relayIridiumTraining(
+export async function relayVoiceHostTraining(
   requestPath: string,
   options: {
     method: "GET" | "POST" | "DELETE";
@@ -429,12 +440,12 @@ export async function relayIridiumTraining(
     contentType?: string;
     timeoutMs?: number;
   },
-): Promise<IridiumRelayResult> {
+): Promise<VoiceHostRelayResult> {
   let url: URL;
   try {
     url = trainingUrl(requestPath);
   } catch (error) {
-    console.error("[nova-dashboard] invalid Iridium training URL", error);
+    console.error("[nova-dashboard] invalid voice host training URL", error);
     return { status: 500, body: JSON.stringify({ detail: "configured voice server URL is invalid" }), contentType: "application/json" };
   }
   let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
@@ -442,11 +453,11 @@ export async function relayIridiumTraining(
     try {
       identity = await tlsIdentity();
     } catch (error) {
-      console.error("[nova-dashboard] Iridium training TLS identity is unavailable", error);
+      console.error("[nova-dashboard] voice host training TLS identity is unavailable", error);
       return { status: 502, body: JSON.stringify({ detail: "voice server TLS identity is unavailable" }), contentType: "application/json" };
     }
   }
-  return await new Promise<IridiumRelayResult>((resolve) => {
+  return await new Promise<VoiceHostRelayResult>((resolve) => {
     const requester = url.protocol === "https:" ? https.request : http.request;
     const headers: Record<string, string | number> = { Accept: "application/json" };
     if (options.body) {
@@ -475,7 +486,7 @@ export async function relayIridiumTraining(
     );
     request.once("timeout", () => request.destroy(new Error("request timed out")));
     request.once("error", (error) => {
-      console.error("[nova-dashboard] Iridium training request failed", error);
+      console.error("[nova-dashboard] voice host training request failed", error);
       const code = (error as NodeJS.ErrnoException).code;
       resolve({
         status: 502,
@@ -488,9 +499,9 @@ export async function relayIridiumTraining(
   });
 }
 
-type IridiumJsonResult = { payload: unknown } | { error: string; status?: number };
+type VoiceHostJsonResult = { payload: unknown } | { error: string; status?: number };
 
-async function requestIridiumJson(
+async function requestVoiceHostJson(
   requestPath: string,
   label: string,
   options: {
@@ -498,12 +509,12 @@ async function requestIridiumJson(
     body?: unknown;
     timeoutMs?: number;
   } = {},
-): Promise<IridiumJsonResult> {
+): Promise<VoiceHostJsonResult> {
   let url: URL;
   try {
-    url = iridiumUrl(requestPath);
+    url = voiceHostUrl(requestPath);
   } catch (error) {
-    console.error(`[nova-dashboard] invalid Iridium ${label} URL`, error);
+    console.error(`[nova-dashboard] invalid voice host ${label} URL`, error);
     return { error: "configured voice server URL is invalid" };
   }
   let identity: Awaited<ReturnType<typeof tlsIdentity>> | undefined;
@@ -511,12 +522,12 @@ async function requestIridiumJson(
     try {
       identity = await tlsIdentity();
     } catch (error) {
-      console.error(`[nova-dashboard] Iridium ${label} TLS identity is unavailable`, error);
+      console.error(`[nova-dashboard] voice host ${label} TLS identity is unavailable`, error);
       return { error: "voice server TLS identity is unavailable" };
     }
   }
   const body = options.body === undefined ? null : JSON.stringify(options.body);
-  return await new Promise<IridiumJsonResult>((resolve) => {
+  return await new Promise<VoiceHostJsonResult>((resolve) => {
     const requester = url.protocol === "https:" ? https.request : http.request;
     const request = requester(
       url,
@@ -538,7 +549,7 @@ async function requestIridiumJson(
         response.once("end", () => {
           const status = response.statusCode ?? 502;
           if (status < 200 || status >= 300) {
-            console.error(`[nova-dashboard] Iridium ${label} returned HTTP ${status}`);
+            console.error(`[nova-dashboard] voice host ${label} returned HTTP ${status}`);
             resolve({ error: `HTTP ${status}`, status });
             return;
           }
@@ -546,7 +557,7 @@ async function requestIridiumJson(
             resolve({ payload: JSON.parse(Buffer.concat(chunks).toString("utf8")) });
             return;
           } catch (error) {
-            console.error(`[nova-dashboard] Iridium ${label} payload was invalid`, error);
+            console.error(`[nova-dashboard] voice host ${label} payload was invalid`, error);
           }
           resolve({ error: "invalid JSON payload", status });
         });
@@ -554,7 +565,7 @@ async function requestIridiumJson(
     );
     request.once("timeout", () => request.destroy(new Error("request timed out")));
     request.once("error", (error) => {
-      console.error(`[nova-dashboard] Iridium ${label} request failed`, error);
+      console.error(`[nova-dashboard] voice host ${label} request failed`, error);
       const code = (error as NodeJS.ErrnoException).code;
       resolve({ error: code || error.message });
     });
@@ -565,7 +576,7 @@ async function requestIridiumJson(
 
 // Ask the voice host to pick a reminder sigil for a reminder name.
 //
-// The LLM itself (llama-server) is bound to 127.0.0.1 on iridium and firewalled
+// The LLM itself (llama-server) is bound to 127.0.0.1 on voiceHost and firewalled
 // to localhost, so the orchestrator proxies for us -- see nova_voice.api
 // /v1/classify-icon. `icons` is an allow-list; the server validates its own
 // model's answer against it and returns null rather than an id we could not
@@ -580,7 +591,7 @@ export async function classifyReminderIcon(
     return null;
   }
 
-  const result = await requestIridiumJson(CLASSIFY_ICON_PATH, "reminder icon classification", {
+  const result = await requestVoiceHostJson(CLASSIFY_ICON_PATH, "reminder icon classification", {
     method: "POST",
     body: { name: trimmed, icons: REMINDER_ICON_IDS },
     timeoutMs,
@@ -594,8 +605,8 @@ export async function classifyReminderIcon(
   return isReminderIconId(icon) ? icon : null;
 }
 
-async function fetchIridiumJson(requestPath: string, label: string): Promise<unknown | null> {
-  const result = await requestIridiumJson(requestPath, label);
+async function fetchVoiceHostJson(requestPath: string, label: string): Promise<unknown | null> {
+  const result = await requestVoiceHostJson(requestPath, label);
   return "payload" in result ? result.payload : null;
 }
 
@@ -632,21 +643,21 @@ export type SpeakerProfilesPayload = {
   provisionalTemplates: SpeakerTemplateSummary[];
 };
 
-export async function fetchIridiumSpeakerProfiles(): Promise<SpeakerProfilesPayload | null> {
-  const payload = await fetchIridiumJson(SPEAKER_PROFILES_PATH, "speaker profiles");
+export async function fetchVoiceHostSpeakerProfiles(): Promise<SpeakerProfilesPayload | null> {
+  const payload = await fetchVoiceHostJson(SPEAKER_PROFILES_PATH, "speaker profiles");
   if (!payload || !Array.isArray((payload as SpeakerProfilesPayload).profiles)) return null;
   return payload as SpeakerProfilesPayload;
 }
 
-export async function updateIridiumSpeakerProfile(
+export async function updateVoiceHostSpeakerProfile(
   personId: string,
   update: {
     displayName?: string;
     pronouns?: string | null;
     speechPreferences?: NonNullable<SpeakerProfileSummary["speechPreferences"]>;
   },
-): Promise<IridiumJsonResult> {
-  return requestIridiumJson(
+): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson(
     `${SPEAKER_PROFILES_PATH}/${encodeURIComponent(personId)}`,
     "speaker profile update",
     { method: "PATCH", body: {
@@ -659,24 +670,24 @@ export async function updateIridiumSpeakerProfile(
   );
 }
 
-export async function deleteIridiumSpeakerProfile(personId: string): Promise<IridiumJsonResult> {
-  return requestIridiumJson(
+export async function deleteVoiceHostSpeakerProfile(personId: string): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson(
     `${SPEAKER_PROFILES_PATH}/${encodeURIComponent(personId)}`,
     "speaker profile deletion",
     { method: "DELETE" },
   );
 }
 
-export async function deleteIridiumSpeakerTemplate(templateId: string): Promise<IridiumJsonResult> {
-  return requestIridiumJson(
+export async function deleteVoiceHostSpeakerTemplate(templateId: string): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson(
     `/v1/speaker-templates/${encodeURIComponent(templateId)}`,
     "speaker template deletion",
     { method: "DELETE" },
   );
 }
 
-export async function deleteAllIridiumSpeakerTemplates(): Promise<IridiumJsonResult> {
-  return requestIridiumJson(
+export async function deleteAllVoiceHostSpeakerTemplates(): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson(
     "/v1/speaker-templates",
     "all speaker templates deletion",
     { method: "DELETE" },
@@ -687,24 +698,24 @@ export async function deleteAllIridiumSpeakerTemplates(): Promise<IridiumJsonRes
 // visible record and what the model is still reasoning from are one thing to
 // the person pressing clear. Best-effort — a voice server that is unreachable
 // must never block the panel from clearing.
-export async function endIridiumConversations(): Promise<IridiumJsonResult> {
-  return requestIridiumJson("/v1/conversations", "conversation context clear", {
+export async function endVoiceHostConversations(): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson("/v1/conversations", "conversation context clear", {
     method: "DELETE",
   });
 }
 
-export async function assignIridiumSpeakerTemplate(
+export async function assignVoiceHostSpeakerTemplate(
   templateId: string,
   personId: string,
-): Promise<IridiumJsonResult> {
-  return requestIridiumJson(
+): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson(
     `/v1/speaker-templates/${encodeURIComponent(templateId)}`,
     "speaker template assignment",
     { method: "PATCH", body: { person_id: personId } },
   );
 }
 
-export type IridiumVoiceHealthProbe = {
+export type VoiceHostHealthProbe = {
   reachable: boolean;
   latencyMs: number | null;
   error?: string;
@@ -714,9 +725,9 @@ export type IridiumVoiceHealthProbe = {
 // One /health round trip against the voice server. `reachable` only means the
 // server answered with a valid payload; the payload's own `ok` flags say
 // whether each part of the stack is actually healthy.
-export async function probeIridiumVoiceHealth(): Promise<IridiumVoiceHealthProbe> {
+export async function probeVoiceHostHealth(): Promise<VoiceHostHealthProbe> {
   const started = Date.now();
-  const result = await requestIridiumJson(HEALTH_PATH, "health");
+  const result = await requestVoiceHostJson(HEALTH_PATH, "health");
   if ("payload" in result) {
     return { reachable: true, latencyMs: Date.now() - started, health: result.payload };
   }
@@ -725,9 +736,9 @@ export async function probeIridiumVoiceHealth(): Promise<IridiumVoiceHealthProbe
 
 // Display label for status UIs: the configured voice-server host, never a
 // machine name hard-coded by a caller.
-export function iridiumVoiceHostLabel(): string {
+export function voiceHostLabel(): string {
   try {
-    return iridiumUrl("/").host;
+    return voiceHostUrl("/").host;
   } catch {
     return "voice server";
   }
@@ -796,8 +807,8 @@ export type AgentEventSubscription = {
   trigger_count: number; triggered_at?: string | null;
 };
 
-export async function fetchIridiumAgentAdministration(): Promise<AgentAdministrationPayload | null> {
-  const payload = await fetchIridiumJson("/v1/agent/administration", "agent administration");
+export async function fetchVoiceHostAgentAdministration(): Promise<AgentAdministrationPayload | null> {
+  const payload = await fetchVoiceHostJson("/v1/agent/administration", "agent administration");
   if (!payload || !Array.isArray((payload as AgentAdministrationPayload).goals)) return null;
   return payload as AgentAdministrationPayload;
 }
@@ -813,58 +824,58 @@ export type AgentMemory = {
   expires_at?: string | null;
 };
 
-export async function fetchIridiumAgentMemories(): Promise<AgentMemory[] | null> {
-  const payload = await fetchIridiumJson("/v1/agent/memories", "agent memories");
+export async function fetchVoiceHostAgentMemories(): Promise<AgentMemory[] | null> {
+  const payload = await fetchVoiceHostJson("/v1/agent/memories", "agent memories");
   return payload && Array.isArray((payload as { memories?: unknown }).memories)
     ? (payload as { memories: AgentMemory[] }).memories
     : null;
 }
 
-export function updateIridiumAgentMemory(memoryId: string, body: Record<string, unknown>) {
-  return requestIridiumJson(`/v1/agent/memories/${encodeURIComponent(memoryId)}`, "agent memory update", {
+export function updateVoiceHostAgentMemory(memoryId: string, body: Record<string, unknown>) {
+  return requestVoiceHostJson(`/v1/agent/memories/${encodeURIComponent(memoryId)}`, "agent memory update", {
     method: "PATCH", body,
   });
 }
 
-export function forgetIridiumAgentMemory(memoryId: string) {
-  return requestIridiumJson(`/v1/agent/memories/${encodeURIComponent(memoryId)}`, "forget agent memory", {
+export function forgetVoiceHostAgentMemory(memoryId: string) {
+  return requestVoiceHostJson(`/v1/agent/memories/${encodeURIComponent(memoryId)}`, "forget agent memory", {
     method: "DELETE",
   });
 }
 
-export function backupIridiumAgentMemories() {
-  return requestIridiumJson("/v1/agent/memories/backup", "agent memory backup", { method: "POST" });
+export function backupVoiceHostAgentMemories() {
+  return requestVoiceHostJson("/v1/agent/memories/backup", "agent memory backup", { method: "POST" });
 }
 
-export function consolidateIridiumAgentMemories() {
-  return requestIridiumJson("/v1/agent/memories/consolidate", "agent memory consolidation", { method: "POST" });
+export function consolidateVoiceHostAgentMemories() {
+  return requestVoiceHostJson("/v1/agent/memories/consolidate", "agent memory consolidation", { method: "POST" });
 }
 
-export function setIridiumAgentIdentityRole(personId: string, role: string) {
-  return requestIridiumJson(
+export function setVoiceHostAgentIdentityRole(personId: string, role: string) {
+  return requestVoiceHostJson(
     `/v1/agent/identities/${encodeURIComponent(personId)}`,
     "agent identity role update",
     { method: "PUT", body: { role } },
   );
 }
 
-export function createIridiumDelegationGrant(grant: Record<string, unknown>) {
-  return requestIridiumJson("/v1/agent/grants", "delegation grant creation", {
+export function createVoiceHostDelegationGrant(grant: Record<string, unknown>) {
+  return requestVoiceHostJson("/v1/agent/grants", "delegation grant creation", {
     method: "POST",
     body: grant,
   });
 }
 
-export function revokeIridiumDelegationGrant(grantId: string) {
-  return requestIridiumJson(
+export function revokeVoiceHostDelegationGrant(grantId: string) {
+  return requestVoiceHostJson(
     `/v1/agent/grants/${encodeURIComponent(grantId)}`,
     "delegation grant revocation",
     { method: "DELETE" },
   );
 }
 
-export function cancelIridiumAgentGoal(goalId: string, reason: string) {
-  return requestIridiumJson(
+export function cancelVoiceHostAgentGoal(goalId: string, reason: string) {
+  return requestVoiceHostJson(
     `/v1/agent/goals/${encodeURIComponent(goalId)}/cancel`,
     "durable goal cancellation",
     { method: "POST", body: { reason } },
@@ -892,15 +903,15 @@ export type ProactiveIntervention = {
   created_at: string;
 };
 
-export async function fetchIridiumAgentAutomations(): Promise<AgentAutomation[] | null> {
-  const payload = await fetchIridiumJson("/v1/agent/automations", "agent automations");
+export async function fetchVoiceHostAgentAutomations(): Promise<AgentAutomation[] | null> {
+  const payload = await fetchVoiceHostJson("/v1/agent/automations", "agent automations");
   return payload && Array.isArray((payload as { automations?: unknown }).automations)
     ? (payload as { automations: AgentAutomation[] }).automations
     : null;
 }
 
-export async function fetchIridiumProactiveInterventions(): Promise<ProactiveIntervention[] | null> {
-  const payload = await fetchIridiumJson(
+export async function fetchVoiceHostProactiveInterventions(): Promise<ProactiveIntervention[] | null> {
+  const payload = await fetchVoiceHostJson(
     "/v1/agent/proactive-interventions",
     "proactive interventions",
   );
@@ -909,36 +920,36 @@ export async function fetchIridiumProactiveInterventions(): Promise<ProactiveInt
     : null;
 }
 
-export function createIridiumAgentAutomation(
+export function createVoiceHostAgentAutomation(
   ownerId: string,
   draft: Record<string, unknown>,
 ) {
-  return requestIridiumJson(
+  return requestVoiceHostJson(
     `/v1/agent/automations?owner_id=${encodeURIComponent(ownerId)}`,
     "agent automation draft",
     { method: "POST", body: draft },
   );
 }
 
-export function transitionIridiumAgentAutomation(
+export function transitionVoiceHostAgentAutomation(
   automationId: string,
   action: "simulate" | "approve" | "activate" | "rollback",
   ownerId?: string,
 ) {
   const body = action === "simulate" ? undefined : { owner_id: ownerId };
-  return requestIridiumJson(
+  return requestVoiceHostJson(
     `/v1/agent/automations/${encodeURIComponent(automationId)}/${action}`,
     `agent automation ${action}`,
     { method: "POST", body },
   );
 }
 
-export function feedbackIridiumProactiveIntervention(
+export function feedbackVoiceHostProactiveIntervention(
   interventionId: string,
   ownerId: string,
   outcome: "accepted" | "dismissed" | "redundant" | "annoying",
 ) {
-  return requestIridiumJson(
+  return requestVoiceHostJson(
     `/v1/agent/proactive-interventions/${encodeURIComponent(interventionId)}/feedback`,
     "proactive intervention feedback",
     { method: "POST", body: { owner_id: ownerId, outcome } },

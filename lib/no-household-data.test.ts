@@ -82,37 +82,17 @@ const WAIVERS: Waiver[] = [
 
 ];
 
-/**
- * A systemic breach kept separate from WAIVERS so it stays legible.
+/*
+ * There was a second list here: the voice, phonoscope and camera integrations
+ * named their host machines directly across ~300 occurrences in ~40 files —
+ * symbol names, import paths, and operator-facing copy like "Iridium
+ * unreachable". It was waived as a burn-down while the rest of the rule landed.
  *
- * The voice, phonoscope and camera integrations name their host machines
- * directly — `iridium`, `nocturnium`, `nova.local` — across roughly 300
- * occurrences in ~40 files: symbol names, import paths, and operator-facing
- * copy like "Iridium unreachable". That is SPEC.md §2's breach in its purest
- * form, but it is one refactor (machine name to abstract role) rather than a
- * scattering of household values, and it touches visible UI copy.
- *
- * `lib/iridium-voice-settings.ts` has already been renamed to
- * `lib/voice-host-settings.ts`, which removed the import-path half of the
- * problem. The remainder is tracked as its own piece of work; these files are
- * waived ONLY for host-name tokens, so a stray entity id or IP in any of them
- * still fails.
+ * That refactor is done. Machines are now referred to by the role they fill
+ * (`voiceHost`, "the voice host"), the module is `lib/voice-host-settings.ts`,
+ * and the URL comes from NOVA_VOICE_HOST_URL. Both lists are empty, so the
+ * plain detector below covers everything with nothing excused.
  */
-const HOST_NAMING_TOKENS = new Set(["iridium", "nocturnium", "neptunium", "ununhexium", "nova.local"]);
-const HOST_NAMING_FILES = new Set([
-  "lib/voice-host-settings.ts",
-  "lib/voice-settings.ts",
-  "app/api/phonoscope/renderer/route.ts",
-  "app/api/voice/options/route.ts",
-  "app/components/CameraConfig.tsx",
-  "app/components/VoiceConfig.tsx",
-  "app/components/VoiceInfrastructureConfig.tsx",
-]);
-
-function isHostNamingOnly(finding: Finding) {
-  if (!HOST_NAMING_FILES.has(finding.file)) return false;
-  return [...HOST_NAMING_TOKENS].some((token) => finding.kind.includes(token));
-}
 
 function sourceFiles(dir: string): string[] {
   const absolute = path.join(ROOT, dir);
@@ -279,7 +259,7 @@ function short(literal: string) {
 
 describe("no household data in product source", () => {
   it("finds no unwaived household literal in lib/ or app/", () => {
-    const unwaived = scan().filter((finding) => !isWaived(finding) && !isHostNamingOnly(finding));
+    const unwaived = scan().filter((finding) => !isWaived(finding));
 
     const report = unwaived
       .map((finding) => `  ${finding.file}: ${finding.kind} -> ${JSON.stringify(short(finding.literal))}`)
@@ -308,20 +288,6 @@ describe("no household data in product source", () => {
     expect(
       stale,
       stale.length ? `These waivers no longer match anything — delete them:\n${report}` : undefined,
-    ).toEqual([]);
-  });
-
-  it("has no stale host-naming file, so that burn-down list cannot rot either", () => {
-    const findings = scan();
-    const stale = [...HOST_NAMING_FILES].filter(
-      (file) => !findings.some((finding) => finding.file === file && isHostNamingOnly(finding)),
-    );
-
-    expect(
-      stale,
-      stale.length
-        ? `These files no longer name a host machine — remove them from HOST_NAMING_FILES:\n${stale.map((f) => `  ${f}`).join("\n")}`
-        : undefined,
     ).toEqual([]);
   });
 

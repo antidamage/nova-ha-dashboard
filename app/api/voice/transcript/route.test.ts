@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "./route";
-import { endIridiumConversations } from "../../../../lib/voice-host-settings";
+import { endVoiceHostConversations } from "../../../../lib/voice-host-settings";
 
 vi.mock("../../../../lib/voice-host-settings", () => ({
-  endIridiumConversations: vi.fn(async () => ({ payload: { ok: true } })),
+  endVoiceHostConversations: vi.fn(async () => ({ payload: { ok: true } })),
 }));
 
 describe("voice transcript API", () => {
-  it("accepts an Iridium line and includes it in the bounded snapshot", async () => {
+  it("accepts an voice host line and includes it in the bounded snapshot", async () => {
     const text = `Turn on the lounge light ${crypto.randomUUID()}`;
     // A recent timestamp: a hard-coded date silently ages past the 24-hour
     // retention window and the snapshot assertion starts failing.
@@ -88,14 +88,14 @@ describe("voice transcript API", () => {
     });
     // Wiping the panel while the assistant kept replying from the old frozen
     // context would misrepresent what it still remembers.
-    expect(endIridiumConversations).toHaveBeenCalled();
+    expect(endVoiceHostConversations).toHaveBeenCalled();
 
     const snapshot = await GET();
     expect(await snapshot.json()).toEqual({ transcripts: [] });
   });
 
   it("still clears the panel when the voice server is unreachable", async () => {
-    vi.mocked(endIridiumConversations).mockResolvedValueOnce({
+    vi.mocked(endVoiceHostConversations).mockResolvedValueOnce({
       error: "voice server unreachable",
       status: 502,
     });

@@ -644,7 +644,7 @@ function applyAltPulse(
 }
 
 /**
- * Returns Nova's authoritative visualiser choice. Both Iridium and tvOS consume
+ * Returns Nova's authoritative visualiser choice. Both voice host and tvOS consume
  * this object; neither is allowed to maintain an independent rotation.
  */
 export function readPhonoscopeThemeState(

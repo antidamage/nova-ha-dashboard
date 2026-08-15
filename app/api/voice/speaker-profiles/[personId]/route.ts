@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  deleteIridiumSpeakerProfile,
-  updateIridiumSpeakerProfile,
+  deleteVoiceHostSpeakerProfile,
+  updateVoiceHostSpeakerProfile,
 } from "../../../../../lib/voice-host-settings";
 
 type Context = { params: Promise<{ personId: string }> };
@@ -13,7 +13,7 @@ export async function PATCH(request: Request, context: Context) {
     pronouns?: unknown;
     speechPreferences?: unknown;
   };
-  const update: Parameters<typeof updateIridiumSpeakerProfile>[1] = {};
+  const update: Parameters<typeof updateVoiceHostSpeakerProfile>[1] = {};
   if (body.displayName !== undefined) {
     if (typeof body.displayName !== "string" || !body.displayName.trim()) {
       return NextResponse.json({ error: "Display name cannot be empty" }, { status: 422 });
@@ -31,10 +31,10 @@ export async function PATCH(request: Request, context: Context) {
       return NextResponse.json({ error: "Speech preferences must be an object" }, { status: 422 });
     }
     update.speechPreferences = body.speechPreferences as NonNullable<
-      Parameters<typeof updateIridiumSpeakerProfile>[1]["speechPreferences"]
+      Parameters<typeof updateVoiceHostSpeakerProfile>[1]["speechPreferences"]
     >;
   }
-  const result = await updateIridiumSpeakerProfile(personId, update);
+  const result = await updateVoiceHostSpeakerProfile(personId, update);
   return "payload" in result
     ? NextResponse.json(result.payload)
     : NextResponse.json({ error: result.error }, { status: result.status ?? 502 });
@@ -42,7 +42,7 @@ export async function PATCH(request: Request, context: Context) {
 
 export async function DELETE(_request: Request, context: Context) {
   const { personId } = await context.params;
-  const result = await deleteIridiumSpeakerProfile(personId);
+  const result = await deleteVoiceHostSpeakerProfile(personId);
   return "payload" in result
     ? NextResponse.json(result.payload)
     : NextResponse.json({ error: result.error }, { status: result.status ?? 502 });

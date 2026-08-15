@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  fetchIridiumEngineStatus,
-  requestIridiumEngineSwitch,
+  fetchVoiceHostEngineStatus,
+  requestVoiceHostEngineSwitch,
 } from "../../../../lib/voice-host-settings";
 import { VOICE_ENGINES } from "../../../../lib/voice-settings";
 
@@ -18,7 +18,7 @@ const KNOWN_ENGINE_IDS = new Set<string>(VOICE_ENGINES.map(({ value }) => value)
 // voice server restarts mid-switch, so an unreachable server is a normal
 // transient state here, reported as such rather than as a 5xx.
 export async function GET() {
-  const status = await fetchIridiumEngineStatus();
+  const status = await fetchVoiceHostEngineStatus();
   if (!status) {
     return NextResponse.json({ reachable: false });
   }
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const result = await requestIridiumEngineSwitch(engine);
+  const result = await requestVoiceHostEngineSwitch(engine);
   if ("error" in result) {
     return NextResponse.json(
       { error: `The voice server did not accept the engine switch: ${result.error}` },

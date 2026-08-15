@@ -512,7 +512,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<"ok" | "warning" | "error">("ok");
   const [voiceOptions, setVoiceOptions] = useState<readonly VoiceOption[]>(VOICE_SPEAKERS);
-  const [optionsSource, setOptionsSource] = useState<"static" | "iridium" | "fallback">("static");
+  const [optionsSource, setOptionsSource] = useState<"static" | "voiceHost" | "fallback">("static");
   // Active TTS engine module. Which voice controls render (preset dropdown vs
   // a cloned/trained-voice dropdown, accent/mood, diffusion steps) is decided
   // by this engine's capabilities below, not a hardcoded engine-id check.
@@ -545,7 +545,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   // the active drag; this covers the window after release too).
   const { isCoolingDown, markInteraction } = useSettingCooldown();
 
-  // Iridium publishes the voices its deployed TTS stack actually supports;
+  // voice host publishes the voices its deployed TTS stack actually supports;
   // populate the dropdown from it and keep the static list as the fallback.
   // Re-run after an engine switch: the voice list is per-engine (Classic
   // presets vs the Custom clone registry).
@@ -563,7 +563,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       };
       if (Array.isArray(data.voices) && data.voices.length > 0) {
         setVoiceOptions(data.voices);
-        setOptionsSource(data.source === "iridium" ? "iridium" : "fallback");
+        setOptionsSource(data.source === "voiceHost" ? "voiceHost" : "fallback");
       }
       if (Array.isArray(data.engines) && data.engines.length > 0) {
         setEngines(data.engines);
@@ -724,7 +724,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       });
       const data = await response.json() as {
         error?: string;
-        iridium?: SyncResult;
+        voiceHost?: SyncResult;
         voice?: VoicePreferences;
       };
       if (!response.ok) {
@@ -743,8 +743,8 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       if (requestVersion !== requestVersionRef.current) {
         return;
       }
-      if (!data.iridium?.ok) {
-        setMessage(`Saved on ${displayName}. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
+      if (!data.voiceHost?.ok) {
+        setMessage(`Saved on ${displayName}. ${data.voiceHost?.error ?? "The voice host did not confirm the refresh."}`);
         setMessageTone("warning");
       }
     } catch (error) {
@@ -757,7 +757,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
   }, [agentName, markInteraction, setAgentName, setTranscriptTemplate]);
 
   // Load a whole saved personality at once: one POST carries every
-  // personality-scoped field (which then propagates to Iridium like any other
+  // personality-scoped field (which then propagates to voice host like any other
   // voice-settings change), instead of firing a request per control.
   const commitMany = useCallback(async (set: VoicePersonalitySet) => {
     markInteraction();
@@ -767,7 +767,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       draggingRef.current.delete(key);
     }
     setSettings((current) => ({ ...current, ...set }));
-    setMessage(`Applying personality on ${agentName} and notifying Iridium…`);
+    setMessage(`Applying personality on ${agentName} and notifying the voice host…`);
     setMessageTone("ok");
     try {
       const response = await fetch("/api/voice", {
@@ -777,7 +777,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       });
       const data = await response.json() as {
         error?: string;
-        iridium?: SyncResult;
+        voiceHost?: SyncResult;
         voice?: VoicePreferences;
       };
       if (!response.ok) {
@@ -793,11 +793,11 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       if (requestVersion !== requestVersionRef.current) {
         return;
       }
-      if (data.iridium?.ok) {
-        setMessage(`Personality applied on ${agentName} and live on Iridium.`);
+      if (data.voiceHost?.ok) {
+        setMessage(`Personality applied on ${agentName} and live on the voice host.`);
         setMessageTone("ok");
       } else {
-        setMessage(`Personality applied on ${agentName}. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
+        setMessage(`Personality applied on ${agentName}. ${data.voiceHost?.error ?? "The voice host did not confirm the refresh."}`);
         setMessageTone("warning");
       }
     } catch (error) {
@@ -835,7 +835,7 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
     personalityLibrary.setActive(id);
   }, [commitMany, personalityLibrary]);
 
-  // Audition the whole configured voice: Iridium asks the live language model a
+  // Audition the whole configured voice: voice host asks the live language model a
   // random question (so temperature, personality, pronouns, and language all
   // show) and synthesizes the reply with the live voice, accent, mood, rate,
   // and pitch. Every knob is applied live, so this matches a real spoken turn.
@@ -916,9 +916,9 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
 
       <p className="mb-4 text-sm leading-relaxed text-neutral-400">
         Shape the voice agent&apos;s speech and language model with explicit controls. {agentName} stores each
-        change, then signals Iridium to collect and apply the complete setting set without restarting
+        change, then signals voice host to collect and apply the complete setting set without restarting
         the voice service.
-        {optionsSource === "iridium" ? " Voice list published live by Iridium." : null}
+        {optionsSource === "voiceHost" ? " Voice list published live by the voice host." : null}
       </p>
 
       <div className="mb-4 grid gap-1.5">

@@ -6,7 +6,7 @@ import { useEffect, useSyncExternalStore } from "react";
 // .systemVoiceEnabled, edited by VoiceKillswitch in VoiceInfrastructureConfig).
 //
 // The killswitch is the master switch for the whole system: when it is off,
-// Iridium drops every microphone frame. This module makes the dashboard page
+// voice host drops every microphone frame. This module makes the dashboard page
 // honour it locally as well, so a browser satellite never opens the client
 // microphone while voice is switched off system-wide — rather than opening it
 // and streaming frames that the server throws away.

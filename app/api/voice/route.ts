@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeAgentSettings } from "../../../lib/agent-settings";
-import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/voice-host-settings";
+import { triggerVoiceHostSettingsRefresh } from "../../../lib/voice-host-settings";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import { listVoiceSatelliteComputers } from "../../../lib/voice-satellite-reconnect";
 import { normalizeVoiceSettings, parseVoiceSettingsUpdate } from "../../../lib/voice-settings";
@@ -8,7 +8,7 @@ import { normalizeVoiceSettings, parseVoiceSettingsUpdate } from "../../../lib/v
 export const dynamic = "force-dynamic";
 
 // The roster's room assignments ride along with the voice settings because
-// Iridium pulls this contract: the dashboard is authoritative for satellite
+// voice host pulls this contract: the dashboard is authoritative for satellite
 // rooms, and a satellite's own env-file room is only a fallback.
 async function satelliteRoomAssignments(): Promise<Record<string, string>> {
   try {
@@ -45,17 +45,17 @@ export async function POST(request: Request) {
   try {
     const update = parseVoiceSettingsUpdate(await request.json());
 
-    // Nova is the durable source of truth. Iridium receives only a collection
+    // Nova is the durable source of truth. voice host receives only a collection
     // signal, then pulls this same API contract before applying it live.
     // Keep this merge partial: concurrent knob changes are serialized by the
     // preferences write queue without either request replacing the other knobs.
     await mergeDashboardPreferences({ voice: update });
-    const iridium = await triggerIridiumVoiceSettingsRefresh();
+    const voiceHost = await triggerVoiceHostSettingsRefresh();
     const saved = await readDashboardPreferences();
 
     return NextResponse.json({
       voice: normalizeVoiceSettings(saved.voice),
-      iridium,
+      voiceHost,
     });
   } catch (error) {
     return NextResponse.json(

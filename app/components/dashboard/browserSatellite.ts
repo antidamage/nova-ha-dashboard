@@ -1,7 +1,7 @@
 "use client";
 
 // Browser voice-satellite runtime: microphone capture + playback over the
-// dashboard's mTLS bridge (lib/voice-satellite-bridge.ts → Iridium
+// dashboard's mTLS bridge (lib/voice-satellite-bridge.ts → VoiceHost
 // /v1/satellites). It speaks the same NVAF wire protocol as the native
 // satellites: 16 kHz mono int16, 20 ms (640-byte) frames wrapped in a 28-byte
 // header, JSON control messages for the handshake and playback lifecycle.
