@@ -6,6 +6,7 @@ import {
   SunStatus,
 } from "./types";
 import { mergeDashboardPreferences } from "./preferences";
+import { readDashboardConfigSync } from "./dashboard-config";
 import {
   hasIntensityThreshold,
   intensityThresholdPctForEntity,
@@ -764,8 +765,14 @@ export async function applyHousePartyLightingFrame(
   }
 
   if (!entityIds.size) return { affectedZoneIds, entityIds: [] as string[], state: dashboard };
-  const localEntityIds = [...entityIds].filter((entityId) => !entityId.startsWith("light.tuya_mobile_"));
-  const cloudEntityIds = [...entityIds].filter((entityId) => entityId.startsWith("light.tuya_mobile_"));
+  // A cloud twin's bridge does not accept the same service options as the LAN
+  // entity, so the two are commanded differently. Which entity ids are twins is
+  // an installation detail, not a fact about lights, so it comes from config.
+  const cloudPrefixes = readDashboardConfigSync().homeAssistant.cloudTwinIdentifierPrefixes;
+  const isCloudTwin = (entityId: string) =>
+    cloudPrefixes.some((prefix) => prefix && entityId.slice(entityId.indexOf(".") + 1).startsWith(prefix));
+  const localEntityIds = [...entityIds].filter((entityId) => !isCloudTwin(entityId));
+  const cloudEntityIds = [...entityIds].filter((entityId) => isCloudTwin(entityId));
   const calls: Promise<unknown>[] = [];
   for (const entityId of localEntityIds) {
     const localPayload: Record<string, unknown> = {

@@ -79,53 +79,7 @@ type Waiver = {
 };
 
 const WAIVERS: Waiver[] = [
-  // -- Phase 5 removes these.
-  {
-    file: "lib/ha.ts",
-    literal: "light.tuya_mobile_",
-    reason: "Phase 5: becomes homeAssistant.classification.cloudTwinEntityPrefixes.",
-  },
-  {
-    file: "lib/ha/twins.ts",
-    literal: "tuya_mobile_",
-    reason: "Phase 5: same cloud-twin prefix, read from config instead.",
-  },
-  {
-    file: "lib/config-schema.ts",
-    literal: "Pacific/Auckland",
-    reason: "Phase 5: the shipped schema default becomes a neutral timezone.",
-  },
 
-  {
-    file: "lib/modules/router/module.ts",
-    literal: "sensor.nx620v_lte_current_rx_speed",
-    reason: "Phase 5: router migration aids move to homeAssistant.router config.",
-  },
-  {
-    file: "lib/modules/router/module.ts",
-    literal: "sensor.nx620v_lte_current_tx_speed",
-    reason: "Phase 5: router migration aids move to homeAssistant.router config.",
-  },
-  {
-    file: "lib/modules/router/module.ts",
-    literal: "sensor.nx620v_download_speed",
-    reason: "Phase 5: router migration aids move to homeAssistant.router config.",
-  },
-  {
-    file: "lib/modules/router/module.ts",
-    literal: "sensor.nx620v_upload_speed",
-    reason: "Phase 5: router migration aids move to homeAssistant.router config.",
-  },
-  {
-    file: "app/components/dashboard/ClockPanel.tsx",
-    literal: "Pacific/Auckland",
-    reason: "Phase 5: clock reads the configured timezone.",
-  },
-  {
-    file: "lib/icloud-sync.ts",
-    literal: "Pacific/Auckland",
-    reason: "Phase 5: iCloud sync reads the configured timezone.",
-  },
 ];
 
 /**

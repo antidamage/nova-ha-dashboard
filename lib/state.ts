@@ -68,7 +68,7 @@ async function loadModuleContext(): Promise<ModuleStateContext> {
   const index = indexRegistry(registry);
   const projection = projectionContext(registry, index);
   const { entities: projected } = projectDashboardEntities(states, projection, entityProjectionOptions(config));
-  const entities = dedupeCloudTwins(projected, registry);
+  const entities = dedupeCloudTwins(projected, registry, config.homeAssistant.cloudTwinIdentifierPrefixes);
   return { config, states, registry, index, entities, warnings: [...registry.warnings], haHealth };
 }
 

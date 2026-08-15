@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAgentName } from "../AgentNameContext";
 
-const CLOCK_TIME_ZONE = "Pacific/Auckland";
+// No timeZone is passed to Intl below, so the wall clock shows the time where
+// the screen is — which is what a clock on a wall should do, and is correct for
+// any installation. It used to be pinned to one city, so every deployment of
+// this dashboard would have shown that city's time.
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 function formatClockTime(date: Date) {
@@ -12,7 +15,6 @@ function formatClockTime(date: Date) {
     minute: "2-digit",
     second: "2-digit",
     hourCycle: "h12",
-    timeZone: CLOCK_TIME_ZONE,
   }).format(date).replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
 }
 
@@ -38,7 +40,6 @@ function formatClockDate(date: Date) {
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: CLOCK_TIME_ZONE,
   }).formatToParts(date);
   const day = Number(parts.find((part) => part.type === "day")?.value);
   const month = parts.find((part) => part.type === "month")?.value ?? "";
@@ -73,7 +74,6 @@ export function ClockPanel() {
       time: formatClockTime(now),
       weekday: new Intl.DateTimeFormat("en-NZ", {
         weekday: "short",
-        timeZone: CLOCK_TIME_ZONE,
       }).format(now),
       date: formatClockDate(now),
       zone: "Auckland",

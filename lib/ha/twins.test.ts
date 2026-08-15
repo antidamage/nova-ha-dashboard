@@ -5,6 +5,13 @@ import type { RegistrySnapshot } from "./registry";
 
 const DEV_ID = "ebdab3cb40963c2fb2smsz";
 
+/**
+ * Which identifier prefixes mark a cloud twin is config, not a constant in the
+ * product — it names whichever bridge a home runs. This is fixture data; the
+ * behaviour under test is the pairing, not the prefix.
+ */
+const CLOUD_PREFIXES = ["tuya_mobile_"];
+
 function snapshot(devices: RegistrySnapshot["devices"]): RegistrySnapshot {
   return { areas: [], devices, entities: [], labels: [], warnings: [] };
 }
@@ -34,7 +41,7 @@ describe("dedupeCloudTwins", () => {
       entity({ entity_id: "light.cupboard_socket_1", state: "off", device_id: "local-dev" }),
       entity({ entity_id: "light.tuya_mobile_neon_lights", state: "off", device_id: "cloud-dev" }),
     ];
-    const result = dedupeCloudTwins(entities, snapshot(twinDevices()));
+    const result = dedupeCloudTwins(entities, snapshot(twinDevices()), CLOUD_PREFIXES);
     expect(result.map((e) => e.entity_id)).toEqual(["light.cupboard_socket_1"]);
   });
 
@@ -43,7 +50,7 @@ describe("dedupeCloudTwins", () => {
       entity({ entity_id: "light.cupboard_socket_1", state: "unavailable", device_id: "local-dev" }),
       entity({ entity_id: "light.tuya_mobile_neon_lights", state: "off", device_id: "cloud-dev" }),
     ];
-    const result = dedupeCloudTwins(entities, snapshot(twinDevices()));
+    const result = dedupeCloudTwins(entities, snapshot(twinDevices()), CLOUD_PREFIXES);
     expect(result.map((e) => e.entity_id)).toEqual(["light.tuya_mobile_neon_lights"]);
   });
 
@@ -52,7 +59,7 @@ describe("dedupeCloudTwins", () => {
       entity({ entity_id: "light.cupboard_socket_1", state: "unavailable", device_id: "local-dev" }),
       entity({ entity_id: "light.tuya_mobile_neon_lights", state: "unavailable", device_id: "cloud-dev" }),
     ];
-    const result = dedupeCloudTwins(entities, snapshot(twinDevices()));
+    const result = dedupeCloudTwins(entities, snapshot(twinDevices()), CLOUD_PREFIXES);
     expect(result.map((e) => e.entity_id)).toEqual(["light.cupboard_socket_1"]);
   });
 
@@ -77,7 +84,7 @@ describe("dedupeCloudTwins", () => {
         device_id: "cloud-dev",
       }),
     ];
-    const result = dedupeCloudTwins(entities, snapshot(twinDevices()));
+    const result = dedupeCloudTwins(entities, snapshot(twinDevices()), CLOUD_PREFIXES);
     expect(result.map((e) => e.entity_id)).toEqual([
       "sensor.cupboard_power_2",
       "climate.tuya_mobile_panel_heater",
@@ -94,7 +101,7 @@ describe("dedupeCloudTwins", () => {
       entity({ entity_id: "light.desk", state: "on", device_id: "other-dev" }),
       entity({ entity_id: "light.no_device", state: "on", device_id: undefined }),
     ];
-    const result = dedupeCloudTwins(entities, snapshot(devices));
+    const result = dedupeCloudTwins(entities, snapshot(devices), CLOUD_PREFIXES);
     expect(result).toHaveLength(3);
   });
 
@@ -109,7 +116,7 @@ describe("dedupeCloudTwins", () => {
       }),
       entity({ entity_id: "light.tuya_mobile_neon_lights", state: "off", device_id: "cloud-dev" }),
     ];
-    const result = dedupeCloudTwins(entities, snapshot(twinDevices()));
+    const result = dedupeCloudTwins(entities, snapshot(twinDevices()), CLOUD_PREFIXES);
     expect(result.map((e) => e.entity_id)).toEqual([
       "switch.cupboard_outlet_2",
       "light.tuya_mobile_neon_lights",
