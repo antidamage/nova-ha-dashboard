@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   deleteIridiumSpeakerProfile,
   updateIridiumSpeakerProfile,
-} from "../../../../../lib/iridium-voice-settings";
+} from "../../../../../lib/voice-host-settings";
 
 type Context = { params: Promise<{ personId: string }> };
 

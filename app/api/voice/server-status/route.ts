@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { iridiumVoiceHostLabel, probeIridiumVoiceHealth } from "../../../../lib/iridium-voice-settings";
+import { iridiumVoiceHostLabel, probeIridiumVoiceHealth } from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

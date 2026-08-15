@@ -6,7 +6,7 @@ import type {
   SpeakerProfileSummary,
   SpeakerProfilesPayload,
   SpeakerTemplateSummary,
-} from "../../lib/iridium-voice-settings";
+} from "../../lib/voice-host-settings";
 
 const identityDateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",

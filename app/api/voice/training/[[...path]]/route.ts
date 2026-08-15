@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { relayIridiumTraining } from "../../../../../lib/iridium-voice-settings";
+import { relayIridiumTraining } from "../../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 

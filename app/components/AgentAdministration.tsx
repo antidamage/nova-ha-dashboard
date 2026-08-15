@@ -7,7 +7,7 @@ import type {
   AgentMemory,
   ProactiveIntervention,
   SpeakerProfilesPayload,
-} from "../../lib/iridium-voice-settings";
+} from "../../lib/voice-host-settings";
 
 const terminalGoalStates = new Set(["satisfied", "cancelled", "expired", "failed"]);
 

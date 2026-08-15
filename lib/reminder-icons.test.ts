@@ -12,7 +12,7 @@ const tempDirs: string[] = [];
 // keyword table decides, what the LLM is allowed to change, and what it is not.
 const classifyReminderIcon = vi.fn<(name: string, timeoutMs: number) => Promise<string | null>>();
 
-vi.mock("./iridium-voice-settings", () => ({
+vi.mock("./voice-host-settings", () => ({
   classifyReminderIcon: (name: string, timeoutMs: number) => classifyReminderIcon(name, timeoutMs),
 }));
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeAgentSettings } from "../../../lib/agent-settings";
-import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/iridium-voice-settings";
+import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/voice-host-settings";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import { listVoiceSatelliteComputers } from "../../../lib/voice-satellite-reconnect";
 import { normalizeVoiceSettings, parseVoiceSettingsUpdate } from "../../../lib/voice-settings";

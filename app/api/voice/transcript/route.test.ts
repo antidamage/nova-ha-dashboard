@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "./route";
-import { endIridiumConversations } from "../../../../lib/iridium-voice-settings";
+import { endIridiumConversations } from "../../../../lib/voice-host-settings";
 
-vi.mock("../../../../lib/iridium-voice-settings", () => ({
+vi.mock("../../../../lib/voice-host-settings", () => ({
   endIridiumConversations: vi.fn(async () => ({ payload: { ok: true } })),
 }));
 

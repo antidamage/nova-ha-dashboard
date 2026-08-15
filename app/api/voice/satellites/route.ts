@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   fetchIridiumSatelliteRegistry,
   triggerIridiumVoiceSettingsRefresh,
-} from "../../../../lib/iridium-voice-settings";
+} from "../../../../lib/voice-host-settings";
 import { assignVoiceSatelliteRoom, listVoiceSatelliteComputers } from "../../../../lib/voice-satellite-reconnect";
 import { buildDashboardState } from "../../../../lib/ha";
 import { indoorRoomOptions } from "../../../../lib/voice-rooms";

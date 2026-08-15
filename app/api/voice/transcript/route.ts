@@ -6,7 +6,7 @@ import {
   publishVoiceTranscript,
   replaceVoiceTranscript,
 } from "../../../../lib/dashboard-events";
-import { endIridiumConversations } from "../../../../lib/iridium-voice-settings";
+import { endIridiumConversations } from "../../../../lib/voice-host-settings";
 import {
   parseVoiceTranscriptInput,
   parseVoiceTranscriptReplaceInput,

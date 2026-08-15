@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   fetchIridiumEngineStatus,
   requestIridiumEngineSwitch,
-} from "../../../../lib/iridium-voice-settings";
+} from "../../../../lib/voice-host-settings";
 import { VOICE_ENGINES } from "../../../../lib/voice-settings";
 
 export const dynamic = "force-dynamic";

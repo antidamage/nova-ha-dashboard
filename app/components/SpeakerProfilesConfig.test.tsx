@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SpeakerProfilesPayload } from "../../lib/iridium-voice-settings";
+import type { SpeakerProfilesPayload } from "../../lib/voice-host-settings";
 import { SpeakerProfilesConfig } from "./SpeakerProfilesConfig";
 
 const now = new Date("2026-07-20T02:00:00.000Z").getTime();
