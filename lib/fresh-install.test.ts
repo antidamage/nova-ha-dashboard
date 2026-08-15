@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
@@ -191,6 +192,42 @@ describe("fresh install", () => {
       offenders,
       offenders.length
         ? `Entity ids in the shipped config belong in the nova-household package:\n${report}`
+        : undefined,
+    ).toEqual([]);
+  });
+
+  /**
+   * The literal scan covers `lib/` and `app/`; the config check above covers
+   * `config/`. Neither looked at `data/`, and household data hid there:
+   * `data/power/account-usage.json` was tracked with 24 months of real
+   * electricity bills, and two stray atomic-write `.tmp` files carried this
+   * home's aircon settings, theme and reminder list. The repo is public.
+   *
+   * `data/` is per-install runtime state. Nothing in it is source, the deploy
+   * excludes it, and every file in it regenerates — so the repo should track
+   * almost nothing there.
+   */
+  it("tracks no per-install runtime data that could carry a household with it", () => {
+    let tracked: string[];
+    try {
+      tracked = execFileSync("git", ["ls-files", "data"], { cwd: process.cwd(), encoding: "utf8" })
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    } catch {
+      // No git available (e.g. a source tarball). Nothing to assert.
+      return;
+    }
+
+    // Caches of public facts are fine. Anything describing the household is not.
+    const ALLOWED = new Set(["data/update/check.json"]);
+    const offenders = tracked.filter((file) => !ALLOWED.has(file));
+
+    expect(
+      offenders,
+      offenders.length
+        ? `These are per-install runtime files and must not be tracked — ` +
+            `git rm --cached them and add a .gitignore rule:\n${offenders.map((f) => `  ${f}`).join("\n")}`
         : undefined,
     ).toEqual([]);
   });

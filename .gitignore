@@ -40,6 +40,18 @@ pnpm-debug.log*
 output/
 data/*.json
 data/*.jsonl
+# Runtime state written by the power module: accumulated kWh, and billing
+# history imported from a retailer account. `data/*.json` only covers the top
+# level, so these were being tracked -- account-usage.json carried 24 months of
+# one household's real electricity bills into a public repo. The real values
+# live in the household package's power.accountHistory; these files are per
+# install and regenerate themselves.
+data/power/
+# Atomic writes land as `<name>.<pid>.tmp` before the rename. A crash between
+# the two leaves one behind, and a couple got committed -- carrying this
+# household's aircon settings, theme and reminder list with them.
+data/**/*.tmp
+data/*.tmp
 data/camera/
 data/gymmaster/
 # The preferences undo history: per-install runtime state, written on every
