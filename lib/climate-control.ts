@@ -17,11 +17,11 @@ import {
   bedroomHeaterScheduleEdge,
   bedroomHeaterSleepTimerExpired,
   bedroomHeaterWindow,
-  bedroomRoomTemperatureEntityIds,
+  roomTemperatureEntityIds,
   bedroomTemperatureStateIsFresh,
   minutesFromMidday,
 } from "./bedroom-heater-control";
-import { readDashboardConfig } from "./dashboard-config";
+import { readDashboardConfig, readDashboardConfigSync } from "./dashboard-config";
 import { callService, haRest } from "./ha/client";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
 import type {
@@ -167,7 +167,11 @@ function findNamedSwitch(states: HaState[], tokens: string[]) {
 }
 
 function loungeSignature(states: HaState[]) {
-  const aircon = dashboardAirconEntity(states);
+  // Read config here rather than threading tokens through every caller: the
+  // watchdog and the command path must resolve the SAME climate entity, and a
+  // signature computed from a different device than Auto is controlling would
+  // make the safety monitor watch the wrong thing.
+  const aircon = dashboardAirconEntity(states, readDashboardConfigSync().dashboard.aircon.matchTokens);
   if (!aircon || ["unknown", "unavailable"].includes((aircon as HaState).state)) return null;
   const quiet = findNamedSwitch(states, ["quiet"]);
   const turbo = findNamedSwitch(states, ["turbo"]);
@@ -285,7 +289,7 @@ function observeActuator(room: RoomId, signature: string | null, now: number) {
 async function statesAndDevices() {
   const config = await readDashboardConfig();
   const states = await haRest<HaState[]>("/api/states");
-  const airconRaw = dashboardAirconEntity(states);
+  const airconRaw = dashboardAirconEntity(states, config.dashboard.aircon.matchTokens);
   const aircon = airconRaw ? rawAsDashboardEntity(airconRaw as HaState) : undefined;
   const quietRaw = findNamedSwitch(states, ["quiet"]);
   const turboRaw = findNamedSwitch(states, ["turbo"]);
@@ -293,7 +297,7 @@ async function statesAndDevices() {
   const turbo = turboRaw ? rawAsDashboardEntity(turboRaw) : undefined;
   const heaterIds = config.dashboard.bedroomHeater?.switchEntityIds ?? [];
   const heater = heaterIds.map((id) => states.find((state) => state.entity_id === id)).find(Boolean);
-  const sensorIds = bedroomRoomTemperatureEntityIds(config.dashboard.bedroomHeater?.temperatureEntityIds ?? []);
+  const sensorIds = roomTemperatureEntityIds(config.dashboard.bedroomHeater?.temperatureEntityIds ?? []);
   const sensor = sensorIds.map((id) => states.find((state) => state.entity_id === id)).find(Boolean);
   return { states, aircon, quiet, turbo, heater, sensor };
 }

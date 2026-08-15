@@ -9,7 +9,7 @@ import {
   stringListAttribute,
 } from "../../../lib/aircon-control";
 import {
-  bedroomRoomTemperatureEntityIds,
+  roomTemperatureEntityIds,
   bedroomTemperatureStateIsFresh,
 } from "../../../lib/bedroom-heater-control";
 import type { DashboardEntity, DashboardState, DashboardZone, HaDomain, RouterStatus } from "../../../lib/types";
@@ -38,14 +38,17 @@ export const LOUNGE_ZONE_ID = "lounge";
  * exposing the Gree indoor unit's own thermistor, defined in Home Assistant's
  * template.yaml. The lounge has no standalone room sensor.
  */
-export const LOUNGE_TEMPERATURE_SENSOR_IDS = [
-  "sensor.lounge_temperature",
-  "sensor.wifi_temperature_humidity_sensor_temperature",
-];
-export const LOUNGE_HUMIDITY_SENSOR_IDS = [
-  "sensor.lounge_humidity",
-  "sensor.wifi_temperature_humidity_sensor_humidity",
-];
+/**
+ * Which fallback sensors, if any, this installation has declared for a zone.
+ * Empty for a zone with nothing configured, which is the normal case: the HA
+ * area binding and the zone's own sensors handle almost every room.
+ */
+function zoneEnvironmentFallback(zone: DashboardZone, data: DashboardState | null) {
+  const key = zone.name.trim().toLowerCase();
+  return (data?.zoneEnvironmentFallbacks ?? []).find(
+    (entry) => entry.zoneId === zone.id || entry.zoneId.trim().toLowerCase() === key,
+  );
+}
 export const TASKS_ZONE_ID = "tasks";
 export const POWER_ZONE_ID = "power";
 export const WORLD_ZONE_ID = "world";
@@ -254,17 +257,17 @@ export function findZoneEnvironment(
 
   const byId = new Map(data.entities.map((entity) => [entity.entity_id, entity]));
   const zoneSensors = zone.entities.filter((entity) => entity.domain === "sensor");
-  const lounge = isLoungeZone(zone);
-  const allSensors = lounge ? data.entities.filter((entity) => entity.domain === "sensor") : [];
+  const fallback = zoneEnvironmentFallback(zone, data);
+  const allSensors = fallback ? data.entities.filter((entity) => entity.domain === "sensor") : [];
 
   const temperatureEntity =
     (zone.environment?.temperatureEntityId ? byId.get(zone.environment.temperatureEntityId) : undefined) ??
     zoneSensors.find((entity) => sensorMatches(entity, "temperature")) ??
-    (lounge ? findEntityByPreferredIds(allSensors, LOUNGE_TEMPERATURE_SENSOR_IDS) : undefined);
+    (fallback ? findEntityByPreferredIds(allSensors, fallback.temperatureEntityIds) : undefined);
   const humidityEntity =
     (zone.environment?.humidityEntityId ? byId.get(zone.environment.humidityEntityId) : undefined) ??
     zoneSensors.find((entity) => sensorMatches(entity, "humidity")) ??
-    (lounge ? findEntityByPreferredIds(allSensors, LOUNGE_HUMIDITY_SENSOR_IDS) : undefined);
+    (fallback ? findEntityByPreferredIds(allSensors, fallback.humidityEntityIds) : undefined);
 
   if (!temperatureEntity && !humidityEntity) {
     return null;
@@ -323,7 +326,7 @@ export function bedroomHeaterDevices(
 ): BedroomHeaterDevices {
   const configuredTemperatureEntity = findConfiguredEntity(
     data,
-    bedroomRoomTemperatureEntityIds(config?.temperatureEntityIds ?? []),
+    roomTemperatureEntityIds(config?.temperatureEntityIds ?? []),
   );
   const temperatureEntity = bedroomTemperatureStateIsFresh(configuredTemperatureEntity)
     ? configuredTemperatureEntity
@@ -353,7 +356,7 @@ export function findBedroomTemperature(
   data: DashboardState | null,
   config?: { temperatureEntityIds?: readonly string[] } | null,
 ) {
-  const entity = findConfiguredEntity(data, bedroomRoomTemperatureEntityIds(config?.temperatureEntityIds ?? []));
+  const entity = findConfiguredEntity(data, roomTemperatureEntityIds(config?.temperatureEntityIds ?? []));
   return bedroomTemperatureStateIsFresh(entity) ? numericEntityState(entity) : null;
 }
 

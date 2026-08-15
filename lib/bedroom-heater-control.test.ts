@@ -5,7 +5,7 @@ import {
   BEDROOM_HEATER_SENSOR_GRACE_MS,
   BedroomHeaterThermostat,
   bedroomHeaterMode,
-  bedroomRoomTemperatureEntityIds,
+  roomTemperatureEntityIds,
   bedroomTemperatureStateIsFresh,
   bedroomTemperatureStateIsUsable,
   bedroomHeaterSleepTimerExpired,
@@ -17,15 +17,25 @@ import {
   type BedroomHeaterAutoState,
 } from "./bedroom-heater-control";
 
-describe("bedroom room temperature authority", () => {
-  it("permits only the Bedroom sensor and never falls back to the heater plug", () => {
+describe("room temperature authority", () => {
+  it("trusts exactly the configured sensors, in order", () => {
+    expect(roomTemperatureEntityIds(["sensor.study_room_temperature"])).toEqual([
+      "sensor.study_room_temperature",
+    ]);
     expect(
-      bedroomRoomTemperatureEntityIds([
-        "sensor.tuya_mobile_bedroom_sensor_temperature",
-        "sensor.tuya_mobile_bedroom_heater_temperature",
-      ]),
-    ).toEqual(["sensor.tuya_mobile_bedroom_sensor_temperature"]);
-    expect(bedroomRoomTemperatureEntityIds(["sensor.tuya_mobile_bedroom_heater_temperature"])).toEqual([]);
+      roomTemperatureEntityIds(["sensor.study_room_temperature", "sensor.study_backup_temperature"]),
+    ).toEqual(["sensor.study_room_temperature", "sensor.study_backup_temperature"]);
+  });
+
+  /**
+   * The safety rule: with nothing configured, Auto must have no reading at all
+   * rather than picking up whatever sensor happens to be nearby — notably the
+   * heater plug's own body temperature, which is far too damped to be a room
+   * reading and would let Auto keep heating an already-warm room.
+   */
+  it("trusts nothing when no sensor is configured, so Auto fails safe", () => {
+    expect(roomTemperatureEntityIds([])).toEqual([]);
+    expect(roomTemperatureEntityIds(["", "   "])).toEqual([]);
   });
 
   it("rejects a stale or undated reading", () => {

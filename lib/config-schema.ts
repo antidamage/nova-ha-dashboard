@@ -231,6 +231,26 @@ export const DashboardConfigSchema = z.object({
     weatherEntityId: entityIdSchema,
     sunEntityId: entityIdSchema,
     loungeSensorEntityIds: stringListSchema,
+    /**
+     * Last-resort environment sensors for a zone, tried only after Home
+     * Assistant's own area temperature/humidity binding and the zone's own
+     * sensors. Prefer fixing the area binding in HA; this exists for rooms
+     * whose reading comes from somewhere HA cannot express, such as a template
+     * sensor exposing a climate unit's internal thermistor.
+     *
+     * Replaces a pair of hard-coded lists that only ever applied to one room in
+     * one house.
+     */
+    zoneEnvironmentFallbacks: z
+      .array(
+        z.object({
+          /** Zone id, or the zone's lower-cased name. */
+          zoneId: z.string().min(1),
+          temperatureEntityIds: stringListSchema,
+          humidityEntityIds: stringListSchema,
+        }),
+      )
+      .default([]),
     router: z.object({
       name: z.string().min(1),
       wanStatusEntityId: entityIdSchema,
@@ -282,6 +302,13 @@ export const DashboardConfigSchema = z.object({
     }),
     aircon: z.object({
       offTimerIncrementMinutes: z.number().int().min(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN).max(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX),
+      /**
+       * Extra words identifying this home's air conditioner, checked against
+       * the entity id and friendly name alongside the generic ones in
+       * lib/aircon-control.ts. Only needed for a unit named after its
+       * manufacturer or nothing at all.
+       */
+      matchTokens: stringListSchema,
     }),
     // The bedroom heater is a bare switch with onboard climate sensors; Nova
     // owns the thermostat loop (lib/bedroom-heater-control.ts). Entity ids are

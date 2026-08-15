@@ -79,38 +79,6 @@ type Waiver = {
 };
 
 const WAIVERS: Waiver[] = [
-  // -- Phase 4 removes these: heaters and climate units become config instances.
-  {
-    file: "lib/bedroom-heater-control.ts",
-    literal: "sensor.tuya_mobile_bedroom_sensor_temperature",
-    reason: "Phase 4: the trusted room sensor becomes a per-heater config value.",
-  },
-  {
-    file: "app/components/dashboard/shared.ts",
-    literal: "sensor.lounge_temperature",
-    reason: "Phase 4: room environment sensors come from per-area config.",
-  },
-  {
-    file: "app/components/dashboard/shared.ts",
-    literal: "sensor.wifi_temperature_humidity_sensor_temperature",
-    reason: "Phase 4: room environment sensors come from per-area config.",
-  },
-  {
-    file: "app/components/dashboard/shared.ts",
-    literal: "sensor.lounge_humidity",
-    reason: "Phase 4: room environment sensors come from per-area config.",
-  },
-  {
-    file: "app/components/dashboard/shared.ts",
-    literal: "sensor.wifi_temperature_humidity_sensor_humidity",
-    reason: "Phase 4: room environment sensors come from per-area config.",
-  },
-  {
-    file: "lib/aircon-control.ts",
-    literal: "c6780cad",
-    reason: "Phase 4: climate unit match tokens move to dashboard.climateUnits config.",
-  },
-
   // -- Phase 5 removes these.
   {
     file: "lib/ha.ts",
