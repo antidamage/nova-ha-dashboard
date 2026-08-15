@@ -19,6 +19,16 @@ const TASKS_CONFIG_PATH = path.join(CONFIG_DIR, "tasks.json");
 const RUNTIME_CONFIG_PATH =
   process.env.NOVA_DASHBOARD_CONFIG ??
   path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "dashboard-config.json");
+/**
+ * Optional overlay describing the one household this deployment serves — its
+ * devices, rooms, rates. It ships separately from the dashboard (see the
+ * nova-household package) so the product stays generic, and an unset variable
+ * or a missing file is a supported state, not an error.
+ *
+ * Deliberately NOT part of `readDefaultDashboardConfig`: that is what demo mode
+ * and the config page's defaults view read, and both must stay household-free.
+ */
+const HOUSEHOLD_CONFIG_PATH = process.env.NOVA_DASHBOARD_HOUSEHOLD_CONFIG?.trim() || null;
 
 let writeQueue = Promise.resolve();
 
@@ -159,10 +169,27 @@ export async function readStoredDashboardConfig(): Promise<Partial<DashboardConf
   return isRecord(value) ? value as Partial<DashboardConfig> : {};
 }
 
+export async function readHouseholdDashboardConfig(): Promise<Partial<DashboardConfig>> {
+  if (!HOUSEHOLD_CONFIG_PATH) {
+    return {};
+  }
+  const value = await readJsonIfExists(HOUSEHOLD_CONFIG_PATH);
+  return isRecord(value) ? value as Partial<DashboardConfig> : {};
+}
+
+function readHouseholdDashboardConfigSync(): Partial<DashboardConfig> {
+  if (!HOUSEHOLD_CONFIG_PATH) {
+    return {};
+  }
+  const value = readJsonIfExistsSync(HOUSEHOLD_CONFIG_PATH);
+  return isRecord(value) ? value as Partial<DashboardConfig> : {};
+}
+
 export async function readDashboardConfig(): Promise<DashboardConfig> {
   const defaults = await readDefaultDashboardConfig();
+  const household = await readHouseholdDashboardConfig();
   const stored = await readStoredDashboardConfig();
-  const merged = mergeDeep(mergeDeep(defaults, stored), envCompatibilityOverrides());
+  const merged = mergeDeep(mergeDeep(mergeDeep(defaults, household), stored), envCompatibilityOverrides());
   const result = validateDashboardConfig(merged);
   if (!result.ok) {
     throw new Error(`Dashboard config is invalid: ${result.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
@@ -177,8 +204,12 @@ export function readDashboardConfigSync(): DashboardConfig {
     throw new Error(`Default/common/tasks dashboard config is invalid: ${defaultResult.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
   }
 
+  const household = readHouseholdDashboardConfigSync();
   const stored = readJsonIfExistsSync(RUNTIME_CONFIG_PATH);
-  const merged = mergeDeep(mergeDeep(defaultResult.config, isRecord(stored) ? stored : {}), envCompatibilityOverrides());
+  const merged = mergeDeep(
+    mergeDeep(mergeDeep(defaultResult.config, household), isRecord(stored) ? stored : {}),
+    envCompatibilityOverrides(),
+  );
   const result = validateDashboardConfig(merged);
   if (!result.ok) {
     throw new Error(`Dashboard config is invalid: ${result.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
@@ -188,7 +219,11 @@ export function readDashboardConfigSync(): DashboardConfig {
 
 export async function writeDashboardConfig(next: unknown): Promise<ConfigImportResult> {
   const defaults = await readDefaultDashboardConfig();
-  const merged = mergeDeep(defaults, next);
+  // Compose over the household overlay too. The runtime store holds a complete
+  // document, so composing over bare defaults would write generic values on top
+  // of this home's and silently undo the household layer on the next save.
+  const household = await readHouseholdDashboardConfig();
+  const merged = mergeDeep(mergeDeep(defaults, household), next);
   const result = validateDashboardConfig(merged);
   if (!result.ok) {
     return { ...result, applied: false };
@@ -217,7 +252,8 @@ export async function patchDashboardConfig(partial: unknown): Promise<ConfigImpo
 
 export async function dryRunDashboardConfigImport(next: unknown): Promise<ConfigImportResult> {
   const defaults = await readDefaultDashboardConfig();
-  const result = validateDashboardConfig(mergeDeep(defaults, next));
+  const household = await readHouseholdDashboardConfig();
+  const result = validateDashboardConfig(mergeDeep(mergeDeep(defaults, household), next));
   return { ...result, applied: false } as ConfigImportResult;
 }
 
