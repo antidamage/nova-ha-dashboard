@@ -9,7 +9,20 @@ import type { RegistrySnapshot } from "./registry";
 // alive, otherwise the cloud twin (device roamed to a new IP, rotated its
 // local key, ...). Pairing is by Tuya device id, never by name.
 
-const CLOUD_IDENTIFIER_PREFIX = "tuya_mobile_";
+/**
+ * Which identifier prefixes mark a cloud twin is an installation detail — it
+ * names whichever bridge that home runs — so it arrives as config rather than
+ * being written here. No prefixes configured means no twins, and every device
+ * passes through untouched.
+ */
+function cloudTwinId(identifier: string, prefixes: readonly string[]): string | null {
+  for (const prefix of prefixes) {
+    if (prefix && identifier.startsWith(prefix)) {
+      return identifier.slice(prefix.length);
+    }
+  }
+  return null;
+}
 
 function isUsable(entity: Pick<DashboardEntity, "state">): boolean {
   return entity.state !== "unavailable" && entity.state !== "unknown";
@@ -29,15 +42,23 @@ function identifierPairs(device: DeviceRegistryEntry): Array<[string, string]> {
 export function dedupeCloudTwins(
   entities: DashboardEntity[],
   snapshot: RegistrySnapshot,
+  cloudTwinIdentifierPrefixes: readonly string[] = [],
 ): DashboardEntity[] {
+  if (cloudTwinIdentifierPrefixes.length === 0) {
+    return entities;
+  }
+
   const localDeviceByTuyaId = new Map<string, string>();
   const cloudDeviceByTuyaId = new Map<string, string>();
   for (const device of snapshot.devices) {
     for (const [platform, id] of identifierPairs(device)) {
       if (platform === "tuya_local") {
         localDeviceByTuyaId.set(id, device.id);
-      } else if (platform === "mqtt" && id.startsWith(CLOUD_IDENTIFIER_PREFIX)) {
-        cloudDeviceByTuyaId.set(id.slice(CLOUD_IDENTIFIER_PREFIX.length), device.id);
+      } else if (platform === "mqtt") {
+        const twinId = cloudTwinId(id, cloudTwinIdentifierPrefixes);
+        if (twinId !== null) {
+          cloudDeviceByTuyaId.set(twinId, device.id);
+        }
       }
     }
   }

@@ -204,7 +204,10 @@ export const DoorbellConfigSchema = z
         /** Master switch. Off means notification-only, whatever else is set. */
         enabled: z.boolean().default(false),
         mode: z.enum(["notify_only", "unlock"]).default("notify_only"),
-        timezone: z.string().default("Pacific/Auckland"),
+        // Doorbell access windows are wall-clock times at the door. Defaults to
+        // the host's own zone rather than a city, so an unconfigured install is
+        // wrong only by however far its server clock is set wrong.
+        timezone: z.string().default(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"),
         requirePresence: z.boolean().default(true),
         failedAttemptLimit: z.number().int().min(1).max(50).default(5),
         lockoutMs: millisecondsSchema.default(900_000),
@@ -257,6 +260,13 @@ export const DashboardConfigSchema = z.object({
       externalIpEntityId: entityIdSchema,
       downloadSpeedEntityId: entityIdSchema,
       uploadSpeedEntityId: entityIdSchema,
+      /**
+       * Other ids the same router has published, most preferred first. A
+       * firmware update that renames the throughput sensors is absorbed by
+       * listing the new id here rather than by editing code.
+       */
+      fallbackDownloadSpeedEntityIds: stringListSchema,
+      fallbackUploadSpeedEntityIds: stringListSchema,
     }),
     novaAssistSatelliteEntityId: entityIdSchema,
     // Entity-driven classification overrides. Home Assistant metadata
@@ -283,6 +293,16 @@ export const DashboardConfigSchema = z.object({
         environmentSensorEntityIds: [],
         environmentSensorExcludeEntityIds: [],
       }),
+    /**
+     * Device-identifier prefixes that mark a cloud twin of a device also
+     * reachable locally. A device with both is shown once — the local entity
+     * while it is alive, the twin otherwise — and commands to a twin skip
+     * options the cloud bridge does not accept.
+     *
+     * Was the literal `tuya_mobile_` in two places, which tied the product to
+     * one bridge this household happens to run.
+     */
+    cloudTwinIdentifierPrefixes: stringListSchema,
   }),
   dashboard: z.object({
     defaultZoneId: z.string().min(1),
@@ -428,6 +448,12 @@ export const DashboardConfigSchema = z.object({
     }),
   }),
   power: z.object({
+    /**
+     * IANA zone this home lives in. Billing periods and hourly buckets are
+     * local-time concepts, and reminder times are wall-clock times in the house,
+     * so several modules read this. No shipped default names a city: UTC is
+     * wrong for everyone equally, which is the honest placeholder.
+     */
     timeZone: z.string().min(1),
     billing: z.object({
       startDay: dayOfMonthSchema,

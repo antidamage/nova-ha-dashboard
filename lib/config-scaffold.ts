@@ -80,12 +80,53 @@ export async function scaffoldDashboardConfig(): Promise<ConfigScaffold> {
   }
   if (!weatherEntityId) suggestions.push("No weather.* entity found — add a Weather integration in Home Assistant.");
 
+  // Devices reachable both over the LAN and through a cloud bridge appear
+  // twice. Pair them by looking for an MQTT identifier that ends with the same
+  // id a `tuya_local`-style entry uses, and propose the prefix that produced it
+  // rather than assuming any particular bridge.
+  const localDeviceIds = new Set<string>();
+  const cloudTwinPrefixes = new Set<string>();
+  for (const device of registry.devices ?? []) {
+    for (const pair of device.identifiers ?? []) {
+      if (Array.isArray(pair) && pair.length >= 2 && String(pair[0]).endsWith("_local")) {
+        localDeviceIds.add(String(pair[1]));
+      }
+    }
+  }
+  for (const device of registry.devices ?? []) {
+    for (const pair of device.identifiers ?? []) {
+      if (!Array.isArray(pair) || pair.length < 2 || String(pair[0]) !== "mqtt") continue;
+      const identifier = String(pair[1]);
+      for (const localId of localDeviceIds) {
+        if (identifier.endsWith(localId) && identifier.length > localId.length) {
+          cloudTwinPrefixes.add(identifier.slice(0, identifier.length - localId.length));
+        }
+      }
+    }
+  }
+  if (cloudTwinPrefixes.size) {
+    suggestions.push(
+      `Devices appear both locally and via an MQTT bridge. Proposed ` +
+        `homeAssistant.cloudTwinIdentifierPrefixes so each is shown once: ${[...cloudTwinPrefixes].join(", ")}`,
+    );
+  }
+
+  // Power estimation cannot be detected: nothing in Home Assistant says what a
+  // household pays or what a bulb draws.
+  suggestions.push(
+    "Power estimation stays off until you set power.rates.tariff (your plan's unit rates) and " +
+      "power.deviceRatings (each device's watts). Until both exist the Power zone is not shown.",
+  );
+
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   const homeAssistant: Record<string, unknown> = {
     ...(weatherEntityId ? { weatherEntityId } : {}),
     ...(sunEntityId ? { sunEntityId } : {}),
     ...(climateAreaNames.length ? { climateAreaNames } : {}),
     ...(networkArea ? { networkZoneId: networkArea.id } : {}),
     ...(assistSatellite ? { novaAssistSatelliteEntityId: assistSatellite } : {}),
+    ...(cloudTwinPrefixes.size ? { cloudTwinIdentifierPrefixes: [...cloudTwinPrefixes] } : {}),
     ...(Object.values(router).some(Boolean)
       ? {
           router: Object.fromEntries(Object.entries(router).filter(([, value]) => Boolean(value))),
@@ -94,13 +135,18 @@ export async function scaffoldDashboardConfig(): Promise<ConfigScaffold> {
   };
 
   return {
-    proposal: { homeAssistant },
+    proposal: {
+      homeAssistant,
+      ...(timeZone ? { power: { timeZone } } : {}),
+    },
     detected: {
       areas: areaNames,
       weatherEntities: states.filter((state) => state.entity_id.startsWith("weather.")).map((state) => state.entity_id),
       sunEntities: states.filter((state) => state.entity_id.startsWith("sun.")).map((state) => state.entity_id),
       assistSatellites: states.filter((state) => state.entity_id.startsWith("assist_satellite.")).map((state) => state.entity_id),
       illuminationCandidates,
+      cloudTwinPrefixes: [...cloudTwinPrefixes],
+      hostTimeZone: timeZone,
       labelsDefinedInHa: registry.labels.map((label) => label.label_id),
     },
     suggestions,

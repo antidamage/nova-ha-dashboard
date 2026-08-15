@@ -4,7 +4,20 @@ import { createDAVClient, type DAVCalendar, type DAVObject } from "tsdav";
 import { publishDashboardError } from "./dashboard-events";
 import { isIcloudEnabled, logIcloudDisabledOnce, readIcloudConfig } from "./icloud-config";
 import { readTasks, writeTasks } from "./tasks";
+import { readDashboardConfigSync } from "./dashboard-config";
 import type { Task, TaskSource } from "./types";
+
+/**
+ * The timezone this installation lives in. Falls back to the host's own zone if
+ * config cannot be read, which is still a better guess than any fixed city.
+ */
+function householdTimeZone() {
+  try {
+    return readDashboardConfigSync().power.timeZone;
+  } catch {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
+}
 
 export type IcloudSyncResult = {
   added: number;
@@ -120,7 +133,10 @@ function zonedDateToUtcDate(
   day: number,
   hour: number,
   minute: number,
-  timeZone = "Pacific/Auckland",
+  // The household's own zone, from power.timeZone. Reminder times are wall-clock
+  // times in the home, so they must resolve against the home's zone rather than
+  // the server's — and certainly not against one city written into the product.
+  timeZone = householdTimeZone(),
 ) {
   let utcDate = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
   const targetUtcMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
@@ -408,7 +424,7 @@ function localDateKey(value: string) {
   const parts = new Intl.DateTimeFormat("en-NZ", {
     day: "2-digit",
     month: "2-digit",
-    timeZone: "Pacific/Auckland",
+    timeZone: householdTimeZone(),
     year: "numeric",
   }).formatToParts(date);
   const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));

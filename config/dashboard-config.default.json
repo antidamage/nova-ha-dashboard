@@ -26,7 +26,9 @@
       "wanStatusEntityId": "binary_sensor.router_wan_status",
       "externalIpEntityId": "sensor.router_external_ip",
       "downloadSpeedEntityId": "sensor.router_download_speed",
-      "uploadSpeedEntityId": "sensor.router_upload_speed"
+      "uploadSpeedEntityId": "sensor.router_upload_speed",
+      "fallbackDownloadSpeedEntityIds": [],
+      "fallbackUploadSpeedEntityIds": []
     },
     "novaAssistSatelliteEntityId": "assist_satellite.assist_satellite",
     "classification": {
@@ -44,7 +46,8 @@
       "environmentSensorEntityIds": [],
       "environmentSensorExcludeEntityIds": []
     },
-    "zoneEnvironmentFallbacks": []
+    "zoneEnvironmentFallbacks": [],
+    "cloudTwinIdentifierPrefixes": []
   },
   "dashboard": {
     "defaultZoneId": "everything",
@@ -221,7 +224,7 @@
     }
   },
   "power": {
-    "timeZone": "Pacific/Auckland",
+    "timeZone": "UTC",
     "billing": {
       "startDay": 19,
       "endDay": 18

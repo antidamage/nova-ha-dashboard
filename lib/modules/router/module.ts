@@ -5,12 +5,6 @@ import { readDashboardConfig } from "../../dashboard-config";
 import { stateById } from "../../ha/states";
 import type { DashboardModule, ModuleStateContext, ModuleStatus } from "../types";
 
-// "Known current" entity ids HA exposes for the NX620v LTE router. These are
-// migration aids for selectRouterRateEntityId, not home configuration.
-const ROUTER_DOWNLOAD_SPEED_ENTITY_ID = "sensor.nx620v_lte_current_rx_speed";
-const ROUTER_UPLOAD_SPEED_ENTITY_ID = "sensor.nx620v_lte_current_tx_speed";
-const LEGACY_ROUTER_DOWNLOAD_SPEED_ENTITY_ID = "sensor.nx620v_download_speed";
-const LEGACY_ROUTER_UPLOAD_SPEED_ENTITY_ID = "sensor.nx620v_upload_speed";
 const ROUTER_STATUS_CACHE_MS = 250;
 
 let routerStatusCache: { at: number; value: RouterStatus } | null = null;
@@ -115,29 +109,26 @@ function usableRouterRateState(state: HaState | undefined) {
   return Number.isFinite(value);
 }
 
+/**
+ * Pick the entity actually reporting a rate, tolerating a router firmware
+ * update that renames its sensors.
+ *
+ * `alternates` are other ids the same router has been known to publish, most
+ * preferred first, from `homeAssistant.router.fallbackEntityIds`. They used to
+ * be four constants naming one household's router model, which meant nobody
+ * else's rename could ever be absorbed.
+ */
 export function selectRouterRateEntityId(
   states: HaState[],
   configuredEntityId: string,
-  preferredEntityId: string,
-  legacyEntityId: string,
+  alternates: readonly string[] = [],
 ) {
-  if (configuredEntityId === legacyEntityId && usableRouterRateState(stateById(states, preferredEntityId))) {
-    return preferredEntityId;
-  }
-
   if (usableRouterRateState(stateById(states, configuredEntityId))) {
     return configuredEntityId;
   }
 
-  if (usableRouterRateState(stateById(states, preferredEntityId))) {
-    return preferredEntityId;
-  }
-
-  if (usableRouterRateState(stateById(states, legacyEntityId))) {
-    return legacyEntityId;
-  }
-
-  return configuredEntityId;
+  const live = alternates.find((entityId) => usableRouterRateState(stateById(states, entityId)));
+  return live ?? configuredEntityId;
 }
 
 export function buildRouterStatus(states: HaState[], config: DashboardConfig): RouterStatus {
@@ -149,21 +140,11 @@ export function buildRouterStatus(states: HaState[], config: DashboardConfig): R
     name: router.name,
     download: speedMetric(
       states,
-      selectRouterRateEntityId(
-        states,
-        router.downloadSpeedEntityId,
-        ROUTER_DOWNLOAD_SPEED_ENTITY_ID,
-        LEGACY_ROUTER_DOWNLOAD_SPEED_ENTITY_ID,
-      ),
+      selectRouterRateEntityId(states, router.downloadSpeedEntityId, router.fallbackDownloadSpeedEntityIds),
     ),
     upload: speedMetric(
       states,
-      selectRouterRateEntityId(
-        states,
-        router.uploadSpeedEntityId,
-        ROUTER_UPLOAD_SPEED_ENTITY_ID,
-        LEGACY_ROUTER_UPLOAD_SPEED_ENTITY_ID,
-      ),
+      selectRouterRateEntityId(states, router.uploadSpeedEntityId, router.fallbackUploadSpeedEntityIds),
     ),
     externalIp: externalIp && !["unknown", "unavailable"].includes(externalIp) ? externalIp : "--",
     wanConnected: wan ? wan.state === "on" : null,
