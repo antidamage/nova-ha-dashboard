@@ -78,6 +78,37 @@ configured for the appropriate role. Any change that hard-codes a machine, or
 that Codex/an agent proposes with a machine-specific branch, must be rejected
 and re-expressed as role + config before it lands.
 
+#### The rule covers households, not just machines
+
+A **brand-new user must be able to deploy this dashboard against their own Home
+Assistant with no code changes**, and without inheriting anyone else's devices.
+So the same prohibition applies to household data: entity ids, area and room
+names, device ids, MAC addresses, electricity tariffs, billing history, a
+timezone, a postcode. None of it belongs in `lib/` or `app/`.
+
+**A config read with a hard-coded fallback beside it does not satisfy this
+rule.** `config.endDay || BILLING_END_DAY` and
+`config.monthlyTemps[i] ?? aucklandMonthlyTempsC[i]` both leave one household's
+values compiled into every install, and both let a value look configurable while
+never actually being so. Generic defaults belong in the zod schema; a required
+value that is missing must fail loudly rather than silently become someone
+else's house.
+
+The rule is enforced, not merely stated:
+
+- `lib/no-household-data.test.ts` scans string literals in `lib/` and `app/` for
+  entity ids, timezones, IPs, MACs and machine names. Waivers are a ratchet —
+  each names the work that removes it, and a waiver matching nothing also fails,
+  so the list cannot outlive the problem.
+- `lib/fresh-install.test.ts` builds the dashboard against an invented home
+  using only what ships in git, and asserts nothing of the maintainer's house
+  appears.
+
+Values that are genuinely specific to one home live in a **household package**
+deployed separately (see `nova-household/README.md`), merged as a config layer
+under `NOVA_DASHBOARD_HOUSEHOLD_CONFIG`. The dashboard must work with that
+package absent; that is the property which proves the separation is real.
+
 ### Demo Dashboard Parity
 
 The project ships a public demo/dummy-data build of the dashboard. Demo mode is
@@ -2917,3 +2948,114 @@ must declare its lite behavior.
   it); only the task-glow stacks are flattened individually.
 - `app/liteMode.contract.test.ts` greps these contracts in source and fails
   with a pointer here if they are refactored away.
+
+## 32. Dashboard Modules
+
+A **module** owns one capability end to end: how it is detected from Home
+Assistant, what it contributes to dashboard state, its panel, and its agent
+tools. Adding a capability should be a single-folder change, not edits scattered
+across the state builder, the MCP server and the panel dispatch.
+
+This section exists so an agent can author a module without reading the whole
+codebase.
+
+### 32.1 The contract
+
+`lib/modules/types.ts`:
+
+```ts
+export type DashboardModule = {
+  id: string;
+  title: string;
+  description: string;
+  transformEntities?: (context: ModuleStateContext) => void;
+  status?: (context: ModuleStateContext) => ModuleStatus;
+};
+```
+
+- **`id`** — stable, lower-case, used as the key in `DashboardState.activeModuleIds`
+  and by `nova.modules.status`. Renaming it is a breaking change.
+- **`title` / `description`** — shown to an operator configuring the system.
+  Describe the capability, never the hardware in one house.
+- **`transformEntities(context)`** — mutate `context.entities` before zones are
+  assembled: override a reported value, mark an entity, push a warning. Runs for
+  every module in registry order, so never assume another module has run.
+- **`status(context)`** — report whether the module has what it needs, and what
+  it is missing. This is what makes a capability optional.
+
+`ModuleStateContext` provides `config`, `states`, `registry`, `index`,
+`entities`, `warnings` and `haHealth`. `warnings` is mutable and is the
+sanctioned way to surface a problem to the user; do not `console.warn` in place
+of it, and do not throw to signal a missing configuration.
+
+`ModuleStatus` is `{ id, title, active, summary?, requirements[] }`, where each
+requirement is `{ ok, label, detail? }`.
+
+### 32.2 Five rules, none of them optional
+
+1. **No installation-specific value in module source.** No entity id, area name,
+   device id, hostname, IP, timezone or vendor account detail. Everything
+   specific arrives through `context.config`. Enforced by
+   `lib/no-household-data.test.ts`.
+2. **Inert when unconfigured.** `status().active === false`, no thrown error, no
+   zone, no panel, no log spam. A home that does not have your capability should
+   not be able to tell your module exists.
+3. **Absence must not degrade anything else.** No other module may assume yours
+   ran. `applyEntityTransforms` runs everything in order and tolerates any subset
+   being inactive.
+4. **Multi-instance by default.** Read a config array and render zero to N.
+   One-of-a-kind is a special case of N, not the shape to design for — a rule
+   learned from a heater and an air conditioner that were each modelled as the
+   only one that could exist, and hard-bound to the room they happened to be in.
+5. **Declare requirements honestly.** `requirements[]` is what an agent sees
+   during setup and the first thing anyone reads when a home is half-configured.
+   Prefer several precise requirements over one vague one, and put the config key
+   in `detail` so the reader knows what to set.
+
+### 32.3 Starting-point catalogue
+
+The shipped modules are reference patterns. Copy the one whose shape matches.
+
+| Module | Pattern | Copy it when |
+|---|---|---|
+| `router` (`lib/modules/router/`) | Read-only telemetry from a few named sensors, with configured fallback ids so a firmware rename is absorbed | Surfacing metrics from one device |
+| `weather` (`lib/modules/weather/`) | Single-entity binding with auto-detection and a config override | One well-known entity powers a panel |
+| `climate` (`lib/modules/climate/`) | `transformEntities` — overrides a climate entity's reported temperature with a trusted room sensor | Correcting or enriching entity data before zoning |
+| `power` (`lib/modules/power/`) | Whole optional feature: own zone, own config block, inactive until configured, zone omitted entirely when off | A capability a home may simply not have |
+
+The `power` module is the one to read first if your capability can be absent. It
+requires **both** a tariff and device ratings before activating, because either
+alone produces a misleading half-answer — a lesson worth copying: prefer
+inactive over partially wrong.
+
+### 32.4 Worked examples
+
+`docs/module-examples/` holds complete, generic, copy-pasteable modules. The
+example homes are invented (a Study, a Garage) and deliberately resemble nobody:
+
+- `minimal-module.ts` — the smallest legal module.
+- `multi-instance-module.ts` — reads a config array, renders N, renders nothing
+  when empty.
+- `entity-transform-module.ts` — mutates entities and warns when its trusted
+  source is stale.
+- `module-config-schema.ts` — the matching zod block, showing generic
+  `.default([])` and why a required household value must fail loudly.
+
+Each carries a header comment naming the rule it demonstrates and the test that
+enforces it.
+
+### 32.5 Checklist for adding a module
+
+1. Create `lib/modules/<id>/module.ts` exporting a `DashboardModule`.
+2. Register it in `lib/modules/registry.ts`.
+3. Add its config block to `lib/config-schema.ts` with **generic** defaults
+   (`.default([])`, empty objects, no entity ids).
+4. Put generic values in `config/dashboard-config.default.json`; put this home's
+   real values in the household package, never in the repo.
+5. If it has UI, add a panel to the client panel registry, and gate it on
+   `DashboardState.activeModuleIds` so it disappears when unconfigured.
+6. Teach `lib/config-scaffold.ts` to detect it, or to say plainly that it cannot
+   be detected and what the operator must set.
+7. Add a `status()` test covering unconfigured, half-configured and configured,
+   and confirm `lib/fresh-install.test.ts` still passes — that is the test that
+   proves absence is safe.

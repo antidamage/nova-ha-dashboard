@@ -7,7 +7,7 @@ Top-level groups:
 - `homeAssistant`: entity IDs, area aliases, controllable domains, router/weather/sun mappings, exclusions, and naming patterns.
 - `dashboard`: default zone, virtual zones, lighting behavior, climate settings, avatar settings, and dashboard timing.
 - `mapWeather`: map center, radar provider, satellite provider.
-- `power`: billing days, timing, Powershop rate source URLs, modeled base loads, and `deviceRatings` — the devices power estimation knows about, each with the entity IDs it may appear under. Renaming or retiring a device is a `deviceRatings` edit, not a code change; list both the old and new entity ID during a rename and the first one present in HA wins.
+- `power`: `timeZone`, billing days, timing, modeled base loads, plus three blocks that ship EMPTY because they describe one household: `rates.tariff` (the electricity plan's unit rates), `accountHistory` (billed usage imported from the retailer), and `deviceRatings` (each device's watts and the entity IDs it may appear under). Power estimation reports itself inactive and shows no Power zone until both a tariff and device ratings exist. Renaming or retiring a device is a `deviceRatings` edit, not a code change; list both the old and new entity ID during a rename and the first one present in HA wins.
 - `tasks`: iCloud allow-lists and task alert audio limits. First-time task setup lives in `config/tasks.json`.
 - `theme`: shared/local theme defaults.
 - `mcp`: auth, Origin, and mutation guardrails.
@@ -21,6 +21,8 @@ Portable config excludes secrets and machine-local paths. Runtime environment st
 - `POWERSHOP_EMAIL`
 - `POWERSHOP_PASSWORD`
 - `NOVA_DASHBOARD_MCP_TOKEN`
+
+Nothing specific to one home may go in dashboard source — no entity IDs, area names, device IDs, hostnames, IPs, timezones or tariffs. It lives in config, and the values for this particular installation live in a separate household package merged via `NOVA_DASHBOARD_HOUSEHOLD_CONFIG`. `lib/no-household-data.test.ts` fails the build if one reappears; SPEC.md §2 and §32 have the rule and the module contract.
 
 Always call `nova.config.validate` before `nova.config.apply`.
 For setup-only edits, put common Home Assistant/map/power values in `config/common.json`. Do not put settings that are managed by `/config` there.
