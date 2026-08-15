@@ -79,13 +79,6 @@ type Waiver = {
 };
 
 const WAIVERS: Waiver[] = [
-  // -- Phase 3 removes these: power becomes an optional, fully configured module.
-  {
-    file: "lib/power.ts",
-    literal: "Pacific/Auckland",
-    reason: "Phase 3/5: timezone becomes a config value rather than a constant.",
-  },
-
   // -- Phase 4 removes these: heaters and climate units become config instances.
   {
     file: "lib/bedroom-heater-control.ts",

@@ -4,21 +4,15 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
-import type { PowerDeviceRating } from "./config-schema";
+import type { PowerAccountUsagePoint, PowerDeviceRating, PowerTariff } from "./config-schema";
 
-const TIME_ZONE = "Pacific/Auckland";
-const SAMPLE_INTERVAL_MS = 30_000;
-const HA_PUBLISH_INTERVAL_MS = 60_000;
-const DISCOVERY_INTERVAL_MS = 24 * 60 * 60_000;
-const RATE_CHECK_INTERVAL_MS = 24 * 60 * 60_000;
-const MAX_INTEGRATION_HOURS = 2;
-const BILLING_END_DAY = 18;
-const BILLING_START_DAY = 19;
+// Timings, billing days, the timezone and the tariff all come from config.
+// There are deliberately no constants shadowing them here: a `config ?? LOCAL`
+// pair keeps one household's values compiled into the product, which is how
+// they survived being "moved to config" the first time.
 const POWER_DATA_DIR = process.env.NOVA_DASHBOARD_POWER_DATA ?? path.join(process.cwd(), "data", "power");
 const POWER_STATE_PATH = path.join(POWER_DATA_DIR, "state.json");
 const POWER_ACCOUNT_USAGE_PATH = path.join(POWER_DATA_DIR, "account-usage.json");
-const POWERSHOP_RATES_PAGE = "https://www.powershop.co.nz/our-rates/";
-const POWERSHOP_AUCKLAND_RATECARD = "https://www.powershop.co.nz/public/Ratecards/2026/03-Auckland-Central-South.pdf";
 
 function powerConfig() {
   return readDashboardConfigSync().power;
@@ -62,16 +56,8 @@ export type PowerRatePoint = {
   label: string;
 };
 
-export type PowerAccountUsagePoint = {
-  avgUnitCents?: number;
-  costNzd?: number;
-  costPerDayNzd?: number;
-  days?: number;
-  kwh: number;
-  kwhPerDay?: number;
-  label: string;
-  source: string;
-};
+// Defined with the schema that validates it, like PowerDeviceRating above.
+export type { PowerAccountUsagePoint };
 
 export type PowerBackgroundEstimatePoint = {
   computerKwh: number;
@@ -177,66 +163,38 @@ type PowerState = {
   version: 1;
 };
 
-const aucklandFormatter = new Intl.DateTimeFormat("en-NZ", {
-  day: "2-digit",
-  hour: "2-digit",
-  hour12: false,
-  minute: "2-digit",
-  month: "2-digit",
-  second: "2-digit",
-  timeZone: TIME_ZONE,
-  weekday: "short",
-  year: "numeric",
-});
+/**
+ * Billing periods and hourly buckets are local-time concepts, so the zone comes
+ * from `power.timeZone` rather than a constant naming one city. Built lazily and
+ * cached per zone: a DateTimeFormat is not cheap, and config can change under a
+ * running process.
+ */
+let localFormatterCache: { timeZone: string; formatter: Intl.DateTimeFormat } | null = null;
 
-const monthWeights = [0.78, 0.76, 0.82, 0.94, 1.12, 1.25, 1.32, 1.2, 1.05, 0.93, 0.84, 0.79];
-const aucklandMonthlyTempsC = [20.3, 20.6, 19.4, 17.2, 14.8, 12.8, 11.8, 12.5, 14.0, 15.7, 17.4, 19.1];
+function localFormatter() {
+  const timeZone = powerConfig().timeZone;
+  if (localFormatterCache?.timeZone !== timeZone) {
+    localFormatterCache = {
+      timeZone,
+      formatter: new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        hour: "2-digit",
+        hour12: false,
+        minute: "2-digit",
+        month: "2-digit",
+        second: "2-digit",
+        timeZone,
+        weekday: "short",
+        year: "numeric",
+      }),
+    };
+  }
+  return localFormatterCache.formatter;
+}
+
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const desktopOnStartHour = 8;
-const desktopOnEndHour = 22.5;
-const desktopActiveWatts = 285;
-const desktopStandbyWatts = 6;
-const novaAioAverageWatts = 42;
 
-const powershopStandardUserStandardAnytime = [
-  25.88, 26.42, 28.08, 29.46, 29.46, 29.46, 29.46, 28.95, 27.62, 26.75, 26.2, 25.88,
-];
-const powershopStandardUserStandardAnytime2025 = [
-  22.77, 23.31, 24.98, 26.36, 26.36, 26.36, 26.36, 25.84, 24.52, 23.64, 23.09, 22.77,
-];
-const powershopStandardUserStandardPeak = [
-  23.25, 23.79, 25.46, 41.18, 41.18, 41.18, 41.18, 40.66, 39.34, 24.13, 23.58, 23.25,
-];
-const powershopStandardUserStandardOffPeak = [
-  23.25, 23.79, 25.46, 26.84, 26.84, 26.84, 26.84, 26.32, 25.0, 24.13, 23.58, 23.25,
-];
 
-const defaultAccountUsage: PowerAccountUsagePoint[] = [
-  { label: "May 2024", days: 30, kwh: 903, kwhPerDay: 30.1, costNzd: 307.14, costPerDayNzd: 10.24, avgUnitCents: 34.01, source: "Powershop account table" },
-  { label: "Jun 2024", days: 31, kwh: 1031, kwhPerDay: 33.3, costNzd: 340.29, costPerDayNzd: 10.98, avgUnitCents: 33.01, source: "Powershop account table" },
-  { label: "Jul 2024", days: 30, kwh: 1122, kwhPerDay: 37.4, costNzd: 361.32, costPerDayNzd: 12.04, avgUnitCents: 32.2, source: "Powershop account table" },
-  { label: "Aug 2024", days: 31, kwh: 1193, kwhPerDay: 38.5, costNzd: 379.47, costPerDayNzd: 12.24, avgUnitCents: 31.81, source: "Powershop account table" },
-  { label: "Sep 2024", days: 31, kwh: 996, kwhPerDay: 32.1, costNzd: 321.1, costPerDayNzd: 10.36, avgUnitCents: 32.24, source: "Powershop account table" },
-  { label: "Oct 2024", days: 30, kwh: 916, kwhPerDay: 30.5, costNzd: 274.62, costPerDayNzd: 9.15, avgUnitCents: 29.98, source: "Powershop account table" },
-  { label: "Nov 2024", days: 31, kwh: 731, kwhPerDay: 23.6, costNzd: 220.35, costPerDayNzd: 7.11, avgUnitCents: 30.14, source: "Powershop account table" },
-  { label: "Dec 2024", days: 30, kwh: 636, kwhPerDay: 21.2, costNzd: 186.49, costPerDayNzd: 6.22, avgUnitCents: 29.32, source: "Powershop account table" },
-  { label: "Jan 2025", days: 31, kwh: 581, kwhPerDay: 18.7, costNzd: 187.69, costPerDayNzd: 6.05, avgUnitCents: 32.3, source: "Powershop account table" },
-  { label: "Feb 2025", days: 31, kwh: 653, kwhPerDay: 21.1, costNzd: 202.96, costPerDayNzd: 6.55, avgUnitCents: 31.08, source: "Powershop account table" },
-  { label: "Mar 2025", days: 28, kwh: 643, kwhPerDay: 23.0, costNzd: 201.67, costPerDayNzd: 7.2, avgUnitCents: 31.36, source: "Powershop account table" },
-  { label: "Apr 2025", days: 31, kwh: 714, kwhPerDay: 23.0, costNzd: 244.96, costPerDayNzd: 7.9, avgUnitCents: 34.31, source: "Powershop account table" },
-  { label: "May 2025", days: 30, kwh: 655, kwhPerDay: 21.8, costNzd: 270.95, costPerDayNzd: 9.03, avgUnitCents: 41.37, source: "Powershop account table" },
-  { label: "Jun 2025", days: 31, kwh: 774, kwhPerDay: 25.0, costNzd: 303.37, costPerDayNzd: 9.79, avgUnitCents: 39.2, source: "Powershop account table" },
-  { label: "Jul 2025", days: 30, kwh: 938, kwhPerDay: 31.3, costNzd: 324.55, costPerDayNzd: 10.82, avgUnitCents: 34.6, source: "Powershop account table" },
-  { label: "Aug 2025", days: 31, kwh: 1112, kwhPerDay: 35.9, costNzd: 368.91, costPerDayNzd: 11.9, avgUnitCents: 33.18, source: "Powershop account table" },
-  { label: "Sep 2025", days: 31, kwh: 940, kwhPerDay: 30.3, costNzd: 338.43, costPerDayNzd: 10.92, avgUnitCents: 36.0, source: "Powershop account table" },
-  { label: "Oct 2025", days: 30, kwh: 845, kwhPerDay: 28.2, costNzd: 264.25, costPerDayNzd: 8.81, avgUnitCents: 31.27, source: "Powershop account table" },
-  { label: "Nov 2025", days: 31, kwh: 765, kwhPerDay: 24.7, costNzd: 232.29, costPerDayNzd: 7.49, avgUnitCents: 30.36, source: "Powershop account table" },
-  { label: "Dec 2025", days: 30, kwh: 756, kwhPerDay: 25.2, costNzd: 225.37, costPerDayNzd: 7.51, avgUnitCents: 29.81, source: "Powershop account table" },
-  { label: "Jan 2026", days: 32, kwh: 777, kwhPerDay: 24.3, costNzd: 248.7, costPerDayNzd: 7.77, avgUnitCents: 32.01, source: "Powershop account table" },
-  { label: "Feb 2026", days: 30, kwh: 800, kwhPerDay: 26.7, costNzd: 238.31, costPerDayNzd: 7.94, avgUnitCents: 29.79, source: "Powershop account table" },
-  { label: "Mar 2026", days: 28, kwh: 708, kwhPerDay: 25.3, costNzd: 215.35, costPerDayNzd: 7.69, avgUnitCents: 30.42, source: "Powershop account table" },
-  { label: "Apr 2026", days: 28, kwh: 708, kwhPerDay: 25.3, costNzd: 256.24, costPerDayNzd: 9.15, avgUnitCents: 36.19, source: "Powershop account table" },
-];
 
 const globalPower = globalThis as typeof globalThis & {
   __novaPower?: {
@@ -279,7 +237,7 @@ function slug(value: string) {
 }
 
 function localParts(date: Date) {
-  const parts = Object.fromEntries(aucklandFormatter.formatToParts(date).map((part) => [part.type, part.value]));
+  const parts = Object.fromEntries(localFormatter().formatToParts(date).map((part) => [part.type, part.value]));
   return {
     day: Number(parts.day),
     hour: Number(parts.hour),
@@ -323,8 +281,8 @@ function daysInMonth(year: number, monthIndex: number) {
 
 function billingCycleFor(parts: ReturnType<typeof localParts>, localUtc: Date, dayFraction: number) {
   const billingConfig = powerConfig().billing;
-  const billingEndDay = billingConfig.endDay || BILLING_END_DAY;
-  const billingStartDay = billingConfig.startDay || BILLING_START_DAY;
+  const billingEndDay = billingConfig.endDay;
+  const billingStartDay = billingConfig.startDay;
   const billingEnd = new Date(Date.UTC(parts.year, parts.month - 1 + (parts.day > billingEndDay ? 1 : 0), billingEndDay));
   const billingStart = new Date(Date.UTC(billingEnd.getUTCFullYear(), billingEnd.getUTCMonth() - 1, billingStartDay));
   const billingDays = Math.round((billingEnd.getTime() - billingStart.getTime()) / 86_400_000) + 1;
@@ -427,8 +385,14 @@ async function readAccountUsage() {
         source: point.source ?? "custom",
       }));
   } catch {
-    await writeJsonAtomic(POWER_ACCOUNT_USAGE_PATH, defaultAccountUsage);
-    return defaultAccountUsage;
+    // Billing history is personal, so nothing is seeded here. It arrives from
+    // `power.accountHistory` in config (the household package), and an
+    // installation that has imported none simply has an empty history graph.
+    const configured = powerConfig().accountHistory;
+    if (configured.length) {
+      await writeJsonAtomic(POWER_ACCOUNT_USAGE_PATH, configured);
+    }
+    return configured;
   }
 }
 
@@ -564,32 +528,51 @@ function currentTouPeriod(date: Date): TariffPeriod {
   return morningPeak || eveningPeak ? "peak" : "off_peak";
 }
 
+/**
+ * The configured electricity plan, or null when this installation has not been
+ * told what it pays. Absent rates are a supported state — see the power module,
+ * which reports itself inactive — so every caller must handle null rather than
+ * falling back to whatever one household happened to be on.
+ */
+function tariff(): PowerTariff | null {
+  return powerConfig().rates.tariff ?? null;
+}
+
 function currentRate(date: Date) {
   const ratesConfig = powerConfig().rates;
+  const plan = tariff();
   const { month } = localParts(date);
   const index = Math.max(0, Math.min(11, month - 1));
   const period = currentTouPeriod(date);
   return {
-    cPerKwh: powershopStandardUserStandardAnytime[index],
-    dailyCents: 313.03,
-    displayName: "Powershop Auckland Central/South Standard User Standard Power - Anytime (assumed)",
+    cPerKwh: plan?.anytimeCPerKwh[index] ?? 0,
+    dailyCents: plan?.dailyCents ?? 0,
+    displayName: plan?.planName ?? "No electricity plan configured",
     period,
-    sourceUrl: ratesConfig.ratecardUrl || POWERSHOP_AUCKLAND_RATECARD,
-    touCPerKwh: period === "peak" ? powershopStandardUserStandardPeak[index] : powershopStandardUserStandardOffPeak[index],
+    sourceUrl: ratesConfig.ratecardUrl ?? ratesConfig.pageUrl ?? "",
+    touCPerKwh: (period === "peak" ? plan?.peakCPerKwh[index] : plan?.offPeakCPerKwh[index]) ?? 0,
   };
 }
 
 function rateCentsForMonth(year: number, monthIndex: number) {
-  return (year <= 2025 ? powershopStandardUserStandardAnytime2025 : powershopStandardUserStandardAnytime)[monthIndex];
+  const plan = tariff();
+  if (!plan) return 0;
+  // Historical series are ordered oldest first; the earliest one that still
+  // covers this year wins, so a graph of past months uses the rate that was
+  // actually in force rather than today's.
+  const historical = [...plan.historicalAnytimeCPerKwh]
+    .sort((a, b) => a.throughYear - b.throughYear)
+    .find((series) => year <= series.throughYear);
+  return (historical?.cPerKwh ?? plan.anytimeCPerKwh)[monthIndex];
 }
 
 function averageFridgeKwhPerDay(monthIndex: number) {
-  const averageTemp = powerConfig().modeledBaseLoads.aucklandMonthlyTempsC[monthIndex] ?? aucklandMonthlyTempsC[monthIndex];
+  const averageTemp = powerConfig().modeledBaseLoads.monthlyOutdoorTempsC[monthIndex];
   return 1.15 + Math.max(0, averageTemp - 12) * 0.035;
 }
 
 function averageWaterHeaterKwhPerDay(monthIndex: number) {
-  const averageTemp = powerConfig().modeledBaseLoads.aucklandMonthlyTempsC[monthIndex] ?? aucklandMonthlyTempsC[monthIndex];
+  const averageTemp = powerConfig().modeledBaseLoads.monthlyOutdoorTempsC[monthIndex];
   return 6.3 + Math.max(0, 17 - averageTemp) * 0.45;
 }
 
@@ -823,9 +806,9 @@ function projectedYear(summary: { costNzd: number; kwh: number }, keys: ReturnTy
   const weights = powerConfig().modeledBaseLoads.monthWeights;
   let elapsedWeight = 0;
   for (let i = 0; i < keys.month - 1; i += 1) {
-    elapsedWeight += weights[i] ?? monthWeights[i];
+    elapsedWeight += weights[i];
   }
-  elapsedWeight += (weights[keys.month - 1] ?? monthWeights[keys.month - 1]) * keys.monthFraction;
+  elapsedWeight += weights[keys.month - 1] * keys.monthFraction;
   const totalWeight = weights.reduce((sum, value) => sum + value, 0);
   const factor = totalWeight / Math.max(0.15, elapsedWeight);
 
@@ -852,16 +835,22 @@ function hourlyGraph(state: PowerState, now: Date) {
 }
 
 function rateGraph(state: PowerState) {
-  const baseline = [
-    ...powershopStandardUserStandardAnytime2025.map((cPerKwh, index) => ({
+  const plan = tariff();
+  // Each superseded series is plotted against the year it ran out, and the
+  // current one against this year. The years used to be written into the code,
+  // which meant the graph silently stopped extending after 2026.
+  const series = plan
+    ? [
+        ...plan.historicalAnytimeCPerKwh.map((entry) => ({ year: entry.throughYear, rates: entry.cPerKwh })),
+        { year: localParts(new Date()).year, rates: plan.anytimeCPerKwh },
+      ]
+    : [];
+  const baseline = series.flatMap(({ year, rates }) =>
+    rates.map((cPerKwh, index) => ({
       cPerKwh,
-      label: `2025-${(index + 1).toString().padStart(2, "0")}`,
+      label: `${year}-${(index + 1).toString().padStart(2, "0")}`,
     })),
-    ...powershopStandardUserStandardAnytime.map((cPerKwh, index) => ({
-      cPerKwh,
-      label: `2026-${(index + 1).toString().padStart(2, "0")}`,
-    })),
-  ];
+  );
   const history = state.rateHistory.slice(-730).map((entry) => ({
     cPerKwh: entry.cPerKwh,
     label: entry.label,
@@ -948,21 +937,31 @@ async function refreshPowerRatesIfDue(state: PowerState, now: Date, rate: Return
     return;
   }
 
+  // Nothing to watch when no retailer has been configured.
+  const pageUrl = config.rates.pageUrl;
+  const ratecardUrl = config.rates.ratecardUrl;
+  if (!pageUrl && !ratecardUrl) {
+    return;
+  }
+
   try {
-    const [page, pdf] = await Promise.all([fetchHash(config.rates.pageUrl), fetchHash(config.rates.ratecardUrl)]);
+    const [page, pdf] = await Promise.all([
+      pageUrl ? fetchHash(pageUrl) : Promise.resolve({ ok: true, hash: undefined }),
+      ratecardUrl ? fetchHash(ratecardUrl) : Promise.resolve({ ok: true, hash: undefined }),
+    ]);
     state.lastRateCheck = {
       checkedAt: now.toISOString(),
       ok: page.ok && pdf.ok,
       pageHash: page.hash,
       pdfHash: pdf.hash,
-      sourceUrl: config.rates.ratecardUrl,
-      warning: page.ok && pdf.ok ? undefined : "Powershop rate source returned a non-OK response.",
+      sourceUrl: ratecardUrl ?? pageUrl ?? "",
+      warning: page.ok && pdf.ok ? undefined : "The configured rate source returned a non-OK response.",
     };
   } catch (error) {
     state.lastRateCheck = {
       checkedAt: now.toISOString(),
       ok: false,
-      sourceUrl: config.rates.ratecardUrl,
+      sourceUrl: ratecardUrl ?? pageUrl ?? "",
       warning: error instanceof Error ? error.message : "Rate check failed",
     };
   }
@@ -1254,5 +1253,5 @@ export function ensurePowerMonitorStarted() {
     void samplePowerNow().catch((error) => {
       console.warn("[nova-dashboard] power sample failed", error);
     });
-  }, powerConfig().timing.sampleIntervalMs || SAMPLE_INTERVAL_MS);
+  }, powerConfig().timing.sampleIntervalMs);
 }

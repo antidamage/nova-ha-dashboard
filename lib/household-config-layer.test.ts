@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -93,6 +93,45 @@ describe("household config layer", () => {
 
     expect(result.ok).toBe(true);
     expect(result.ok && result.config.power.billing.startDay).toBe(3);
+  });
+
+  /**
+   * If a household package is sitting next to this repo, prove its overlay
+   * still validates against the current schema. A broken overlay would
+   * otherwise only surface when the dashboard refused to start in production,
+   * and the schema moves under it every time a module gains config.
+   *
+   * Skipped when no package is present, which is the normal case for anyone
+   * other than the maintainer.
+   */
+  it("validates the sibling household package, when there is one", async () => {
+    const sibling = path.join(process.cwd(), "..", "nova-household", "dashboard-config.json");
+    if (!existsSync(sibling)) {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const { readDefaultDashboardConfig, validateDashboardConfig } = await freshConfigModule(sibling);
+    const defaults = await readDefaultDashboardConfig();
+    const overlay = JSON.parse(readFileSync(sibling, "utf8")) as Record<string, unknown>;
+
+    const merge = (base: unknown, override: unknown): unknown => {
+      if (!override || typeof override !== "object" || Array.isArray(override)) {
+        return override === undefined ? base : override;
+      }
+      if (!base || typeof base !== "object" || Array.isArray(base)) return override;
+      const next: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+      for (const [key, value] of Object.entries(override)) {
+        next[key] = key in next ? merge(next[key], value) : value;
+      }
+      return next;
+    };
+
+    const result = validateDashboardConfig(merge(defaults, overlay));
+    expect(
+      result.ok,
+      result.ok ? undefined : `nova-household overlay no longer validates: ${JSON.stringify(result.errors)}`,
+    ).toBe(true);
   });
 
   it("applies the same layering to the synchronous reader", async () => {

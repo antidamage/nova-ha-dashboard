@@ -875,6 +875,13 @@ export type DashboardState = {
   generatedAt: string;
   zones: DashboardZone[];
   entities: DashboardEntity[];
+  /**
+   * Optional capabilities this installation has configured (see
+   * lib/modules/registry). Absent ids mean the capability is unconfigured, and
+   * the client omits its zone entirely rather than showing an empty one.
+   * Optional on the type so older cached payloads still parse.
+   */
+  activeModuleIds?: string[];
   totals: Record<HaDomain, number>;
   lighting: DashboardLightingConfig;
   router: RouterStatus;
