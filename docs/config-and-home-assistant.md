@@ -76,3 +76,26 @@ on area assignment + bindings instead.
 no `common.json` validates and runs, classifying purely from HA metadata. Copy
 `config/common.example.json` to `config/common.json` and adjust, or let an agent
 configure it over MCP (see `public/agent/skills/nova-dashboard-management`).
+
+That claim used to be aspirational — the shipped config carried one household's
+lighting presets, heater entities, router sensors, electricity tariff and 24
+months of billing history. It is now enforced by `lib/fresh-install.test.ts`,
+which builds the dashboard against an invented home using only what ships in
+git, and by `lib/no-household-data.test.ts`, which fails the build if an entity
+id, timezone, IP or machine name reappears in `lib/` or `app/`.
+
+`nova.config.scaffold` (`lib/config-scaffold.ts`) inspects a live Home Assistant
+and proposes a starting config: areas, weather/sun bindings, router sensors, the
+host timezone, and any cloud-twin identifier prefixes it can pair up. It also
+states plainly what it *cannot* detect — nothing in Home Assistant knows what a
+household pays for electricity or what a bulb draws, so power estimation stays
+off until those are configured.
+
+## Where this installation's own values live
+
+Anything true only of one home — its devices, rooms, rates, router and timezone —
+belongs in a **household package** deployed separately from the dashboard and
+merged as a config layer via `NOVA_DASHBOARD_HOUSEHOLD_CONFIG`. See
+`nova-household/README.md`. The dashboard must work with that package absent;
+that is the property which proves the separation is real, and
+`lib/fresh-install.test.ts` is what keeps it true.
