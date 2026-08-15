@@ -4,6 +4,7 @@ import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline/promises";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_TEMPLATE_PATH = path.resolve("config", "powershop-usage-template.json");
 const DEFAULT_DATA_DIR = path.resolve("data", "power", "powershop");
@@ -199,11 +200,30 @@ async function readJson(filePath) {
   return JSON.parse(await fs.readFile(filePath, "utf8"));
 }
 
-async function writeJson(filePath, value) {
+async function writeJson(filePath, value, mode = 0o644) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  await fs.writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  await fs.writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode });
+  await fs.chmod(tempPath, mode);
   await fs.rename(tempPath, filePath);
+  await fs.chmod(filePath, mode);
+}
+
+async function saveStorageState(context, storagePath) {
+  await writeJson(storagePath, await context.storageState(), 0o600);
+}
+
+async function loadStorageState(storagePath) {
+  try {
+    const state = await readJson(storagePath);
+    await fs.chmod(storagePath, 0o600);
+    return state;
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.error(`Ignoring unusable Powershop storage state at ${storagePath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return null;
+  }
 }
 
 function renderTemplate(value, variables) {
@@ -347,23 +367,23 @@ async function selectedAccountNumber(page) {
   return page.evaluate(() => localStorage.getItem("selectedAccountNumber")).catch(() => null);
 }
 
-function findAccountContext(capturedResponses, selectedNumber) {
+export function findAccountContext(capturedResponses, selectedNumber) {
   const accounts = capturedResponses.flatMap((response) => {
-    if (!response?.url?.includes("opName=accountViewer")) {
+    const viewerAccounts = response?.body?.data?.viewer?.accounts;
+    const account = response?.body?.data?.account;
+    return [
+      ...(Array.isArray(viewerAccounts) ? viewerAccounts : []),
+      ...(account && typeof account === "object" ? [account] : []),
+    ];
+  });
+  const contexts = accounts.flatMap((account) => {
+    const property = (Array.isArray(account?.properties) ? account.properties[0] : null) ?? account?.property;
+    if (!account?.number || !property?.id) {
       return [];
     }
-    const values = response.body?.data?.viewer?.accounts;
-    return Array.isArray(values) ? values : [];
+    return [{ accountNumber: account.number, propertyId: property.id }];
   });
-  const account = accounts.find((value) => value?.number === selectedNumber) ?? accounts[0];
-  const property = account?.properties?.[0] ?? account?.property;
-  if (!account?.number || !property?.id) {
-    return null;
-  }
-  return {
-    accountNumber: account.number,
-    propertyId: property.id,
-  };
+  return contexts.find((context) => context.accountNumber === selectedNumber) ?? contexts[0] ?? null;
 }
 
 async function waitForAccountContext(page, capturedResponses, timeoutMs = 10_000) {
@@ -445,10 +465,18 @@ async function readLoginCodeFile(filePath) {
   }
 }
 
+async function consumeLoginCodeFile(filePath) {
+  const code = await readLoginCodeFile(filePath);
+  if (code) {
+    await fs.rm(filePath, { force: true });
+  }
+  return code;
+}
+
 async function waitForLoginCodeFile(filePath, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const code = await readLoginCodeFile(filePath);
+    const code = await consumeLoginCodeFile(filePath);
     if (code) {
       return code;
     }
@@ -485,7 +513,7 @@ async function resolveLoginCode() {
 
   const loginCodeFile = argValue("--login-code-file") ?? process.env.POWERSHOP_LOGIN_CODE_FILE;
   if (loginCodeFile) {
-    const fileCode = await readLoginCodeFile(loginCodeFile);
+    const fileCode = await consumeLoginCodeFile(loginCodeFile);
     if (fileCode) {
       return fileCode;
     }
@@ -613,8 +641,7 @@ async function ensureLoggedIn(page, context, template, storagePath, email, passw
   await page.goto("https://app.powershop.nz/dashboard", { waitUntil: "domcontentloaded", timeout: PAGE_TIMEOUT_MS });
   await page.waitForTimeout(5000);
   if (await pageLooksAuthenticated(page, template)) {
-    await fs.mkdir(path.dirname(storagePath), { recursive: true });
-    await context.storageState({ path: storagePath });
+    await saveStorageState(context, storagePath);
     return "session";
   }
 
@@ -672,8 +699,7 @@ async function ensureLoggedIn(page, context, template, storagePath, email, passw
     throw error;
   }
 
-  await fs.mkdir(path.dirname(storagePath), { recursive: true });
-  await context.storageState({ path: storagePath });
+  await saveStorageState(context, storagePath);
   return "login";
 }
 
@@ -830,7 +856,7 @@ function normalizeRecord(targetDate, pages, capturedResponses, template) {
   };
 }
 
-async function main() {
+export async function main() {
   const templatePath = argValue("--template") ?? process.env.POWERSHOP_TEMPLATE_PATH ?? DEFAULT_TEMPLATE_PATH;
   const dataDir = argValue("--data-dir") ?? process.env.POWERSHOP_DATA_DIR ?? DEFAULT_DATA_DIR;
   const template = await readJson(templatePath);
@@ -838,7 +864,10 @@ async function main() {
   const dryRun = hasArg("--dry-run");
   const loginOnly = hasArg("--login-only");
   const force = hasArg("--force") || process.env.POWERSHOP_ALLOW_DAYTIME === "1";
-  const storagePath = path.join(dataDir, "storage-state.json");
+  const storagePath = path.resolve(
+    argValue("--storage-state") ?? process.env.POWERSHOP_STORAGE_STATE ?? path.join(dataDir, "storage-state.json"),
+  );
+  const freshLogin = hasArg("--fresh-login");
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
     throw new Error(`Invalid --date value: ${targetDate}`);
@@ -877,7 +906,8 @@ async function main() {
   let context;
 
   try {
-    context = await browser.newContext((await exists(storagePath)) ? { storageState: storagePath } : {});
+    const storageState = freshLogin ? null : await loadStorageState(storagePath);
+    context = await browser.newContext(storageState ? { storageState } : {});
     const page = await context.newPage();
     page.setDefaultTimeout(PAGE_TIMEOUT_MS);
     page.on("response", async (response) => {
@@ -969,14 +999,17 @@ async function main() {
     console.log(JSON.stringify({ costNzd: record.values.costNzd, kwh: record.values.kwh, status: record.status, targetDate }));
   } catch (error) {
     const status = error?.code === "requires_mfa" || error?.code === "requires_interaction" ? error.code : "error";
+    const warning = error instanceof Error ? error.message : String(error);
     const record = {
       capturedAt: new Date().toISOString(),
       source: "powershop",
       status,
       targetDate,
-      warning: error instanceof Error ? error.message : String(error),
+      warning,
     };
     await writeJson(path.join(dataDir, "latest.json"), record);
+    await writeJson(path.join(dataDir, "failures", `${targetDate}-${Date.now()}.json`), record);
+    console.error(`Powershop scrape ${status}: ${warning}`);
     console.log(JSON.stringify({ status, targetDate }));
     if (status === "error") {
       process.exitCode = 1;
@@ -987,7 +1020,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

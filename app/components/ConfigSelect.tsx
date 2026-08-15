@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown } from "lucide-react";
 import { createPortal } from "react-dom";
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useId, useMemo, useState, type ReactNode } from "react";
 import { useSelectMenu } from "./useSelectMenu";
 import { useModalPortalTarget } from "./ModalOverlay";
 
@@ -12,6 +12,13 @@ export type ConfigSelectOption<T extends string = string> = {
   detail?: string;
   icon?: ReactNode;
   swatch?: ReactNode;
+  /**
+   * Optional heading this option sits under. Purely opt-in: a list where no
+   * option sets it renders exactly as it always has, so existing pickers are
+   * untouched. Options keep their given order; each heading is emitted the
+   * first time it appears.
+   */
+  group?: string;
 };
 
 function OptionVisual({ icon, swatch }: Pick<ConfigSelectOption, "icon" | "swatch">) {
@@ -87,10 +94,19 @@ export function ConfigSelect<T extends string>({
             aria-label={ariaLabel ?? label}
             style={menuStyle}
           >
-            {options.map((option) => {
+            {options.map((option, index) => {
               const selected = option.value === value;
+              const heading = option.group && option.group !== options[index - 1]?.group
+                ? option.group
+                : null;
               return (
-                <li key={option.value} role="option" aria-selected={selected}>
+                <Fragment key={option.value}>
+                {heading ? (
+                  <li className="cyber-select-group-heading" role="presentation">
+                    {heading}
+                  </li>
+                ) : null}
+                <li role="option" aria-selected={selected}>
                   <button
                     type="button"
                     className={`cyber-select-option ${selected ? "cyber-select-option-active" : ""}`}
@@ -107,6 +123,7 @@ export function ConfigSelect<T extends string>({
                     {selected ? <Check className="h-4 w-4 cyber-select-option-check" aria-hidden="true" /> : null}
                   </button>
                 </li>
+                </Fragment>
               );
             })}
           </ul>,

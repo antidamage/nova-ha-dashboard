@@ -19,6 +19,7 @@ import { applyEntityTransforms, moduleStatuses } from "./modules/registry";
 import type { ModuleStateContext, ModuleStatus } from "./modules/types";
 import { buildRouterStatus } from "./modules/router/module";
 import { buildSunStatus, buildWeatherStatus } from "./modules/weather/module";
+import { normalizedOrbInfoPreferences } from "./orb-info/preferences";
 import { readDashboardPreferences } from "./preferences";
 import { withComputedWatchfacePreferences } from "./watchface-preferences";
 import { climateControlState } from "./climate-control";
@@ -134,7 +135,10 @@ export async function buildDashboardState(): Promise<DashboardState> {
 
   markLightingTransitions(entities, zones);
 
-  const preferences = withComputedWatchfacePreferences(await readDashboardPreferences());
+  const stored = withComputedWatchfacePreferences(await readDashboardPreferences());
+  // Normalised here rather than on each client: the Apple TV reads its orb
+  // readout config straight off this payload and has no /api/orb-info fetch.
+  const preferences = { ...stored, orbInfo: normalizedOrbInfoPreferences(stored.orbInfo) };
 
   return {
     generatedAt: new Date().toISOString(),

@@ -27,7 +27,7 @@ const AgentNameConfig = dynamic(() => import("./AgentNameConfig").then((module) 
 const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((module) => module.AppleTvSwipeConfig));
 const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
 const DashboardClimateConfig = dynamic(() => import("./DashboardClimateConfig").then((module) => module.DashboardClimateConfig));
-const GymCounterConfig = dynamic(() => import("./GymCounterConfig").then((module) => module.GymCounterConfig));
+const StatusOrbInfoConfig = dynamic(() => import("./StatusOrbInfoConfig").then((module) => module.StatusOrbInfoConfig));
 const HistoryPanel = dynamic(() => import("./HistoryPanel").then((module) => module.HistoryPanel));
 const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
 const PhonoscopeConfig = dynamic(() => import("./PhonoscopeConfig").then((module) => module.PhonoscopeConfig));
@@ -397,7 +397,7 @@ export function ConfigWorkspace({
                   <AccentConfig initialSun={initialSun} initialTheme={initialTheme} />
                 </ConfigAccordion>
                 <RemindersConfig />
-                <GymCounterConfig initialSettings={initialWatchface} />
+                <StatusOrbInfoConfig initialSettings={initialWatchface} />
                 <DashboardClimateConfig initialSettings={initialAircon} />
                 <AppleTvSwipeConfig initialSettings={initialSwipe} />
                 <PhonoscopeConfig />

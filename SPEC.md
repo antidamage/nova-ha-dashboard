@@ -350,6 +350,11 @@ Preference writes and task writes are queued and atomic.
 - Watchface preferences. `watchface.gymLastResetAt` is retained for API and
   watchface compatibility, but now represents the latest scraped GymMaster gym
   visit timestamp rather than a user tap/reset timestamp.
+- Status orb info preferences (`orbInfo`): the selected readout module id and a
+  per-module map of display configuration. `mergeDashboardPreferences` merges
+  BOTH levels — the object and its `modules` map — so saving one module's
+  display never wipes another's, and changing the selection never wipes the
+  saved displays.
 
 ## 7. Home Assistant Integration
 
@@ -1152,8 +1157,10 @@ Powershop scrape:
 - `scripts/powershop-daily-scrape.mjs` uses Playwright to log into Powershop,
   capture usage data, normalize it, and write daily JSON records.
 - Credentials come from `POWERSHOP_EMAIL` and `POWERSHOP_PASSWORD`.
-- The scraper supports dry-run, target date, storage state, template path,
-  data directory, and headful/headless options.
+- The scraper supports dry-run, target date, `--storage-state`, template path,
+  data directory, and headful/headless options. `--fresh-login` deliberately
+  ignores the saved state for one run but replaces it only after a successful
+  login, so a failed refresh leaves the working state recoverable.
 - MFA challenge pages are not treated as authenticated dashboard sessions; a
   successful dashboard check refreshes the saved Playwright storage state at
   `storage-state.json` in the Powershop data directory.
@@ -1163,13 +1170,30 @@ Powershop scrape:
   `--wait-for-login-code --login-code-file /data/login-code.txt` lets the
   operator write the temporary code into the host data directory without
   starting a second Powershop login session.
+- Code files are consumed and removed as soon as they are read. Storage state
+  is written atomically with mode `0600`; an unusable state is ignored so the
+  same process can fall through to login instead of dying before the MFA wait.
+- A durable manual refresh keeps the original browser request open while an
+  operator (or a Gmail-connected agent) retrieves the fresh six-digit code:
+  `bash scripts/run-powershop-daily-scrape.sh --fresh-login --login-only
+  --wait-for-login-code --login-code-file /data/login-code.txt`. Write the code
+  atomically to `data/power/powershop/login-code.txt` (write a mode-`0600`
+  sibling temporary file, then rename it); the old saved session is untouched
+  until the replacement authenticates.
 - After authentication, the scraper calls Powershop's authenticated
   `measurements` GraphQL query directly for hourly consumption records. It
   derives kWh from measurement `value` and cost from `CONSUMPTION_COST` plus
   `STANDING_CHARGE_COST` `costInclTax.estimatedAmount` statistics, then keeps
   the older page/network scrape as fallback evidence.
+- Account and property discovery accepts the current `accountsList` and
+  `account` bootstrap responses as well as the older `accountViewer` response.
+- Failed runs are retained under `failures/` with their error text, rather than
+  leaving only an opaque status line in the cron log.
 - `scripts/run-powershop-daily-scrape.sh` runs the scraper in a Playwright
-  Docker image with host networking and logs to the data directory.
+  Docker image matching the checked-in Playwright 1.60 dependency, with host
+  networking and logs in the data directory. It serializes runs with `flock`
+  and passes only `POWERSHOP_*` integration values into the browser container,
+  rather than exposing the dashboard's unrelated secrets.
 - `scripts/install-powershop-cron.sh` installs a cron entry at `8 5 * * *`
   for the runner under `/opt/nova-ha-dashboard` by default.
 
@@ -1596,6 +1620,13 @@ Config page:
   hardware assistant controls such as the watchface idle/power timer. The old
   gym counter readout is removed from this section because gym alert config is
   managed in Status Orb.
+- `StatusOrbInfoConfig` ("Status Orb Info") owns the readout: a grouped
+  `ConfigSelect` module picker, a live preview rendered through the real
+  formatter, and only those display controls the chosen format actually uses
+  (unit, decimals, rounding, unit symbol and sign; clamp/count-down for
+  percentages; 12-hour/seconds for clocks). The gym alert-hours slider stays
+  here and appears for the gym modules. Selecting `None` collapses the section
+  to the picker and the orb renders with no readout.
 - The forced config preview avatar always renders the gym-alert pulse so the
   configured alert color can be inspected even when the real counter is below
   the alert threshold.
@@ -1685,18 +1716,48 @@ Voice speaking behavior:
   blanket rule applies to both journeys automatically.
 - Config-preview orbs (`forceVisible`) never react to speech.
 
-Gym counter behavior:
+Status orb readout (info modules):
 
-- The number of whole hours since the latest scraped GymMaster visit timestamp
-  is centered over the avatar above the canvas.
-- The digit is read-only; tapping/clicking it does not reset or mutate the
-  counter.
-- The browser polls `/api/watchface` every 5 minutes for the shared scraped
-  timestamp and updates the readout at the next hour boundary.
-- If no scraped timestamp exists, the widget displays 0 without initializing or
-  writing a timestamp.
-- The digit uses the same display font and heading font weight as dashboard
-  headings, with dedicated configurable color and opacity.
+- The readout centered over the avatar is produced by a selectable **status orb
+  info module**. The orb itself knows nothing about gyms, processors or
+  thermometers: it asks the selected module for its output and renders whatever
+  that module's display configuration formats it into.
+- **Module output** is the contract (`lib/orb-info/types.ts`): a `value` in the
+  module's `baseUnit` (or `null` when there is genuinely no reading), optional
+  pre-rendered `text` for word readouts, `observedAt`, a `status` of
+  `ok | stale | unavailable | error`, an `alert` flag that drives the orb's
+  alert pulse, and an `alertThreshold` in base units so a percentage display has
+  a basis.
+- A `null` value renders the configured `emptyText` (default `—`) and never
+  raises the alert pulse. It is never shown as `0`.
+- **Display configuration** is per module (`OrbInfoDisplay`): `format`
+  (`number | duration | percent | clock | temperature | text`), `unit`
+  (auto/seconds/minutes/hours/days/weeks, celsius/fahrenheit, watts/kilowatts),
+  `decimals` 0-3, `rounding` (`floor | round | ceil`), percentage basis
+  (`moduleThreshold` — the percentage until a threshold has been met — or a
+  fixed value) with clamp and count-down options, unit symbol, sign, 12-hour and
+  seconds for clocks, and prefix/suffix/emptyText.
+- `formatOrbValue` (`lib/orb-info/format.ts`) is pure and shared: the Apple TV
+  runs a Swift port of it, and both are held to the conformance table at
+  `lib/orb-info/format-cases.json`.
+- The orb re-renders when the FORMATTED text would next change
+  (`msUntilDisplayChange`), not on a fixed timer — an hours counter at one
+  decimal place updates every six minutes rather than hourly.
+- Each module declares its sources; the orb subscribes to exactly those. `none`
+  and `clock` start no network traffic at all. Host modules are fed by the orb's
+  existing 2-second `/api/nova-load` poll rather than a second one, and the
+  sample is stored only when the displayed value would change.
+- The catalogue (`lib/orb-info/catalogue.ts`) covers: `none`; gym time-since and
+  gym progress-to-threshold; host CPU/GPU/network/composite load; the clock;
+  time until sunset/sunrise; outside temperature, feels-like and rain chance;
+  live power draw and cost rate; lights on; devices unavailable; and Home
+  Assistant health.
+- The default selection is `gym` at its default display, which reproduces the
+  original whole-hours readout exactly.
+- The readout is read-only; tapping/clicking it does not reset or mutate
+  anything.
+- It uses the same display font and heading font weight as dashboard headings,
+  with dedicated configurable color and opacity (theme slot `gymNumber`).
 
 Avatar settings:
 
@@ -1900,9 +1961,14 @@ Web implementation:
   (`createOrbRenderer(module).render(ctx, frame)`); the frame carries center,
   radius in px, palette, load, alert state, and timing. The caller clears the
   canvas; the renderer isolates every layer in save/restore.
-- `NovaAvatar` owns the canvas, the load polling/easing, the gym counter and
-  alert threshold, and the per-frame palette; all drawing is delegated to the
-  active module's renderer.
+- `NovaAvatar` owns the canvas, the load polling/easing, and the per-frame
+  palette; all drawing is delegated to the active module's renderer. The
+  readout is delegated too — `useOrbInfo` owns the selected info module, its
+  sources and its formatting, and hands back the text, alert state and aria
+  label.
+- `GET/POST /api/orb-info` reads and updates the `orbInfo` preference. A POST
+  force-publishes dashboard state, because the Apple TV takes its readout
+  configuration from that payload rather than calling this endpoint.
 
 Apple TV implementation (`nova-appletv-dashboard/.../OrbModules.swift`):
 
@@ -2569,7 +2635,8 @@ Powershop scheduled scrape:
 - Runner defaults to `/opt/nova-ha-dashboard`.
 - Data defaults to `/opt/nova-ha-dashboard/data/power/powershop`.
 - Log file defaults under `data/power/powershop/logs`.
-- Docker image defaults to `mcr.microsoft.com/playwright:latest`.
+- Docker image defaults to `mcr.microsoft.com/playwright:v1.60.0-jammy`, which
+  matches the checked-in `playwright-core` version.
 - The scraper uses Playwright Chromium from that Docker image unless
   `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` overrides it; it does not reuse the
   Brave kiosk browser that displays the dashboard.

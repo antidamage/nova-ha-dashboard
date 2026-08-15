@@ -46,6 +46,32 @@ describe("dashboard preferences", () => {
     expect(preferences.theme).toEqual(active?.themeSet);
   });
 
+  it("keeps other modules' orb display config when one module is saved", async () => {
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await mergeDashboardPreferences({
+      orbInfo: { moduleId: "gym", modules: { clock: { display: { clock12Hour: true } } } },
+    });
+    // Saving the gym's decimals must not wipe the clock's 12-hour setting: the
+    // `modules` map needs its own merge, not just the orbInfo object's.
+    await mergeDashboardPreferences({ orbInfo: { modules: { gym: { display: { decimals: 2 } } } } });
+
+    const stored = await readDashboardPreferences();
+    expect(stored.orbInfo?.modules?.clock?.display?.clock12Hour).toBe(true);
+    expect(stored.orbInfo?.modules?.gym?.display?.decimals).toBe(2);
+    // And changing only the modules map must not drop the selection.
+    expect(stored.orbInfo?.moduleId).toBe("gym");
+  });
+
+  it("keeps saved orb module config when only the selection changes", async () => {
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await mergeDashboardPreferences({ orbInfo: { modules: { gym: { display: { decimals: 3 } } } } });
+    await mergeDashboardPreferences({ orbInfo: { moduleId: "none" } });
+
+    const stored = await readDashboardPreferences();
+    expect(stored.orbInfo?.moduleId).toBe("none");
+    expect(stored.orbInfo?.modules?.gym?.display?.decimals).toBe(3);
+  });
+
   it("merges aircon settings and stamps updatedAt", async () => {
     const { mergeDashboardPreferences, readDashboardPreferences } = await load();
     await mergeDashboardPreferences({ aircon: { temperature: 21 } });

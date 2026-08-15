@@ -1,5 +1,8 @@
 import type { AppleTvSwipeSettings } from "./appletv-swipe";
 import type { LightEntityPreset } from "./lighting-presets";
+import type { OrbInfoPreferences } from "./orb-info/types";
+
+export type { OrbInfoPreferences };
 
 export type HaDomain =
   | "light"
@@ -577,6 +580,8 @@ export type DashboardPreferences = {
   themeLibrary?: Record<string, unknown>;
   themeLibraryUpdatedAt?: string;
   watchface?: WatchfacePreferences;
+  /** Which status orb info module is shown, and how each one is displayed. */
+  orbInfo?: OrbInfoPreferences;
   voice?: VoicePreferences;
   /** Host-backed library of saved voice personalities ({version, activeId, entries}). */
   voicePersonalityLibrary?: Record<string, unknown>;
