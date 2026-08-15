@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  COMPANION_ROUTABLE_PASSES,
   CUSTOM_SPEAKER_PATTERN,
   VOICE_ENGINE_CAPABILITIES,
   VOICE_SETTINGS_RANGES,
@@ -19,10 +20,12 @@ import {
   normalizeVoiceSettings,
   type VoiceEngine,
   type VoiceEngineDescriptor,
+  type CompanionRouteChoice,
   type VoiceSettings,
 } from "../../lib/voice-settings";
 import type { VoicePreferences } from "../../lib/types";
 import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { ConfigSelect, type ConfigSelectOption } from "./ConfigSelect";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { VoiceServerStatus } from "./VoiceServerStatus";
 import { useAgentName } from "./AgentNameContext";
@@ -618,16 +621,34 @@ type PipelineSettingKey =
   | "speakerRecognitionEnabled"
   | "voiceTrainingEnabled"
   | "webAccessEnabled"
-  | "webBackend";
+  | "webBackend"
+  | "companionRoutes";
 
 // Switches and selects, not sliders: they have no drag to forget.
 const PIPELINE_NON_SLIDER_KEYS = [
   "satelliteNoiseGateEnabled",
   "speakerRecognitionEnabled",
   "voiceTrainingEnabled",
+  "companionRoutes",
   "webAccessEnabled",
   "webBackend",
 ] as const;
+
+// The reasoning passes, named for the person choosing rather than for the
+// protocol. "interpret" and "render_response" mean nothing from outside.
+const COMPANION_PASS_LABELS: Record<(typeof COMPANION_ROUTABLE_PASSES)[number], string> = {
+  interpret: "Understand the request",
+  render_response: "Write the spoken reply",
+  confirm_objective: "Confirm a device settled",
+  extract_self_profile_update: "Notice a stated name",
+  classify_icon: "Pick a reminder icon",
+};
+
+const COMPANION_ROUTE_OPTIONS: ConfigSelectOption<CompanionRouteChoice>[] = [
+  { value: "local", label: "Voice server" },
+  { value: "companion", label: "Companion" },
+  { value: "both", label: "Both" },
+];
 
 function isPipelineSliderKey(key: PipelineSettingKey): key is PipelineKey {
   return !(PIPELINE_NON_SLIDER_KEYS as readonly string[]).includes(key);
@@ -851,6 +872,24 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
   // slider is in use and for a few seconds after release.
   const { isCoolingDown, markInteraction } = useSettingCooldown();
 
+  // What the voice server is actually doing. The stored preference only covers
+  // passes someone has chosen; the rest sit on the server's own defaults, and
+  // showing a stored-but-absent value as "voice server" would be a guess the
+  // dropdown presents as fact.
+  const [effectiveRoutes, setEffectiveRoutes] = useState<Record<string, string>>({});
+
+  const loadEffectiveRoutes = useCallback(async () => {
+    try {
+      const response = await fetch("/api/voice/companion-routes", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as { routes?: Record<string, string> };
+      setEffectiveRoutes(data.routes ?? {});
+    } catch {
+      // A voice server that cannot be reached leaves the last known routes on
+      // screen rather than snapping every dropdown to a default it invented.
+    }
+  }, []);
+
   const load = useCallback(async () => {
     if (draggingRef.current.size > 0 || isCoolingDown()) {
       return;
@@ -871,11 +910,18 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
 
   useEffect(() => {
     void load();
-    const id = window.setInterval(() => void load(), 30_000);
+    void loadEffectiveRoutes();
+    const id = window.setInterval(() => {
+      void load();
+      void loadEffectiveRoutes();
+    }, 30_000);
     return () => window.clearInterval(id);
-  }, [load]);
+  }, [load, loadEffectiveRoutes]);
 
-  const commit = useCallback(async (key: PipelineSettingKey, value: number | boolean | string) => {
+  const commit = useCallback(async (
+    key: PipelineSettingKey,
+    value: number | boolean | string | Record<string, string>,
+  ) => {
     markInteraction();
     const requestVersion = requestVersionRef.current + 1;
     requestVersionRef.current = requestVersion;
@@ -1134,6 +1180,26 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
           </div>
         </>
       ) : null}
+
+      <p className="mt-2 text-xs font-black uppercase text-neutral-400">Where each pass runs</p>
+      <div className="grid gap-3">
+        {COMPANION_ROUTABLE_PASSES.map((pass) => (
+          <ConfigSelect
+            key={pass}
+            ariaLabel={`${COMPANION_PASS_LABELS[pass]} runs on`}
+            label={COMPANION_PASS_LABELS[pass]}
+            options={COMPANION_ROUTE_OPTIONS}
+            value={
+              settings.companionRoutes[pass]
+              ?? (effectiveRoutes[pass] as CompanionRouteChoice | undefined)
+              ?? "local"
+            }
+            onChange={(choice) => {
+              void commit("companionRoutes", { [pass]: choice }).then(loadEffectiveRoutes);
+            }}
+          />
+        ))}
+      </div>
 
       <div className="grid gap-1.5">
         <SliderControlPanel

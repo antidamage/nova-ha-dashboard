@@ -1,5 +1,15 @@
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { dateKeysBetween, findAccountContext, summarizeRangeResults } from "./powershop-daily-scrape.mjs";
+import {
+  dateKeysBetween,
+  enrichExistingRecords,
+  extractAccountMetadata,
+  extractIntervalsForDate,
+  findAccountContext,
+  summarizeRangeResults,
+} from "./powershop-daily-scrape.mjs";
 
 function response(operationName, body) {
   return {
@@ -113,5 +123,111 @@ describe("Powershop range results", () => {
       partial: 0,
       status: "range_ok",
     });
+  });
+});
+
+describe("Powershop calibration evidence", () => {
+  const measurements = response("measurements", {
+    data: {
+      account: {
+        property: {
+          measurements: {
+            edges: [
+              {
+                node: {
+                  endAt: "2026-08-14T01:00:00+12:00",
+                  metaData: {
+                    statistics: [
+                      { type: "CONSUMPTION_COST", costInclTax: { estimatedAmount: "18.42" } },
+                      { type: "STANDING_CHARGE_COST", costInclTax: { estimatedAmount: "12.94" } },
+                    ],
+                  },
+                  startAt: "2026-08-14T00:00:00+12:00",
+                  unit: "kwh",
+                  value: "0.7",
+                },
+              },
+              {
+                node: {
+                  endAt: "2026-08-15T01:00:00+12:00",
+                  metaData: { statistics: [] },
+                  startAt: "2026-08-15T00:00:00+12:00",
+                  unit: "kwh",
+                  value: "9",
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+  });
+  const billing = response("billingPeriods", {
+    data: {
+      account: {
+        billingOptions: {
+          currentBillingPeriodEndDate: "2026-08-16",
+          currentBillingPeriodStartDate: "2026-07-17",
+          isFixed: true,
+          nextBillingDate: "2026-08-17",
+          periodStartDay: 17,
+        },
+      },
+    },
+  });
+
+  it("promotes hourly usage and split charge components from GraphQL evidence", () => {
+    expect(extractIntervalsForDate([measurements], "2026-08-14")).toEqual([
+      {
+        costNzd: 0.3136,
+        endAt: "2026-08-14T01:00:00+12:00",
+        kwh: 0.7,
+        standingCostNzd: 0.1294,
+        startAt: "2026-08-14T00:00:00+12:00",
+        usageCostNzd: 0.1842,
+      },
+    ]);
+  });
+
+  it("extracts the authoritative current Powershop billing window", () => {
+    expect(extractAccountMetadata([billing])?.billing).toEqual({
+      currentPeriodEndDate: "2026-08-16",
+      currentPeriodStartDate: "2026-07-17",
+      isFixed: true,
+      nextBillingDate: "2026-08-17",
+      periodStartDay: 17,
+    });
+  });
+
+  it("enriches existing daily files from retained raw evidence without logging in", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "powershop-enrich-"));
+    await mkdir(path.join(dir, "daily"), { recursive: true });
+    await mkdir(path.join(dir, "raw"), { recursive: true });
+    await writeFile(
+      path.join(dir, "daily", "2026-08-14.json"),
+      JSON.stringify({
+        capturedAt: "2026-08-15T00:00:00Z",
+        rawEvidencePath: "/data/raw/2026-08-14-1.json",
+        schemaVersion: 1,
+        source: "powershop",
+        status: "ok",
+        targetDate: "2026-08-14",
+        values: { costNzd: 0.31, kwh: 0.7 },
+      }),
+    );
+    await writeFile(
+      path.join(dir, "raw", "2026-08-14-1.json"),
+      JSON.stringify({ responses: [measurements, billing], targetDate: "2026-08-14" }),
+    );
+
+    const result = await enrichExistingRecords(dir, {
+      output: { dailyDirectory: "daily", latestFile: "latest.json", rawDirectory: "raw" },
+    });
+    const enriched = JSON.parse(await readFile(path.join(dir, "daily", "2026-08-14.json"), "utf8"));
+    const account = JSON.parse(await readFile(path.join(dir, "account.json"), "utf8"));
+
+    expect(result).toMatchObject({ accountMetadata: true, enriched: 1, total: 1 });
+    expect(enriched).toMatchObject({ schemaVersion: 2, intervals: [{ kwh: 0.7 }] });
+    expect(account.billing.currentPeriodStartDate).toBe("2026-07-17");
   });
 });

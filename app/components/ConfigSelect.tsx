@@ -15,8 +15,9 @@ export type ConfigSelectOption<T extends string = string> = {
   /**
    * Optional heading this option sits under. Purely opt-in: a list where no
    * option sets it renders exactly as it always has, so existing pickers are
-   * untouched. Options keep their given order; each heading is emitted the
-   * first time it appears.
+   * untouched. Options are gathered under their heading in first-appearance
+   * order, so a caller whose list interleaves groups still gets ONE heading per
+   * group rather than the same heading several times down the menu.
    */
   group?: string;
 };
@@ -61,6 +62,21 @@ export function ConfigSelect<T extends string>({
     () => options.find((option) => option.value === value) ?? options[0],
     [options, value],
   );
+  // Gather each group's options together, groups in first-appearance order.
+  // Without this a caller whose list revisits a group (the status orb catalogue
+  // interleaves climate and household entries) would render that heading once
+  // per run instead of once in total.
+  const orderedOptions = useMemo(() => {
+    if (!options.some((option) => option.group)) return options;
+    const byGroup = new Map<string, ConfigSelectOption<T>[]>();
+    for (const option of options) {
+      const key = option.group ?? "";
+      const bucket = byGroup.get(key);
+      if (bucket) bucket.push(option);
+      else byGroup.set(key, [option]);
+    }
+    return [...byGroup.values()].flat();
+  }, [options]);
 
   if (!active) return null;
 
@@ -94,9 +110,9 @@ export function ConfigSelect<T extends string>({
             aria-label={ariaLabel ?? label}
             style={menuStyle}
           >
-            {options.map((option, index) => {
+            {orderedOptions.map((option, index) => {
               const selected = option.value === value;
-              const heading = option.group && option.group !== options[index - 1]?.group
+              const heading = option.group && option.group !== orderedOptions[index - 1]?.group
                 ? option.group
                 : null;
               return (

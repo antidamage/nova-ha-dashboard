@@ -43,6 +43,47 @@ describe("ConfigSelect", () => {
     expect(container.querySelector('[data-testid="fallback-icon"]')).not.toBeInTheDocument();
   });
 
+  it("shows each group heading once even when the option list revisits a group", () => {
+    // The status orb catalogue is authored in themed sections that come back to
+    // earlier groups. Collapsing only ADJACENT runs would print "Climate" three
+    // times down the menu.
+    render(
+      <ConfigSelect
+        ariaLabel="Readout"
+        value="a"
+        options={[
+          { value: "a", label: "A", group: "Climate" },
+          { value: "b", label: "B", group: "Household" },
+          { value: "c", label: "C", group: "Climate" },
+          { value: "d", label: "D", group: "Household" },
+          { value: "e", label: "E", group: "Climate" },
+        ]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Readout" }));
+    expect(screen.getAllByText("Climate")).toHaveLength(1);
+    expect(screen.getAllByText("Household")).toHaveLength(1);
+
+    // Each group's options stay together, under their one heading.
+    const rendered = screen.getAllByRole("option").map((option) => option.textContent);
+    expect(rendered).toEqual(["A", "C", "E", "B", "D"]);
+  });
+
+  it("renders an ungrouped list exactly as before", () => {
+    const { container } = render(
+      <ConfigSelect
+        ariaLabel="Plain"
+        value="a"
+        options={[{ value: "a", label: "A" }, { value: "b", label: "B" }]}
+        onChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Plain" }));
+    expect(container.querySelectorAll(".cyber-select-group-heading")).toHaveLength(0);
+  });
+
   it("keeps portalled options inside a modal so its focus trap permits selection", async () => {
     const onChange = vi.fn();
     render(

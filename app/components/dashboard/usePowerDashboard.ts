@@ -55,6 +55,14 @@ export function zeroPowerDashboard(now = new Date()): PowerDashboard {
     },
     currentWatts: 0,
     devices: [],
+    estimation: {
+      confidence: "modeled",
+      halfLifeDays: 28,
+      historyDays: 0,
+      intervalDays: 0,
+      lastActualDate: null,
+      source: "modeled",
+    },
     generatedAt: now.toISOString(),
     graph: [],
     accountUsageGraph: [],
@@ -103,6 +111,7 @@ export function normalizePowerDashboard(value: unknown, now = new Date()) {
     isNumber(currentRate.cPerKwh) &&
     isNumber(value.currentWatts) &&
     Array.isArray(value.devices) &&
+    isRecord(value.estimation) &&
     Array.isArray(value.graph) &&
     Array.isArray(value.accountUsageGraph) &&
     Array.isArray(value.accountRateGraph) &&

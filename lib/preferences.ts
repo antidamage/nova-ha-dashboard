@@ -143,6 +143,16 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
         ...withoutUndefined(next.voice as Record<string, unknown>),
         updatedAt: new Date().toISOString(),
       };
+      // `companionRoutes` is a nested object inside `voice`, so the spread
+      // above replaces it wholesale — a request that moves one reasoning pass
+      // would silently reset every other pass to the server's default. Merged
+      // per pass so each dropdown only ever changes its own row.
+      if (next.voice.companionRoutes) {
+        merged.voice.companionRoutes = {
+          ...(current.voice?.companionRoutes ?? {}),
+          ...next.voice.companionRoutes,
+        };
+      }
     }
 
     if (next.update) {

@@ -211,7 +211,7 @@ export type VoiceSettings = Required<
     VoicePreferences,
     | "agentName" | "agentNamePronunciation" | "systemVoiceEnabled" | "speakerRecognitionEnabled"
     | "voiceTrainingEnabled" | "disabledSatellites"
-    | "satelliteNoiseGateEnabled"
+    | "satelliteNoiseGateEnabled" | "companionRoutes"
     | "speaker" | "customSpeaker" | "trainedSpeaker" | "language" | "accent" | "speechRate"
     | "pitch" | "emotion" | "emotionMirroring" | "temperature" | "longResponseProbability"
     | "commandReplyMinWords" | "commandReplyMaxWords"
@@ -292,6 +292,11 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   // UI; that choice is stored settings, not a product default.
   disabledSatellites: [],
   satelliteNoiseGateEnabled: true,
+  // Empty means every pass keeps the voice server's own default. The
+  // dashboard deliberately does not restate those defaults: they are the
+  // voice server's to choose, and duplicating them here would let the two
+  // disagree silently after a change on either side.
+  companionRoutes: {},
   speaker: "Ryan",
   // Default clone id on the Custom (dots.tts) engine; the picker replaces it
   // with a registered clone from the voice server's registry.
@@ -500,6 +505,51 @@ function updateDisabledSatellites(source: Record<string, unknown>): string[] | u
   return cleanSatelliteIds(source.disabledSatellites);
 }
 
+export const COMPANION_ROUTABLE_PASSES = [
+  "interpret",
+  "render_response",
+  "confirm_objective",
+  "extract_self_profile_update",
+  "classify_icon",
+] as const;
+
+export type CompanionRoutablePass = (typeof COMPANION_ROUTABLE_PASSES)[number];
+export type CompanionRouteChoice = "local" | "companion" | "both";
+
+const COMPANION_ROUTE_CHOICES: readonly CompanionRouteChoice[] = ["local", "companion", "both"];
+
+function cleanCompanionRoutes(value: Record<string, unknown>): Record<string, CompanionRouteChoice> {
+  const routes: Record<string, CompanionRouteChoice> = {};
+  for (const pass of COMPANION_ROUTABLE_PASSES) {
+    const choice = value[pass];
+    if (typeof choice === "string" && (COMPANION_ROUTE_CHOICES as readonly string[]).includes(choice)) {
+      routes[pass] = choice as CompanionRouteChoice;
+    }
+  }
+  return routes;
+}
+
+// Unrecognised passes and choices are dropped rather than rejected: a stale
+// preferences blob naming a pass this build no longer routes must not break the
+// whole voice settings read, and the pass simply keeps the server's default.
+function storedCompanionRoutes(value: unknown): Record<string, CompanionRouteChoice> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  return cleanCompanionRoutes(value as Record<string, unknown>);
+}
+
+function updateCompanionRoutes(
+  source: Record<string, unknown>,
+): Record<string, CompanionRouteChoice> | undefined {
+  if (!("companionRoutes" in source)) {
+    return undefined;
+  }
+  const value = source.companionRoutes;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("companionRoutes must be an object of pass ids to local/companion/both");
+  }
+  return cleanCompanionRoutes(value as Record<string, unknown>);
+}
+
 function normalizedWakeWords(value: unknown, legacyValue: unknown): string[] {
   const source = Array.isArray(value)
     ? value
@@ -529,6 +579,7 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
     // preferences blob can never silently stop listening to the household.
     voiceTrainingEnabled: source.voiceTrainingEnabled !== false,
     disabledSatellites: storedDisabledSatellites(source.disabledSatellites),
+    companionRoutes: storedCompanionRoutes(source.companionRoutes),
     // Only an explicit false bypasses the gate; legacy settings stay on the
     // bandwidth-saving and privacy-preserving default.
     satelliteNoiseGateEnabled: source.satelliteNoiseGateEnabled !== false,
@@ -946,6 +997,7 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     speakerRecognitionEnabled: updateBoolean(source, "speakerRecognitionEnabled"),
     voiceTrainingEnabled: updateBoolean(source, "voiceTrainingEnabled"),
     disabledSatellites: updateDisabledSatellites(source),
+    companionRoutes: updateCompanionRoutes(source),
     satelliteNoiseGateEnabled: updateBoolean(source, "satelliteNoiseGateEnabled"),
     speaker: updateChoice(source, "speaker", SPEAKERS),
     customSpeaker: updatePattern(source, "customSpeaker", CUSTOM_SPEAKER_PATTERN),

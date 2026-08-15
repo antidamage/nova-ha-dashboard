@@ -610,6 +610,30 @@ async function fetchVoiceHostJson(requestPath: string, label: string): Promise<u
   return "payload" in result ? result.payload : null;
 }
 
+// The voice server is authoritative for where each reasoning pass currently
+// runs: it ships its own per-pass defaults, and a dashboard that assumed one
+// would show the wrong machine for any pass nobody had chosen yet. Its internal
+// route modes are collapsed back to the three the operator picks from.
+export async function fetchVoiceHostCompanionRoutes(): Promise<Record<string, string> | null> {
+  const payload = await fetchVoiceHostJson("/v1/companion/status", "companion routing status");
+  const routes = (payload as { routes?: Record<string, { mode?: string }> } | null)?.routes;
+  if (!routes || typeof routes !== "object") return null;
+  const byMode: Record<string, string> = {
+    local: "local",
+    companion_only: "companion",
+    companion_preferred: "both",
+  };
+  const effective: Record<string, string> = {};
+  for (const [pass, route] of Object.entries(routes)) {
+    const choice = route?.mode ? byMode[route.mode] : undefined;
+    // `companion_fallback` and `disabled` have no dropdown equivalent. Left out
+    // rather than mapped to a near-miss, so a route set outside this UI is not
+    // misreported as something the operator could have chosen here.
+    if (choice) effective[pass] = choice;
+  }
+  return effective;
+}
+
 export type SpeakerTemplateSummary = {
   id: string;
   state: "provisional" | "pending" | "active";

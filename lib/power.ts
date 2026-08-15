@@ -5,8 +5,14 @@ import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
 import type { PowerAccountUsagePoint, PowerDeviceRating, PowerTariff } from "./config-schema";
+import { calibratePowershopEstimates, type PowershopEstimateCalibration } from "./power-estimation";
 import { mergePowershopAccountUsage } from "./powershop-account-usage";
-import { readAllPowershopUsage } from "./powershop-usage";
+import {
+  readAllPowershopUsage,
+  readPowershopAccountMetadata,
+  type PowershopAccountMetadata,
+  type PowershopDailyUsageRecord,
+} from "./powershop-usage";
 
 // Timings, billing days, the timezone and the tariff all come from config.
 // There are deliberately no constants shadowing them here: a `config ?? LOCAL`
@@ -112,6 +118,7 @@ export type PowerDashboard = {
   };
   currentWatts: number;
   devices: PowerDeviceReading[];
+  estimation: PowershopEstimateCalibration;
   generatedAt: string;
   graph: PowerPoint[];
   accountUsageGraph: PowerAccountUsagePoint[];
@@ -281,12 +288,29 @@ function daysInMonth(year: number, monthIndex: number) {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
 }
 
-function billingCycleFor(parts: ReturnType<typeof localParts>, localUtc: Date, dayFraction: number) {
+function billingCycleFor(
+  parts: ReturnType<typeof localParts>,
+  localUtc: Date,
+  dayFraction: number,
+  powershopBilling?: PowershopAccountMetadata["billing"],
+) {
   const billingConfig = powerConfig().billing;
-  const billingEndDay = billingConfig.endDay;
-  const billingStartDay = billingConfig.startDay;
-  const billingEnd = new Date(Date.UTC(parts.year, parts.month - 1 + (parts.day > billingEndDay ? 1 : 0), billingEndDay));
-  const billingStart = new Date(Date.UTC(billingEnd.getUTCFullYear(), billingEnd.getUTCMonth() - 1, billingStartDay));
+  const metadataApplies =
+    powershopBilling &&
+    dateKeyFromUtc(localUtc) >= powershopBilling.currentPeriodStartDate &&
+    dateKeyFromUtc(localUtc) <= powershopBilling.currentPeriodEndDate;
+  const billingEndDay = metadataApplies
+    ? Number(powershopBilling.currentPeriodEndDate.slice(8, 10))
+    : billingConfig.endDay;
+  const billingStartDay = metadataApplies
+    ? Number(powershopBilling.currentPeriodStartDate.slice(8, 10))
+    : billingConfig.startDay;
+  const billingEnd = metadataApplies
+    ? new Date(`${powershopBilling.currentPeriodEndDate}T00:00:00Z`)
+    : new Date(Date.UTC(parts.year, parts.month - 1 + (parts.day > billingEndDay ? 1 : 0), billingEndDay));
+  const billingStart = metadataApplies
+    ? new Date(`${powershopBilling.currentPeriodStartDate}T00:00:00Z`)
+    : new Date(Date.UTC(billingEnd.getUTCFullYear(), billingEnd.getUTCMonth() - 1, billingStartDay));
   const billingDays = Math.round((billingEnd.getTime() - billingStart.getTime()) / 86_400_000) + 1;
   const billingElapsedDays = Math.max(
     0,
@@ -305,7 +329,7 @@ function billingCycleFor(parts: ReturnType<typeof localParts>, localUtc: Date, d
   };
 }
 
-function currentKeys(date: Date) {
+function currentKeys(date: Date, powershopBilling?: PowershopAccountMetadata["billing"]) {
   const parts = localParts(date);
   const dateKey = dateKeyFromParts(parts);
   const weekdayIndex = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(parts.weekday);
@@ -317,7 +341,7 @@ function currentKeys(date: Date) {
   const dayOfYear = Math.floor((localUtc.getTime() - yearStart.getTime()) / 86_400_000) + 1;
   const daysInYear = new Date(Date.UTC(parts.year, 1, 29)).getUTCMonth() === 1 ? 366 : 365;
   const dayFraction = (parts.hour * 3600 + parts.minute * 60 + parts.second) / 86_400;
-  const billing = billingCycleFor(parts, localUtc, dayFraction);
+  const billing = billingCycleFor(parts, localUtc, dayFraction, powershopBilling);
 
   return {
     billingDays: billing.billingDays,
@@ -371,7 +395,10 @@ function readRatings(): PowerDeviceRating[] {
   return powerConfig().deviceRatings;
 }
 
-async function readAccountUsage() {
+async function readAccountUsage(
+  dailyUsage: PowershopDailyUsageRecord[],
+  accountMetadata: PowershopAccountMetadata | null,
+) {
   let accountHistory: PowerAccountUsagePoint[];
   try {
     const usage = JSON.parse(await readFile(POWER_ACCOUNT_USAGE_PATH, "utf8")) as PowerAccountUsagePoint[];
@@ -399,7 +426,13 @@ async function readAccountUsage() {
   }
 
   const config = powerConfig();
-  return mergePowershopAccountUsage(accountHistory, await readAllPowershopUsage(), config.billing);
+  const billing = accountMetadata?.billing.periodStartDay
+    ? {
+        endDay: Number(accountMetadata.billing.currentPeriodEndDate.slice(8, 10)),
+        startDay: accountMetadata.billing.periodStartDay,
+      }
+    : config.billing;
+  return mergePowershopAccountUsage(accountHistory, dailyUsage, billing);
 }
 
 function stateIsLive(state?: HaState) {
@@ -631,7 +664,7 @@ function modeledDailyBaseKwh(year: number, monthIndex: number) {
 }
 
 function modeledBaseCost(kwh: number, days: number, year: number, monthIndex: number) {
-  return kwh * (rateCentsForMonth(year, monthIndex) / 100) + days * (313.03 / 100);
+  return kwh * (rateCentsForMonth(year, monthIndex) / 100) + days * ((tariff()?.dailyCents ?? 0) / 100);
 }
 
 function modeledBasePeriod(year: number, monthIndex: number, elapsedDays: number, fullDays: number) {
@@ -977,17 +1010,17 @@ function buildDashboard(
   state: PowerState,
   readings: PowerDeviceReading[],
   accountUsage: PowerAccountUsagePoint[],
+  dailyUsage: PowershopDailyUsageRecord[],
+  accountMetadata: PowershopAccountMetadata | null,
   now: Date,
 ): PowerDashboard {
-  const keys = currentKeys(now);
+  const keys = currentKeys(now, accountMetadata?.billing);
   const rate = currentRate(now);
   const day = state.daily[keys.today] ?? { costNzd: 0, kwh: 0 };
-  const week = sumBuckets(state, keys.weekStart, keys.today);
-  const month = sumBuckets(state, keys.billingStart, keys.today);
   const ytd = sumBuckets(state, keys.yearStart, keys.today);
   const baseLoad = modeledCurrentBaseLoad(now, rate, keys);
   const monitoredWatts = readings.reduce((sum, reading) => sum + reading.watts, 0);
-  const currentWatts = monitoredWatts + baseLoad.currentWatts;
+  const fallbackCurrentWatts = monitoredWatts + baseLoad.currentWatts;
   const totalKwh = Object.values(state.devices).reduce((sum, device) => sum + device.kwhTotal, 0);
   const totalCost = Object.values(state.daily).reduce((sum, bucket) => sum + bucket.costNzd, 0);
   const dayBase = {
@@ -996,10 +1029,26 @@ function buildDashboard(
     fullCostNzd: baseLoad.costPerDayNzd,
     fullKwh: baseLoad.kwhPerDay,
   };
-  const weekBase = modeledBasePeriod(keys.year, keys.month - 1, keys.weekFraction * 7, 7);
-  const monthBase = modeledBaseBillingCycle(keys);
   const yearBase = modeledBaseYear(keys);
   const connectedYearProjection = projectedYear(ytd, keys);
+  const fallbackDay = projectedWithBase(day, keys.dayFraction, dayBase);
+  const currentUsageRateCents = rate.touCPerKwh || rate.cPerKwh;
+  const calibrated = calibratePowershopEstimates(dailyUsage, {
+    billingEndDate: keys.billingEnd,
+    billingStartDate: keys.billingStart,
+    currentUsageRateCents,
+    fallbackCurrentCostPerHourNzd:
+      (fallbackCurrentWatts / 1000) * (currentUsageRateCents / 100) + rate.dailyCents / 100 / 24,
+    fallbackCurrentWatts,
+    fallbackDailyCostNzd: fallbackDay.projectedCostNzd ?? baseLoad.costPerDayNzd,
+    fallbackDailyKwh: fallbackDay.projectedKwh ?? baseLoad.kwhPerDay,
+    localElapsedCostNzd: day.costNzd + baseLoad.elapsedCostNzd,
+    localElapsedKwh: day.kwh + baseLoad.elapsedKwh,
+    nowHour: localParts(now).hour + localParts(now).minute / 60 + localParts(now).second / 3600,
+    today: keys.today,
+    weekStartDate: keys.weekStart,
+  });
+  const currentWatts = calibrated.currentWatts;
 
   return {
     baseLoad,
@@ -1010,9 +1059,9 @@ function buildDashboard(
       label: keys.billingLabel,
       startDate: keys.billingStart,
     },
-    currentCostPerHourNzd: round((currentWatts / 1000) * (rate.cPerKwh / 100) + rate.dailyCents / 100 / 24, 3),
+    currentCostPerHourNzd: calibrated.currentCostPerHourNzd,
     currentRate: {
-      cPerKwh: rate.cPerKwh,
+      cPerKwh: calibrated.currentUsageRateCents,
       dailyCents: rate.dailyCents,
       displayName: rate.displayName,
       period: rate.period,
@@ -1020,6 +1069,7 @@ function buildDashboard(
     },
     currentWatts: round(currentWatts, 1),
     devices: readings.sort((a, b) => b.watts - a.watts || a.name.localeCompare(b.name)),
+    estimation: calibrated.calibration,
     generatedAt: now.toISOString(),
     graph: hourlyGraph(state, now),
     accountUsageGraph: accountUsage,
@@ -1032,9 +1082,9 @@ function buildDashboard(
     rateGraph: rateGraph(state),
     ratesWarning: state.lastRateCheck?.warning,
     summaries: {
-      day: projectedWithBase(day, keys.dayFraction, dayBase),
-      week: projectedWithBase(week, keys.weekFraction, weekBase),
-      month: projectedWithBase(month, keys.billingFraction, monthBase),
+      day: calibrated.day,
+      week: calibrated.week,
+      month: calibrated.month,
       yearToDate: {
         costNzd: round(ytd.costNzd + yearBase.elapsedCostNzd, 2),
         kwh: round(ytd.kwh + yearBase.elapsedKwh, 3),
@@ -1181,16 +1231,18 @@ async function maybePublishToHa(summary: PowerDashboard, ratings: PowerDeviceRat
 
 async function samplePowerUnlocked(): Promise<PowerDashboard> {
   const now = new Date();
-  const [persisted, ratings, accountUsage, states] = await Promise.all([
+  const [persisted, ratings, dailyUsage, accountMetadata, states] = await Promise.all([
     readJson<PowerState>(POWER_STATE_PATH, blankState()),
     readRatings(),
-    readAccountUsage(),
+    readAllPowershopUsage(),
+    readPowershopAccountMetadata(),
     haRest<HaState[]>("/api/states"),
   ]);
+  const accountUsage = await readAccountUsage(dailyUsage, accountMetadata);
   const state = { ...blankState(), ...persisted };
   const statesById = new Map(states.map((haState) => [haState.entity_id, haState]));
   const readings = ratings.map((rating) => estimateDevice(rating, statesById, state.devices[rating.id]));
-  const keys = currentKeys(now);
+  const keys = currentKeys(now, accountMetadata?.billing);
   const rate = currentRate(now);
 
   const lastSampleMs = state.lastSampleAt ? new Date(state.lastSampleAt).getTime() : NaN;
@@ -1231,7 +1283,7 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
   await refreshPowerRatesIfDue(state, now, rate);
   pruneState(state, now);
   await writeJsonAtomic(POWER_STATE_PATH, state);
-  const summary = buildDashboard(state, readings, accountUsage, now);
+  const summary = buildDashboard(state, readings, accountUsage, dailyUsage, accountMetadata, now);
   void maybePublishToHa(summary, ratings).catch((error) => {
     console.warn("[nova-dashboard] failed to publish power sensors", error);
   });
