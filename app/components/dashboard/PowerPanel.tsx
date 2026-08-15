@@ -104,8 +104,7 @@ function MetricCard({
 }
 
 function CurrentUseStrip({ data }: { data: PowerDashboard | null }) {
-  const usageCostPerHour = data ? (data.currentWatts / 1000) * (data.currentRate.cPerKwh / 100) : null;
-  const costPerHour = usageCostPerHour !== null ? `${formatMoney(usageCostPerHour, 3)}/h` : "--";
+  const costPerHour = data ? `${formatMoney(data.currentCostPerHourNzd, 3)}/h` : "--";
   const dollarsPerKwh = data ? formatDollarsPerKwh(data.currentRate.cPerKwh) : "--";
   const kwhPerHour = data ? formatKwhPerHour(data.currentWatts) : "--";
   const watts = data ? `${Math.round(data.currentWatts).toLocaleString()} W` : "--";
@@ -257,6 +256,11 @@ export function PowerPanel() {
               <span>{data.currentRate.displayName}</span>
               <span>Billing {data.billingCycle.label} / {billingWindow}</span>
               <span className="text-yellow-200">Tariff {data.currentRate.period.replace("_", " ")} / {rateLabel}</span>
+              {data.estimation?.lastActualDate ? (
+                <span className="text-cyan-200">
+                  Powershop calibrated / {data.estimation.historyDays} days / through {formatBillingDate(data.estimation.lastActualDate)} / {data.estimation.halfLifeDays}d recent half-life
+                </span>
+              ) : null}
               {data.ratesWarning ? <span className="text-red-200">{data.ratesWarning}</span> : null}
             </>
           ) : (
@@ -294,7 +298,7 @@ export function PowerPanel() {
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-sm font-black uppercase text-yellow-200">Account usage</p>
-              <p className="text-xs font-black uppercase text-neutral-500">{displayMode === "credits" ? "credits" : "kWh"} / billing months ending 18th</p>
+              <p className="text-xs font-black uppercase text-neutral-500">{displayMode === "credits" ? "credits" : "kWh"} / Powershop billing cycles</p>
             </div>
             <CurveChart points={data.accountUsageGraph} formatValue={chartFormat} value={(point) => usagePointValue(point, displayMode)} variant="account" />
           </div>

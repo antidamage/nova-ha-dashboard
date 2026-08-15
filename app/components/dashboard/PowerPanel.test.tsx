@@ -20,8 +20,17 @@ const data = {
   baseLoad: { costPerDayNzd: 2, kwhPerDay: 6 },
   billingCycle: { day: 1, days: 30, endDate: "2026-08-18", label: "Aug 2026", startDate: "2026-07-19" },
   currentRate: { cPerKwh: 30, dailyCents: 100, displayName: "Anytime", period: "anytime", sourceUrl: "https://example.com" },
+  currentCostPerHourNzd: 0.275,
   currentWatts: 500,
   devices: [],
+  estimation: {
+    confidence: "high",
+    halfLifeDays: 28,
+    historyDays: 124,
+    intervalDays: 124,
+    lastActualDate: "2026-08-14",
+    source: "powershop_hourly",
+  },
   generatedAt: "2026-08-15T00:00:00.000Z",
   graph: [],
   rateGraph: [],
@@ -54,5 +63,12 @@ describe("PowerPanel inferred base loads", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("May '26")).toBeInTheDocument();
     expect(screen.getByTitle("Unattributed usage")).toHaveTextContent("O 180");
+  });
+
+  it("shows the Powershop calibration window and calibrated current cost", () => {
+    render(<PowerPanel />);
+
+    expect(screen.getByText(/Powershop calibrated \/ 124 days \/ through/)).toBeInTheDocument();
+    expect(screen.getByText("$0.275/h")).toBeInTheDocument();
   });
 });

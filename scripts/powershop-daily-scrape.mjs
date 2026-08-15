@@ -301,6 +301,75 @@ function measurementCostCents(node) {
     .reduce((sum, statistic) => sum + (numberOrNull(statistic?.costInclTax?.estimatedAmount) ?? 0), 0);
 }
 
+function measurementCostCentsByType(node, type) {
+  return (node?.metaData?.statistics ?? [])
+    .filter((statistic) => statistic?.type === type)
+    .reduce((sum, statistic) => sum + (numberOrNull(statistic?.costInclTax?.estimatedAmount) ?? 0), 0);
+}
+
+export function extractIntervalsForDate(capturedResponses, targetDate) {
+  const intervals = new Map();
+  const seenMeasurements = new Set();
+  for (const response of capturedResponses) {
+    const edges = response?.body?.data?.account?.property?.measurements?.edges;
+    if (!Array.isArray(edges)) {
+      continue;
+    }
+    for (const { node } of edges) {
+      const kwh = numberOrNull(node?.value);
+      const startAt = typeof node?.startAt === "string" ? node.startAt : null;
+      const endAt = typeof node?.endAt === "string" ? node.endAt : null;
+      if (measurementDateKey(node) !== targetDate || kwh === null || !startAt || !endAt || String(node?.unit).toLowerCase() !== "kwh") {
+        continue;
+      }
+      const usageCostCents = measurementCostCentsByType(node, "CONSUMPTION_COST");
+      const standingCostCents = measurementCostCentsByType(node, "STANDING_CHARGE_COST");
+      const filters = node?.metaData?.utilityFilters ?? {};
+      const signature = [startAt, endAt, filters.deviceId, filters.registerId, kwh, usageCostCents, standingCostCents].join("|");
+      if (seenMeasurements.has(signature)) {
+        continue;
+      }
+      seenMeasurements.add(signature);
+      const intervalKey = `${startAt}|${endAt}`;
+      const previous = intervals.get(intervalKey) ?? { costNzd: 0, kwh: 0, standingCostNzd: 0, usageCostNzd: 0 };
+      intervals.set(intervalKey, {
+        costNzd: Math.round((previous.costNzd + (usageCostCents + standingCostCents) / 100) * 10_000) / 10_000,
+        endAt,
+        kwh: Math.round((previous.kwh + kwh) * 1_000_000) / 1_000_000,
+        standingCostNzd: Math.round((previous.standingCostNzd + standingCostCents / 100) * 10_000) / 10_000,
+        startAt,
+        usageCostNzd: Math.round((previous.usageCostNzd + usageCostCents / 100) * 10_000) / 10_000,
+      });
+    }
+  }
+  return Array.from(intervals.values()).sort((a, b) => a.startAt.localeCompare(b.startAt));
+}
+
+export function extractAccountMetadata(capturedResponses) {
+  for (const response of [...capturedResponses].reverse()) {
+    const billing = response?.body?.data?.account?.billingOptions;
+    if (
+      billing &&
+      isDateKey(billing.currentBillingPeriodStartDate) &&
+      isDateKey(billing.currentBillingPeriodEndDate)
+    ) {
+      return {
+        billing: {
+          currentPeriodEndDate: billing.currentBillingPeriodEndDate,
+          currentPeriodStartDate: billing.currentBillingPeriodStartDate,
+          isFixed: Boolean(billing.isFixed),
+          nextBillingDate: isDateKey(billing.nextBillingDate) ? billing.nextBillingDate : null,
+          periodStartDay: Number.isInteger(billing.periodStartDay) ? billing.periodStartDay : null,
+        },
+        capturedAt: new Date().toISOString(),
+        schemaVersion: 1,
+        source: "powershop",
+      };
+    }
+  }
+  return null;
+}
+
 function fieldValue(object, names) {
   for (const name of names) {
     if (Object.prototype.hasOwnProperty.call(object, name)) {
@@ -852,6 +921,7 @@ function normalizeRecord(targetDate, pages, capturedResponses, template) {
   const cost = bestCandidate(candidates, "costNzd");
   const kwh = bestCandidate(candidates, "kwh");
   const meterReading = bestCandidate(candidates, "meterReading");
+  const intervals = extractIntervalsForDate(capturedResponses, targetDate);
   const warnings = [];
   if (!cost) {
     warnings.push("No reliable cost total found.");
@@ -869,8 +939,9 @@ function normalizeRecord(targetDate, pages, capturedResponses, template) {
   };
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     capturedAt: new Date().toISOString(),
+    intervals,
     source: "powershop",
     status: warnings.length ? "partial" : "ok",
     targetDate,
@@ -945,16 +1016,134 @@ async function scrapeTargetDate(page, targetDate, capturedResponses, template, d
   record.rawEvidencePath = rawPath;
 
   await writeJson(path.join(dataDir, template.output.dailyDirectory, `${targetDate}.json`), record);
+  const accountMetadata = extractAccountMetadata(dateResponses);
+  if (accountMetadata) {
+    await writeJson(path.join(dataDir, "account.json"), accountMetadata);
+  }
   if (writeLatest) {
     await writeJson(path.join(dataDir, template.output.latestFile), record);
   }
   return record;
 }
 
+async function readablePath(candidates) {
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    try {
+      await fs.access(candidate, fsConstants.R_OK);
+      return candidate;
+    } catch {
+      // Try the next representation of this evidence path.
+    }
+  }
+  return null;
+}
+
+export async function enrichExistingRecords(dataDir, template) {
+  const dailyDir = path.join(dataDir, template.output.dailyDirectory);
+  const rawDir = path.join(dataDir, template.output.rawDirectory);
+  const [dailyFiles, rawFiles] = await Promise.all([fs.readdir(dailyDir), fs.readdir(rawDir)]);
+  const rawByDate = new Map();
+  for (const fileName of rawFiles.filter((name) => /^\d{4}-\d{2}-\d{2}-\d+\.json$/.test(name)).sort()) {
+    rawByDate.set(fileName.slice(0, 10), fileName);
+  }
+
+  let enriched = 0;
+  let alreadyEnriched = 0;
+  let missingEvidence = 0;
+  const recordsByDate = new Map();
+  for (const fileName of dailyFiles.filter((name) => /^\d{4}-\d{2}-\d{2}\.json$/.test(name)).sort()) {
+    const filePath = path.join(dailyDir, fileName);
+    const record = await readJson(filePath);
+    const targetDate = fileName.slice(0, 10);
+    if (Array.isArray(record.intervals) && record.intervals.length > 0) {
+      alreadyEnriched += 1;
+      recordsByDate.set(targetDate, record);
+      continue;
+    }
+    const evidencePath = await readablePath([
+      record.rawEvidencePath,
+      record.rawEvidencePath ? path.join(rawDir, path.basename(record.rawEvidencePath)) : null,
+      rawByDate.has(targetDate) ? path.join(rawDir, rawByDate.get(targetDate)) : null,
+    ]);
+    if (!evidencePath) {
+      recordsByDate.set(targetDate, record);
+      missingEvidence += 1;
+      continue;
+    }
+    let evidence;
+    try {
+      evidence = await readJson(evidencePath);
+    } catch {
+      recordsByDate.set(targetDate, record);
+      missingEvidence += 1;
+      continue;
+    }
+    const intervals = extractIntervalsForDate(evidence.responses ?? [], targetDate);
+    if (!intervals.length) {
+      recordsByDate.set(targetDate, record);
+      missingEvidence += 1;
+      continue;
+    }
+    const next = { ...record, intervals, schemaVersion: 2 };
+    await writeJson(filePath, next);
+    recordsByDate.set(targetDate, next);
+    enriched += 1;
+  }
+
+  let accountMetadata = null;
+  for (const fileName of [...rawFiles].sort().reverse()) {
+    if (!/^\d{4}-\d{2}-\d{2}-\d+\.json$/.test(fileName)) {
+      continue;
+    }
+    let evidence;
+    try {
+      evidence = await readJson(path.join(rawDir, fileName));
+    } catch {
+      continue;
+    }
+    accountMetadata = extractAccountMetadata(evidence.responses ?? []);
+    if (accountMetadata) {
+      await writeJson(path.join(dataDir, "account.json"), accountMetadata);
+      break;
+    }
+  }
+
+  const latestPath = path.join(dataDir, template.output.latestFile);
+  try {
+    const latest = await readJson(latestPath);
+    const enrichedLatest = recordsByDate.get(latest.targetDate);
+    if (enrichedLatest) {
+      await writeJson(latestPath, enrichedLatest);
+    }
+  } catch {
+    // A daily corpus can be enriched even when latest.json has not been created yet.
+  }
+
+  return {
+    accountMetadata: Boolean(accountMetadata),
+    alreadyEnriched,
+    enriched,
+    missingEvidence,
+    status: missingEvidence ? "enrichment_partial" : "enrichment_ok",
+    total: dailyFiles.filter((name) => /^\d{4}-\d{2}-\d{2}\.json$/.test(name)).length,
+  };
+}
+
 export async function main() {
   const templatePath = argValue("--template") ?? process.env.POWERSHOP_TEMPLATE_PATH ?? DEFAULT_TEMPLATE_PATH;
   const dataDir = argValue("--data-dir") ?? process.env.POWERSHOP_DATA_DIR ?? DEFAULT_DATA_DIR;
   const template = await readJson(templatePath);
+  if (hasArg("--enrich-existing")) {
+    const summary = await enrichExistingRecords(dataDir, template);
+    console.log(JSON.stringify(summary));
+    if (summary.status !== "enrichment_ok") {
+      process.exitCode = 1;
+    }
+    return;
+  }
   const requestedStartDate = argValue("--start-date") ?? process.env.POWERSHOP_START_DATE;
   const requestedEndDate = argValue("--end-date") ?? process.env.POWERSHOP_END_DATE;
   if (Boolean(requestedStartDate) !== Boolean(requestedEndDate)) {

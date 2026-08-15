@@ -11,6 +11,14 @@ export type PowershopDailyUsageRecord = {
   source: "powershop";
   status: "ok" | "partial" | "error" | "requires_mfa" | "requires_interaction" | "skipped_not_overnight" | "login_ok";
   targetDate: string;
+  intervals?: Array<{
+    costNzd: number;
+    endAt: string;
+    kwh: number;
+    standingCostNzd: number;
+    startAt: string;
+    usageCostNzd: number;
+  }>;
   values?: {
     costNzd: number | null;
     kwh: number | null;
@@ -19,6 +27,19 @@ export type PowershopDailyUsageRecord = {
   };
   warning?: string;
   warnings?: string[];
+};
+
+export type PowershopAccountMetadata = {
+  billing: {
+    currentPeriodEndDate: string;
+    currentPeriodStartDate: string;
+    isFixed: boolean;
+    nextBillingDate: string | null;
+    periodStartDay: number | null;
+  };
+  capturedAt: string;
+  schemaVersion: number;
+  source: "powershop";
 };
 
 function isDateKey(value: string) {
@@ -63,6 +84,25 @@ export async function readPowershopDailyUsage(date: string, dataDir = POWERSHOP_
 
 export async function readLatestPowershopUsage(dataDir = POWERSHOP_DATA_DIR) {
   return readUsageFile(path.join(dataDir, "latest.json"));
+}
+
+export async function readPowershopAccountMetadata(dataDir = POWERSHOP_DATA_DIR) {
+  try {
+    const value = JSON.parse(await readFile(path.join(dataDir, "account.json"), "utf8")) as Partial<PowershopAccountMetadata>;
+    const billing = value.billing;
+    if (
+      value.source !== "powershop" ||
+      typeof value.capturedAt !== "string" ||
+      !billing ||
+      !isDateKey(billing.currentPeriodStartDate ?? "") ||
+      !isDateKey(billing.currentPeriodEndDate ?? "")
+    ) {
+      return null;
+    }
+    return value as PowershopAccountMetadata;
+  } catch {
+    return null;
+  }
 }
 
 export async function readAllPowershopUsage(dataDir = POWERSHOP_DATA_DIR) {

@@ -454,6 +454,15 @@ export type VoicePreferences = {
    * transmit audio. Disable temporarily to stream every frame for diagnostics.
    */
   satelliteNoiseGateEnabled?: boolean;
+  /**
+   * Which machine runs each of the assistant's reasoning passes: `local` on the
+   * voice server, `companion` only on the paired phone, or `both` (phone first,
+   * voice server when it cannot answer).
+   *
+   * A pass left out keeps the voice server's own default, so an absent or
+   * partial map means "as shipped" rather than "route nothing".
+   */
+  companionRoutes?: Record<string, "local" | "companion" | "both">;
   speaker?: "Ryan" | "Aiden" | "Vivian" | "Serena" | "Uncle_Fu" | "Dylan" | "Eric" | "Ono_Anna" | "Sohee";
   /**
    * Custom-engine (dots.tts) voice: a cloned-voice id from the voice server's

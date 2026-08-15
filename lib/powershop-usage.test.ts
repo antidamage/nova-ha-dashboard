@@ -2,7 +2,13 @@ import { mkdir, mkdtemp, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readAllPowershopUsage, readLatestPowershopUsage, readPowershopDailyUsage, readPowershopUsageRange } from "./powershop-usage";
+import {
+  readAllPowershopUsage,
+  readLatestPowershopUsage,
+  readPowershopAccountMetadata,
+  readPowershopDailyUsage,
+  readPowershopUsageRange,
+} from "./powershop-usage";
 
 let dir: string;
 
@@ -52,6 +58,33 @@ describe("readLatestPowershopUsage", () => {
   it("reads latest.json", async () => {
     await writeFile(path.join(dir, "latest.json"), record("2026-06-13"));
     expect((await readLatestPowershopUsage(dir))?.targetDate).toBe("2026-06-13");
+  });
+});
+
+describe("readPowershopAccountMetadata", () => {
+  it("reads a valid retailer billing window", async () => {
+    await writeFile(
+      path.join(dir, "account.json"),
+      JSON.stringify({
+        billing: {
+          currentPeriodEndDate: "2026-08-16",
+          currentPeriodStartDate: "2026-07-17",
+          isFixed: true,
+          nextBillingDate: "2026-08-17",
+          periodStartDay: 17,
+        },
+        capturedAt: "2026-08-15T00:00:00Z",
+        schemaVersion: 1,
+        source: "powershop",
+      }),
+    );
+
+    expect((await readPowershopAccountMetadata(dir))?.billing.currentPeriodEndDate).toBe("2026-08-16");
+  });
+
+  it("rejects invalid retailer billing metadata", async () => {
+    await writeFile(path.join(dir, "account.json"), JSON.stringify({ source: "powershop", billing: {} }));
+    expect(await readPowershopAccountMetadata(dir)).toBeNull();
   });
 });
 

@@ -1769,9 +1769,11 @@ Status orb readout (info modules):
 - `entity-numeric` adopts the chosen sensor's own unit as its base unit, so a
   °C sensor converts like a temperature and a `%` sensor is already a
   percentage rather than a ratio to be scaled again.
-- Both surfaces keep their own catalogue (the Apple TV has different sources —
-  it does not call `/api/power` or `/api/tasks`, and reports those modules as
-  unavailable rather than inventing a number), but the module IDS must match.
+- Both surfaces keep their own catalogue, but they read the same data and the
+  module IDS must match. The Apple TV fetches `/api/power` and
+  `/api/tasks?command=list` on a 30-second cadence, and — like the web client —
+  only while a readout that needs them is selected, so no client polls for data
+  it will not display.
   `catalogue.test.ts` reads the Swift catalogue and fails if either side has a
   module the other lacks, because a missing id would silently fall back to the
   gym counter on the TV.
