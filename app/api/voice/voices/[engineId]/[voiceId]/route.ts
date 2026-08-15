@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteIridiumEngineVoice } from "../../../../../../lib/iridium-voice-settings";
+import { deleteIridiumEngineVoice } from "../../../../../../lib/voice-host-settings";
 
 type Context = { params: Promise<{ engineId: string; voiceId: string }> };
 

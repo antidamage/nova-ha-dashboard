@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchIridiumVoiceCatalog } from "../../../../lib/iridium-voice-settings";
+import { fetchIridiumVoiceCatalog } from "../../../../lib/voice-host-settings";
 import {
   VOICE_ACCENTS,
   VOICE_EMOTIONS,

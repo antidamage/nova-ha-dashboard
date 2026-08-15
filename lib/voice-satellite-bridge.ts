@@ -17,7 +17,7 @@
 import { readFile } from "node:fs/promises";
 import https from "node:https";
 import { WebSocket, WebSocketServer } from "ws";
-import { iridiumBaseUrl, readVoiceTlsIdentity } from "./iridium-voice-settings";
+import { iridiumBaseUrl, readVoiceTlsIdentity } from "./voice-host-settings";
 
 const BRIDGE_PATH = "/voice-satellite";
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchIridiumVoicePreview } from "../../../../lib/iridium-voice-settings";
+import { fetchIridiumVoicePreview } from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

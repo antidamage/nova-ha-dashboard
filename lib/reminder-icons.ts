@@ -23,7 +23,7 @@ import path from "path";
 
 import { readDashboardConfig } from "./dashboard-config";
 import { publishReminderIcons } from "./dashboard-events";
-import { classifyReminderIcon } from "./iridium-voice-settings";
+import { classifyReminderIcon } from "./voice-host-settings";
 import {
   FALLBACK_REMINDER_GLYPH,
   glyphsEqual,

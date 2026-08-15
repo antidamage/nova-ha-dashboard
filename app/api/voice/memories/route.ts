@@ -5,7 +5,7 @@ import {
   fetchIridiumAgentMemories,
   forgetIridiumAgentMemory,
   updateIridiumAgentMemory,
-} from "../../../../lib/iridium-voice-settings";
+} from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

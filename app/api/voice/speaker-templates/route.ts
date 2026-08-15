@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteAllIridiumSpeakerTemplates } from "../../../../lib/iridium-voice-settings";
+import { deleteAllIridiumSpeakerTemplates } from "../../../../lib/voice-host-settings";
 
 export async function DELETE() {
   const result = await deleteAllIridiumSpeakerTemplates();

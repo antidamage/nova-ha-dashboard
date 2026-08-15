@@ -3,7 +3,7 @@ import {
   normalizeAgentSettings,
   parseAgentSettingsUpdate,
 } from "../../../lib/agent-settings";
-import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/iridium-voice-settings";
+import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/voice-host-settings";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 
 export const dynamic = "force-dynamic";
