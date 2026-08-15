@@ -75,6 +75,11 @@ export function clientConfigFromDashboardConfig(config: unknown) {
     dashboard: {
       aircon: dashboard.aircon,
       avatar: dashboard.avatar,
+      // Carried so the cached answer matches what /api/config/client returns.
+      // Without them the first paint reads a default card title and hides the
+      // legacy heater card, then corrects itself once the fetch lands.
+      bedroomHeater: dashboard.bedroomHeater,
+      legacyPanelHeaterCardEnabled: dashboard.legacyPanelHeaterCardEnabled,
       defaultZoneId: dashboard.defaultZoneId,
       lighting: dashboard.lighting,
       reminders: dashboard.reminders,
