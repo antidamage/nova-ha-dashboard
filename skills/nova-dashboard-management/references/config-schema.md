@@ -7,7 +7,7 @@ Top-level groups:
 - `homeAssistant`: entity IDs, area aliases, controllable domains, router/weather/sun mappings, exclusions, and naming patterns.
 - `dashboard`: default zone, virtual zones, lighting behavior, climate settings, avatar settings, and dashboard timing.
 - `mapWeather`: map center, radar provider, satellite provider.
-- `power`: billing days, timing, Powershop rate source URLs, and modeled base loads.
+- `power`: billing days, timing, Powershop rate source URLs, modeled base loads, and `deviceRatings` — the devices power estimation knows about, each with the entity IDs it may appear under. Renaming or retiring a device is a `deviceRatings` edit, not a code change; list both the old and new entity ID during a rename and the first one present in HA wins.
 - `tasks`: iCloud allow-lists and task alert audio limits. First-time task setup lives in `config/tasks.json`.
 - `theme`: shared/local theme defaults.
 - `mcp`: auth, Origin, and mutation guardrails.
