@@ -50,6 +50,11 @@ In `config/common.json` (overrides `config/dashboard-config.default.json`):
   `novaAssistSatelliteEntityId`. (`weatherEntityId`/`sunEntityId` fall back to
   `weather.*` / `sun.sun` auto-detection.)
 - **Everything non-HA**: map center, power billing/rates, theme, timings, MCP.
+- **Power device ratings** — `power.deviceRatings`. HA knows a bulb exists; it
+  does not know it draws 15.5W. Each entry carries the wattage plus every
+  entity ID the device may appear under, so renaming an entity is a config edit
+  rather than a code change. During a rename, list the old and new IDs together
+  and the first one present in HA wins.
 
 ## Escape hatches (use sparingly)
 

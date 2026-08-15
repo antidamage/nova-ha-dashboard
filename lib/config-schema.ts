@@ -44,6 +44,31 @@ const LightingEntityPresetSchema = z.object({
   }),
   colorTemperatureOverrideKelvin: LightColorTemperatureOverrideSchema.optional(),
 });
+const PowerDeviceRatingSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  zone: z.string().min(1),
+  kind: z.enum(["light", "switch", "climate"]),
+  // Every entity id this device has been known by, most current first. The
+  // first one present in Home Assistant wins, so an entity rename is absorbed
+  // by editing config rather than by changing code and redeploying.
+  entityIds: z.array(entityIdSchema).min(1),
+  aliases: z.array(z.string().min(1)).optional(),
+  ratedWatts: z.number().nonnegative(),
+  standbyWatts: z.number().nonnegative().optional(),
+  maxWatts: z.number().nonnegative().optional(),
+  coolInputWatts: z.number().nonnegative().optional(),
+  heatInputWatts: z.number().nonnegative().optional(),
+  powerSensorEntityId: entityIdSchema.optional(),
+  confidence: z.enum(["measured", "high", "medium", "manual", "assumed"]),
+  manufacturer: z.string().min(1).optional(),
+  model: z.string().min(1).optional(),
+  source: z.string().min(1),
+  sourceUrl: z.string().min(1).optional(),
+  notes: z.string().min(1).optional(),
+});
+export type PowerDeviceRating = z.infer<typeof PowerDeviceRatingSchema>;
+
 const ThemeColorValueSchema = z.object({
   cursor: z.object({
     x: z.number().min(0).max(1),
@@ -355,6 +380,10 @@ export const DashboardConfigSchema = z.object({
       pageUrl: z.string().url(),
       ratecardUrl: z.string().url(),
     }),
+    // The devices power estimation knows about. This lives in config rather
+    // than in lib/power.ts so that renaming or retiring a Home Assistant
+    // device is a config edit, not a source change.
+    deviceRatings: z.array(PowerDeviceRatingSchema),
     modeledBaseLoads: z.object({
       desktopActiveStartHour: z.number().min(0).max(24),
       desktopActiveEndHour: z.number().min(0).max(24),

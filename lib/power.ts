@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
+import type { PowerDeviceRating } from "./config-schema";
 
 const TIME_ZONE = "Pacific/Auckland";
 const SAMPLE_INTERVAL_MS = 30_000;
@@ -15,7 +16,6 @@ const BILLING_END_DAY = 18;
 const BILLING_START_DAY = 19;
 const POWER_DATA_DIR = process.env.NOVA_DASHBOARD_POWER_DATA ?? path.join(process.cwd(), "data", "power");
 const POWER_STATE_PATH = path.join(POWER_DATA_DIR, "state.json");
-const POWER_RATINGS_PATH = path.join(POWER_DATA_DIR, "device-ratings.json");
 const POWER_ACCOUNT_USAGE_PATH = path.join(POWER_DATA_DIR, "account-usage.json");
 const POWERSHOP_RATES_PAGE = "https://www.powershop.co.nz/our-rates/";
 const POWERSHOP_AUCKLAND_RATECARD = "https://www.powershop.co.nz/public/Ratecards/2026/03-Auckland-Central-South.pdf";
@@ -24,29 +24,11 @@ function powerConfig() {
   return readDashboardConfigSync().power;
 }
 
-type DeviceKind = "light" | "switch" | "climate";
 type TariffPeriod = "anytime" | "peak" | "off_peak";
 
-export type PowerDeviceRating = {
-  aliases?: string[];
-  confidence: "measured" | "high" | "medium" | "manual" | "assumed";
-  coolInputWatts?: number;
-  entityIds: string[];
-  heatInputWatts?: number;
-  id: string;
-  kind: DeviceKind;
-  manufacturer?: string;
-  maxWatts?: number;
-  model?: string;
-  name: string;
-  notes?: string;
-  powerSensorEntityId?: string;
-  ratedWatts: number;
-  source: string;
-  sourceUrl?: string;
-  standbyWatts?: number;
-  zone: string;
-};
+// The shape lives with the config schema that validates it, so there is exactly
+// one definition of a rating rather than a type here and a schema there.
+export type { PowerDeviceRating };
 
 export type PowerDeviceReading = {
   confidence: PowerDeviceRating["confidence"];
@@ -256,242 +238,6 @@ const defaultAccountUsage: PowerAccountUsagePoint[] = [
   { label: "Apr 2026", days: 28, kwh: 708, kwhPerDay: 25.3, costNzd: 256.24, costPerDayNzd: 9.15, avgUnitCents: 36.19, source: "Powershop account table" },
 ];
 
-const defaultRatings: PowerDeviceRating[] = [
-  {
-    id: "neon_lights",
-    name: "Neon Lights",
-    zone: "Lounge",
-    kind: "light",
-    entityIds: [
-      "light.cupboard_socket_1",
-      "switch.cupboard_outlet_1",
-      "switch.cupboard_socket_1",
-      "light.tuya_mobile_neon_lights",
-    ],
-    ratedWatts: 30,
-    standbyWatts: 0.3,
-    confidence: "manual",
-    source: "User supplied: 0.03 kW",
-  },
-  {
-    // The lounge's original A21 was disconnected in August 2026 and the bedroom
-    // A21 was physically moved in to replace it, so the bedroom has no bulb of
-    // its own any more. Same model, so this rating covers the fixture unchanged.
-    id: "lounge_lifx",
-    name: "Lounge light",
-    zone: "Lounge",
-    kind: "light",
-    entityIds: ["light.lounge_light"],
-    ratedWatts: 15.5,
-    standbyWatts: 0.2,
-    confidence: "high",
-    manufacturer: "LIFX",
-    model: "A21 1600lm",
-    source: "LIFX A21 1600lm specification",
-  },
-  {
-    id: "conservatory_lifx",
-    name: "Conservatory light",
-    zone: "Conservatory",
-    kind: "light",
-    entityIds: ["light.conservatory_light"],
-    ratedWatts: 15.5,
-    standbyWatts: 0.2,
-    confidence: "high",
-    manufacturer: "LIFX",
-    model: "A21 1600lm",
-    source: "LIFX A21 1600lm specification",
-  },
-  {
-    id: "kitchen_tapo_l530",
-    name: "Kitchen light 1",
-    zone: "Kitchen",
-    kind: "light",
-    entityIds: ["light.kitchen_light_1"],
-    ratedWatts: 8.8,
-    standbyWatts: 0.4,
-    confidence: "high",
-    manufacturer: "TP-Link Tapo",
-    model: "L530",
-    source: "TP-Link Tapo L530 specification",
-  },
-  {
-    id: "hallway_tapo_l530",
-    name: "Hallway 2",
-    zone: "Conservatory",
-    kind: "light",
-    entityIds: ["light.hallway_2"],
-    ratedWatts: 8.8,
-    standbyWatts: 0.4,
-    confidence: "high",
-    manufacturer: "TP-Link Tapo",
-    model: "L530",
-    source: "TP-Link Tapo L530 specification",
-  },
-  {
-    id: "wardrobe_tapo_l530",
-    name: "Wardrobe",
-    zone: "Bedroom",
-    kind: "light",
-    entityIds: ["light.wardrobe"],
-    ratedWatts: 8.8,
-    standbyWatts: 0.4,
-    confidence: "high",
-    manufacturer: "TP-Link Tapo",
-    model: "L530",
-    source: "TP-Link Tapo L530 specification",
-  },
-  {
-    id: "desk_tapo_l535",
-    name: "Desk",
-    zone: "Lounge",
-    kind: "light",
-    entityIds: ["light.desk"],
-    ratedWatts: 8.6,
-    standbyWatts: 0.4,
-    confidence: "high",
-    manufacturer: "TP-Link Tapo",
-    model: "L535E",
-    source: "TP-Link Tapo L535E specification",
-  },
-  {
-    id: "hallway_tuya_bulb",
-    name: "Hallway light",
-    zone: "Lounge",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_hallway_light", "light.hallway_light"],
-    ratedWatts: 10,
-    standbyWatts: 0.5,
-    confidence: "assumed",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "RGB bulb",
-    source: "User supplied: Kogan RGB bulbs are 9-10W",
-  },
-  {
-    id: "nook_tuya_bulb",
-    name: "Nook light",
-    zone: "Kitchen",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_nook_light", "light.nook_light"],
-    ratedWatts: 10,
-    standbyWatts: 0.5,
-    confidence: "assumed",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "RGB bulb",
-    source: "User supplied: Kogan RGB bulbs are 9-10W",
-  },
-  {
-    id: "outside_tuya_bulb",
-    name: "Outside light",
-    zone: "Outside",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_outside_light", "light.outside_light"],
-    ratedWatts: 10,
-    standbyWatts: 0.5,
-    confidence: "assumed",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "RGB bulb",
-    source: "User supplied: Kogan RGB bulbs are 9-10W",
-  },
-  {
-    id: "kitchen_tuya_bulb_a",
-    name: "Kitchen light 2",
-    zone: "Kitchen",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_kitchen_light_2", "light.kitchen_light_2"],
-    ratedWatts: 10,
-    standbyWatts: 0.5,
-    confidence: "assumed",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "RGB bulb",
-    source: "User supplied: Kogan RGB bulbs are 9-10W",
-  },
-  {
-    id: "kitchen_tuya_bulb_b",
-    name: "Kitchen light 2 2",
-    zone: "Kitchen",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_kitchen_light_2_2", "light.kitchen_light_2_2"],
-    ratedWatts: 10,
-    standbyWatts: 0.5,
-    confidence: "assumed",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "RGB bulb",
-    source: "User supplied: Kogan RGB bulbs are 9-10W",
-  },
-  {
-    id: "mirror_flood",
-    name: "Mirror light",
-    zone: "Lounge",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_mirror_light", "light.mirror_top", "light.mirror_light"],
-    ratedWatts: 20,
-    standbyWatts: 0.5,
-    confidence: "high",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "20W RGB + CCT LED Flood Light",
-    source: "HA device model: Kogan SmarterHome 20W flood light",
-  },
-  {
-    id: "tv_flood",
-    name: "TV light",
-    zone: "Lounge",
-    kind: "light",
-    entityIds: ["light.tuya_mobile_tv_light", "light.mirror_bottom", "light.tv_light"],
-    ratedWatts: 20,
-    standbyWatts: 0.5,
-    confidence: "high",
-    manufacturer: "Kogan SmarterHome / Tuya",
-    model: "20W RGB + CCT LED Flood Light",
-    source: "HA device model: Kogan SmarterHome 20W flood light",
-  },
-  {
-    id: "panel_heater",
-    name: "Panel Heater",
-    zone: "Climate",
-    kind: "climate",
-    entityIds: ["climate.panel_heater_2", "climate.panel_heater"],
-    ratedWatts: 2000,
-    standbyWatts: 1.5,
-    confidence: "assumed",
-    manufacturer: "Kogan / Goldair",
-    model: "Glass panel heater",
-    source: "User supplied: probably 2kW",
-  },
-  {
-    // Replaced the panel heater above, which died in August 2026. This one is a
-    // switch rather than a climate entity, so power follows the switch state.
-    id: "bedroom_heater",
-    name: "Bedroom Heater",
-    zone: "Bedroom",
-    kind: "switch",
-    entityIds: ["switch.bedroom_heater", "switch.tuya_mobile_bedroom_heater"],
-    ratedWatts: 2000,
-    standbyWatts: 1.5,
-    confidence: "assumed",
-    manufacturer: "Tuya",
-    model: "Smart heater switch with climate sensors",
-    source: "Assumed 2kW pending nameplate confirmation",
-  },
-  {
-    id: "gree_aircon",
-    name: "Air Conditioner",
-    zone: "Climate",
-    kind: "climate",
-    entityIds: ["climate.c6780cad"],
-    ratedWatts: 1520,
-    coolInputWatts: 1370,
-    heatInputWatts: 1520,
-    maxWatts: 2330,
-    standbyWatts: 15,
-    confidence: "high",
-    manufacturer: "Gree",
-    model: "GWH18AAD-K6DNA1D/I",
-    source: "Gree Bora GWH18AAD-K6DNA1D specification and unit label",
-    notes: "5.2kW cooling and 5.6kW heating are output capacity; temp sensor is disconnected, so estimate treats compressor modes as on/off until repaired.",
-  },
-];
-
 const globalPower = globalThis as typeof globalThis & {
   __novaPower?: {
     discoveryPublishedAt: number;
@@ -656,22 +402,13 @@ async function writeJsonAtomic(filePath: string, value: unknown) {
   await rename(tempPath, filePath);
 }
 
-async function readRatings() {
-  let overrides: Partial<PowerDeviceRating>[] | null = null;
-  try {
-    overrides = JSON.parse(await readFile(POWER_RATINGS_PATH, "utf8")) as Partial<PowerDeviceRating>[];
-  } catch {
-    await writeJsonAtomic(POWER_RATINGS_PATH, defaultRatings);
-    overrides = [];
-  }
-  const byId = new Map(defaultRatings.map((rating) => [rating.id, rating]));
-  for (const override of overrides ?? []) {
-    if (!override.id) {
-      continue;
-    }
-    byId.set(override.id, { ...(byId.get(override.id) ?? defaultRatings[0]), ...override } as PowerDeviceRating);
-  }
-  return Array.from(byId.values());
+// Device ratings come from `power.deviceRatings` in dashboard config. They used
+// to be a table in this file mirrored to data/power/device-ratings.json, which
+// meant a device could be listed in one place and not the other: the on-disk
+// copy silently outranked the source, and removing a device from only the table
+// left it resurrected. One config document, one answer.
+function readRatings(): PowerDeviceRating[] {
+  return powerConfig().deviceRatings;
 }
 
 async function readAccountUsage() {
