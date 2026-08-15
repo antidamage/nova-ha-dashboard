@@ -1,14 +1,14 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { triggerIridiumVoiceSettingsRefresh } from "./voice-host-settings";
+import { triggerVoiceHostSettingsRefresh } from "./voice-host-settings";
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("Iridium voice settings refresh", () => {
-  it("sends a no-payload collection signal to the configured Iridium endpoint", async () => {
+describe("Voice host settings refresh", () => {
+  it("sends a no-payload collection signal to the configured voice host endpoint", async () => {
     let observed: { body: string; method?: string; path?: string } | undefined;
     const server = createServer((request, response) => {
       const chunks: Buffer[] = [];
@@ -28,7 +28,7 @@ describe("Iridium voice settings refresh", () => {
     vi.stubEnv("NOVA_VOICE_IRIDIUM_URL", `http://127.0.0.1:${port}`);
 
     try {
-      await expect(triggerIridiumVoiceSettingsRefresh()).resolves.toEqual({ ok: true, status: 204 });
+      await expect(triggerVoiceHostSettingsRefresh()).resolves.toEqual({ ok: true, status: 204 });
       expect(observed).toEqual({ body: "", method: "POST", path: "/v1/settings/refresh" });
     } finally {
       await new Promise<void>((resolve, reject) => {

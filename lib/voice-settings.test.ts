@@ -264,20 +264,22 @@ describe("voice settings", () => {
   });
 
   it("normalizes and parses the per-satellite killswitch list", () => {
-    expect(normalizeVoiceSettings(null).disabledSatellites).toEqual(["nocturnium"]);
+    // Nothing muted by default: which satellites a house wants off depends on
+    // which ones it has, so the product ships no opinion.
+    expect(normalizeVoiceSettings(null).disabledSatellites).toEqual([]);
     expect(normalizeVoiceSettings({ disabledSatellites: [] }).disabledSatellites).toEqual([]);
     // Casefolded, de-duplicated, blanks/non-strings dropped, order preserved.
     expect(
       normalizeVoiceSettings({
-        disabledSatellites: ["Indium", "indium", " nocturnium ", 5, ""],
+        disabledSatellites: ["Kitchen", "kitchen", " study ", 5, ""],
       } as unknown as Parameters<typeof normalizeVoiceSettings>[0]).disabledSatellites,
-    ).toEqual(["indium", "nocturnium"]);
+    ).toEqual(["kitchen", "study"]);
 
-    expect(parseVoiceSettingsUpdate({ disabledSatellites: ["Indium"] }))
-      .toEqual({ disabledSatellites: ["indium"] });
+    expect(parseVoiceSettingsUpdate({ disabledSatellites: ["Kitchen"] }))
+      .toEqual({ disabledSatellites: ["kitchen"] });
     expect(parseVoiceSettingsUpdate({ disabledSatellites: [] }))
       .toEqual({ disabledSatellites: [] });
-    expect(() => parseVoiceSettingsUpdate({ disabledSatellites: "indium" })).toThrow(
+    expect(() => parseVoiceSettingsUpdate({ disabledSatellites: "kitchen" })).toThrow(
       "must be an array",
     );
   });

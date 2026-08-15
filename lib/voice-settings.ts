@@ -62,7 +62,7 @@ export const VOICE_EMOTIONS = [
 // fine-tuned from hundreds of samples. Which is active comes from the voice
 // server; switching is an action (POST /api/voice/engine), not a stored
 // preference. This static list is only the fallback shown before the server's
-// own live engine list loads — see IridiumEngineStatus.engines in
+// own live engine list loads — see VoiceHostEngineStatus.engines in
 // lib/voice-host-settings.ts, which carries the same ids with live
 // capabilities from the server's engine registry.
 export const VOICE_ENGINES = [
@@ -88,7 +88,7 @@ export type VoiceEngineCapabilities = {
 // A live engine entry as published by the server's engine registry
 // (dashboard_engines_manifest(): id/label/capabilities) — the client-safe
 // shape both the Voice Agent picker and the Voice Infrastructure catalogue
-// read from `/api/voice/*`'s `engines` field. Mirrors IridiumEngineDescriptor
+// read from `/api/voice/*`'s `engines` field. Mirrors VoiceHostEngineDescriptor
 // in lib/voice-host-settings.ts (that file is Node-only; this lets client
 // components use the same shape without importing it).
 export type VoiceEngineDescriptor = {
@@ -285,9 +285,12 @@ export const VOICE_SETTINGS_DEFAULTS: VoiceSettings = {
   // On after installation so a fresh house can enrol its first voice; the
   // owner turns it off once recognition is settled.
   voiceTrainingEnabled: true,
-  // Indium is the primary microphone. Keep Nocturnium connected but muted by
-  // default so a fresh/reset config never processes both co-located mics.
-  disabledSatellites: ["nocturnium"],
+  // Empty: which satellites a house wants muted depends on which ones it has
+  // and where they sit. This named one installation's second microphone, so
+  // every other deployment shipped with a satellite id it does not own muted.
+  // A house with two co-located mics mutes one from the satellite list in the
+  // UI; that choice is stored settings, not a product default.
+  disabledSatellites: [],
   satelliteNoiseGateEnabled: true,
   speaker: "Ryan",
   // Default clone id on the Custom (dots.tts) engine; the picker replaces it

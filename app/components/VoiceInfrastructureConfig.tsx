@@ -45,9 +45,9 @@ type SatelliteRow = {
   } | null;
 };
 
-function satelliteStatusText(row: SatelliteRow, iridiumOk: boolean) {
-  if (!iridiumOk) {
-    return { text: "Status unavailable — Iridium unreachable", tone: "warning" as const };
+function satelliteStatusText(row: SatelliteRow, voiceHostOk: boolean) {
+  if (!voiceHostOk) {
+    return { text: "Status unavailable — device unreachable", tone: "warning" as const };
   }
   if (!row.status) {
     return { text: "Not seen since the voice server started", tone: "warning" as const };
@@ -69,7 +69,7 @@ function satelliteStatusText(row: SatelliteRow, iridiumOk: boolean) {
 function SatellitePanel() {
   const [satellites, setSatellites] = useState<SatelliteRow[]>([]);
   const [rooms, setRooms] = useState<VoiceRoomOption[]>([]);
-  const [iridiumOk, setIridiumOk] = useState(true);
+  const [voiceHostOk, setVoiceHostOk] = useState(true);
   const [reconnecting, setReconnecting] = useState<string | null>(null);
   const [savingRoom, setSavingRoom] = useState<string | null>(null);
   const [togglingVoice, setTogglingVoice] = useState<string | null>(null);
@@ -82,13 +82,13 @@ function SatellitePanel() {
         return;
       }
       const data = await response.json() as {
-        iridium?: { ok?: boolean };
+        voiceHost?: { ok?: boolean };
         rooms?: VoiceRoomOption[];
         satellites?: SatelliteRow[];
       };
       setSatellites(Array.isArray(data.satellites) ? data.satellites : []);
       setRooms(Array.isArray(data.rooms) ? data.rooms : []);
-      setIridiumOk(data.iridium?.ok !== false);
+      setVoiceHostOk(data.voiceHost?.ok !== false);
     } catch (error) {
       console.error("[nova-dashboard] failed to load voice satellites", error);
     }
@@ -191,7 +191,7 @@ function SatellitePanel() {
     <div className="mb-4 grid gap-2">
       <p className="text-xs font-black uppercase text-neutral-400">Satellites</p>
       {satellites.map((row) => {
-        const status = satelliteStatusText(row, iridiumOk);
+        const status = satelliteStatusText(row, voiceHostOk);
         return (
           <div
             key={row.id}
@@ -685,10 +685,10 @@ const SPEAKER_MATCH_SLIDERS: {
 ];
 
 // System-wide voice killswitch. A single master on/off for the whole household:
-// when off, Iridium drops every microphone frame and closes the open
+// when off, voice host drops every microphone frame and closes the open
 // conversation, so voice is fully disabled everywhere until it is turned back
 // on. This is the shared, host-backed setting (POSTed to /api/voice, then pulled
-// by Iridium) — distinct from the per-device browser voice-input toggle.
+// by VoiceHost) — distinct from the per-device browser voice-input toggle.
 function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferences | null }) {
   const { agentName } = useAgentName();
   const [enabled, setEnabled] = useState<boolean>(
@@ -735,7 +735,7 @@ function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferenc
     setEnabled(next);
     setMessage(
       next
-        ? "Turning voice on and notifying Iridium…"
+        ? "Turning voice on and notifying the voice host…"
         : "Turning voice off and closing the current conversation…",
     );
     setMessageTone("ok");
@@ -747,7 +747,7 @@ function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferenc
       });
       const data = await response.json() as {
         error?: string;
-        iridium?: SyncResult;
+        voiceHost?: SyncResult;
         voice?: VoicePreferences;
       };
       if (!response.ok) {
@@ -759,7 +759,7 @@ function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferenc
       if (data.voice) {
         setEnabled(normalizeVoiceSettings(data.voice).systemVoiceEnabled);
       }
-      if (data.iridium?.ok) {
+      if (data.voiceHost?.ok) {
         setMessage(
           next
             ? "Voice is ON — the whole system is listening again."
@@ -767,7 +767,7 @@ function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferenc
         );
         setMessageTone(next ? "ok" : "warning");
       } else {
-        setMessage(`Saved on ${agentName}. ${data.iridium?.error ?? "Iridium did not confirm the change."}`);
+        setMessage(`Saved on ${agentName}. ${data.voiceHost?.error ?? "The voice host did not confirm the change."}`);
         setMessageTone("warning");
       }
     } catch (error) {
@@ -838,7 +838,7 @@ function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferenc
 // playback shaping (preroll and frame size). These are infrastructure knobs, not
 // personality — they sit at the bottom of Voice Infrastructure rather than in the
 // Voice Agent card. Each change POSTs the single field to /api/voice (which then
-// notifies Iridium), exactly like the Voice Agent controls; the two sections edit
+// notifies VoiceHost), exactly like the Voice Agent controls; the two sections edit
 // disjoint fields so their independent polls never fight.
 function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePreferences | null }) {
   const { agentName } = useAgentName();
@@ -895,7 +895,7 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       });
       const data = await response.json() as {
         error?: string;
-        iridium?: SyncResult;
+        voiceHost?: SyncResult;
         voice?: VoicePreferences;
       };
       if (!response.ok) {
@@ -907,8 +907,8 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       if (requestVersion !== requestVersionRef.current) {
         return;
       }
-      if (!data.iridium?.ok) {
-        setMessage(`Saved on ${agentName}. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
+      if (!data.voiceHost?.ok) {
+        setMessage(`Saved on ${agentName}. ${data.voiceHost?.error ?? "The voice host did not confirm the refresh."}`);
         setMessageTone("warning");
       }
     } catch (error) {

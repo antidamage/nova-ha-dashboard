@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchIridiumVoiceCatalog } from "../../../../lib/voice-host-settings";
+import { fetchVoiceHostCatalog } from "../../../../lib/voice-host-settings";
 import {
   VOICE_ACCENTS,
   VOICE_EMOTIONS,
@@ -10,13 +10,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-// Iridium publishes the voices and ranges its deployed stack supports; this
+// voice host publishes the voices and ranges its deployed stack supports; this
 // route relays them to the Voice Agent UI. The static lists remain as the
-// fallback so the section still renders while Iridium is offline.
+// fallback so the section still renders while voice host is offline.
 export async function GET() {
-  const catalog = await fetchIridiumVoiceCatalog();
+  const catalog = await fetchVoiceHostCatalog();
   if (catalog) {
-    return NextResponse.json({ source: "iridium", ...catalog });
+    return NextResponse.json({ source: "voiceHost", ...catalog });
   }
   return NextResponse.json({
     source: "fallback",

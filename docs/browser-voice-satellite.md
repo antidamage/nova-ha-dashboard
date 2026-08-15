@@ -73,7 +73,7 @@ bookmarks.
 | `NOVA_DASHBOARD_TLS_CERT` / `NOVA_DASHBOARD_TLS_KEY` | dashboard server | Server cert/key for the internal bridge TLS hop. **Bridge is disabled until both are set.** |
 | `NOVA_VOICE_BRIDGE_PORT` | dashboard server | Bridge listen port (default `8767`). |
 | `NOVA_VOICE_BRIDGE_TOKEN` | dashboard server | Optional shared secret; browsers must pass `?token=`. |
-| `NOVA_VOICE_IRIDIUM_URL` | dashboard server | Iridium base (existing); bridge derives `wss://…/v1/satellites`. |
+| `NOVA_VOICE_HOST_URL` | dashboard server | Voice server base; bridge derives `wss://…/v1/satellites`. The older `NOVA_VOICE_IRIDIUM_URL` still works. |
 | `data/nova-voice-tls/{ca,client}.{crt,key}` | dashboard server | Existing mTLS client identity reused for the upstream leg. |
 | `NEXT_PUBLIC_NOVA_VOICE_BRIDGE_PORT` / `NEXT_PUBLIC_NOVA_VOICE_BRIDGE_URL` | browser | Optional development/legacy override. Production defaults to same-origin `wss://<page-host>/voice-satellite`. |
 | `NEXT_PUBLIC_NOVA_BROWSER_SAT_ROOM` | browser | HA area a browser satellite plays back into (default `lounge`). |

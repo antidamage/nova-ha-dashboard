@@ -16,7 +16,7 @@
 //   4. generic bell
 //
 // The LLM step deliberately does NOT block reminder creation. Adding a
-// reminder must not fail, or hang, because iridium is busy or down.
+// reminder must not fail, or hang, because voiceHost is busy or down.
 
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";

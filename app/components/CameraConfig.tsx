@@ -356,7 +356,7 @@ export function CameraConfig() {
                 inputMode="url"
                 spellCheck={false}
                 autoComplete="off"
-                placeholder="http://nocturnium.local:8080"
+                placeholder="http://camera-host.local:8080"
                 value={videoHostDraft}
                 disabled={DEMO_MODE || videoHostBusy}
                 onChange={(event) => setVideoHostDraft(event.target.value)}
@@ -372,7 +372,7 @@ export function CameraConfig() {
             </div>
             <span className="text-xs text-neutral-400">
               {videoHostMessage ??
-                "Where the Outside camera stream originates (currently Nocturnium, e.g. http://nocturnium.local:8080). Nova relays it over this dashboard's secure origin. Leave blank to use this host's recorder."}
+                "Where the Outside camera stream originates (e.g. http://camera-host.local:8080). Nova relays it over this dashboard's secure origin. Leave blank to use this host's recorder."}
             </span>
           </div>
 

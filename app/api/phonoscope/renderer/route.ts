@@ -22,9 +22,9 @@ const RENDERER_HLS_PORT = Number(process.env.NOVA_VISUALISER_HLS_PORT ?? 8890);
 const RENDERER_STREAM_PATH = process.env.NOVA_VISUALISER_STREAM_PATH ?? "visualiser";
 
 // Where the client should connect for video. Derived from the Host header the
-// client actually used, so an Apple TV that reached us as `nova.local` is told
-// to stream from `nova.local`. `request.url`'s hostname is the server's bind
-// address (0.0.0.0 behind Docker), which no client can connect to.
+// client actually used, so a player that reached us by name is told to stream
+// from that same name. `request.url`'s hostname is the server's bind address
+// (0.0.0.0 behind Docker), which no client can connect to.
 function resolveStreamHost(request: Request) {
   const configured = process.env.NOVA_VISUALISER_STREAM_HOST;
   if (configured) return configured;
@@ -36,14 +36,17 @@ function resolveStreamHost(request: Request) {
     : header.split(":")[0];
   if (host && host !== "0.0.0.0" && host !== "[::]") return host;
 
+  // Last resort: the request carried no usable host. Any hostname named here
+  // would be one installation's, so fall back to loopback and let a deployment
+  // that needs something else set NOVA_VISUALISER_STREAM_HOST.
   const fallback = new URL(request.url).hostname;
-  return fallback === "0.0.0.0" || fallback === "[::]" ? "nova.local" : fallback;
+  return fallback === "0.0.0.0" || fallback === "[::]" ? "localhost" : fallback;
 }
 
 export async function GET(request: Request) {
   const streamHost = resolveStreamHost(request);
   // Derived from the same Host header as the Apple TV endpoint, so a browser
-  // that reached us as `nova.local` is told to play from `nova.local`.
+  // is told to play from the same name it used to reach the dashboard.
   const whepUrl = `http://${streamHost}:${RENDERER_WHEP_PORT}/${RENDERER_STREAM_PATH}/whep`;
   const hlsUrl = `http://${streamHost}:${RENDERER_HLS_PORT}/${RENDERER_STREAM_PATH}/index.m3u8`;
   const signalUrl = `http://${streamHost}:${RENDERER_CONTROL_PORT}/signal`;

@@ -14,7 +14,7 @@ type SyncResult = { ok: boolean; error?: string };
 //   - Agent name pronunciation: the plain, spoken name the voice service uses
 //     for ASR biasing, the LLM persona, and TTS. Optional; empty means the
 //     voice service falls back to the display name.
-// Both are stored with the voice preferences and applied live on Iridium
+// Both are stored with the voice preferences and applied live on VoiceHost
 // through the usual settings-refresh signal.
 export function AgentNameConfig() {
   const { agentName, setAgentName } = useAgentName();
@@ -68,14 +68,14 @@ export function AgentNameConfig() {
       });
       const data = await response.json() as {
         error?: string;
-        iridium?: SyncResult;
+        voiceHost?: SyncResult;
         voice?: { agentName?: string; agentNamePronunciation?: string };
       };
       if (!response.ok) {
         throw new Error(data.error || `${label} update failed: ${response.status}`);
       }
-      if (!data.iridium?.ok) {
-        setMessage(`Saved. ${data.iridium?.error ?? "Iridium did not confirm the refresh."}`);
+      if (!data.voiceHost?.ok) {
+        setMessage(`Saved. ${data.voiceHost?.error ?? "The voice host did not confirm the refresh."}`);
         setMessageTone("warning");
       }
       return data;

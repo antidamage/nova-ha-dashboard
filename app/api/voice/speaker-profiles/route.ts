@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { fetchIridiumSpeakerProfiles } from "../../../../lib/voice-host-settings";
+import { fetchVoiceHostSpeakerProfiles } from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const profiles = await fetchIridiumSpeakerProfiles();
+  const profiles = await fetchVoiceHostSpeakerProfiles();
   if (!profiles) {
     return NextResponse.json({ error: "Speaker profiles are unavailable" }, { status: 502 });
   }

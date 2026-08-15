@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
-  fetchIridiumSatelliteRegistry,
-  triggerIridiumVoiceSettingsRefresh,
+  fetchVoiceHostSatelliteRegistry,
+  triggerVoiceHostSettingsRefresh,
 } from "../../../../lib/voice-host-settings";
 import { assignVoiceSatelliteRoom, listVoiceSatelliteComputers } from "../../../../lib/voice-satellite-reconnect";
 import { buildDashboardState } from "../../../../lib/ha";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // The per-satellite killswitch rides on the voice settings (the same contract
-// Iridium pulls), so a disabled satellite's mic frames are dropped server-side.
+// voice host pulls), so a disabled satellite's mic frames are dropped server-side.
 async function disabledSatelliteIds(): Promise<string[]> {
   try {
     const preferences = await readDashboardPreferences();
@@ -32,8 +32,8 @@ async function setSatelliteVoiceEnabled(id: string, voiceEnabled: boolean): Prom
       ? current
       : [...current, lowerId];
   await mergeDashboardPreferences({ voice: { disabledSatellites: next } });
-  // Iridium pulls the voice settings on this signal and applies the gate live.
-  await triggerIridiumVoiceSettingsRefresh().catch(() => undefined);
+  // voice host pulls the voice settings on this signal and applies the gate live.
+  await triggerVoiceHostSettingsRefresh().catch(() => undefined);
   return next;
 }
 
@@ -46,12 +46,12 @@ export async function GET() {
   try {
     const [computers, registry, dashboardState, disabled] = await Promise.all([
       listVoiceSatelliteComputers(),
-      fetchIridiumSatelliteRegistry(),
+      fetchVoiceHostSatelliteRegistry(),
       buildDashboardState().catch(() => null),
       disabledSatelliteIds(),
     ]);
     return NextResponse.json({
-      iridium: { ok: registry !== null },
+      voiceHost: { ok: registry !== null },
       rooms: dashboardState ? indoorRoomOptions(dashboardState.zones) : [],
       satellites: computers.map((computer) => {
         const status = registry?.find((satellite) => satellite.satelliteId === computer.id) ?? null;
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
     // The voice server treats the roster as the room authority (it pulls
     // satelliteRooms with the voice settings); refresh it so the assignment
     // applies when the restarted satellite reconnects.
-    await triggerIridiumVoiceSettingsRefresh().catch(() => undefined);
+    await triggerVoiceHostSettingsRefresh().catch(() => undefined);
     return NextResponse.json({
       computer: result.computer,
       pushError: result.pushError,

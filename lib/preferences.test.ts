@@ -46,6 +46,32 @@ describe("dashboard preferences", () => {
     expect(preferences.theme).toEqual(active?.themeSet);
   });
 
+  it("keeps writing after a failed write, rather than poisoning the queue", async () => {
+    const { writeFile } = await import("fs/promises");
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await mergeDashboardPreferences({ aircon: { temperature: 20 } });
+
+    // The real-world trigger: the preferences file becomes unparseable, so the
+    // read inside the queued write throws.
+    await writeFile(prefsPath, "{ this is not json", "utf8");
+    await expect(mergeDashboardPreferences({ aircon: { temperature: 21 } })).rejects.toThrow();
+
+    // That failure belongs to its caller alone. Before the fix the shared queue
+    // stayed a rejected promise, so this write — and every write after it, for
+    // the life of the process — failed with the SAME stale parse error even
+    // though the file is fine again.
+    await writeFile(prefsPath, JSON.stringify({ aircon: { temperature: 20 } }), "utf8");
+    await mergeDashboardPreferences({ aircon: { temperature: 22 } });
+    expect((await readDashboardPreferences()).aircon?.temperature).toBe(22);
+  });
+
+  it("reads a preferences file that picked up a UTF-8 BOM", async () => {
+    const { writeFile } = await import("fs/promises");
+    await writeFile(prefsPath, `﻿${JSON.stringify({ aircon: { temperature: 19 } })}`, "utf8");
+    const { readDashboardPreferences } = await load();
+    expect((await readDashboardPreferences()).aircon?.temperature).toBe(19);
+  });
+
   it("keeps other modules' orb display config when one module is saved", async () => {
     const { mergeDashboardPreferences, readDashboardPreferences } = await load();
     await mergeDashboardPreferences({

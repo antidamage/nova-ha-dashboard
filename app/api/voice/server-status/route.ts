@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { iridiumVoiceHostLabel, probeIridiumVoiceHealth } from "../../../../lib/voice-host-settings";
+import { voiceHostLabel, probeVoiceHostHealth } from "../../../../lib/voice-host-settings";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,9 +8,9 @@ export const runtime = "nodejs";
 // config page's status readout. Deliberately touches neither HA nor the
 // satellite registry so the fast cadence stays cheap on both ends.
 export async function GET() {
-  const probe = await probeIridiumVoiceHealth();
+  const probe = await probeVoiceHostHealth();
   return NextResponse.json(
-    { host: iridiumVoiceHostLabel(), checkedAt: new Date().toISOString(), ...probe },
+    { host: voiceHostLabel(), checkedAt: new Date().toISOString(), ...probe },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

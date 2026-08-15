@@ -76,7 +76,7 @@ describe("voice transcript outcome", () => {
 });
 
 describe("voice transcript", () => {
-  it("normalizes an Iridium transcript payload", () => {
+  it("normalizes an voice host transcript payload", () => {
     expect(parseVoiceTranscriptInput({
       at: "2026-07-17T00:42:37.000Z",
       role: "assistant",

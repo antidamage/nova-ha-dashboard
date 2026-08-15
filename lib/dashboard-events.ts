@@ -307,7 +307,7 @@ export function publishReminderIcons(entries: unknown[]) {
   broadcastTask(sseEvent("reminder-icons", store.latestReminderIconsJson));
 }
 
-// Phonoscope configuration changed. The GPU renderer on iridium subscribes to
+// Phonoscope configuration changed. The GPU renderer on voiceHost subscribes to
 // this stream so a slider moved in the browser reaches the render in a frame or
 // two instead of waiting for its next config poll. The payload is deliberately
 // just a nudge — the renderer re-reads /api/phonoscope/config itself, which
@@ -366,7 +366,7 @@ export function publishDoorbellAlert(alert: unknown) {
 }
 
 // Keep a short process-local transcript so opening the Voice Agent panel after
-// a turn still shows recent context. Iridium remains the durable 24-hour
+// a turn still shows recent context. voice host remains the durable 24-hour
 // transcript owner; the dashboard only fans out and displays this bounded copy.
 export function publishVoiceTranscript(event: VoiceTranscriptEvent) {
   store.voiceTranscripts.push(event);

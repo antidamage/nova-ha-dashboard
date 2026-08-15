@@ -3,7 +3,7 @@ import {
   normalizeAgentSettings,
   parseAgentSettingsUpdate,
 } from "../../../lib/agent-settings";
-import { triggerIridiumVoiceSettingsRefresh } from "../../../lib/voice-host-settings";
+import { triggerVoiceHostSettingsRefresh } from "../../../lib/voice-host-settings";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 
 export const dynamic = "force-dynamic";
@@ -26,11 +26,11 @@ export async function POST(request: Request) {
     await mergeDashboardPreferences({ agent: update });
     // The voice server collects both Voice and Agent settings on the same live
     // refresh signal, avoiding a restart and keeping one authoritative snapshot.
-    const iridium = await triggerIridiumVoiceSettingsRefresh();
+    const voiceHost = await triggerVoiceHostSettingsRefresh();
     const saved = await readDashboardPreferences();
     return NextResponse.json({
       agent: normalizeAgentSettings(saved.agent),
-      iridium,
+      voiceHost,
     });
   } catch (error) {
     return NextResponse.json(

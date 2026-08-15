@@ -2,7 +2,7 @@
 //
 // Apple Music plays on the Apple TV through the home theatre, and MusicKit's
 // `SystemMusicPlayer` is only observable on that device. When the visualiser
-// moved to the GPU renderer on iridium, this became the one signal the thin
+// moved to the GPU renderer on voiceHost, this became the one signal the thin
 // client still has to originate: it posts track identity and transport state a
 // few times a second, and everything downstream — beat timeline, theme
 // rotation, house-party lighting, the render itself — is derived here.
