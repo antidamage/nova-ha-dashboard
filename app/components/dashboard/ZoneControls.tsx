@@ -13,6 +13,7 @@ import type {
 } from "../../../lib/types";
 import type { EntityActionInput } from "../../../lib/aircon-control";
 import { DotLineControl, DotSpectrumControl } from "../DotControls";
+import { LabeledSwitch } from "./ClimateControls";
 import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "./EnvironmentPanels";
 import { IconButton } from "./IconButton";
 import { StatChip } from "./ZoneButton";
@@ -332,27 +333,20 @@ export function ZoneControls({
             <>
               {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
               <section className="border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
-                    <div>
-                      <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
-                      <p className="text-sm text-neutral-400">Allow Phonoscope to animate this zone&apos;s lights.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={housePartyEnabled}
-                    disabled={housePartyBusy || !hasLightDevices}
-                    className={`min-w-20 border px-3 py-2 font-black uppercase ${
-                      housePartyEnabled ? "border-fuchsia-300 bg-fuchsia-400 text-black" : "border-neutral-600 bg-black text-neutral-300"
-                    } disabled:opacity-40`}
-                    onClick={() => void toggleHouseParty()}
-                  >
-                    {housePartyEnabled ? "On" : "Off"}
-                  </button>
-                </div>
+                <header className="mb-4 flex items-center gap-3">
+                  <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
+                  <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
+                </header>
+
+                <LabeledSwitch
+                  checked={housePartyEnabled}
+                  disabled={housePartyBusy || !hasLightDevices}
+                  icon={<PartyPopper className="h-4 w-4" />}
+                  label="House Party"
+                  leftLabel="Off"
+                  rightLabel="On"
+                  onChange={() => void toggleHouseParty()}
+                />
               </section>
               <SpectrumPad
                 disabled={!hasActiveLights}
