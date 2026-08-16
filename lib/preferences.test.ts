@@ -147,6 +147,35 @@ describe("dashboard preferences", () => {
     expect(stored.bedroomHeater?.autoOffMinutes).toBe(600);
   });
 
+  it("merges one climate instance without dropping the others, or the rest of its own settings", async () => {
+    // The same hazard as the bedroom heater above, one level deeper: a patch
+    // names one instance and usually one field, so both levels must merge.
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await mergeDashboardPreferences({ climate: { study: { aircon: { mode: "auto", temperature: 21 } } } });
+    await mergeDashboardPreferences({ climate: { garage: { heater: { mode: "auto", temperature: 12 } } } });
+    // A later patch touching one field of one instance.
+    await mergeDashboardPreferences({ climate: { study: { aircon: { temperature: 19 } } } });
+
+    const stored = await readDashboardPreferences();
+    expect(stored.climate?.study?.aircon?.temperature).toBe(19);
+    // Not erased by the narrow patch...
+    expect(stored.climate?.study?.aircon?.mode).toBe("auto");
+    // ...and the other instance survives entirely.
+    expect(stored.climate?.garage?.heater?.mode).toBe("auto");
+    expect(stored.climate?.garage?.heater?.temperature).toBe(12);
+  });
+
+  it("keeps the first-of-kind keys and the instance record independent", async () => {
+    const { mergeDashboardPreferences, readDashboardPreferences } = await load();
+    await mergeDashboardPreferences({ bedroomHeater: { mode: "auto", temperature: 18 } });
+    await mergeDashboardPreferences({ climate: { garage: { heater: { mode: "off" } } } });
+
+    const stored = await readDashboardPreferences();
+    expect(stored.bedroomHeater?.mode).toBe("auto");
+    expect(stored.bedroomHeater?.temperature).toBe(18);
+    expect(stored.climate?.garage?.heater?.mode).toBe("off");
+  });
+
   it("merges voice controls without dropping the other voice fields", async () => {
     const { mergeDashboardPreferences, readDashboardPreferences } = await load();
     await Promise.all([

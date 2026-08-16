@@ -24,7 +24,8 @@ import {
   type VoiceSettings,
 } from "../../lib/voice-settings";
 import type { VoicePreferences } from "../../lib/types";
-import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import CompanionStatusCard from "./CompanionStatusCard";
+import { CheckboxRow, ConfigAccordion, SliderControlPanel } from "./ConfigControls";
 import { ConfigSelect, type ConfigSelectOption } from "./ConfigSelect";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { VoiceServerStatus } from "./VoiceServerStatus";
@@ -622,7 +623,9 @@ type PipelineSettingKey =
   | "voiceTrainingEnabled"
   | "webAccessEnabled"
   | "webBackend"
-  | "companionRoutes";
+  | "companionRoutes"
+  | "companionEnabled"
+  | "companionForceLocal";
 
 // Switches and selects, not sliders: they have no drag to forget.
 const PIPELINE_NON_SLIDER_KEYS = [
@@ -630,6 +633,8 @@ const PIPELINE_NON_SLIDER_KEYS = [
   "speakerRecognitionEnabled",
   "voiceTrainingEnabled",
   "companionRoutes",
+  "companionEnabled",
+  "companionForceLocal",
   "webAccessEnabled",
   "webBackend",
 ] as const;
@@ -647,7 +652,9 @@ const COMPANION_PASS_LABELS: Record<(typeof COMPANION_ROUTABLE_PASSES)[number], 
 const COMPANION_ROUTE_OPTIONS: ConfigSelectOption<CompanionRouteChoice>[] = [
   { value: "local", label: "Voice server" },
   { value: "companion", label: "Companion" },
-  { value: "both", label: "Both" },
+  // Named for what it costs, because it is the one choice that makes things
+  // slower on purpose: both stacks run the pass, so neither slot is freed.
+  { value: "both", label: "Both (compare)" },
 ];
 
 function isPipelineSliderKey(key: PipelineSettingKey): key is PipelineKey {
@@ -877,13 +884,49 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
   // showing a stored-but-absent value as "voice server" would be a guess the
   // dropdown presents as fact.
   const [effectiveRoutes, setEffectiveRoutes] = useState<Record<string, string>>({});
+  // The voice server's live switch positions, for the same reason as the
+  // routes: these two settings have no dashboard default, so a box with no
+  // stored value must show what the server is actually doing rather than a
+  // guess. Starting "off" avoids the worse of the two wrong first frames —
+  // claiming a feature is on when it is not.
+  const [effectiveSwitches, setEffectiveSwitches] = useState({
+    enabled: false,
+    forceLocal: false,
+  });
 
   const loadEffectiveRoutes = useCallback(async () => {
     try {
-      const response = await fetch("/api/voice/companion-routes", { cache: "no-store" });
+      const response = await fetch("/api/voice/companion-status", { cache: "no-store" });
       if (!response.ok) return;
-      const data = await response.json() as { routes?: Record<string, string> };
-      setEffectiveRoutes(data.routes ?? {});
+      const data = await response.json() as {
+        status?: {
+          enabled?: boolean;
+          forceLocal?: boolean;
+          routes?: { pass: string; mode: string }[];
+        } | null;
+      };
+      const status = data.status;
+      if (!status) return;
+      setEffectiveSwitches({
+        enabled: status.enabled === true,
+        forceLocal: status.forceLocal === true,
+      });
+      const byMode: Record<string, string> = {
+        local: "local",
+        companion_only: "companion",
+        companion_preferred: "companion",
+        both: "both",
+      };
+      setEffectiveRoutes(
+        Object.fromEntries(
+          (status.routes ?? [])
+            .map((route) => [route.pass, byMode[route.mode]])
+            // `companion_fallback` and `disabled` have no dropdown equivalent.
+            // Dropped rather than mapped to a near-miss, so a route set outside
+            // this UI is not misreported as something choosable here.
+            .filter(([, choice]) => Boolean(choice)),
+        ),
+      );
     } catch {
       // A voice server that cannot be reached leaves the last known routes on
       // screen rather than snapping every dropdown to a default it invented.
@@ -1180,6 +1223,31 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
           </div>
         </>
       ) : null}
+
+      <p className="mt-2 text-xs font-black uppercase text-neutral-400">Companion device</p>
+      <CompanionStatusCard />
+
+      <div className="grid gap-1.5">
+        {/* Both fall back to the voice server's live state rather than to a
+            fixed default, so a box is never shown ticked for a deployment
+            where the setting is actually off. */}
+        <CheckboxRow
+          checked={settings.companionEnabled ?? effectiveSwitches.enabled}
+          detail="Turning this off restores the voice server's previous behaviour exactly."
+          label="Use the companion device"
+          onChange={(companionEnabled) => {
+            void commit("companionEnabled", companionEnabled).then(loadEffectiveRoutes);
+          }}
+        />
+        <CheckboxRow
+          checked={settings.companionForceLocal ?? effectiveSwitches.forceLocal}
+          detail="Keeps every pass here without disconnecting the device. Applies straight away."
+          label="Force everything to the voice server"
+          onChange={(companionForceLocal) => {
+            void commit("companionForceLocal", companionForceLocal).then(loadEffectiveRoutes);
+          }}
+        />
+      </div>
 
       <p className="mt-2 text-xs font-black uppercase text-neutral-400">Where each pass runs</p>
       <div className="grid gap-3">

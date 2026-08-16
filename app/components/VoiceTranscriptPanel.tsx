@@ -189,6 +189,16 @@ export function VoiceTranscriptPanel() {
                         {line.statusGlyph}
                       </span>
                     ) : null}
+                    {/* One line per stack that ran something, at the same size
+                        and colour as the words above: this is meant to be read
+                        and compared, not skimmed past. Both lines present means
+                        both stacks processed the turn. */}
+                    {line.routeLines?.map((routeLine) => (
+                      <span key={routeLine} className="voice-transcript-routes">
+                        {"\n"}
+                        {routeLine}
+                      </span>
+                    ))}
                   </p>
                 ))
               ) : (

@@ -86,6 +86,42 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    // Same hazard as bedroomHeater above, one level deeper. A patch names ONE
+    // instance and usually ONE field of it, so both levels must merge: the
+    // top-level spread would drop every other instance, and replacing the
+    // instance would erase the rest of that device's settings — stranding its
+    // thermostat exactly as described above.
+    if (next.climate) {
+      const nextClimate = next.climate as NonNullable<DashboardPreferences["climate"]>;
+      const mergedClimate: NonNullable<DashboardPreferences["climate"]> = { ...(current.climate ?? {}) };
+      for (const [instanceId, entry] of Object.entries(nextClimate)) {
+        if (!entry) continue;
+        const existing = mergedClimate[instanceId] ?? {};
+        mergedClimate[instanceId] = {
+          ...existing,
+          ...(entry.aircon
+            ? {
+                aircon: {
+                  ...(existing.aircon ?? {}),
+                  ...withoutUndefined(entry.aircon as Record<string, unknown>),
+                  updatedAt: new Date().toISOString(),
+                },
+              }
+            : {}),
+          ...(entry.heater
+            ? {
+                heater: {
+                  ...(existing.heater ?? {}),
+                  ...withoutUndefined(entry.heater as Record<string, unknown>),
+                  updatedAt: new Date().toISOString(),
+                },
+              }
+            : {}),
+        };
+      }
+      merged.climate = mergedClimate;
+    }
+
     if (next.lighting) {
       const nextLighting = withoutUndefined(next.lighting as Record<string, unknown>);
       merged.lighting = {

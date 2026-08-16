@@ -22,6 +22,19 @@ import {
   minutesFromMidday,
 } from "./bedroom-heater-control";
 import { readDashboardConfig, readDashboardConfigSync } from "./dashboard-config";
+import {
+  airconInstances,
+  heaterInstances,
+  type AirconInstance,
+  type ClimateInstance,
+  type HeaterInstance,
+} from "./climate-instances";
+import {
+  airconPreferencesFor,
+  airconPreferencesPatch,
+  heaterPreferencesFor,
+  heaterPreferencesPatch,
+} from "./climate-preferences";
 import { callService, haRest } from "./ha/client";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
 import type {
@@ -48,7 +61,12 @@ const AIRCON_SAME_DIRECTION_RESUME_DRIFT_C = 1;
 const AIRCON_MIN_OFF_MS = 10 * 60_000;
 const AIRCON_START_WINDOW_MS = 60 * 60_000;
 
-type RoomId = "lounge" | "bedroom";
+/**
+ * A configured climate instance's id (see lib/climate-instances.ts). This was
+ * the union "lounge" | "bedroom" — two rooms of one house, which also meant the
+ * control loop could never drive a third device.
+ */
+type RoomId = string;
 type Direction = "heat" | "cool" | "fan_only";
 
 type PersistedRoom = {
@@ -68,8 +86,8 @@ type PersistedRoom = {
 
 type PersistedState = {
   version: 1;
-  lounge: PersistedRoom;
-  bedroom: PersistedRoom;
+  /** Keyed by climate instance id. */
+  rooms: Record<string, PersistedRoom>;
 };
 
 type PersistedSnapshot = PersistedState & { publicState?: ClimateControlState };
@@ -111,31 +129,67 @@ type ClimateControlRuntime = {
   timer: ReturnType<typeof setInterval> | null;
   running: boolean;
   scheduleCursor: number | null;
-  airconThermostat: AirconAutoThermostat;
-  bedroomThermostat: BedroomHeaterThermostat;
-  loungeSamples: number[];
+  /**
+   * One thermostat per instance. Each carries its own cycle state (last
+   * transition, sensor-pending clock), so sharing one across devices would let
+   * a second unit inherit the first's timings — which for a heater means a
+   * min-cycle guard measured against the wrong device.
+   */
+  airconThermostats: Map<string, AirconAutoThermostat>;
+  heaterThermostats: Map<string, BedroomHeaterThermostat>;
+  /** Per-instance median filter over the unit's own temperature readings. */
+  samples: Map<string, number[]>;
   publicState: ClimateControlState;
 };
 
 const climateGlobal = globalThis as typeof globalThis & {
   __novaClimateControlRuntime?: ClimateControlRuntime;
 };
-const runtime = climateGlobal.__novaClimateControlRuntime ??= {
-  persisted: { version: 1, lounge: defaultRoom(), bedroom: defaultRoom() },
+const runtime: ClimateControlRuntime = climateGlobal.__novaClimateControlRuntime ??= {
+  persisted: { version: 1, rooms: {} },
   loaded: false,
   writeQueue: Promise.resolve(),
   timer: null,
   running: false,
   scheduleCursor: null,
-  airconThermostat: new AirconAutoThermostat(),
-  bedroomThermostat: new BedroomHeaterThermostat(),
-  loungeSamples: [],
-  publicState: { lounge: emptyPublicRoom(), bedroom: emptyPublicRoom() },
+  airconThermostats: new Map(),
+  heaterThermostats: new Map(),
+  samples: new Map(),
+  publicState: {},
 };
 const persisted = runtime.persisted;
-const airconThermostat = runtime.airconThermostat;
-const bedroomThermostat = runtime.bedroomThermostat;
-const loungeSamples = runtime.loungeSamples;
+
+/** This instance's control state, created on first use. */
+function roomState(id: RoomId): PersistedRoom {
+  return (persisted.rooms[id] ??= defaultRoom());
+}
+
+function airconThermostatFor(id: RoomId) {
+  let thermostat = runtime.airconThermostats.get(id);
+  if (!thermostat) {
+    thermostat = new AirconAutoThermostat();
+    runtime.airconThermostats.set(id, thermostat);
+  }
+  return thermostat;
+}
+
+function heaterThermostatFor(id: RoomId) {
+  let thermostat = runtime.heaterThermostats.get(id);
+  if (!thermostat) {
+    thermostat = new BedroomHeaterThermostat();
+    runtime.heaterThermostats.set(id, thermostat);
+  }
+  return thermostat;
+}
+
+function samplesFor(id: RoomId) {
+  let buffer = runtime.samples.get(id);
+  if (!buffer) {
+    buffer = [];
+    runtime.samples.set(id, buffer);
+  }
+  return buffer;
+}
 
 function rawAsDashboardEntity(state: HaState): DashboardEntity {
   const domain = state.entity_id.split(".", 1)[0] as HaDomain;
@@ -166,12 +220,14 @@ function findNamedSwitch(states: HaState[], tokens: string[]) {
   });
 }
 
-function loungeSignature(states: HaState[]) {
-  // Read config here rather than threading tokens through every caller: the
-  // watchdog and the command path must resolve the SAME climate entity, and a
-  // signature computed from a different device than Auto is controlling would
-  // make the safety monitor watch the wrong thing.
-  const aircon = dashboardAirconEntity(states, readDashboardConfigSync().dashboard.aircon.matchTokens);
+/**
+ * The watchdog and the command path must resolve the SAME climate entity: a
+ * signature computed from a different device than Auto is driving would make
+ * the safety monitor watch the wrong thing. Both therefore go through here with
+ * the same instance.
+ */
+function airconSignature(states: HaState[], unit: AirconInstance) {
+  const aircon = airconEntityFor(states, unit);
   if (!aircon || ["unknown", "unavailable"].includes((aircon as HaState).state)) return null;
   const quiet = findNamedSwitch(states, ["quiet"]);
   const turbo = findNamedSwitch(states, ["turbo"]);
@@ -185,23 +241,61 @@ function loungeSignature(states: HaState[]) {
   });
 }
 
-function bedroomSignature(switchState?: HaState) {
+function heaterSignature(switchState?: HaState) {
   return switchState && !["unknown", "unavailable"].includes(switchState.state)
     ? JSON.stringify({ power: switchState.state })
     : null;
+}
+
+/**
+ * This unit's climate entity: bound explicitly when the home says which one,
+ * otherwise matched by name. Explicit binding is what makes more than one air
+ * conditioner possible, since name matching alone cannot tell two apart.
+ */
+function airconEntityFor(states: HaState[], unit: AirconInstance) {
+  if (unit.entityId) {
+    return states.find((state) => state.entity_id === unit.entityId);
+  }
+  return dashboardAirconEntity(states, unit.matchTokens) as HaState | undefined;
+}
+
+function heaterEntityFor(states: HaState[], instance: HeaterInstance) {
+  return instance.switchEntityIds.map((id) => states.find((state) => state.entity_id === id)).find(Boolean);
+}
+
+function heaterSensorFor(states: HaState[], instance: HeaterInstance) {
+  return roomTemperatureEntityIds(instance.temperatureEntityIds)
+    .map((id) => states.find((state) => state.entity_id === id))
+    .find(Boolean);
 }
 
 async function loadPersisted() {
   if (runtime.loaded) return;
   runtime.loaded = true;
   try {
-    const value = JSON.parse(await readFile(STATE_PATH, "utf8")) as Partial<PersistedSnapshot>;
-    Object.assign(persisted, {
-      version: 1,
-      lounge: { ...defaultRoom(), ...(value.lounge ?? {}) },
-      bedroom: { ...defaultRoom(), ...(value.bedroom ?? {}) },
-    });
-    if (value.publicState?.lounge && value.publicState?.bedroom) {
+    const value = JSON.parse(await readFile(STATE_PATH, "utf8")) as Partial<PersistedSnapshot> &
+      Record<string, unknown>;
+
+    // Files written before instances existed keep each room at the top level.
+    // Carry those across rather than starting fresh: this state holds whether
+    // Nova or a person currently owns the device, and losing it mid-heat would
+    // hand a running element back to an automation the user had overridden.
+    const legacyRooms: Record<string, PersistedRoom> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (key === "version" || key === "rooms" || key === "publicState") continue;
+      if (entry && typeof entry === "object" && "owner" in (entry as object)) {
+        legacyRooms[key] = { ...defaultRoom(), ...(entry as PersistedRoom) };
+      }
+    }
+
+    const stored = (value.rooms ?? {}) as Record<string, PersistedRoom>;
+    persisted.version = 1;
+    persisted.rooms = { ...legacyRooms };
+    for (const [id, entry] of Object.entries(stored)) {
+      persisted.rooms[id] = { ...defaultRoom(), ...entry };
+    }
+
+    if (value.publicState && Object.keys(value.publicState).length) {
       runtime.publicState = value.publicState;
     }
   } catch (error) {
@@ -226,29 +320,32 @@ function median(values: number[]) {
   return sorted[Math.floor(sorted.length / 2)] ?? null;
 }
 
-function noteSample(value: number | null) {
+function noteSample(samples: number[], value: number | null) {
   if (value === null || !Number.isFinite(value)) return;
-  loungeSamples.push(value);
-  while (loungeSamples.length > 5) loungeSamples.shift();
+  samples.push(value);
+  while (samples.length > 5) samples.shift();
 }
 
 function pruneStarts(room: PersistedRoom, now: number) {
   room.recentStartsAt = room.recentStartsAt.filter((at) => now - at < AIRCON_START_WINDOW_MS);
 }
 
-function setExternal(room: RoomId, reason: string) {
-  const state = persisted[room];
+function setExternal(instance: ClimateInstance, reason: string) {
+  const room = instance.id;
+  const state = roomState(room);
   state.owner = "external";
   state.overrideReason = reason;
   state.commandSettleUntil = 0;
-  state.scheduleBlocked = room === "bedroom";
-  if (room === "lounge") airconThermostat.resetForUserRequest();
-  else bedroomThermostat.resetForUserRequest();
+  // Only a heater runs on a schedule, so only a heater can have one blocked.
+  state.scheduleBlocked = instance.kind === "heater";
+  if (instance.kind === "aircon") airconThermostatFor(room).resetForUserRequest();
+  else heaterThermostatFor(room).resetForUserRequest();
   console.warn(`[climate-control] ${room} external override; Nova automation suspended`);
 }
 
-function observeExternalChanges(room: RoomId, signature: string | null, now: number) {
-  const state = persisted[room];
+function observeExternalChanges(instance: ClimateInstance, signature: string | null, now: number) {
+  const room = instance.id;
+  const state = roomState(room);
   if (signature === null) return;
   if (state.observedSignature === null) {
     state.observedSignature = signature;
@@ -264,12 +361,12 @@ function observeExternalChanges(room: RoomId, signature: string | null, now: num
     state.observedSignature = signature;
     return;
   }
-  if (state.owner === "nova") setExternal(room, "device-override");
+  if (state.owner === "nova") setExternal(instance, "device-override");
   state.observedSignature = signature;
 }
 
-function observeActuator(room: RoomId, signature: string | null, now: number) {
-  const state = persisted[room];
+function observeActuator(instance: ClimateInstance, signature: string | null, now: number) {
+  const state = roomState(instance.id);
   const available = signature !== null;
   const recoveredPowered = poweredActuatorRecoveryIsExternal({
     wasAvailable: state.actuatorWasAvailable,
@@ -279,88 +376,279 @@ function observeActuator(room: RoomId, signature: string | null, now: number) {
   });
   state.actuatorWasAvailable = available;
   if (recoveredPowered && state.owner === "nova" && signature) {
-    setExternal(room, "device-reconnected-on");
+    setExternal(instance, "device-reconnected-on");
     state.observedSignature = signature;
     return;
   }
-  observeExternalChanges(room, signature, now);
+  observeExternalChanges(instance, signature, now);
 }
 
 async function statesAndDevices() {
   const config = await readDashboardConfig();
   const states = await haRest<HaState[]>("/api/states");
-  const airconRaw = dashboardAirconEntity(states, config.dashboard.aircon.matchTokens);
-  const aircon = airconRaw ? rawAsDashboardEntity(airconRaw as HaState) : undefined;
   const quietRaw = findNamedSwitch(states, ["quiet"]);
   const turboRaw = findNamedSwitch(states, ["turbo"]);
   const quiet = quietRaw ? rawAsDashboardEntity(quietRaw) : undefined;
   const turbo = turboRaw ? rawAsDashboardEntity(turboRaw) : undefined;
-  const heaterIds = config.dashboard.bedroomHeater?.switchEntityIds ?? [];
-  const heater = heaterIds.map((id) => states.find((state) => state.entity_id === id)).find(Boolean);
-  const sensorIds = roomTemperatureEntityIds(config.dashboard.bedroomHeater?.temperatureEntityIds ?? []);
-  const sensor = sensorIds.map((id) => states.find((state) => state.entity_id === id)).find(Boolean);
-  return { states, aircon, quiet, turbo, heater, sensor };
+  return { config, states, quiet, turbo };
 }
 
-async function executeActions(room: RoomId, actions: EntityActionInput[], allowWhileExternal = false) {
-  if (persisted[room].owner !== "nova" && !allowWhileExternal) return;
+/**
+ * The signature this instance is watched by. Which fields matter depends on the
+ * device kind, not on which room it is in.
+ */
+function signatureFor(instance: ClimateInstance, states: HaState[], entityId?: string) {
+  return instance.kind === "aircon"
+    ? airconSignature(states, instance)
+    : heaterSignature(states.find((state) => state.entity_id === entityId));
+}
+
+async function executeActions(
+  instance: ClimateInstance,
+  actions: EntityActionInput[],
+  allowWhileExternal = false,
+) {
+  const room = instance.id;
+  if (roomState(room).owner !== "nova" && !allowWhileExternal) return;
   for (const action of actions) {
-    if (persisted[room].owner !== "nova" && !allowWhileExternal) return;
+    if (roomState(room).owner !== "nova" && !allowWhileExternal) return;
     const before = await haRest<HaState[]>("/api/states");
-    const signature = room === "lounge"
-      ? loungeSignature(before)
-      : bedroomSignature(before.find((state) => state.entity_id === action.entityId));
-    observeActuator(room, signature, Date.now());
-    if (persisted[room].owner !== "nova" && !allowWhileExternal) return;
-    persisted[room].commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
+    observeActuator(instance, signatureFor(instance, before, action.entityId), Date.now());
+    if (roomState(room).owner !== "nova" && !allowWhileExternal) return;
+    roomState(room).commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
     const result = await callService(action.domain, action.service, {
       entity_id: action.entityId,
       ...(action.data ?? {}),
     });
     if (action.remember) await mergeDashboardPreferences(action.remember);
     const resultStates = result.length ? result : await haRest<HaState[]>("/api/states");
-    const afterSignature = room === "lounge"
-      ? loungeSignature(resultStates)
-      : bedroomSignature(resultStates.find((state) => state.entity_id === action.entityId));
-    if (afterSignature) persisted[room].observedSignature = afterSignature;
+    const afterSignature = signatureFor(instance, resultStates, action.entityId);
+    if (afterSignature) roomState(room).observedSignature = afterSignature;
   }
   await persistSoon();
 }
 
-async function stopAndCancel(room: RoomId, entityId: string, reason: string) {
+async function stopAndCancel(instance: ClimateInstance, entityId: string, reason: string) {
   const now = Date.now();
-  persisted[room].lastStopReason = reason;
-  persisted[room].lastTransitionAt = now;
-  persisted[room].sensorPendingSinceAt = null;
-  persisted[room].settlingFromTemperature = null;
-  if (room === "lounge") {
-    airconThermostat.resetForUserRequest();
-    await executeActions(room, [{ entityId, domain: "climate", service: "turn_off" }]);
-    await mergeDashboardPreferences({ aircon: { autoMode: false, offTimerEndsAt: null } });
+  const room = instance.id;
+  roomState(room).lastStopReason = reason;
+  roomState(room).lastTransitionAt = now;
+  roomState(room).sensorPendingSinceAt = null;
+  roomState(room).settlingFromTemperature = null;
+  if (instance.kind === "aircon") {
+    airconThermostatFor(room).resetForUserRequest();
+    await executeActions(instance, [{ entityId, domain: "climate", service: "turn_off" }]);
+    await mergeDashboardPreferences(airconPreferencesPatch(room, { autoMode: false, offTimerEndsAt: null }));
   } else {
-    bedroomThermostat.resetForUserRequest();
-    await executeActions(room, [{ entityId, domain: "switch", service: "turn_off" }]);
-    await mergeDashboardPreferences({ bedroomHeater: { mode: "off", offTimerEndsAt: null } });
+    heaterThermostatFor(room).resetForUserRequest();
+    await executeActions(instance, [{ entityId, domain: "switch", service: "turn_off" }]);
+    await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "off", offTimerEndsAt: null }));
   }
 }
 
-async function applyBedroomSchedule(settings: BedroomHeaterPreferences | undefined, nowDate: Date) {
-  const nowMinutes = minutesFromMidday(nowDate);
-  const previous = runtime.scheduleCursor;
-  runtime.scheduleCursor = nowMinutes;
-  if (previous === null || persisted.bedroom.scheduleBlocked) return null;
+/**
+ * Advance this heater's schedule. The cursor is shared (it is wall-clock, not
+ * per-device) but the edge is applied to one instance, so two heaters on
+ * different windows each get their own on/off transition.
+ */
+async function applyHeaterSchedule(
+  instance: HeaterInstance,
+  settings: BedroomHeaterPreferences | undefined,
+  previous: number | null,
+  nowMinutes: number,
+) {
+  if (previous === null || roomState(instance.id).scheduleBlocked) return null;
   const window = bedroomHeaterWindow(settings);
   const edge = bedroomHeaterScheduleEdge(previous, nowMinutes, window.start, window.end);
   if (!edge) return null;
-  persisted.bedroom.owner = "nova";
-  persisted.bedroom.overrideReason = null;
-  await mergeDashboardPreferences({ bedroomHeater: { mode: edge, offTimerEndsAt: null } });
-  bedroomThermostat.resetForUserRequest();
+  roomState(instance.id).owner = "nova";
+  roomState(instance.id).overrideReason = null;
+  await mergeDashboardPreferences(heaterPreferencesPatch(instance.id, { mode: edge, offTimerEndsAt: null }));
+  heaterThermostatFor(instance.id).resetForUserRequest();
   return edge;
 }
 
 function publicRoom(args: Partial<ClimateControlRoomState> & Pick<ClimateControlRoomState, "mode" | "phase">): ClimateControlRoomState {
   return { ...emptyPublicRoom(), ...args };
+}
+
+/** What driving one instance produced, for building its public state after. */
+type AirconTickResult = {
+  unit: AirconInstance;
+  aircon?: DashboardEntity;
+  mode: "auto" | "manual" | "off";
+  direction: Direction | null;
+  external: boolean;
+  rawTemperature: number | null;
+};
+
+type HeaterTickResult = {
+  instance: HeaterInstance;
+  heater?: HaState;
+  sensor?: HaState;
+  mode: ReturnType<typeof bedroomHeaterMode>;
+  sensorAvailable: boolean;
+};
+
+async function driveAircon(
+  unit: AirconInstance,
+  states: HaState[],
+  quiet: DashboardEntity | undefined,
+  turbo: DashboardEntity | undefined,
+  preferences: DashboardPreferences,
+  now: number,
+): Promise<AirconTickResult> {
+  const room = roomState(unit.id);
+  const raw = airconEntityFor(states, unit);
+  const aircon = raw ? rawAsDashboardEntity(raw) : undefined;
+  const prefs = airconPreferencesFor(preferences, unit.id);
+  const thermostat = airconThermostatFor(unit.id);
+  const samples = samplesFor(unit.id);
+
+  observeActuator(unit, airconSignature(states, unit), now);
+
+  const rawTemperature = airconAutoMeasuredTemperature(aircon, now);
+  noteSample(samples, rawTemperature);
+  const filteredTemperature = median(samples);
+  const mode = prefs?.autoMode
+    ? "auto"
+    : room.manualDirection
+    ? "manual"
+    : aircon && isClimateEntityOn(aircon)
+    ? "manual"
+    : "off";
+  const direction = mode === "manual" && room.manualDirection
+    ? room.manualDirection
+    : aircon && ["heat", "cool", "fan_only"].includes(aircon.state)
+    ? (aircon.state as Direction)
+    : (prefs?.hvacMode as Direction | undefined) ?? null;
+  const external = room.owner === "external";
+
+  if (aircon && usable(aircon) && !external) {
+    const offTimer = prefs?.offTimerEndsAt;
+    if (typeof offTimer === "string" && new Date(offTimer).getTime() <= now) {
+      await stopAndCancel(unit, aircon.entity_id, "timer-expired");
+    } else if (prefs?.autoMode) {
+      thermostat.reconcile({
+        ...airconAutoCycleStateFromPreferences(prefs),
+        sensorPendingSinceAt: room.sensorPendingSinceAt,
+      });
+      const measured = isClimateEntityOn(aircon) ? rawTemperature : filteredTemperature;
+      const plan = thermostat.plan({
+        currentTemperature: measured,
+        entity: aircon,
+        preferences: prefs,
+        quietSwitch: quiet,
+        turboSwitch: turbo,
+      });
+      room.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
+      if (plan.reason === "sensor-fail-safe-off") {
+        await stopAndCancel(unit, aircon.entity_id, "sensor-timeout");
+      } else {
+        await executeActions(unit, plan.actions);
+        if (plan.reason === "reached-target") room.lastStopReason = "target-reached";
+      }
+    } else if (mode === "manual" && (direction === "heat" || direction === "cool")) {
+      const target = prefs?.temperature ?? Number(aircon.attributes.temperature);
+      pruneStarts(room, now);
+      const decision = Number.isFinite(target)
+        ? planManualAirconTick({
+            direction,
+            isOn: isClimateEntityOn(aircon),
+            rawTemperature,
+            filteredTemperature,
+            targetTemperature: target,
+            now,
+            lastTransitionAt: room.lastTransitionAt,
+            settlingFromTemperature: room.settlingFromTemperature,
+            minOffMs: AIRCON_MIN_OFF_MS,
+            sensorSettleMs: AIRCON_SENSOR_SETTLE_MS,
+            sensorResolutionC: AIRCON_SENSOR_RESOLUTION_DEGREES,
+            sensorTimeConstantMs: AIRCON_SENSOR_TIME_CONSTANT_MS,
+            resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
+          })
+        : "hold";
+      if (decision === "stop") {
+        room.lastTransitionAt = now;
+        room.settlingFromTemperature = rawTemperature;
+        room.lastStopReason = "target-reached";
+        await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
+      } else if (decision === "start") {
+        room.lastTransitionAt = now;
+        room.settlingFromTemperature = null;
+        room.recentStartsAt.push(now);
+        await executeActions(unit, [{
+          entityId: aircon.entity_id,
+          domain: "climate",
+          service: "set_hvac_mode",
+          data: { hvac_mode: direction },
+        }]);
+      }
+    }
+  }
+
+  return { unit, aircon, mode, direction, external, rawTemperature };
+}
+
+async function driveHeater(
+  instance: HeaterInstance,
+  states: HaState[],
+  preferences: DashboardPreferences,
+  previousCursor: number | null,
+  nowMinutes: number,
+  now: number,
+): Promise<HeaterTickResult> {
+  const room = roomState(instance.id);
+  const heater = heaterEntityFor(states, instance);
+  const sensor = heaterSensorFor(states, instance);
+  const thermostat = heaterThermostatFor(instance.id);
+
+  observeActuator(instance, heaterSignature(heater), now);
+
+  const scheduleEdge = await applyHeaterSchedule(
+    instance,
+    heaterPreferencesFor(preferences, instance.id),
+    previousCursor,
+    nowMinutes,
+  );
+  // Re-read: the schedule edge above may have just written this heater's mode.
+  const prefs = heaterPreferencesFor(await readDashboardPreferences(), instance.id);
+  const mode = bedroomHeaterMode(prefs);
+  const temperature = Number(bedroomTemperatureStateIsFresh(sensor, now) ? sensor?.state : Number.NaN);
+  const sensorAvailable = Number.isFinite(temperature);
+
+  if (heater && usable(heater) && room.owner === "nova") {
+    if (scheduleEdge === "off") {
+      await stopAndCancel(instance, heater.entity_id, "schedule-ended");
+    } else if (bedroomHeaterSleepTimerExpired(prefs, now)) {
+      await stopAndCancel(instance, heater.entity_id, "timer-expired");
+    } else if (mode === "off" && heater.state === "on") {
+      room.lastStopReason = "nova-off";
+      await executeActions(instance, [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);
+    } else if (mode === "auto") {
+      thermostat.reconcile({
+        lastTransitionAt: room.lastTransitionAt,
+        sensorPendingSinceAt: room.sensorPendingSinceAt,
+      });
+      const plan = thermostat.plan({
+        currentTemperature: sensorAvailable ? temperature : null,
+        entityId: heater.entity_id,
+        isOn: heater.state === "on",
+        now,
+        preferences: prefs,
+      });
+      room.lastTransitionAt = plan.nextState.lastTransitionAt;
+      room.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
+      if (plan.reason === "sensor-fail-safe-off") {
+        await stopAndCancel(instance, heater.entity_id, "sensor-timeout");
+      } else {
+        await executeActions(instance, plan.actions);
+        if (["reached-target", "above-target"].includes(plan.reason)) room.lastStopReason = "target-reached";
+      }
+    }
+  }
+
+  return { instance, heater, sensor, mode, sensorAvailable };
 }
 
 async function tick() {
@@ -369,157 +657,71 @@ async function tick() {
   try {
     await loadPersisted();
     const now = Date.now();
-    const { states, aircon, quiet, turbo, heater, sensor } = await statesAndDevices();
+    const { config, states, quiet, turbo } = await statesAndDevices();
     const preferences = await readDashboardPreferences();
 
-    observeActuator("lounge", loungeSignature(states), now);
-    observeActuator("bedroom", bedroomSignature(heater), now);
+    // The schedule cursor is wall-clock and shared; each heater compares its own
+    // window against the same advance, so two heaters on different windows both
+    // get their edges from one tick.
+    const nowMinutes = minutesFromMidday(new Date(now));
+    const previousCursor = runtime.scheduleCursor;
+    runtime.scheduleCursor = nowMinutes;
 
-    const rawLoungeTemperature = airconAutoMeasuredTemperature(aircon, now);
-    noteSample(rawLoungeTemperature);
-    const filteredLoungeTemperature = median(loungeSamples);
-    const loungeMode = preferences.aircon?.autoMode ? "auto" : persisted.lounge.manualDirection ? "manual" : aircon && isClimateEntityOn(aircon) ? "manual" : "off";
-    const loungeDirection = loungeMode === "manual" && persisted.lounge.manualDirection
-      ? persisted.lounge.manualDirection
-      : aircon && ["heat", "cool", "fan_only"].includes(aircon.state)
-      ? aircon.state as Direction
-      : (preferences.aircon?.hvacMode as Direction | undefined) ?? null;
-    const loungeExternal = persisted.lounge.owner === "external";
+    const airconResults: AirconTickResult[] = [];
+    for (const unit of airconInstances(config)) {
+      airconResults.push(await driveAircon(unit, states, quiet, turbo, preferences, now));
+    }
 
-    if (aircon && usable(aircon) && !loungeExternal) {
-      const offTimer = preferences.aircon?.offTimerEndsAt;
-      if (typeof offTimer === "string" && new Date(offTimer).getTime() <= now) {
-        await stopAndCancel("lounge", aircon.entity_id, "timer-expired");
-      } else if (preferences.aircon?.autoMode) {
-        airconThermostat.reconcile({
-          ...airconAutoCycleStateFromPreferences(preferences.aircon),
-          sensorPendingSinceAt: persisted.lounge.sensorPendingSinceAt,
-        });
-        const measured = isClimateEntityOn(aircon) ? rawLoungeTemperature : filteredLoungeTemperature;
-        const plan = airconThermostat.plan({
-          currentTemperature: measured,
-          entity: aircon,
-          preferences: preferences.aircon,
-          quietSwitch: quiet,
-          turboSwitch: turbo,
-        });
-        persisted.lounge.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
-        if (plan.reason === "sensor-fail-safe-off") {
-          await stopAndCancel("lounge", aircon.entity_id, "sensor-timeout");
-        } else {
-          await executeActions("lounge", plan.actions);
-          if (plan.reason === "reached-target") persisted.lounge.lastStopReason = "target-reached";
-        }
-      } else if (loungeMode === "manual" && (loungeDirection === "heat" || loungeDirection === "cool")) {
-        const target = preferences.aircon?.temperature ?? Number(aircon.attributes.temperature);
-        pruneStarts(persisted.lounge, now);
-        const decision = Number.isFinite(target) ? planManualAirconTick({
-          direction: loungeDirection,
-          isOn: isClimateEntityOn(aircon),
-          rawTemperature: rawLoungeTemperature,
-          filteredTemperature: filteredLoungeTemperature,
-          targetTemperature: target,
-          now,
-          lastTransitionAt: persisted.lounge.lastTransitionAt,
-          settlingFromTemperature: persisted.lounge.settlingFromTemperature,
-          minOffMs: AIRCON_MIN_OFF_MS,
-          sensorSettleMs: AIRCON_SENSOR_SETTLE_MS,
-          sensorResolutionC: AIRCON_SENSOR_RESOLUTION_DEGREES,
-          sensorTimeConstantMs: AIRCON_SENSOR_TIME_CONSTANT_MS,
-          resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
-        }) : "hold";
-        if (decision === "stop") {
-          persisted.lounge.lastTransitionAt = now;
-          persisted.lounge.settlingFromTemperature = rawLoungeTemperature;
-          persisted.lounge.lastStopReason = "target-reached";
-          await executeActions("lounge", [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
-        } else if (decision === "start") {
-            persisted.lounge.lastTransitionAt = now;
-            persisted.lounge.settlingFromTemperature = null;
-            persisted.lounge.recentStartsAt.push(now);
-            await executeActions("lounge", [{
-              entityId: aircon.entity_id,
-              domain: "climate",
-              service: "set_hvac_mode",
-              data: { hvac_mode: loungeDirection },
-            }]);
-          }
-        }
-      }
-
-    const bedroomScheduleEdge = await applyBedroomSchedule(preferences.bedroomHeater, new Date(now));
-    const bedroomPreferences = (await readDashboardPreferences()).bedroomHeater;
-    const bedroomMode = bedroomHeaterMode(bedroomPreferences);
-    const bedroomTemperature = Number(
-      bedroomTemperatureStateIsFresh(sensor, now) ? sensor?.state : Number.NaN,
-    );
-    const bedroomSensorAvailable = Number.isFinite(bedroomTemperature);
-    if (heater && usable(heater) && persisted.bedroom.owner === "nova") {
-      if (bedroomScheduleEdge === "off") {
-        await stopAndCancel("bedroom", heater.entity_id, "schedule-ended");
-      } else if (bedroomHeaterSleepTimerExpired(bedroomPreferences, now)) {
-        await stopAndCancel("bedroom", heater.entity_id, "timer-expired");
-      } else if (bedroomMode === "off" && heater.state === "on") {
-        persisted.bedroom.lastStopReason = "nova-off";
-        await executeActions("bedroom", [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);
-      } else if (bedroomMode === "auto") {
-        bedroomThermostat.reconcile({
-          lastTransitionAt: persisted.bedroom.lastTransitionAt,
-          sensorPendingSinceAt: persisted.bedroom.sensorPendingSinceAt,
-        });
-        const plan = bedroomThermostat.plan({
-          currentTemperature: bedroomSensorAvailable ? bedroomTemperature : null,
-          entityId: heater.entity_id,
-          isOn: heater.state === "on",
-          now,
-          preferences: bedroomPreferences,
-        });
-        persisted.bedroom.lastTransitionAt = plan.nextState.lastTransitionAt;
-        persisted.bedroom.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
-        if (plan.reason === "sensor-fail-safe-off") {
-          await stopAndCancel("bedroom", heater.entity_id, "sensor-timeout");
-        } else {
-          await executeActions("bedroom", plan.actions);
-          if (["reached-target", "above-target"].includes(plan.reason)) persisted.bedroom.lastStopReason = "target-reached";
-        }
-      }
+    const heaterResults: HeaterTickResult[] = [];
+    for (const instance of heaterInstances(config)) {
+      heaterResults.push(await driveHeater(instance, states, preferences, previousCursor, nowMinutes, now));
     }
 
     const latest = await readDashboardPreferences();
-    const loungeSensorPendingAt = airconThermostat.snapshot().sensorPendingSinceAt;
-    const bedroomSensorPendingAt = bedroomThermostat.snapshot().sensorPendingSinceAt;
-    runtime.publicState = {
-      lounge: publicRoom({
-        owner: persisted.lounge.owner,
-        mode: loungeExternal ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : (latest.aircon?.autoMode ? "auto" : loungeMode),
-        phase: loungeExternal ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
-          : latest.aircon?.autoMode && rawLoungeTemperature === null ? "grace"
-          : aircon && isClimateEntityOn(aircon) ? "driving" : latest.aircon?.autoMode || loungeMode === "manual" ? "resting" : "off",
-        direction: loungeDirection,
-        sensorAvailable: rawLoungeTemperature !== null,
+    const publicState: ClimateControlState = {};
+
+    for (const { unit, aircon, mode, direction, external, rawTemperature } of airconResults) {
+      const room = roomState(unit.id);
+      const prefs = airconPreferencesFor(latest, unit.id);
+      const pendingAt = airconThermostatFor(unit.id).snapshot().sensorPendingSinceAt;
+      publicState[unit.id] = publicRoom({
+        owner: room.owner,
+        mode: external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : (prefs?.autoMode ? "auto" : mode),
+        phase: external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
+          : prefs?.autoMode && rawTemperature === null ? "grace"
+          : aircon && isClimateEntityOn(aircon) ? "driving" : prefs?.autoMode || mode === "manual" ? "resting" : "off",
+        direction,
+        sensorAvailable: rawTemperature !== null,
         sensorReportedAt: stateReportTime(aircon),
-        sensorGraceEndsAt: latest.aircon?.autoMode && rawLoungeTemperature === null && typeof loungeSensorPendingAt === "number"
-          ? new Date(loungeSensorPendingAt + 2 * 60_000).toISOString() : null,
+        sensorGraceEndsAt: prefs?.autoMode && rawTemperature === null && typeof pendingAt === "number"
+          ? new Date(pendingAt + 2 * 60_000).toISOString() : null,
         actuatorAvailable: usable(aircon),
-        overrideReason: persisted.lounge.overrideReason,
-        lastStopReason: persisted.lounge.lastStopReason,
-      }),
-      bedroom: publicRoom({
-        owner: persisted.bedroom.owner,
-        mode: persisted.bedroom.owner === "external" ? (heater?.state === "on" ? "manual" : "off") : bedroomMode,
-        phase: persisted.bedroom.owner === "external" ? (heater?.state === "on" ? "driving" : "off")
-          : bedroomMode === "auto" && !bedroomSensorAvailable ? "grace"
-          : heater?.state === "on" ? "driving" : bedroomMode === "auto" ? "resting" : "off",
+        overrideReason: room.overrideReason,
+        lastStopReason: room.lastStopReason,
+      });
+    }
+
+    for (const { instance, heater, sensor, mode, sensorAvailable } of heaterResults) {
+      const room = roomState(instance.id);
+      const pendingAt = heaterThermostatFor(instance.id).snapshot().sensorPendingSinceAt;
+      publicState[instance.id] = publicRoom({
+        owner: room.owner,
+        mode: room.owner === "external" ? (heater?.state === "on" ? "manual" : "off") : mode,
+        phase: room.owner === "external" ? (heater?.state === "on" ? "driving" : "off")
+          : mode === "auto" && !sensorAvailable ? "grace"
+          : heater?.state === "on" ? "driving" : mode === "auto" ? "resting" : "off",
         direction: heater?.state === "on" ? "heat" : null,
-        sensorAvailable: bedroomSensorAvailable,
+        sensorAvailable,
         sensorReportedAt: stateReportTime(sensor),
-        sensorGraceEndsAt: bedroomMode === "auto" && !bedroomSensorAvailable && bedroomSensorPendingAt !== null
-          ? new Date(bedroomSensorPendingAt + 2 * 60_000).toISOString() : null,
+        sensorGraceEndsAt: mode === "auto" && !sensorAvailable && pendingAt !== null
+          ? new Date(pendingAt + 2 * 60_000).toISOString() : null,
         actuatorAvailable: usable(heater),
-        overrideReason: persisted.bedroom.overrideReason,
-        lastStopReason: persisted.bedroom.lastStopReason,
-      }),
-    };
+        overrideReason: room.overrideReason,
+        lastStopReason: room.lastStopReason,
+      });
+    }
+
+    runtime.publicState = publicState;
     await persistSoon();
   } catch (error) {
     console.error("[climate-control] tick failed", error);
@@ -546,14 +748,23 @@ export async function climateControlState(): Promise<ClimateControlState> {
   return structuredClone(runtime.publicState);
 }
 
+async function instanceById(id: RoomId): Promise<ClimateInstance | undefined> {
+  const config = await readDashboardConfig();
+  return [...airconInstances(config), ...heaterInstances(config)].find((instance) => instance.id === id);
+}
+
 export async function claimClimateControl(room: RoomId) {
   await loadPersisted();
-  persisted[room].owner = "nova";
-  persisted[room].overrideReason = null;
-  persisted[room].scheduleBlocked = false;
-  persisted[room].commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
-  if (room === "lounge") airconThermostat.resetForUserRequest();
-  else bedroomThermostat.resetForUserRequest();
+  const state = roomState(room);
+  state.owner = "nova";
+  state.overrideReason = null;
+  state.scheduleBlocked = false;
+  state.commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
+  const instance = await instanceById(room);
+  // Reset only this instance's own thermostat; the others are mid-cycle on
+  // their own devices and must not have their timings cleared.
+  if (instance?.kind === "heater") heaterThermostatFor(room).resetForUserRequest();
+  else airconThermostatFor(room).resetForUserRequest();
   await persistSoon();
 }
 
@@ -564,53 +775,63 @@ export async function handleLegacyClimateAction(action: {
   data?: Record<string, unknown>;
   remember?: DashboardPreferences;
 }) {
-  const { states, aircon, heater } = await statesAndDevices();
-  const loungeRelated = action.entityId === aircon?.entity_id ||
+  const { config, states } = await statesAndDevices();
+  const units = airconInstances(config);
+  const heaters = heaterInstances(config);
+
+  // Which configured device does this entity belong to? Heaters bind by entity
+  // id; an air conditioner binds by its resolved entity, or — for its companion
+  // quiet/turbo switches, which are not the climate entity — by name. With more
+  // than one unit the name test cannot say which, so it stays with the first,
+  // matching what a single-unit home has always done.
+  const heaterMatch = heaters.find((instance) => instance.switchEntityIds.includes(action.entityId));
+  const unitMatch = units.find((unit) => airconEntityFor(states, unit)?.entity_id === action.entityId);
+  const looksLikeAircon =
     `${action.entityId} ${String(states.find((state) => state.entity_id === action.entityId)?.attributes.friendly_name ?? "")}`
-      .toLowerCase().match(/air|gree|quiet|turbo|xtra/) !== null;
-  const bedroomRelated = action.entityId === heater?.entity_id;
-  if (!loungeRelated && !bedroomRelated) return false;
-  const room: RoomId = loungeRelated ? "lounge" : "bedroom";
+      .toLowerCase().match(/air|quiet|turbo|xtra/) !== null;
+  const instance = unitMatch ?? heaterMatch ?? (looksLikeAircon ? units[0] : undefined);
+  if (!instance) return false;
+
+  const room = instance.id;
+  const isAircon = instance.kind === "aircon";
+  const aircon = isAircon ? airconEntityFor(states, instance) : undefined;
   const reclaims = climateActionReclaimsOwnership({
-    room,
+    room: isAircon ? "lounge" : "bedroom",
     service: action.service,
     autoMode: action.remember?.aircon?.autoMode,
   });
   if (reclaims) await claimClimateControl(room);
   else await loadPersisted();
-  if (room === "lounge") {
-    if (action.remember?.aircon?.autoMode === true) persisted.lounge.manualDirection = null;
+
+  const state = roomState(room);
+  if (isAircon) {
+    if (action.remember?.aircon?.autoMode === true) state.manualDirection = null;
     if (action.service === "set_hvac_mode" && action.remember?.aircon?.autoMode === false) {
       const direction = action.data?.hvac_mode;
       if (direction === "heat" || direction === "cool" || direction === "fan_only") {
-        persisted.lounge.manualDirection = direction;
+        state.manualDirection = direction;
       }
     }
-    if (action.remember?.aircon?.autoMode === false && persisted.lounge.manualDirection === null) {
+    if (action.remember?.aircon?.autoMode === false && state.manualDirection === null) {
       const direction = aircon?.state;
       if (direction === "heat" || direction === "cool" || direction === "fan_only") {
-        persisted.lounge.manualDirection = direction;
+        state.manualDirection = direction;
       }
     }
     if (action.service === "turn_off" && action.remember?.aircon?.autoMode === false) {
-      persisted.lounge.manualDirection = null;
+      state.manualDirection = null;
     }
-  }
-  if (room === "bedroom" && action.service === "turn_on") {
-    await mergeDashboardPreferences({ bedroomHeater: { mode: "auto", offTimerEndsAt: null } });
-    bedroomThermostat.resetForUserRequest();
-  }
-  if (room === "bedroom" && action.service === "turn_off") {
-    await mergeDashboardPreferences({ bedroomHeater: { mode: "off", offTimerEndsAt: null } });
+  } else if (action.service === "turn_on") {
+    await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "auto", offTimerEndsAt: null }));
+    heaterThermostatFor(room).resetForUserRequest();
+  } else if (action.service === "turn_off") {
+    await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "off", offTimerEndsAt: null }));
   }
   if (action.remember) await mergeDashboardPreferences(action.remember);
-  if (room === "lounge" && action.service === "turn_off") {
-    persisted.lounge.lastStopReason = "dashboard-off";
+  if (action.service === "turn_off") {
+    state.lastStopReason = "dashboard-off";
   }
-  if (room === "bedroom" && action.service === "turn_off") {
-    persisted.bedroom.lastStopReason = "dashboard-off";
-  }
-  await executeActions(room, [{
+  await executeActions(instance, [{
     entityId: action.entityId,
     domain: action.domain,
     service: action.service,
@@ -633,22 +854,30 @@ export type ClimateControlIntent = {
 export async function applyClimateControlIntent(intent: ClimateControlIntent) {
   if (intent.mode) await claimClimateControl(intent.room);
   else await loadPersisted();
-  const { aircon, heater } = await statesAndDevices();
-  if (intent.room === "lounge") {
+  const { states } = await statesAndDevices();
+  const instance = await instanceById(intent.room);
+  if (!instance) return climateControlState();
+
+  if (instance.kind === "aircon") {
+    const aircon = airconEntityFor(states, instance);
     const update: AirconPreferences = {
       ...(intent.temperature !== undefined ? { temperature: intent.temperature } : {}),
       ...(intent.direction ? { hvacMode: intent.direction } : {}),
       ...(intent.offTimerEndsAt !== undefined ? { offTimerEndsAt: intent.offTimerEndsAt } : {}),
       ...(intent.mode ? { autoMode: intent.mode === "auto" } : {}),
     };
-    await mergeDashboardPreferences({ aircon: update });
-    if (intent.mode === "off" || intent.mode === "auto") persisted.lounge.manualDirection = null;
-    if (intent.mode === "manual" && intent.direction) persisted.lounge.manualDirection = intent.direction;
-    if (aircon && intent.mode === "off") await executeActions("lounge", [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
-    if (aircon && intent.mode === "manual" && intent.direction) await executeActions("lounge", [{
+    await mergeDashboardPreferences(airconPreferencesPatch(instance.id, update));
+    const state = roomState(instance.id);
+    if (intent.mode === "off" || intent.mode === "auto") state.manualDirection = null;
+    if (intent.mode === "manual" && intent.direction) state.manualDirection = intent.direction;
+    if (aircon && intent.mode === "off") {
+      await executeActions(instance, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
+    }
+    if (aircon && intent.mode === "manual" && intent.direction) await executeActions(instance, [{
       entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: intent.direction },
     }]);
   } else {
+    const heater = heaterEntityFor(states, instance);
     const update: BedroomHeaterPreferences = {
       ...(intent.temperature !== undefined ? { temperature: intent.temperature } : {}),
       ...(intent.offTimerEndsAt !== undefined ? { offTimerEndsAt: intent.offTimerEndsAt } : {}),
@@ -656,8 +885,10 @@ export async function applyClimateControlIntent(intent: ClimateControlIntent) {
       ...(intent.autoOffMinutes !== undefined ? { autoOffMinutes: intent.autoOffMinutes } : {}),
       ...(intent.mode ? { mode: intent.mode === "auto" ? "auto" : "off" } : {}),
     };
-    await mergeDashboardPreferences({ bedroomHeater: update });
-    if (heater && intent.mode === "off") await executeActions("bedroom", [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);
+    await mergeDashboardPreferences(heaterPreferencesPatch(instance.id, update));
+    if (heater && intent.mode === "off") {
+      await executeActions(instance, [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);
+    }
   }
   await tick();
   return climateControlState();

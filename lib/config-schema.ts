@@ -69,6 +69,49 @@ const PowerDeviceRatingSchema = z.object({
 });
 export type PowerDeviceRating = z.infer<typeof PowerDeviceRatingSchema>;
 
+/**
+ * One climate device this home has, and where it lives.
+ *
+ * The dashboard used to model exactly one air conditioner and one heater, with
+ * the rooms they happened to be in written into the components. These arrays
+ * make it zero-to-N of each: a home declares what it has, and anything it does
+ * not declare simply is not rendered or driven.
+ *
+ * `id` keys this instance's control state and remembered settings, so it must
+ * be stable once chosen. `zoneId` is the Home Assistant area the device serves
+ * — it is what lets a copy of the control appear in that zone's own panel.
+ */
+const ClimateInstanceBaseSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  zoneId: z.string().min(1).optional(),
+});
+
+const ClimateAirconInstanceSchema = ClimateInstanceBaseSchema.extend({
+  /** Bind explicitly when the home has several climate entities. */
+  entityId: entityIdSchema.optional(),
+  /**
+   * Words identifying this unit, checked against the entity id and friendly
+   * name alongside the generic ones in lib/aircon-control.ts. Only needed for a
+   * unit named after its manufacturer or nothing at all.
+   */
+  matchTokens: stringListSchema,
+});
+export type ClimateAirconInstanceConfig = z.infer<typeof ClimateAirconInstanceSchema>;
+
+const ClimateHeaterInstanceSchema = ClimateInstanceBaseSchema.extend({
+  /** Most-preferred first, so a LAN twin can lead its cloud counterpart. */
+  switchEntityIds: stringListSchema,
+  /**
+   * The ONLY temperature sources permitted to drive or display this heater,
+   * most trusted first. Ordering is a safety property, not a preference — see
+   * the note on the legacy `bedroomHeater` block below.
+   */
+  temperatureEntityIds: stringListSchema,
+  humidityEntityIds: stringListSchema,
+});
+export type ClimateHeaterInstanceConfig = z.infer<typeof ClimateHeaterInstanceSchema>;
+
 const monthlyRateSchema = z.array(z.number().nonnegative()).length(12);
 
 /**
@@ -378,6 +421,19 @@ export const DashboardConfigSchema = z.object({
         humidityEntityIds: [],
         title: "Heater",
       }),
+    /**
+     * Every climate device this home has. Empty means the two legacy blocks
+     * above (`aircon`, `bedroomHeater`) are used instead, which is how an
+     * existing deployment keeps working without editing anything.
+     *
+     * Declaring instances here is what allows more than one of each.
+     */
+    climate: z
+      .object({
+        airconUnits: z.array(ClimateAirconInstanceSchema).default([]),
+        heaters: z.array(ClimateHeaterInstanceSchema).default([]),
+      })
+      .default({ airconUnits: [], heaters: [] }),
     // The original panel heater died in August 2026 and was replaced by the
     // bedroom heater above. Its card is retained but hidden; set this true to
     // bring it back if an equivalent unit is installed.

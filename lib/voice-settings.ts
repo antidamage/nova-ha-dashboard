@@ -224,7 +224,14 @@ export type VoiceSettings = Required<
   >
   // `pronouns` and `affectations` are picked out of the loose `VoicePreferences`
   // shape and restated with the strict types the settings always normalize to.
-> & { pronouns: VoicePronouns; affectations: VoiceAffectations; updatedAt?: string };
+> & { pronouns: VoicePronouns; affectations: VoiceAffectations; updatedAt?: string }
+  // Deliberately *not* in the `Required` pick above. Every other setting has a
+  // dashboard default, but these two must be able to say "no opinion": a
+  // dashboard that shipped `companionEnabled: true` would switch the feature
+  // on for any deployment that had turned it off in configuration, the first
+  // time anyone saved an unrelated voice setting. Undefined means "leave the
+  // voice server as it is".
+  & { companionEnabled?: boolean; companionForceLocal?: boolean };
 
 export type VoiceSettingsUpdate = Partial<Omit<VoiceSettings, "updatedAt">>;
 
@@ -580,6 +587,15 @@ export function normalizeVoiceSettings(value?: Partial<VoicePreferences> | null)
     voiceTrainingEnabled: source.voiceTrainingEnabled !== false,
     disabledSatellites: storedDisabledSatellites(source.disabledSatellites),
     companionRoutes: storedCompanionRoutes(source.companionRoutes),
+    // Carried through only when actually present. Anything else — missing, a
+    // string, a legacy blob — leaves the voice server's own setting alone
+    // rather than asserting a dashboard opinion nobody expressed.
+    ...(typeof source.companionEnabled === "boolean"
+      ? { companionEnabled: source.companionEnabled }
+      : {}),
+    ...(typeof source.companionForceLocal === "boolean"
+      ? { companionForceLocal: source.companionForceLocal }
+      : {}),
     // Only an explicit false bypasses the gate; legacy settings stay on the
     // bandwidth-saving and privacy-preserving default.
     satelliteNoiseGateEnabled: source.satelliteNoiseGateEnabled !== false,
@@ -998,6 +1014,8 @@ export function parseVoiceSettingsUpdate(value: unknown): VoiceSettingsUpdate {
     voiceTrainingEnabled: updateBoolean(source, "voiceTrainingEnabled"),
     disabledSatellites: updateDisabledSatellites(source),
     companionRoutes: updateCompanionRoutes(source),
+    companionEnabled: updateBoolean(source, "companionEnabled"),
+    companionForceLocal: updateBoolean(source, "companionForceLocal"),
     satelliteNoiseGateEnabled: updateBoolean(source, "satelliteNoiseGateEnabled"),
     speaker: updateChoice(source, "speaker", SPEAKERS),
     customSpeaker: updatePattern(source, "customSpeaker", CUSTOM_SPEAKER_PATTERN),
