@@ -704,8 +704,18 @@ html[data-nova-hide-orb-info]
   white-space: pre;
 }
 
-.voice-transcript-status--working {
-  opacity: 0.7;
+.voice-transcript-status--working {
+  opacity: 0.7;
+}
+
+/* Which stack ran each reasoning pass of the turn, one line per stack.
+   Deliberately the SAME size and colour as the words above it: this is meant
+   to be read and compared against the other stack, and a dimmed, shrunken
+   version of the numbers you are trying to weigh is just harder to weigh.
+   Only the italic body slant is dropped, so figures stay upright. */
+.voice-transcript-routes {
+  display: block;
+  font-style: normal;
 }
 
 /* Withheld, not done: dimmed rather than alarming. */

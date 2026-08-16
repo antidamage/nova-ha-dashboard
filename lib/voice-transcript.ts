@@ -64,6 +64,21 @@ export type VoiceTranscriptEvent = {
   wakeWord?: string;
   satelliteId?: string;
   roomId?: string;
+  /**
+   * Which stack ran each reasoning pass of this turn, in order.
+   *
+   * Carries no content — only the pass name, where it ran and how long it
+   * took — so it is safe to show on every line. A pass appearing twice means
+   * both stacks processed it, which is the thing that is otherwise impossible
+   * to tell apart from a single slow turn.
+   */
+  routes?: VoiceTranscriptRoute[];
+};
+
+export type VoiceTranscriptRoute = {
+  pass: string;
+  source: string;
+  ms: number;
 };
 
 type VoiceTranscriptInput = Omit<VoiceTranscriptEvent, "id"> & { id?: string };
@@ -84,6 +99,30 @@ const TRANSCRIPT_ID_PATTERN = /^[0-9a-f-]{8,64}$/i;
 
 function optionalTranscriptId(value: unknown): string | undefined {
   return typeof value === "string" && TRANSCRIPT_ID_PATTERN.test(value) ? value : undefined;
+}
+
+/**
+ * The route chain, kept only when every entry is well formed.
+ *
+ * Bounded at eight: a turn runs a handful of passes, and anything longer is a
+ * bug upstream rather than something worth rendering. A malformed entry drops
+ * the whole chain rather than showing a partial one — a chain missing a hop is
+ * worse than no chain, because the question it answers is "did anything else
+ * also run".
+ */
+function optionalRoutes(value: unknown): VoiceTranscriptRoute[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  const routes: VoiceTranscriptRoute[] = [];
+  for (const entry of value.slice(0, 8)) {
+    if (!entry || typeof entry !== "object") return undefined;
+    const record = entry as Record<string, unknown>;
+    const pass = optionalLabel(record.pass);
+    const source = optionalLabel(record.source);
+    const ms = typeof record.ms === "number" && Number.isFinite(record.ms) ? record.ms : null;
+    if (!pass || !source || ms === null) return undefined;
+    routes.push({ pass, source, ms });
+  }
+  return routes;
 }
 
 function optionalLabel(value: unknown): string | undefined {
@@ -158,6 +197,7 @@ export function parseVoiceTranscriptInput(
   const wakeWord = optionalLabel(source.wakeWord);
   const satelliteId = optionalLabel(source.satelliteId);
   const roomId = optionalLabel(source.roomId);
+  const routes = optionalRoutes(source.routes);
   return {
     at: at.toISOString(),
     role: source.role,
@@ -172,6 +212,7 @@ export function parseVoiceTranscriptInput(
     ...(wakeWord ? { wakeWord } : {}),
     ...(satelliteId ? { satelliteId } : {}),
     ...(roomId ? { roomId } : {}),
+    ...(routes ? { routes } : {}),
   };
 }
 
@@ -229,7 +270,53 @@ export type VoiceTranscriptLineParts = {
   status?: VoiceTranscriptStatus;
   /** The glyph itself, already spaced away from the body text. */
   statusGlyph?: string;
+  /**
+   * One line per stack that ran something, e.g.
+   * `server  interpret 3.5s · render_response 1.2s  = 4.7s`.
+   *
+   * Empty when no routed pass ran. Both lines present means both stacks
+   * processed the turn — which is the whole reason this is rendered on every
+   * line rather than only while comparison mode is on.
+   */
+  routeLines?: string[];
 };
+
+/**
+ * The route chain as one line per stack.
+ *
+ * Grouped by *where* rather than listed in execution order, because the
+ * question being asked is "what did each stack cost me for this turn" — and
+ * two interleaved lists make that a subtraction the reader has to do in their
+ * head. Each line ends with that stack's total, which is the number an
+ * offloading decision actually turns on.
+ *
+ * A stack that ran nothing gets no line, so a turn served entirely by one side
+ * stays a single line rather than implying a comparison that never happened.
+ */
+export function formatRouteLines(routes: VoiceTranscriptRoute[] | undefined): string[] {
+  if (!routes?.length) return [];
+  // "device" and "server", not "companion" and "local" — the pair has to read
+  // as two places at a glance.
+  const stacks = [
+    { label: "server", source: "local" },
+    { label: "device", source: "companion" },
+  ];
+  const lines: string[] = [];
+  for (const stack of stacks) {
+    const mine = routes.filter((route) => route.source === stack.source);
+    if (!mine.length) continue;
+    const parts = mine.map((route) => `${route.pass} ${formatRouteMs(route.ms)}`);
+    const total = mine.reduce((sum, route) => sum + route.ms, 0);
+    // A total that would just repeat the only figure on the line is noise.
+    const suffix = mine.length > 1 ? `  = ${formatRouteMs(total)}` : "";
+    lines.push(`${stack.label}  ${parts.join(" · ")}${suffix}`);
+  }
+  return lines;
+}
+
+function formatRouteMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+}
 
 /**
  * What to show after the question. A turn in flight is working; once it
@@ -343,6 +430,9 @@ export function formatVoiceTranscriptParts(
     ...(entry.outcome ? { outcome: entry.outcome } : {}),
     ...(status
       ? { status, statusGlyph: VOICE_TRANSCRIPT_STATUS_GLYPHS[status] }
+      : {}),
+    ...(formatRouteLines(entry.routes).length
+      ? { routeLines: formatRouteLines(entry.routes) }
       : {}),
   };
 }

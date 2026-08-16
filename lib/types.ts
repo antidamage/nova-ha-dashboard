@@ -345,10 +345,12 @@ export type ClimateControlRoomState = {
   lastStopReason: string | null;
 };
 
-export type ClimateControlState = {
-  lounge: ClimateControlRoomState;
-  bedroom: ClimateControlRoomState;
-};
+/**
+ * Server-owned control state per climate instance, keyed by instance id (see
+ * lib/climate-instances.ts). Was a fixed `{ lounge, bedroom }` pair, which is
+ * also why the dashboard could only ever drive two devices.
+ */
+export type ClimateControlState = Record<string, ClimateControlRoomState>;
 
 export type LightingPreferences = {
   adaptiveCandlelightZones?: Record<
@@ -463,6 +465,23 @@ export type VoicePreferences = {
    * partial map means "as shipped" rather than "route nothing".
    */
   companionRoutes?: Record<string, "local" | "companion" | "both">;
+  /**
+   * Whether the companion feature is on at all. Switching it off restores the
+   * voice server's previous behaviour exactly, as if the feature had never
+   * shipped.
+   *
+   * Undefined means "leave the voice server as configured" rather than a
+   * dashboard default, so a deployment that has never touched this control is
+   * not silently switched either way.
+   */
+  companionEnabled?: boolean;
+  /**
+   * Keep every reasoning pass on the voice server without disconnecting the
+   * device or disabling its personal tools. The switch to reach for during an
+   * incident: it applies immediately and undoes the same way, with nothing to
+   * do on the phone.
+   */
+  companionForceLocal?: boolean;
   speaker?: "Ryan" | "Aiden" | "Vivian" | "Serena" | "Uncle_Fu" | "Dylan" | "Eric" | "Ono_Anna" | "Sohee";
   /**
    * Custom-engine (dots.tts) voice: a cloned-voice id from the voice server's
@@ -584,6 +603,14 @@ export type DashboardPreferences = {
   lighting?: LightingPreferences;
   panelHeater?: PanelHeaterPreferences;
   bedroomHeater?: BedroomHeaterPreferences;
+  /**
+   * Remembered settings for climate instances beyond the first of each kind,
+   * keyed by instance id. The first air conditioner and the first heater keep
+   * using `aircon` and `bedroomHeater` above, so an existing installation needs
+   * no migration and cannot lose its settings to one.
+   * See lib/climate-preferences.ts.
+   */
+  climate?: Record<string, { aircon?: AirconPreferences; heater?: BedroomHeaterPreferences }>;
   theme?: Record<string, unknown>;
   themeUpdatedAt?: string;
   themeLibrary?: Record<string, unknown>;
