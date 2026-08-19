@@ -33,17 +33,12 @@ import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
  *      This is why the loop can tick slowly and must never be "corrected" into
  *      a fast one.
  *
- * The auto window is the other half, and it is a SCHEDULE, not a gate. Its
- * endpoints are auto-on and auto-off times (minutes from midday, see
- * BedroomHeaterPreferences), and all they do is flip the mode as the clock
- * crosses them: at auto-on the mode becomes "auto", at auto-off it becomes
- * "off". Between those edges whatever the user last chose stands — pressing
- * Auto at three in the afternoon heats the room at three in the afternoon.
- *
- * It was a gate once, and that was wrong: the planner asked "are we inside the
- * window?" on every tick, so a user pressing Auto outside it was switched
- * straight back off. User input outranks the schedule; the schedule only moves
- * the mode when the clock reaches an endpoint.
+ * There is no clock schedule. An auto-on/auto-off window existed until
+ * 2026-08-19 and was removed at the owner's request: the heater must never
+ * start or stop itself because a time of day arrived. The only things that
+ * change its mode are a user action and the sleep timer a user sets, and the
+ * only thing that switches the relay under Auto is the room temperature
+ * against the target.
  */
 
 export const BEDROOM_HEATER_AUTO_POLL_MS = 30_000;
@@ -59,18 +54,12 @@ export const BEDROOM_HEATER_TAIL_OFF_MS = 0;
  * populate. This grace window lets it try heating first (heat-only, so there
  * is only one direction to guess); only if the sensor is STILL unusable after
  * it does the heater switch off. The unified controller then clears Auto so it
- * cannot retry without a later user action or schedule edge.
+ * cannot retry without a later user action.
  */
 export const BEDROOM_HEATER_SENSOR_GRACE_MS = 2 * 60_000;
 export const BEDROOM_HEATER_DEFAULT_TARGET_C = 18;
 export const BEDROOM_HEATER_MIN_TARGET_C = 5;
 export const BEDROOM_HEATER_MAX_TARGET_C = 30;
-
-/** Minutes from midday. 0 = 12:00 today, 720 = 00:00, 1440 = 12:00 tomorrow. */
-export const BEDROOM_HEATER_WINDOW_MAX_MINUTES = 1440;
-export const BEDROOM_HEATER_WINDOW_STEP_MINUTES = 15;
-export const BEDROOM_HEATER_DEFAULT_AUTO_ON_MINUTES = 360; // 18:00
-export const BEDROOM_HEATER_DEFAULT_AUTO_OFF_MINUTES = 1140; // 07:00 next day
 
 /**
  * The only temperature sources permitted to drive or display the heater's room.
@@ -161,70 +150,6 @@ export function clampTargetTemperature(value: number) {
   return Math.min(BEDROOM_HEATER_MAX_TARGET_C, Math.max(BEDROOM_HEATER_MIN_TARGET_C, value));
 }
 
-export function clampWindowMinutes(value: number) {
-  return Math.min(BEDROOM_HEATER_WINDOW_MAX_MINUTES, Math.max(0, Math.round(value)));
-}
-
-/**
- * Minutes elapsed since the most recent midday, in 0..1440. This is the same
- * axis the stored window uses, so comparisons are plain numeric ones.
- */
-export function minutesFromMidday(now: Date) {
-  const minutesSinceMidnight = now.getHours() * 60 + now.getMinutes();
-  return (minutesSinceMidnight + 720) % 1440;
-}
-
-/** How far forward from `from` to `to` on the 1440-minute circle. */
-function forwardMinutes(from: number, to: number) {
-  return (to - from + BEDROOM_HEATER_WINDOW_MAX_MINUTES) % BEDROOM_HEATER_WINDOW_MAX_MINUTES;
-}
-
-/**
- * Which schedule endpoint, if any, the clock crossed between two observations.
- *
- * Both endpoints are checked on the forward arc from `previousMinutes` to
- * `nowMinutes`, so a long stall (a sleeping host, a slow restart) that skips
- * over both still lands on the correct final mode: whichever edge is later on
- * that arc wins. Returns null when nothing was crossed, which is the answer on
- * almost every tick.
- */
-export function bedroomHeaterScheduleEdge(
-  previousMinutes: number,
-  nowMinutes: number,
-  startMinutes: number,
-  endMinutes: number,
-): "auto" | "off" | null {
-  if (previousMinutes === nowMinutes || startMinutes === endMinutes) {
-    return null;
-  }
-
-  const span = forwardMinutes(previousMinutes, nowMinutes);
-  const toStart = forwardMinutes(previousMinutes, startMinutes);
-  const toEnd = forwardMinutes(previousMinutes, endMinutes);
-  // Half-open: an edge exactly at `previousMinutes` was already applied.
-  const crossedStart = toStart > 0 && toStart <= span;
-  const crossedEnd = toEnd > 0 && toEnd <= span;
-
-  if (crossedStart && crossedEnd) {
-    return toStart > toEnd ? "auto" : "off";
-  }
-  if (crossedStart) {
-    return "auto";
-  }
-  return crossedEnd ? "off" : null;
-}
-
-export function formatMinutesFromMidday(minutes: number) {
-  const clamped = clampWindowMinutes(minutes);
-  const totalMinutes = (clamped + 720) % 1440;
-  const hours24 = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  const suffix = hours24 >= 12 ? "pm" : "am";
-  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
-  const nextDay = clamped >= 720;
-  return `${hours12}:${mins.toString().padStart(2, "0")} ${suffix}${nextDay ? " +1" : ""}`;
-}
-
 /**
  * The stored mode, with the retired "manual" folded into "auto".
  *
@@ -242,18 +167,6 @@ export function bedroomHeaterTargetTemperature(preferences?: BedroomHeaterPrefer
   return typeof value === "number" && Number.isFinite(value)
     ? clampTargetTemperature(value)
     : BEDROOM_HEATER_DEFAULT_TARGET_C;
-}
-
-export function bedroomHeaterWindow(preferences?: BedroomHeaterPreferences) {
-  const start =
-    typeof preferences?.autoOnMinutes === "number"
-      ? clampWindowMinutes(preferences.autoOnMinutes)
-      : BEDROOM_HEATER_DEFAULT_AUTO_ON_MINUTES;
-  const end =
-    typeof preferences?.autoOffMinutes === "number"
-      ? clampWindowMinutes(preferences.autoOffMinutes)
-      : BEDROOM_HEATER_DEFAULT_AUTO_OFF_MINUTES;
-  return { start, end };
 }
 
 /**

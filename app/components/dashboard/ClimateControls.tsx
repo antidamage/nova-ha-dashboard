@@ -26,14 +26,9 @@ import type {
 import {
   BEDROOM_HEATER_MAX_TARGET_C,
   BEDROOM_HEATER_MIN_TARGET_C,
-  BEDROOM_HEATER_WINDOW_MAX_MINUTES,
-  BEDROOM_HEATER_WINDOW_STEP_MINUTES,
   bedroomHeaterMode,
   bedroomHeaterTargetTemperature,
-  bedroomHeaterWindow,
-  formatMinutesFromMidday,
 } from "../../../lib/bedroom-heater-control";
-import { DotRangeControl } from "../DotControls";
 import {
   AIRCON_FAN_STEPS,
   airconAutoCycleStateFromPreferences,
@@ -515,14 +510,12 @@ function BedroomHeaterControl({
   const persistedMode = bedroomHeaterMode(preferences);
   const effectivePersistedMode: BedroomHeaterMode = persistedMode;
   const persistedTarget = bedroomHeaterTargetTemperature(preferences);
-  const persistedWindow = bedroomHeaterWindow(preferences);
 
-  // Mode, target, and window are all optimistic: the server is authoritative
-  // but a tap must land instantly, and the auto loop stands down for its
-  // cooldown while the write propagates.
+  // Mode and target are both optimistic: the server is authoritative but a tap
+  // must land instantly, and the auto loop stands down for its cooldown while
+  // the write propagates.
   const [mode, setMode] = useState<BedroomHeaterMode>(effectivePersistedMode);
   const [target, setTarget] = useState(persistedTarget);
-  const [window_, setWindow] = useState<[number, number]>([persistedWindow.start, persistedWindow.end]);
   const temperatureSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persistedTimerEndsAt = typeof preferences?.offTimerEndsAt === "string" ? preferences.offTimerEndsAt : null;
@@ -541,10 +534,6 @@ function BedroomHeaterControl({
   useEffect(() => {
     setTarget(persistedTarget);
   }, [persistedTarget]);
-
-  useEffect(() => {
-    setWindow([persistedWindow.start, persistedWindow.end]);
-  }, [persistedWindow.start, persistedWindow.end]);
 
   useEffect(() => {
     setLocalTimerEndsAt(persistedTimerEndsAt);
@@ -610,8 +599,8 @@ function BedroomHeaterControl({
       return Promise.resolve();
     }
     setMode(next);
-    // Off means the schedule is off and the heater is off, so a pending sleep
-    // timer has nothing left to do; it would otherwise fire over a later Auto.
+    // Off means the heater is off, so a pending sleep timer has nothing left to
+    // do; it would otherwise fire over a later Auto.
     const clearTimer = next === "off" && localTimerEndsAt !== null;
     if (clearTimer) {
       setLocalTimerEndsAt(null);
@@ -662,19 +651,12 @@ function BedroomHeaterControl({
     setOffTimer(null);
   };
 
-  const commitWindow = (next: [number, number]) => {
-    setWindow(next);
-    void saveBedroomHeater({ autoOnMinutes: next[0], autoOffMinutes: next[1] }).catch(() =>
-      setWindow([persistedWindow.start, persistedWindow.end]),
-    );
-  };
-
   return (
     <ClimateCard entity={switchEntity} kicker="Heating Unit" title={title}>
       <div className="grid gap-4">
         {controlState?.owner === "external" ? (
           <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
-            Manual — device override. Nova automation and schedule are paused.
+            Manual — device override. Nova automation is paused.
           </p>
         ) : controlState?.phase === "grace" ? (
           <p className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
@@ -747,34 +729,12 @@ function BedroomHeaterControl({
         </div>
 
         {/*
-          The window is a schedule, not a gate: it turns the heater on and off at
-          its endpoints and does nothing in between, so it stays editable in
-          every mode — including Off, where the user is setting up tonight.
+          The heater has no schedule: it runs only when the user puts it in Auto,
+          and stops on the target, on Off, or on a sleep timer they set. Nothing
+          here may turn it on or off by the clock alone.
         */}
-        <div className="temperature-stepper border border-neutral-700 bg-neutral-950/70 p-4">
-          <div className="flex items-end justify-between gap-4">
-            <p className="text-sm font-black uppercase text-cyan-300">Auto window</p>
-            <p className="text-xs font-black uppercase tabular-nums text-neutral-300">
-              {formatMinutesFromMidday(window_[0])} &rarr; {formatMinutesFromMidday(window_[1])}
-            </p>
-          </div>
-          <div className="mt-4">
-            <DotRangeControl
-              ariaLabel="Bedroom heater auto window"
-              ariaValueText={(value) => [
-                `Auto on at ${formatMinutesFromMidday(value[0])}`,
-                `Auto off at ${formatMinutesFromMidday(value[1])}`,
-              ]}
-              disabled={entityUnavailable}
-              max={BEDROOM_HEATER_WINDOW_MAX_MINUTES}
-              min={0}
-              onChange={setWindow}
-              onCommit={commitWindow}
-              step={BEDROOM_HEATER_WINDOW_STEP_MINUTES}
-              value={window_}
-            />
-          </div>
-          <p className="mt-3 text-xs font-black uppercase text-neutral-400">
+        <div className="temperature-stepper border border-neutral-700 bg-neutral-950/70 px-4 py-3">
+          <p className="text-xs font-black uppercase text-neutral-400">
             Humidity {humidity === null ? "--" : `${Math.round(humidity)}%`} &middot;{" "}
             {isOn ? "Heating" : "Idle"}
           </p>

@@ -306,10 +306,9 @@ export type PanelHeaterPreferences = {
  * no setpoint of its own, so the thermostat lives in Nova (see
  * lib/bedroom-heater-control.ts).
  *
- * The auto window is stored as minutes from midday rather than a wall-clock
- * time so the slider's domain (0..1440) is the stored value, and the
- * midday-to-midday wrap needs no date arithmetic anywhere. 0 = midday today,
- * 720 = midnight, 1440 = midday tomorrow.
+ * There is no auto-on/auto-off window: the clock never changes the heater's
+ * mode. Stored preferences from before 2026-08-19 may still carry
+ * autoOnMinutes/autoOffMinutes; nothing reads them.
  */
 export type BedroomHeaterMode = "auto" | "off";
 
@@ -317,8 +316,6 @@ export type BedroomHeaterPreferences = {
   /** "manual" is retired and read as "auto"; see bedroomHeaterMode(). */
   mode?: BedroomHeaterMode | "manual";
   temperature?: number;
-  autoOnMinutes?: number;
-  autoOffMinutes?: number;
   /**
    * Sleep timer. When this passes the server loop switches the heater off and
    * drops the mode to "off". It lives server-side, like the thermostat loop, so

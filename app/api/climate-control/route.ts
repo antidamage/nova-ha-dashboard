@@ -22,12 +22,12 @@ function parseIntent(value: unknown): ClimateControlIntent {
     ...(input.mode !== undefined ? { mode: input.mode as ClimateControlIntent["mode"] } : {}),
     ...(input.direction !== undefined ? { direction: input.direction as ClimateControlIntent["direction"] } : {}),
   };
-  for (const key of ["temperature", "autoOnMinutes", "autoOffMinutes"] as const) {
-    if (input[key] !== undefined) {
-      const number = Number(input[key]);
-      if (!Number.isFinite(number)) throw new Error(`${key} must be numeric`);
-      intent[key] = number;
-    }
+  // No autoOnMinutes/autoOffMinutes: heaters have no clock schedule, so there
+  // is nothing here a caller could set to make one turn itself on or off.
+  if (input.temperature !== undefined) {
+    const number = Number(input.temperature);
+    if (!Number.isFinite(number)) throw new Error("temperature must be numeric");
+    intent.temperature = number;
   }
   if (input.offTimerEndsAt !== undefined) {
     if (input.offTimerEndsAt === null) intent.offTimerEndsAt = null;

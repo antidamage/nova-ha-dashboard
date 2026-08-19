@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  BEDROOM_HEATER_WINDOW_MAX_MINUTES,
-  clampTargetTemperature,
-  clampWindowMinutes,
-} from "../../../lib/bedroom-heater-control";
+import { clampTargetTemperature } from "../../../lib/bedroom-heater-control";
 import { applyClimateControlIntent, type ClimateControlIntent } from "../../../lib/climate-control";
 import { readDashboardPreferences } from "../../../lib/preferences";
 import type { BedroomHeaterPreferences } from "../../../lib/types";
@@ -24,15 +20,8 @@ function parseUpdate(body: unknown): BedroomHeaterPreferences {
     if (!Number.isFinite(temperature)) throw new Error("Bedroom heater temperature must be a number");
     update.temperature = clampTargetTemperature(temperature);
   }
-  for (const key of ["autoOnMinutes", "autoOffMinutes"] as const) {
-    if (input[key] !== undefined) {
-      const minutes = Number(input[key]);
-      if (!Number.isFinite(minutes) || minutes < 0 || minutes > BEDROOM_HEATER_WINDOW_MAX_MINUTES) {
-        throw new Error(`${key} must be between 0 and ${BEDROOM_HEATER_WINDOW_MAX_MINUTES}`);
-      }
-      update[key] = clampWindowMinutes(minutes);
-    }
-  }
+  // autoOnMinutes/autoOffMinutes are deliberately not accepted: the heater has
+  // no clock schedule, and a caller must not be able to reinstate one.
   if (input.offTimerEndsAt !== undefined) {
     if (input.offTimerEndsAt === null) update.offTimerEndsAt = null;
     else {

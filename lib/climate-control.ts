@@ -14,12 +14,9 @@ import {
 import {
   BedroomHeaterThermostat,
   bedroomHeaterMode,
-  bedroomHeaterScheduleEdge,
   bedroomHeaterSleepTimerExpired,
-  bedroomHeaterWindow,
   roomTemperatureEntityIds,
   bedroomTemperatureStateIsFresh,
-  minutesFromMidday,
 } from "./bedroom-heater-control";
 import { readDashboardConfig, readDashboardConfigSync } from "./dashboard-config";
 import {
@@ -80,7 +77,6 @@ type PersistedRoom = {
   settlingFromTemperature: number | null;
   sensorPendingSinceAt: number | null;
   recentStartsAt: number[];
-  scheduleBlocked: boolean;
   manualDirection: Direction | null;
 };
 
@@ -104,7 +100,6 @@ function defaultRoom(): PersistedRoom {
     settlingFromTemperature: null,
     sensorPendingSinceAt: null,
     recentStartsAt: [],
-    scheduleBlocked: false,
     manualDirection: null,
   };
 }
@@ -128,7 +123,6 @@ type ClimateControlRuntime = {
   writeQueue: Promise<void>;
   timer: ReturnType<typeof setInterval> | null;
   running: boolean;
-  scheduleCursor: number | null;
   /**
    * One thermostat per instance. Each carries its own cycle state (last
    * transition, sensor-pending clock), so sharing one across devices would let
@@ -151,7 +145,6 @@ const runtime: ClimateControlRuntime = climateGlobal.__novaClimateControlRuntime
   writeQueue: Promise.resolve(),
   timer: null,
   running: false,
-  scheduleCursor: null,
   airconThermostats: new Map(),
   heaterThermostats: new Map(),
   samples: new Map(),
@@ -336,8 +329,6 @@ function setExternal(instance: ClimateInstance, reason: string) {
   state.owner = "external";
   state.overrideReason = reason;
   state.commandSettleUntil = 0;
-  // Only a heater runs on a schedule, so only a heater can have one blocked.
-  state.scheduleBlocked = instance.kind === "heater";
   if (instance.kind === "aircon") airconThermostatFor(room).resetForUserRequest();
   else heaterThermostatFor(room).resetForUserRequest();
   console.warn(`[climate-control] ${room} external override; Nova automation suspended`);
@@ -444,28 +435,6 @@ async function stopAndCancel(instance: ClimateInstance, entityId: string, reason
     await executeActions(instance, [{ entityId, domain: "switch", service: "turn_off" }]);
     await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "off", offTimerEndsAt: null }));
   }
-}
-
-/**
- * Advance this heater's schedule. The cursor is shared (it is wall-clock, not
- * per-device) but the edge is applied to one instance, so two heaters on
- * different windows each get their own on/off transition.
- */
-async function applyHeaterSchedule(
-  instance: HeaterInstance,
-  settings: BedroomHeaterPreferences | undefined,
-  previous: number | null,
-  nowMinutes: number,
-) {
-  if (previous === null || roomState(instance.id).scheduleBlocked) return null;
-  const window = bedroomHeaterWindow(settings);
-  const edge = bedroomHeaterScheduleEdge(previous, nowMinutes, window.start, window.end);
-  if (!edge) return null;
-  roomState(instance.id).owner = "nova";
-  roomState(instance.id).overrideReason = null;
-  await mergeDashboardPreferences(heaterPreferencesPatch(instance.id, { mode: edge, offTimerEndsAt: null }));
-  heaterThermostatFor(instance.id).resetForUserRequest();
-  return edge;
 }
 
 function publicRoom(args: Partial<ClimateControlRoomState> & Pick<ClimateControlRoomState, "mode" | "phase">): ClimateControlRoomState {
@@ -594,8 +563,6 @@ async function driveHeater(
   instance: HeaterInstance,
   states: HaState[],
   preferences: DashboardPreferences,
-  previousCursor: number | null,
-  nowMinutes: number,
   now: number,
 ): Promise<HeaterTickResult> {
   const room = roomState(instance.id);
@@ -605,22 +572,13 @@ async function driveHeater(
 
   observeActuator(instance, heaterSignature(heater), now);
 
-  const scheduleEdge = await applyHeaterSchedule(
-    instance,
-    heaterPreferencesFor(preferences, instance.id),
-    previousCursor,
-    nowMinutes,
-  );
-  // Re-read: the schedule edge above may have just written this heater's mode.
-  const prefs = heaterPreferencesFor(await readDashboardPreferences(), instance.id);
+  const prefs = heaterPreferencesFor(preferences, instance.id);
   const mode = bedroomHeaterMode(prefs);
   const temperature = Number(bedroomTemperatureStateIsFresh(sensor, now) ? sensor?.state : Number.NaN);
   const sensorAvailable = Number.isFinite(temperature);
 
   if (heater && usable(heater) && room.owner === "nova") {
-    if (scheduleEdge === "off") {
-      await stopAndCancel(instance, heater.entity_id, "schedule-ended");
-    } else if (bedroomHeaterSleepTimerExpired(prefs, now)) {
+    if (bedroomHeaterSleepTimerExpired(prefs, now)) {
       await stopAndCancel(instance, heater.entity_id, "timer-expired");
     } else if (mode === "off" && heater.state === "on") {
       room.lastStopReason = "nova-off";
@@ -660,13 +618,6 @@ async function tick() {
     const { config, states, quiet, turbo } = await statesAndDevices();
     const preferences = await readDashboardPreferences();
 
-    // The schedule cursor is wall-clock and shared; each heater compares its own
-    // window against the same advance, so two heaters on different windows both
-    // get their edges from one tick.
-    const nowMinutes = minutesFromMidday(new Date(now));
-    const previousCursor = runtime.scheduleCursor;
-    runtime.scheduleCursor = nowMinutes;
-
     const airconResults: AirconTickResult[] = [];
     for (const unit of airconInstances(config)) {
       airconResults.push(await driveAircon(unit, states, quiet, turbo, preferences, now));
@@ -674,7 +625,7 @@ async function tick() {
 
     const heaterResults: HeaterTickResult[] = [];
     for (const instance of heaterInstances(config)) {
-      heaterResults.push(await driveHeater(instance, states, preferences, previousCursor, nowMinutes, now));
+      heaterResults.push(await driveHeater(instance, states, preferences, now));
     }
 
     const latest = await readDashboardPreferences();
@@ -758,7 +709,6 @@ export async function claimClimateControl(room: RoomId) {
   const state = roomState(room);
   state.owner = "nova";
   state.overrideReason = null;
-  state.scheduleBlocked = false;
   state.commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
   const instance = await instanceById(room);
   // Reset only this instance's own thermostat; the others are mid-cycle on
@@ -847,8 +797,6 @@ export type ClimateControlIntent = {
   direction?: Direction;
   temperature?: number;
   offTimerEndsAt?: string | null;
-  autoOnMinutes?: number;
-  autoOffMinutes?: number;
 };
 
 export async function applyClimateControlIntent(intent: ClimateControlIntent) {
@@ -881,8 +829,6 @@ export async function applyClimateControlIntent(intent: ClimateControlIntent) {
     const update: BedroomHeaterPreferences = {
       ...(intent.temperature !== undefined ? { temperature: intent.temperature } : {}),
       ...(intent.offTimerEndsAt !== undefined ? { offTimerEndsAt: intent.offTimerEndsAt } : {}),
-      ...(intent.autoOnMinutes !== undefined ? { autoOnMinutes: intent.autoOnMinutes } : {}),
-      ...(intent.autoOffMinutes !== undefined ? { autoOffMinutes: intent.autoOffMinutes } : {}),
       ...(intent.mode ? { mode: intent.mode === "auto" ? "auto" : "off" } : {}),
     };
     await mergeDashboardPreferences(heaterPreferencesPatch(instance.id, update));
