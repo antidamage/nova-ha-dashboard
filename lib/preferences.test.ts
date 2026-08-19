@@ -133,18 +133,17 @@ describe("dashboard preferences", () => {
     expect(onDisk.panelHeater.offTimerEndsAt).toBe("2026-06-16T10:00:00Z");
   });
 
-  it("merges the bedroom heater window without dropping mode or temperature", async () => {
+  it("merges a bedroom heater field without dropping mode or temperature", async () => {
     // Regression: the top-level spread used to replace the whole bedroomHeater
-    // object, so saving only the auto window erased mode and temperature and
-    // stranded the server thermostat mid-heat.
+    // object, so saving one field erased mode and temperature and stranded the
+    // server thermostat mid-heat.
     const { mergeDashboardPreferences, readDashboardPreferences } = await load();
     await mergeDashboardPreferences({ bedroomHeater: { mode: "auto", temperature: 21 } });
-    await mergeDashboardPreferences({ bedroomHeater: { autoOnMinutes: 300, autoOffMinutes: 600 } });
+    await mergeDashboardPreferences({ bedroomHeater: { offTimerEndsAt: "2026-08-19T10:00:00Z" } });
     const stored = await readDashboardPreferences();
     expect(stored.bedroomHeater?.mode).toBe("auto");
     expect(stored.bedroomHeater?.temperature).toBe(21);
-    expect(stored.bedroomHeater?.autoOnMinutes).toBe(300);
-    expect(stored.bedroomHeater?.autoOffMinutes).toBe(600);
+    expect(stored.bedroomHeater?.offTimerEndsAt).toBe("2026-08-19T10:00:00Z");
   });
 
   it("merges one climate instance without dropping the others, or the rest of its own settings", async () => {

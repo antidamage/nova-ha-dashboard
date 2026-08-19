@@ -10,9 +10,6 @@ import {
   bedroomTemperatureStateIsUsable,
   bedroomHeaterSleepTimerExpired,
   createInitialBedroomHeaterAutoState,
-  formatMinutesFromMidday,
-  bedroomHeaterScheduleEdge,
-  minutesFromMidday,
   planBedroomHeaterTick,
   type BedroomHeaterAutoState,
 } from "./bedroom-heater-control";
@@ -82,10 +79,9 @@ describe("autonomous climate golden rule", () => {
 });
 
 const ENTITY = "switch.tuya_mobile_bedroom_heater";
-// 18:00 -> 07:00 next day, the shipped default window.
-const PREFS = { mode: "auto" as const, temperature: 20, autoOnMinutes: 360, autoOffMinutes: 1140 };
-// The planner is clock-free now: the window only moves the mode, and the
-// planner is only ever asked to run once the mode is already "auto".
+const PREFS = { mode: "auto" as const, temperature: 20 };
+// The planner is clock-free: nothing but a user action puts the heater in
+// "auto", and the planner is only ever asked to run once it is.
 
 function plan(over: Partial<Parameters<typeof planBedroomHeaterTick>[0]> = {}) {
   return planBedroomHeaterTick({
@@ -99,58 +95,31 @@ function plan(over: Partial<Parameters<typeof planBedroomHeaterTick>[0]> = {}) {
   });
 }
 
-describe("minutesFromMidday", () => {
-  it("puts midday at zero and midnight at 720", () => {
-    expect(minutesFromMidday(new Date("2026-08-07T12:00:00"))).toBe(0);
-    expect(minutesFromMidday(new Date("2026-08-07T00:00:00"))).toBe(720);
-    expect(minutesFromMidday(new Date("2026-08-07T18:00:00"))).toBe(360);
-    expect(minutesFromMidday(new Date("2026-08-07T07:00:00"))).toBe(1140);
-  });
-});
-
-describe("bedroomHeaterScheduleEdge", () => {
-  // 18:00 -> 07:00 on the midday axis is 360 -> 1140.
-  it("reports nothing on an ordinary tick between endpoints", () => {
-    expect(bedroomHeaterScheduleEdge(400, 400.5, 360, 1140)).toBe(null);
-    expect(bedroomHeaterScheduleEdge(400, 401, 360, 1140)).toBe(null);
-    expect(bedroomHeaterScheduleEdge(1200, 1201, 360, 1140)).toBe(null);
-  });
-
-  it("fires auto on the start edge and off on the end edge", () => {
-    expect(bedroomHeaterScheduleEdge(359, 360, 360, 1140)).toBe("auto");
-    expect(bedroomHeaterScheduleEdge(1139, 1140, 360, 1140)).toBe("off");
+describe("no clock schedule", () => {
+  /**
+   * The auto-on/auto-off window was removed on 2026-08-19: the heater must
+   * never start or stop itself because a time of day arrived. This test exists
+   * so reinstating a schedule is a deliberate act, not an accident.
+   */
+  it("exports nothing that turns the heater on or off by the clock", async () => {
+    const control = await import("./bedroom-heater-control");
+    for (const name of [
+      "bedroomHeaterScheduleEdge",
+      "bedroomHeaterWindow",
+      "minutesFromMidday",
+      "formatMinutesFromMidday",
+      "clampWindowMinutes",
+    ]) {
+      expect(control).not.toHaveProperty(name);
+    }
   });
 
-  it("does not re-fire an edge it has already applied", () => {
-    expect(bedroomHeaterScheduleEdge(360, 361, 360, 1140)).toBe(null);
-  });
-
-  it("still lands on the right mode after a stall that skipped both edges", () => {
-    // Asleep from 17:00 through to 08:00: crossed on, then off. Off is later.
-    expect(bedroomHeaterScheduleEdge(300, 1200, 360, 1140)).toBe("off");
-    // Asleep from 06:00 through to 19:00: crossed off, then on.
-    expect(bedroomHeaterScheduleEdge(1080, 420, 360, 1140)).toBe("auto");
-  });
-
-  it("handles a window that wraps past midday", () => {
-    // 09:00 -> 14:00 is 1260 -> 120.
-    expect(bedroomHeaterScheduleEdge(1259, 1260, 1260, 120)).toBe("auto");
-    expect(bedroomHeaterScheduleEdge(119, 120, 1260, 120)).toBe("off");
-  });
-
-  it("reports nothing for a zero-width window or a still clock", () => {
-    expect(bedroomHeaterScheduleEdge(400, 500, 500, 500)).toBe(null);
-    expect(bedroomHeaterScheduleEdge(500, 500, 360, 1140)).toBe(null);
-  });
-});
-
-describe("formatMinutesFromMidday", () => {
-  it("renders the midday axis as wall-clock time, marking the next day", () => {
-    expect(formatMinutesFromMidday(0)).toBe("12:00 pm");
-    expect(formatMinutesFromMidday(360)).toBe("6:00 pm");
-    expect(formatMinutesFromMidday(720)).toBe("12:00 am +1");
-    expect(formatMinutesFromMidday(1140)).toBe("7:00 am +1");
-    expect(formatMinutesFromMidday(1440)).toBe("12:00 pm +1");
+  it("plans identically whatever the wall clock says", () => {
+    const cold = { currentTemperature: 15 };
+    const midnight = plan({ ...cold, now: new Date("2026-08-19T00:00:00").getTime() });
+    const midday = plan({ ...cold, now: new Date("2026-08-19T12:00:00").getTime() });
+    expect(midnight.actions).toEqual(midday.actions);
+    expect(midnight.reason).toBe(midday.reason);
   });
 });
 
@@ -267,8 +236,8 @@ describe("planBedroomHeaterTick", () => {
     expect(plan({ currentTemperature: 25, isOn: false }).actions).toEqual([]);
   });
 
-  it("heats regardless of the clock, because the window is a schedule not a gate", () => {
-    // 09:00, hours outside the default 18:00 -> 07:00 window. Auto is Auto.
+  it("heats regardless of the clock", () => {
+    // Nine in the morning. There is no window to be outside of: Auto is Auto.
     const result = plan({ currentTemperature: 15, now: new Date("2026-08-07T09:00:00").getTime() });
     expect(result.actions).toEqual([{ entityId: ENTITY, domain: "switch", service: "turn_on" }]);
   });

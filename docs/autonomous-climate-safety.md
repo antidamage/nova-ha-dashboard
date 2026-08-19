@@ -10,8 +10,8 @@ Bedroom loop were removed.
 Auto may be selected before a sensor report exists. Lounge starts only in its
 remembered direction; Bedroom may heat blind. If a usable reading still has
 not arrived after two minutes, the controller turns the actuator off, clears
-Auto and its timer, records `sensor-timeout`, and does not retry. A later user
-selection or eligible Bedroom schedule edge may start a new session.
+Auto and its timer, records `sensor-timeout`, and does not retry. Only a later
+user selection starts a new session.
 
 The Bedroom puck is the sole Bedroom control source. The plug's onboard
 temperature is never a fallback. Missing, nonnumeric, `unknown`, `unavailable`,
@@ -25,10 +25,10 @@ timestamps are excluded. Nova commands are correlated inside a bounded settle
 window and the actuator is re-read before every autonomous command.
 
 An unmatched physical-remote, Tuya-app, or direct-Home-Assistant change sets
-the room owner to `external`. Nova sends no corrective command, cancels its
-authority, and suppresses Bedroom schedule edges. The dashboard shows Manual
-and a device-override warning. Only an explicit Nova Auto, Manual/direction, or
-Off selection reclaims the room; editing a target or schedule alone does not.
+the room owner to `external`. Nova sends no corrective command and cancels its
+authority. The dashboard shows Manual and a device-override warning. Only an
+explicit Nova Auto, Manual/direction, or Off selection reclaims the room;
+editing a target alone does not.
 
 Actuator unavailability is a fault, not an external interaction. It blocks
 commands without rewriting the user's selected mode.
