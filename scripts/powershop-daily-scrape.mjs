@@ -13,6 +13,8 @@ const DEFAULT_LOGIN_CODE_TIMEOUT_MS = 10 * 60 * 1000;
 const LOGIN_CODE_POLL_MS = 1000;
 const LOGIN_TIMEOUT_MS = 90_000;
 const PAGE_TIMEOUT_MS = 60_000;
+/** How long the dashboard shell gets to paint before we call the session dead. */
+const AUTH_SETTLE_TIMEOUT_MS = 30_000;
 const MEASUREMENTS_LOOKBACK_HOURS = 72;
 const MEASUREMENT_COST_TYPES = new Set(["CONSUMPTION_COST", "STANDING_CHARGE_COST"]);
 
@@ -746,10 +748,33 @@ async function findLoginCodeInput(page) {
   return null;
 }
 
+/**
+ * Poll `pageLooksAuthenticated` until it agrees or the budget runs out.
+ *
+ * The dashboard is a slow SPA and the check reads rendered text, so a single
+ * fixed sleep after `domcontentloaded` is a race: it decides "not logged in"
+ * whenever the shell has not painted yet. That misfired on four consecutive
+ * overnight runs (2026-08-16..19), and because a valid session makes
+ * `/login` bounce straight back to `/dashboard`, the fallback then reported
+ * "login email field was not found" — an authenticated page, not a broken one.
+ */
+async function waitForAuthenticated(page, template, budgetMs) {
+  const deadline = Date.now() + budgetMs;
+  for (;;) {
+    if (await pageLooksAuthenticated(page, template)) {
+      return true;
+    }
+    if (Date.now() >= deadline) {
+      return false;
+    }
+    await page.waitForTimeout(1000);
+  }
+}
+
 async function ensureLoggedIn(page, context, template, storagePath, email, password) {
   await page.goto("https://app.powershop.nz/dashboard", { waitUntil: "domcontentloaded", timeout: PAGE_TIMEOUT_MS });
-  await page.waitForTimeout(5000);
-  if (await pageLooksAuthenticated(page, template)) {
+  await page.waitForLoadState("networkidle", { timeout: PAGE_TIMEOUT_MS }).catch(() => null);
+  if (await waitForAuthenticated(page, template, AUTH_SETTLE_TIMEOUT_MS)) {
     await saveStorageState(context, storagePath);
     return "session";
   }
@@ -759,6 +784,13 @@ async function ensureLoggedIn(page, context, template, storagePath, email, passw
   await page.waitForTimeout(4000);
   const emailInput = await findEmailInput(page, template);
   if (!emailInput) {
+    // No email field can mean the session was live all along: Powershop
+    // redirects an authenticated /login back to /dashboard. Check before
+    // calling it a failure, so a slow paint never costs a night of data.
+    if (await waitForAuthenticated(page, template, AUTH_SETTLE_TIMEOUT_MS)) {
+      await saveStorageState(context, storagePath);
+      return "session";
+    }
     throw new Error("Powershop login email field was not found.");
   }
   await emailInput.fill(email);
