@@ -134,6 +134,7 @@ export function DriverRow({
         <SliderControlPanel
           ariaLabel="Timer interval"
           ariaValueText={`${driver.intervalSeconds} seconds`}
+          snapRemote
           color={[34, 211, 238]}
           label="Interval"
           min={0.25}

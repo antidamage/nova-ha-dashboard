@@ -230,6 +230,7 @@ function TransitionControl({
               key={companion.id}
               ariaLabel={label}
               ariaValueText={String(Math.round(value))}
+              snapRemote
               color={[34, 211, 238]}
               label={label}
               min={declaration.min}
@@ -548,6 +549,7 @@ export function EffectEntry({
             <SliderControlPanel
               ariaLabel={name}
               ariaValueText={valueText(range[0])}
+              snapRemote
               color={[34, 211, 238]}
               label={name}
               min={effect.min}
