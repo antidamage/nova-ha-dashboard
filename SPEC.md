@@ -2100,7 +2100,14 @@ Visualiser controls (the config panel formerly called Physics):
   to the group lands carrying the group's current ramp. It is not a property a
   group declares or opts into — a group that shows a ramp per parameter is a
   bug. The Glow group is the plainest case: opacity, blur, overdrive, blend mode
-  and clamp are one parameter group under one ramp. The one place the ramp is
+  and clamp are one parameter group under one ramp. The **Grid** effect is the
+  case that shows the other side of the rule: its three parameter groups are
+  **Size** (the lattice's width and height, one-value percentages), **Dots**
+  (dot size, a swept range in real device pixels with a `px` readout) and
+  **Blend**. Dot size is not in Size precisely because a group means one ramp,
+  and how wide the lattice is and how big the things in it are are two gestures.
+  A parameter group may also declare a unit its module settings inherit, which
+  is where the `px` comes from. The one place the ramp is
   not drawn by the group is the Transition group, whose control set draws the
   transition's own motion profile — which is that group's single ramp, not a
   second one.

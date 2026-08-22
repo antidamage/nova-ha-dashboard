@@ -76,6 +76,8 @@
         "label": { "type": "string" },
         "description": { "type": "string", "maxLength": 512 },
         "section": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "group": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "parameterGroup": { "type": "string", "minLength": 1, "maxLength": 64 },
         "updateMode": { "enum": ["smooth", "structural"], "default": "smooth" },
         "control": { "enum": ["slider", "number", "toggle", "select"], "default": "slider" },
         "min": { "type": "number" },

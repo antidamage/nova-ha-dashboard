@@ -37,7 +37,7 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     const result = compilePhonoscopeYaml(source);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.module.version).toBe("2.5.0");
+    expect(result.module.version).toBe("2.6.0");
     expect(result.module.packageName).toBe("nz.skull.nova.visualiser.particle-ripples");
     // Defaults are the values this household actually runs. The driver panel
     // has no static layer, so an effect nobody has bound to a lane rests on its
@@ -87,6 +87,25 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     expect(result.module.settings.find((setting) => setting.id === "grid_height")).toMatchObject({
       min: 0, max: 100, step: 1, default: 33, group: "grid",
     });
+    // Dot size is a swept range in real device pixels with its OWN parameter
+    // group, so a lane can pulse the dots without also sweeping the extents.
+    // 3.8px is the authored 0.0035 clip units at the 1080-line reference.
+    expect(result.module.settings.find((setting) => setting.id === "dot_size")).toMatchObject({
+      min: 0, max: 50, step: 0.1, default: 3.8,
+      group: "grid", parameterGroup: "dots",
+      affects: ["templates.particle.render.dotSizePixels"],
+      updateMode: "smooth",
+    });
+    // Naming no parameter group compiles to "", which lands the setting in the
+    // effect's first one — the two extents rely on that.
+    expect(result.module.settings.find((setting) => setting.id === "grid_width")?.parameterGroup)
+      .toBe("");
+    // The px-to-clip divide is each engine's, because it needs the output
+    // height; the manifest hands over the pixels unmodified. `transform.scale`
+    // stays as the fallback for an engine that predates the key.
+    expect(JSON.stringify(result.module.templates.particle)).toContain("settings.dot_size");
+    expect((result.module.templates.particle as { transform?: { scale?: unknown } }).transform?.scale)
+      .toEqual([0.0035, 0.0035, 1]);
     // The divide lives in the manifest, so the extent contract stays a fraction.
     expect(JSON.stringify(result.module.scene)).toContain("div");
     // The grid toggle is gone: the geometry is always built and the line

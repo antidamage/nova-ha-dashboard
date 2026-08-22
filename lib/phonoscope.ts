@@ -77,6 +77,14 @@ export type PhonoscopeSetting = {
    * both parse settings field by field, so it costs them nothing.
    */
   group: string;
+  /**
+   * Which parameter group inside that effect group, if the manifest named one.
+   * Presentation only in the same way `group` is. Optional: with none named the
+   * setting lands in the effect's first parameter group. `dot_size` names one
+   * because a parameter group owns exactly one ramp, and it must not share the
+   * lattice extent's.
+   */
+  parameterGroup: string;
   updateMode: "smooth" | "structural";
 };
 
@@ -526,6 +534,13 @@ function normalizeSettings(value: unknown, errors: string[]): PhonoscopeSetting[
       options,
       section: typeof entry.section === "string" ? entry.section.trim().slice(0, 64) : "",
       group: typeof entry.group === "string" ? entry.group.trim().slice(0, 64) : "",
+      // Not validated against the panel's known parameter groups on purpose: an
+      // unrecognised name already falls back to the effect's first group, and
+      // rejecting one would couple module compilation to the dashboard's UI
+      // layout.
+      parameterGroup: typeof entry.parameterGroup === "string"
+        ? entry.parameterGroup.trim().slice(0, 64)
+        : "",
       updateMode: entry.updateMode === "structural" ? "structural" : "smooth",
     }];
   });
