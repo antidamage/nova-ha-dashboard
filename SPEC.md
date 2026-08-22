@@ -2107,7 +2107,16 @@ Visualiser controls (the config panel formerly called Physics):
   **Blend**. Dot size is not in Size precisely because a group means one ramp,
   and how wide the lattice is and how big the things in it are are two gestures.
   A parameter group may also declare a unit its module settings inherit, which
-  is where the `px` comes from. The one place the ramp is
+  is where the `px` comes from.
+- Two effects are contributed **entirely** by the module, with no picture-level
+  parameters at all: **Ripple** (intensity and the strong-beat multiplier, both
+  energy fed to the same beat wave) and **Flare** (peak threshold, peak glow,
+  anticipation, ramp up, release and flash power — the crest lighting up as a
+  ripple passes). Flare is not called Glow: Glow is the whole-frame overlay
+  pass, a different thing at a different stage, and `flare` is the term both
+  engines already use for this in code. A module that declares none of these
+  never sees the effect, because a group whose parameters are all absent is not
+  offered. The one place the ramp is
   not drawn by the group is the Transition group, whose control set draws the
   transition's own motion profile — which is that group's single ramp, not a
   second one.

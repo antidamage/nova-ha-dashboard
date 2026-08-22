@@ -356,15 +356,22 @@ export function effectGroups(
   moduleSettings: ModuleSetting[],
 ): ResolvedEffectGroup[] {
   return PHONOSCOPE_EFFECT_GROUPS.flatMap((group) => {
-    // A manifest names the effect group, not the parameter group inside it, so
-    // its settings land in the first one — which is the geometry group in every
-    // case that exists. Naming one explicitly overrides that.
+    // A manifest names the effect group, not necessarily the parameter group
+    // inside it, so a setting that names none lands in the first one — which is
+    // the geometry group in every case that exists. Naming one overrides that.
+    //
+    // `||`, not `??`: the compiler normalises an absent `parameterGroup` to the
+    // EMPTY STRING, not to undefined, and `"" ?? fallback` is `""`. With `??`
+    // every setting relying on the fallback matched no parameter group at all
+    // and silently left its effect group — which is how `grid_width` and
+    // `grid_height` fell out of Grid/Size, leaving `dot_size` as the group's
+    // first member and therefore the thing "add Grid" added.
     const defaultParameterGroup = group.parameterGroups[0]?.id;
     const parameterGroups = group.parameterGroups.flatMap((parameters) => {
       const fromModule = moduleSettings
         .filter((setting) => setting.group === group.id
           && setting.updateMode !== "structural"
-          && (setting.parameterGroup ?? defaultParameterGroup) === parameters.id)
+          && (setting.parameterGroup || defaultParameterGroup) === parameters.id)
         .flatMap((setting) => {
           const option = effectOptionFor(catalogue, setting.id);
           if (!option) return [];

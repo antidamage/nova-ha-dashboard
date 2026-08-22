@@ -484,7 +484,11 @@ export function SettingsGroupCard({
                 groups={effectGroups}
                 onAdd={(effectId) => {
                   const added = effectOptionFor(catalogue, effectId);
-                  if (!added) return;
+                  // Never twice in ONE lane: two bindings of one parameter just
+                  // fight over the same value, and the second is invisible
+                  // underneath the first. Across lanes is a different matter --
+                  // that is what stacking is for, and this guard is per lane.
+                  if (!added || lane.bindings.some((entry) => entry.effect === added.id)) return;
                   updateLane(lane.id, {
                     bindings: [...lane.bindings, newEffectBinding(newId("bind"), added)],
                   });
@@ -493,7 +497,14 @@ export function SettingsGroupCard({
                   // Adding a group adds its first member, which is the one that
                   // decides whether the group does anything: the rest are
                   // parameters you then add to it.
-                  const first = added.members[0];
+                  //
+                  // First member NOT ALREADY BOUND, because the group is still
+                  // offered once its parameters are on the lane -- adding Glow
+                  // over an existing Glow opacity used to bind a second copy of
+                  // it, and adding Grid did the same to whichever parameter
+                  // happened to be first.
+                  const bound = new Set(lane.bindings.map((entry) => entry.effect));
+                  const first = added.members.find((member) => !bound.has(member.id));
                   if (!first) return;
                   updateLane(lane.id, {
                     bindings: [...lane.bindings, newEffectBinding(newId("bind"), first)],

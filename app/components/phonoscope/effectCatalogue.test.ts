@@ -22,6 +22,7 @@ import {
   PHONOSCOPE_CENTRE_WIDTH_EFFECT,
   PHONOSCOPE_GLOW_OPACITY_EFFECT,
   PHONOSCOPE_MESSAGE_SCALE_EFFECT,
+  PHONOSCOPE_SCENE_BLEND_EFFECT,
 } from "../../../lib/phonoscope-drivers";
 import { isPhonoscopeSizeControlRelevant } from "../../../lib/phonoscope-effect-groups";
 
@@ -133,6 +134,11 @@ describe("parameter groups", () => {
       control: "slider" as const,
       min: 0, max: 100, step: 1, default: 100,
       group: "grid",
+      // The EMPTY STRING, which is what the compiler emits for a setting whose
+      // manifest names no parameter group — not `undefined`. Written out
+      // because a test that omitted the key passed against a fallback that only
+      // handled `undefined`, while the real module fell out of the group.
+      parameterGroup: "",
       updateMode: "smooth" as const,
     }));
     const grid = effectGroups(effectCatalogue(settings), settings)
@@ -153,7 +159,7 @@ describe("parameter groups", () => {
       {
         id: "grid_width", label: "Grid width", control: "slider" as const,
         min: 0, max: 100, step: 1, default: 100,
-        group: "grid", updateMode: "smooth" as const,
+        group: "grid", parameterGroup: "", updateMode: "smooth" as const,
       },
       {
         id: "dot_size", label: "Dot size", control: "slider" as const,
@@ -180,6 +186,14 @@ describe("parameter groups", () => {
     expect(size?.members.map((member) => member.id)).toEqual(["grid_width"]);
     expect(size?.members[0].unit).toBe("%");
     expect(size?.members[0].pinned).toBe(true);
+
+    // `AddEffectControl` binds `members[0]` when you add a whole effect, so the
+    // order across parameter groups decides what adding Grid actually does. It
+    // must be the geometry, not the dots: when the fallback above broke, the
+    // extents left the group, dot_size became members[0], and adding Grid bound
+    // a second copy of a slider the Dots section had already offered.
+    expect(grid?.members.map((member) => member.id))
+      .toEqual(["grid_width", "dot_size", PHONOSCOPE_SCENE_BLEND_EFFECT]);
   });
 });
 

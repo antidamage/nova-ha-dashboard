@@ -85,6 +85,8 @@ export type PhonoscopeEffectGroup = {
 };
 
 const PICTURE_SECTION = "Picture";
+/** Module-owned motion effects, matching those settings' own `section`. */
+const MOTION_SECTION = "Motion";
 
 export const PHONOSCOPE_EFFECT_GROUPS: PhonoscopeEffectGroup[] = [
   {
@@ -177,6 +179,35 @@ export const PHONOSCOPE_EFFECT_GROUPS: PhonoscopeEffectGroup[] = [
       { id: "dots", label: "Dots", unit: "px", effects: [] },
       { id: "blend", label: "Blend", effects: [PHONOSCOPE_SCENE_BLEND_EFFECT] },
     ],
+  },
+  // The two module-owned effects below hold no picture-level parameters at all:
+  // every member arrives from the manifest naming the group. A module without
+  // them — anything that is not a ripple lattice — simply never sees the effect,
+  // because `effectGroups` drops a group whose parameters are all absent.
+  {
+    id: "ripple",
+    label: "Ripple",
+    section: MOTION_SECTION,
+    // Both members are energy fed to the same beat wave, so they belong on one
+    // ramp: a lane that pushes the ripple harder should push all of it.
+    parameterGroups: [{ id: "ripple", label: "Ripple", effects: [] }],
+  },
+  {
+    id: "flare",
+    label: "Flare",
+    section: MOTION_SECTION,
+    // The crest lighting up as a ripple passes: when it starts, how bright it
+    // gets, how it arrives and how it leaves.
+    //
+    // NOT "Glow" — that is the whole-frame overlay pass, a different thing at a
+    // different stage of the pipeline. "Flare" is the term both engines already
+    // use for this (`render.flareGlow`, `render.flareThreshold`,
+    // `render.flareSize`, `linearFlare`), so the panel and the code now agree.
+    //
+    // One parameter group for all six, on the Glow group's precedent: five
+    // heterogeneous glow parameters already share one ramp there. Timing and
+    // intensity move together because they describe one gesture.
+    parameterGroups: [{ id: "flare", label: "Flare", effects: [] }],
   },
 ];
 
