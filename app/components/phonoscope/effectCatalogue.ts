@@ -55,8 +55,10 @@ export type ModuleSetting = {
   group?: string;
   /**
    * Which parameter group inside that effect. Optional: with none named the
-   * setting lands in the effect's first parameter group, which is the geometry
-   * one, so `group: grid` alone puts the lattice's width and height under Size.
+   * setting lands in the effect's FIRST parameter group, so `group: grid` alone
+   * puts the lattice's width and height under Size. Naming one is how a setting
+   * lands anywhere else — `dot_size` names `dots` so it gets its own ramp
+   * rather than sharing the extents'.
    */
   parameterGroup?: string;
   updateMode: "smooth" | "structural";
@@ -373,7 +375,11 @@ export function effectGroups(
           return [{
             ...option,
             shortLabel: option.shortLabel ?? stripped(option.label, group.label),
-            unit: option.unit ?? (parameters.moduleSingleValue ? "%" : undefined),
+            // Member unit, then the group's, then the `moduleSingleValue`
+            // shorthand for a percentage.
+            unit: option.unit
+              ?? parameters.unit
+              ?? (parameters.moduleSingleValue ? "%" : undefined),
             pinned: option.pinned || parameters.moduleSingleValue,
           }];
         });

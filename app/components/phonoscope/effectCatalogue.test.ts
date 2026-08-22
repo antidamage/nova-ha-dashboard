@@ -147,6 +147,40 @@ describe("parameter groups", () => {
       expect(member.shortLabel).toMatch(/^(Width|Height)$/);
     }
   });
+
+  it("gives dot size its own parameter group, so it does not share the extents' ramp", () => {
+    const settings = [
+      {
+        id: "grid_width", label: "Grid width", control: "slider" as const,
+        min: 0, max: 100, step: 1, default: 100,
+        group: "grid", updateMode: "smooth" as const,
+      },
+      {
+        id: "dot_size", label: "Dot size", control: "slider" as const,
+        min: 0, max: 50, step: 0.1, default: 3.8,
+        group: "grid", parameterGroup: "dots", updateMode: "smooth" as const,
+      },
+    ];
+    const grid = effectGroups(effectCatalogue(settings), settings)
+      .find((group) => group.id === "grid");
+    expect(grid?.parameterGroups.map((entry) => entry.id)).toEqual(["size", "dots", "blend"]);
+
+    const dots = grid?.parameterGroups.find((entry) => entry.id === "dots");
+    expect(dots?.members.map((member) => member.id)).toEqual(["dot_size"]);
+    const dotSize = dots?.members[0];
+    // Real device pixels, and a swept range rather than one pinned number: it is
+    // the thing a lane drives.
+    expect(dotSize?.unit).toBe("px");
+    expect(dotSize?.pinned).toBeFalsy();
+    // The heading says Grid, not Dot, so the label is not stripped.
+    expect(dotSize?.shortLabel).toBeUndefined();
+
+    // Naming no parameter group still lands in the first one.
+    const size = grid?.parameterGroups.find((entry) => entry.id === "size");
+    expect(size?.members.map((member) => member.id)).toEqual(["grid_width"]);
+    expect(size?.members[0].unit).toBe("%");
+    expect(size?.members[0].pinned).toBe(true);
+  });
 });
 
 describe("which size controls can do anything", () => {

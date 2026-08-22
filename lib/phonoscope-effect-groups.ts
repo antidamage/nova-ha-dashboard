@@ -56,6 +56,18 @@ export type PhonoscopeParameterGroup = {
    */
   moduleSingleValue?: boolean;
   /**
+   * Suffix on every readout in this group, for a group whose members are all in
+   * one unit the module cannot state. `moduleSingleValue` already implies "%",
+   * which is the pinned-percentage case; this is the general one, and a member
+   * that declares its own unit still wins.
+   *
+   * It lives here rather than in the manifest because a unit is presentation
+   * and the manifest is the engines' contract: a `unit` key on a setting would
+   * mean a schema change, a compiler change and a new field both engines must
+   * parse and ignore, to render a two-character suffix.
+   */
+  unit?: string;
+  /**
    * Picture-level parameters, in display order. Module settings join the same
    * parameter group by naming its effect group in their manifest (`group: grid`),
    * and are listed before these — a module owns the geometry, the picture owns
@@ -151,6 +163,18 @@ export const PHONOSCOPE_EFFECT_GROUPS: PhonoscopeEffectGroup[] = [
       // names the effect group, and with no parameter group named they land in
       // the first one, which is this.
       { id: "size", label: "Size", moduleSingleValue: true, effects: [] },
+      // Dot size is deliberately NOT in Size. A parameter group owns exactly one
+      // ramp, and how wide the lattice is and how big the things in it are are
+      // two gestures rather than one -- sweeping the grid wider while the dots
+      // stay put is the case this separation exists for.
+      //
+      // No `moduleSingleValue`: that pins both ends of the range together and
+      // stamps a "%" on it, which is right for a width expressed as a share of
+      // the frame and wrong for a swept pixel range. It carries its own unit
+      // instead, because the pixels are real device pixels rather than a
+      // fraction of anything. See
+      // `nova-visualiser-modules/specs/particle-grid-dot-size.md`.
+      { id: "dots", label: "Dots", unit: "px", effects: [] },
       { id: "blend", label: "Blend", effects: [PHONOSCOPE_SCENE_BLEND_EFFECT] },
     ],
   },

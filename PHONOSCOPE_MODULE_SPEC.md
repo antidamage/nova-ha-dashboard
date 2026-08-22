@@ -175,7 +175,16 @@ geometry, the picture owns how that geometry is composited. Joining a parameter
 group means joining that group's **single ramp and its single stacking mode**:
 every parameter group has exactly one of each, written to every member that can
 take one, and a module setting never carries a ramp or a "When stacked" of its
-own.
+own. Choose the parameter group on that basis — settings that belong on one ramp
+share a group, and settings that do not get their own. The lattice's `grid_width`
+and `grid_height` share `size`; `dot_size` names `dots` instead, because
+sweeping the grid wider while the dots stay put is a thing worth being able to
+do.
+
+A parameter group may declare a **unit** its module settings inherit — `px` on
+the Grid effect's `dots` group, for instance. The unit lives with the group in
+the panel rather than in the manifest: a unit is presentation, and the manifest
+is the engines' contract.
 
 `updateMode` is `smooth` by default. Smooth numeric settings are interpolated
 in the running simulation and must not rebuild the scene. Use
@@ -231,6 +240,18 @@ Supported blends are `opaque`, `alpha`, and `additive`. Common render keys are
 `trailColorStart`, `trailColorEnd`, `opacity`, `glow`, `lineWidth`, `texture`,
 and `depthWrite`. Fields can similarly provide `wireframeColorStart` and
 `wireframeColorEnd`.
+
+`dotSizePixels` is a render key too, and it is the one that decides how big a
+point primitive is drawn. It is a **diameter in true device pixels** of the
+presentation output, and it takes precedence over `transform.scale` wherever
+both are present — `scale` stays the fallback for a module that predates the
+key, and for an engine that does not know it yet. Prefer it to
+`"=settings.x / screen.height"`: `screen` compiles but is unbound in both
+engines, where an unbound load evaluates to `0` and a division by ~0 also
+evaluates to `0`, so an engine one deploy behind would render nothing at all.
+Grid-wire widths derive from the resulting dot size, and a wire tapers along its
+length between the two dots it connects. See
+`nova-visualiser-modules/specs/particle-grid-dot-size.md`.
 
 Start/end colours are shader gradient endpoints, not animation inputs. Primary
 palette colours belong at the start, centre, or first vertex; Secondary colours
@@ -799,9 +820,26 @@ above rather than a different contract: `delta` is still the fixed timestep and
 
 Both engines adapt effects from the 1080-line authoring reference. At denser
 outputs, glow falloff, bloom radius, trail length/width and fluid-background
-feature radius scale linearly with output height. Dot cores and grid-wire widths
-do not scale. This preserves the intended effect weight at 4K without making the
-wireframe geometry heavier.
+feature radius scale linearly with output height. This preserves the intended
+effect weight at 4K without making the wireframe geometry heavier.
+
+A dot core keeps exactly the clip footprint the simulation gave it, whatever the
+output resolution — the renderer never touches it. What produced that footprint
+depends on how the module authored the dot:
+
+- **`render.dotSizePixels`** is a diameter in **true device pixels**, so the
+  simulation **divides** it by the presentation height. 50 px is 50 real pixels
+  at 1080p and 50 real pixels at 4K, which means it reads proportionally
+  *smaller* on a denser output. This is the opposite direction from every soft
+  effect above, deliberately: a dot is an object with a size, not a weight.
+- **`transform.scale`**, the fallback for a module declaring no
+  `dotSizePixels`, is a clip-space size and does not scale at all.
+
+The presentation height is the height of the picture the viewer sees — never an
+intermediate render target (the glow blur runs at a quarter of it) and never an
+adaptive-quality downscale. Grid-wire widths derive from the resulting dot size
+and follow it. The full contract, including the wire taper, is
+`nova-visualiser-modules/specs/particle-grid-dot-size.md`.
 
 The configured centre `message` and its driven scale are scene content. They
 must be composited by the rendering engine before encoding/presentation, not by
