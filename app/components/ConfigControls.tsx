@@ -274,6 +274,7 @@ export function SliderControlPanel({
   min,
   onCommit,
   onPreview,
+  snapRemote,
   snapTolerance,
   snapValue,
   step,
@@ -295,6 +296,15 @@ export function SliderControlPanel({
   min: number;
   onCommit: (value: number) => void;
   onPreview: (value: number) => void;
+  /**
+   * Show incoming values immediately instead of easing the thumb toward them.
+   *
+   * `DotLineControl` eases by default, which is right for a control backed by a
+   * device that fades toward what it was told. It is wrong for one backed by
+   * stored configuration, where there is no fade for the animation to represent
+   * and the travel just reads as the slider moving on its own.
+   */
+  snapRemote?: boolean;
   /** Magnetic zone around `snapValue`, in value units. */
   snapTolerance?: number;
   /** A fixed value (e.g. the default) the slider snaps to on drag. */
@@ -326,6 +336,7 @@ export function SliderControlPanel({
             fill={fill}
             intensity={intensity}
             markers={markers}
+            snapRemote={snapRemote}
             snapTolerance={snapTolerance}
             snapValue={snapValue}
             onChange={onPreview}

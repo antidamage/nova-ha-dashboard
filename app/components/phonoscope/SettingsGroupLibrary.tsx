@@ -361,6 +361,7 @@ export function SettingsGroupCard({
               <SliderControlPanel
                 ariaLabel={setting.label}
                 ariaValueText={String(value)}
+                snapRemote
                 color={[34, 211, 238]}
                 label={setting.label}
                 min={setting.min}
