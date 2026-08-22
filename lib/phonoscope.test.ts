@@ -37,7 +37,7 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     const result = compilePhonoscopeYaml(source);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.module.version).toBe("2.6.0");
+    expect(result.module.version).toBe("2.7.0");
     expect(result.module.packageName).toBe("nz.skull.nova.visualiser.particle-ripples");
     // Defaults are the values this household actually runs. The driver panel
     // has no static layer, so an effect nobody has bound to a lane rests on its
@@ -96,10 +96,25 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
       affects: ["templates.particle.render.dotSizePixels"],
       updateMode: "smooth",
     });
-    // Naming no parameter group compiles to "", which lands the setting in the
-    // effect's first one — the two extents rely on that.
+    // Naming no parameter group compiles to "" — NOT undefined — which lands the
+    // setting in the effect's first one. The two extents rely on that, so the
+    // resolver has to treat the empty string as absent.
     expect(result.module.settings.find((setting) => setting.id === "grid_width")?.parameterGroup)
       .toBe("");
+    // The crest-lighting family is one effect, and the three labels that said
+    // "Glow ..." or "Flash ..." no longer point at the overlay Glow.
+    for (const id of ["peak_threshold", "peak_glow", "anticipation", "ramp_up", "release",
+      "flash_power"]) {
+      expect(result.module.settings.find((setting) => setting.id === id)?.group, id).toBe("flare");
+    }
+    expect(result.module.settings.find((setting) => setting.id === "anticipation")?.label)
+      .toBe("Anticipation");
+    expect(result.module.settings.find((setting) => setting.id === "release")?.label)
+      .toBe("Release");
+    // Both energy amounts feed the same beat wave, so they are one effect.
+    for (const id of ["intensity", "strong_beat_multiplier"]) {
+      expect(result.module.settings.find((setting) => setting.id === id)?.group, id).toBe("ripple");
+    }
     // The px-to-clip divide is each engine's, because it needs the output
     // height; the manifest hands over the pixels unmodified. `transform.scale`
     // stays as the fallback for an engine that predates the key.
