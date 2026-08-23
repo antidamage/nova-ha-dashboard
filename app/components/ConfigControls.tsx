@@ -331,11 +331,12 @@ export function SliderControlPanel({
             color={color}
             activeColor={activeColor}
             demoTooltipTitle={label}
-            demoTooltip="Drag to adjust this setting."
+            demoTooltip="Drag to adjust this setting, or tap it to type a value."
             dotOpacity={dotOpacity}
             fill={fill}
             intensity={intensity}
             markers={markers}
+            numericEntryLabel={label}
             snapRemote={snapRemote}
             snapTolerance={snapTolerance}
             snapValue={snapValue}
@@ -472,8 +473,8 @@ export function EnvelopeSliderControlPanel({
       {/*
         No numeric readout column. The three thumbs already carry their own A/H/R
         labels, so a second copy of the same three values only narrowed the
-        control that actually needs the width — and this control is dragged, not
-        read off.
+        control that actually needs the width. Exact numbers are typed rather
+        than read off: tapping a thumb opens the numeric field for that phase.
       */}
       <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)] md:items-center">
         <p className="text-sm font-black uppercase text-cyan-200">{label}</p>

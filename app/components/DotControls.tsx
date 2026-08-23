@@ -10,6 +10,15 @@ import {
   markControlInteraction,
 } from "./controlInteractionCooldown";
 import { selectionHaptic, SliderHapticController } from "./haptics";
+import { useNumericEntry } from "./NumericEntryPopover";
+import {
+  beginTap,
+  cancelTapTimer,
+  endedAsTap,
+  observeTap,
+  promoteTap,
+  type SliderTapGesture,
+} from "./sliderTapGesture";
 
 type Rgb = [number, number, number];
 type DotColor = Rgb | string;
@@ -319,6 +328,8 @@ export function DotLineControl({
   markers,
   max = 100,
   min = 0,
+  numericEntry = true,
+  numericEntryLabel,
   onChange,
   onCommit,
   snapRemote = false,
@@ -344,6 +355,11 @@ export function DotLineControl({
   markers?: Array<{ active?: boolean; label: string; value: number }>;
   max?: number;
   min?: number;
+  /** Tapping without dragging opens a numeric field. Off for a control whose
+   *  positions are named choices rather than a number worth typing. */
+  numericEntry?: boolean;
+  /** Heading on that field. Defaults to `ariaLabel`. */
+  numericEntryLabel?: string;
   onChange: (value: number) => void;
   onCommit?: (value: number) => void;
   /** Take incoming values instantly instead of easing the thumb toward them, so the
@@ -367,6 +383,8 @@ export function DotLineControl({
   const precisionDragRef = useRef<PrecisionDrag | null>(null);
   const hapticsRef = useRef(new SliderHapticController());
   const incomingValueHoldUntilRef = useRef(0);
+  const tapRef = useRef<SliderTapGesture | null>(null);
+  const entry = useNumericEntry();
   const [interacting, setInteracting] = useState(false);
   const [lineWidth, setLineWidth] = useState(0);
   const { displayValue, releaseLocalValue, releaseRevision, setLocalValue } = useRemoteEasedNumber(
@@ -443,16 +461,32 @@ export function DotLineControl({
   ), [effectiveSnapTolerance, snapValue]);
 
   const pick = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+    (clientX: number) => {
       if (disabled || !padRef.current) {
         return;
       }
 
       const rect = padRef.current.getBoundingClientRect();
-      const raw = min + ((event.clientX - rect.left) / rect.width) * range;
+      const raw = min + ((clientX - rect.left) / rect.width) * range;
       return setControlValue(snap(raw));
     },
     [disabled, min, range, setControlValue, snap],
+  );
+
+  // The press used to move the value immediately. It is deferred now, so a tap
+  // can mean "let me type this instead" — see sliderTapGesture. This is what
+  // runs once the gesture is known to be a drag, and it runs at the coordinates
+  // of the original press so the drag maths below are unchanged.
+  const beginDrag = useCallback(
+    (clientX: number) => {
+      const startValue = pick(clientX);
+      if (startValue === undefined) return;
+      hapticsRef.current.start({ value: startValue, step });
+      if (padRef.current) {
+        precisionDragRef.current = { currentValue: startValue, lastX: clientX };
+      }
+    },
+    [pick, step],
   );
 
   const drag = useCallback(
@@ -492,6 +526,56 @@ export function DotLineControl({
     releaseLocalValue(commitValueRef.current);
     onCommit?.(commitValueRef.current);
   }, [onCommit, releaseLocalValue]);
+
+  const openNumericEntry = useCallback(() => {
+    const pad = padRef.current;
+    if (!pad) return;
+
+    // The value is pinned for as long as the field is open: a poll landing
+    // mid-edit must not ease the thumb away under the number being typed.
+    setLocalValue(commitValueRef.current);
+    incomingValueHoldUntilRef.current = Number.POSITIVE_INFINITY;
+    entry.open({
+      anchor: pad,
+      anchorOffsetX: thumbCenterPx,
+      label: numericEntryLabel ?? ariaLabel,
+      max,
+      min,
+      onClose: () => {
+        incomingValueHoldUntilRef.current = Date.now() + CONTROL_INTERACTION_COOLDOWN_MS;
+        releaseLocalValue(commitValueRef.current);
+      },
+      onCommit: (next) => {
+        markControlInteraction();
+        const stepped = roundToStep(next);
+        commitValueRef.current = stepped;
+        setLocalValue(stepped);
+        onChange(stepped);
+        onCommit?.(stepped);
+      },
+      step,
+      value: commitValueRef.current,
+    });
+  }, [
+    ariaLabel, entry, max, min, numericEntryLabel, onChange, onCommit, releaseLocalValue,
+    roundToStep, setLocalValue, step, thumbCenterPx,
+  ]);
+
+  const finish = useCallback(() => {
+    const gesture = tapRef.current;
+    tapRef.current = null;
+    if (gesture && draggingRef.current && endedAsTap(gesture)) {
+      // A tap changed nothing and must not commit; it asks for the field.
+      draggingRef.current = false;
+      precisionDragRef.current = null;
+      hapticsRef.current.stop();
+      endControlInteraction();
+      setInteracting(false);
+      openNumericEntry();
+      return;
+    }
+    commit();
+  }, [commit, openNumericEntry]);
 
   const keyStep = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>, next: number) => {
@@ -547,21 +631,33 @@ export function DotLineControl({
         draggingRef.current = true;
         incomingValueHoldUntilRef.current = Number.POSITIVE_INFINITY;
         setInteracting(true);
-        const startValue = pick(event);
-        if (startValue === undefined) return;
-        hapticsRef.current.start({ value: startValue, step });
-        if (padRef.current) {
-          precisionDragRef.current = { currentValue: startValue, lastX: event.clientX };
+        const startX = event.clientX;
+        tapRef.current = beginTap(event, () => beginDrag(startX));
+        if (!numericEntry) {
+          promoteTap(tapRef.current, () => beginDrag(startX));
         }
       }}
       onPointerMove={(event) => {
-        if (event.buttons === 1) {
-          drag(event);
+        if (event.buttons !== 1) {
+          return;
         }
+        const startX = tapRef.current?.clientX ?? event.clientX;
+        if (!observeTap(tapRef.current, event, () => beginDrag(startX))) {
+          return;
+        }
+        drag(event);
       }}
-      onPointerUp={commit}
-      onPointerCancel={commit}
-      onLostPointerCapture={commit}
+      // Both, because Chromium releases the capture around pointerup and the
+      // two arrive in an order that is not worth depending on. The gesture is
+      // consumed once; whichever event is second falls through to a commit that
+      // has nothing left to do.
+      onPointerUp={finish}
+      onLostPointerCapture={finish}
+      onPointerCancel={() => {
+        cancelTapTimer(tapRef.current);
+        tapRef.current = null;
+        commit();
+      }}
       className={classNames(
         "rect-slider relative flex h-12 w-full items-center touch-none select-none outline-none",
         interacting && "rect-slider-active",
@@ -576,12 +672,18 @@ export function DotLineControl({
   );
 
   if (!markers?.length) {
-    return slider;
+    return (
+      <>
+        {slider}
+        {entry.element}
+      </>
+    );
   }
 
   return (
     <>
       {slider}
+      {entry.element}
       <div className="dot-line-markers relative mt-2 h-4 text-xs font-black uppercase text-neutral-400">
         {markers.map((marker) => {
           const markerRatio = clamp((marker.value - min) / range, 0, 1);
@@ -607,6 +709,7 @@ export function DotRangeControl({
   disabled = false,
   max,
   min,
+  numericEntry = true,
   onChange,
   onCommit,
   step: requestedStep,
@@ -617,6 +720,8 @@ export function DotRangeControl({
   disabled?: boolean;
   max: number;
   min: number;
+  /** Tapping a thumb without dragging opens a numeric field for it. */
+  numericEntry?: boolean;
   onChange: (value: [number, number]) => void;
   onCommit?: (value: [number, number]) => void;
   step: number;
@@ -628,11 +733,20 @@ export function DotRangeControl({
   const precisionDragRef = useRef<PrecisionDrag | null>(null);
   const hapticsRef = useRef(new SliderHapticController());
   const currentRef = useRef<[number, number]>(value);
+  const tapRef = useRef<SliderTapGesture | null>(null);
+  // Both the track and each thumb start a press, and they defer different work,
+  // so the move handler reaches the right one through this rather than through
+  // a closure it cannot see.
+  const promoteRef = useRef<() => void>(() => undefined);
+  const entry = useNumericEntry();
   const [interacting, setInteracting] = useState(false);
   currentRef.current = value;
   const span = Math.max(step, max - min);
   const ratio = (part: number) => clamp((part - min) / span, 0, 1);
   const labels = ariaValueText?.(value);
+  // Rendered as a sibling, never a child: a portal's events still bubble
+  // through the React tree, so a field inside the track would feed every
+  // keystroke back into the slider's own pointer handlers.
 
   const stepped = useCallback((raw: number) => {
     const next = min + Math.round((raw - min) / step) * step;
@@ -654,9 +768,27 @@ export function DotRangeControl({
     return next;
   }, [onChange, onCommit, stepped]);
 
-  const rawFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+  const rawFromPointer = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
-    return rect ? min + clamp((event.clientX - rect.left) / Math.max(1, rect.width), 0, 1) * span : min;
+    return rect ? min + clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1) * span : min;
+  };
+
+  const openNumericEntry = (thumb: 0 | 1) => {
+    const track = trackRef.current;
+    if (!track) return;
+    entry.open({
+      anchor: track,
+      anchorOffsetX: ratio(currentRef.current[thumb]) * track.getBoundingClientRect().width,
+      label: `${ariaLabel} ${thumb === 0 ? "minimum" : "maximum"}`,
+      max,
+      min,
+      onCommit: (next) => {
+        markControlInteraction();
+        update(thumb, next, true);
+      },
+      step,
+      value: currentRef.current[thumb],
+    });
   };
 
   const rawFromDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -669,7 +801,7 @@ export function DotRangeControl({
 
   const begin = (event: React.PointerEvent<HTMLDivElement>) => {
     if (disabled) return;
-    const raw = rawFromPointer(event);
+    const raw = rawFromPointer(event.clientX);
     const toMinimum = Math.abs(raw - currentRef.current[0]);
     const toMaximum = Math.abs(raw - currentRef.current[1]);
     // Which side the pointer is on breaks the tie, so a pair collapsed against
@@ -681,19 +813,37 @@ export function DotRangeControl({
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginControlInteraction();
     setInteracting(true);
-    const next = update(thumb, raw);
-    hapticsRef.current.start({ value: next[thumb], step });
-    precisionDragRef.current = { currentValue: next[thumb], lastX: event.clientX };
+    const startX = event.clientX;
+    promoteRef.current = () => {
+      const next = update(thumb, raw);
+      hapticsRef.current.start({ value: next[thumb], step });
+      precisionDragRef.current = { currentValue: next[thumb], lastX: startX };
+    };
+    tapRef.current = beginTap(event, () => promoteRef.current());
+    if (!numericEntry) promoteTap(tapRef.current, () => promoteRef.current());
   };
 
   const end = () => {
-    if (activeThumbRef.current === null) return;
+    const thumb = activeThumbRef.current;
+    if (thumb === null) return;
+    const gesture = tapRef.current;
+    tapRef.current = null;
     activeThumbRef.current = null;
     precisionDragRef.current = null;
     hapticsRef.current.stop();
     endControlInteraction();
     setInteracting(false);
+    if (endedAsTap(gesture)) {
+      openNumericEntry(thumb);
+      return;
+    }
     onCommit?.(currentRef.current);
+  };
+
+  const cancel = () => {
+    cancelTapTimer(tapRef.current);
+    tapRef.current = null;
+    end();
   };
 
   const keyboard = (event: React.KeyboardEvent<HTMLDivElement>, thumb: 0 | 1) => {
@@ -713,6 +863,7 @@ export function DotRangeControl({
   };
 
   return (
+    <>
     <div
       ref={trackRef}
       className={classNames(
@@ -723,6 +874,9 @@ export function DotRangeControl({
       onPointerDown={begin}
       onPointerMove={(event) => {
         if (activeThumbRef.current !== null && event.buttons === 1) {
+          // Nothing has been applied while the press might still be a tap, so
+          // dragging from the unseeded accumulator would jump to nonsense.
+          if (!observeTap(tapRef.current, event, () => promoteRef.current())) return;
           const thumb = activeThumbRef.current;
           const rect = trackRef.current?.getBoundingClientRect();
           const dragBefore = precisionDragRef.current;
@@ -742,7 +896,7 @@ export function DotRangeControl({
         }
       }}
       onPointerUp={end}
-      onPointerCancel={end}
+      onPointerCancel={cancel}
       onLostPointerCapture={end}
     >
       <div className="rect-slider-track">
@@ -775,12 +929,19 @@ export function DotRangeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
-            hapticsRef.current.start({ value: currentRef.current[thumb], step });
-            precisionDragRef.current = { currentValue: currentRef.current[thumb], lastX: event.clientX };
+            const startX = event.clientX;
+            promoteRef.current = () => {
+              hapticsRef.current.start({ value: currentRef.current[thumb], step });
+              precisionDragRef.current = { currentValue: currentRef.current[thumb], lastX: startX };
+            };
+            tapRef.current = beginTap(event, () => promoteRef.current());
+            if (!numericEntry) promoteTap(tapRef.current, () => promoteRef.current());
           }}
         />
       ))}
     </div>
+    {entry.element}
+    </>
   );
 }
 
@@ -808,6 +969,7 @@ export function DotEnvelopeControl({
   ariaLabel,
   disabled = false,
   max,
+  numericEntry = true,
   onChange,
   onCommit,
   step: requestedStep,
@@ -816,6 +978,9 @@ export function DotEnvelopeControl({
   ariaLabel: string;
   disabled?: boolean;
   max: number;
+  /** Tapping a thumb without dragging opens a numeric field for that phase's
+   *  duration — the number the control shows, not its cumulative boundary. */
+  numericEntry?: boolean;
   onChange: (value: EnvelopeDurations) => void;
   onCommit?: (value: EnvelopeDurations) => void;
   step: number;
@@ -827,6 +992,9 @@ export function DotEnvelopeControl({
   const precisionDragRef = useRef<PrecisionDrag | null>(null);
   const hapticsRef = useRef(new SliderHapticController());
   const currentRef = useRef<EnvelopeDurations>(value);
+  const tapRef = useRef<SliderTapGesture | null>(null);
+  const promoteRef = useRef<() => void>(() => undefined);
+  const entry = useNumericEntry();
   const [interacting, setInteracting] = useState(false);
   currentRef.current = value;
 
@@ -912,20 +1080,37 @@ export function DotEnvelopeControl({
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginControlInteraction();
     setInteracting(true);
-    carryFromCurrent();
+    const startX = event.clientX;
     const raw = rawFromPointer(event, thumb);
-    const nextBoundary = update(thumb, raw);
-    hapticsRef.current.start({ value: nextBoundary, step });
-    precisionDragRef.current = { currentValue: nextBoundary, lastX: event.clientX };
+    promoteRef.current = () => {
+      carryFromCurrent();
+      const nextBoundary = update(thumb, raw);
+      hapticsRef.current.start({ value: nextBoundary, step });
+      precisionDragRef.current = { currentValue: nextBoundary, lastX: startX };
+    };
+    tapRef.current = beginTap(event, () => promoteRef.current());
+    if (!numericEntry) promoteTap(tapRef.current, () => promoteRef.current());
   };
   const end = () => {
-    if (activeThumbRef.current === null) return;
+    const thumb = activeThumbRef.current;
+    if (thumb === null) return;
+    const gesture = tapRef.current;
+    tapRef.current = null;
     activeThumbRef.current = null;
     precisionDragRef.current = null;
     hapticsRef.current.stop();
     endControlInteraction();
     setInteracting(false);
+    if (endedAsTap(gesture)) {
+      openNumericEntry(thumb);
+      return;
+    }
     onCommit?.(currentRef.current);
+  };
+  const cancel = () => {
+    cancelTapTimer(tapRef.current);
+    tapRef.current = null;
+    end();
   };
   const keyboard = (event: React.KeyboardEvent<HTMLDivElement>, thumb: 0 | 1 | 2) => {
     const current = boundaries(value)[thumb];
@@ -947,11 +1132,41 @@ export function DotEnvelopeControl({
   const phaseNames = ["attack", "hold", "release"] as const;
   const phaseAbbreviations = ["ATK", "HLD", "REL"] as const;
 
+  // The field edits the phase *duration* — the number printed above the thumb —
+  // rather than the cumulative boundary the drag maths work in. Its ceiling is
+  // whatever room is left after the phases before it.
+  const openNumericEntry = (thumb: 0 | 1 | 2) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const width = track.getBoundingClientRect().width;
+    const start = boundaries(currentRef.current)[thumb - 1] ?? 0;
+    const boundary = boundaries(currentRef.current)[thumb];
+    const ratio = clamp(boundary / max, 0, 1);
+    entry.open({
+      anchor: track,
+      anchorOffsetX: ratio * (width - RECT_THUMB_WIDTH_PX * 3) + RECT_THUMB_WIDTH_PX * (thumb + 0.5),
+      label: `${ariaLabel} ${phaseNames[thumb]}`,
+      max: Number((max - start).toFixed(12)),
+      min: 0,
+      onCommit: (duration) => {
+        markControlInteraction();
+        carryFromCurrent();
+        update(thumb, start + duration, true);
+      },
+      step,
+      value: currentRef.current[thumb],
+    });
+  };
+
   return (
+    <>
     <div ref={trackRef} className={classNames("rect-slider rect-envelope-slider relative flex h-12 w-full items-center touch-none select-none", interacting && "rect-slider-active", disabled && "rect-slider-disabled")}
       onPointerDown={begin}
       onPointerMove={(event) => {
         if (activeThumbRef.current !== null && event.buttons === 1) {
+          // Nothing has been applied while the press might still be a tap, so
+          // dragging from the unseeded accumulator would jump to nonsense.
+          if (!observeTap(tapRef.current, event, () => promoteRef.current())) return;
           const thumb = activeThumbRef.current;
           const rect = trackRef.current?.getBoundingClientRect();
           const dragBefore = precisionDragRef.current;
@@ -971,7 +1186,7 @@ export function DotEnvelopeControl({
           }
         }
       }}
-      onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}>
+      onPointerUp={end} onPointerCancel={cancel} onLostPointerCapture={end}>
       <div className="rect-slider-track" />
       {([0, 1, 2] as const).map((thumb) => (
         <Fragment key={thumb}>
@@ -993,13 +1208,20 @@ export function DotEnvelopeControl({
             event.currentTarget.parentElement?.setPointerCapture?.(event.pointerId);
             beginControlInteraction();
             setInteracting(true);
-            carryFromCurrent();
-            hapticsRef.current.start({ value: boundaries(currentRef.current)[thumb], step });
-            precisionDragRef.current = { currentValue: boundaries(currentRef.current)[thumb], lastX: event.clientX };
+            const startX = event.clientX;
+            promoteRef.current = () => {
+              carryFromCurrent();
+              hapticsRef.current.start({ value: boundaries(currentRef.current)[thumb], step });
+              precisionDragRef.current = { currentValue: boundaries(currentRef.current)[thumb], lastX: startX };
+            };
+            tapRef.current = beginTap(event, () => promoteRef.current());
+            if (!numericEntry) promoteTap(tapRef.current, () => promoteRef.current());
           }} />
         </Fragment>
       ))}
     </div>
+    {entry.element}
+    </>
   );
 }
 

@@ -83,7 +83,6 @@ export function PhonoscopeConfig() {
   const [diagnostics, setDiagnostics] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const saveChain = useRef<Promise<void>>(Promise.resolve());
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Held while a name field has focus. Nothing that arrives from the server may
   // replace `config` while it is: the reply describes the name as it was when
   // the request left, and applying it takes the letters typed since back out of
@@ -141,29 +140,25 @@ export function PhonoscopeConfig() {
   }, [load, isEditing]);
 
   /**
-   * Dot controls emit many preview samples while dragging. Coalesce them to a
-   * short cadence so edits are saved and broadcast during the gesture without
-   * turning one drag into dozens of preference writes.
+   * A preview sample. Local state only — this must not touch the network.
+   *
+   * Dot controls emit one of these per pointer move, and they used to be
+   * coalesced to a 75ms cadence and POSTed for the whole duration of a drag.
+   * Every reply re-rendered the panel from the server's echo and rebroadcast to
+   * the renderer, so a single drag was dozens of saves and the thumb visibly
+   * lagged the finger holding it. `ConfigControls` has always stated the
+   * contract — preview is local UI state, commit is the one persistence
+   * boundary — and this is that contract actually kept.
+   *
+   * The consequence, accepted deliberately: the renderer follows on release
+   * rather than live under the thumb. A live preview, if it is wanted back,
+   * belongs on a lightweight renderer-only channel, not a whole-config POST.
    */
-  const queueSave = useCallback((next: Config) => {
+  const preview = useCallback((next: Config) => {
     setConfig(next);
-    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      saveTimer.current = null;
-      saveChain.current = saveChain.current
-        .catch(() => undefined)
-        .then(async () => { await save(next, { quiet: true }); });
-    }, 75);
-  }, [save]);
-  useEffect(() => () => {
-    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
   }, []);
 
   const commit = useCallback((next: Config) => {
-    if (saveTimer.current !== null) {
-      clearTimeout(saveTimer.current);
-      saveTimer.current = null;
-    }
     saveChain.current = saveChain.current
       .catch(() => undefined)
       .then(async () => { await save(next, { quiet: true }); });
@@ -339,7 +334,7 @@ export function PhonoscopeConfig() {
                   value={config}
                   onChange={(next: ControlSettings, isCommit) => {
                     const merged = { ...config, ...next };
-                    if (isCommit) commit(merged); else queueSave(merged);
+                    if (isCommit) commit(merged); else preview(merged);
                   }}
                   // The two libraries a colour theme group draws from belong
                   // side by side, so the theme library is passed in rather than
@@ -359,7 +354,7 @@ export function PhonoscopeConfig() {
                             ...themes,
                           ],
                         };
-                        if (isCommit) commit(merged); else queueSave(merged);
+                        if (isCommit) commit(merged); else preview(merged);
                       }}
                     />
                   }
