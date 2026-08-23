@@ -3,9 +3,11 @@ import path from "path";
 import {
   copyFileToManagedComputer,
   listManagedComputers,
+  remoteLockScreenCommand,
   remoteWallpaperCommand,
   remoteWallpaperFileName,
   runManagedComputerSsh,
+  type ManagedComputerOrientation,
   type ManagedComputerPublic,
 } from "./managed-computers";
 import { readWallpaperAssetFile } from "./wallpaper-assets";
@@ -18,6 +20,8 @@ export type ManagedDesktopSyncResult = {
   assetId?: string;
   error?: string;
   id: string;
+  // Whether this push also replaced the Windows lock/sign-in screen image.
+  lockScreen?: boolean;
   name: string;
   ok: boolean;
   reason?: string;
@@ -29,6 +33,10 @@ type AppliedWallpaperRecord = {
   assetId: string;
   assetSignature: string;
   computerSignature: string;
+  // The file the lock screen was pointed at, or null when the target does not
+  // take a lock screen image. Records written before lock-screen support read
+  // back as null, so the first sync after the upgrade re-pushes once.
+  lockScreenFileName: string | null;
   remoteFileName: string;
   variant: ThemeVariant;
 };
@@ -67,14 +75,27 @@ const APPLY_STATE_PATH =
   process.env.NOVA_MANAGED_DESKTOP_WALLPAPER_STATE ??
   path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "managed-desktop-wallpaper-state.json");
 
-function isAppliedWallpaperRecord(value: unknown): value is AppliedWallpaperRecord {
+function appliedWallpaperRecord(value: unknown): AppliedWallpaperRecord | null {
   const record = recordValue(value);
-  return typeof record?.assetId === "string"
-    && typeof record.assetSignature === "string"
-    && typeof record.computerSignature === "string"
-    && typeof record.remoteFileName === "string"
-    && (record.variant === "dark" || record.variant === "light")
-    && typeof record.appliedAt === "string";
+  if (
+    typeof record?.assetId !== "string"
+    || typeof record.assetSignature !== "string"
+    || typeof record.computerSignature !== "string"
+    || typeof record.remoteFileName !== "string"
+    || (record.variant !== "dark" && record.variant !== "light")
+    || typeof record.appliedAt !== "string"
+  ) {
+    return null;
+  }
+  return {
+    appliedAt: record.appliedAt,
+    assetId: record.assetId,
+    assetSignature: record.assetSignature,
+    computerSignature: record.computerSignature,
+    lockScreenFileName: typeof record.lockScreenFileName === "string" ? record.lockScreenFileName : null,
+    remoteFileName: record.remoteFileName,
+    variant: record.variant,
+  };
 }
 
 async function readAppliedWallpaperState(): Promise<AppliedWallpaperState> {
@@ -84,7 +105,9 @@ async function readAppliedWallpaperState(): Promise<AppliedWallpaperState> {
     return {
       version: 1,
       targets: Object.fromEntries(
-        Object.entries(targets).filter((entry): entry is [string, AppliedWallpaperRecord] => isAppliedWallpaperRecord(entry[1])),
+        Object.entries(targets)
+          .map(([id, value]) => [id, appliedWallpaperRecord(value)] as const)
+          .filter((entry): entry is [string, AppliedWallpaperRecord] => Boolean(entry[1])),
       ),
     };
   } catch (error) {
@@ -170,12 +193,38 @@ function themeVariantValue(themeSet: Record<string, unknown>, variant: ThemeVari
   return recordValue(recordValue(themeSet.themes)?.[variant]);
 }
 
-function assetIdForComputer(themeSet: Record<string, unknown>, variant: ThemeVariant, computer: ManagedComputerPublic) {
+function assetIdForOrientation(
+  themeSet: Record<string, unknown>,
+  variant: ThemeVariant,
+  orientation: ManagedComputerOrientation,
+) {
   const settings = wallpaperSettings(themeVariantValue(themeSet, variant));
-  if (computer.orientation === "portrait") {
+  if (orientation === "portrait") {
     return settings.portraitAssetId ?? settings.landscapeAssetId;
   }
   return settings.landscapeAssetId;
+}
+
+function assetIdForComputer(themeSet: Record<string, unknown>, variant: ThemeVariant, computer: ManagedComputerPublic) {
+  return assetIdForOrientation(themeSet, variant, computer.orientation);
+}
+
+/**
+ * The wallpaper a non-managed client should be showing right now: the same
+ * resolved dark/light variant and the same portrait fallback the managed
+ * desktops get, without needing an SSH target to ask on behalf of. Used by the
+ * iOS Shortcuts endpoint.
+ */
+export async function currentDesktopWallpaperAssetId(
+  themeValue: unknown,
+  orientation: ManagedComputerOrientation,
+): Promise<{ assetId: string | null; variant: ThemeVariant } | null> {
+  const themeSet = recordValue(themeValue);
+  if (!themeSet) {
+    return null;
+  }
+  const variant = await resolveThemeVariant(themeSet);
+  return { assetId: assetIdForOrientation(themeSet, variant, orientation), variant };
 }
 
 export async function createManagedDesktopWallpaperPlan(themeValue: unknown): Promise<ManagedDesktopWallpaperPlan | null> {
@@ -207,7 +256,9 @@ export async function managedDesktopWallpaperSignature(themeValue: unknown): Pro
       assetId,
       enabled: computer.enabled,
       id: computer.id,
+      lockScreen: computer.capabilities.lockScreen,
       orientation: computer.orientation,
+      platform: computer.platform,
       reason,
       wallpaper: computer.capabilities.wallpaper,
     })),
@@ -223,6 +274,7 @@ function computerWallpaperSignature(computer: ManagedComputerPublic) {
     address: computer.address,
     hostKey: computer.hostKey,
     id: computer.id,
+    lockScreen: computer.capabilities.lockScreen,
     orientation: computer.orientation,
     platform: computer.platform,
     port: computer.port ?? 22,
@@ -243,6 +295,7 @@ function appliedWallpaperRecordMatches(a: AppliedWallpaperRecord | undefined, b:
   return a?.assetId === b.assetId
     && a.assetSignature === b.assetSignature
     && a.computerSignature === b.computerSignature
+    && a.lockScreenFileName === b.lockScreenFileName
     && a.remoteFileName === b.remoteFileName;
 }
 
@@ -295,10 +348,14 @@ async function syncComputerWallpaper(
   try {
     const { asset, filePath } = await readWallpaperAssetFile(assetId);
     const remoteFileName = remoteWallpaperFileName(asset.id, asset.contentType);
+    // The lock screen is a Windows-only surface, and it takes the same image
+    // the desktop gets rather than a separate asset.
+    const lockScreen = computer.platform === "windows" && computer.capabilities.lockScreen;
     const nextApplied = {
       assetId,
       assetSignature: assetSignature(asset),
       computerSignature: computerWallpaperSignature(computer),
+      lockScreenFileName: lockScreen ? remoteFileName : null,
       remoteFileName,
       variant,
     };
@@ -316,6 +373,9 @@ async function syncComputerWallpaper(
 
     await copyFileToManagedComputer(computer, filePath, remoteFileName);
     await runManagedComputerSsh(computer, remoteWallpaperCommand(computer.platform, remoteFileName));
+    if (lockScreen) {
+      await runManagedComputerSsh(computer, remoteLockScreenCommand(computer.platform, remoteFileName));
+    }
     return {
       action: "wallpaper",
       applied: {
@@ -324,6 +384,7 @@ async function syncComputerWallpaper(
       },
       assetId,
       id: computer.id,
+      lockScreen,
       name: computer.name,
       ok: true,
       variant,
