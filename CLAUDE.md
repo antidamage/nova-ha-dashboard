@@ -24,6 +24,14 @@ the named component before introducing a one-off equivalent.
   three-thumb attack/hold/release timeline. Its thumb widths are excluded from
   measurement, allowing adjacent thumbs to represent zero-duration hold or
   release phases.
+- `useNumericEntry` / `NumericEntryPopover` — `app/components/NumericEntryPopover.tsx`.
+  The small portalled field a slider tap opens, so an exact value can be typed
+  rather than dragged for. `DotLineControl`, `DotRangeControl` and
+  `DotEnvelopeControl` all wire it through the tap-versus-drag helper in
+  `app/components/sliderTapGesture.ts`; a control opts out with
+  `numericEntry={false}` rather than being special-cased. This is the surface's
+  only shared numeric input — reuse it instead of adding a raw `type="number"`,
+  and note that the press it depends on no longer moves the value on its own.
 - `ConfigSelect` — `app/components/ConfigSelect.tsx`. This is the generic
   portalled cyber-listbox for configuration choices; use it instead of a native
   `<select>` when a specialised library or font picker is not required. Options

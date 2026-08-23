@@ -704,9 +704,9 @@ html[data-nova-hide-orb-info]
   white-space: pre;
 }
 
-.voice-transcript-status--working {
-  opacity: 0.7;
-}
+.voice-transcript-status--working {
+  opacity: 0.7;
+}
 
 /* Which stack ran each reasoning pass of the turn, one line per stack.
    Deliberately the SAME size and colour as the words above it: this is meant
@@ -3334,6 +3334,74 @@ a.update-banner-button {
   position: fixed;
   right: auto;
   z-index: 11000;
+}
+
+/* The numeric field a slider tap opens. Portalled and fixed for the same reason
+   the select menus are — an absolute child of a config card paints behind the
+   panel below it — and above ModalOverlay's 10000 so a slider inside a colour
+   modal can still be typed into. */
+.cyber-numeric-entry {
+  position: fixed;
+  z-index: 11000;
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--cyber-cyan);
+  background: var(--cyber-bg);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.55);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.cyber-numeric-entry-label,
+.cyber-numeric-entry-range {
+  font-family: var(--cyber-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyber-title-on-bg);
+}
+
+.cyber-numeric-entry-range {
+  opacity: 0.6;
+}
+
+.cyber-numeric-entry-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.cyber-numeric-entry-input {
+  width: 100%;
+  text-align: right;
+}
+
+.cyber-numeric-entry-ok,
+.cyber-numeric-entry-sign {
+  flex: 0 0 auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.05);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cyber-numeric-entry-ok:hover,
+.cyber-numeric-entry-ok:focus-visible,
+.cyber-numeric-entry-sign:hover,
+.cyber-numeric-entry-sign:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+  color: var(--cyber-title-on-cyan);
+  outline: none;
 }
 
 .theme-library-actions {

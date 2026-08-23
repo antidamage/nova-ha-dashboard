@@ -14,4 +14,10 @@ describe("custom selector layering", () => {
   it("keeps portalled dropdown options interactive above modal overlays", () => {
     expect(zIndexFor(".cyber-select-menu-portal")).toBeGreaterThan(zIndexFor(".modal-overlay,"));
   });
+
+  it("keeps the slider numeric-entry field above modal overlays", () => {
+    // Sliders appear inside ColorWidget's modal, and a popover under the
+    // overlay is one the modal intercepts every tap for.
+    expect(zIndexFor(".cyber-numeric-entry")).toBeGreaterThan(zIndexFor(".modal-overlay,"));
+  });
 });
