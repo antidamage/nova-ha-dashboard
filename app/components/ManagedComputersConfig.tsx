@@ -28,7 +28,7 @@ function newComputer(): ManagedComputerFormValue {
   const now = new Date().toISOString();
   return {
     address: "",
-    capabilities: { sleep: false, wake: false, wallpaper: true, voiceSatellite: false },
+    capabilities: { lockScreen: true, sleep: false, wake: false, wallpaper: true, voiceSatellite: false },
     commandTimeoutMs: 15000,
     enabled: true,
     hostKey: "",
@@ -284,6 +284,18 @@ export function ManagedComputersConfig() {
                   >
                     Wallpaper
                   </ToggleButton>
+                  {computer.platform === "windows" ? (
+                    <ToggleButton
+                      checked={computer.capabilities.lockScreen}
+                      onChange={(lockScreen) =>
+                        updateAndPersist(index, (item) => ({
+                          ...item,
+                          capabilities: { ...item.capabilities, lockScreen },
+                        }))}
+                    >
+                      Lock screen
+                    </ToggleButton>
+                  ) : null}
                   <ToggleButton
                     checked={computer.capabilities.sleep}
                     onChange={(sleep) => updateAndPersist(index, (item) => ({ ...item, capabilities: { ...item.capabilities, sleep } }))}

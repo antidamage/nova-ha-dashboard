@@ -17,7 +17,7 @@ function testComputer() {
     id: "studio-desktop",
     name: "Studio Desktop",
     orientation: "landscape" as const,
-    platform: "windows" as const,
+    platform: "windows" as "kde-linux" | "macos" | "windows",
     sshKeyConfigured: true,
     sshKeyPath: path.join(os.tmpdir(), "nova-test-key"),
     sshPublicKey: null,
@@ -65,6 +65,7 @@ async function importSyncModule(options: {
   vi.doMock("./managed-computers", () => ({
     copyFileToManagedComputer,
     listManagedComputers: vi.fn(async () => options.computers ?? [testComputer()]),
+    remoteLockScreenCommand: vi.fn((_platform: string, fileName: string) => `lockscreen ${fileName}`),
     remoteWallpaperCommand: vi.fn((_platform: string, fileName: string) => `apply ${fileName}`),
     remoteWallpaperFileName: vi.fn((assetId: string) => `nova-${assetId}.png`),
     runManagedComputerSsh,
@@ -191,6 +192,73 @@ describe("managed desktop sync", () => {
       ]);
       expect(copyFileToManagedComputer).toHaveBeenCalledTimes(1);
       expect(runManagedComputerSsh).toHaveBeenCalledTimes(1);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("replaces the lock screen on Windows targets that opt in, and only there", async () => {
+    const windows = { ...testComputer(), capabilities: { lockScreen: true, sleep: true, wallpaper: true } };
+    const linux = {
+      ...testComputer(),
+      capabilities: { lockScreen: true, sleep: true, wallpaper: true },
+      id: "kde-box",
+      name: "KDE Box",
+      platform: "kde-linux" as const,
+    } satisfies ReturnType<typeof testComputer>;
+    const { mod, runManagedComputerSsh, tempDir } = await importSyncModule({ computers: [windows, linux] });
+
+    try {
+      const results = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+
+      expect(results).toEqual([
+        expect.objectContaining({ action: "wallpaper", id: "studio-desktop", lockScreen: true, ok: true }),
+        expect.objectContaining({ action: "wallpaper", id: "kde-box", lockScreen: false, ok: true }),
+      ]);
+      // Both machines get the wallpaper; only the Windows one also gets the
+      // lock screen. Targets sync in parallel, so order is not asserted.
+      expect(runManagedComputerSsh.mock.calls.map(([, command]) => command).sort()).toEqual([
+        `apply nova-${ASSET_1}.png`,
+        `apply nova-${ASSET_1}.png`,
+        `lockscreen nova-${ASSET_1}.png`,
+      ]);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("re-syncs when the lock screen capability is turned off, despite an unchanged asset", async () => {
+    const withLockScreen = { ...testComputer(), capabilities: { lockScreen: true, sleep: true, wallpaper: true } };
+    const computers = [withLockScreen];
+    const { mod, runManagedComputerSsh, tempDir } = await importSyncModule({ computers });
+
+    try {
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
+
+      computers[0] = { ...withLockScreen, capabilities: { lockScreen: false, sleep: true, wallpaper: true } };
+      const afterToggle = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(afterToggle[0]).toMatchObject({ action: "wallpaper", lockScreen: false, ok: true });
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(3);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("resolves the wallpaper a Shortcuts client should show, with a portrait fallback", async () => {
+    const { mod, tempDir } = await importSyncModule();
+    try {
+      const theme = themeWithWallpaper(ASSET_1, {}, { lightAssetId: ASSET_2, selection: "light" });
+      await expect(mod.currentDesktopWallpaperAssetId(theme, "landscape")).resolves.toEqual({
+        assetId: ASSET_2,
+        variant: "light",
+      });
+      // No portrait asset in this theme, so a phone falls back to landscape.
+      await expect(mod.currentDesktopWallpaperAssetId(theme, "portrait")).resolves.toEqual({
+        assetId: ASSET_2,
+        variant: "light",
+      });
+      await expect(mod.currentDesktopWallpaperAssetId(null, "portrait")).resolves.toBeNull();
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }

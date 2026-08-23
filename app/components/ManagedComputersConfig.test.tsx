@@ -10,7 +10,7 @@ vi.mock("./managed-computers-client", () => ({
   applyManagedDesktopWallpapers: vi.fn(async () => []),
   loadManagedComputers: vi.fn(async () => [{
     address: "desktop.local",
-    capabilities: { sleep: true, wake: true, wallpaper: true, voiceSatellite: false },
+    capabilities: { lockScreen: true, sleep: true, wake: true, wallpaper: true, voiceSatellite: false },
     commandTimeoutMs: 15000,
     enabled: true,
     hostKey: "",

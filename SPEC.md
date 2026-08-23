@@ -1572,6 +1572,29 @@ Runtime behavior:
   light flip that happens while the main dashboard is open syncs once. The flip
   trigger lives in the dashboard component, so it never fires on the config
   screen.
+- Windows targets also get their lock screen replaced, which is what the
+  sign-in screen shows behind the password box. It is the same image the
+  desktop just received — the landscape asset, or the portrait one on a
+  portrait-orientation machine — never a separately chosen asset. It is gated
+  on the per-computer `lockScreen` capability, which defaults on (like
+  `wallpaper`) and whose toggle only appears for `windows` platforms.
+- The lock screen push runs as a second SSH command straight after the desktop
+  one, and its file is staged in `C:\ProgramData\NovaManagedDesktop` rather
+  than the user's home directory: the sign-in screen is drawn by LogonUI as
+  SYSTEM before any profile loads, so it cannot read the desktop copy. Older
+  `nova-wallpaper-*` files in that directory are swept on each push.
+- The registry writes are `PersonalizationCSP` `LockScreenImagePath` /
+  `LockScreenImageUrl` / `LockScreenImageStatus = 1` under HKLM, plus
+  `DisableLogonBackgroundImage = 0` so the picture shows at sign-in rather than
+  the flat accent colour. PersonalizationCSP is used in preference to the
+  `Policies\...\Personalization\LockScreenImage` key because it applies on
+  Windows Pro and Home alike. It has the documented side effect of greying out
+  the lock-screen picture control in Windows Settings, since Nova now owns it.
+- HKLM means the SSH session must be an administrator session. The script
+  checks its own token first and fails with "Lock screen replacement needs an
+  administrator SSH session" rather than part-applying. A failed lock-screen
+  push fails the whole sync for that computer, so nothing is recorded as
+  applied and the next sync retries both halves.
 - Managed-desktop wallpaper sync is de-duplicated. The automatic path (Back and
   dashboard dark/light flip) records the last successfully applied asset
   signature per computer in ignored runtime state under `data/` and skips
@@ -1580,6 +1603,11 @@ Runtime behavior:
   desktop matches the last one applied. The manual Apply Desktop Wallpapers
   button is the one force path, for recovering a machine whose wallpaper was
   changed outside Nova.
+- The applied-state record includes the lock-screen file name and the
+  `lockScreen` capability, so toggling lock-screen replacement re-syncs that
+  machine even though its wallpaper asset has not changed. Records written
+  before lock-screen support read back with no lock-screen file, which makes
+  the first sync after the upgrade push once.
 
 Config page:
 
@@ -2363,6 +2391,21 @@ Configuration:
   automatic Back / dashboard-flip triggers) drops any target whose wallpaper
   already matches what was last applied, so the same image is never sent twice
   in a row.
+- `GET /api/desktop/wallpapers/current`: return the theme's current wallpaper
+  as image bytes, for clients that cannot read the theme themselves — iOS
+  Shortcuts fetches this to set the phone's wallpaper. The dark/light variant
+  resolves exactly as a managed desktop's sync resolves it, so a phone and a
+  desktop asked at the same moment get the same picture. `?orientation=
+  landscape` serves the landscape asset; the default is portrait, which falls
+  back to the landscape asset when the theme has no portrait one. The response
+  carries `X-Nova-Wallpaper-Id`, `X-Nova-Wallpaper-Updated-At`, and
+  `X-Nova-Theme-Variant` so a Shortcut can skip a download it already has. 404
+  when the current theme has no wallpaper.
+- `GET /api/desktop/wallpapers/current/wallpaper.png`: the identical response,
+  at a URL ending in a file extension, because some clients will not treat a
+  response as an image otherwise. Both routes share one handler. The bytes and
+  `Content-Type` are the asset's own, so this path can return a JPEG — the
+  extension is for the client's parser, not a promise about the format.
 
 Voice agent:
 

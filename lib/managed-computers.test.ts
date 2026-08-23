@@ -46,6 +46,8 @@ describe("managed computers", () => {
     try {
       const computers = await mod.listManagedComputers();
       expect(computers[0].capabilities).toEqual({
+        // Absent in the stored record: lock screen defaults on, like wallpaper.
+        lockScreen: true,
         sleep: true,
         wake: true,
         wallpaper: true,
@@ -71,6 +73,14 @@ describe("managed computers", () => {
       expect(mod.remoteWallpaperCommand("macos", fileName)).toContain("com.apple.wallpaper");
       expect(mod.remoteWallpaperCommand("kde-linux", fileName)).toContain("preserveAspectCrop");
       expect(() => mod.remoteWallpaperCommand("kde-linux", "bad;name.png")).toThrow(/unsafe/i);
+      const lockScreen = decodeWindowsCommand(mod.remoteLockScreenCommand("windows", fileName));
+      expect(lockScreen).toContain("PersonalizationCSP");
+      expect(lockScreen).toContain("LockScreenImageStatus");
+      expect(lockScreen).toContain("DisableLogonBackgroundImage");
+      expect(lockScreen).toContain("C:\\ProgramData\\NovaManagedDesktop");
+      expect(lockScreen).toContain("IsInRole");
+      expect(() => mod.remoteLockScreenCommand("macos", fileName)).toThrow(/only supported on Windows/i);
+      expect(() => mod.remoteLockScreenCommand("windows", "bad;name.png")).toThrow(/unsafe/i);
       expect(decodeWindowsCommand(mod.remoteSleepCommand("windows"))).toContain("SetSuspendState");
       expect(mod.remoteSleepCommand("macos")).toBe("pmset sleepnow");
       expect(() => mod.remoteSleepCommand("kde-linux")).toThrow(/not supported/i);

@@ -9,6 +9,9 @@ export type ManagedComputerPlatform = "windows" | "macos" | "kde-linux";
 export type ManagedComputerOrientation = "landscape" | "portrait";
 
 export type ManagedComputerCapabilities = {
+  // Windows only: the wallpaper push also replaces the lock/sign-in screen
+  // image. Needs an administrator SSH session, since it writes HKLM.
+  lockScreen: boolean;
   sleep: boolean;
   wake: boolean;
   wallpaper: boolean;
@@ -122,6 +125,7 @@ function normalizedPort(value: unknown) {
 function normalizedCapabilities(value: unknown, id: string): ManagedComputerCapabilities {
   const record = isRecord(value) ? value : {};
   return {
+    lockScreen: record.lockScreen !== false,
     sleep: record.sleep === true,
     wake: record.wake === true,
     wallpaper: record.wallpaper !== false,
@@ -458,6 +462,54 @@ export function remoteWallpaperCommand(platform: ManagedComputerPlatform, fileNa
     ].join("; ");
   }
   return `plasma-apply-wallpaperimage --fill-mode preserveAspectCrop "$HOME/NovaManagedDesktop/${fileName}"`;
+}
+
+// Where the lock screen image is staged. The sign-in screen is drawn by
+// LogonUI as SYSTEM before any profile is loaded, so the file cannot stay in
+// the user's home directory the desktop copy lives in.
+const WINDOWS_LOCK_SCREEN_DIR = "C:\\ProgramData\\NovaManagedDesktop";
+
+/**
+ * Point the Windows lock screen - and therefore the sign-in screen behind it -
+ * at the same image the desktop just received.
+ *
+ * PersonalizationCSP is the MDM-facing path and is the one that works on both
+ * Pro and Home; the `Policies\...\Personalization\LockScreenImage` key it
+ * superseded is Enterprise-only in practice. `DisableLogonBackgroundImage = 0`
+ * is Windows' default, and is written explicitly so a machine that was ever
+ * set the other way still shows the picture at sign-in rather than the flat
+ * accent colour.
+ *
+ * Writing HKLM needs an administrator session, so the script checks its own
+ * token first and reports that plainly instead of failing on the first
+ * Set-ItemProperty.
+ */
+export function remoteLockScreenCommand(platform: ManagedComputerPlatform, fileName: string) {
+  if (platform !== "windows") {
+    throw new Error("Lock screen replacement is only supported on Windows");
+  }
+  assertSafeRemoteFileName(fileName);
+  return windowsPowerShellCommand([
+    "$ErrorActionPreference = 'Stop'",
+    "$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())",
+    "if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Lock screen replacement needs an administrator SSH session' }",
+    `$source = Join-Path $HOME 'NovaManagedDesktop\\${fileName}'`,
+    `$shared = '${WINDOWS_LOCK_SCREEN_DIR}'`,
+    "New-Item -ItemType Directory -Force -Path $shared | Out-Null",
+    `$target = Join-Path $shared '${fileName}'`,
+    "Copy-Item -LiteralPath $source -Destination $target -Force",
+    "$csp = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PersonalizationCSP'",
+    "if (-not (Test-Path -LiteralPath $csp)) { New-Item -Path $csp -Force | Out-Null }",
+    "Set-ItemProperty -LiteralPath $csp -Name LockScreenImagePath -Value $target",
+    "Set-ItemProperty -LiteralPath $csp -Name LockScreenImageUrl -Value $target",
+    "Set-ItemProperty -LiteralPath $csp -Name LockScreenImageStatus -Value 1 -Type DWord",
+    "$system = 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System'",
+    "if (-not (Test-Path -LiteralPath $system)) { New-Item -Path $system -Force | Out-Null }",
+    "Set-ItemProperty -LiteralPath $system -Name DisableLogonBackgroundImage -Value 0 -Type DWord",
+    // Every theme change stages a new file name, so sweep the ones no longer
+    // referenced rather than growing a folder of dead wallpapers.
+    `Get-ChildItem -LiteralPath $shared -Filter 'nova-wallpaper-*' -File | Where-Object { $_.Name -ne '${fileName}' } | Remove-Item -Force -ErrorAction SilentlyContinue`,
+  ].join("; "));
 }
 
 export function remoteSleepCommand(platform: ManagedComputerPlatform) {
