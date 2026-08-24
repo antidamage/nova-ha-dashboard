@@ -1625,10 +1625,13 @@ Runtime behavior:
   house) raises a notification that runs a Shortcut, and the Shortcut fetches
   `/api/desktop/wallpapers/current/wallpaper.png`. The POST body carries
   `title`, `text`, and `input` — `input` being that fetch URL, so the address
-  is not baked into the Shortcut. Its base is `NOVA_PUBLIC_BASE_URL`, which has
-  no default: the address a house reaches its dashboard on is household
-  configuration, not a literal in dashboard source. With none set the
-  notification still fires and simply carries no `input`.
+  is not baked into the Shortcut. Its base is `NOVA_PUBLIC_BASE_URL`, whose
+  default names the role rather than whichever machine fills it, the same way
+  `NOVA_VOICE_HOST_URL` does: a house's own dashboard address is household
+  configuration, not a literal in dashboard source. An install that has not set
+  it therefore sends an address that will not resolve for it — a soft failure,
+  where the notification still arrives and the URL in it is the thing to
+  correct.
 - The webhook fires on the same triggers as the desktop push and is
   de-duplicated separately, against the theme's own resolved wallpaper rather
   than against any computer: a house with no managed computers still notifies,
