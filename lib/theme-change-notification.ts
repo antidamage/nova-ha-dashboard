@@ -17,11 +17,16 @@ import { readDashboardSecrets } from "./dashboard-secrets";
 
 // Where a phone should fetch the wallpaper from. A sync can run with no
 // request to take an origin from - a timer, or the dashboard flipping variant
-// - so this comes from the host's environment. It has no default: the address
-// a house reaches its dashboard on is household configuration and must not be
-// a literal in this source (SPEC.md §2). With none set, the notification still
-// fires and simply carries no fetch URL.
-const PUBLIC_BASE_URL = (process.env.NOVA_PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
+// - so this comes from the host's environment.
+//
+// The default names the ROLE, not whichever machine fills it, the same way
+// NOVA_VOICE_HOST_URL does (SPEC.md §2): a house's own dashboard address is
+// household configuration and must not be a literal here. An install that has
+// not set NOVA_PUBLIC_BASE_URL therefore sends a URL that will not resolve for
+// it, which is a soft failure - the notification still arrives and the address
+// in it is the thing to correct.
+const DEFAULT_PUBLIC_BASE_URL = "http://dashboard.local";
+const PUBLIC_BASE_URL = (process.env.NOVA_PUBLIC_BASE_URL?.trim() || DEFAULT_PUBLIC_BASE_URL).replace(/\/$/, "");
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -32,10 +37,7 @@ export type ThemeChangeNotificationResult = {
   skipped?: "not-configured" | "unchanged";
 };
 
-export function wallpaperFetchUrl(orientation: "landscape" | "portrait" = "portrait"): string | null {
-  if (!PUBLIC_BASE_URL) {
-    return null;
-  }
+export function wallpaperFetchUrl(orientation: "landscape" | "portrait" = "portrait") {
   const suffix = orientation === "landscape" ? "?orientation=landscape" : "";
   return `${PUBLIC_BASE_URL}/api/desktop/wallpapers/current/wallpaper.png${suffix}`;
 }
@@ -49,7 +51,6 @@ export async function sendThemeChangeNotification(input: {
     return { ok: true, sent: false, skipped: "not-configured" };
   }
 
-  const fetchUrl = wallpaperFetchUrl();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -58,7 +59,7 @@ export async function sendThemeChangeNotification(input: {
         // Pushcut passes `input` through to the Shortcut the notification
         // runs, so the phone is told where to fetch rather than having the
         // address baked into the Shortcut.
-        ...(fetchUrl ? { input: fetchUrl } : {}),
+        input: wallpaperFetchUrl(),
         text: `${input.variant === "light" ? "Light" : "Dark"} wallpaper`,
         title: "Nova theme change",
       }),
