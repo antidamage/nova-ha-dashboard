@@ -4,6 +4,7 @@ import {
   copyFileToManagedComputer,
   listManagedComputers,
   remoteLockScreenCommand,
+  remoteTerminalRefreshCommand,
   remoteWallpaperCommand,
   remoteWallpaperFileName,
   runManagedComputerSsh,
@@ -12,6 +13,7 @@ import {
 } from "./managed-computers";
 import { readWallpaperAssetFile } from "./wallpaper-assets";
 import { isComputerSleeping } from "./sleeping-computers";
+import { sendThemeChangeNotification } from "./theme-change-notification";
 
 type ThemeVariant = "dark" | "light";
 
@@ -41,7 +43,18 @@ type AppliedWallpaperRecord = {
   variant: ThemeVariant;
 };
 
+// What the theme-change webhook was last told about. Kept alongside the
+// per-computer records because it is the same question - what has already been
+// pushed for this wallpaper - asked for a client that is not a managed
+// computer.
+type NotifiedWallpaperRecord = {
+  assetId: string;
+  notifiedAt: string;
+  variant: ThemeVariant;
+};
+
 type AppliedWallpaperState = {
+  notified?: NotifiedWallpaperRecord;
   targets: Record<string, AppliedWallpaperRecord>;
   version: 1;
 };
@@ -102,8 +115,20 @@ async function readAppliedWallpaperState(): Promise<AppliedWallpaperState> {
   try {
     const value = JSON.parse(await readFile(APPLY_STATE_PATH, "utf8")) as unknown;
     const targets = recordValue(recordValue(value)?.targets) ?? {};
+    const notified = recordValue(recordValue(value)?.notified);
     return {
       version: 1,
+      ...(typeof notified?.assetId === "string"
+        && (notified.variant === "dark" || notified.variant === "light")
+        && typeof notified.notifiedAt === "string"
+        ? {
+          notified: {
+            assetId: notified.assetId,
+            notifiedAt: notified.notifiedAt,
+            variant: notified.variant,
+          },
+        }
+        : {}),
       targets: Object.fromEntries(
         Object.entries(targets)
           .map(([id, value]) => [id, appliedWallpaperRecord(value)] as const)
@@ -376,6 +401,15 @@ async function syncComputerWallpaper(
     if (lockScreen) {
       await runManagedComputerSsh(computer, remoteLockScreenCommand(computer.platform, remoteFileName));
     }
+    if (computer.platform === "windows") {
+      // Best effort, and deliberately after the wallpaper is already applied:
+      // an open terminal that did not repaint is not a failed sync.
+      try {
+        await runManagedComputerSsh(computer, remoteTerminalRefreshCommand(computer.platform));
+      } catch (error) {
+        console.error("[managed-desktop] terminal refresh failed", computer.id, error);
+      }
+    }
     return {
       action: "wallpaper",
       applied: {
@@ -413,9 +447,14 @@ export async function syncManagedDesktopWallpapers(
   const state = await readAppliedWallpaperState();
   const results = await Promise.all(plan.targets.map((target) => syncComputerWallpaper(plan.variant, target, state, options)));
   const applied = results.filter((result) => result.ok && result.applied);
-  if (applied.length > 0) {
+  // Phones are not managed computers, so the webhook is decided from the
+  // theme's own resolved wallpaper rather than from what any desktop did. A
+  // house with no managed computers at all still notifies.
+  const notified = await notifyThemeChange(themeValue, plan.variant, state, options);
+  if (applied.length > 0 || notified) {
     const nextState: AppliedWallpaperState = {
       version: 1,
+      ...(notified ?? (state.notified ? { notified: state.notified } : {})),
       targets: { ...state.targets },
     };
     for (const result of applied) {
@@ -424,6 +463,46 @@ export async function syncManagedDesktopWallpapers(
     await writeAppliedWallpaperState(nextState);
   }
   return results.map(({ applied: _applied, ...result }) => result);
+}
+
+/**
+ * Call the theme-change webhook when the wallpaper a phone would fetch has
+ * changed since the last notification. `force` (the manual Apply button)
+ * notifies regardless, for the same reason it re-pushes desktops: it is the
+ * repair path.
+ *
+ * Returns the state fragment to persist, or null when nothing was sent. A
+ * webhook failure is logged and dropped - it must never fail a wallpaper sync
+ * that otherwise worked, and the unchanged state means the next sync retries.
+ */
+async function notifyThemeChange(
+  themeValue: unknown,
+  variant: ThemeVariant,
+  state: AppliedWallpaperState,
+  options: ManagedDesktopSyncOptions,
+): Promise<Pick<AppliedWallpaperState, "notified"> | null> {
+  const resolved = await currentDesktopWallpaperAssetId(themeValue, "portrait");
+  if (!resolved?.assetId) {
+    return null;
+  }
+  if (!options.force && state.notified?.assetId === resolved.assetId && state.notified.variant === variant) {
+    return null;
+  }
+
+  const result = await sendThemeChangeNotification({ assetId: resolved.assetId, variant });
+  if (!result.sent) {
+    if (result.error) {
+      console.error("[managed-desktop] theme change notification failed", result.error);
+    }
+    return null;
+  }
+  return {
+    notified: {
+      assetId: resolved.assetId,
+      notifiedAt: new Date().toISOString(),
+      variant,
+    },
+  };
 }
 
 function settleSyncRequest(request: QueuedSyncRequest, result: ManagedDesktopSyncResult[] | unknown, ok: boolean) {

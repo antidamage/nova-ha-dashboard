@@ -66,6 +66,7 @@ async function importSyncModule(options: {
     copyFileToManagedComputer,
     listManagedComputers: vi.fn(async () => options.computers ?? [testComputer()]),
     remoteLockScreenCommand: vi.fn((_platform: string, fileName: string) => `lockscreen ${fileName}`),
+    remoteTerminalRefreshCommand: vi.fn(() => "refresh-terminal"),
     remoteWallpaperCommand: vi.fn((_platform: string, fileName: string) => `apply ${fileName}`),
     remoteWallpaperFileName: vi.fn((assetId: string) => `nova-${assetId}.png`),
     runManagedComputerSsh,
@@ -86,10 +87,14 @@ async function importSyncModule(options: {
     })),
   }));
 
+  const sendThemeChangeNotification = vi.fn(async () => ({ ok: true, sent: true }));
+  vi.doMock("./theme-change-notification", () => ({ sendThemeChangeNotification }));
+
   return {
     copyFileToManagedComputer,
     mod: await import("./managed-desktop-sync"),
     runManagedComputerSsh,
+    sendThemeChangeNotification,
     tempDir,
   };
 }
@@ -98,6 +103,7 @@ describe("managed desktop sync", () => {
   afterEach(() => {
     vi.doUnmock("./managed-computers");
     vi.doUnmock("./wallpaper-assets");
+    vi.doUnmock("./theme-change-notification");
     vi.unstubAllEnvs();
     vi.resetModules();
   });
@@ -141,7 +147,9 @@ describe("managed desktop sync", () => {
       const first = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
       expect(first[0]).toMatchObject({ action: "wallpaper", assetId: ASSET_1, ok: true });
       expect(copyFileToManagedComputer).toHaveBeenCalledTimes(1);
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(1);
+      // A Windows push is two commands: apply the wallpaper, then nudge
+      // Windows Terminal into reloading its settings.
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
 
       const second = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
       expect(second[0]).toMatchObject({
@@ -151,7 +159,7 @@ describe("managed desktop sync", () => {
         reason: "unchanged-wallpaper",
       });
       expect(copyFileToManagedComputer).toHaveBeenCalledTimes(1);
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(1);
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
 
       const lightSameAsset = await mod.syncManagedDesktopWallpapers(
         themeWithWallpaper(ASSET_1, {}, { lightAssetId: ASSET_1, selection: "light" }),
@@ -163,12 +171,12 @@ describe("managed desktop sync", () => {
         reason: "unchanged-wallpaper",
       });
       expect(copyFileToManagedComputer).toHaveBeenCalledTimes(1);
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(1);
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
 
       const forced = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1), { force: true });
       expect(forced[0]).toMatchObject({ action: "wallpaper", assetId: ASSET_1, ok: true });
       expect(copyFileToManagedComputer).toHaveBeenCalledTimes(2);
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(4);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
@@ -191,7 +199,7 @@ describe("managed desktop sync", () => {
         }),
       ]);
       expect(copyFileToManagedComputer).toHaveBeenCalledTimes(1);
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(1);
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
@@ -221,6 +229,7 @@ describe("managed desktop sync", () => {
         `apply nova-${ASSET_1}.png`,
         `apply nova-${ASSET_1}.png`,
         `lockscreen nova-${ASSET_1}.png`,
+        "refresh-terminal",
       ]);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
@@ -234,12 +243,14 @@ describe("managed desktop sync", () => {
 
     try {
       await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(2);
+      // wallpaper + lock screen + terminal refresh
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(3);
 
       computers[0] = { ...withLockScreen, capabilities: { lockScreen: false, sleep: true, wallpaper: true } };
       const afterToggle = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
       expect(afterToggle[0]).toMatchObject({ action: "wallpaper", lockScreen: false, ok: true });
-      expect(runManagedComputerSsh).toHaveBeenCalledTimes(3);
+      // wallpaper + terminal refresh, no lock screen
+      expect(runManagedComputerSsh).toHaveBeenCalledTimes(5);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
@@ -259,6 +270,62 @@ describe("managed desktop sync", () => {
         variant: "light",
       });
       await expect(mod.currentDesktopWallpaperAssetId(null, "portrait")).resolves.toBeNull();
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("notifies the theme-change webhook once per wallpaper, and again on force", async () => {
+    const { mod, sendThemeChangeNotification, tempDir } = await importSyncModule();
+    try {
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(sendThemeChangeNotification).toHaveBeenCalledTimes(1);
+      expect(sendThemeChangeNotification).toHaveBeenCalledWith({ assetId: ASSET_1, variant: "dark" });
+
+      // Same wallpaper, so the phone has nothing new to fetch.
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(sendThemeChangeNotification).toHaveBeenCalledTimes(1);
+
+      // The manual Apply button is the repair path: it notifies regardless.
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1), { force: true });
+      expect(sendThemeChangeNotification).toHaveBeenCalledTimes(2);
+
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_3));
+      expect(sendThemeChangeNotification).toHaveBeenCalledTimes(3);
+      expect(sendThemeChangeNotification).toHaveBeenLastCalledWith({ assetId: ASSET_3, variant: "dark" });
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("notifies when a dark/light flip changes the wallpaper, and when no computer took it", async () => {
+    const { mod, sendThemeChangeNotification, tempDir } = await importSyncModule({ computers: [] });
+    try {
+      // No managed computers at all - a phone still needs telling.
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(sendThemeChangeNotification).toHaveBeenCalledWith({ assetId: ASSET_1, variant: "dark" });
+
+      await mod.syncManagedDesktopWallpapers(
+        themeWithWallpaper(ASSET_1, {}, { lightAssetId: ASSET_2, selection: "light" }),
+      );
+      expect(sendThemeChangeNotification).toHaveBeenLastCalledWith({ assetId: ASSET_2, variant: "light" });
+      expect(sendThemeChangeNotification).toHaveBeenCalledTimes(2);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("keeps retrying the webhook after a failure, and never fails the sync for it", async () => {
+    const { mod, sendThemeChangeNotification, tempDir } = await importSyncModule();
+    try {
+      sendThemeChangeNotification.mockResolvedValueOnce({ error: "boom", ok: false, sent: false });
+      const results = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(results[0]).toMatchObject({ action: "wallpaper", ok: true });
+
+      // Nothing was recorded as notified, so the next sync tries again even
+      // though the wallpaper has not changed.
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(sendThemeChangeNotification).toHaveBeenCalledTimes(2);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }

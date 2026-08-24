@@ -1590,6 +1590,18 @@ Runtime behavior:
   `Policies\...\Personalization\LockScreenImage` key because it applies on
   Windows Pro and Home alike. It has the documented side effect of greying out
   the lock-screen picture control in Windows Settings, since Nova now owns it.
+- A Windows push then nudges Windows Terminal into re-reading its settings, so
+  windows that are already open pick the theme up rather than waiting to be
+  restarted. This is not gated on any capability and is best-effort: an SSH
+  failure there is logged and the sync still succeeds. It covers the packaged,
+  Preview, and unpackaged settings locations, whichever exist.
+- The nudge rewrites the settings file's trailing whitespace rather than
+  appending to it, so the file cannot grow without bound across theme changes
+  while still producing a real write for Terminal's file watcher on every run.
+  It rewrites bytes rather than text, so encoding and any BOM survive, and it
+  never parses the file: Terminal's `settings.json` is JSONC and legitimately
+  contains comments. The sanity check is that the last non-whitespace byte is
+  `}`.
 - HKLM means the SSH session must be an administrator session. The script
   checks its own token first and fails with "Lock screen replacement needs an
   administrator SSH session" rather than part-applying. A failed lock-screen
@@ -1608,6 +1620,22 @@ Runtime behavior:
   machine even though its wallpaper asset has not changed. Records written
   before lock-screen support read back with no lock-screen file, which makes
   the first sync after the upgrade push once.
+- A wallpaper sync also calls the theme-change notification webhook, when one
+  is configured. Nova cannot push to iOS, so the webhook (Pushcut, in this
+  house) raises a notification that runs a Shortcut, and the Shortcut fetches
+  `/api/desktop/wallpapers/current/wallpaper.png`. The POST body carries
+  `title`, `text`, and `input` — `input` being that fetch URL, so the address
+  is not baked into the Shortcut. Its base is `NOVA_PUBLIC_BASE_URL`, which has
+  no default: the address a house reaches its dashboard on is household
+  configuration, not a literal in dashboard source. With none set the
+  notification still fires and simply carries no `input`.
+- The webhook fires on the same triggers as the desktop push and is
+  de-duplicated separately, against the theme's own resolved wallpaper rather
+  than against any computer: a house with no managed computers still notifies,
+  and a theme edit that leaves the wallpaper alone does not. `force` (the
+  manual Apply button) notifies regardless, as it re-pushes regardless. A
+  webhook failure is logged, never fails the sync, and records nothing, so the
+  next sync retries.
 
 Config page:
 
@@ -2366,6 +2394,16 @@ Configuration:
 - `POST /api/config/validate`: dry-run validate config import.
 - `GET /api/config/schema`: return JSON schema.
 - `GET /api/config/setup-status`: return secret setup status.
+- `GET /api/config/secrets`: return the status of secrets configured from the
+  config page rather than the host environment — currently only
+  `themeChangeNotificationUrl`. Never returns a stored value in full: only
+  `configured` and a shortened `preview` (host, an ellipsis, and the last two
+  path segments), so a config screen left open on a wall display cannot leak a
+  token.
+- `POST /api/config/secrets`: write one such secret. Values must be absolute
+  `http:`/`https:` URLs of at most 2048 characters. An empty string clears the
+  secret, which is what the Clear action posts — there is no separate delete
+  path to keep in step.
 - `GET /api/config/client`: return non-secret client config.
 - `GET /api/orb-modules`: return every available status orb module — the
   compiled-in built-ins overlaid with normalized `config/orb-modules/*.json`
@@ -2864,7 +2902,10 @@ behavior unless explicitly changed:
 
 - The dashboard is optimized for a trusted local network deployment.
 - Home Assistant token management is external to the app.
-- Config files intentionally do not store secrets.
+- Config files intentionally do not store secrets. The one secret set from the
+  UI rather than the environment — the theme-change notification URL — lives in
+  its own 0600 `data/dashboard-secrets.json`, outside config, so that a config
+  export cannot carry it and a config import cannot overwrite it.
 - iCloud mirrored tasks are read-only inside the dashboard.
 - iCloud recurrence exception handling is limited by current implementation.
 - The task CSV parser is a simple project-specific parser, not a full RFC CSV
