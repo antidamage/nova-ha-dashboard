@@ -81,6 +81,14 @@ describe("managed computers", () => {
       expect(lockScreen).toContain("IsInRole");
       expect(() => mod.remoteLockScreenCommand("macos", fileName)).toThrow(/only supported on Windows/i);
       expect(() => mod.remoteLockScreenCommand("windows", "bad;name.png")).toThrow(/unsafe/i);
+      const terminal = decodeWindowsCommand(mod.remoteTerminalRefreshCommand("windows"));
+      expect(terminal).toContain("Microsoft.WindowsTerminal_8wekyb3d8bbwe");
+      expect(terminal).toContain("WriteAllBytes");
+      // The settings file is JSONC, so it must never be parsed as JSON, and it
+      // must never grow: the trailing whitespace is rewritten, not appended to.
+      expect(terminal).not.toContain("ConvertFrom-Json");
+      expect(terminal).not.toContain("Add-Content");
+      expect(() => mod.remoteTerminalRefreshCommand("kde-linux")).toThrow(/only supported on Windows/i);
       expect(decodeWindowsCommand(mod.remoteSleepCommand("windows"))).toContain("SetSuspendState");
       expect(mod.remoteSleepCommand("macos")).toBe("pmset sleepnow");
       expect(() => mod.remoteSleepCommand("kde-linux")).toThrow(/not supported/i);

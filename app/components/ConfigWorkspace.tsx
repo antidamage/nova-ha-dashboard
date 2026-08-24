@@ -15,6 +15,7 @@ import { ConfigPreviewBackground, ConfigPreviewBackgroundProvider } from "./Conf
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
 import { loadSharedConfig, readSharedConfigCache, saveSharedConfig } from "./sharedConfigCache";
 import { SystemControlConfig } from "./SystemControlConfig";
+import { ThemeChangeNotificationSecret } from "./ThemeChangeNotificationSecret";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
 
@@ -428,6 +429,7 @@ export function ConfigWorkspace({
             <h2 className="text-lg font-black uppercase">Secrets</h2>
           </div>
           <div className="grid gap-3">
+            <ThemeChangeNotificationSecret />
             {rows.map((row) => (
               <div key={row.detail} className="flex items-center justify-between gap-3 border-b border-neutral-800 pb-2 text-sm">
                 <div>
