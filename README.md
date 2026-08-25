@@ -2,7 +2,7 @@
 
 Nova HA Dashboard is a local Home Assistant control surface for a smart-home setup. It is a Next.js app served on the local network, designed for desktop, wall-mounted and touch-screen use in both portrait and landscape orientations.
 
-View a live demo: https://antidamage.github.io/nova-ha-dashboard/config/
+View a live demo: https://antidamage.github.io/nova-ha-dashboard/
 
 The dashboard is configured through a portable, versioned JSON schema. Shipped defaults are assembled from `config/dashboard-config.default.json`, first-time setup values in `config/common.json`, task setup in `config/tasks.json`, and non-secret UI defaults in `config/dashboard-preferences.default.json`; runtime imports live under `data/dashboard-config.json` by default and are preserved across Nova deployments.
 
