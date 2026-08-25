@@ -162,6 +162,7 @@ export function Dashboard() {
                   onDesktopSleep={applyDesktopSleep}
                   onDesktopWake={applyDesktopWake}
                   onEntityActions={applyEntityActions}
+                  onNotice={setToast}
                   onZoneAction={applyZoneAction}
                   preferences={data?.preferences}
                   router={data?.router}
