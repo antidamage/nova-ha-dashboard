@@ -477,15 +477,44 @@ const BEDROOM_HEATER_POWER_BUTTONS: ReadonlyArray<{
   { label: "Off", state: "off", Icon: PowerOff },
 ] as const;
 
-async function saveBedroomHeater(update: BedroomHeaterPreferences) {
-  const response = await fetch("/api/bedroom-heater", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(update),
-  });
-  const body = await response.json();
-  if (!response.ok) {
-    throw new Error(body.error ?? "Failed to update bedroom heater");
+// A heater save that never completes used to leave the card showing a state the
+// server did not have — tap Off, the POST hangs on a sleeping link, and the card
+// reads "Off" indefinitely while the thermostat keeps running. Nothing timed the
+// request out and nothing told the user. See
+// specs/bedroom-heater-control-integrity.md §2.
+const BEDROOM_HEATER_SAVE_TIMEOUT_MS = 8000;
+
+/**
+ * Returns what the server now holds, so the card can show that rather than what
+ * was tapped. The two agree on a normal save; they diverge when the server
+ * clamps a target, and they would diverge silently on any future server-side
+ * adjustment. The card follows the server.
+ */
+async function saveBedroomHeater(update: BedroomHeaterPreferences): Promise<BedroomHeaterPreferences> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), BEDROOM_HEATER_SAVE_TIMEOUT_MS);
+  try {
+    const response = await fetch("/api/bedroom-heater", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update),
+      signal: controller.signal,
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      throw new Error(body.error ?? "Failed to update bedroom heater");
+    }
+    return (body?.bedroomHeater ?? {}) as BedroomHeaterPreferences;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      // Deliberately not "nothing was changed" — the request may well have
+      // reached the server and been applied. Unconfirmed is the honest word,
+      // and the card re-syncs from the server rather than guessing.
+      throw new Error("Heater did not respond in time — its state is unconfirmed");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -493,6 +522,7 @@ function BedroomHeaterControl({
   controlState,
   humidity,
   onEntityActions,
+  onNotice,
   preferences,
   switchEntity,
   temperature,
@@ -501,6 +531,7 @@ function BedroomHeaterControl({
   controlState?: ClimateControlRoomState;
   humidity: number | null;
   onEntityActions: EntityActionsHandler;
+  onNotice?: (message: string) => void;
   preferences?: BedroomHeaterPreferences;
   switchEntity?: DashboardEntity;
   temperature: number | null;
@@ -511,12 +542,17 @@ function BedroomHeaterControl({
   const effectivePersistedMode: BedroomHeaterMode = persistedMode;
   const persistedTarget = bedroomHeaterTargetTemperature(preferences);
 
-  // Mode and target are both optimistic: the server is authoritative but a tap
-  // must land instantly, and the auto loop stands down for its cooldown while
-  // the write propagates.
+  // Mode and target were optimistic — applied locally before the server agreed.
+  // A heater is not a light: showing "Off" over a running 2 kW element because a
+  // POST silently hung is the failure that sent Adeline looking for a schedule
+  // that had already been deleted. The card now shows the server's value, plus a
+  // pending marker while a save is in flight, and reverts loudly if it fails.
+  // See specs/bedroom-heater-control-integrity.md §2.
   const [mode, setMode] = useState<BedroomHeaterMode>(effectivePersistedMode);
   const [target, setTarget] = useState(persistedTarget);
+  const [pending, setPending] = useState<{ mode?: BedroomHeaterMode; target?: number } | null>(null);
   const temperatureSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modeSaveSequence = useRef(0);
 
   const persistedTimerEndsAt = typeof preferences?.offTimerEndsAt === "string" ? preferences.offTimerEndsAt : null;
   const [localTimerEndsAt, setLocalTimerEndsAt] = useState<string | null>(persistedTimerEndsAt);
@@ -587,6 +623,39 @@ function BedroomHeaterControl({
     };
   }, []);
 
+  // iOS suspends a home-screen web app rather than unmounting it, so the cleanup
+  // above never runs when the phone is locked. A debounced target armed in the
+  // last two seconds before that would sit frozen and then fire on resume —
+  // hours later — writing a stale target over whatever the server held by then.
+  // A queued save is discarded on hide; the card re-syncs from the server on
+  // resume instead. See specs/bedroom-heater-control-integrity.md §3.
+  useEffect(() => {
+    const discardQueuedSave = () => {
+      if (temperatureSendTimerRef.current) {
+        clearTimeout(temperatureSendTimerRef.current);
+        temperatureSendTimerRef.current = null;
+        setTarget(persistedTarget);
+        setPending(null);
+      }
+    };
+
+    // pagehide gets its own unconditional handler. Gating it on
+    // visibilityState === "hidden" made it dead code on exactly the path it
+    // exists for: Safari can fire pagehide (bfcache, app quit) without a
+    // preceding visibility transition, and that is the suspension that strands
+    // a queued save until resume.
+    const discardOnHidden = () => {
+      if (document.visibilityState === "hidden") discardQueuedSave();
+    };
+
+    document.addEventListener("visibilitychange", discardOnHidden);
+    window.addEventListener("pagehide", discardQueuedSave);
+    return () => {
+      document.removeEventListener("visibilitychange", discardOnHidden);
+      window.removeEventListener("pagehide", discardQueuedSave);
+    };
+  }, [persistedTarget]);
+
   if (!switchEntity) {
     return <ClimateCard kicker="Heating Unit" title={title} />;
   }
@@ -598,19 +667,43 @@ function BedroomHeaterControl({
     if (next === mode) {
       return Promise.resolve();
     }
-    setMode(next);
     // Off means the heater is off, so a pending sleep timer has nothing left to
     // do; it would otherwise fire over a later Auto.
     const clearTimer = next === "off" && localTimerEndsAt !== null;
+    // Last request wins, not last response. Two quick taps (Auto then Off) fire
+    // two independent POSTs; without this the Auto reply landing second would
+    // repaint the card to Auto over the user's Off — the card asserting a state
+    // the server does not hold, which is the whole failure this spec exists to
+    // close. Only the newest tap may write mode.
+    const sequence = modeSaveSequence.current + 1;
+    modeSaveSequence.current = sequence;
+    const isCurrent = () => modeSaveSequence.current === sequence;
+
+    setPending((current) => ({ ...current, mode: next }));
     if (clearTimer) {
       setLocalTimerEndsAt(null);
     }
-    const save = saveBedroomHeater(clearTimer ? { mode: next, offTimerEndsAt: null } : { mode: next }).catch(() => {
-      setMode(effectivePersistedMode);
-      if (clearTimer) {
-        setLocalTimerEndsAt(persistedTimerEndsAt);
-      }
-    });
+    const save = saveBedroomHeater(clearTimer ? { mode: next, offTimerEndsAt: null } : { mode: next })
+      .then((saved) => {
+        if (isCurrent()) setMode(bedroomHeaterMode(saved));
+      })
+      .catch((error: unknown) => {
+        if (!isCurrent()) return;
+        setMode(effectivePersistedMode);
+        if (clearTimer) {
+          setLocalTimerEndsAt(persistedTimerEndsAt);
+        }
+        onNotice?.(
+          `Heater ${next === "off" ? "Off" : "Auto"} did not save — still ${effectivePersistedMode === "off" ? "Off" : "Auto"}. ${
+            error instanceof Error ? error.message : "Save failed"
+          }`,
+        );
+      })
+      .finally(() => {
+        if (isCurrent()) {
+          setPending((current) => (current ? { ...current, mode: undefined } : null));
+        }
+      });
 
     // Auto hands over to the server thermostat, which the save above evaluates
     // immediately — pressing Auto must not itself force the element on, only
@@ -622,12 +715,27 @@ function BedroomHeaterControl({
   // ever sent, and the auto loop picks it up on its next tick.
   const changeTarget = async (next: number) => {
     const clamped = Math.min(BEDROOM_HEATER_MAX_TARGET_C, Math.max(BEDROOM_HEATER_MIN_TARGET_C, next));
-    setTarget(clamped);
+    setPending((current) => ({ ...current, target: clamped }));
     if (temperatureSendTimerRef.current) {
       clearTimeout(temperatureSendTimerRef.current);
     }
     temperatureSendTimerRef.current = setTimeout(() => {
-      void saveBedroomHeater({ temperature: clamped }).catch(() => setTarget(persistedTarget));
+      temperatureSendTimerRef.current = null;
+      void saveBedroomHeater({ temperature: clamped })
+        .then((saved) => {
+          setTarget(bedroomHeaterTargetTemperature(saved));
+        })
+        .catch((error: unknown) => {
+          setTarget(persistedTarget);
+          onNotice?.(
+            `Heater target did not save — still ${formatTemperature(persistedTarget)}. ${
+              error instanceof Error ? error.message : "Save failed"
+            }`,
+          );
+        })
+        .finally(() => {
+          setPending((current) => (current ? { ...current, target: undefined } : null));
+        });
     }, AIRCON_TEMPERATURE_SEND_DEBOUNCE_MS);
   };
 
@@ -668,6 +776,12 @@ function BedroomHeaterControl({
           heater off. Under Auto the heater's own switch may well be idle, but
           the target still governs when it fires again, so the stepper stays live.
         */}
+        {pending?.mode !== undefined || pending?.target !== undefined ? (
+          <p className="border border-neutral-500/60 px-3 py-2 text-xs font-black uppercase text-neutral-300">
+            Saving{pending?.mode !== undefined ? ` ${pending.mode === "off" ? "Off" : "Auto"}` : ""}
+            {pending?.target !== undefined ? ` ${formatTemperature(pending.target)}` : ""} — not confirmed yet
+          </p>
+        ) : null}
         <TemperatureStepper
           currentTemperature={temperature}
           disabled={entityUnavailable || mode === "off"}
@@ -676,12 +790,15 @@ function BedroomHeaterControl({
           maxTemperature={BEDROOM_HEATER_MAX_TARGET_C}
           minTemperature={BEDROOM_HEATER_MIN_TARGET_C}
           step={1}
-          targetTemperature={target}
+          targetTemperature={pending?.target ?? target}
           onChange={changeTarget}
         />
 
         <div className="aircon-state-grid grid grid-cols-2 gap-2">
           {BEDROOM_HEATER_POWER_BUTTONS.map(({ Icon, label, state }) => {
+            // Server truth only. A pending tap shows in the banner above, not as
+            // a confirmed selection — the card must never assert a mode the
+            // server has not acknowledged.
             const active = mode === state;
 
             return (
@@ -1476,12 +1593,14 @@ export function ClimateControls({
   bedroomHeater,
   climateControl,
   onEntityActions,
+  onNotice,
   preferences,
   zone,
 }: {
   bedroomHeater?: BedroomHeaterDevices;
   climateControl?: import("../../../lib/types").ClimateControlState;
   onEntityActions: EntityActionsHandler;
+  onNotice?: (message: string) => void;
   preferences?: DashboardPreferences;
   zone: DashboardZone;
 }) {
@@ -1541,6 +1660,7 @@ export function ClimateControls({
           temperature={bedroomHeater?.temperature ?? null}
           title={titles.heater}
           onEntityActions={onEntityActions}
+          onNotice={onNotice}
         />
       ) : null}
       {showLegacyPanelHeater ? (

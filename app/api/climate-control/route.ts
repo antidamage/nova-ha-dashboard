@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { clampTargetTemperature } from "../../../lib/bedroom-heater-control";
 import {
   applyClimateControlIntent,
   type ClimateControlIntent,
 } from "../../../lib/climate-control";
+import { emitDashboardEvent } from "../../../lib/event-spool";
 import { buildDashboardState } from "../../../lib/ha";
+import { callerAttribution } from "../../../lib/request-attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +30,9 @@ function parseIntent(value: unknown): ClimateControlIntent {
   if (input.temperature !== undefined) {
     const number = Number(input.temperature);
     if (!Number.isFinite(number)) throw new Error("temperature must be numeric");
-    intent.temperature = number;
+    // Clamped here, not just in the card. This endpoint is the non-card path,
+    // so an out-of-range target from any other caller used to land unbounded.
+    intent.temperature = input.room === "bedroom" ? clampTargetTemperature(number) : number;
   }
   if (input.offTimerEndsAt !== undefined) {
     if (input.offTimerEndsAt === null) intent.offTimerEndsAt = null;
@@ -42,7 +47,24 @@ function parseIntent(value: unknown): ClimateControlIntent {
 
 export async function POST(request: Request) {
   try {
-    await applyClimateControlIntent(parseIntent(await request.json()));
+    const intent = parseIntent(await request.json());
+    const caller = callerAttribution(request);
+    await applyClimateControlIntent(intent);
+    void emitDashboardEvent({
+      service: intent.room === "bedroom" ? "heating" : "climate",
+      event: "climate-intent",
+      source: "api",
+      detail: {
+        route: "/api/climate-control",
+        room: intent.room,
+        mode: intent.mode,
+        direction: intent.direction,
+        temperature: intent.temperature,
+        offTimerEndsAt: intent.offTimerEndsAt,
+        callerIp: caller.ip,
+        callerAgent: caller.userAgent,
+      },
+    });
     return NextResponse.json(await buildDashboardState());
   } catch (error) {
     return NextResponse.json(

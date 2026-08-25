@@ -73,6 +73,8 @@ export type PrimaryPanelContext = {
   onDesktopSleep?: (computer: { id: string; name: string }) => void;
   onDesktopWake?: (computer: { id: string; name: string }) => void;
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
+  /** Surface a message without issuing a command — used for save failures. */
+  onNotice?: (message: string) => void;
 };
 
 export type PrimaryZonePanel = {
@@ -110,13 +112,14 @@ export const primaryZonePanels: PrimaryZonePanel[] = [
   {
     id: "climate",
     appliesTo: isClimateZone,
-    render: ({ zone, bedroomHeater, climateControl, preferences, onEntityActions }) => (
+    render: ({ zone, bedroomHeater, climateControl, preferences, onEntityActions, onNotice }) => (
       <ClimateControls
         zone={zone}
         bedroomHeater={bedroomHeater}
         climateControl={climateControl}
         preferences={preferences}
         onEntityActions={onEntityActions}
+        onNotice={onNotice}
       />
     ),
   },

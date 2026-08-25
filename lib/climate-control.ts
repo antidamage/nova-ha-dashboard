@@ -772,7 +772,13 @@ export async function handleLegacyClimateAction(action: {
       state.manualDirection = null;
     }
   } else if (action.service === "turn_on") {
-    await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "auto", offTimerEndsAt: null }));
+    // Energise the switch, but leave the stored mode alone. This branch is
+    // reached by ANY generic caller — a zone "everything on" control, a scene,
+    // an MCP tool call — none of which know the switch is climate-managed.
+    // Promoting the heater to Auto here armed the thermostat behind the
+    // owner's back; arming Auto is now an explicit climate intent only (the
+    // heater card, or /api/climate-control with mode "auto"). See
+    // specs/bedroom-heater-control-integrity.md §5.
     heaterThermostatFor(room).resetForUserRequest();
   } else if (action.service === "turn_off") {
     await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "off", offTimerEndsAt: null }));

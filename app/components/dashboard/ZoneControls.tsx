@@ -163,6 +163,7 @@ export function ZoneControls({
   onDesktopSleep,
   onDesktopWake,
   onEntityActions,
+  onNotice,
   onZoneAction,
   preferences,
   router,
@@ -180,6 +181,8 @@ export function ZoneControls({
   onDesktopSleep?: (computer: { id: string; name: string }) => void;
   onDesktopWake?: (computer: { id: string; name: string }) => void;
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
+  /** Surface a message without issuing a command — used for save failures. */
+  onNotice?: (message: string) => void;
   onZoneAction: (action: string, body?: Record<string, unknown>) => Promise<void>;
   preferences?: DashboardPreferences;
   router?: RouterStatus;
@@ -328,6 +331,7 @@ export function ZoneControls({
               onDesktopSleep,
               onDesktopWake,
               onEntityActions,
+              onNotice,
             })
           ) : (
             <>
