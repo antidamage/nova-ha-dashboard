@@ -1590,18 +1590,32 @@ Runtime behavior:
   `Policies\...\Personalization\LockScreenImage` key because it applies on
   Windows Pro and Home alike. It has the documented side effect of greying out
   the lock-screen picture control in Windows Settings, since Nova now owns it.
-- A Windows push then nudges Windows Terminal into re-reading its settings, so
-  windows that are already open pick the theme up rather than waiting to be
-  restarted. This is not gated on any capability and is best-effort: an SSH
-  failure there is logged and the sync still succeeds. It covers the packaged,
-  Preview, and unpackaged settings locations, whichever exist.
-- The nudge rewrites the settings file's trailing whitespace rather than
-  appending to it, so the file cannot grow without bound across theme changes
-  while still producing a real write for Terminal's file watcher on every run.
-  It rewrites bytes rather than text, so encoding and any BOM survive, and it
-  never parses the file: Terminal's `settings.json` is JSONC and legitimately
-  contains comments. The sanity check is that the last non-whitespace byte is
-  `}`.
+- A push then runs the **per-application theme actions** for that platform —
+  the mechanism by which a theme change reconfigures individual applications on
+  a managed machine, rather than only repainting its desktop. Actions are
+  registered in `lib/desktop-theme-actions.ts`, one file per application, and
+  each runs in its own try/catch: an application that failed to repaint is
+  logged and never fails the sync. Adding an application is a new registry
+  entry, not a change to the sync path. See
+  `specs/desktop-theme-app-actions.md`.
+- The first such action sets Windows Terminal's PowerShell profile `tabColor`
+  to the wallpaper's dominant highlight colour, so open terminals take the
+  theme's accent. It reads `settings.json` over SSH, patches it as text in
+  Node, and writes it back; it never parses the file in PowerShell, because
+  Terminal's `settings.json` is JSONC and legitimately contains comments that
+  `ConvertFrom-Json` cannot round-trip. Writing the file is itself what makes
+  Terminal reload, so a sync that would change nothing does not write at all. A
+  one-time `settings.json.nova-backup` is taken beside it. When no PowerShell
+  profile can be found the action falls back to the older behaviour: rewriting
+  the file's trailing whitespace, in bytes so encoding and any BOM survive, to
+  trigger the watcher without the file growing across theme changes.
+- The dominant highlight colour is also published on its own, at
+  `GET /api/desktop/wallpapers/current/color`, for clients that want the
+  theme's accent without downloading and analysing the wallpaper. It is the
+  most *vibrant* accent rather than the largest colour cluster, extracted with
+  `sharp`; the response carries both the raw colour and a contrast-clamped
+  variant. Thresholds and the response shape are in
+  `specs/desktop-theme-app-actions.md`.
 - HKLM means the SSH session must be an administrator session. The script
   checks its own token first and fails with "Lock screen replacement needs an
   administrator SSH session" rather than part-applying. A failed lock-screen
@@ -1620,6 +1634,11 @@ Runtime behavior:
   machine even though its wallpaper asset has not changed. Records written
   before lock-screen support read back with no lock-screen file, which makes
   the first sync after the upgrade push once.
+- It also includes a theme-action signature covering every applicable
+  per-application action and the colour they were given, so a changed action —
+  or a changed extracted colour on an unchanged asset — re-fires them. Records
+  written before theme actions read back with no signature, which likewise
+  makes the first sync after the upgrade push once.
 - A wallpaper sync also calls the theme-change notification webhook, when one
   is configured. Nova cannot push to iOS, so the webhook (Pushcut, in this
   house) raises a notification that runs a Shortcut, and the Shortcut fetches
@@ -2447,6 +2466,16 @@ Configuration:
   response as an image otherwise. Both routes share one handler. The bytes and
   `Content-Type` are the asset's own, so this path can return a JPEG — the
   extension is for the client's parser, not a promise about the format.
+- `GET /api/desktop/wallpapers/current/color`: the dominant highlight colour of
+  that same wallpaper, as JSON, for clients that want the theme's accent
+  without downloading and analysing the image. It resolves the variant and
+  honours `?orientation=` exactly as the image routes do, and carries the same
+  `X-Nova-Wallpaper-*` and `X-Nova-Theme-Variant` headers. The body has
+  `highlight` (the raw extraction) and `contrast` (the same colour with its
+  lightness clamped for legibility), each as hex, RGB and HSL, plus a
+  `fallback` flag set when the wallpaper had no colour to find. 404 when the
+  current theme has no wallpaper. Extraction rule and thresholds:
+  `specs/desktop-theme-app-actions.md`.
 
 Voice agent:
 
