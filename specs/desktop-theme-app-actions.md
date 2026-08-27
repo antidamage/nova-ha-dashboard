@@ -182,8 +182,8 @@ generated colour scheme.
 
 ### Candidate settings paths
 
-The three `remoteTerminalRefreshCommand` already probes, in order — stable,
-preview, unpackaged:
+The three `remoteTerminalRefreshCommand` already probes — stable, preview,
+unpackaged:
 
 ```
 %LOCALAPPDATA%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json
@@ -191,27 +191,48 @@ preview, unpackaged:
 %LOCALAPPDATA%\Microsoft\Windows Terminal\settings.json
 ```
 
-The first that exists wins. If none exists the action is a no-op — Terminal is
-not installed, which is not a failure.
+**Every one that exists is patched, not the first.** This is the correction to
+the original design, and it matters: stable and Preview are routinely installed
+side by side, and the one a person actually runs is not the one that sorts
+first. Ununhexium has both, runs Preview, and taking the first match wrote to
+stable — a file nothing was reading — so the feature appeared to do nothing at
+all for a whole day. Each file is that Terminal's own config; there is no
+principled reason to prefer one, and patching all of them is both simpler and
+right.
 
-### Mechanism — three SSH round trips
+If none exists the action is a no-op — Terminal is not installed, which is not
+a failure. One install failing must not stop the rest, because the one that
+matters may be the next in the list.
 
-All three go through the existing `runManagedComputerSsh` +
+### Mechanism — one read, then one write per file
+
+All of it goes through the existing `runManagedComputerSsh` +
 `windowsPowerShellCommand` primitives. No new SSH plumbing.
 
-1. **Read.** `Get-Content -Raw` on the winning path, emitted to stdout. The
-   remote script handles "no file" itself and exits 0 with empty output,
-   because `runManagedComputerSsh` rejects on *any* non-zero exit.
-2. **Patch, in Node.** See below.
-3. **Write back.** The new content is base64-encoded into the
-   `-EncodedCommand` script, and PowerShell does
-   `[IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($b64))` after
-   taking a one-time backup.
+1. **Read.** One round trip returns every file that exists, one per line, as
+   `NOVA-FILE <base64 path> <base64 bytes>`. Both fields are base64 because a
+   Windows path contains spaces (`\Microsoft\Windows Terminal\`), PowerShell
+   emits CRLF while the file's own line endings may be anything, and any plain
+   delimiter could occur inside the file's text. Base64 has none of those
+   failure modes — an earlier `\n---\n` delimiter silently failed to match
+   against CRLF and made the action no-op.
+   The remote script handles "no file" itself and exits 0, because
+   `runManagedComputerSsh` rejects on *any* non-zero exit.
+2. **Patch, in Node.** See below. The BOM is detected from the raw bytes and
+   stripped before patching, so offsets align with what `ReadAllText` sees on
+   the far side; whether to write one back is passed explicitly.
+3. **Write.** One round trip per file that actually changed.
 
-Steps 2 and 3 are skipped when the patch is a no-op — the file already carries
-the right `tabColor`. **A sync that changes nothing must not write the file**,
+The write is skipped when the patch is a no-op — the file already carries the
+right `tabColor`. **A sync that changes nothing must not write the file**,
 because writing it is what makes Terminal reload, and a spurious reload is a
 visible flicker in every open window.
+
+### An existing hand-set tabColor is replaced
+
+If the PowerShell profile already has a `tabColor` someone set by hand, Nova
+overwrites it — that is the whole point of the feature. The one-time
+`.nova-backup` is what preserves the original value.
 
 ### Why not SFTP, and why not PowerShell JSON
 
@@ -231,7 +252,14 @@ stands. The patch happens in Node, as text.
 Before the first write, if `settings.json.nova-backup` does not exist beside
 the settings file, copy it there. Once only — the backup is the pre-Nova state,
 not the previous state, and re-taking it every sync would destroy exactly the
-thing it is for.
+thing it is for. Per file, so each Terminal install keeps its own.
+
+### Not in scope: the terminal background
+
+Only the tab is coloured. The pane background, the colour scheme and the ANSI
+palette are left alone. Adeline, 2026-08-27, when asked about tinting the
+background: *"not at all, that's not a thing we do. we're colouring the actual
+tab at the top."*
 
 ### Size guard
 
