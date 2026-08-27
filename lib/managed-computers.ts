@@ -401,7 +401,14 @@ function assertSafeRemoteFileName(fileName: string) {
   }
 }
 
-function windowsPowerShellCommand(script: string) {
+/**
+ * Wrap a PowerShell script as a single SSH command line.
+ *
+ * Exported because the per-application theme actions in
+ * `lib/desktop-theme-actions/` build their own Windows-side scripts and must
+ * use the same encoding as everything else here rather than inventing quoting.
+ */
+export function windowsPowerShellCommand(script: string) {
   const wrapped = `$ProgressPreference = 'SilentlyContinue'; ${script}`;
   return `powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${Buffer.from(wrapped, "utf16le").toString("base64")}`;
 }

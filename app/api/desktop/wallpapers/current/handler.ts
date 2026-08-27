@@ -23,32 +23,63 @@ import { readWallpaperAssetFile } from "../../../../../lib/wallpaper-assets";
  * a JPEG - the extension is there for the client's parser, not as a promise
  * about the format.
  */
+/**
+ * Resolve the wallpaper the current theme would hand a client asking now.
+ *
+ * Shared by every route under this directory - the image bytes, the `.png`
+ * alias, and the extracted colour - so all of them resolve the dark/light
+ * variant and the portrait-to-landscape fallback identically. Clients asking
+ * at the same moment must not disagree about which picture is current.
+ *
+ * Returns `null` when the theme has no desktop wallpaper, which each caller
+ * turns into its own 404.
+ */
+export async function resolveCurrentWallpaper(request: Request) {
+  const orientation = new URL(request.url).searchParams.get("orientation") === "landscape"
+    ? "landscape"
+    : "portrait";
+  const preferences = await readDashboardPreferences();
+  const config = await readDashboardConfig();
+  const theme = themeResponseValue(preferences.theme, config.dashboard.avatar);
+  const resolved = await currentDesktopWallpaperAssetId(theme, orientation);
+  if (!resolved?.assetId) {
+    return null;
+  }
+  const { asset, data } = await readWallpaperAssetFile(resolved.assetId);
+  return { asset, data, orientation, variant: resolved.variant } as const;
+}
+
+/**
+ * Metadata a client can branch on without a second request. Every route in
+ * this directory emits the same set, so a colour response and an image
+ * response can be matched up.
+ */
+export function wallpaperMetadataHeaders(asset: { id: string; updatedAt: string }, variant: string) {
+  return {
+    "Cache-Control": "no-store",
+    "X-Nova-Theme-Variant": variant,
+    "X-Nova-Wallpaper-Id": asset.id,
+    "X-Nova-Wallpaper-Updated-At": asset.updatedAt,
+  };
+}
+
+export function noCurrentWallpaperResponse() {
+  return NextResponse.json({ error: "The current theme has no desktop wallpaper" }, { status: 404 });
+}
+
 export async function currentWallpaperResponse(request: Request) {
   try {
-    const orientation = new URL(request.url).searchParams.get("orientation") === "landscape"
-      ? "landscape"
-      : "portrait";
-    const preferences = await readDashboardPreferences();
-    const config = await readDashboardConfig();
-    const theme = themeResponseValue(preferences.theme, config.dashboard.avatar);
-    const resolved = await currentDesktopWallpaperAssetId(theme, orientation);
-    if (!resolved?.assetId) {
-      return NextResponse.json(
-        { error: "The current theme has no desktop wallpaper" },
-        { status: 404 },
-      );
+    const resolved = await resolveCurrentWallpaper(request);
+    if (!resolved) {
+      return noCurrentWallpaperResponse();
     }
 
-    const { asset, data } = await readWallpaperAssetFile(resolved.assetId);
+    const { asset, data } = resolved;
     return new NextResponse(data, {
       headers: {
-        "Cache-Control": "no-store",
+        ...wallpaperMetadataHeaders(asset, resolved.variant),
         "Content-Length": String(data.byteLength),
         "Content-Type": asset.contentType,
-        // Metadata a Shortcut can branch on without a second request.
-        "X-Nova-Wallpaper-Id": asset.id,
-        "X-Nova-Wallpaper-Updated-At": asset.updatedAt,
-        "X-Nova-Theme-Variant": resolved.variant,
       },
     });
   } catch (error) {

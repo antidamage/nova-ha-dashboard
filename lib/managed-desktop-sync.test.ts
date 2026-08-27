@@ -55,6 +55,7 @@ async function waitFor(predicate: () => boolean) {
 async function importSyncModule(options: {
   computers?: ReturnType<typeof testComputer>[];
   copyImpl?: (computer: unknown, filePath: string, remoteFileName: string) => Promise<unknown>;
+  highlightHex?: string;
 } = {}) {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "nova-managed-desktop-sync-"));
   vi.stubEnv("NOVA_MANAGED_DESKTOP_WALLPAPER_STATE", path.join(tempDir, "wallpaper-state.json"));
@@ -66,7 +67,6 @@ async function importSyncModule(options: {
     copyFileToManagedComputer,
     listManagedComputers: vi.fn(async () => options.computers ?? [testComputer()]),
     remoteLockScreenCommand: vi.fn((_platform: string, fileName: string) => `lockscreen ${fileName}`),
-    remoteTerminalRefreshCommand: vi.fn(() => "refresh-terminal"),
     remoteWallpaperCommand: vi.fn((_platform: string, fileName: string) => `apply ${fileName}`),
     remoteWallpaperFileName: vi.fn((assetId: string) => `nova-${assetId}.png`),
     runManagedComputerSsh,
@@ -83,8 +83,34 @@ async function importSyncModule(options: {
         updatedAt: `2026-06-01T00:00:0${id.slice(-1)}.000Z`,
         width: 1920,
       },
+      data: Buffer.alloc(0),
       filePath: path.join(tempDir, id),
     })),
+  }));
+
+  // Extraction has its own tests; here it only has to be deterministic.
+  vi.doMock("./wallpaper-color", () => ({
+    clampForContrast: (color: unknown) => color,
+    highlightColorForAsset: vi.fn(async () => ({
+      fallback: false,
+      hex: options.highlightHex ?? "#2F5F87",
+      hsl: { h: 207, l: 0.36, s: 0.48 },
+      rgb: { b: 135, g: 95, r: 47 },
+    })),
+  }));
+
+  // The registry has its own tests. The sync's job is to build the context,
+  // fold the signature into change detection, and dispatch - so that is what
+  // is asserted here, via a sentinel SSH command.
+  const runDesktopThemeActions = vi.fn(async (context: { computer: { platform: string } }) => {
+    if (context.computer.platform === "windows") {
+      await runManagedComputerSsh(context.computer, "theme-actions");
+    }
+  });
+  vi.doMock("./desktop-theme-actions", () => ({
+    desktopThemeActionSignature: vi.fn((context: { computer: { platform: string }; highlight: { hex: string } }) =>
+      context.computer.platform === "windows" ? `windows-terminal:${context.highlight.hex}` : ""),
+    runDesktopThemeActions,
   }));
 
   const sendThemeChangeNotification = vi.fn(async () => ({ ok: true, sent: true }));
@@ -93,6 +119,7 @@ async function importSyncModule(options: {
   return {
     copyFileToManagedComputer,
     mod: await import("./managed-desktop-sync"),
+    runDesktopThemeActions,
     runManagedComputerSsh,
     sendThemeChangeNotification,
     tempDir,
@@ -229,7 +256,7 @@ describe("managed desktop sync", () => {
         `apply nova-${ASSET_1}.png`,
         `apply nova-${ASSET_1}.png`,
         `lockscreen nova-${ASSET_1}.png`,
-        "refresh-terminal",
+        "theme-actions",
       ]);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
@@ -243,16 +270,73 @@ describe("managed desktop sync", () => {
 
     try {
       await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
-      // wallpaper + lock screen + terminal refresh
+      // wallpaper + lock screen + theme actions
       expect(runManagedComputerSsh).toHaveBeenCalledTimes(3);
 
       computers[0] = { ...withLockScreen, capabilities: { lockScreen: false, sleep: true, wallpaper: true } };
       const afterToggle = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
       expect(afterToggle[0]).toMatchObject({ action: "wallpaper", lockScreen: false, ok: true });
-      // wallpaper + terminal refresh, no lock screen
+      // wallpaper + theme actions, no lock screen
       expect(runManagedComputerSsh).toHaveBeenCalledTimes(5);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("builds the theme action context from the asset being pushed", async () => {
+    const { mod, runDesktopThemeActions, tempDir } = await importSyncModule({ highlightHex: "#AABBCC" });
+
+    try {
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(runDesktopThemeActions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetId: ASSET_1,
+          highlight: expect.objectContaining({ hex: "#AABBCC" }),
+          remoteFileName: `nova-${ASSET_1}.png`,
+          variant: "dark",
+        }),
+      );
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("skips an unchanged target, so theme actions do not re-run for nothing", async () => {
+    const { mod, runDesktopThemeActions, tempDir } = await importSyncModule();
+
+    try {
+      await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(runDesktopThemeActions).toHaveBeenCalledTimes(1);
+
+      const second = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+      expect(second[0]).toMatchObject({ action: "skipped", reason: "unchanged-wallpaper" });
+      expect(runDesktopThemeActions).toHaveBeenCalledTimes(1);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("re-fires theme actions when only the extracted colour changed", async () => {
+    const stateFile = path.join(await mkdtemp(path.join(os.tmpdir(), "nova-signature-")), "state.json");
+    vi.stubEnv("NOVA_MANAGED_DESKTOP_WALLPAPER_STATE", stateFile);
+
+    const first = await importSyncModule({ highlightHex: "#111111" });
+    try {
+      // Both runs must share one state file, so the second sees the first's record.
+      vi.stubEnv("NOVA_MANAGED_DESKTOP_WALLPAPER_STATE", stateFile);
+      await first.mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+
+      vi.stubEnv("NOVA_MANAGED_DESKTOP_WALLPAPER_STATE", stateFile);
+      const second = await importSyncModule({ highlightHex: "#222222" });
+      vi.stubEnv("NOVA_MANAGED_DESKTOP_WALLPAPER_STATE", stateFile);
+      const results = await second.mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
+
+      // The asset never changed; only the colour the actions would paint did.
+      expect(results[0]).toMatchObject({ action: "wallpaper", ok: true });
+      expect(second.runDesktopThemeActions).toHaveBeenCalledTimes(1);
+      await rm(second.tempDir, { force: true, recursive: true });
+    } finally {
+      await rm(first.tempDir, { force: true, recursive: true });
     }
   });
 

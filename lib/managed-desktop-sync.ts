@@ -4,14 +4,15 @@ import {
   copyFileToManagedComputer,
   listManagedComputers,
   remoteLockScreenCommand,
-  remoteTerminalRefreshCommand,
   remoteWallpaperCommand,
   remoteWallpaperFileName,
   runManagedComputerSsh,
   type ManagedComputerOrientation,
   type ManagedComputerPublic,
 } from "./managed-computers";
+import { desktopThemeActionSignature, runDesktopThemeActions, type ThemeActionContext } from "./desktop-theme-actions";
 import { readWallpaperAssetFile } from "./wallpaper-assets";
+import { clampForContrast, highlightColorForAsset } from "./wallpaper-color";
 import { isComputerSleeping } from "./sleeping-computers";
 import { sendThemeChangeNotification } from "./theme-change-notification";
 
@@ -40,6 +41,11 @@ type AppliedWallpaperRecord = {
   // back as null, so the first sync after the upgrade re-pushes once.
   lockScreenFileName: string | null;
   remoteFileName: string;
+  // Covers every per-application theme action that applies to this machine and
+  // the colour they were given, so a changed action - or a changed extracted
+  // colour on an unchanged asset - re-fires them. Null for records written
+  // before theme actions existed, same as lockScreenFileName.
+  themeActionSignature: string | null;
   variant: ThemeVariant;
 };
 
@@ -107,6 +113,7 @@ function appliedWallpaperRecord(value: unknown): AppliedWallpaperRecord | null {
     computerSignature: record.computerSignature,
     lockScreenFileName: typeof record.lockScreenFileName === "string" ? record.lockScreenFileName : null,
     remoteFileName: record.remoteFileName,
+    themeActionSignature: typeof record.themeActionSignature === "string" ? record.themeActionSignature : null,
     variant: record.variant,
   };
 }
@@ -321,7 +328,8 @@ function appliedWallpaperRecordMatches(a: AppliedWallpaperRecord | undefined, b:
     && a.assetSignature === b.assetSignature
     && a.computerSignature === b.computerSignature
     && a.lockScreenFileName === b.lockScreenFileName
-    && a.remoteFileName === b.remoteFileName;
+    && a.remoteFileName === b.remoteFileName
+    && a.themeActionSignature === b.themeActionSignature;
 }
 
 export type ManagedDesktopSyncOptions = {
@@ -371,17 +379,23 @@ async function syncComputerWallpaper(
   }
 
   try {
-    const { asset, filePath } = await readWallpaperAssetFile(assetId);
+    const { asset, data, filePath } = await readWallpaperAssetFile(assetId);
     const remoteFileName = remoteWallpaperFileName(asset.id, asset.contentType);
     // The lock screen is a Windows-only surface, and it takes the same image
     // the desktop gets rather than a separate asset.
     const lockScreen = computer.platform === "windows" && computer.capabilities.lockScreen;
+    // The theme's accent, as the per-application actions will paint it. Taken
+    // from the same bytes the desktop is about to receive, so an application's
+    // colour always belongs to the picture on the wall behind it.
+    const highlight = clampForContrast(await highlightColorForAsset(asset, data));
+    const actionContext: ThemeActionContext = { assetId, computer, highlight, remoteFileName, variant };
     const nextApplied = {
       assetId,
       assetSignature: assetSignature(asset),
       computerSignature: computerWallpaperSignature(computer),
       lockScreenFileName: lockScreen ? remoteFileName : null,
       remoteFileName,
+      themeActionSignature: desktopThemeActionSignature(actionContext),
       variant,
     };
     if (!options.force && appliedWallpaperRecordMatches(state.targets[computer.id], nextApplied)) {
@@ -401,15 +415,11 @@ async function syncComputerWallpaper(
     if (lockScreen) {
       await runManagedComputerSsh(computer, remoteLockScreenCommand(computer.platform, remoteFileName));
     }
-    if (computer.platform === "windows") {
-      // Best effort, and deliberately after the wallpaper is already applied:
-      // an open terminal that did not repaint is not a failed sync.
-      try {
-        await runManagedComputerSsh(computer, remoteTerminalRefreshCommand(computer.platform));
-      } catch (error) {
-        console.error("[managed-desktop] terminal refresh failed", computer.id, error);
-      }
-    }
+    // Per-application theme actions, deliberately after the desktop and lock
+    // screen are already applied: an application that did not repaint is not a
+    // failed sync. Each action swallows its own failures - see
+    // lib/desktop-theme-actions.ts.
+    await runDesktopThemeActions(actionContext);
     return {
       action: "wallpaper",
       applied: {
