@@ -11,6 +11,39 @@
 # On iridium this is a genuine loopback hop: the voice stack is now co-resident
 # with the dashboard rather than a LAN round trip away.
 (nova_routes) {
+	# Token-gated route onto nova-voice-llm's llama-server (127.0.0.1:8765,
+	# loopback-only by design). Added 2026-08-28 for unattended scripts
+	# (budget's email-bill scraper, mail-archive's mailbox categoriser) that
+	# need LLM classification but have no live Claude session to do it in.
+	#
+	# The token is {$NOVA_LLM_KEY} — a Caddyfile-level env substitution, NOT a
+	# literal, because this repo has a public GitHub remote (origin) and a
+	# literal secret here would leak on the next push. nova-caddy.service
+	# loads it from EnvironmentFile=-/etc/nova-caddy.env, which is NOT part of
+	# this repo and is not touched by deploy-nova-dashboard.ps1 — create it
+	# once by hand on each host that needs this route:
+	#   echo 'NOVA_LLM_KEY=<token>' | sudo tee /etc/nova-caddy.env
+	# The actual token value is recorded in mail-archive/credentials.md
+	# (that repo has no remote at all).
+	#
+	# Checked in HERE, not just applied live on iridium: deploy-nova-dashboard.ps1
+	# installs this file over /etc/caddy/nova.Caddyfile on every dashboard
+	# deploy, so a hand-edit on the live host does not survive the next deploy.
+	# Confirmed the hard way: a live-only edit was silently wiped mid-run by a
+	# dashboard deploy, and ~40k mailbox-categorisation LLM calls failed against
+	# the dashboard's own 404 page for the rest of that run before anyone
+	# noticed, because @unauthed's "not header" fallback only 403s a REQUEST
+	# that reaches this Caddyfile at all — once the route itself was gone, every
+	# call fell through to the plain dashboard proxy below and got a 200-with-
+	# wrong-body/404, not a loud failure.
+	@llm path /internal-llm/*
+	handle_path /internal-llm/* {
+		@authed header X-Nova-LLM-Key {$NOVA_LLM_KEY}
+		@unauthed not header X-Nova-LLM-Key {$NOVA_LLM_KEY}
+		reverse_proxy @authed 127.0.0.1:8765
+		respond @unauthed 403
+	}
+
 	@voice path /voice-satellite
 	handle @voice {
 		reverse_proxy https://127.0.0.1:8767 {

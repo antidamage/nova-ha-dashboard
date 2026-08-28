@@ -26,5 +26,13 @@ RestartSec=5
 Environment=HOME=/var/lib/caddy
 StateDirectory=caddy
 
+# NOVA_LLM_KEY for the /internal-llm/* route's {$NOVA_LLM_KEY} matcher (see
+# nova.Caddyfile). The leading "-" makes this optional: a host that hasn't
+# created /etc/nova-caddy.env yet still starts fine, it just serves that one
+# route as permanently 403 (an empty env var never matches a real header).
+# This file is NOT part of the repo and NOT touched by deploy-nova-dashboard.ps1
+# on purpose — it holds a secret and this repo has a public remote.
+EnvironmentFile=-/etc/nova-caddy.env
+
 [Install]
 WantedBy=multi-user.target
