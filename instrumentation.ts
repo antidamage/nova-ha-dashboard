@@ -28,6 +28,19 @@ export async function register() {
     console.error("[climate-control] failed to start", error);
   }
 
+  // Installable modules (specs/module-system.md). Default modules are fetched
+  // first so a fresh install arrives complete, then every enabled module's
+  // server half is loaded. A module that throws is disabled with its error
+  // recorded — it never takes the dashboard down with it.
+  try {
+    const { installMissingDefaultModules } = await import("@/lib/modules/runtime/defaults");
+    const { startModuleRuntime } = await import("@/lib/modules/runtime/loader");
+    await installMissingDefaultModules();
+    await startModuleRuntime();
+  } catch (error) {
+    console.error("[nova-modules] failed to start", error);
+  }
+
   // Browser voice-satellite bridge (mTLS relay to Iridium). No-op until a
   // dashboard server certificate is configured, so it stays inert on HTTP.
   try {

@@ -104,6 +104,7 @@ async function runJsonCommand(command: TaskCommand, body: Record<string, unknown
       repeat: body.repeat,
       annoy: body.annoy,
       follows: body.follows,
+      moduleData: body.moduleData,
       source: "local",
     });
     return NextResponse.json(task);

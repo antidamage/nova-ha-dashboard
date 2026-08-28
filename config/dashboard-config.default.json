@@ -193,6 +193,11 @@
         "timeoutMs": 4000
       }
     },
+    "modules": {
+      "enabled": true,
+      "defaults": [],
+      "installTimeoutMs": 30000
+    },
     "timing": {
       "entityCommandHoldMs": 2000,
       "dashboardEventPollMs": 5000,

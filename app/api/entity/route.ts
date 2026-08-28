@@ -7,6 +7,7 @@ import {
 } from "../../../lib/dashboard-events";
 import { parseEntityActionRequest, type EntityActionRequest } from "../../../lib/api/dashboard-requests";
 import { emitDashboardEvent } from "../../../lib/event-spool";
+import { emitModuleEvent, runModuleIntercepts } from "../../../lib/modules/runtime/hooks";
 import { setEntityAction } from "../../../lib/ha";
 import { buildDashboardState } from "../../../lib/ha";
 import { handleLegacyClimateAction } from "../../../lib/climate-control";
@@ -82,6 +83,22 @@ export async function POST(request: Request) {
       });
     }
 
+    // Module interceptors sit in front of the command, before the lighting
+    // coordinator claim — a cancelled action must not take a claim with it.
+    const intercepted = await runModuleIntercepts({
+      id: "entity.action",
+      source: "server",
+      entity: { id: action.entityId, domain: action.domain },
+      service: action.service,
+      data: action.data,
+    });
+    if (intercepted.decision === "cancel") {
+      return NextResponse.json(
+        { cancelled: true, by: intercepted.moduleId },
+        { status: 409 },
+      );
+    }
+
     const latestClaim = action.domain === "light" || action.domain === "switch"
       ? claimLatestLightingCommand(
           [INTERACTIVE_LIGHTING_COMMAND_KEY, `entity:${action.domain}:${action.entityId}`],
@@ -125,6 +142,20 @@ export async function POST(request: Request) {
 
     {
       const entity = state.entities.find((candidate) => candidate.entity_id === action?.entityId);
+      emitModuleEvent({
+        id: "entity.action.applied",
+        at: new Date().toISOString(),
+        source: "server",
+        actor: sourceClientId === null ? undefined : `client:${sourceClientId}`,
+        entity: {
+          id: action.entityId,
+          friendlyName: entity?.name,
+          domain: action.domain,
+          state: entity?.state,
+        },
+        trigger: "manual",
+        data: { service: action.service, ...(action.data ?? {}) },
+      });
       void emitDashboardEvent({
         service: serviceForEntityAction(action),
         event: "entity-action",

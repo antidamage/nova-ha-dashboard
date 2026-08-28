@@ -11,6 +11,7 @@ import {
   optimisticStateForZoneAction,
 } from "./state";
 import { isClimateZone } from "./shared";
+import { useModuleIntercepts } from "../modules/ModuleHost";
 
 export type ApplyEntityActionsOptions = {
   // Retained for call-site compatibility. Interaction feedback now comes from
@@ -56,6 +57,7 @@ export function useDashboardCommands({
   setData: Dispatch<SetStateAction<DashboardState | null>>;
   setToast: Dispatch<SetStateAction<string | null>>;
 }) {
+  const runModuleIntercepts = useModuleIntercepts();
   const [desktopSleepBusy, setDesktopSleepBusy] = useState(false);
   const [desktopWakeBusy, setDesktopWakeBusy] = useState(false);
   const entityActionSequence = useRef(0);
@@ -127,6 +129,19 @@ export function useDashboardCommands({
         return;
       }
 
+      // Module interceptors run BEFORE the optimistic write and the poll hold,
+      // so a cancelled action leaves neither behind.
+      const proceed = await runModuleIntercepts({
+        id: "zone.action",
+        source: "client",
+        zone: { id: selectedZone.id, name: selectedZone.name },
+        service: action,
+        data: body,
+      });
+      if (!proceed) {
+        return;
+      }
+
       const sequence = zoneActionSequence.current + 1;
       zoneActionSequence.current = sequence;
       const holdLightPolling = isLightZoneAction(action);
@@ -184,12 +199,32 @@ export function useDashboardCommands({
         }
       }
     },
-    [eventClientId, pausePolling, refresh, scheduleLightResumePoll, selectedZone, setData, setToast],
+    [eventClientId, pausePolling, refresh, runModuleIntercepts, scheduleLightResumePoll, selectedZone, setData, setToast],
   );
 
   const applyEntityActions = useCallback(
     async (actions: EntityActionInput[], toastMessage: string, _options?: ApplyEntityActionsOptions) => {
       if (!actions.length) {
+        return;
+      }
+
+      // One decision for the whole batch: the actions in a batch are one user
+      // gesture, so confirming them individually would ask the same question
+      // several times for a single press.
+      const first = actions[0];
+      const proceed = await runModuleIntercepts({
+        id: "entity.action",
+        source: "client",
+        entity: {
+          id: first.entityId,
+          domain: first.domain,
+          friendlyName: data?.entities.find((entity) => entity.entity_id === first.entityId)?.name,
+          state: data?.entities.find((entity) => entity.entity_id === first.entityId)?.state,
+        },
+        service: first.service,
+        data: { actions: actions.map(({ entityId, domain, service }) => ({ entityId, domain, service })) },
+      });
+      if (!proceed) {
         return;
       }
 
@@ -242,7 +277,7 @@ export function useDashboardCommands({
         }
       }
     },
-    [data, eventClientId, pausePolling, refresh, scheduleEntityCommandPolls, scheduleLightResumePoll, setData, setToast],
+    [data, eventClientId, pausePolling, refresh, runModuleIntercepts, scheduleEntityCommandPolls, scheduleLightResumePoll, setData, setToast],
   );
 
   const applyDesktopSleep = useCallback(

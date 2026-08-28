@@ -28,6 +28,8 @@ export type TaskDraft = {
   followOffsetDays: string;
   followHour: string;
   annoy: boolean;
+  /** Per-module state carried through the editor, keyed by module id. */
+  moduleData?: Record<string, unknown>;
 };
 
 export type AlertState = {
@@ -43,6 +45,7 @@ export type TaskEditorSaveDraft = {
   repeat: TaskRepeat | null;
   follows: TaskFollows | null;
   annoy: boolean;
+  moduleData?: Record<string, unknown>;
 };
 
 const TASK_TIME_FORMATTER = new Intl.DateTimeFormat("en-NZ", {
@@ -116,6 +119,7 @@ export function taskDraft(task: Task): TaskDraft {
     followOffsetDays: String(task.follows?.offsetDays ?? DEFAULT_FOLLOW_OFFSET_DAYS),
     followHour: String(task.follows?.hour ?? DEFAULT_FOLLOW_HOUR),
     annoy: task.annoy === true,
+    moduleData: task.moduleData,
   };
 }
 

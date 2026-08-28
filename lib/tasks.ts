@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { publishTaskDismiss, publishTasks } from "./dashboard-events";
 import { assignReminderIcons, reconcileReminderIcons } from "./reminder-icon-hook";
+import { emitModuleEvent } from "./modules/runtime/hooks";
 import { parseTaskCsv } from "./parse-task-csv";
 import type { Task, TaskFollows, TaskRepeat, TaskSource } from "./types";
 
@@ -26,6 +27,7 @@ type TaskInput = {
   readOnly?: boolean;
   annoy?: unknown;
   follows?: unknown;
+  moduleData?: unknown;
 };
 
 type TaskPatch = Partial<{
@@ -35,6 +37,7 @@ type TaskPatch = Partial<{
   repeat: unknown;
   annoy: unknown;
   follows: unknown;
+  moduleData: unknown;
 }>;
 
 let writeQueue = Promise.resolve();
@@ -368,6 +371,7 @@ function normalizedTask(value: unknown): Task | null {
       ? candidate.alertChimedFor.trim()
       : undefined,
     annoy: candidate.annoy === true ? true : undefined,
+    moduleData: normalizedModuleData(candidate.moduleData),
     repeat,
     follows,
     source,
@@ -406,6 +410,55 @@ async function writeTaskFile(tasks: Task[]): Promise<void> {
   await rename(tempPath, TASKS_PATH);
 }
 
+/**
+ * Per-module reminder state. Only plain objects keyed by module id survive —
+ * anything else is dropped rather than stored, so a bad client write cannot put
+ * a scalar where a module expects its own record.
+ */
+function normalizedModuleData(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const next: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (/^[a-z][a-z0-9-]{1,38}$/.test(key) && entry && typeof entry === "object" && !Array.isArray(entry)) {
+      next[key] = entry;
+    }
+  }
+  return Object.keys(next).length ? next : undefined;
+}
+
+/**
+ * Merge per-module reminder state one module id at a time. A module id present
+ * in the patch replaces that module's record; every other module's is left
+ * alone. Setting a module's value to null removes it.
+ */
+function mergedModuleData(
+  current: Record<string, unknown> | undefined,
+  patch: unknown,
+): Record<string, unknown> | undefined {
+  if (patch === null) {
+    return undefined;
+  }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    return current;
+  }
+  const next: Record<string, unknown> = { ...(current ?? {}) };
+  for (const [moduleId, value] of Object.entries(patch as Record<string, unknown>)) {
+    if (!/^[a-z][a-z0-9-]{1,38}$/.test(moduleId)) {
+      continue;
+    }
+    if (value === null || value === undefined) {
+      delete next[moduleId];
+      continue;
+    }
+    if (typeof value === "object" && !Array.isArray(value)) {
+      next[moduleId] = value;
+    }
+  }
+  return Object.keys(next).length ? next : undefined;
+}
+
 function validatedNewTask(input: TaskInput): Task {
   const start = normalizedDate(input.start, "Reminder start");
   const end = normalizedOptionalDate(input.end, "Reminder end");
@@ -429,6 +482,7 @@ function validatedNewTask(input: TaskInput): Task {
     occurrenceDate: input.occurrenceDate,
     readOnly: input.readOnly ?? source !== "local",
     annoy: input.annoy === true ? true : undefined,
+    moduleData: normalizedModuleData(input.moduleData),
   };
 
   return refreshedRepeatingTask(task, Date.now()).task;
@@ -459,6 +513,7 @@ function validatedParsedTask(task: Task): Task {
       ? task.alertChimedFor.trim()
       : undefined,
     annoy: task.annoy === true ? true : undefined,
+    moduleData: normalizedModuleData(task.moduleData),
     repeat,
     follows,
     source,
@@ -588,6 +643,11 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
     ensureRepeatWindow(start, end, repeat);
     const hasAnnoyPatch = Object.prototype.hasOwnProperty.call(patch, "annoy");
     const annoy = hasAnnoyPatch ? (patch.annoy === true ? true : undefined) : current.annoy;
+    // Merged per module id, never replaced wholesale: a partial write from one
+    // module's UI must not wipe another module's settings on the same reminder.
+    const moduleData = Object.prototype.hasOwnProperty.call(patch, "moduleData")
+      ? mergedModuleData(current.moduleData, patch.moduleData)
+      : current.moduleData;
     const sameOccurrence = start === current.start && end === current.end;
 
     const updated: Task = refreshedRepeatingTask({
@@ -598,6 +658,7 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
       repeat,
       follows,
       annoy,
+      moduleData,
       dismissedAt: sameOccurrence ? current.dismissedAt : undefined,
       alertDismissedAt: sameOccurrence ? current.alertDismissedAt : undefined,
       alertDismissedFor: sameOccurrence ? current.alertDismissedFor : undefined,
@@ -757,7 +818,43 @@ export async function completeTask(id: string): Promise<Task> {
   undoJournal.set(id, { task: snapshot, followers: followerSnapshots, completedAt: nowMs });
 
   publishTaskDismiss(id);
+  emitModuleEvent({
+    id: "reminder.completed",
+    at: dismissedAt,
+    source: "server",
+    task: { id, name: snapshot.name, moduleData: snapshot.moduleData },
+  });
   return task;
+}
+
+/**
+ * Attach per-module state to a reminder.
+ *
+ * Deliberately separate from `updateTask`, which refuses mirrored reminders:
+ * this is dashboard-local state about a reminder, not a change to the reminder
+ * itself, so an iCloud mirror can carry it without the dashboard pretending it
+ * owns the upstream item.
+ */
+export async function setTaskModuleData(
+  id: string,
+  moduleId: string,
+  value: Record<string, unknown> | null,
+): Promise<Task> {
+  return mutateTasks((tasks) => {
+    const index = tasks.findIndex((task) => task.id === id);
+    if (index < 0) {
+      throw new Error("Reminder not found");
+    }
+    const current = tasks[index];
+    const updated: Task = {
+      ...current,
+      moduleData: mergedModuleData(current.moduleData, { [moduleId]: value }),
+    };
+    return {
+      tasks: tasks.map((task) => (task.id === id ? updated : task)),
+      result: updated,
+    };
+  });
 }
 
 /**
@@ -796,5 +893,11 @@ export async function uncompleteTask(id: string, windowMs: number): Promise<Task
   });
 
   undoJournal.delete(id);
+  emitModuleEvent({
+    id: "reminder.uncompleted",
+    at: new Date().toISOString(),
+    source: "server",
+    task: { id, name: restored.name, moduleData: restored.moduleData },
+  });
   return restored;
 }

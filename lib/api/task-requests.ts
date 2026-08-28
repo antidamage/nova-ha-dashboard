@@ -41,8 +41,9 @@ export function taskUpdatePatchFrom(body: Record<string, unknown>) {
     repeat?: unknown;
     annoy?: unknown;
     follows?: unknown;
+    moduleData?: unknown;
   } = {};
-  for (const key of ["name", "start", "end", "repeat", "annoy", "follows"] as const) {
+  for (const key of ["name", "start", "end", "repeat", "annoy", "follows", "moduleData"] as const) {
     if (Object.prototype.hasOwnProperty.call(body, key)) {
       patch[key] = body[key];
     }
@@ -59,6 +60,7 @@ export function taskRoutePatchFrom(value: unknown) {
     repeat?: unknown;
     annoy?: unknown;
     follows?: unknown;
+    moduleData?: unknown;
   } = {
     name: body.name,
     start: body.start,
@@ -72,6 +74,11 @@ export function taskRoutePatchFrom(value: unknown) {
   }
   if (Object.prototype.hasOwnProperty.call(body, "annoy")) {
     patch.annoy = body.annoy;
+  }
+  // Absent means "leave alone"; present means merge by module id (see
+  // mergedModuleData in lib/tasks.ts). Never a wholesale replace.
+  if (Object.prototype.hasOwnProperty.call(body, "moduleData")) {
+    patch.moduleData = body.moduleData;
   }
   return patch;
 }

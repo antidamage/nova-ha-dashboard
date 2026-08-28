@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AgentNameProvider } from "./components/AgentNameContext";
 import { DashboardGlobalServices } from "./components/DashboardGlobalServices";
+import { ModuleHost } from "./components/modules/ModuleHost";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
 import { getLatestDashboardSun } from "../lib/dashboard-events";
 import { readDashboardConfig, readDefaultDashboardConfig } from "../lib/dashboard-config";
@@ -526,7 +527,9 @@ try {
       <body>
         <AgentNameProvider initialName={initialAgentName}>
           <DashboardGlobalServices initialTheme={initialOrbTheme} initialSun={initialSun} />
-          {children}
+          {/* Wraps both the dashboard and the config page: module slots and the
+              shared confirm dialog are needed on each. */}
+          <ModuleHost>{children}</ModuleHost>
         </AgentNameProvider>
       </body>
     </html>

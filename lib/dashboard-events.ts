@@ -8,6 +8,7 @@ import {
   warmWeatherCache,
 } from "./ha";
 import { emitDashboardEvent } from "./event-spool";
+import { emitModuleEvent } from "./modules/runtime/hooks";
 import {
   appendHouseholdEvent,
   appendTaskSnapshotEvents,
@@ -927,6 +928,13 @@ async function scanTaskAlerts() {
 
       store.taskAlertSessions[task.id] = sessionKey;
       broadcastTask(sseEvent("task-alert", JSON.stringify({ taskId: task.id, name: task.name, end: task.end })));
+      // Once per occurrence, on the same edge as the chime — not once per tick.
+      emitModuleEvent({
+        id: "reminder.due",
+        at: task.start,
+        source: "server",
+        task: { id: task.id, name: task.name, moduleData: task.moduleData },
+      });
       void emitDashboardEvent({
         service: "system",
         event: "reminder-alert",

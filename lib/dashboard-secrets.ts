@@ -12,15 +12,22 @@ import path from "path";
  */
 export type DashboardSecrets = {
   themeChangeNotificationUrl: string;
+  // Secrets belonging to installed modules, keyed by the name the module
+  // declares in its manifest. They live here rather than in the module's own
+  // config.json for exactly the reason above: module config is exportable.
+  modules: Record<string, string>;
+};
+
+export type SecretFieldStatus = {
+  configured: boolean;
+  // A shortened, non-reconstructable form for the config page, so the field
+  // can show what is set without putting the token on a wall display.
+  preview: string | null;
 };
 
 export type DashboardSecretStatus = {
-  themeChangeNotificationUrl: {
-    configured: boolean;
-    // A shortened, non-reconstructable form for the config page, so the field
-    // can show what is set without putting the token on a wall display.
-    preview: string | null;
-  };
+  themeChangeNotificationUrl: SecretFieldStatus;
+  modules: Record<string, SecretFieldStatus>;
 };
 
 const SECRETS_PATH =
@@ -80,6 +87,43 @@ export function secretPreview(value: string): string | null {
   return segments.length > 2 ? `${parsed.host}/…/${tail}` : `${parsed.host}/${tail}`;
 }
 
+async function writeSecrets(next: DashboardSecrets) {
+  await mkdir(path.dirname(SECRETS_PATH), { recursive: true });
+  const tempPath = `${SECRETS_PATH}.${process.pid}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+  await chmod(tempPath, 0o600).catch(() => undefined);
+  await rename(tempPath, SECRETS_PATH);
+  await chmod(SECRETS_PATH, 0o600).catch(() => undefined);
+}
+
+const MODULE_SECRET_NAME = /^[a-z][a-zA-Z0-9._-]{0,63}$/;
+const MAX_MODULE_SECRET_LENGTH = 4096;
+
+/**
+ * Enough to recognise which token is set, never enough to replay it. Module
+ * secrets are opaque strings (bot tokens, API keys), so unlike a webhook URL
+ * there is no structure worth showing — only a short head.
+ */
+export function opaqueSecretPreview(value: string): string | null {
+  if (!value) {
+    return null;
+  }
+  return value.length > 12 ? `${value.slice(0, 6)}…` : "…";
+}
+
+function moduleSecretsFrom(value: unknown): Record<string, string> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const next: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (MODULE_SECRET_NAME.test(key) && typeof entry === "string") {
+      next[key] = entry;
+    }
+  }
+  return next;
+}
+
 export async function readDashboardSecrets(): Promise<DashboardSecrets> {
   try {
     const value = JSON.parse(await readFile(SECRETS_PATH, "utf8")) as unknown;
@@ -88,10 +132,11 @@ export async function readDashboardSecrets(): Promise<DashboardSecrets> {
       themeChangeNotificationUrl: typeof record.themeChangeNotificationUrl === "string"
         ? record.themeChangeNotificationUrl
         : "",
+      modules: moduleSecretsFrom(record.modules),
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return { themeChangeNotificationUrl: "" };
+      return { themeChangeNotificationUrl: "", modules: {} };
     }
     throw error;
   }
@@ -99,12 +144,46 @@ export async function readDashboardSecrets(): Promise<DashboardSecrets> {
 
 export async function dashboardSecretStatus(): Promise<DashboardSecretStatus> {
   const secrets = await readDashboardSecrets();
+  const modules: Record<string, SecretFieldStatus> = {};
+  for (const [name, value] of Object.entries(secrets.modules)) {
+    modules[name] = { configured: Boolean(value), preview: opaqueSecretPreview(value) };
+  }
   return {
     themeChangeNotificationUrl: {
       configured: Boolean(secrets.themeChangeNotificationUrl),
       preview: secretPreview(secrets.themeChangeNotificationUrl),
     },
+    modules,
   };
+}
+
+/** The raw value, for server-side module code only. Never returned to a client. */
+export async function readModuleSecret(name: string): Promise<string> {
+  const secrets = await readDashboardSecrets();
+  return secrets.modules[name] ?? "";
+}
+
+/** Write one module secret. An empty string clears it, matching `saveDashboardSecret`. */
+export async function saveModuleSecret(name: string, value: unknown): Promise<DashboardSecretStatus> {
+  if (!MODULE_SECRET_NAME.test(name)) {
+    throw new Error("Secret name must start with a letter and use letters, digits, dot, dash or underscore");
+  }
+  const text = typeof value === "string" ? value.trim() : "";
+  if (text.length > MAX_MODULE_SECRET_LENGTH) {
+    throw new Error(`Secret must be ${MAX_MODULE_SECRET_LENGTH} characters or fewer`);
+  }
+  writeQueue = writeQueue.then(async () => {
+    const current = await readDashboardSecrets();
+    const modules = { ...current.modules };
+    if (text) {
+      modules[name] = text;
+    } else {
+      delete modules[name];
+    }
+    await writeSecrets({ ...current, modules });
+  });
+  await writeQueue;
+  return dashboardSecretStatus();
 }
 
 /**
@@ -112,19 +191,13 @@ export async function dashboardSecretStatus(): Promise<DashboardSecretStatus> {
  * Clear action works - there is no separate delete path to keep in step.
  */
 export async function saveDashboardSecret(
-  key: keyof DashboardSecrets,
+  key: "themeChangeNotificationUrl",
   value: unknown,
 ): Promise<DashboardSecretStatus> {
   const normalized = normalizedNotificationUrl(value);
   writeQueue = writeQueue.then(async () => {
     const current = await readDashboardSecrets();
-    const next: DashboardSecrets = { ...current, [key]: normalized };
-    await mkdir(path.dirname(SECRETS_PATH), { recursive: true });
-    const tempPath = `${SECRETS_PATH}.${process.pid}.tmp`;
-    await writeFile(tempPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-    await chmod(tempPath, 0o600).catch(() => undefined);
-    await rename(tempPath, SECRETS_PATH);
-    await chmod(SECRETS_PATH, 0o600).catch(() => undefined);
+    await writeSecrets({ ...current, [key]: normalized });
   });
   await writeQueue;
   return dashboardSecretStatus();

@@ -1,9 +1,9 @@
 "use client";
 
-import { Loader2, Power, RotateCcw } from "lucide-react";
+import { Power, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
 import { ConfigAccordion } from "./ConfigControls";
-import { ModalOverlay } from "./ModalOverlay";
+import { ConfirmDialog, type ConfirmStage } from "./ConfirmDialog";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { SystemBlocker } from "./SystemBlocker";
 import { beginExplicitBlocker, endExplicitBlocker } from "./systemBlockerState";
@@ -13,18 +13,12 @@ const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
 type SystemTarget = "services" | "host";
 
-type ConfirmCopy = {
-  title: string;
-  body: string;
-  confirmLabel: string;
-};
-
 type TargetConfig = {
   label: string;
   endpoint: string;
   icon: ComponentType<{ className?: string }>;
-  first: ConfirmCopy;
-  second: ConfirmCopy;
+  first: ConfirmStage;
+  second: ConfirmStage;
   pendingMessage: string;
   blockerTitle: string;
   blockerBody: string;
@@ -80,7 +74,7 @@ const TARGETS: Record<SystemTarget, TargetConfig> = {
 
 function targetConfigForAgent(config: TargetConfig, agentName: string): TargetConfig {
   const named = (value: string) => value.replaceAll("Nova", agentName);
-  const namedConfirm = (copy: ConfirmCopy): ConfirmCopy => ({
+  const namedConfirm = (copy: ConfirmStage): ConfirmStage => ({
     title: named(copy.title),
     body: named(copy.body),
     confirmLabel: named(copy.confirmLabel),
@@ -104,15 +98,13 @@ const BLOCKER_POLL_TIMEOUT_MS = 3_000;
 // Hard ceiling so a never-returning host can't trap the screen forever.
 const BLOCKER_MAX_WAIT_MS = 6 * 60_000;
 
-type Pending = { target: SystemTarget; stage: 1 | 2 };
-
 export function SystemControlConfig() {
   const { agentName } = useAgentName();
   const targets = useMemo<Record<SystemTarget, TargetConfig>>(() => ({
     services: targetConfigForAgent(TARGETS.services, agentName),
     host: targetConfigForAgent(TARGETS.host, agentName),
   }), [agentName]);
-  const [pending, setPending] = useState<Pending | null>(null);
+  const [pending, setPending] = useState<SystemTarget | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [blocking, setBlocking] = useState<SystemTarget | null>(null);
@@ -213,15 +205,11 @@ export function SystemControlConfig() {
     if (!pending) {
       return;
     }
-    if (pending.stage === 1) {
-      setPending({ target: pending.target, stage: 2 });
-      return;
-    }
-    void fire(pending.target);
+    void fire(pending);
   }, [pending, fire]);
 
-  const activeConfig = pending ? targets[pending.target] : null;
-  const copy = pending && activeConfig ? (pending.stage === 1 ? activeConfig.first : activeConfig.second) : null;
+  const activeConfig = pending ? targets[pending] : null;
+  const copy = activeConfig ? { stages: [activeConfig.first, activeConfig.second] } : null;
 
   return (
     <ConfigAccordion
@@ -244,7 +232,7 @@ export function SystemControlConfig() {
                 type="button"
                 className="system-power-button"
                 disabled={DEMO_MODE || busy || blocking !== null}
-                onClick={() => setPending({ target, stage: 1 })}
+                onClick={() => setPending(target)}
               >
                 <span className="system-stripe system-stripe-top" aria-hidden="true" />
                 <span className="system-stripe system-stripe-bottom" aria-hidden="true" />
@@ -261,40 +249,13 @@ export function SystemControlConfig() {
         {message ? <p className="text-sm font-semibold text-cyan-200">{message}</p> : null}
       </div>
 
-      <ModalOverlay
-        open={Boolean(pending && activeConfig && copy)}
-        onClose={close}
-        dialogRole="alertdialog"
-        ariaLabelledBy="system-confirm-title"
-        ariaDescribedBy="system-confirm-body"
-        className="system-confirm-card"
-      >
-        {pending && activeConfig && copy ? (
-          <>
-            <span className="system-stripe system-stripe-top" aria-hidden="true" />
-            <span className="system-stripe system-stripe-bottom" aria-hidden="true" />
-            <p className="system-confirm-step">
-              {pending.stage === 1 ? "Confirmation 1 of 2" : "Confirmation 2 of 2 — last chance"}
-            </p>
-            <h3 id="system-confirm-title" className="system-confirm-title">
-              {copy.title}
-            </h3>
-            <p id="system-confirm-body" className="system-confirm-body">
-              {copy.body}
-            </p>
-            <div className="system-confirm-actions">
-              <button type="button" className="system-confirm-cancel" disabled={busy} onClick={close}>
-                Cancel
-              </button>
-              <button type="button" className="system-confirm-go" disabled={busy} onClick={onConfirm}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {copy.confirmLabel}
-              </button>
-            </div>
-            <p className="system-confirm-dismiss-hint">Tap anywhere outside this box to cancel.</p>
-          </>
-        ) : null}
-      </ModalOverlay>
+      <ConfirmDialog
+        open={Boolean(pending && copy)}
+        copy={copy}
+        busy={busy}
+        onCancel={close}
+        onConfirm={onConfirm}
+      />
 
       {blocking ? (
         <SystemBlocker title={targets[blocking].blockerTitle} body={targets[blocking].blockerBody} />

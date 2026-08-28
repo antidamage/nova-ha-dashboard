@@ -32,6 +32,7 @@ import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
 import { useBuildReload } from "./useBuildReload";
 import { VoiceTranscriptPanel } from "./VoiceTranscriptPanel";
+import { ModuleSlot } from "./modules/ModuleSlot";
 
 export function Dashboard() {
   const { activeVariant, configuredTheme, theme, themeReady } = useDeviceTheme();
@@ -124,7 +125,9 @@ export function Dashboard() {
           ) : null}
 
           <header className="top-banner p-0">
+            <ModuleSlot id="header.banner.before" />
             <Warnings warnings={data?.warnings} />
+            <ModuleSlot id="header.banner.after" />
           </header>
 
           {error ? (

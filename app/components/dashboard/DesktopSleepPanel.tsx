@@ -2,8 +2,8 @@
 
 import { Monitor, Moon, Power } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
-import { createPortal } from "react-dom";
 import type { ManagedComputerPublic } from "../../../lib/managed-computers";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 
 type DesktopAction = "sleep" | "wake";
@@ -103,21 +103,6 @@ export function DesktopSleepPanel({
     setPending(null);
   }, [pending, busyFor]);
 
-  // Tapping outside the box, pressing Escape, or confirming all dismiss it; keep
-  // the keyboard path working so the dialog is not a touch-only trap.
-  useEffect(() => {
-    if (!pending) {
-      return;
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        close();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [pending, close]);
-
   const onConfirm = useCallback(() => {
     if (!pending) {
       return;
@@ -134,7 +119,19 @@ export function DesktopSleepPanel({
     return null;
   }
 
-  const copy = pending ? ACTION_META[pending.action] : null;
+  const meta = pending ? ACTION_META[pending.action] : null;
+  const copy = pending && meta
+    ? {
+        stages: [
+          {
+            step: meta.step,
+            title: meta.title(pending.target.name),
+            body: meta.body(pending.target.name),
+            confirmLabel: meta.confirm(pending.target.name),
+          },
+        ],
+      }
+    : null;
 
   return (
     <div className="desktop-power-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
@@ -169,40 +166,13 @@ export function DesktopSleepPanel({
         </div>
       </div>
 
-      {pending && copy && typeof document !== "undefined"
-        ? createPortal(
-            <div className="system-confirm-overlay" role="presentation" onClick={close}>
-              <div
-                className="system-confirm-card"
-                role="alertdialog"
-                aria-modal="true"
-                aria-labelledby="desktop-power-confirm-title"
-                aria-describedby="desktop-power-confirm-body"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <span className="system-stripe system-stripe-top" aria-hidden="true" />
-                <span className="system-stripe system-stripe-bottom" aria-hidden="true" />
-                <p className="system-confirm-step">{copy.step}</p>
-                <h3 id="desktop-power-confirm-title" className="system-confirm-title">
-                  {copy.title(pending.target.name)}
-                </h3>
-                <p id="desktop-power-confirm-body" className="system-confirm-body">
-                  {copy.body(pending.target.name)}
-                </p>
-                <div className="system-confirm-actions">
-                  <button type="button" className="system-confirm-cancel" disabled={busyFor(pending.action)} onClick={close}>
-                    Cancel
-                  </button>
-                  <button type="button" className="system-confirm-go" disabled={busyFor(pending.action)} onClick={onConfirm}>
-                    {copy.confirm(pending.target.name)}
-                  </button>
-                </div>
-                <p className="system-confirm-dismiss-hint">Tap anywhere outside this box to cancel.</p>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <ConfirmDialog
+        open={Boolean(pending && copy)}
+        copy={copy}
+        busy={pending ? busyFor(pending.action) : false}
+        onCancel={close}
+        onConfirm={onConfirm}
+      />
     </div>
   );
 }

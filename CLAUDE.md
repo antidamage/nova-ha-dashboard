@@ -71,6 +71,17 @@ the named component before introducing a one-off equivalent.
 - `ModalOverlay` — `app/components/ModalOverlay.tsx`. This is the accessible
   modal/popover surface used by colour editors, reminder icon selection, and
   system confirmation flows.
+- `ConfirmDialog` — `app/components/ConfirmDialog.tsx`. This is the dashboard's
+  one- or two-stage "are you sure" dialog, built on `ModalOverlay`. It is used by
+  System Power, the desktop sleep/wake panel, and the module system's confirm
+  interceptor. Pass `stages` with one entry for a plain confirm or two for a
+  last-chance flow; the dialog owns the stage advance. Reuse it rather than
+  hand-rolling a `system-confirm-*` card — that duplication is exactly what it
+  was extracted to end.
+- `ControlCard` — `app/components/dashboard/ControlCard.tsx`. This is the generic
+  control-card wrapper (kicker, title, state pill, "Entity missing" body),
+  formerly private to `ClimateControls`. Every card passes a stable `cardId`
+  because module slots target cards by it.
 - `CameraEventReport`, `CameraAnalysisConfig`, and `VehicleReferenceEditor` —
   the Outside-camera activity review, visual polygon editor, and photo-region
   vehicle reference editor. These use the shared `ModalOverlay`; scene and
