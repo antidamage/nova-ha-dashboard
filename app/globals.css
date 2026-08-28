@@ -2456,6 +2456,63 @@ a.update-banner-button {
   padding: 0;
 }
 
+/* ==== HEADER FADE STRIP ====================================================
+   Fades in behind the fixed status orb purely as a function of scroll
+   position (--nova-header-fade, 0..1, set by NovaAvatar's scroll handler) —
+   no enter/exit trigger and no fade-out timer, so stopping mid-scroll and
+   reversing direction reverses the fade exactly. The reload/config buttons
+   fade the opposite way and stop accepting input once the strip is at least
+   half in (nova-header-controls-disabled, toggled by the same handler at
+   t >= 0.5, matching their opacity crossing 0.5 too). */
+.header-fade-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--nova-avatar-size) / 2);
+  background: var(--cyber-bg);
+  opacity: calc(var(--nova-header-fade, 0) * 0.5);
+  z-index: 90;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.header-mini-clock,
+.header-mini-date {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  font-family: var(--cyber-mono);
+  font-weight: 900;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cyber-title-on-bg);
+  opacity: var(--nova-header-fade, 0);
+  z-index: 95;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.header-mini-clock {
+  left: calc(16px + env(safe-area-inset-left, 0px));
+}
+
+.header-mini-date {
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  text-align: right;
+}
+
+.dashboard-config-link,
+.dashboard-reload-link {
+  opacity: calc(1 - var(--nova-header-fade, 0));
+  will-change: opacity;
+}
+
+html.nova-header-controls-disabled .dashboard-config-link,
+html.nova-header-controls-disabled .dashboard-reload-link {
+  pointer-events: none;
+}
+
 .config-import-export-actions {
   display: flex;
   flex-wrap: wrap;

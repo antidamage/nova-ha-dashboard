@@ -30,6 +30,7 @@ import { useExperienceFeature } from "./dashboard/experienceModeSetting";
 import { TasksPanel } from "./TasksPanel";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
+import { HeaderFadeStrip } from "./dashboard/HeaderFadeStrip";
 import { useBuildReload } from "./useBuildReload";
 import { VoiceTranscriptPanel } from "./VoiceTranscriptPanel";
 import { ModuleSlot } from "./modules/ModuleSlot";
@@ -96,6 +97,7 @@ export function Dashboard() {
           {/* Devices with the background feature off skip the WebGL background
               entirely; the shell's own static themed grid background remains. */}
           {showBackground ? <FluidBackground theme={theme} /> : null}
+          <HeaderFadeStrip />
           <ReloadButton />
           <Link
             className="dashboard-config-link"
