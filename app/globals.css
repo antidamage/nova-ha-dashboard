@@ -2470,8 +2470,8 @@ a.update-banner-button {
   left: 0;
   right: 0;
   height: var(--nova-avatar-size);
-  background: var(--cyber-bg);
-  opacity: calc(var(--nova-header-fade, 0) * 0.5);
+  background: linear-gradient(to bottom, #000 0%, transparent 100%);
+  opacity: var(--nova-header-fade, 0);
   z-index: 90;
   pointer-events: none;
   will-change: opacity;
