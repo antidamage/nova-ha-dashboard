@@ -72,6 +72,19 @@ function routeKey(method: string, segments: string[]) {
   return `${method.toUpperCase()} /${segments.join("/")}`;
 }
 
+/**
+ * Where this dashboard answers its own API.
+ *
+ * Modules run inside this process but still have to speak HTTP to reach a route
+ * handler, and asking each one to configure a base URL just moves a fact the
+ * server already knows into a field someone has to get right. `next start`
+ * honours PORT and defaults to 3000, which is the same rule this follows.
+ */
+function dashboardOrigin() {
+  const port = Number(process.env.PORT);
+  return `http://127.0.0.1:${Number.isFinite(port) && port > 0 ? port : 3000}`;
+}
+
 function buildServerApi(entry: LoadedModule, config: Record<string, unknown>) {
   const { id, manifest } = entry;
   return {
@@ -79,6 +92,16 @@ function buildServerApi(entry: LoadedModule, config: Record<string, unknown>) {
     version: manifest.version,
     config,
     messages: manifest.messages,
+    dashboardBaseUrl: dashboardOrigin(),
+
+    /** Call this dashboard's own API. Path only — the origin is not a module's business. */
+    async novaFetch(routePath: string, init?: RequestInit) {
+      const suffix = routePath.startsWith("/") ? routePath : `/${routePath}`;
+      return fetch(`${dashboardOrigin()}${suffix}`, {
+        ...init,
+        headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+      });
+    },
 
     onConfigChange(listener: (next: Record<string, unknown>) => void) {
       entry.configListeners.push(listener);

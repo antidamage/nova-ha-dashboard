@@ -430,7 +430,11 @@ What `register(api)` receives.
 **Server only:** `api.secret(name)`, `api.route(...)`, `api.emit(id, event)`,
 `api.storage` (namespaced read/write JSON under `data/modules/<id>/`),
 `api.setStatus(status)` — the object surfaced in the config tab,
-`api.fetch` (plain fetch, no wrapper — modules are trusted).
+`api.fetch` (plain fetch, no wrapper — modules are trusted),
+`api.dashboardBaseUrl` and `api.novaFetch(path, init)` — where this dashboard
+answers its own API, and a fetch scoped to it. A module must never configure
+or guess this: `next start` honours `PORT`, and on this deployment port 3000 is
+Grafana.
 
 **Client only:** `api.react` (the host's React), `api.jsx` (the JSX runtime's
 `jsx`/`jsxs`, so a module can be built without a JSX pragma resolving to its
