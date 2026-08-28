@@ -32,6 +32,8 @@ import { ReminderGlyphMark, reminderGlyphLabel } from "../reminders/icon-registr
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
 import { isTaskComplete, isTaskCurrent, isTaskOverdue, taskStartMs } from "../tasks/task-model";
 import { useReminderBarSettings } from "./reminderBarSettings";
+import { useModuleIntercepts } from "../modules/ModuleHost";
+import { ModuleSlot } from "../modules/ModuleSlot";
 
 type RosterEntry = {
   key: string;
@@ -102,6 +104,7 @@ function parseRoster(raw: string): RosterEntry[] {
 }
 
 export function ReminderIconBar() {
+  const runModuleIntercepts = useModuleIntercepts();
   const settings = useReminderBarSettings();
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   // Until the roster has been fetched we do not know whether there will be
@@ -278,6 +281,15 @@ export function ReminderIconBar() {
         return;
       }
 
+      const proceed = await runModuleIntercepts({
+        id: "reminder.complete",
+        source: "client",
+        task: { id: tile.taskId, name: tile.displayName },
+      });
+      if (!proceed) {
+        return;
+      }
+
       markBusy(tile.key, true);
       const taskId = tile.taskId;
       try {
@@ -297,7 +309,7 @@ export function ReminderIconBar() {
         markBusy(tile.key, false);
       }
     },
-    [markBusy, settings.undoWindowMs],
+    [markBusy, runModuleIntercepts, settings.undoWindowMs],
   );
 
   const undoTile = useCallback(
@@ -408,6 +420,10 @@ export function ReminderIconBar() {
             <span className="reminder-tile-glyph">
               <ReminderGlyphMark glyph={tile.glyph} />
             </span>
+            <ModuleSlot
+              id="reminder.tile.badge"
+              context={{ task: { id: tile.taskId, name: tile.displayName } }}
+            />
           </button>
         );
       })}

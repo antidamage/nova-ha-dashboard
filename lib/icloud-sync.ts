@@ -592,6 +592,9 @@ export async function syncIcloud(): Promise<IcloudSyncResult> {
         nextMirroredTasks.push({
           ...candidate,
           createdAt: existing.createdAt,
+          // Dashboard-local state, not upstream state: an edit in iCloud must
+          // not silently turn off a module's per-reminder settings.
+          moduleData: existing.moduleData,
         });
         continue;
       }
@@ -604,6 +607,7 @@ export async function syncIcloud(): Promise<IcloudSyncResult> {
         alertDismissedFor: existing.alertDismissedFor,
         alertChimedFor: existing.alertChimedFor,
         annoy: existing.annoy,
+        moduleData: existing.moduleData,
       });
     }
 

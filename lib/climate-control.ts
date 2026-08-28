@@ -33,6 +33,7 @@ import {
   heaterPreferencesPatch,
 } from "./climate-preferences";
 import { callService, haRest } from "./ha/client";
+import { emitModuleEvent } from "./modules/runtime/hooks";
 import { mergeDashboardPreferences, readDashboardPreferences } from "./preferences";
 import type {
   AirconPreferences,
@@ -449,6 +450,17 @@ type AirconTickResult = {
   direction: Direction | null;
   external: boolean;
   rawTemperature: number | null;
+  /**
+   * Set when stopAndCancel ran this tick. The `states`/`aircon` snapshot and
+   * the `mode` computed above it were both read before that call, so they
+   * still describe the pre-stop unit — reporting them as this tick's public
+   * state would show a driving/auto unit for a beat after Nova just forced it
+   * off (a real HA turn_off plus autoMode:false), which reads as a soft,
+   * internal-only stop rather than the state actually changing. The caller
+   * uses this to report "off" immediately instead of waiting for the next
+   * tick's fresh HA states to catch up.
+   */
+  forcedOff: boolean;
 };
 
 type HeaterTickResult = {
@@ -492,11 +504,13 @@ async function driveAircon(
     ? (aircon.state as Direction)
     : (prefs?.hvacMode as Direction | undefined) ?? null;
   const external = room.owner === "external";
+  let forcedOff = false;
 
   if (aircon && usable(aircon) && !external) {
     const offTimer = prefs?.offTimerEndsAt;
     if (typeof offTimer === "string" && new Date(offTimer).getTime() <= now) {
       await stopAndCancel(unit, aircon.entity_id, "timer-expired");
+      forcedOff = true;
     } else if (prefs?.autoMode) {
       thermostat.reconcile({
         ...airconAutoCycleStateFromPreferences(prefs),
@@ -513,6 +527,7 @@ async function driveAircon(
       room.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
       if (plan.reason === "sensor-fail-safe-off") {
         await stopAndCancel(unit, aircon.entity_id, "sensor-timeout");
+        forcedOff = true;
       } else {
         await executeActions(unit, plan.actions);
         if (plan.reason === "reached-target") room.lastStopReason = "target-reached";
@@ -542,6 +557,7 @@ async function driveAircon(
         room.settlingFromTemperature = rawTemperature;
         room.lastStopReason = "target-reached";
         await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
+        forcedOff = true;
       } else if (decision === "start") {
         room.lastTransitionAt = now;
         room.settlingFromTemperature = null;
@@ -556,7 +572,7 @@ async function driveAircon(
     }
   }
 
-  return { unit, aircon, mode, direction, external, rawTemperature };
+  return { unit, aircon, mode, direction, external, rawTemperature, forcedOff };
 }
 
 async function driveHeater(
@@ -609,6 +625,64 @@ async function driveHeater(
   return { instance, heater, sensor, mode, sensorAvailable };
 }
 
+/**
+ * A room's phase reduced to what a message would say about it. `resting` and
+ * `off` both read as "off" on purpose: a thermostat cycling between holding and
+ * stopped is not a state change anyone wants narrated.
+ */
+function reportableState(phase: string | undefined): "on" | "off" | "waiting" | undefined {
+  if (phase === "driving") return "on";
+  if (phase === "resting" || phase === "off") return "off";
+  if (phase === "grace") return "waiting";
+  return undefined;
+}
+
+const STOP_REASONS: Record<string, string> = {
+  "target-reached": "the room reached its target",
+  "sensor-lost": "the room sensor stopped reporting",
+  "timer-expired": "its off timer expired",
+};
+
+/**
+ * Publish `thermostat.transition` to installed modules when a room actually
+ * changes state. This is the server-side authority path — it fires with no
+ * browser open, which is the only way "heater turned off when the room reached
+ * 22 degrees" is reachable at all.
+ */
+function emitClimateTransitions(
+  previous: ClimateControlState,
+  next: ClimateControlState,
+  meta: Map<string, { title: string; target?: number }>,
+) {
+  const at = new Date().toISOString();
+  for (const [roomId, room] of Object.entries(next)) {
+    const before = reportableState(previous[roomId]?.phase);
+    const after = reportableState(room.phase);
+    if (!after || before === undefined || before === after) {
+      continue;
+    }
+    const info = meta.get(roomId);
+    emitModuleEvent({
+      id: "thermostat.transition",
+      at,
+      source: "server",
+      actor: "climate-control",
+      entity: {
+        id: roomId,
+        friendlyName: info?.title ?? roomId,
+        domain: "climate",
+        state: after,
+        previousState: before,
+      },
+      zone: { id: roomId },
+      target: info?.target,
+      trigger: room.owner === "external" ? "manual" : "thermostat",
+      reason: after === "off" ? STOP_REASONS[room.lastStopReason ?? ""] : undefined,
+      data: { mode: room.mode, phase: room.phase, direction: room.direction },
+    });
+  }
+}
+
 async function tick() {
   if (runtime.running) return;
   runtime.running = true;
@@ -630,15 +704,24 @@ async function tick() {
 
     const latest = await readDashboardPreferences();
     const publicState: ClimateControlState = {};
+    // Enough to describe a transition to a module: which device, what it is
+    // aiming at. Collected as the rooms are built because the loops below are
+    // the only place the instance config is in hand.
+    const transitionMeta = new Map<string, { title: string; target?: number }>();
 
-    for (const { unit, aircon, mode, direction, external, rawTemperature } of airconResults) {
+    for (const { unit, aircon, mode, direction, external, rawTemperature, forcedOff } of airconResults) {
       const room = roomState(unit.id);
       const prefs = airconPreferencesFor(latest, unit.id);
       const pendingAt = airconThermostatFor(unit.id).snapshot().sensorPendingSinceAt;
+      transitionMeta.set(unit.id, { title: unit.title, target: prefs?.temperature });
       publicState[unit.id] = publicRoom({
         owner: room.owner,
-        mode: external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : (prefs?.autoMode ? "auto" : mode),
-        phase: external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
+        // forcedOff means stopAndCancel just ran: the `aircon`/`mode` above were
+        // read before that turn_off, so trusting them here would report the
+        // pre-stop direction/auto for a beat — a real HA stop that still reads
+        // as internally driving. Report the stop immediately instead.
+        mode: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : (prefs?.autoMode ? "auto" : mode),
+        phase: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
           : prefs?.autoMode && rawTemperature === null ? "grace"
           : aircon && isClimateEntityOn(aircon) ? "driving" : prefs?.autoMode || mode === "manual" ? "resting" : "off",
         direction,
@@ -655,6 +738,10 @@ async function tick() {
     for (const { instance, heater, sensor, mode, sensorAvailable } of heaterResults) {
       const room = roomState(instance.id);
       const pendingAt = heaterThermostatFor(instance.id).snapshot().sensorPendingSinceAt;
+      transitionMeta.set(instance.id, {
+        title: instance.title,
+        target: heaterPreferencesFor(latest, instance.id)?.temperature,
+      });
       publicState[instance.id] = publicRoom({
         owner: room.owner,
         mode: room.owner === "external" ? (heater?.state === "on" ? "manual" : "off") : mode,
@@ -672,6 +759,7 @@ async function tick() {
       });
     }
 
+    emitClimateTransitions(runtime.publicState, publicState, transitionMeta);
     runtime.publicState = publicState;
     await persistSoon();
   } catch (error) {

@@ -231,4 +231,67 @@ describe("follow-on reminders", () => {
       store.writeTasks([task({ id: "loop", follows: { taskId: "loop", offsetDays: 1, hour: 18 } })]),
     ).rejects.toThrow(/cannot follow itself/i);
   });
+
+  it("merges moduleData per module id instead of replacing it wholesale", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({
+        id: "chores",
+        moduleData: { "discord-bot": { onDue: true }, "other-module": { keep: 1 } },
+      }),
+    ]);
+
+    // A partial write from one module's UI must not wipe the other's settings —
+    // the same lesson mergeDashboardPreferences learned the hard way.
+    const updated = await store.updateTask("chores", {
+      moduleData: { "discord-bot": { onDue: false, onComplete: true } },
+    });
+
+    expect(updated.moduleData).toEqual({
+      "discord-bot": { onDue: false, onComplete: true },
+      "other-module": { keep: 1 },
+    });
+  });
+
+  it("keeps moduleData across an unrelated edit", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([task({ id: "chores", moduleData: { "discord-bot": { onDue: true } } })]);
+
+    const updated = await store.updateTask("chores", { name: "Renamed" });
+
+    expect(updated.name).toBe("Renamed");
+    expect(updated.moduleData).toEqual({ "discord-bot": { onDue: true } });
+  });
+
+  it("sets moduleData on a mirrored reminder that updateTask would refuse", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({ id: "mirrored", source: "icloud-reminders", sourceId: "x", readOnly: true }),
+    ]);
+
+    await expect(store.updateTask("mirrored", { name: "nope" })).rejects.toThrow(/read-only/i);
+
+    // Per-module state is dashboard-local state ABOUT a reminder, not a change
+    // to the reminder, so a mirror can carry it.
+    const updated = await store.setTaskModuleData("mirrored", "discord-bot", { onComplete: true });
+    expect(updated.moduleData).toEqual({ "discord-bot": { onComplete: true } });
+  });
+
+  it("drops junk rather than storing it under moduleData", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([
+      task({ id: "chores", moduleData: { "discord-bot": { ok: true }, "Bad Id": { x: 1 }, scalar: 5 } as Record<string, unknown> }),
+    ]);
+
+    const stored = (await store.readTasks()).find((candidate) => candidate.id === "chores");
+    expect(stored?.moduleData).toEqual({ "discord-bot": { ok: true } });
+  });
+
+  it("clears a module's entry when it is set to null", async () => {
+    const store = await isolatedTaskStore();
+    await store.writeTasks([task({ id: "chores", moduleData: { "discord-bot": { onDue: true } } })]);
+
+    const updated = await store.setTaskModuleData("chores", "discord-bot", null);
+    expect(updated.moduleData).toBeUndefined();
+  });
 });

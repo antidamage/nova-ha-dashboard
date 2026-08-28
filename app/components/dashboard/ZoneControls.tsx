@@ -18,6 +18,7 @@ import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "./EnvironmentPa
 import { IconButton } from "./IconButton";
 import { StatChip } from "./ZoneButton";
 import { selectPrimaryZonePanel } from "./panel-registry";
+import { ModuleSlot } from "../modules/ModuleSlot";
 import {
   countDomainsForZone,
   dashboardEntityIsOn,
@@ -371,6 +372,7 @@ export function ZoneControls({
             </>
           )}
         </div>
+        <ModuleSlot id="zone.controls.after" context={{ zone }} />
       </div>
     </section>
   );

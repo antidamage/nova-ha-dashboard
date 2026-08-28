@@ -57,6 +57,8 @@ import {
 import { resolveCommandedState, type CommandedState } from "../../../lib/climate-control-policy";
 import { DotLineControl } from "../DotControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { ControlCard } from "./ControlCard";
+import { ModuleSlot } from "../modules/ModuleSlot";
 import { loadSharedClientConfig, readCachedClientConfig } from "../sharedConfigCache";
 import {
   classNames,
@@ -102,41 +104,6 @@ function readCachedOffTimerIncrementMinutes() {
 
 async function fetchOffTimerIncrementMinutes() {
   return offTimerIncrementFromClientConfig(await loadSharedClientConfig());
-}
-
-function ClimateCard({
-  children,
-  entity,
-  kicker,
-  title,
-}: {
-  children?: ReactNode;
-  entity?: DashboardEntity;
-  kicker: string;
-  title: string;
-}) {
-  const unavailable = entity ? ["unknown", "unavailable"].includes(entity.state) : true;
-
-  return (
-    <section className="climate-card border border-neutral-700 bg-neutral-950/70 p-5">
-      <header className="mb-5 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-black uppercase text-cyan-300">{kicker}</p>
-          <h2 className="mt-1 truncate text-3xl font-black uppercase text-neutral-50">{title}</h2>
-        </div>
-        <div
-          className={classNames(
-            "border px-3 py-2 text-xs font-black uppercase",
-            unavailable ? "border-red-400/50 text-red-400" : "border-cyan-300/50 text-cyan-200",
-          )}
-        >
-          {entity?.state ?? "missing"}
-        </div>
-      </header>
-
-      {entity ? children : <p className="text-sm font-black uppercase text-neutral-400">Entity missing</p>}
-    </section>
-  );
 }
 
 function TemperatureStepper({
@@ -358,7 +325,7 @@ function PanelHeaterControl({
   }, [entity, offTimerEndsAtMs, onEntityActions, timerNow]);
 
   if (!entity) {
-    return <ClimateCard kicker="Heating Unit" title="Panel Heater" />;
+    return <ControlCard cardId="panel-heater" kicker="Heating Unit" title="Panel Heater" />;
   }
 
   const isOn = isClimateEntityOn(entity);
@@ -413,7 +380,7 @@ function PanelHeaterControl({
   };
 
   return (
-    <ClimateCard entity={entity} kicker="Heating Unit" title="Panel Heater">
+    <ControlCard cardId="panel-heater" entity={entity} kicker="Heating Unit" title="Panel Heater">
       <div className="grid gap-4">
         <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={1} onChange={setTemperature} />
 
@@ -461,7 +428,7 @@ function PanelHeaterControl({
           ) : null}
         </div>
       </div>
-    </ClimateCard>
+    </ControlCard>
   );
 }
 
@@ -657,7 +624,7 @@ function BedroomHeaterControl({
   }, [persistedTarget]);
 
   if (!switchEntity) {
-    return <ClimateCard kicker="Heating Unit" title={title} />;
+    return <ControlCard cardId="bedroom-heater" kicker="Heating Unit" title={title} />;
   }
 
   const entityUnavailable = ["unavailable", "unknown"].includes(switchEntity.state);
@@ -760,28 +727,13 @@ function BedroomHeaterControl({
   };
 
   return (
-    <ClimateCard entity={switchEntity} kicker="Heating Unit" title={title}>
+    <ControlCard cardId="bedroom-heater" entity={switchEntity} kicker="Heating Unit" title={title}>
       <div className="grid gap-4">
-        {controlState?.owner === "external" ? (
-          <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
-            Manual — device override. Nova automation is paused.
-          </p>
-        ) : controlState?.phase === "grace" ? (
-          <p className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
-            Waiting for Bedroom sensor — Auto will stop after two minutes.
-          </p>
-        ) : null}
         {/*
           Off is the only mode with no target to set: it means auto off and the
           heater off. Under Auto the heater's own switch may well be idle, but
           the target still governs when it fires again, so the stepper stays live.
         */}
-        {pending?.mode !== undefined || pending?.target !== undefined ? (
-          <p className="border border-neutral-500/60 px-3 py-2 text-xs font-black uppercase text-neutral-300">
-            Saving{pending?.mode !== undefined ? ` ${pending.mode === "off" ? "Off" : "Auto"}` : ""}
-            {pending?.target !== undefined ? ` ${formatTemperature(pending.target)}` : ""} — not confirmed yet
-          </p>
-        ) : null}
         <TemperatureStepper
           currentTemperature={temperature}
           disabled={entityUnavailable || mode === "off"}
@@ -857,7 +809,8 @@ function BedroomHeaterControl({
           </p>
         </div>
       </div>
-    </ClimateCard>
+      <ModuleSlot id="thermostat.heater.controls" context={{ entity: switchEntity, preferences }} />
+    </ControlCard>
   );
 }
 
@@ -1154,7 +1107,7 @@ function AirConditionerControl({
   }, [entity, offTimerEndsAtMs, onEntityActions, timerNow]);
 
   if (!entity) {
-    return <ClimateCard kicker="Air Control" title={title} />;
+    return <ControlCard cardId="aircon" kicker="Air Control" title={title} />;
   }
 
   const isOn = isClimateEntityOn(entity);
@@ -1435,17 +1388,8 @@ function AirConditionerControl({
   };
 
   return (
-    <ClimateCard entity={entity} kicker="Air Control" title={title}>
+    <ControlCard cardId="aircon" entity={entity} kicker="Air Control" title={title}>
       <div className="grid gap-4">
-        {controlState?.owner === "external" ? (
-          <p className="border border-amber-300/60 bg-amber-950/30 px-3 py-2 text-xs font-black uppercase text-amber-200">
-            Manual — device override. Nova automation is paused.
-          </p>
-        ) : controlState?.phase === "grace" ? (
-          <p className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
-            Waiting for Gree temperature — Auto will stop after two minutes.
-          </p>
-        ) : null}
         <TemperatureStepper
           currentTemperature={airconAutoMeasuredTemperature(entity)}
           disabled={!isControlOn}
@@ -1564,7 +1508,8 @@ function AirConditionerControl({
           </div>
         </div>
       </div>
-    </ClimateCard>
+      <ModuleSlot id="thermostat.aircon.controls" context={{ entity, preferences }} />
+    </ControlCard>
   );
 }
 

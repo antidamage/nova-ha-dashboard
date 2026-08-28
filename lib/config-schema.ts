@@ -486,6 +486,32 @@ export const DashboardConfigSchema = z.object({
           .prefault({}),
       })
       .prefault({}),
+    // Installable modules (specs/module-system.md). Only the deployment-level
+    // knobs live here — which modules ship by default and what an install is
+    // allowed to be. Per-module settings are the module's own config.json,
+    // because they are the module's shape, not the dashboard's.
+    modules: z
+      .object({
+        enabled: z.boolean().default(true),
+        /**
+         * Modules the dashboard installs for itself when they are missing. A
+         * fetch failure is a warning and a retry next boot, never a boot
+         * blocker.
+         */
+        defaults: z
+          .array(
+            z.object({
+              id: z.string().regex(/^[a-z][a-z0-9-]{1,38}$/),
+              repository: z.string().url().optional(),
+              packageUrl: z.string().url(),
+              enabled: z.boolean().default(true),
+            }),
+          )
+          .default([]),
+        /** How long the boot-time default install may take before giving up. */
+        installTimeoutMs: millisecondsSchema.default(30_000),
+      })
+      .prefault({}),
     doorbell: DoorbellConfigSchema,
     timing: z.object({
       entityCommandHoldMs: millisecondsSchema,

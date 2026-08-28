@@ -224,6 +224,17 @@ export type Task = {
    * standing chore so it can auto-join the bar, and this is that flag.
    */
   recurs?: boolean;
+  /**
+   * Per-module state attached to this reminder, keyed by module id — e.g.
+   * `{ "discord-bot": { onDue: true, onComplete: false } }`. Modules own the
+   * shape inside their own key; the dashboard only carries it, and merges by
+   * module id so two modules cannot clobber each other.
+   *
+   * This is the generic version of "add an option to a control event" from
+   * `specs/module-system.md`: reminders are the first consumer, not the only
+   * intended one.
+   */
+  moduleData?: Record<string, unknown>;
 };
 
 export type RouterMetric = {

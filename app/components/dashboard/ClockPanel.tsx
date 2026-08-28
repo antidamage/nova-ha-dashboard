@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAgentName } from "../AgentNameContext";
+import { ModuleSlot } from "../modules/ModuleSlot";
 
 // No timeZone is passed to Intl below, so the wall clock shows the time where
 // the screen is — which is what a clock on a wall should do, and is correct for
@@ -110,6 +111,7 @@ export function ClockPanel() {
           })}
         </div>
       </div>
+      <ModuleSlot id="clock.after" context={{ now }} />
     </section>
   );
 }

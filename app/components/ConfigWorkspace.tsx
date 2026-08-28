@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUp, ArrowLeft, AudioLines, Bot, Database, Download, History, KeyRound, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
+import { ArrowDownUp, ArrowLeft, AudioLines, Blocks, Bot, Database, Download, History, KeyRound, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -31,6 +31,7 @@ const DashboardClimateConfig = dynamic(() => import("./DashboardClimateConfig").
 const StatusOrbInfoConfig = dynamic(() => import("./StatusOrbInfoConfig").then((module) => module.StatusOrbInfoConfig));
 const HistoryPanel = dynamic(() => import("./HistoryPanel").then((module) => module.HistoryPanel));
 const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
+const ModulesConfig = dynamic(() => import("./ModulesConfig").then((module) => module.ModulesConfig));
 const PhonoscopeConfig = dynamic(() => import("./PhonoscopeConfig").then((module) => module.PhonoscopeConfig));
 const RemindersConfig = dynamic(() => import("./RemindersConfig").then((module) => module.RemindersConfig));
 const UpdateConfig = dynamic(() => import("./UpdateConfig").then((module) => module.UpdateConfig));
@@ -77,7 +78,7 @@ function StatusPill({ ok }: { ok: boolean }) {
   );
 }
 
-export type ConfigCategoryId = "assistant" | "voice-people" | "appearance-dashboard" | "devices" | "system-data";
+export type ConfigCategoryId = "assistant" | "voice-people" | "appearance-dashboard" | "devices" | "modules" | "system-data";
 
 const CONFIG_CATEGORIES: Array<{
   id: ConfigCategoryId;
@@ -89,6 +90,7 @@ const CONFIG_CATEGORIES: Array<{
   { id: "voice-people", label: "Voice & People", detail: "Speech, satellites and household voices", icon: AudioLines },
   { id: "appearance-dashboard", label: "Appearance & Dashboard", detail: "Theme, status and interaction", icon: Palette },
   { id: "devices", label: "Devices", detail: "Computers, camera and hardware", icon: MonitorSmartphone },
+  { id: "modules", label: "Modules", detail: "Installed extensions and their settings", icon: Blocks },
   { id: "system-data", label: "System & Data", detail: "Secrets, transfer, updates and power", icon: Database },
 ];
 
@@ -112,6 +114,9 @@ const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   "managed-computers": "devices",
   "hardware-assistant": "devices",
   camera: "devices",
+  modules: "modules",
+  module: "modules",
+  extensions: "modules",
   "system-data": "system-data",
   secrets: "system-data",
   "config-transfer": "system-data",
@@ -411,6 +416,7 @@ export function ConfigWorkspace({
                 <CameraConfig />
               </>
             ) : null}
+            {activeCategory === "modules" ? <ModulesConfig /> : null}
             {activeCategory === "system-data" ? (
               <>
         {/*

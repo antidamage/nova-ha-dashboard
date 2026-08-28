@@ -8,6 +8,7 @@ import {
 } from "../../../lib/dashboard-events";
 import { parseZoneActionRequest } from "../../../lib/api/dashboard-requests";
 import { emitDashboardEvent } from "../../../lib/event-spool";
+import { emitModuleEvent, runModuleIntercepts } from "../../../lib/modules/runtime/hooks";
 import { setZoneAction } from "../../../lib/ha";
 import {
   claimLatestLightingCommand,
@@ -26,6 +27,17 @@ export async function POST(request: Request) {
 
   try {
     const { action, brightnessPct, cursor, rgb, sourceClientId, zoneId } = parseZoneActionRequest(await request.json());
+    const intercepted = await runModuleIntercepts({
+      id: "zone.action",
+      source: "server",
+      zone: { id: zoneId },
+      service: action,
+      data: { brightnessPct, rgb },
+    });
+    if (intercepted.decision === "cancel") {
+      return NextResponse.json({ cancelled: true, by: intercepted.moduleId }, { status: 409 });
+    }
+
     const latestClaim = isLightZoneAction(action)
       ? claimLatestLightingCommand([INTERACTIVE_LIGHTING_COMMAND_KEY, `zone:${zoneId}`], request.signal)
       : null;
@@ -50,6 +62,16 @@ export async function POST(request: Request) {
     } else {
       publishDashboardState(state, { excludeClientId: sourceClientId });
     }
+    emitModuleEvent({
+      id: "zone.action.applied",
+      at: new Date().toISOString(),
+      source: "server",
+      actor: sourceClientId === null ? undefined : `client:${sourceClientId}`,
+      zone: { id: zoneId, name: state.zones.find((zone) => zone.id === zoneId)?.name },
+      trigger: "manual",
+      reason: action,
+      data: { action, brightnessPct, rgb },
+    });
     void emitDashboardEvent({
       service: "lighting",
       event: "zone-action",

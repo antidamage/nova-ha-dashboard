@@ -6332,3 +6332,58 @@ a.update-banner-button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Modules config tab (specs/module-system.md §6). The per-module form is
+   generated from the manifest schema, so these styles have to work for whatever
+   fields a module declares rather than for one known layout. */
+.module-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--cyber-border-dim);
+  background: var(--cyber-panel-soft);
+  color: var(--cyber-cyan);
+  font-weight: 900;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.module-row-action-wide {
+  min-width: 0;
+  padding: 0 16px;
+}
+
+.module-row-action-danger {
+  color: rgb(248 113 113);
+  border-color: rgb(248 113 113 / 0.5);
+}
+
+.module-row-action[disabled] {
+  opacity: 0.5;
+}
+
+.module-config-input {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--cyber-border-dim);
+  background: var(--cyber-bg);
+  color: var(--foreground);
+  font-weight: 700;
+  text-transform: none;
+  font-size: 14px;
+  width: 100%;
+}
+
+textarea.module-config-input {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.module-config-input:focus-visible {
+  outline: 2px solid var(--cyber-cyan);
+  outline-offset: 1px;
+}

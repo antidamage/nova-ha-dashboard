@@ -24,6 +24,8 @@ import { useReminderBannerSetting } from "./dashboard/reminderBannerSetting";
 import { loadSharedClientConfig, readCachedClientConfig } from "./sharedConfigCache";
 import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
 import { jsonFetch } from "./tasks/task-api";
+import { useModuleIntercepts } from "./modules/ModuleHost";
+import { ModuleSlot } from "./modules/ModuleSlot";
 import {
   defaultDraft,
   draftFollows,
@@ -258,6 +260,7 @@ function TaskEditor({
       repeat: draftRepeat(draft),
       follows: draftFollows(draft),
       annoy: draft.annoy,
+      moduleData: draft.moduleData,
     });
   };
 
@@ -408,6 +411,22 @@ function TaskEditor({
           </div>
         ) : null}
       </div>
+      <ModuleSlot
+        id="reminder.editor.fields"
+        context={{
+          moduleData: draft.moduleData ?? {},
+          setModuleData: (moduleId: string, value: Record<string, unknown> | null) =>
+            setDraft((current) => {
+              const next = { ...(current.moduleData ?? {}) };
+              if (value === null) {
+                delete next[moduleId];
+              } else {
+                next[moduleId] = value;
+              }
+              return { ...current, moduleData: next };
+            }),
+        }}
+      />
       {error ? <p className="text-sm font-black uppercase text-red-400">{error}</p> : null}
       <div className="flex flex-wrap justify-end gap-2">
         <button
@@ -710,6 +729,7 @@ function ExportModal({
 }
 
 export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
+  const runModuleIntercepts = useModuleIntercepts();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -1245,6 +1265,17 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
   const completeTask = async (task: Task) => {
     if (dismissingTaskIds.current.has(task.id)) {
+      return;
+    }
+
+    // Before the optimistic dismissal, so a cancelled completion leaves the
+    // reminder exactly where it was.
+    const proceed = await runModuleIntercepts({
+      id: "reminder.complete",
+      source: "client",
+      task: { id: task.id, name: task.name, moduleData: task.moduleData },
+    });
+    if (!proceed) {
       return;
     }
 

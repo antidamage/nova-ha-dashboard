@@ -1,4 +1,5 @@
 import { readFile } from "fs/promises";
+import { randomUUID } from "node:crypto";
 import http from "node:http";
 import https from "node:https";
 import path from "node:path";
@@ -603,6 +604,65 @@ export async function classifyReminderIcon(
 
   const icon = (result.payload as { icon?: unknown } | null)?.icon;
   return isReminderIconId(icon) ? icon : null;
+}
+
+/** One household mutation a dry-run turn planned but withheld. */
+export type VoiceDryRunRequest = {
+  method: string;
+  path: string;
+  body?: Record<string, unknown> | null;
+};
+
+export type VoiceUtteranceResult = {
+  utterance_id?: string;
+  executed?: boolean;
+  dry_run?: boolean;
+  dry_run_requests?: VoiceDryRunRequest[];
+  response_text?: string | null;
+  policy_reason?: string;
+};
+
+/**
+ * Put a text utterance through the voice agent and get its result back.
+ *
+ * This is the same `POST /v1/utterances` an audio satellite uses; handling an
+ * utterance does not speak, because TTS is driven by the audio runtime from
+ * `response_text` (see the existing non-speaking `dashboard-preview` caller in
+ * nova-voice's service.py). A text channel therefore needs nothing special.
+ *
+ * `dryRun` plans and authorises the turn for real and withholds only the final
+ * household mutation, returning each withheld call verbatim. That is what lets
+ * a text channel ask "would this change anything?" without guessing.
+ */
+export async function sendVoiceHostUtterance(options: {
+  transcript: string;
+  satelliteId: string;
+  roomId: string;
+  dryRun: boolean;
+  timeoutMs?: number;
+}): Promise<{ result: VoiceUtteranceResult } | { error: string; status?: number }> {
+  const now = new Date().toISOString();
+  const response = await requestVoiceHostJson("/v1/utterances", "utterance", {
+    method: "POST",
+    body: {
+      id: randomUUID(),
+      satellite_id: options.satelliteId,
+      room_id: options.roomId,
+      started_at: now,
+      ended_at: now,
+      transcript: options.transcript,
+      // A typed message is not a wake-word capture; it is addressed by the fact
+      // that it was sent at all.
+      wake_detected: true,
+      dry_run: options.dryRun,
+    },
+    timeoutMs: options.timeoutMs,
+  });
+
+  if (!("payload" in response)) {
+    return { error: response.error, status: response.status };
+  }
+  return { result: (response.payload ?? {}) as VoiceUtteranceResult };
 }
 
 async function fetchVoiceHostJson(requestPath: string, label: string): Promise<unknown | null> {

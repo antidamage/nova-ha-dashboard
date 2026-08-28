@@ -21,6 +21,7 @@ describe("dashboard secrets", () => {
     try {
       await expect(mod.dashboardSecretStatus()).resolves.toEqual({
         themeChangeNotificationUrl: { configured: false, preview: null },
+        modules: {},
       });
 
       const saved = await mod.saveDashboardSecret(
@@ -51,6 +52,37 @@ describe("dashboard secrets", () => {
       expect(() => mod.normalizedNotificationUrl(`https://example.test/${"a".repeat(2100)}`)).toThrow(/2048/);
       expect(mod.normalizedNotificationUrl("  https://example.test/hook  ")).toBe("https://example.test/hook");
       expect(mod.normalizedNotificationUrl("")).toBe("");
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("stores module secrets without previewing enough to replay them", async () => {
+    const { mod, tempDir } = await importWithTempStore();
+    try {
+      const saved = await mod.saveModuleSecret("discord.botToken", "MTIzNDU2Nzg5.SECRETTAIL");
+      expect(saved.modules["discord.botToken"].configured).toBe(true);
+      expect(saved.modules["discord.botToken"].preview).not.toContain("SECRETTAIL");
+      // The raw value is still readable server-side, which is the whole point.
+      await expect(mod.readModuleSecret("discord.botToken")).resolves.toBe("MTIzNDU2Nzg5.SECRETTAIL");
+
+      // The unrelated secret is untouched — one file, independent keys.
+      await mod.saveDashboardSecret("themeChangeNotificationUrl", "https://example.test/hook");
+      await expect(mod.readModuleSecret("discord.botToken")).resolves.toBe("MTIzNDU2Nzg5.SECRETTAIL");
+
+      const cleared = await mod.saveModuleSecret("discord.botToken", "");
+      expect(cleared.modules["discord.botToken"]).toBeUndefined();
+      expect(cleared.themeChangeNotificationUrl.configured).toBe(true);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects module secret names that are not simple identifiers", async () => {
+    const { mod, tempDir } = await importWithTempStore();
+    try {
+      await expect(mod.saveModuleSecret("../escape", "x")).rejects.toThrow(/Secret name/);
+      await expect(mod.saveModuleSecret("Discord", "x")).rejects.toThrow(/Secret name/);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
