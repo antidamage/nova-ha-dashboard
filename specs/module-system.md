@@ -381,6 +381,12 @@ Writes go through a serialising queue and atomic temp-file + rename, matching
 Operations: install (from upload or URL), enable, disable, reload, delete,
 download (re-pack to ZIP), read/write/export/import config.
 
+An install over an existing module carries **both** `config.json` and the
+module's `storage/` directory across. Upgrading is not a reset — surviving
+restarts is the whole point of `api.storage`, and a queue that vanished on every
+version bump would drop real events silently. Neither is included in a
+downloaded package: they are installation state, not package content.
+
 ### Install limits
 
 Modelled on `installPhonoscopePackage` (`lib/phonoscope-store.ts:1017`):
