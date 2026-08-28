@@ -1349,7 +1349,7 @@ button,
   opacity: 0.35;
 }
 
-.dashboard-shell > *:not(.fluid-background):not(.dashboard-config-link) {
+.dashboard-shell > *:not(.fluid-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date) {
   position: relative;
   z-index: 1;
 }
@@ -2465,11 +2465,11 @@ a.update-banner-button {
    half in (nova-header-controls-disabled, toggled by the same handler at
    t >= 0.5, matching their opacity crossing 0.5 too). */
 .header-fade-strip {
-  position: fixed;
+  position: fixed !important;
   top: 0;
   left: 0;
   right: 0;
-  height: calc(var(--nova-avatar-size) / 2);
+  height: var(--nova-avatar-size);
   background: var(--cyber-bg);
   opacity: calc(var(--nova-header-fade, 0) * 0.5);
   z-index: 90;
@@ -2477,16 +2477,19 @@ a.update-banner-button {
   will-change: opacity;
 }
 
+/* Mini clock/date follow the same clock font + colour as the full ClockPanel
+   readout (.clock-time/.clock-date, --cyber-clock family) rather than the
+   generic mono/title tokens, so a theme's clock font choice carries here too. */
 .header-mini-clock,
 .header-mini-date {
-  position: fixed;
+  position: fixed !important;
   top: calc(10px + env(safe-area-inset-top, 0px));
-  font-family: var(--cyber-mono);
-  font-weight: 900;
-  font-size: 0.78rem;
+  font-family: var(--cyber-clock);
+  font-weight: var(--cyber-clock-weight, 900);
+  font-size: 1.56rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--cyber-title-on-bg);
+  color: var(--cyber-clock-color) !important;
   opacity: var(--nova-header-fade, 0);
   z-index: 95;
   pointer-events: none;
