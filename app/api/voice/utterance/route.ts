@@ -7,6 +7,14 @@ export const runtime = "nodejs";
 const MAX_TRANSCRIPT_LENGTH = 2000;
 
 /**
+ * A full agent turn — inference, tool calls, the verification loop — takes far
+ * longer than the 5s default, which is sized for status polls. A cold first turn
+ * after the voice service restarts is longer still, because the models load on
+ * it. Text has no real-time constraint the way speech does, so it can wait.
+ */
+const UTTERANCE_TIMEOUT_MS = 90_000;
+
+/**
  * Put a text utterance through the voice agent.
  *
  * The relay lives here rather than in whatever is calling it so the voice-host
@@ -41,6 +49,7 @@ export async function POST(request: Request) {
       satelliteId: typeof body.satelliteId === "string" && body.satelliteId ? body.satelliteId : "dashboard-text",
       roomId: typeof body.roomId === "string" && body.roomId ? body.roomId : "dashboard",
       dryRun: body.dryRun !== false,
+      timeoutMs: UTTERANCE_TIMEOUT_MS,
     });
 
     if ("error" in outcome) {
