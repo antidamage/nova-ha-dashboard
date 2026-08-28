@@ -63,6 +63,13 @@ package must inline all deps.
 - Bundles `ws` — the container is `node:20-trixie-slim` and has no stable global
   `WebSocket`.
 
+`ws` is CommonJS and calls `require("events")`. Bundled into ESM that becomes a
+dynamic require, which has no meaning in a module: the dashboard loads the
+package, fails with *Dynamic require of "events" is not supported*, and disables
+it. The build therefore prepends a `createRequire(import.meta.url)` banner to
+the server bundle. Any module bundling a CommonJS dependency needs the same
+thing — it is the one non-obvious part of the packaging contract.
+
 Node 20 is also why the gateway's `zlib-stream` compression is not used: plain
 JSON, the traffic is a handful of messages a day.
 
