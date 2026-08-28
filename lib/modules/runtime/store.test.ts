@@ -96,17 +96,43 @@ describe("module store", () => {
     }
   });
 
-  it("carries existing config across an upgrade", async () => {
+  it("carries existing config and durable storage across an upgrade", async () => {
     const { store, tempDir } = await importWithTempStore();
     try {
       await store.installModulePackage(packageZip(), "upload:test.zip");
       await store.writeModuleConfig("fixture-module", { label: "mine", volume: 9 });
 
+      // Whatever the module put in api.storage — an outbound queue, say.
+      const storageDir = path.join(store.moduleDir("fixture-module"), "storage");
+      await mkdir(storageDir, { recursive: true });
+      await writeFile(path.join(storageDir, "queue.json"), '{"lines":[{"text":"kept"}]}', "utf8");
+
       await store.installModulePackage(packageZip({ version: "1.1.0" }), "upload:test.zip");
+
       await expect(store.readModuleConfig("fixture-module")).resolves.toMatchObject({
         label: "mine",
         volume: 9,
       });
+      // Upgrading is not a reset. Losing this would silently drop real events.
+      await expect(readFile(path.join(storageDir, "queue.json"), "utf8")).resolves.toContain("kept");
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves installation state out of a downloaded package", async () => {
+    const { store, tempDir } = await importWithTempStore();
+    try {
+      await store.installModulePackage(packageZip(), "upload:test.zip");
+      await store.writeModuleConfig("fixture-module", { label: "mine" });
+      const storageDir = path.join(store.moduleDir("fixture-module"), "storage");
+      await mkdir(storageDir, { recursive: true });
+      await writeFile(path.join(storageDir, "queue.json"), "{}", "utf8");
+
+      const { unzipSync } = await import("fflate");
+      const names = Object.keys(unzipSync(await store.packModule("fixture-module")));
+
+      expect(names.sort()).toEqual(["client.mjs", "module.json", "server.mjs"]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

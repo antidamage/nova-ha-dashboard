@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "fs/promises";
+import { cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "fs/promises";
 import path from "path";
 import { unzipSync, zipSync } from "fflate";
 import { dashboardSecretStatus } from "../../dashboard-secrets";
@@ -424,6 +424,18 @@ export async function installModulePackage(
       );
     }
 
+    // And the module's own durable state. Upgrading is not a reset: the whole
+    // point of api.storage is surviving restarts, and an outbound queue that
+    // vanished on every version bump would lose real events silently.
+    await cp(path.join(target, "storage"), path.join(staging, "storage"), {
+      recursive: true,
+      force: true,
+    }).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+    });
+
     await rm(target, { recursive: true, force: true });
     await rename(staging, target);
     return { id: manifest.id, version: manifest.version };
@@ -455,7 +467,7 @@ export async function deleteModule(id: string) {
   await removeInstalledRecord(id);
 }
 
-/** Re-pack an installed module for download. `config.json` is never included. */
+/** Re-pack an installed module for download, without its installation state. */
 export async function packModule(id: string): Promise<Uint8Array> {
   const dir = moduleDir(id);
   const files: Record<string, Uint8Array> = {};
@@ -468,7 +480,8 @@ export async function packModule(id: string): Promise<Uint8Array> {
         await walk(child);
         continue;
       }
-      if (child === "config.json") {
+      // Installation state, not package content.
+      if (child === "config.json" || child.startsWith("storage/")) {
         continue;
       }
       files[child] = new Uint8Array(await readFile(path.join(dir, child)));
