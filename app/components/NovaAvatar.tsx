@@ -376,6 +376,7 @@ function NovaAvatarVisual({
     if (hidden || forceVisible) return;
     const host = hostRef.current;
     if (!host) return;
+    const root = document.documentElement;
     const distance = Math.max(1, scrollScaleDistance);
     const minScale = Math.max(0, Math.min(1, scrollScaleMin));
     const onScroll = () => {
@@ -383,10 +384,20 @@ function NovaAvatarVisual({
       const t = Math.min(1, Math.max(0, y / distance));
       const scale = 1 + (minScale - 1) * t;
       host.style.setProperty("--nova-avatar-scale", scale.toFixed(4));
+      // Same scroll-derived progress drives the header fade strip, the mini
+      // clock/date, and the reload/config buttons (globals.css) — one
+      // continuous function of scrollY, not a triggered animation, so
+      // stopping mid-scroll or scrolling back up reverses it exactly.
+      root.style.setProperty("--nova-header-fade", t.toFixed(4));
+      root.classList.toggle("nova-header-controls-disabled", t >= 0.5);
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      root.style.removeProperty("--nova-header-fade");
+      root.classList.remove("nova-header-controls-disabled");
+    };
   }, [hidden, forceVisible, scrollScaleDistance, scrollScaleMin]);
 
   // Voice speech migration: on "speaking" the fixed host animates from its
