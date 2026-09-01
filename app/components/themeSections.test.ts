@@ -40,6 +40,7 @@ describe("theme section copy/paste", () => {
     source.desktopWallpaper = {
       landscapeAssetId: "wallpaper_00000000-0000-0000-0000-000000000000",
       portraitAssetId: null,
+      useAsDashboardBackground: false,
     };
     const target = baseTheme();
 

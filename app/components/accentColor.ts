@@ -70,6 +70,7 @@ export type FluidBackgroundSettings = {
 export type DesktopWallpaperSettings = {
   landscapeAssetId: string | null;
   portraitAssetId: string | null;
+  useAsDashboardBackground: boolean;
 };
 
 // A user-uploaded UI sound played when a control button commands a device. The
@@ -367,6 +368,7 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
   desktopWallpaper: {
     landscapeAssetId: null,
     portraitAssetId: null,
+    useAsDashboardBackground: false,
   },
   border: {
     color: {
@@ -554,6 +556,7 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
   desktopWallpaper: {
     landscapeAssetId: null,
     portraitAssetId: null,
+    useAsDashboardBackground: false,
   },
   border: {
     color: {
@@ -820,6 +823,7 @@ export function normalizeDesktopWallpaperSettings(value: Partial<DesktopWallpape
   return {
     landscapeAssetId: normalizeWallpaperAssetId(value?.landscapeAssetId),
     portraitAssetId: normalizeWallpaperAssetId(value?.portraitAssetId),
+    useAsDashboardBackground: value?.useAsDashboardBackground === true,
   };
 }
 

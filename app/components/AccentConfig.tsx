@@ -1006,6 +1006,8 @@ function BackgroundTextureControl({
   );
 }
 
+type DesktopWallpaperAssetSlot = "landscapeAssetId" | "portraitAssetId";
+
 function DesktopWallpaperControl({
   onChange,
   value,
@@ -1035,7 +1037,7 @@ function DesktopWallpaperControl({
 
   const assetById = useMemo(() => new Map(assets.map((asset) => [asset.id, asset])), [assets]);
 
-  const uploadFile = async (slot: keyof DesktopWallpaperSettings, file: File | null) => {
+  const uploadFile = async (slot: DesktopWallpaperAssetSlot, file: File | null) => {
     if (!file) {
       return;
     }
@@ -1059,7 +1061,7 @@ function DesktopWallpaperControl({
     }
   };
 
-  const removeFile = async (slot: keyof DesktopWallpaperSettings) => {
+  const removeFile = async (slot: DesktopWallpaperAssetSlot) => {
     const assetId = valueRef.current[slot];
     if (!assetId) {
       return;
@@ -1079,7 +1081,7 @@ function DesktopWallpaperControl({
   };
 
   const row = (
-    slot: keyof DesktopWallpaperSettings,
+    slot: DesktopWallpaperAssetSlot,
     label: string,
     detail: string,
     inputRef: RefObject<HTMLInputElement | null>,
@@ -2091,17 +2093,34 @@ export function AccentConfig({
             className="config-sub-accordion"
             actions={sectionActions("background", "background")}
           >
+            <CheckboxRow
+              checked={theme.desktopWallpaper.useAsDashboardBackground}
+              label="Use Wallpaper as Background"
+              detail={
+                theme.desktopWallpaper.useAsDashboardBackground
+                  ? "The dashboard shows the wallpaper below instead of the fluid background"
+                  : "The dashboard shows the fluid background; wallpapers below are only pushed to managed computers"
+              }
+              onChange={(useAsDashboardBackground) =>
+                setTheme({
+                  ...theme,
+                  desktopWallpaper: { ...theme.desktopWallpaper, useAsDashboardBackground },
+                })
+              }
+            />
             <DesktopWallpaperControl
               value={theme.desktopWallpaper}
               onChange={(desktopWallpaper) => setTheme({ ...theme, desktopWallpaper })}
             />
-            <BackgroundEffectControls
-              accentColor={accentRgb}
-              highlightColor={highlightRgb}
-              value={theme.backgroundEffect}
-              onChange={(backgroundEffect) => setTheme({ ...theme, backgroundEffect })}
-              onPreview={(backgroundEffect) => setTheme({ ...theme, backgroundEffect }, { persist: false })}
-            />
+            {theme.desktopWallpaper.useAsDashboardBackground ? null : (
+              <BackgroundEffectControls
+                accentColor={accentRgb}
+                highlightColor={highlightRgb}
+                value={theme.backgroundEffect}
+                onChange={(backgroundEffect) => setTheme({ ...theme, backgroundEffect })}
+                onPreview={(backgroundEffect) => setTheme({ ...theme, backgroundEffect }, { persist: false })}
+              />
+            )}
           </ConfigAccordion>
 
           <ConfigAccordion

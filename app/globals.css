@@ -1303,6 +1303,19 @@ button,
   background: var(--cyber-bg);
 }
 
+.dashboard-wallpaper-background {
+  position: fixed !important;
+  inset: 0;
+  z-index: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  background-color: var(--cyber-bg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .dashboard-shell::before,
 .dashboard-shell::after {
   content: "";
@@ -1349,7 +1362,7 @@ button,
   opacity: 0.35;
 }
 
-.dashboard-shell > *:not(.fluid-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date) {
+.dashboard-shell > *:not(.fluid-background):not(.dashboard-wallpaper-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date) {
   position: relative;
   z-index: 1;
 }

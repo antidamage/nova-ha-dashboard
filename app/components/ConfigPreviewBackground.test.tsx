@@ -15,6 +15,10 @@ vi.mock("./FluidBackground", () => ({
   ),
 }));
 
+vi.mock("./WallpaperBackground", () => ({
+  WallpaperBackground: () => <div data-testid="wallpaper-background" />,
+}));
+
 const previewTheme = {} as DeviceTheme;
 
 function PublishPreviewTheme() {
@@ -99,5 +103,40 @@ describe("ConfigPreviewBackground", () => {
 
     writeExperienceFeatures({ background: false, camera: true, statusOrb: true, worldMap: true });
     await waitFor(() => expect(screen.queryByTestId("fluid-background")).not.toBeInTheDocument());
+  });
+
+  it("renders the wallpaper preview instead of the shader when wallpaper mode is on", () => {
+    const wallpaperTheme = {
+      ...DEFAULT_THEME_SET.themes.light,
+      desktopWallpaper: {
+        ...DEFAULT_THEME_SET.themes.light.desktopWallpaper,
+        landscapeAssetId: "wallpaper_00000000-0000-0000-0000-000000000000",
+        useAsDashboardBackground: true,
+      },
+    };
+
+    render(
+      <ConfigPreviewBackgroundProvider
+        initialTheme={{ selection: "light", themes: { light: wallpaperTheme } }}
+      >
+        <ConfigPreviewBackground />
+      </ConfigPreviewBackgroundProvider>,
+    );
+
+    expect(screen.getByTestId("wallpaper-background")).toBeInTheDocument();
+    expect(screen.queryByTestId("fluid-background")).not.toBeInTheDocument();
+  });
+
+  it("renders the shader preview when wallpaper mode is off", () => {
+    render(
+      <ConfigPreviewBackgroundProvider
+        initialTheme={{ selection: "light", themes: { light: DEFAULT_THEME_SET.themes.light } }}
+      >
+        <ConfigPreviewBackground />
+      </ConfigPreviewBackgroundProvider>,
+    );
+
+    expect(screen.getByTestId("fluid-background")).toBeInTheDocument();
+    expect(screen.queryByTestId("wallpaper-background")).not.toBeInTheDocument();
   });
 });
