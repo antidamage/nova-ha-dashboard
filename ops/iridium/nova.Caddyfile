@@ -57,7 +57,13 @@
 	}
 
 	handle {
-		reverse_proxy 127.0.0.1:80
+		# authentik/specs/authentik-sso.md task 4: Next.js moved off :80 to
+		# 127.0.0.1:3001 (NOVA_BIND_HOST=127.0.0.1, PORT=3001 in
+		# ops/iridium/nova-ha-dashboard.service) so Caddy is the ONLY ingress —
+		# a prerequisite for task 5's /config auth gate to mean anything at
+		# all. Checked in here for the same reason as the rest of this file:
+		# a live-only edit does not survive the next dashboard deploy.
+		reverse_proxy 127.0.0.1:3001
 	}
 }
 
@@ -95,6 +101,21 @@ https://nova.tuatara-dory.ts.net:443 {
 # the hosting role collapsed onto iridium's own .20 identity.
 https://nova.local:443, https://nova:443, https://iridium.local:443, https://iridium:443, https://192.168.8.20:443, https://100.104.57.108:443 {
 	tls /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.crt /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.key
+	import nova_routes
+}
+
+# Plain-HTTP LAN identities. This is the kiosk's actual access path
+# (NOVA_BACKEND_URL=http://127.0.0.1/ on nocturnium resolves through the LAN
+# to this host's :80, and the Apple TV app's default is http://nova.local) —
+# it used to reach Next.js directly because nothing was listening here at
+# all; now that Next is loopback-only (task 4), this block is what keeps that
+# path alive, just routed through Caddy instead. `auto_https off` is set at
+# the top of this file, so a bare :80 block is NOT auto-upgraded into an
+# HTTPS redirect (verified against this Caddy version/config before relying
+# on it) — without that, this block would redirect the kiosk to :443 and it
+# has no way to accept that redirect meaningfully for a plain HTTP request
+# from a device with no household CA installed.
+http://nova.local, http://nova, http://iridium.local, http://iridium, http://192.168.8.20, http://100.104.57.108 {
 	import nova_routes
 }
 

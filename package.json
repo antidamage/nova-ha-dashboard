@@ -7,7 +7,7 @@
     "build": "next build",
     "build:demo": "node scripts/build-demo.mjs",
     "snapshot:defaults": "node scripts/snapshot-live-defaults.mjs",
-    "start": "next start --hostname 0.0.0.0",
+    "start": "next start --hostname ${NOVA_BIND_HOST:-0.0.0.0} --port ${PORT:-3000}",
     "package:skills": "node scripts/package-agent-skills.mjs",
     "phonoscope:validate": "node scripts/phonoscope-module.mjs validate",
     "phonoscope:pack": "node scripts/phonoscope-module.mjs pack",

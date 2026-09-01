@@ -31,11 +31,20 @@ ExecStartPre=-/usr/bin/docker rm -f nova-ha-dashboard
 # home's devices must not ship with the dashboard. Docker creates the host
 # directory empty when it does not exist, which the config loader treats as "no
 # household layer" — an installation without one is a supported state.
+#
+# Caddy is the sole ingress as of authentik/specs/authentik-sso.md task 4.
+# Next.js used to bind 0.0.0.0:80 directly, which meant ANY Caddy-level rule
+# (including the /config auth gate task 5 adds) was decorative — port 80 was
+# reachable straight past it. PORT=3001 (not 3000: Grafana already owns 3000
+# on this box) plus NOVA_BIND_HOST=127.0.0.1 makes Next loopback-only, so the
+# only way in is through nova.Caddyfile's (nova_routes) catch-all, which now
+# proxies to 127.0.0.1:3001. Do not point this back at 0.0.0.0/80 without also
+# reverting the Caddyfile change — the two must move together.
 ExecStart=/usr/bin/docker run --rm --name nova-ha-dashboard --network host \
   --add-host nocturnium.local:192.168.8.17 \
   --memory-reservation=1536m --memory=3g \
   --env-file /opt/nova-ha-dashboard/.env.local \
-  -e NODE_ENV=production -e PORT=80 \
+  -e NODE_ENV=production -e PORT=3001 -e NOVA_BIND_HOST=127.0.0.1 \
   -v /opt/nova-ha-dashboard:/app -w /app \
   -v /opt/nova-household:/opt/nova-household:ro \
   nova-ha-dashboard:plain npm start
