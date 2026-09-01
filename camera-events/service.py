@@ -48,6 +48,17 @@ SOURCE_URL = os.environ.get(
     "http://nocturnium.local:8080/camera/outside/index.m3u8",
 )
 CAMERA_ID = os.environ.get("NOVA_CAMERA_EVENTS_CAMERA_ID", "outside")
+# The LAN camera proxy (nocturnium-camera-proxy.py) now requires a bearer
+# token on every /camera/** request; this service is a direct LAN consumer of
+# it, same as the dashboard's server-side camera-proxy route, and reads the
+# same token. See authentik/specs/authentik-sso.md "Camera bypass contract".
+SOURCE_TOKEN = os.environ.get("NOVA_CAMERA_TOKEN", "").strip()
+AUTH_HEADERS = {"Authorization": f"Bearer {SOURCE_TOKEN}"} if SOURCE_TOKEN else {}
+if SOURCE_TOKEN:
+    # cv2.VideoCapture's FFmpeg backend has no per-call header argument; this
+    # process-wide env var is FFmpeg's own mechanism and is safe here because
+    # this service only ever opens captures against SOURCE_URL.
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = f"headers;Authorization: Bearer {SOURCE_TOKEN}\r\n"
 DETECTOR_MODEL = os.environ.get("NOVA_CAMERA_EVENTS_DETECTOR", "yolo11n.pt")
 POLL_SECONDS = float(os.environ.get("NOVA_CAMERA_EVENTS_POLL_SECONDS", "4"))
 SAMPLE_FPS = float(os.environ.get("NOVA_CAMERA_EVENTS_SAMPLE_FPS", "2"))
@@ -420,7 +431,7 @@ class Pipeline:
 
     @staticmethod
     def playlist() -> list[dict[str, Any]]:
-        response = requests.get(SOURCE_URL, timeout=12)
+        response = requests.get(SOURCE_URL, timeout=12, headers=AUTH_HEADERS)
         response.raise_for_status()
         segments: list[dict[str, Any]] = []
         at: float | None = None
@@ -624,7 +635,8 @@ class Pipeline:
             lines.extend([f"#EXTINF:{segment['duration']:.3f},", segment["url"]])
         lines.append("#EXT-X-ENDLIST")
         playlist.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file,http,https,tcp,tls,crypto", "-i", str(playlist), "-c", "copy", "-movflags", "+faststart", str(output)]
+        header_args = ["-headers", f"Authorization: Bearer {SOURCE_TOKEN}\r\n"] if SOURCE_TOKEN else []
+        command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-protocol_whitelist", "file,http,https,tcp,tls,crypto", *header_args, "-i", str(playlist), "-c", "copy", "-movflags", "+faststart", str(output)]
         try:
             subprocess.run(command, check=True, timeout=180)
             playlist.unlink(missing_ok=True)
