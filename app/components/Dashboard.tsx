@@ -26,6 +26,7 @@ import { useDashboardSelection } from "./dashboard/useDashboardSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
 import { FluidBackground } from "./FluidBackground";
+import { WallpaperBackground } from "./WallpaperBackground";
 import { useExperienceFeature } from "./dashboard/experienceModeSetting";
 import { TasksPanel } from "./TasksPanel";
 import { UpdateBanner } from "./UpdateBanner";
@@ -96,7 +97,13 @@ export function Dashboard() {
         <div className="dashboard-shell min-h-screen px-4 py-5 sm:px-6">
           {/* Devices with the background feature off skip the WebGL background
               entirely; the shell's own static themed grid background remains. */}
-          {showBackground ? <FluidBackground theme={theme} /> : null}
+          {showBackground ? (
+            theme.desktopWallpaper.useAsDashboardBackground ? (
+              <WallpaperBackground wallpaper={theme.desktopWallpaper} />
+            ) : (
+              <FluidBackground theme={theme} />
+            )
+          ) : null}
           <HeaderFadeStrip />
           <ReloadButton />
           <Link

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FluidBackground } from "./FluidBackground";
+import { WallpaperBackground } from "./WallpaperBackground";
 import {
   normalizeThemeSet,
   resolveDeviceTheme,
@@ -103,5 +104,9 @@ export function ConfigPreviewBackground() {
   if (!backgroundEnabled || !context?.previewTheme) {
     return null;
   }
-  return <FluidBackground theme={context.previewTheme} />;
+  return context.previewTheme.desktopWallpaper?.useAsDashboardBackground ? (
+    <WallpaperBackground wallpaper={context.previewTheme.desktopWallpaper} />
+  ) : (
+    <FluidBackground theme={context.previewTheme} />
+  );
 }
