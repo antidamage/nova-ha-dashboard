@@ -119,6 +119,38 @@
 	}
 }
 
+# The outpost's own callback/session endpoints, served on the APPLICATION's
+# origin rather than authentik's. Load-bearing, and not obvious: in
+# `forward_domain` mode the outpost builds its OAuth `redirect_uri` as
+# `<external_host>/outpost.goauthentik.io/callback` — i.e. on :443 here, NOT on
+# authentik's own :9443. Without this snippet that path falls through to
+# nova_routes' catch-all `handle { reverse_proxy 127.0.0.1:3001 }` and Next.js
+# answers its own 404, so the browser completes the authorize step, comes back
+# with a valid `code`, and the outpost never sees it — no session cookie is ever
+# set and /config redirects forever. Found live: the 404 carried
+# `x-nextjs-prerender`, proving Next.js served it, while the same path on :9443
+# returned a proper outpost 302.
+#
+# Must be imported AHEAD of nova_routes (Caddy evaluates `handle` blocks in file
+# order within a site), for the same reason config_gate_authed must be.
+#
+# Proxied straight to the loopback authentik server rather than back out through
+# :9443 — one less TLS hop, and it cannot break if the :9443 vhost changes.
+# `header_up Host` pins the provider lookup, which reads the RAW Host header
+# (never X-Forwarded-Host) and must equal this provider's external_host exactly,
+# no port — the same rule ak_forward_auth documents below.
+#
+# LAN vhosts deliberately do NOT import this: they use config_gate_denied (a
+# flat 403, no login path at all), so no callback can ever be issued for them
+# and exposing authentik endpoints there would widen the surface for nothing.
+(ak_outpost_routes) {
+	handle /outpost.goauthentik.io/* {
+		reverse_proxy 127.0.0.1:9000 {
+			header_up Host nova.tuatara-dory.ts.net
+		}
+	}
+}
+
 (ak_forward_auth) {
 	# forward_auth only gatekeeps: on a 2xx from the outpost it falls through
 	# to the NEXT directive rather than to the app, so the reverse_proxy below
@@ -194,6 +226,9 @@ https://nova.tuatara-dory.ts.net:443 {
 	tls {
 		get_certificate tailscale
 	}
+	# Order matters: the outpost's own callback endpoints must be claimed before
+	# nova_routes' catch-all can swallow them into Next.js.
+	import ak_outpost_routes
 	import config_gate_authed
 	import nova_routes
 }
