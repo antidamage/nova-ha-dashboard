@@ -1,0 +1,11 @@
+# Append to /etc/hosts on Nocturnium.
+#
+# Nocturnium joined the tailnet with --accept-dns=false (task 8) so the
+# kiosk's LAN name resolution (nova.local, 192.168.8.20) is never disturbed
+# by MagicDNS. That also means the OS resolver has no route to
+# nova.tuatara-dory.ts.net, which the tailnet Caddy listener
+# (nocturnium-caddy.Caddyfile) needs to reach for forward_auth. A single
+# static host entry resolves just this one name without turning on MagicDNS
+# tailnet-wide. Update the IP if nova/Iridium's tailscale address ever
+# changes (`tailscale status | grep -w nova` from any tailnet peer).
+100.104.57.108 nova.tuatara-dory.ts.net

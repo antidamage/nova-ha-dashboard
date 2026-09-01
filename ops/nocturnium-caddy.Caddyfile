@@ -1,0 +1,77 @@
+{
+	auto_https off
+}
+
+# Nova camera proxy — tailnet listener, session-or-token.
+# Task 9 of expand-on-this-plan-foamy-parnas; design documented in
+# authentik/specs/authentik-sso.md "Camera bypass contract".
+#
+# A request WITH an Authorization header (any value) skips forward_auth
+# entirely and goes straight to the Python proxy on :8080, which is the sole
+# authority on whether that bearer token is correct — Caddy never validates
+# it itself, so a wrong token still gets a clean 401 from the proxy, not a
+# false pass here.
+#
+# A request with NO Authorization header goes through authentik forward_auth
+# first. If that fails, Caddy redirects to login and never reaches :8080. If
+# it succeeds, Caddy injects the shared proxy token before the hop to :8080 —
+# turning "authentik says this browser has a valid session" into the one
+# credential the Python proxy actually understands. The proxy's own bearer
+# check still runs on every request either way; Caddy never bypasses it.
+#
+# NOVA_CAMERA_PROXY_TOKEN comes from /etc/nova-camera-proxy.env, loaded by
+# the caddy.service systemd drop-in (ops/nocturnium-caddy-token.conf) — same
+# token value as /etc/nova-camera-proxy.token, which the Python proxy itself
+# reads. Keep both in sync; rotation updates both files.
+nocturnium.tuatara-dory.ts.net:8443 {
+	tls {
+		get_certificate tailscale
+	}
+
+	# Nocturnium was joined to the tailnet with --accept-dns=false (task 8) so
+	# the kiosk keeps resolving nova.local/192.168.8.20 over the LAN and never
+	# starts routing through MagicDNS, and the OS resolver therefore cannot
+	# see nova.tuatara-dory.ts.net either. forward_auth's Caddyfile shorthand
+	# has no `resolvers` subdirective in this Caddy version, so the fix is a
+	# single static /etc/hosts entry for that one name
+	# (see nocturnium-caddy-hosts-entry.txt) rather than touching system-wide
+	# DNS or accept-dns. authentik itself runs on nova/Iridium, not Ununhexium
+	# (moved there for RAM reasons — see authentik-sso.md "Decisions"); the
+	# plan draft's Ununhexium address is superseded.
+	#
+	# header_up Host is this provider's OWN external_host (with port) on both
+	# routes below, per the load-bearing rule found live in task 6/11:
+	# authentik's per-request provider lookup reads the raw Host header, not
+	# X-Forwarded-Host, so sending nova's own name here would silently
+	# authenticate against the wrong provider (nova-dashboard-config) instead
+	# of camera-nocturnium.
+
+	# The outpost's OAuth callback must be routed to authentik on THIS site's
+	# own origin, ahead of the app logic below — task 11's lesson. In
+	# forward_domain mode the redirect_uri authentik hands back is built on
+	# the provider's own external_host (:8443 here), not authentik's :9443, so
+	# without this the browser lands back here after login with no route for
+	# it and 404s before a session cookie is ever set.
+	handle /outpost.goauthentik.io/* {
+		reverse_proxy https://nova.tuatara-dory.ts.net:9443 {
+			header_up Host nocturnium.tuatara-dory.ts.net:8443
+		}
+	}
+
+	@no_auth not header Authorization *
+
+	handle @no_auth {
+		forward_auth https://nova.tuatara-dory.ts.net:9443 {
+			uri /outpost.goauthentik.io/auth/traefik
+			header_up Host nocturnium.tuatara-dory.ts.net:8443
+			copy_headers X-authentik-username X-authentik-groups X-authentik-email
+		}
+		reverse_proxy 127.0.0.1:8080 {
+			header_up Authorization "Bearer {$NOVA_CAMERA_PROXY_TOKEN}"
+		}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
