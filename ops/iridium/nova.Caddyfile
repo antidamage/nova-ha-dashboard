@@ -67,6 +67,110 @@
 	}
 }
 
+# authentik/specs/authentik-sso.md task 5: gate the dashboard's admin/config
+# surface behind authentik forward-auth (domain-level proxy provider
+# "nova-dashboard-config", bound to the embedded outpost). Caddy evaluates
+# `handle` blocks in file order within a site (unlike most directives), so
+# these two matchers are `handle`d ahead of nova_routes' own catch-all
+# `handle {}` — that ordering is what makes the gate take effect at all.
+#
+# Two path-shape corrections made against the drafted matcher list in the
+# plan, both found by reading the actual route handlers rather than trusting
+# the draft:
+#   - /api/config/client is a read-only, sanitized subset fetched by
+#     MapPanel, ClimateControls, radar, useBedroomHeaterConfig and
+#     TasksPanel — all live on the KIOSK dashboard, not just /config. It is
+#     explicitly excluded from @admin_any (which has no method filter and
+#     would otherwise gate every method on it, including the kiosk's GETs).
+#     Everything else under /api/config/** is admin-only (ConfigWorkspace).
+#   - /api/update itself is a GET-only status read consumed by UpdateBanner,
+#     which renders unconditionally on the main Dashboard component — also
+#     kiosk-facing. Only the mutating /api/update/* actions (apply, rollback,
+#     check, settings) are gated, via @admin_writes' method filter, not the
+#     unconditional @admin_any.
+#   - /api/modules is deliberately NOT blanket-gated on path alone: the
+#     module runtime (app/components/modules/ModuleHost.tsx) fires
+#     `POST /api/modules/events` from every loaded module instance
+#     (including on the kiosk) to deliver events, and routes arbitrary
+#     methods to a module's own `[id]/[...path]` handler for the module's own
+#     UI actions (e.g. the Discord module's dry-run confirm). Neither is an
+#     admin action. Only the true admin surface is gated: `POST /api/modules`
+#     (install), `PATCH`/`DELETE /api/modules/{id}` (enable/disable/reload/
+#     uninstall — exactly one path segment, so it cannot collide with the
+#     module-owned `[...path]` catch-all which needs at least one segment
+#     past the id), and `PUT /api/modules/{id}/config`. `/api/modules/events`
+#     is explicitly excluded since it has the same one-segment shape as
+#     `/api/modules/{id}`.
+(config_gate_authed) {
+	@admin_any {
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/*
+		not path /api/config/client
+	}
+	@admin_writes {
+		method PUT POST PATCH DELETE
+		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
+		not path /api/modules/events
+	}
+	handle @admin_any {
+		import ak_forward_auth
+	}
+	handle @admin_writes {
+		import ak_forward_auth
+	}
+}
+
+(ak_forward_auth) {
+	# forward_auth only gatekeeps: on a 2xx from the outpost it falls through
+	# to the NEXT directive rather than to the app, so the reverse_proxy below
+	# is required here — without it, an authenticated request that matched
+	# @admin_any/@admin_writes would fall through this `handle` block with no
+	# response at all, since `handle` blocks are mutually exclusive and
+	# nova_routes' own `handle { reverse_proxy 127.0.0.1:3001 }` never runs
+	# for a request that already matched this one.
+	forward_auth https://nova.tuatara-dory.ts.net:9443 {
+		# NOT /auth/caddy -- that endpoint does not exist in this authentik
+		# version (goauthentik.io/outpost 2026.8.0) and 404s unconditionally,
+		# regardless of headers. Verified live: /auth/traefik correctly
+		# returns a 302 to the authorize endpoint for an unauthenticated
+		# request whose Host matches the provider's external_host, while
+		# /auth/caddy 404s under the exact same conditions. authentik ships
+		# generic reverse-proxy forward-auth handlers named after
+		# traefik/nginx, not one per proxy product; Caddy uses the traefik
+		# one, matching upstream authentik documentation for Caddy setups.
+		uri /outpost.goauthentik.io/auth/traefik
+		# Caddy's forward_auth otherwise sends Host: nova.tuatara-dory.ts.net:9443
+		# (the auth server's own dial address) to the auth-check request.
+		# authentik's domain-level provider lookup matches against the raw
+		# Host header, not X-Forwarded-Host, so a :9443-suffixed Host 404s
+		# even though X-Forwarded-Host is already correct -- verified live by
+		# comparing a manual request with an overridden bare Host header
+		# (302, correct redirect to the authorize endpoint) against the same
+		# request with the default Host (404). This must match the
+		# provider's external_host exactly: no port.
+		header_up Host nova.tuatara-dory.ts.net
+		copy_headers X-authentik-username X-authentik-groups X-authentik-email
+	}
+	reverse_proxy 127.0.0.1:3001
+}
+
+(config_gate_denied) {
+	@admin_any {
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/*
+		not path /api/config/client
+	}
+	@admin_writes {
+		method PUT POST PATCH DELETE
+		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
+		not path /api/modules/events
+	}
+	handle @admin_any {
+		respond 403
+	}
+	handle @admin_writes {
+		respond 403
+	}
+}
+
 # Canonical household URL over the tailnet. Caddy asks the local Tailscale
 # daemon for this publicly trusted certificate and renews it automatically.
 #
@@ -90,6 +194,7 @@ https://nova.tuatara-dory.ts.net:443 {
 	tls {
 		get_certificate tailscale
 	}
+	import config_gate_authed
 	import nova_routes
 }
 
@@ -101,6 +206,7 @@ https://nova.tuatara-dory.ts.net:443 {
 # the hosting role collapsed onto iridium's own .20 identity.
 https://nova.local:443, https://nova:443, https://iridium.local:443, https://iridium:443, https://192.168.8.20:443, https://100.104.57.108:443 {
 	tls /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.crt /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.key
+	import config_gate_denied
 	import nova_routes
 }
 
@@ -116,6 +222,7 @@ https://nova.local:443, https://nova:443, https://iridium.local:443, https://iri
 # has no way to accept that redirect meaningfully for a plain HTTP request
 # from a device with no household CA installed.
 http://nova.local, http://nova, http://iridium.local, http://iridium, http://192.168.8.20, http://100.104.57.108 {
+	import config_gate_denied
 	import nova_routes
 }
 
