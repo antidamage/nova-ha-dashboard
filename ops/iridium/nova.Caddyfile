@@ -97,3 +97,20 @@ https://nova.local:443, https://nova:443, https://iridium.local:443, https://iri
 	tls /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.crt /opt/nova-ha-dashboard/data/nova-dashboard-tls/server.key
 	import nova_routes
 }
+
+# authentik SSO (authentik/specs/authentik-sso.md, task 2). authentik's own
+# server container is published loopback-only (127.0.0.1:9000) — this is the
+# only way anything reaches it. A dedicated port (:9443), not a path under the
+# :443 vhost above, so a broken or being-upgraded authentik can never take the
+# kiosk/Apple TV dashboard down with it — those two vhosts and this one don't
+# share a handle block, don't share nova_routes, and Caddy reloading this file
+# for an authentik change cannot touch dashboard routing above. Same
+# `tls { get_certificate tailscale }` pattern as the :443 vhost: this node's
+# own MagicDNS name is nova.tuatara-dory.ts.net (see the history note above),
+# so this must stay "nova.…", never "iridium.…".
+https://nova.tuatara-dory.ts.net:9443 {
+	tls {
+		get_certificate tailscale
+	}
+	reverse_proxy 127.0.0.1:9000
+}
