@@ -6,6 +6,10 @@ Wants=network-online.target nova-ha-dashboard.service
 [Service]
 Type=simple
 User=antidamage
+# Optional; the proxy reads the token straight from
+# /etc/nova-camera-proxy.token (0640 root:antidamage) by default. This file
+# only matters if NOVA_CAMERA_PROXY_TOKEN_FILE needs overriding.
+EnvironmentFile=-/etc/nova-camera-proxy.env
 ExecStart=/usr/bin/python3 /opt/nova-ha-dashboard/ops/nocturnium-camera-proxy.py
 Restart=always
 RestartSec=3

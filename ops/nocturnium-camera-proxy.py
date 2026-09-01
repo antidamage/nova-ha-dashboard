@@ -11,7 +11,9 @@ service.
 
 from __future__ import annotations
 
+import hmac
 import http.client
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 
@@ -28,6 +30,38 @@ HOP_BY_HOP = {
     "upgrade",
 }
 RESPONSE_OWNED = {"access-control-allow-origin", "date", "server"}
+
+# Token file path; overridable via env for testing. Read fresh on every
+# request rather than cached at import time, so rotation just needs a file
+# rewrite, no service restart. See ops/nocturnium-camera-proxy.service and
+# authentik/specs/authentik-sso.md "Camera bypass contract".
+TOKEN_FILE = os.environ.get("NOVA_CAMERA_PROXY_TOKEN_FILE", "/etc/nova-camera-proxy.token")
+
+ALLOWED_ORIGINS = {
+    "http://nova.local",
+    "http://192.168.8.20",
+    "https://nova.tuatara-dory.ts.net",
+    "http://127.0.0.1",
+}
+
+
+def _read_token() -> str:
+    try:
+        with open(TOKEN_FILE, "r", encoding="utf-8") as handle:
+            return handle.read().strip()
+    except OSError:
+        return ""
+
+
+def _equal_secret(left: str, right: str) -> bool:
+    # Mirror lib/service-auth.ts's equalSecret: length check first, then a
+    # constant-time compare, so an empty configured token never matches an
+    # empty presented token.
+    if not left or not right:
+        return False
+    left_bytes = left.encode("utf-8")
+    right_bytes = right.encode("utf-8")
+    return len(left_bytes) == len(right_bytes) and hmac.compare_digest(left_bytes, right_bytes)
 
 
 class CameraProxy(BaseHTTPRequestHandler):
@@ -65,6 +99,17 @@ class CameraProxy(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
+        if not self._authorized():
+            body = b'{"error":"unauthorized"}'
+            self.send_response(401)
+            self._send_cors()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            if send_body:
+                self.wfile.write(body)
+            return
+
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length) if length else None
         upstream_path = "/api" + self.path
@@ -94,10 +139,21 @@ class CameraProxy(BaseHTTPRequestHandler):
         finally:
             connection.close()
 
+    def _authorized(self) -> bool:
+        expected = _read_token()
+        auth = self.headers.get("Authorization", "")
+        if not auth.lower().startswith("bearer "):
+            return False
+        presented = auth[len("Bearer "):].strip()
+        return _equal_secret(presented, expected)
+
     def _send_cors(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin", "")
+        if origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, PUT, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, Range, If-Modified-Since, If-None-Match, If-Range")
 
 
 if __name__ == "__main__":
