@@ -65,6 +65,11 @@ async function proxyCameraRequest(request: Request, context: RouteContext) {
   // Undici transparently decompresses upstream bodies. Requesting identity
   // keeps Content-Length valid when we relay the response unchanged.
   headers.set("accept-encoding", "identity");
+  // Server-side only — the video host requires this token and it must never
+  // reach client JS. See authentik/specs/authentik-sso.md "Camera bypass
+  // contract".
+  const cameraToken = process.env.NOVA_CAMERA_TOKEN?.trim();
+  if (cameraToken) headers.set("authorization", `Bearer ${cameraToken}`);
 
   const method = request.method.toUpperCase();
   const hasBody = !["GET", "HEAD"].includes(method);

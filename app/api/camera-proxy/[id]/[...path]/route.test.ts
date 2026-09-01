@@ -14,6 +14,7 @@ function context(path: string[]) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  delete process.env.NOVA_CAMERA_TOKEN;
 });
 
 describe("same-origin camera proxy", () => {
@@ -84,6 +85,45 @@ describe("same-origin camera proxy", () => {
     const result = await response.text();
     expect(result).not.toContain("seg_000010.ts");
     expect(result).toContain("seg_000011.ts");
+  });
+
+  it("attaches the server-side camera bearer token to the upstream request and never echoes it back", async () => {
+    process.env.NOVA_CAMERA_TOKEN = "s3cret-token-value";
+    readConfigMock.mockResolvedValue({
+      dashboard: { camera: { outside: { videoHostUrl: "http://nocturnium.local:8080" } } },
+    } as Awaited<ReturnType<typeof readDashboardConfig>>);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("#EXTM3U", {
+        status: 200,
+        headers: { "Content-Type": "application/vnd.apple.mpegurl" },
+      }),
+    );
+
+    const response = await GET(
+      new Request("https://nova.local/api/camera-proxy/outside/index.m3u8"),
+      context(["index.m3u8"]),
+    );
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer s3cret-token-value");
+    for (const [name, value] of response.headers) {
+      expect(name.toLowerCase()).not.toBe("authorization");
+      expect(value).not.toContain("s3cret-token-value");
+    }
+  });
+
+  it("sends no Authorization header upstream when NOVA_CAMERA_TOKEN is unset", async () => {
+    readConfigMock.mockResolvedValue({
+      dashboard: { camera: { outside: { videoHostUrl: "http://nocturnium.local:8080" } } },
+    } as Awaited<ReturnType<typeof readDashboardConfig>>);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("#EXTM3U", { status: 200, headers: { "Content-Type": "application/vnd.apple.mpegurl" } }),
+    );
+
+    await GET(new Request("https://nova.local/api/camera-proxy/outside/index.m3u8"), context(["index.m3u8"]));
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(new Headers(init?.headers).has("authorization")).toBe(false);
   });
 
   it("fails closed when no valid remote host is configured", async () => {
