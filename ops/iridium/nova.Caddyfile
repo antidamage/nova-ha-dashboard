@@ -236,7 +236,25 @@ http://nova.local, http://nova, http://iridium.local, http://iridium, http://192
 # `tls { get_certificate tailscale }` pattern as the :443 vhost: this node's
 # own MagicDNS name is nova.tuatara-dory.ts.net (see the history note above),
 # so this must stay "nova.…", never "iridium.…".
-https://nova.tuatara-dory.ts.net:9443 {
+#
+# Address is bare ":9443", NOT "https://nova.tuatara-dory.ts.net:9443" — a
+# hostname in the site address makes Caddy match incoming requests on the
+# HTTP Host header too, not just bind the listener/TLS cert. That broke every
+# forward_auth caller whose own external_host differs from nova's own name
+# (found live, budget/specs/system-overview.md task 6): a forward_auth call
+# from Indium's Caddy necessarily sets `Host: indium.tuatara-dory.ts.net:7001`
+# so that authentik's own per-provider lookup (which reads the raw Host
+# header, confirmed by direct testing — an explicit X-Forwarded-Host does NOT
+# override it) resolves to the *budget-site* provider instead of whichever
+# provider happens to share nova's own hostname. With a hostname'd site
+# address, that Host mismatch made this vhost match no route at all and
+# silently return a blank 200 — auth FAILED OPEN, not closed. `tls
+# nova.tuatara-dory.ts.net { get_certificate tailscale }` keeps the cert
+# selection exactly as before; only the HTTP-level host gate is removed. This
+# port is still loopback-proxied to authentik only, still fully separate from
+# the dashboard vhosts above, so the isolation the original comment describes
+# is unchanged.
+:9443 {
 	tls {
 		get_certificate tailscale
 	}
