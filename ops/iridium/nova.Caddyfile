@@ -172,33 +172,33 @@
 #     `/api/modules/{id}`.
 (config_gate_authed) {
 	@admin_any {
-		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/enrol /api/face/enrol/* /api/face/subjects /api/face/subjects/* /api/face/arm /api/face/health
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/arm /api/face/health
 		not path /api/config/client
 	}
-	# The face admin routes are in @admin_any ABOVE, not in @admin_writes below,
-	# and the difference is load-bearing. @admin_writes carries
-	# `method PUT POST PATCH DELETE`, so a GET matches neither matcher and falls
-	# through completely ungated. They were briefly in @admin_writes during the
-	# 2026-09-02 build; an adversarial review caught that
-	#     GET http://nova.local/api/face/subjects/<name>/thumbnail
-	# then served a household member's face photo to anyone on the LAN, with no
-	# session, no key and no TLS — the dashboard proxy supplies the key for the
-	# caller. Reads matter here as much as writes: listing subjects enumerates
-	# the household and the thumbnail IS the biometric. Gate face routes by
-	# PATH, never by method.
+	# Face routes and this gate, decided 2026-09-03.
 	#
-	# Why they are gated at all: they decide WHO the house recognises. Ungated,
-	# anyone who can load the dashboard could enrol their own face and — because
-	# a recognised face releases a passkey that yields a full estate SSO session
-	# — mint themselves that session.
+	# Adeline: "I don't care about spoofing. this is a convenience thing. assume
+	# that nobody with malicious intent will have access to my house."
 	#
-	# /api/face/challenge, /api/face/assert, /api/face/disarm and
-	# /api/face/sessions/revoke are deliberately NOT gated. The first two ARE the
-	# login path, and gating them behind a session that only exists after login
-	# locks everyone out; the other two only ever REDUCE access, and the veto has
-	# to work in seconds from a phone. They are protected instead inside
-	# nova-face-auth by network binding, the single-use nonce, and the lockout
-	# counter. See nova-ha-dashboard/specs/face-auth.md § Route gating.
+	# So /api/face/enrol* and /api/face/subjects* are NOT gated here any more.
+	# They sit behind the /config page gate already — the enrolment UI cannot be
+	# reached without passing it — and gating the XHR a second time bought
+	# nothing she values while adding a real failure: the outpost answers an
+	# unauthenticated fetch with a 302 to authentik, and a cross-origin redirect
+	# on an XHR surfaces in the browser as an opaque CORS error rather than
+	# "log in again". That is what broke live enrolment.
+	#
+	# /api/face/arm and /api/face/health STAY gated. `arm` clears a lockout, so
+	# it is the one face route that grants rather than merely records, and
+	# `health` reports the enrolled headcount. Both are page loads or admin
+	# actions, not XHR in a capture loop, so the redirect behaviour is correct
+	# for them.
+	#
+	# Whatever is gated must be matched by PATH in @admin_any, never by method in
+	# @admin_writes: that matcher carries `method PUT POST PATCH DELETE`, so a GET
+	# matches neither and falls through completely ungated. During this build that
+	# left GET on the subject thumbnail — the biometric itself — readable by
+	# anyone on the LAN.
 	@admin_writes {
 		method PUT POST PATCH DELETE
 		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
@@ -280,7 +280,7 @@
 
 (config_gate_denied) {
 	@admin_any {
-		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/enrol /api/face/enrol/* /api/face/subjects /api/face/subjects/* /api/face/arm /api/face/health
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/arm /api/face/health
 		not path /api/config/client
 	}
 	# Same face-route reasoning as config_gate_authed above. Note the consequence
@@ -315,6 +315,18 @@
 # and deploy-nova-dashboard.ps1 run it before `caddy validate`, so the value here
 # is only ever a starting point.
 #
+
+# Plain HTTP on the tailnet name. Without this block the Host matches no site
+# at all and Caddy answers 200 with a zero-length body (auto_https is off, so
+# there is no implicit redirect). That is indistinguishable from "the page
+# loaded" to curl and to the kiosk CDP probe, and renders as a white screen —
+# it cost a kiosk cutover on 2026-09-03 before anyone read Content-Length.
+# Redirect instead: the tailnet HTTPS origin is the only one the config gate
+# and face auth accept, so every plain-HTTP hit belongs there.
+http://nova.tuatara-dory.ts.net {
+	redir https://{host}{uri} 308
+}
+
 # History worth keeping: the retired nova-vm node held `nova` and logging it out
 # did NOT release the name — it sat "offline, last seen 1m ago" still holding it,
 # and the CLI could not claim it either (`tailscale set --hostname` was a silent

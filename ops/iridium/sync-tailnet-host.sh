@@ -69,7 +69,12 @@ python3 - "$CADDYFILE" "$current" "$owned" <<'PY'
 import os, stat, sys
 path, old, new = sys.argv[1], sys.argv[2], sys.argv[3]
 src = open(path, encoding="utf-8").read()
-out = src.replace(f"https://{old}:443", f"https://{new}:443")
+# Replace the bare name everywhere, not just the https vhost line. The name is
+# also written into the plain-HTTP redirect vhost, the authentik forward_auth
+# upstream (:9443) and its `header_up Host` lines — authentik matches its
+# provider by that host, so a rename that moved only the :443 line would leave
+# the config gate pointing at a name this node no longer owns.
+out = src.replace(old, new)
 if out == src:
     raise SystemExit("sync-tailnet-host: substitution matched nothing")
 # Write-and-rename rather than truncating in place: Caddy may be reading this
