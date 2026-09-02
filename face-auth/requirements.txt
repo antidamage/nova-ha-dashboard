@@ -1,0 +1,35 @@
+# Nova face-auth service.
+#
+# torch and torchvision are NOT listed: they come from the
+# pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime base image, which is the same
+# base camera-events uses, so the two services share image layers on the GPU
+# host rather than each carrying their own multi-gigabyte CUDA stack.
+#
+# Everything is pinned. A face service that silently picks up a different
+# ArcFace or a different anti-spoof preprocessing on a rebuild is a face
+# service whose calibrated thresholds no longer mean anything.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+
+# Detection and embedding. insightface builds a Cython extension at install
+# time, which is why the image needs build-essential.
+insightface==0.7.3
+onnxruntime-gpu==1.20.1
+# insightface imports these at runtime and does not pin them itself.
+scikit-image==0.24.0
+scikit-learn==1.5.2
+easydict==1.13
+Cython==3.0.11
+
+# Credential custody. PyNaCl is libsodium: crypto_secretbox for the seal and
+# Argon2id for the key derivation, one library rather than two.
+PyNaCl==1.5.0
+# CBOR and COSE encoding only. fido2 never holds a key here — custody is
+# authenticator/store.py's, so the sealing and zeroing are ours to prove.
+fido2==2.2.1
+cryptography==44.0.0

@@ -1015,6 +1015,71 @@ v4l2-ctl -d /dev/v4l/by-id/usb-MACROSILICON_AV_TO_USB2.0_20200909-video-index0 -
   labels never claim human identity or intent and uncertain cat/ute reference
   matches remain explicitly tentative.
 
+Face recognition and face-released passkey (`specs/face-auth.md`):
+
+- A separate LAN service on port 8099 answers "who is standing here" from a
+  short video clip: RetinaFace detection, ArcFace embeddings, a landmark-residual
+  liveness test and a texture anti-spoof model. It never opens a capture device
+  itself — it is a stateless verifier of clips submitted to it, so the kiosk, a
+  satellite or a script are all clients on equal terms.
+- Every endpoint requires the `X-Nova-Face-Key` header, `/healthz` included; an
+  unauthenticated health endpoint would advertise how many people are enrolled.
+  The service refuses to boot without the key and has no unauthenticated mode.
+- Caddy exposes it at `/face/*` on the HTTPS vhost only, gated on the same
+  header. The plain-HTTP vhost excludes it: the key would otherwise cross a
+  WiFi-only LAN in cleartext.
+- Browsers never hold that key. The dashboard proxies at same-origin
+  `/api/face/*` (`app/api/face/**`) and injects the header server-side in
+  `lib/face-auth-client.ts`. A key shipped to a browser is a key on every device
+  that loads the dashboard. Multipart clips stream through the proxy rather than
+  being parsed and re-encoded.
+- The ceremony, in brief: the browser starts the authentik flow and receives a
+  WebAuthn challenge; it posts that challenge plus a fresh nonce and a 1-second
+  clip to `/api/face/assert`; the service checks network binding, the nonce,
+  the armed state and the lockout counters, then liveness and identity, unseals
+  an ES256 credential held on the trusted host, signs, and zeroes the key; the
+  browser submits the assertion and authentik sets its own session cookie. The
+  passkey is the credential. **Face is only the release condition on its use and
+  is never itself a bearer credential** — nothing downstream accepts "the face
+  service said so" as proof.
+- Behavioural contract, and the part that must not be softened by a later
+  convenience change: **ambiguity and crowds are refusals, not guesses.** More
+  than one face in frame is `multiple_faces`; there is no "pick the biggest"
+  rule, because one of the others may be the person being walked past the camera
+  under duress. A match inside the runner-up margin is `ambiguous`. An unknown
+  face returns no subject rather than a nearest neighbour. A subject with no
+  mapped Discord veto channel gets no signature at all — an unvetoable release
+  is not a release.
+- Refusals name a stable machine-readable `reason`. The UI renders those strings
+  and deliberately shows the same text for `liveness_rigid` and `antispoof`, and
+  one text for all three lockout reasons: which signal caught an attempt is
+  calibration data in the service's `attempts` table, not a tuning aid to hand
+  back to whoever was caught.
+- Enrolment lives in `/config` under User Data, beside the voice speaker
+  profiles — household people and the identities recognised against them.
+  Consenting household members only; there is no path here to identifying anyone
+  who has not enrolled. Five clips at ordered angles, each passing the same
+  liveness gate as authentication, because an enrolment path that skips liveness
+  is a path to enrolling a photograph. Progress comes from the server's
+  `clipsSoFar`/`remaining`, so a rejected clip does not advance the count. Raw
+  frames are not retained — embeddings plus one thumbnail per subject.
+- Enrolment requires an authentik session and `getUserMedia` requires a secure
+  context, and only the HTTPS tailnet origin offers both. The UI detects
+  `window.isSecureContext` and explains that, rather than failing opaquely. The
+  camera picker prefers a device whose label does not look like a capture card,
+  so enrolment is not silently bound to a grabber carrying an outdoor camera; it
+  still lists every device, and it reads labels rather than fixed device paths,
+  so there is nothing host-specific in the dashboard.
+- Media tracks are released on unmount, on section collapse and after the final
+  clip.
+- Later, not now: `camera-events` `owner_identity()` (`camera-events/service.py`
+  around line 806) currently suppresses owner alerts by comparing whole-body
+  DINOv2 embeddings, and could instead call the face service's `/identify` for a
+  far better signal. `/identify` is deliberately liveness-free and token-free so
+  a background analysis pass can use it, and is never sufficient to let anybody
+  in. Design for that swap; do not build it — camera-events would need the key in
+  its own env file and a fallback for when the face service is down.
+
 Weather panel:
 
 - Displays current condition, feels-like, current temperature, min/max, rain
@@ -2741,6 +2806,25 @@ Primary deployment target:
 - Home Assistant: local container on port `8123`.
 - Matter server: port `5580`.
 - Mosquitto: localhost port `1883`.
+- Face service: `nova-face-auth.service`, localhost port `8099` (8098 is
+  camera-events). Every call to it carries `X-Nova-Face-Key`, read from
+  `/etc/nova-face-auth.env`; the unit has an `ExecStartPre` test for that file,
+  so no secret file means no service and never a default key. Caddy exposes it
+  at `/face/*` on the HTTPS vhost only, and the dashboard reaches it through
+  same-origin `/api/face/*` with the key injected server-side. `/api/face/enrol*`,
+  `/api/face/subjects*`, `/api/face/arm` and `/api/face/health` are behind
+  authentik forward-auth (tailnet origin only), matched **by path in
+  `@admin_any`, never by method in `@admin_writes`** — a method-filtered matcher
+  leaves GET ungated, which briefly made the subject thumbnail (the biometric
+  itself) readable by anyone on the LAN. `/api/face/challenge` and
+  `/api/face/assert` are deliberately ungated because they are the login path,
+  and `/api/face/disarm` and `/api/face/sessions/revoke` because they only ever
+  reduce access. The whole `/api/face/*` surface answers 421 on the plain-HTTP
+  vhost: the key never crosses the wire, but the request body is a video of
+  someone's face and the response carries the WebAuthn assertion. A failed face build is
+  non-fatal to the dashboard deploy, and the readiness probe reads the key
+  inside the remote shell rather than from the workstation. See §16 and
+  `specs/face-auth.md`.
 - CCTV capture: MacroSilicon MS210x / EasierCAP on Nova, exposed to the
   dashboard container through host `/dev` mounted read-only at `/host-dev` plus
   device-cgroup rule `c 81:* rwm` for V4L2 character devices.

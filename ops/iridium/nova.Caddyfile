@@ -36,12 +36,81 @@
 	# that reaches this Caddyfile at all — once the route itself was gone, every
 	# call fell through to the plain dashboard proxy below and got a 200-with-
 	# wrong-body/404, not a loud failure.
-	@llm path /internal-llm/*
+	# The matcher shape below was rewritten 2026-09-02 during the face-auth
+	# review. The PRE-EXISTING form was:
+	#     @authed header X-Nova-LLM-Key {$NOVA_LLM_KEY}
+	#     @unauthed not header X-Nova-LLM-Key {$NOVA_LLM_KEY}
+	# with the substitution UNQUOTED, which is a genuine defect worth writing
+	# down because it is invisible until the day it bites. {$VAR} is textual
+	# substitution performed BEFORE the Caddyfile is parsed, so an unset
+	# NOVA_LLM_KEY leaves the literal token list `header X-Nova-LLM-Key` —
+	# a one-argument header matcher. Measured against the Caddy actually
+	# installed here (v2.11.2, `caddy adapt` from stdin, 2026-09-02):
+	#   header X-K          -> "Error: malformed header matcher: expected both
+	#                           field and value" — a hard PARSE failure, so
+	#                           `caddy validate` does NOT pass and Caddy would
+	#                           refuse to start at all. Not fail-open on this
+	#                           version, but a total-ingress-outage risk.
+	#   header X-K ""       -> {"X-K":[""]} — an empty-string EQUALITY match.
+	#                           Fails closed for every real value, but still
+	#                           matches a deliberately empty header, which any
+	#                           caller can send (`curl -H "X-Nova-LLM-Key;"`).
+	# So quoting alone is necessary but not sufficient. The `route` block below
+	# is what makes it airtight: `route` evaluates in FILE order (ordinary
+	# directives inside `handle` are re-sorted into Caddy's standard directive
+	# order, where reverse_proxy runs before respond — so a plain `respond 403`
+	# guard placed above would never fire). Explicit empty-value denial first,
+	# then the equality check, then a default deny. Every path out of this block
+	# is a decision, none is a fall-through.
+	#
+	# The value still resolves from EnvironmentFile=-/etc/nova-caddy.env; see
+	# deploy-nova-dashboard.ps1, which now checks that file for a non-empty
+	# NOVA_LLM_KEY/NOVA_FACE_KEY before running `caddy validate`.
 	handle_path /internal-llm/* {
-		@authed header X-Nova-LLM-Key {$NOVA_LLM_KEY}
-		@unauthed not header X-Nova-LLM-Key {$NOVA_LLM_KEY}
-		reverse_proxy @authed 127.0.0.1:8765
-		respond @unauthed 403
+		route {
+			@empty_llm_key header X-Nova-LLM-Key ""
+			respond @empty_llm_key 403
+			@authed_llm header X-Nova-LLM-Key "{$NOVA_LLM_KEY}"
+			reverse_proxy @authed_llm 127.0.0.1:8765
+			respond 403
+		}
+	}
+
+	# Token-gated route onto nova-face-auth (127.0.0.1:8099, the face
+	# recognition/liveness/passkey service). Exists because browser callers need
+	# a secure context at all: MediaRecorder/getUserMedia are unavailable over
+	# plain HTTP, so the kiosk and browser satellites cannot reach
+	# http://iridium:8099 directly — this route is not a convenience.
+	#
+	# {$NOVA_FACE_KEY} is an env substitution, NOT a literal, for the same reason
+	# as NOVA_LLM_KEY above: this repo has a public GitHub remote and a literal
+	# secret here leaks on the next push. It resolves from
+	# EnvironmentFile=-/etc/nova-caddy.env, created by hand once per host and NOT
+	# part of this repo or touched by deploy-nova-dashboard.ps1:
+	#   echo 'NOVA_FACE_KEY=<token>' | sudo tee -a /etc/nova-caddy.env
+	# The same value goes in /etc/nova-face-auth.env, which is what the service
+	# itself checks — Caddy's header match here is only a perimeter convenience,
+	# the service enforces X-Nova-Face-Key on every endpoint including /healthz,
+	# so bypassing Caddy on the LAN port gains nothing.
+	#
+	# This route is for NON-BROWSER LAN callers (scripts, satellites, other
+	# hosts) that can hold the shared key. Browsers must NOT use it: they go
+	# through the dashboard's own same-origin /api/face/* proxy, which attaches
+	# the key server-side, so the key never reaches a browser at all.
+	# Same three-step `route` shape as /internal-llm/* above, for the reasons
+	# measured and written up there: quote the substitution so an unset
+	# NOVA_FACE_KEY cannot refuse the whole config and take every Caddy route
+	# down with it, and deny the empty-value header explicitly first, because a
+	# quoted-but-unset key degrades to an empty-string equality match that any
+	# caller can satisfy with `curl -H "X-Nova-Face-Key;"`.
+	handle_path /face/* {
+		route {
+			@empty_face_key header X-Nova-Face-Key ""
+			respond @empty_face_key 403
+			@authed_face header X-Nova-Face-Key "{$NOVA_FACE_KEY}"
+			reverse_proxy @authed_face 127.0.0.1:8099
+			respond 403
+		}
 	}
 
 	@voice path /voice-satellite
@@ -103,9 +172,33 @@
 #     `/api/modules/{id}`.
 (config_gate_authed) {
 	@admin_any {
-		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/*
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/enrol /api/face/enrol/* /api/face/subjects /api/face/subjects/* /api/face/arm /api/face/health
 		not path /api/config/client
 	}
+	# The face admin routes are in @admin_any ABOVE, not in @admin_writes below,
+	# and the difference is load-bearing. @admin_writes carries
+	# `method PUT POST PATCH DELETE`, so a GET matches neither matcher and falls
+	# through completely ungated. They were briefly in @admin_writes during the
+	# 2026-09-02 build; an adversarial review caught that
+	#     GET http://nova.local/api/face/subjects/<name>/thumbnail
+	# then served a household member's face photo to anyone on the LAN, with no
+	# session, no key and no TLS — the dashboard proxy supplies the key for the
+	# caller. Reads matter here as much as writes: listing subjects enumerates
+	# the household and the thumbnail IS the biometric. Gate face routes by
+	# PATH, never by method.
+	#
+	# Why they are gated at all: they decide WHO the house recognises. Ungated,
+	# anyone who can load the dashboard could enrol their own face and — because
+	# a recognised face releases a passkey that yields a full estate SSO session
+	# — mint themselves that session.
+	#
+	# /api/face/challenge, /api/face/assert, /api/face/disarm and
+	# /api/face/sessions/revoke are deliberately NOT gated. The first two ARE the
+	# login path, and gating them behind a session that only exists after login
+	# locks everyone out; the other two only ever REDUCE access, and the veto has
+	# to work in seconds from a phone. They are protected instead inside
+	# nova-face-auth by network binding, the single-use nonce, and the lockout
+	# counter. See nova-ha-dashboard/specs/face-auth.md § Route gating.
 	@admin_writes {
 		method PUT POST PATCH DELETE
 		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
@@ -187,9 +280,15 @@
 
 (config_gate_denied) {
 	@admin_any {
-		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/*
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/enrol /api/face/enrol/* /api/face/subjects /api/face/subjects/* /api/face/arm /api/face/health
 		not path /api/config/client
 	}
+	# Same face-route reasoning as config_gate_authed above. Note the consequence
+	# on the LAN vhosts specifically: this snippet answers a flat 403 with no
+	# login path, so face ENROLMENT is not possible over the LAN identity at all
+	# — it must be done from the tailnet origin, which is also the only origin
+	# whose certificate is publicly trusted and therefore the only one where
+	# getUserMedia will hand the capture UI a camera. That is deliberate.
 	@admin_writes {
 		method PUT POST PATCH DELETE
 		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
@@ -257,6 +356,33 @@ https://nova.local:443, https://nova:443, https://iridium.local:443, https://iri
 # has no way to accept that redirect meaningfully for a plain HTTP request
 # from a device with no household CA installed.
 http://nova.local, http://nova, http://iridium.local, http://iridium, http://192.168.8.20, http://100.104.57.108 {
+	# /face/* is HTTPS-only. nova_routes below defines it, and this block would
+	# otherwise serve it in the clear: every non-browser caller authenticates
+	# with the X-Nova-Face-Key shared header, and Nova is WiFi-only, so a
+	# plaintext :80 face route puts that key on the air on every call. Claimed
+	# here, ahead of `import nova_routes`, because `handle` blocks are evaluated
+	# in file order within a site.
+	#
+	# 421 rather than 403: the request is not forbidden, it arrived on the wrong
+	# origin, and the message says so. Nothing legitimate uses this path over
+	# :80 — browsers cannot (getUserMedia needs a secure context) and the LAN
+	# HTTPS vhost above is available to anything holding the household CA.
+	handle /face/* {
+		respond "face auth requires HTTPS; use the tailnet origin" 421
+	}
+	# /api/face/* is blocked here for the same reason, extended to cover what the
+	# first version of this guard missed. The shared key never crosses the wire
+	# on these routes (the dashboard proxy injects it server-side), but the
+	# REQUEST BODY of /api/face/assert and /api/face/enrol is a one-second video
+	# of somebody's face, and the RESPONSE carries the WebAuthn assertion. On a
+	# WiFi-only network that is worse than the key.
+	#
+	# Nothing legitimate is lost: browsers cannot reach these over :80 anyway,
+	# because getUserMedia and MediaRecorder are unavailable outside a secure
+	# context, so there is no client that can produce a clip to post here.
+	handle /api/face/* {
+		respond "face auth requires HTTPS; use the tailnet origin" 421
+	}
 	import config_gate_denied
 	import nova_routes
 }

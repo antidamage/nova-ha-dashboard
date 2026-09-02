@@ -268,7 +268,13 @@ describe("the real Discord module package", () => {
 
       const summaries = await store.moduleSummaries();
       expect(summaries[0]).toMatchObject({ id: "discord-bot", hasServer: true, hasClient: true });
-      expect(summaries[0].secrets).toEqual([{ name: "discord.botToken", configured: false }]);
+      // Two secrets since 2026-09-02: the bot token, and the key the face
+      // service signs its `face.session.opened` notices with. Unset, the module
+      // refuses every notice rather than DMing an unauthenticated one.
+      expect(summaries[0].secrets).toEqual([
+        { name: "discord.botToken", configured: false },
+        { name: "discord.faceVetoKey", configured: false },
+      ]);
 
       // The token must be a secret-typed field, or export would leak it.
       const manifest = await store.readManifest("discord-bot");

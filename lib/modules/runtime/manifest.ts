@@ -42,7 +42,31 @@ const GroupFieldSchema = z.object({
   properties: z.record(z.string().max(60), LeafFieldSchema),
 });
 
-const FieldSchema = z.union([LeafFieldSchema, GroupFieldSchema]);
+/**
+ * A repeating row of leaves. Added 2026-09-02 for the Discord module's
+ * `accounts` mapping (Discord account -> SSO account), which is genuinely a
+ * list: a household can have more than one person whose face may open a
+ * session, and each needs its own veto recipient.
+ *
+ * Deliberately shallow — rows of leaves only, no nested groups and no arrays
+ * of arrays. The form renders rows of the same controls it already renders for
+ * a group, so this stays inside the "nothing the form cannot render" rule
+ * above rather than opening the schema to arbitrary JSON.
+ */
+const ArrayFieldSchema = z.object({
+  type: z.literal("array"),
+  title: z.string().max(80).optional(),
+  description: z.string().max(300).optional(),
+  maxItems: z.number().int().positive().max(50).optional(),
+  items: z.object({
+    type: z.literal("object"),
+    properties: z.record(z.string().max(60), LeafFieldSchema),
+  }),
+});
+
+export type ModuleConfigArrayField = z.infer<typeof ArrayFieldSchema>;
+
+const FieldSchema = z.union([LeafFieldSchema, GroupFieldSchema, ArrayFieldSchema]);
 
 export type ModuleConfigField = z.infer<typeof FieldSchema>;
 
