@@ -239,17 +239,41 @@ that is already compromised**. See the threat model above.
 
 | | value |
 |---|---|
-| RP ID | `tuatara-dory.ts.net` |
-| Origin, pinned | `https://nova.tuatara-dory.ts.net` |
+| RP ID | `nova.tuatara-dory.ts.net` |
+| Origin, pinned | `https://nova.tuatara-dory.ts.net:9443` |
 
 Both are configuration in `/etc/nova-face-auth.env` (`WEBAUTHN_RP_ID`,
 `WEBAUTHN_ORIGIN`), never constants — they are household hostnames and this repo
 is public.
 
-The RP ID is the **parent** domain, not the dashboard's own host, matching
-authentik's cookie domain (`authentik-sso.md` §Decisions). One credential then
-covers every estate service under that parent, which is the point of the
-domain-level session.
+**Corrected 2026-09-02, against the live instance.** This section previously
+specified the *parent* domain `tuatara-dory.ts.net`, reasoning that a
+parent-domain RP ID would let one credential cover every estate service.
+authentik cannot do that. Its
+`authentik/stages/authenticator_webauthn/utils.py` derives both values from the
+request:
+
+```python
+def get_rp_id(request):   # the Host header, minus the port
+def get_origin(request):  # request.build_absolute_uri("/"), minus the trailing slash
+```
+
+There is no stage field, no brand field, no setting and no environment variable
+for either — so the RP ID is whatever host the flow is served on, and the origin
+carries the port. Since authentik is fronted at `:9443`, the achievable values
+are the ones in the table.
+
+**This costs nothing.** The estate-wide reach of the session comes from
+authentik's *cookie* domain, which is configured independently and is still
+`tuatara-dory.ts.net`. A face-released session covers every service exactly as
+intended; only the credential's scope is narrower, and a credential this daemon
+holds is never presented anywhere else anyway. The original reasoning was sound
+and simply did not apply.
+
+Changing it would mean routing `/api/v3/flows/**`, `/flows/**` and `/static/**`
+on the `:443` tailnet vhost to `127.0.0.1:9000` with `header_up Host`, and
+driving the flow from that origin. Not done: it edits shared ingress to buy a
+cosmetic difference.
 
 **The oracle constructs `clientDataJSON` itself, with the pinned origin,
 regardless of where the clip came from.** That is correct, not a shortcut,

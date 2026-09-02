@@ -103,19 +103,45 @@ class AuthentikClient:
         `credential_id` and `public_key` are the base64url values the store
         returned. No private material crosses this boundary, because none is
         ever available to a caller of the store in the first place.
+
+        **This endpoint cannot do the job, verified live against authentik
+        2026.8.0 on 2026-09-02.** `WebAuthnDeviceSerializer.Meta.fields` is
+        `["pk", "name", "created_on", "device_type", "aaguid", "user"]`, with
+        `user` and `aaguid` read-only. `credential_id`, `public_key` and
+        `rp_id` are not serializer fields at all, yet they are NOT NULL columns
+        on the model, so the create path raises and the API answers **HTTP
+        500**. Probed with a superuser token; zero devices were created.
+
+        No configuration changes this — it is the shape of the serializer. The
+        method is kept because the endpoint is the right one in principle and
+        may gain the fields upstream; it raises rather than pretending, so a
+        caller cannot mistake a 500 for a registration.
+
+        Until then, registration is a deliberate, one-off, hands-on operation
+        via the ORM inside the container:
+
+            docker exec -it authentik-server-1 ak shell
+            WebAuthnDevice.objects.create(
+                user=u, name=..., credential_id=<b64url>, public_key=<b64url>,
+                sign_count=0, rp_id="nova.tuatara-dory.ts.net",
+                aaguid="00000000-0000-0000-0000-000000000000",
+                confirmed=True)
+
+        `confirmed=True` is required or the validate stage cannot see the
+        device — that one is easy to miss and presents as "the flow says I have
+        no authenticator" long after the credential exists.
+
+        Being hands-on suits it: registration is the credential-issuing step,
+        it happens once per household member, and the spec already says it gets
+        the strongest gate available. An automated path here would be a
+        standing capability to mint estate-wide credentials, which is the last
+        thing this design wants sitting around.
         """
 
-        return self._call(
-            "POST",
-            "/api/v3/authenticators/admin/webauthn/",
-            {
-                "user": self.user_id(username),
-                "name": name,
-                "credential_id": credential_id,
-                "public_key": public_key,
-                "sign_count": sign_count,
-                "aaguid": aaguid,
-            },
+        raise NotImplementedError(
+            "authentik's admin WebAuthn serializer cannot accept credential_id/public_key "
+            "(HTTP 500 on create, verified against 2026.8.0). Register via `ak shell` — "
+            "see this docstring."
         )
 
     # -- revocation -------------------------------------------------------
