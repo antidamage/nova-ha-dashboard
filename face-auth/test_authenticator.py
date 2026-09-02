@@ -315,11 +315,19 @@ class KeyMaterialTests(OracleTestCase):
         self.assertNotIn(ctap.b64url(scalar).encode(), blob)
         for field, value in assertion.items():
             self.assertNotIsInstance(value, (bytes, bytearray), field)
+        # The key set is pinned so a field cannot be added without someone
+        # deciding it carries nothing private. `credential` was added
+        # 2026-09-03 for the WebAuthn wire shape; its contents are checked
+        # below and by AssertionWireShapeTests.
         self.assertEqual(
             set(assertion),
-            {"subject", "credentialId", "clientDataJSON", "authenticatorData", "signature",
-             "userHandle", "signCount"},
+            {"subject", "credential", "credentialId", "clientDataJSON", "authenticatorData",
+             "signature", "userHandle", "signCount"},
         )
+        nested = assertion["credential"]
+        self.assertNotIn(scalar, json.dumps(nested).encode())
+        for field, value in nested["response"].items():
+            self.assertNotIsInstance(value, (bytes, bytearray), field)
 
     def test_no_helper_hands_back_a_private_key(self):
         self.registered()
@@ -433,3 +441,44 @@ class AuthentikClientTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AssertionWireShapeTests(OracleTestCase):
+    """The assertion is emitted in WebAuthn's own JSON shape.
+
+    A relying party parses the structure before it looks the credential up, so
+    a flat payload fails as "Invalid device" — the same error an unknown
+    credential gives. That sent the first live ceremony chasing the
+    registration when the payload was the problem.
+    """
+
+    def assertion(self):
+        self.registered()
+        self.release("wire-shape")
+        return self.store.sign_assertion(
+            subject_id=SUBJECT, challenge=self.rp.challenge(), config=CONFIG,
+            release_token="wire-shape", now=1001.0,
+        )
+
+    def test_the_credential_uses_the_browser_wire_shape(self):
+        credential = self.assertion()["credential"]
+        self.assertEqual(
+            sorted(credential), ["clientExtensionResults", "id", "rawId", "response", "type"]
+        )
+        self.assertEqual(credential["type"], "public-key")
+        self.assertEqual(credential["id"], credential["rawId"])
+        self.assertEqual(
+            sorted(credential["response"]),
+            ["authenticatorData", "clientDataJSON", "signature", "userHandle"],
+        )
+
+    def test_the_nested_response_matches_the_flat_aliases(self):
+        assertion = self.assertion()
+        for field in ("clientDataJSON", "authenticatorData", "signature", "userHandle"):
+            self.assertEqual(assertion["credential"]["response"][field], assertion[field], field)
+        self.assertEqual(assertion["credential"]["id"], assertion["credentialId"])
+
+    def test_no_private_material_appears_anywhere_in_the_payload(self):
+        blob = json.dumps(self.assertion()).lower()
+        for forbidden in ("private", "sealed", "secret", "scalar", "dek"):
+            self.assertNotIn(forbidden, blob, forbidden)
