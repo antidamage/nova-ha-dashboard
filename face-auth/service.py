@@ -728,6 +728,44 @@ def require_authentik_identity(request: Request) -> str:
     raise Refusal(403, "authentik_session_required")
 
 
+def require_dashboard_proxy(request: Request) -> str | None:
+    """Proof the request came through the dashboard's proxy. Identity optional.
+
+    For enrolment and the subject routes, decided 2026-09-03. Adeline: "I don't
+    care about spoofing. this is a convenience thing. assume that nobody with
+    malicious intent will have access to my house."
+
+    The enrolment UI already sits behind the /config forward-auth gate, so
+    reaching it at all means passing authentik. Requiring the identity header
+    on the XHR as well meant the outpost answered an unauthenticated fetch with
+    a 302 to the IdP, and a cross-origin redirect on an XHR is an opaque CORS
+    error in the browser rather than "log in again" -- which is exactly how
+    live enrolment failed.
+
+    The proxy secret is still required, so this is not open: the request must
+    still have come through the dashboard's server-side proxy, and the shared
+    API key alone does not satisfy it. What is dropped is the second, redundant
+    proof of *who* was logged in. The identity is still returned when present,
+    so the audit row keeps it.
+
+    `/arm` keeps `require_authentik_identity`: clearing a lockout is the one
+    face route that grants rather than records.
+    """
+
+    supplied = request.headers.get(PROXY_SECRET_HEADER, "")
+    if not PROXY_SECRET or not hmac.compare_digest(supplied, PROXY_SECRET):
+        LOG.warning(
+            "request to %s without dashboard proxy provenance from %s",
+            request.url.path, client_ip(request),
+        )
+        raise Refusal(403, "authentik_session_required")
+    for header in AUTHENTIK_IDENTITY_HEADERS:
+        value = request.headers.get(header, "").strip()
+        if value:
+            return value
+    return None
+
+
 def require_subject_id(subject_id: str) -> str:
     """Validate a subject id at the boundary. Reject, never sanitise.
 
@@ -1605,7 +1643,7 @@ async def enrol(request: Request, subject: str, clip: UploadFile = File(...), no
 
     # Registering a face is a credential-issuing action and gets the strongest
     # gate available: password + TOTP, from the tailnet origin.
-    require_authentik_identity(request)
+    require_dashboard_proxy(request)
     require_subject_id(subject)
     payload = await read_bounded(request, clip)
     if nonce is not None and not store().consume_challenge(nonce):
@@ -1685,7 +1723,7 @@ def write_thumbnail(subject_id: str, frame: np.ndarray, bbox: tuple[float, float
 def subjects(request: Request) -> list[dict[str, Any]]:
     # Listing subjects enumerates the household; deleting one deletes a
     # credential. Both are admin actions.
-    require_authentik_identity(request)
+    require_dashboard_proxy(request)
     with store().lock:
         rows = store().connection.execute("SELECT * FROM subjects ORDER BY created_at").fetchall()
     result = []
@@ -1706,7 +1744,7 @@ def thumbnail(request: Request, subject_id: str) -> FileResponse:
     # dashboard proxy injects that key for whoever asked, so without this check
     # the route serves a face crop to anyone who can reach the dashboard. Same
     # identity requirement as every sibling subject route.
-    require_authentik_identity(request)
+    require_dashboard_proxy(request)
     require_subject_id(subject_id)
     row = store().subject(subject_id)
     if row is None or not row["thumbnail"] or not Path(row["thumbnail"]).is_file():
@@ -1716,7 +1754,7 @@ def thumbnail(request: Request, subject_id: str) -> FileResponse:
 
 @app.delete("/subjects/{subject_id}")
 def delete_subject(request: Request, subject_id: str) -> dict[str, Any]:
-    require_authentik_identity(request)
+    require_dashboard_proxy(request)
     require_subject_id(subject_id)
     if not store().delete_subject(subject_id):
         raise Refusal(404, "not_found")
