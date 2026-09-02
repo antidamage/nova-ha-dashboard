@@ -56,10 +56,18 @@ describe("camera preference", () => {
 });
 
 describe("prompts and refusal strings", () => {
-  it("walks the five angles in order and then repeats a generic prompt", () => {
+  it("walks the five angles in order", () => {
     expect(anglePrompt(0)).toBe("Look straight at the camera.");
     expect(anglePrompt(4)).toBe("Tilt your chin down a little.");
-    expect(anglePrompt(5)).toBe("One more from any angle.");
+  });
+
+  it("cycles the angles for a second set rather than going generic", () => {
+    // A person may hold more than one appearance, so enrolment continues past
+    // the fifth clip. Saturating left every later clip unguided, which is how a
+    // second set becomes five frontal clips covering none of the first's poses.
+    expect(anglePrompt(5)).toBe("Look straight at the camera.");
+    expect(anglePrompt(9)).toBe("Tilt your chin down a little.");
+    expect(anglePrompt(10)).toBe("Look straight at the camera.");
   });
 
   it("renders the spec's strings and collapses the signals it must not disclose", () => {
