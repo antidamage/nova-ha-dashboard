@@ -1,0 +1,14 @@
+# Shell scripts, systemd units and the Caddyfile are executed by bash/systemd on
+# Linux. A CRLF line ending is invisible in a diff and fatal at runtime: bash
+# reads `set -euo pipefail\r` as an invalid option name and exits 2.
+#
+# That is not hypothetical. ops/iridium/sync-tailnet-host.sh was committed with
+# CRLF and, when it started failing, it took the dashboard deploy down with it
+# mid-run -- after the Caddyfile had been installed but before Caddy was
+# restarted, leaving the host serving a config three minutes older than the file
+# on disk. The face routes looked ungated in /etc/caddy/nova.Caddyfile while the
+# running Caddy still gated them, which is a genuinely confusing state to debug.
+*.sh      text eol=lf
+*.service text eol=lf
+Caddyfile  text eol=lf
+*.Caddyfile text eol=lf
