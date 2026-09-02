@@ -48,7 +48,20 @@ CLIP_MIN_SECONDS = 0.8
 CLIP_MAX_SECONDS = 2.5
 CLIP_MIN_FPS = 20.0
 CLIP_MAX_BYTES = 8 * 1024 * 1024
-ENROL_CENTROID_MAX = 0.30
+# Max cosine distance from the nearest already-accepted clip. 0.45, raised from
+# 0.30 on 2026-09-03 with measurements in hand.
+#
+# Adeline's five clips — one session, one appearance — already spanned 0.076 to
+# 0.368 from their own centre, with pairs 0.849 apart. A limit of 0.30 was
+# therefore marginal for a SINGLE appearance and would have refused a second one
+# (wig on, glasses off) outright.
+#
+# 0.45 still separates the cases that matter. Two different people's ArcFace
+# vectors are near-orthogonal — cosine around 0, so distance near 1.0 — an order
+# of magnitude past this. What this rule catches is a clip that resembles nothing
+# the subject has enrolled; what protects identity is `conflicts_with_subject`,
+# which is unchanged and refuses any clip resembling a DIFFERENT enrolled person.
+ENROL_CENTROID_MAX = 0.45
 ENROL_MIN_CLIPS = 5
 SAMPLE_FRAMES = 25
 
@@ -416,8 +429,8 @@ def enrolment_consistency(
 ) -> ConsistencyReport:
     """Check a subject's accepted embeddings, newest last, against two rules.
 
-    Every member must sit within `centroid_max` cosine distance of the running
-    centroid of the ones before it, and no member may sit within
+    Every member must sit within `centroid_max` cosine distance of the NEAREST
+    member accepted before it, and no member may sit within
     `match_cosine` of a *different* existing subject — two overlapping
     galleries mean neither person can be matched unambiguously afterwards, and
     the failure surfaces long after enrolment if it is not caught here.
@@ -442,7 +455,25 @@ def enrolment_consistency(
             )
         if index == 0:
             continue
-        distance = 1.0 - float(np.dot(vector, centroid(normalised[:index])))
+        # Distance to the NEAREST clip already accepted, not to their centroid.
+        #
+        # A centroid assumes one appearance. Adeline wears a wig sometimes and
+        # glasses sometimes, and either changes the embedding: glasses more than
+        # the wig, because ArcFace aligns on the eyes and crops to roughly
+        # eyebrows-to-chin, so the frames sit across the most heavily weighted
+        # region while most hair falls outside the crop. Enrolling the second
+        # appearance is the whole fix for that -- matching is max-per-subject
+        # (`gallery_scores`), so a wig-on attempt only has to match the wig-on
+        # clips. A centroid rule makes that impossible: the second appearance is
+        # far from the mean of the first by construction, and gets refused as
+        # "inconsistent" before it can ever be stored.
+        #
+        # Nearest-member lets a subject hold several appearance clusters while
+        # still refusing a clip that resembles nothing they have enrolled. The
+        # rule that actually protects identity is the `conflicts_with_subject`
+        # check above, which is unchanged: no clip may look like a DIFFERENT
+        # enrolled person.
+        distance = min(1.0 - float(np.dot(vector, other)) for other in normalised[:index])
         if distance > centroid_max:
             return ConsistencyReport(
                 ok=False, index=index, reason="inconsistent", centroid_distance=distance,
@@ -452,7 +483,10 @@ def enrolment_consistency(
 
     last = normalised[-1]
     conflicts = gallery_scores(last, others)
-    distance = 0.0 if len(normalised) == 1 else 1.0 - float(np.dot(last, centroid(normalised[:-1])))
+    distance = (
+        0.0 if len(normalised) == 1
+        else min(1.0 - float(np.dot(last, other)) for other in normalised[:-1])
+    )
     return ConsistencyReport(
         ok=True, index=None, reason=None, centroid_distance=distance,
         nearest_other_subject=conflicts[0][0] if conflicts else None,
