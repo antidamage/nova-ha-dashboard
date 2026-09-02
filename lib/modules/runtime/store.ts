@@ -239,6 +239,30 @@ export function coerceModuleConfig(
   const source = isRecord(input) ? input : {};
   const out: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(manifest.configSchema.properties)) {
+    if (field.type === "array") {
+      // Rows of leaves. A row that coerces to nothing at all is dropped rather
+      // than kept as {} -- an empty row in a mapping like the Discord module's
+      // `accounts` is not a mapping, and keeping it would let a half-filled row
+      // look like a configured one.
+      const rows = Array.isArray(source[key]) ? (source[key] as unknown[]) : [];
+      const limit = field.maxItems ?? 50;
+      const coerced: Record<string, unknown>[] = [];
+      for (const row of rows.slice(0, limit)) {
+        const nestedRow = isRecord(row) ? (row as Record<string, unknown>) : {};
+        const out_row: Record<string, unknown> = {};
+        for (const [childKey, child] of Object.entries(field.items.properties)) {
+          const value = coerceLeaf(child, nestedRow[childKey]);
+          if (value !== undefined) {
+            out_row[childKey] = value;
+          }
+        }
+        if (Object.keys(out_row).length > 0) {
+          coerced.push(out_row);
+        }
+      }
+      out[key] = coerced;
+      continue;
+    }
     if (field.type === "object") {
       const nested = isRecord(source[key]) ? (source[key] as Record<string, unknown>) : {};
       const group: Record<string, unknown> = {};
@@ -292,6 +316,23 @@ function coerceLeaf(
 export function exportableModuleConfig(manifest: ModuleManifest, config: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(manifest.configSchema.properties)) {
+    if (field.type === "array") {
+      const rows = Array.isArray(config[key]) ? (config[key] as unknown[]) : [];
+      out[key] = rows.map((row) => {
+        const nestedRow = isRecord(row) ? (row as Record<string, unknown>) : {};
+        const out_row: Record<string, unknown> = {};
+        for (const [childKey, child] of Object.entries(field.items.properties)) {
+          if (child.format === "secret") {
+            continue;
+          }
+          if (childKey in nestedRow) {
+            out_row[childKey] = nestedRow[childKey];
+          }
+        }
+        return out_row;
+      });
+      continue;
+    }
     if (field.type !== "object") {
       if (field.format === "secret") {
         continue;

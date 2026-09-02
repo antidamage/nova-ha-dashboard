@@ -1,0 +1,62 @@
+[Unit]
+Description=Nova face recognition, liveness and passkey authentication service
+After=network-online.target docker.service nova-ha-dashboard.service nova-voice.service
+Wants=network-online.target
+Requires=docker.service
+# Iridium is 15.4 GB with a documented hard-hang history from RAM exhaustion
+# under the voice stack, and carries several GB in swap at rest. Ordering after
+# nova-voice.service means model warm-up does not race the voice stack for the
+# memory nova-voice's nova-mem-gate drop-in assumes is there. This is ordering
+# only, not a dependency: face auth must not keep the voice stack from starting,
+# and a stopped voice service must not stop this one.
+StartLimitIntervalSec=300
+StartLimitBurst=4
+
+[Service]
+Type=simple
+# on-failure, NOT always. Under memory pressure the OOM killer takes the
+# container, `always` brings it straight back, and it reloads three ONNX models
+# on a host that just proved it had no room for them — a restart loop that
+# amplifies the exact condition that causes this box to hang. The start limit
+# above latches it off after four attempts in five minutes so the failure stays
+# visible in systemctl status instead of churning.
+Restart=on-failure
+RestartSec=10
+# Belt to the docker --memory brace: the cgroup ceiling applies even if the unit
+# is ever started by hand without the docker flag.
+#
+# 4G, not the 6G first drafted. Measured on iridium 2026-09-02:
+#   total 15386M, used 7111M, available 8274M, swap 4743M of 16383M already in use
+# A 6G ceiling fully consumed leaves ~2.2G available, which is BELOW the 3584M
+# that nova-voice.service's nova-mem-gate drop-in assumes is there -- on a host
+# with a documented hard-hang history from RAM exhaustion. This is a ceiling and
+# not a reservation, so lowering it costs nothing unless the service genuinely
+# needs more than 4G; the resident set is three ONNX models (det_10g ~17M,
+# w600k_r50 ~166M, MiniFASNet ~4M) plus the torch/opencv runtime. If it ever
+# OOMs at 4G, re-measure `free -m` before raising it rather than raising it and
+# hoping.
+MemoryMax=4G
+# No secret file, no service. This runs BEFORE the rm/install lines so a host
+# that has never been provisioned refuses to start rather than coming up with a
+# default key and serving face auth to anything on the LAN. /etc/nova-face-auth.env
+# is created by hand per host (NOVA_FACE_KEY, NOVA_FACE_HOST_SECRET, the
+# AUTHENTIK_* flow settings, WEBAUTHN_RP_ID, WEBAUTHN_ORIGIN) and is deliberately
+# not in this repo, which has a public remote.
+ExecStartPre=/usr/bin/test -f /etc/nova-face-auth.env
+ExecStartPre=-/usr/bin/docker rm -f nova-face-auth
+ExecStartPre=/usr/bin/install -d -m 0755 /opt/nova-ha-dashboard/data/face-auth
+# --gpus all exposes the device; it does not reserve VRAM. Eviction order on this
+# host is TTS-first, so when the LLM/TTS own the card the service must keep
+# answering: models.py resolves CUDAExecutionProvider -> CPUExecutionProvider per
+# session with the failure caught, and /healthz reports which provider is live.
+# Nothing here may make a short-VRAM host exit the container instead of degrading.
+ExecStart=/usr/bin/docker run --rm --name nova-face-auth --network host --gpus all \
+  --memory=4g --shm-size=1g \
+  --env-file /etc/nova-face-auth.env \
+  -e NOVA_FACE_AUTH_DATA=/data \
+  -v /opt/nova-ha-dashboard/data/face-auth:/data \
+  nova-face-auth:local
+ExecStop=/usr/bin/docker stop nova-face-auth
+
+[Install]
+WantedBy=multi-user.target
