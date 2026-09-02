@@ -483,8 +483,8 @@ export function FaceEnrolmentConfig() {
       <div className="grid gap-3">
         <p className="text-sm leading-relaxed text-neutral-400">
           Household faces Nova recognises, and the passkey release each one authorises. Five short
-          clips at different angles; the raw video is never kept, only the maths derived from it and
-          one thumbnail.
+          clips at different angles. No image of anyone is kept — not the video, not a still. What
+          is stored is a 512-number vector per clip, which cannot be turned back into a picture.
         </p>
 
         {secureContext === false ? (
@@ -606,13 +606,10 @@ export function FaceEnrolmentConfig() {
               key={subject.id}
               className="flex items-center gap-3 border border-neutral-800 bg-black/20 px-3 py-2 text-xs"
             >
-              {/* Routed through the proxy: the service wants the key on every
-                  endpoint, and an <img src> cannot carry a header. */}
-              <img
-                src={`/api/face/subjects/${encodeURIComponent(subject.id)}/thumbnail`}
-                alt=""
-                className="h-10 w-10 border border-neutral-800 object-cover"
-              />
+              {/* No face image is shown because none is stored. This used to be
+                  an <img> of a 256px crop; the crop is gone, so the row is a
+                  name and a clip count. Adeline, 2026-09-03: "I don't want to
+                  store the video and thumbnail at all for a user." */}
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-neutral-200">{subject.name}</p>
                 <p className="text-neutral-500">

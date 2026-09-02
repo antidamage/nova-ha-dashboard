@@ -204,7 +204,6 @@ class Store:
 
     def __init__(self) -> None:
         DATA_ROOT.mkdir(parents=True, exist_ok=True)
-        THUMBNAIL_ROOT.mkdir(parents=True, exist_ok=True)
         self.lock = threading.RLock()
         self.connection = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
@@ -383,10 +382,34 @@ class Store:
             )
             self.connection.commit()
 
-    def set_thumbnail(self, subject_id: str, path: Path) -> None:
+    def purge_thumbnails(self) -> int:
+        """Delete every stored face crop and forget the paths. Runs at startup.
+
+        Thumbnails were written until 2026-09-03. Removing the code that writes
+        them would have left the ones already on disk, which is the half of the
+        change that actually matters — the point is that no image of anybody is
+        retained, not that no new ones appear.
+        """
+
+        removed = 0
         with self.lock:
-            self.connection.execute("UPDATE subjects SET thumbnail=? WHERE id=?", (str(path), subject_id))
+            for row in self.connection.execute(
+                "SELECT thumbnail FROM subjects WHERE thumbnail IS NOT NULL"
+            ).fetchall():
+                if row["thumbnail"]:
+                    Path(row["thumbnail"]).unlink(missing_ok=True)
+                    removed += 1
+            self.connection.execute("UPDATE subjects SET thumbnail=NULL WHERE thumbnail IS NOT NULL")
             self.connection.commit()
+        # Anything orphaned in the directory too, then the directory itself.
+        if THUMBNAIL_ROOT.is_dir():
+            for stray in THUMBNAIL_ROOT.glob("*"):
+                if stray.is_file():
+                    stray.unlink(missing_ok=True)
+                    removed += 1
+            if not any(THUMBNAIL_ROOT.iterdir()):
+                THUMBNAIL_ROOT.rmdir()
+        return removed
 
     def delete_subject(self, subject_id: str) -> bool:
         with self.lock:
@@ -1227,6 +1250,9 @@ async def lifespan(app: FastAPI):
     # service cannot tell a photograph from a person, and a service that cannot
     # do that must not serve. Never fail open.
     MODELS.load_antispoof()
+    removed = store().purge_thumbnails()
+    if removed:
+        LOG.info("removed %d stored face crop(s); thumbnails are no longer retained", removed)
     MODELS.warm_up()
     yield
 
@@ -1689,35 +1715,19 @@ async def enrol(request: Request, subject: str, clip: UploadFile = File(...), no
         "frames": analysis.usable,
         "at": utc_now(),
     })
-    if not row["thumbnail"]:
-        store().set_thumbnail(subject, write_thumbnail(subject, frame, detection.bbox))
     return progress(True, report.as_dict())
 
 
-def write_thumbnail(subject_id: str, frame: np.ndarray, bbox: tuple[float, float, float, float]) -> Path:
-    """One 256 px crop per subject, for the gallery UI. Nothing else is kept.
-
-    The id has already passed the allowlist at the route boundary. This
-    resolves the final path and asserts it is inside `THUMBNAIL_ROOT` anyway —
-    the check costs a `stat` and it is the last thing standing between a future
-    caller that forgets `require_subject_id` and an arbitrary file write as the
-    service user.
-    """
-
-    path = (THUMBNAIL_ROOT / f"{subject_id}.jpg").resolve()
-    if path.parent != THUMBNAIL_ROOT.resolve():
-        raise Refusal(422, "invalid_subject")
-
-    height, width = frame.shape[:2]
-    x1, y1, x2, y2 = bbox
-    margin_x, margin_y = (x2 - x1) * 0.25, (y2 - y1) * 0.25
-    crop = frame[
-        max(0, int(y1 - margin_y)): min(height, int(y2 + margin_y)),
-        max(0, int(x1 - margin_x)): min(width, int(x2 + margin_x)),
-    ]
-    cv2.imwrite(str(path), cv2.resize(crop, (256, 256)))
-    return path
-
+# No thumbnail is written. Adeline, 2026-09-03: "I don't want to store the video
+# and thumbnail at all for a user."
+#
+# What a subject leaves on disk is now the embeddings and the capture metadata,
+# and nothing that is an image of anybody. A 512-d ArcFace vector is not
+# invertible to a photograph; a 256px face crop is a photograph. The gallery UI
+# lists people by name instead.
+#
+# The clip itself was never retained: decode_clip writes a temp file and removes
+# it in a `finally` on every path, including exceptions.
 
 @app.get("/subjects")
 def subjects(request: Request) -> list[dict[str, Any]]:
@@ -1732,24 +1742,9 @@ def subjects(request: Request) -> list[dict[str, Any]]:
         result.append({
             "id": row["id"], "name": row["name"], "clips": clips,
             "ready": clips >= ENROL_MIN_CLIPS and bool(row["enabled"]),
-            "thumbnailUrl": f"/subjects/{row['id']}/thumbnail" if row["thumbnail"] else None,
             "createdAt": row["created_at"],
         })
     return result
-
-
-@app.get("/subjects/{subject_id}/thumbnail")
-def thumbnail(request: Request, subject_id: str) -> FileResponse:
-    # A household member's face photo. The shared key is not a gate on it: the
-    # dashboard proxy injects that key for whoever asked, so without this check
-    # the route serves a face crop to anyone who can reach the dashboard. Same
-    # identity requirement as every sibling subject route.
-    require_dashboard_proxy(request)
-    require_subject_id(subject_id)
-    row = store().subject(subject_id)
-    if row is None or not row["thumbnail"] or not Path(row["thumbnail"]).is_file():
-        raise Refusal(404, "not_found")
-    return FileResponse(row["thumbnail"], media_type="image/jpeg")
 
 
 @app.delete("/subjects/{subject_id}")
