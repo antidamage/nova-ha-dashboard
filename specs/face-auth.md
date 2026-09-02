@@ -305,6 +305,41 @@ and session termination for the veto path. It no longer drives the login flow.
 `harness.py` is a local WebAuthn RP test double so the register-then-assert round
 trip is provable without waiting on authentik's flow configuration.
 
+## Threat model, revised 2026-09-03
+
+Adeline, after the first live enrolment: *"I've stated it before and you ignored
+it, but I don't care about spoofing. this is a convenience thing. assume that
+nobody with malicious intent will have access to my house."*
+
+That is the governing constraint and it outranks the security posture the rest
+of this spec was written with. What follows from it:
+
+- **The anti-spoof model is advisory, not enforcing.** `FACE_ANTISPOOF_MIN=0.0`
+  in `/etc/nova-face-auth.env`. The score is still computed and logged on every
+  attempt, so the data to re-enforce is being collected, but it cannot refuse
+  anyone. It was the component refusing every real face while misconfigured, and
+  what it defends against is an attacker she has ruled out. Raise it to `0.85`
+  to turn it back on.
+- **The residual floor is 0.005**, down from the spec's guessed 0.012, chosen
+  from her measured clips: live captures ran 0.0138-0.0348 and a frozen frame
+  scores 0.00069. It stays non-zero because a camera that has stopped producing
+  new frames is a reliability failure worth catching, not a security one.
+- **Enrolment is not double-gated.** `/api/face/enrol*` and
+  `/api/face/subjects*` sit behind the `/config` page gate and no longer behind
+  forward-auth as well. Gating the XHR too meant the outpost answered an
+  unauthenticated fetch with a 302 to authentik, which a browser reports as an
+  opaque CORS error. `/api/face/arm` and `/api/face/health` stay gated: `arm`
+  clears a lockout, so it grants rather than records.
+- **The physical spoof test is dropped**, not deferred. It was listed as the
+  acceptance gate through several rounds; it is not one. Do not re-add it.
+
+The design still holds the properties it was built with — the passkey remains
+the credential, face remains a release condition and never a bearer token, the
+veto stays revocation-only, and the liveness residual still rejects a static
+frame. Those cost nothing to keep. The change is that friction is now the thing
+being minimised, not spoof resistance.
+
+
 ## Route gating
 
 Two classes of face route, gated differently, because one of them *is* the login
