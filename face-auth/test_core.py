@@ -4,6 +4,9 @@ import unittest
 import numpy as np
 
 from core import (
+    quarter_turns_to_upright,
+    roll_degrees,
+    framing_reason,
     LockoutState,
     Match,
     aggregate_frames,
@@ -403,3 +406,93 @@ class GateOrderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FramingTests(unittest.TestCase):
+    """A face the anti-spoof stage cannot honestly assess is refused early.
+
+    The anti-spoof crop widens the face box by up to 4x. When the widened box
+    runs off the frame the border is reflected, so a face that was already
+    clipped gets judged partly on invented texture. Measured 2026-09-03: the
+    same face scored 0.9998 framed normally and 0.13-0.46 when clipped and
+    reflected. Refusing is both more honest and more actionable.
+    """
+
+    def test_a_face_well_inside_the_frame_is_fine(self):
+        self.assertIsNone(framing_reason((100, 80, 400, 500), 1280, 720))
+
+    def test_a_face_touching_any_edge_is_clipped(self):
+        for bbox in (
+            (0, 80, 400, 500),        # left
+            (100, 0, 400, 500),       # top
+            (100, 80, 1280, 500),     # right
+            (100, 80, 400, 720),      # bottom
+        ):
+            self.assertEqual(framing_reason(bbox, 1280, 720), "face_clipped", bbox)
+
+    def test_a_face_filling_the_frame_is_too_close(self):
+        # Inside the edges, but almost no context left for the texture model.
+        self.assertEqual(
+            framing_reason((300, 5, 900, 715), 1280, 720, max_frame_fraction=0.92),
+            "face_too_close",
+        )
+
+    def test_the_measured_good_framings_are_accepted(self):
+        # The two captures that scored 0.999: face at ~0.75 of frame height, in
+        # landscape and in a small frame. The bound is a backstop, not a
+        # framing preference, and must not reject what already works.
+        self.assertIsNone(framing_reason((398, 43, 769, 586), 1280, 720))
+        self.assertIsNone(framing_reason((149, 16, 288, 220), 480, 270))
+
+    def test_clipping_is_checked_before_closeness(self):
+        # A clipped face is also usually a close one; the actionable reason is
+        # that it is cut off, not that it is large.
+        self.assertEqual(framing_reason((0, 0, 1280, 720), 1280, 720), "face_clipped")
+
+
+class OrientationTests(unittest.TestCase):
+    """Rotated captures are corrected from the eye line, not from metadata.
+
+    A phone records portrait as landscape frames plus a rotation flag, and the
+    flag does not survive a MediaRecorder re-encode or cv2.VideoCapture. The
+    eye landmarks are the only orientation cue left.
+    """
+
+    @staticmethod
+    def _eyes(roll_deg):
+        angle = math.radians(roll_deg)
+        half = 30.0
+        centre = np.array([100.0, 100.0])
+        offset = np.array([math.cos(angle), math.sin(angle)]) * half
+        return np.array([centre - offset, centre + offset, centre, centre, centre])
+
+    def test_roll_is_measured_from_the_eye_line(self):
+        self.assertAlmostEqual(roll_degrees(self._eyes(0.0)), 0.0, places=6)
+        self.assertAlmostEqual(roll_degrees(self._eyes(90.0)), 90.0, places=6)
+        self.assertAlmostEqual(roll_degrees(self._eyes(-90.0)), -90.0, places=6)
+
+    def test_quarter_turns_for_each_rotation(self):
+        self.assertEqual(quarter_turns_to_upright(0.0), 0)
+        self.assertEqual(quarter_turns_to_upright(90.0), 1)
+        self.assertEqual(quarter_turns_to_upright(180.0), 2)
+        self.assertEqual(quarter_turns_to_upright(-90.0), 3)
+
+    def test_negative_rolls_are_snapped_against_the_signed_multiple(self):
+        # Reducing modulo 4 before measuring the distance made -90 compare
+        # against 270, look 360 degrees away, and be left on its side.
+        self.assertEqual(quarter_turns_to_upright(-88.0), 3)
+        self.assertEqual(quarter_turns_to_upright(-175.0), 2)
+
+    def test_a_measured_real_rotation_is_corrected(self):
+        # The live 90-degree capture measured +98 degrees of roll.
+        self.assertEqual(quarter_turns_to_upright(98.0), 1)
+
+    def test_a_tilted_head_is_left_alone(self):
+        # Someone leaning their head is not a rotated capture, and rotating for
+        # it would fight the residual, which is deliberately rotation-invariant.
+        for roll in (5.0, -8.0, 20.0, 45.0, 60.0, -60.0, 135.0):
+            self.assertEqual(quarter_turns_to_upright(roll), 0, roll)
+
+    def test_roll_needs_both_eyes(self):
+        with self.assertRaises(ValueError):
+            roll_degrees(np.array([[0.0, 0.0]]))

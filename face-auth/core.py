@@ -30,6 +30,12 @@ LANDMARK_NAMES = ("leftEye", "rightEye", "nose", "leftMouth", "rightMouth")
 # Spec defaults. Repeated as keyword defaults below; named here so the service's
 # environment block and the tests can refer to the same constants.
 DET_SCORE_MIN = 0.70
+# Above this fraction of frame height a face leaves too little context for the
+# anti-spoof model, whose print/replay evidence is largely in the surroundings.
+# 0.92 not 0.75: the measured good captures sat at 0.75-0.76 and scored 0.999,
+# so this is a backstop against a face that fills the frame, not a framing
+# preference.
+FACE_MAX_FRAME_FRACTION = 0.92
 BOX_MIN_PX = 96
 MATCH_COSINE = 0.42
 MATCH_MARGIN = 0.06
@@ -523,6 +529,46 @@ def detection_reason(
     return None
 
 
+def framing_reason(
+    bbox: tuple[float, float, float, float],
+    frame_width: int,
+    frame_height: int,
+    *,
+    max_frame_fraction: float = FACE_MAX_FRAME_FRACTION,
+    edge_tolerance_px: float = 2.0,
+) -> str | None:
+    """Refuse a face the anti-spoof stage cannot honestly assess, or None.
+
+    Two cases, both about there being no pixels rather than about the person.
+
+    **Clipped.** A box touching or crossing a frame edge means part of the face
+    was never captured. The anti-spoof crop widens the box by up to 4x, so a
+    clipped face is reconstructed from reflected border — inventing the very
+    texture the model is asked to judge. Measured on a deliberately cropped
+    ultrawide clip whose face was 1.19x the frame height: reflecting scored
+    0.13-0.46 where the same face framed normally scored 0.9998. Refusing is
+    the honest answer, and "centre your face" is something the person can act
+    on, unlike "not a live face".
+
+    **Too close.** Past `max_frame_fraction` there is almost no context left,
+    and context is where print and replay artefacts live — a screen bezel, a
+    paper edge, a hand. This is a softer bound than clipping and exists so the
+    person is told to move back rather than silently scored on a face fill.
+    """
+
+    x1, y1, x2, y2 = bbox
+    if (
+        x1 <= edge_tolerance_px
+        or y1 <= edge_tolerance_px
+        or x2 >= frame_width - edge_tolerance_px
+        or y2 >= frame_height - edge_tolerance_px
+    ):
+        return "face_clipped"
+    if frame_height > 0 and (y2 - y1) / frame_height > max_frame_fraction:
+        return "face_too_close"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Network binding
 # ---------------------------------------------------------------------------
@@ -748,3 +794,47 @@ def preflight_reason(
     if not rate_ok:
         return "rate_limited"
     return None
+
+
+def roll_degrees(landmarks: np.ndarray) -> float:
+    """Face roll from the eye line, in degrees, positive clockwise on screen.
+
+    The two eye points are the only orientation cue that survives an arbitrary
+    capture: the bounding box does not carry rotation, and image metadata is
+    exactly what gets lost. `arctan2` over the eye vector is well conditioned
+    for any orientation, which a slope would not be near vertical.
+    """
+
+    points = np.asarray(landmarks, dtype=np.float64)
+    if points.shape[0] <= max(LEFT_EYE, RIGHT_EYE):
+        raise ValueError("need both eye landmarks to measure roll")
+    delta = points[RIGHT_EYE] - points[LEFT_EYE]
+    return float(np.degrees(np.arctan2(delta[1], delta[0])))
+
+
+def quarter_turns_to_upright(roll: float, *, tolerance_degrees: float = 25.0) -> int:
+    """Counter-clockwise quarter turns that bring a rolled face upright: 0-3.
+
+    Phones record portrait video by writing landscape frames plus a rotation
+    flag, and that flag is routinely lost — by a re-encode, by a browser
+    `MediaRecorder`, or by `cv2.VideoCapture`, which ignores it. The frames then
+    arrive with the face on its side.
+
+    Measured on iridium 2026-09-03: a 90-degree-rotated capture still detected
+    (score 0.791) and produced 25 usable frames, so nothing upstream noticed —
+    it simply went on to judge a sideways face. Counter-rotating the same frame
+    gave roll -0.1 degrees and score 0.899.
+
+    Only near-quarter-turn rolls are corrected. A head tilted 20 degrees is a
+    person tilting their head, and rotating the frame for that would fight the
+    liveness residual, which is deliberately invariant to exactly this.
+    """
+
+    # Snap against the SIGNED nearest multiple, then reduce. Reducing first and
+    # comparing against `turns * 90` breaks for negative rolls: -90 reduces to
+    # 3, and |-90 - 270| is 360, so a correctly rotated frame looked like a
+    # tilted head and was left on its side.
+    nearest = round(roll / 90.0) * 90.0
+    if abs(roll - nearest) > tolerance_degrees:
+        return 0
+    return int(nearest / 90.0) % 4

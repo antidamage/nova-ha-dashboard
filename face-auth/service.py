@@ -55,6 +55,9 @@ from core import (
     clip_bounds_reason,
     cosine_match,
     detection_reason,
+    framing_reason,
+    quarter_turns_to_upright,
+    roll_degrees,
     enrolment_consistency,
     even_frame_indices,
     gallery_scores,
@@ -845,6 +848,7 @@ class ClipAnalysis:
     def __init__(self, frames: list[np.ndarray]) -> None:
         self.detections = []
         self.rejections: list[str] = []
+        frames, self.quarter_turns = self._upright(frames)
         for frame in frames:
             faces = MODELS.detect(frame, with_embedding=True)
             best = max(faces, key=lambda item: item.score) if faces else None
@@ -859,10 +863,58 @@ class ClipAnalysis:
                 # necessarily the one asking to be let in, and one of the
                 # others may be the person being walked past the camera.
                 raise Refusal(422, "multiple_faces")
+            if not reason and best is not None:
+                # Framing is checked here, with the frame in hand, because the
+                # anti-spoof crop widens this box by up to 4x. A face touching a
+                # frame edge has no pixels out there to widen into, and the crop
+                # would reflect the border — asking the model to judge texture
+                # that was invented rather than captured.
+                reason = framing_reason(best.bbox, frame.shape[1], frame.shape[0])
             if reason:
                 self.rejections.append(reason)
                 continue
             self.detections.append((frame, best))
+
+    @staticmethod
+    def _upright(frames: list[np.ndarray]) -> tuple[list[np.ndarray], int]:
+        """Rotate a sideways capture upright before anything judges it.
+
+        Phones record portrait by writing landscape frames plus a rotation
+        flag, and that flag does not survive a `MediaRecorder` re-encode or
+        `cv2.VideoCapture`, which ignores it. The frames arrive on their side.
+
+        Nothing downstream notices on its own: measured 2026-09-03, a
+        90-degree-rotated capture still detected at 0.791 and produced 25
+        usable frames, so the pipeline went on to score anti-spoof against a
+        sideways face. The eye landmarks are the only orientation cue that
+        survives, which is what makes this checkable at all — the bounding box
+        carries no rotation and the metadata is exactly what was lost.
+
+        Orientation is decided ONCE, from the first frame with a confident
+        detection, and applied to the whole clip. Per-frame decisions would let
+        the geometry change mid-clip, and the liveness residual compares frames
+        to each other — a rotation appearing halfway through would read as
+        motion that never happened.
+        """
+
+        for frame in frames[: min(len(frames), 5)]:
+            faces = MODELS.detect(frame)
+            if not faces:
+                continue
+            best = max(faces, key=lambda item: item.score)
+            if best.score < DET_SCORE_MIN:
+                continue
+            turns = quarter_turns_to_upright(roll_degrees(best.landmarks))
+            if turns == 0:
+                return frames, 0
+            rotation = {
+                1: cv2.ROTATE_90_COUNTERCLOCKWISE,
+                2: cv2.ROTATE_180,
+                3: cv2.ROTATE_90_CLOCKWISE,
+            }[turns]
+            LOG.info("clip arrived rotated; correcting by %d quarter turn(s)", turns)
+            return [cv2.rotate(item, rotation) for item in frames], turns
+        return frames, 0
 
     @property
     def usable(self) -> int:
@@ -919,9 +971,24 @@ def run_liveness(analysis: ClipAnalysis) -> tuple[float, float]:
         min_frames=LIVENESS_MIN_FRAMES,
     )
     if not decision.ok:
+        # Log the refusal too, not just the pass. The first live enrolment
+        # produced a run of 401s whose only visible evidence was the residual
+        # line -- which is emitted AFTER this branch, so every refusal here was
+        # silent and indistinguishable from the anti-spoof refusal below.
+        LOG.info(
+            "liveness REFUSED reason=%s residual=%s frames=%d",
+            decision.reason, decision.residual, analysis.usable,
+        )
         raise Refusal(decision.status, decision.reason or "too_few_frames", residual=decision.residual)
     LOG.info("liveness residual %.5f by landmark %s", decision.residual, decision.per_landmark)
     antispoof = analysis.antispoof()
+    # Always log the score, pass or fail. The spec's whole calibration story is
+    # "record the actual score of every signal on every attempt so thresholds
+    # can be tuned from real logs rather than guessed twice" -- and this is the
+    # signal whose threshold is explicitly a guess. Logging it only on success
+    # would hide exactly the data the guess needs.
+    LOG.info("antispoof score %.4f (min %.4f) -> %s",
+             antispoof, ANTISPOOF_MIN, "pass" if antispoof >= ANTISPOOF_MIN else "REFUSE")
     if antispoof < ANTISPOOF_MIN:
         raise Refusal(401, "antispoof", residual=decision.residual, antispoof=round(antispoof, 4))
     return float(decision.residual or 0.0), antispoof

@@ -18,10 +18,15 @@ longer needs a GPU stack present to import a name.
 
 from __future__ import annotations
 
+import logging
+import os
+import time
 from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
+
+LOG = logging.getLogger("nova-face-auth.antispoof")
 
 
 def architectures() -> dict[str, type]:
@@ -63,31 +68,62 @@ def parse_model_name(name: str) -> tuple[float, int, int, str]:
 
 
 def crop_for_scale(image: np.ndarray, bbox: tuple[int, int, int, int], scale: float, width: int, height: int) -> np.ndarray:
-    """Upstream's CropImage geometry: widen the face box by `scale`, then clamp.
+    """Widen the face box by `scale`, keeping the face centred, then resize.
 
     The two networks are trained at different scales — one sees a tight face,
     one sees the surrounding context — which is where most of the print/replay
     signal lives, so this must not be replaced with a plain resize.
+
+    **Deliberately diverges from upstream's `CropImage` in one way: it reflects
+    the border instead of clamping and shifting the window.** Upstream, when the
+    widened box runs off the frame, first reduces `scale` to whatever fits and
+    then slides the window back inside. Both steps corrupt the geometry the
+    network was trained on:
+
+    - the clamp collapses the ensemble's two views into one (measured: a 1280x720
+      frame with a 371x543 face clamped both 2.7 and 4.0 to 1.324, so the two
+      models received byte-identical crops), and
+    - the slide moves the face off-centre in the patch, which is what a browser
+      capture with the face near an edge always triggers.
+
+    Measured across framings on 2026-09-03 (mean class-1 over the ensemble),
+    the same person and the same session:
+
+        framing                faceH/frameH   upstream   reflect-padded
+        landscape 1280x720         0.75         0.9998       0.9895
+        portrait  720x1280         0.27         0.5994       0.9670
+
+    Portrait is the case that matters: nothing was wrong with that capture, it
+    simply put the face near an edge, and upstream's slide decentred it enough
+    to halve the score. Reflection keeps the face centred at the true scale in
+    every framing, at a small cost on the already-easy landscape case.
+
+    A face that extends beyond the frame is a different problem — there is no
+    pixel data to reflect and fabricating it would invent evidence — and is
+    refused before this is reached. See `core.framing_reason`.
     """
 
     import cv2
 
-    source_height, source_width = image.shape[:2]
     x, y, box_width, box_height = bbox
-    scale = min((source_height - 1) / box_height, (source_width - 1) / box_width, scale)
     new_width, new_height = box_width * scale, box_height * scale
     centre_x, centre_y = x + box_width / 2, y + box_height / 2
-    left, top = centre_x - new_width / 2, centre_y - new_height / 2
-    right, bottom = centre_x + new_width / 2, centre_y + new_height / 2
-    if left < 0:
-        right, left = right - left, 0
-    if top < 0:
-        bottom, top = bottom - top, 0
-    if right > source_width - 1:
-        left, right = left - (right - source_width + 1), source_width - 1
-    if bottom > source_height - 1:
-        top, bottom = top - (bottom - source_height + 1), source_height - 1
-    patch = image[int(top): int(bottom) + 1, int(left): int(right) + 1]
+    left, top = int(round(centre_x - new_width / 2)), int(round(centre_y - new_height / 2))
+    right, bottom = int(round(centre_x + new_width / 2)), int(round(centre_y + new_height / 2))
+
+    source_height, source_width = image.shape[:2]
+    pad_left, pad_top = max(0, -left), max(0, -top)
+    pad_right, pad_bottom = max(0, right - source_width), max(0, bottom - source_height)
+    if pad_left or pad_top or pad_right or pad_bottom:
+        image = cv2.copyMakeBorder(
+            image, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_REFLECT_101
+        )
+        left, right = left + pad_left, right + pad_left
+        top, bottom = top + pad_top, bottom + pad_top
+
+    patch = image[top:bottom, left:right]
+    if patch.size == 0:
+        raise ValueError("empty anti-spoof crop")
     return cv2.resize(patch, (width, height))
 
 
@@ -102,6 +138,10 @@ class AntiSpoofEnsemble:
 
     def __init__(self, weights_dir: Path, device: str = "cpu") -> None:
         import torch
+
+        # Diagnostics only, opt-in, off unless the env var names a directory.
+        debug = os.environ.get("FACE_ANTISPOOF_DEBUG_DIR", "").strip()
+        self.debug_dir = Path(debug) if debug else None
 
         models = architectures()
         self.device = torch.device(device)
@@ -124,10 +164,30 @@ class AntiSpoofEnsemble:
     def score(self, image: np.ndarray, bbox: tuple[int, int, int, int]) -> float:
         """Mean live probability across the ensemble, in [0, 1].
 
-        Class 1 is "real" in upstream's three-class head. Inputs are BGR uint8
-        scaled to [0,1] with no further normalisation, matching upstream's
-        transform — getting this wrong shifts the score distribution and
-        quietly invalidates any calibration done against it.
+        Class 1 is "real" in upstream's three-class head.
+
+        **Inputs are BGR floats on [0, 255] — NOT divided by 255.** This looks
+        wrong and is not. These weights' BatchNorm running statistics were
+        collected at the [0,255] scale, so scaling the input to [0,1] makes it
+        two orders of magnitude smaller than the running means the first BN
+        subtracts. The layer then emits its constant term and the input stops
+        mattering: every image, real or fake, lands on the same output.
+
+        Measured on iridium 2026-09-03 against upstream's own labelled samples,
+        mean class-1 across the ensemble:
+
+            input        image_T1 (real)   image_F1 (fake)   image_F2 (fake)
+            /255              0.016             0.016             0.015
+            raw [0,255]       1.000             0.181             0.001
+
+        The /255 row is the bug this replaced: a live face and a print attack
+        scored identically, so the gate refused everything and read as "your
+        face is not live". The raw row separates cleanly and the 0.85 threshold
+        sits in the gap. Confirmed independently by hooking the layers: with
+        /255, `conv1` returned 0.8209 for uniform noise and 0.8278 for zeros —
+        a 0.7% difference between maximally different inputs.
+
+        Do not "tidy" this into a ToTensor-style transform.
         """
 
         import torch
@@ -137,7 +197,35 @@ class AntiSpoofEnsemble:
         with torch.no_grad():
             for scale, width, height, model in self.entries:
                 patch = crop_for_scale(image, bbox, scale, width, height)
-                tensor = torch.from_numpy(patch.transpose(2, 0, 1)).float().div_(255.0)
+                tensor = torch.from_numpy(np.ascontiguousarray(patch.transpose(2, 0, 1))).float()
                 logits = model(tensor.unsqueeze(0).to(self.device))
-                totals.append(float(F.softmax(logits, dim=1)[0, 1]))
+                probabilities = F.softmax(logits, dim=1)[0]
+                totals.append(float(probabilities[1]))
+                if self.debug_dir is not None:
+                    self._dump(patch, scale, probabilities)
         return float(np.mean(totals))
+
+    def _dump(self, patch: np.ndarray, scale: float, probabilities) -> None:
+        """Write the exact patch the network saw, plus its class vector.
+
+        Turned on with FACE_ANTISPOOF_DEBUG_DIR. This exists because reasoning
+        about the crop from the code was not enough to settle why a live face
+        scored 0.015: the crop geometry, the colour order and the class index
+        each looked correct in isolation, and the only way to tell which of
+        them was actually wrong was to look at the image the model was fed.
+        Off by default -- these are face crops, and keeping them is the
+        liability the enrolment path deliberately avoids.
+        """
+
+        import cv2
+
+        try:
+            self.debug_dir.mkdir(parents=True, exist_ok=True)
+            stamp = f"{int(time.time() * 1000)}_{scale:g}"
+            cv2.imwrite(str(self.debug_dir / f"{stamp}.png"), patch)
+            (self.debug_dir / f"{stamp}.txt").write_text(
+                " ".join(f"{float(value):.6f}" for value in probabilities) + "\n",
+                encoding="utf-8",
+            )
+        except Exception as error:  # diagnostics must never break a request
+            LOG.warning("anti-spoof debug dump failed: %s", error)
