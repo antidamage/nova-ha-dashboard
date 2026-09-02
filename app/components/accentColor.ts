@@ -1589,6 +1589,39 @@ function flushSharedThemeWrite() {
     });
 }
 
+/**
+ * Write any debounced shared-theme edit out now and wait for the queue to
+ * drain. Callers that act on the *server's* copy of the theme (the managed
+ * desktop wallpaper push, which reads preferences server-side) need the newest
+ * selection to have landed before they fire, otherwise they push the previous
+ * wallpaper. Gives up after `timeoutMs` rather than blocking the UI on a write
+ * that keeps failing and retrying — the pending value is still retried in the
+ * background.
+ */
+export async function flushPendingSharedThemeWrite(timeoutMs = 5000): Promise<void> {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (sharedThemeWriteTimer !== null) {
+    window.clearTimeout(sharedThemeWriteTimer);
+    sharedThemeWriteTimer = null;
+  }
+  flushSharedThemeWrite();
+
+  const deadline = Date.now() + timeoutMs;
+  while ((sharedThemeWriteInFlight || pendingSharedThemeWrite) && Date.now() < deadline) {
+    await new Promise((resolve) => window.setTimeout(resolve, 25));
+    if (!sharedThemeWriteInFlight && pendingSharedThemeWrite) {
+      // A queued retry is waiting on its timer; run it immediately.
+      if (sharedThemeWriteTimer !== null) {
+        window.clearTimeout(sharedThemeWriteTimer);
+        sharedThemeWriteTimer = null;
+      }
+      flushSharedThemeWrite();
+    }
+  }
+}
+
 function scheduleSharedThemeWrite(themeSet: DeviceThemeSet) {
   pendingSharedThemeWrite = normalizeThemeSet(themeSet);
   queueSharedThemeFlush();
