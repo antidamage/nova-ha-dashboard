@@ -456,14 +456,42 @@ class CredentialStore:
             wipe(dek)
             private_key = None
 
+        credential_id = ctap.b64url(bytes(row["credential_id"]))
+        # The WebAuthn wire shape, exactly as `navigator.credentials.get()`
+        # would serialise it: `id`/`rawId`/`type` at the top and the signature
+        # fields nested under `response`.
+        #
+        # This is not cosmetic. A relying party parses the structure before it
+        # looks anything up — authentik calls
+        # `parse_authentication_credential_json` and answers a flat
+        # "Invalid device" when the shape is wrong, which is indistinguishable
+        # from an unknown credential and sent the first live ceremony chasing
+        # the registration instead of the payload. Emitting the standard shape
+        # also means the browser relays this verbatim rather than reassembling
+        # it, so there is one less place for the two to disagree.
+        credential = {
+            "id": credential_id,
+            "rawId": credential_id,
+            "type": "public-key",
+            "response": {
+                "clientDataJSON": ctap.b64url(client_data),
+                "authenticatorData": ctap.b64url(auth_data),
+                "signature": ctap.b64url(signature),
+                "userHandle": ctap.b64url(subject_id.encode("utf-8")),
+            },
+            "clientExtensionResults": {},
+        }
         return {
             "subject": subject_id,
-            "credentialId": ctap.b64url(bytes(row["credential_id"])),
-            "clientDataJSON": ctap.b64url(client_data),
-            "authenticatorData": ctap.b64url(auth_data),
-            "signature": ctap.b64url(signature),
-            "userHandle": ctap.b64url(subject_id.encode("utf-8")),
+            "credential": credential,
             "signCount": sign_count,
+            # Flat aliases retained for the local harness and for logging. The
+            # `credential` object above is what a relying party receives.
+            "credentialId": credential_id,
+            "clientDataJSON": credential["response"]["clientDataJSON"],
+            "authenticatorData": credential["response"]["authenticatorData"],
+            "signature": credential["response"]["signature"],
+            "userHandle": credential["response"]["userHandle"],
         }
 
     # -- introspection ----------------------------------------------------
