@@ -1626,9 +1626,15 @@ Runtime behavior:
   signature per computer in ignored runtime state under `data/` and skips
   unchanged target/asset pairs, so the same wallpaper image can never be sent
   to a computer twice in a row — an automatic request is dropped when the new
-  desktop matches the last one applied. The manual Apply Desktop Wallpapers
-  button is the one force path, for recovering a machine whose wallpaper was
-  changed outside Nova.
+  desktop matches the last one applied. The manual force path — for recovering
+  a machine whose wallpaper was changed outside Nova — is reachable from two
+  places: the Apply Desktop Wallpapers action in Managed Computers, and the
+  "Push Wallpaper To Devices" button in Theme Settings > Background, directly
+  under the "Use Wallpaper as Background" toggle. Both post `force: true` to
+  `/api/desktop/sync` and report per-machine results. The Background button
+  first flushes the debounced shared-theme write, because the sync reads the
+  wallpaper from the theme the server holds and a selection made moments
+  earlier would otherwise push the previous image.
 - The applied-state record includes the lock-screen file name and the
   `lockScreen` capability, so toggling lock-screen replacement re-syncs that
   machine even though its wallpaper asset has not changed. Records written
