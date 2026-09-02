@@ -50,7 +50,16 @@ RUN mkdir -p /models/antispoof && cd /models/antispoof \
 # `root` matches FACE_MODEL_ROOT below: insightface resolves a pack to
 # <root>/models/<pack>, so models.py and this download must agree on the root
 # or the container fetches the pack again on its first request.
-RUN python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l', root='/models', allowed_modules=['detection','recognition'])"
+#
+# `ensure_available`, NOT `FaceAnalysis(...)`. Constructing FaceAnalysis builds
+# onnxruntime InferenceSessions, and onnxruntime-gpu segfaulted doing that here
+# (exit 139, killing the build) because `docker build` has no GPU: buildkit
+# never gets --gpus, so the CUDA provider initialises against a device that is
+# not there. Nothing about this step needs a session anyway — the only job is
+# to have the weights on disk before the first request. Sessions are built at
+# runtime by models.py, where the CUDA-then-CPU provider fallback lives and
+# where a missing GPU is an expected, handled state rather than a crash.
+RUN python -c "from insightface.utils.storage import ensure_available; ensure_available('models', 'buffalo_l', root='/models')"
 
 COPY core.py models.py service.py /app/
 COPY antispoof /app/antispoof

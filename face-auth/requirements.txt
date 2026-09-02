@@ -19,7 +19,12 @@ opencv-python-headless==4.10.0.84
 # Detection and embedding. insightface builds a Cython extension at install
 # time, which is why the image needs build-essential.
 insightface==0.7.3
-onnxruntime-gpu==1.20.1
+# 1.22.0, and it must be a version that actually exists: the first build here
+# was pinned to 1.20.1, which pip rejected outright (1.20.0 and 1.20.2 are
+# published, 1.20.1 never was). Verified against the live index on the build
+# host rather than assumed. 1.22.x is built for CUDA 12.x, matching the base
+# image's 12.8.
+onnxruntime-gpu==1.22.0
 # insightface imports these at runtime and does not pin them itself.
 scikit-image==0.24.0
 scikit-learn==1.5.2

@@ -384,22 +384,31 @@ class AuthentikClientTests(unittest.TestCase):
             return responses.pop(0)
         return _transport
 
-    def test_registration_sends_public_material_only(self):
+    def test_registration_refuses_loudly_instead_of_pretending(self):
+        """authentik's admin WebAuthn API cannot create a credential.
+
+        Verified live against 2026.8.0 on 2026-09-02: the serializer has no
+        `credential_id`/`public_key`/`rp_id` fields, but those are NOT NULL
+        columns, so create answers HTTP 500 and no device is made.
+
+        This test used to assert the request body. That was asserting a call
+        that can only ever fail, which is worse than no test — it would have
+        gone green forever while registration was impossible in production.
+        What matters now is that the method refuses in a way a caller cannot
+        mistake for success, and that it does not burn a network call
+        discovering that. Registration is a hands-on `ak shell` step; see the
+        method's docstring.
+        """
+
         client = AuthentikClient(
             base_url="https://idp.example", token="token",
-            transport=self.transport([
-                (200, json.dumps({"results": [{"pk": 7}]}).encode()),
-                (201, json.dumps({"pk": "device-1"}).encode()),
-            ]),
+            transport=self.transport([]),
         )
-        client.register_webauthn_device(
-            username="someone", name="face", credential_id="Y3JlZA", public_key="cHVi",
-        )
-        body = json.loads(self.calls[-1][2])
-        self.assertEqual(body["user"], 7)
-        self.assertEqual(body["credential_id"], "Y3JlZA")
-        self.assertNotIn("private_key", body)
-        self.assertEqual(self.calls[-1][0], "POST")
+        with self.assertRaises(NotImplementedError):
+            client.register_webauthn_device(
+                username="someone", name="face", credential_id="Y3JlZA", public_key="cHVi",
+            )
+        self.assertEqual(self.calls, [])
 
     def test_termination_is_a_delete(self):
         client = AuthentikClient(
