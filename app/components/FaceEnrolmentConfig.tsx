@@ -62,9 +62,18 @@ export const ENROLMENT_ANGLE_PROMPTS = [
   "Tilt your chin down a little.",
 ] as const;
 
-/** `clipIndex` is zero-based: the prompt for the clip about to be recorded. */
+/**
+ * `clipIndex` is zero-based: the prompt for the clip about to be recorded.
+ *
+ * Cycles rather than saturating. A person can hold more than one appearance —
+ * Adeline wears a wig sometimes and glasses sometimes, and the embedding shifts
+ * enough that each look wants its own clips — so enrolment continues past the
+ * fifth. Saturating on "one more from any angle" left every clip after that
+ * unguided, which is how a second set ends up five frontal clips that cover
+ * none of the poses the first set covered.
+ */
 export function anglePrompt(clipIndex: number): string {
-  return ENROLMENT_ANGLE_PROMPTS[clipIndex] ?? "One more from any angle.";
+  return ENROLMENT_ANGLE_PROMPTS[clipIndex % ENROLMENT_ANGLE_PROMPTS.length];
 }
 
 /**
