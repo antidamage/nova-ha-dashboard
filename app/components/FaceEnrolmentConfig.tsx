@@ -25,8 +25,29 @@ import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 /** `FACE_ENROL_MIN_CLIPS`. Only a starting value — the server's `needed` wins. */
 const DEFAULT_CLIPS_NEEDED = 5;
 
-/** `MediaRecorder.stop()` timer. `FACE_CLIP_MIN_SECONDS` is 0.8, so 1 s clears it. */
-const CLIP_DURATION_MS = 1000;
+/**
+ * `MediaRecorder.stop()` timer.
+ *
+ * 4 s, not the 1 s this shipped with. `FACE_CLIP_MIN_SECONDS` is 0.8 so 1 s
+ * cleared the bound, but clearing the bound was the wrong target: the liveness
+ * test measures NON-RIGID motion — blink, micro-expression, out-of-plane
+ * parallax — and a one-second window barely spans a single blink. It was
+ * judging the clip on a signal the clip was too short to contain, which
+ * pushes a genuine live face down toward the rigid end and gives the
+ * anti-spoof model fewer distinct frames to work with.
+ *
+ * Observed on the first live enrolment: real residuals landed at 0.015-0.035
+ * against a 0.012 floor — passing, but close enough to the floor that ordinary
+ * stillness would fail.
+ *
+ * A longer clip is close to free. `core.even_frame_indices` samples a FIXED
+ * `SAMPLE_FRAMES` (25) evenly across whatever length arrives, so four seconds
+ * costs the same detection and embedding work as one and simply spreads those
+ * 25 samples over a window wide enough to contain real movement. Only decode
+ * cost grows. `FACE_CLIP_MAX_SECONDS` is raised to 6 on the service to leave
+ * room for encoder overrun.
+ */
+const CLIP_DURATION_MS = 4000;
 
 /**
  * One line per clip index, in order. The angles are not decoration: five frontal
@@ -356,7 +377,10 @@ export function FaceEnrolmentConfig() {
         return;
       }
 
-      setStatus({ tone: "info", text: "Recording…" });
+      // Say what to DO, not just that it is recording. The liveness test wants
+      // ordinary movement and a person told only "Recording…" holds still for
+      // the camera, which is the one thing that makes a real face look rigid.
+      setStatus({ tone: "info", text: "Recording — blink and move naturally…" });
       const clip = await recordClip();
 
       const form = new FormData();
