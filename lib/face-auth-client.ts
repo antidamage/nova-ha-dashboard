@@ -167,7 +167,7 @@ export async function proxyFaceAuthJson(path: string, init?: RequestInit): Promi
   }
 }
 
-/** Same, for a binary body (the subject thumbnail). Streams rather than buffering. */
+/** Same, for a binary body. Streams rather than buffering. */
 export async function proxyFaceAuthBinary(path: string, init?: RequestInit): Promise<Response> {
   try {
     const response = await faceAuthFetch(path, init);
