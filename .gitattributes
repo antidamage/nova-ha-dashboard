@@ -12,3 +12,8 @@
 *.service text eol=lf
 Caddyfile  text eol=lf
 *.Caddyfile text eol=lf
+
+# Python too. Nothing here breaks on CRLF at runtime, but pathlib's write_text
+# translates newlines on Windows, so a one-line edit made from this workstation
+# rewrites the whole file and buries the real change in a 1700-line diff.
+*.py text eol=lf
