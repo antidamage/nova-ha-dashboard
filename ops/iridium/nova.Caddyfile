@@ -244,6 +244,73 @@
 	}
 }
 
+# authentik's flow executor, served on the DASHBOARD's own origin so the Nova
+# login surface can drive it. `specs/login-surface.md` owns the design.
+#
+# Two independent constraints force this, and either one alone would be enough:
+#
+#   - authentik sends no CORS headers at all, so a fetch from the dashboard page
+#     to :9443 is cross-origin (the port differs) and is blocked outright.
+#   - authentik derives the WebAuthn RP ID and the expected origin FROM THE
+#     REQUEST (stages/authenticator_webauthn/utils.py, get_rp_id/get_origin) and
+#     offers no setting for either. A flow served on :9443 expects an assertion
+#     whose origin is https://nova.tuatara-dory.ts.net:9443; a browser on a :443
+#     page produces the port-less form. Without this snippet the passkey and
+#     face buttons cannot work at all.
+#
+# `header_up Host` is the same rule ak_outpost_routes and ak_forward_auth both
+# document: authentik reads the RAW Host header, never X-Forwarded-Host. Three
+# snippets now depend on it.
+#
+# Scope is the executor API and the flow-cancel endpoint. /static/** and
+# /if/flow/** are deliberately NOT proxied: the dashboard renders its own login
+# UI and loads none of authentik's assets. Proxy the minimum of another
+# application onto your own origin.
+#
+# Never gated, and cannot be: this IS the login. What it exposes is already
+# anonymous by design — a GET of the passkey-login executor hands a WebAuthn
+# challenge to an unauthenticated caller today, on :9443, because that is what a
+# login endpoint does.
+#
+# NOT imported by the LAN vhosts. They use config_gate_denied, a flat 403 with
+# no login path, so a login endpoint there would be a route to nowhere.
+(ak_flow_routes) {
+	handle_path /authentik/* {
+		reverse_proxy 127.0.0.1:9000 {
+			header_up Host nova.tuatara-dory.ts.net
+		}
+	}
+}
+
+# "Is anyone signed in?", answered with a STATUS CODE rather than a redirect.
+#
+# This is the one gated route in the estate that deliberately breaks the
+# redirect pattern, and the reason is a live failure: on 2026-09-03 face
+# enrolment broke because a gated XHR received the outpost's 302 to authentik,
+# and a cross-origin redirect on a fetch surfaces in the browser as an opaque
+# CORS error. "Opaque CORS error" is not something a UI can render as "sign in".
+#
+# So handle_response turns the 302 into a bare 401 and the client can read it.
+# Any future route whose job is reporting auth state to a fetch uses this shape.
+#
+# Must be imported AHEAD of config_gate_authed and nova_routes: `handle` blocks
+# evaluate in file order within a site, and the catch-all would otherwise take
+# this path first.
+(ak_auth_probe) {
+	handle /api/auth/whoami {
+		forward_auth https://nova.tuatara-dory.ts.net:9443 {
+			uri /outpost.goauthentik.io/auth/traefik
+			header_up Host nova.tuatara-dory.ts.net
+			copy_headers X-authentik-username X-authentik-groups X-authentik-email
+			@unauthenticated status 302
+			handle_response @unauthenticated {
+				respond 401
+			}
+		}
+		reverse_proxy 127.0.0.1:3001
+	}
+}
+
 (ak_forward_auth) {
 	# forward_auth only gatekeeps: on a 2xx from the outpost it falls through
 	# to the NEXT directive rather than to the app, so the reverse_proxy below
@@ -337,9 +404,12 @@ https://nova.tuatara-dory.ts.net:443 {
 	tls {
 		get_certificate tailscale
 	}
-	# Order matters: the outpost's own callback endpoints must be claimed before
-	# nova_routes' catch-all can swallow them into Next.js.
+	# Order matters: the outpost's own callback endpoints, the proxied flow
+	# executor and the auth probe must all be claimed before nova_routes'
+	# catch-all can swallow them into Next.js.
 	import ak_outpost_routes
+	import ak_flow_routes
+	import ak_auth_probe
 	import config_gate_authed
 	import nova_routes
 }

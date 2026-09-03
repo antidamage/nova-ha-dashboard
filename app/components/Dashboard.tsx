@@ -2,7 +2,7 @@
 
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Settings } from "lucide-react";
-import Link from "next/link";
+import { GatedLink } from "./auth/GatedLink";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDeviceTheme, type ThemeVariant } from "./accentColor";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
@@ -106,7 +106,7 @@ export function Dashboard() {
           ) : null}
           <HeaderFadeStrip />
           <ReloadButton />
-          <Link
+          <GatedLink
             className="dashboard-config-link"
             href="/config"
             aria-label="Configuration"
@@ -115,7 +115,7 @@ export function Dashboard() {
           >
             <Settings className="h-5 w-5" />
             Config
-          </Link>
+          </GatedLink>
 
           <UpdateBanner />
 
