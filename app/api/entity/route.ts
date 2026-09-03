@@ -8,6 +8,7 @@ import {
 import { parseEntityActionRequest, type EntityActionRequest } from "../../../lib/api/dashboard-requests";
 import { emitDashboardEvent } from "../../../lib/event-spool";
 import { emitModuleEvent, runModuleIntercepts } from "../../../lib/modules/runtime/hooks";
+import { attributeControl } from "../../../lib/control-attribution";
 import { setEntityAction } from "../../../lib/ha";
 import { buildDashboardState } from "../../../lib/ha";
 import { handleLegacyClimateAction } from "../../../lib/climate-control";
@@ -38,6 +39,21 @@ function isAirconRelated(action: { domain: HaDomain; entityId: string; service: 
 
 // Bucket an entity action for the monitoring event stream so Grafana can group
 // by subsystem: heating (panel heater), climate (aircon), lighting, or device.
+/**
+ * One line for the activity panel and the Discord digest.
+ *
+ * Prefers the friendly name, because "Lounge Lamp on" is what a person reading
+ * back what they did expects, and `light.lounge_lamp_2` is not.
+ */
+function entityActionSummary(
+  action: { domain: HaDomain; entityId: string; service: string },
+  friendlyName?: unknown,
+): string {
+  const name = typeof friendlyName === "string" && friendlyName ? friendlyName : action.entityId;
+  const verb = action.service.replace(/_/g, " ");
+  return `${name} ${verb}`;
+}
+
 function serviceForEntityAction(action: { domain: HaDomain; entityId: string }) {
   const id = action.entityId.toLowerCase();
   if (id.includes("heater") || id.includes("panel_heater")) {
@@ -156,10 +172,13 @@ export async function POST(request: Request) {
         trigger: "manual",
         data: { service: action.service, ...(action.data ?? {}) },
       });
-      void emitDashboardEvent({
+      // Attributed rather than a plain event: this is the generic route most
+      // dashboard taps actually take, so without it "who changed a control"
+      // would cover the named routes and miss the common one.
+      void attributeControl(request, {
         service: serviceForEntityAction(action),
         event: "entity-action",
-        source: "user",
+        summary: entityActionSummary(action, entity?.attributes?.friendly_name),
         detail: {
           entity: action.entityId,
           domain: action.domain,

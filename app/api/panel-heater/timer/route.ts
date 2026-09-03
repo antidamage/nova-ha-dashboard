@@ -3,6 +3,7 @@ import { parseAirconTimerUpdateRequest } from "../../../../lib/api/dashboard-req
 import { publishDashboardState } from "../../../../lib/dashboard-events";
 import { buildDashboardState } from "../../../../lib/ha";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../../lib/preferences";
+import { attributeControl } from "../../../../lib/control-attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,12 @@ export async function POST(request: Request) {
     }
 
     const preferences = await readDashboardPreferences();
+    void attributeControl(request, {
+      service: "heating",
+      event: "panel-heater-timer",
+      summary: next.offTimerEndsAt ? "Panel heater sleep timer set" : "Panel heater sleep timer cleared",
+      detail: { route: "/api/panel-heater/timer", offTimerEndsAt: next.offTimerEndsAt },
+    });
     return NextResponse.json({ panelHeater: preferences.panelHeater ?? {} });
   } catch (error) {
     return NextResponse.json(

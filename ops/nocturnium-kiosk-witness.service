@@ -1,0 +1,39 @@
+[Unit]
+Description=Nova kiosk witness (who is at the wall panel)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=antidamage
+# Required, and the daemon refuses to start without them: NOVA_FACE_KEY and
+# NOVA_WITNESS_KEY. No default key, no unauthenticated mode -- the same
+# discipline nova-face-auth.service uses.
+EnvironmentFile=/etc/nova-kiosk-witness.env
+ExecStart=/usr/bin/python3 /opt/nova-ha-dashboard/ops/nocturnium-kiosk-witness.py
+Restart=always
+RestartSec=5
+
+# Reading /dev/input/event* needs the `input` group. Granted to the SERVICE
+# rather than added to the login account, so nothing else the user runs gains
+# the ability to read every keystroke on this machine.
+#
+# There is no DISPLAY or XDG_SESSION_TYPE here on purpose. The kiosk session is
+# Wayland (verified live 2026-09-03), so there is no X display to talk to and
+# the daemon reads evdev directly, below the display server.
+SupplementaryGroups=input video
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# /dev is not namespaced here because the daemon needs both the webcam and the
+# input nodes; the two DeviceAllow lines below document exactly which.
+DeviceAllow=char-video4linux rw
+DeviceAllow=char-input r
+
+[Install]
+WantedBy=multi-user.target

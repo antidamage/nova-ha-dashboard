@@ -23,6 +23,7 @@ import {
   type LightShortcutTarget,
 } from "../light-shortcuts";
 import { emitDashboardEvent } from "../event-spool";
+import { attributeControl } from "../control-attribution";
 import type { DashboardState, DashboardZone } from "../types";
 
 type LightShortcutRequestAction = LightShortcutAction | "toggle";
@@ -55,6 +56,34 @@ const SHORTCUTS: Record<Exclude<LightShortcutTarget, "all">, LightShortcutDefini
   },
 };
 
+/**
+ * Attribute when we have a request to attribute from; otherwise fall back to
+ * the plain event, so a non-HTTP caller still leaves the monitoring trace it
+ * always did.
+ */
+async function attributeShortcut(
+  request: Request | undefined,
+  input: { event: string; summary: string; detail: Record<string, string | number | boolean | null | undefined> },
+) {
+  if (!request) {
+    void emitDashboardEvent({
+      service: "lighting",
+      event: input.event,
+      source: "user",
+      phase: "end",
+      detail: input.detail,
+    });
+    return;
+  }
+  await attributeControl(request, {
+    service: "lighting",
+    event: input.event,
+    summary: input.summary,
+    phase: "end",
+    detail: input.detail,
+  });
+}
+
 function traceId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -69,7 +98,23 @@ function text(body: string, status = 200) {
   });
 }
 
-export async function handleLightShortcut(target: LightShortcutTarget, requestedAction: LightShortcutRequestAction) {
+/** One line for the activity panel and the Discord digest. */
+function shortcutSummary(target: LightShortcutTarget, action: LightShortcutAction, lights: number): string {
+  const where = target === "all" ? "All lights" : target === "outside" ? "Outside light" : "Indoor lights";
+  return `${where} ${action}${lights > 1 ? ` (${lights})` : ""}`;
+}
+
+/**
+ * `request` is optional so a caller with nothing to attribute (a script, a
+ * test) still works, but every HTTP route passes it: without it a tap on the
+ * wall panel is recorded with no address and no person, which is the thing
+ * specs/kiosk-attribution.md exists to fix.
+ */
+export async function handleLightShortcut(
+  target: LightShortcutTarget,
+  requestedAction: LightShortcutRequestAction,
+  request?: Request,
+) {
   const explicitAction = requestedAction === "toggle" ? null : requestedAction;
   const fallbackErrorMessage = target === "all" ? "All light shortcut failed" : SHORTCUTS[target].errorMessage;
   const cooldown = claimLightShortcutCooldown(target);
@@ -123,12 +168,11 @@ export async function handleLightShortcut(target: LightShortcutTarget, requested
       );
       rememberLightShortcutAction(target, action);
 
-      // FINISH.
-      void emitDashboardEvent({
-        service: "lighting",
+      // FINISH. Attributed rather than a plain event: this is the line that
+      // reaches the activity panel and the digest.
+      void attributeShortcut(request, {
         event: eventName,
-        source: "user",
-        phase: "end",
+        summary: shortcutSummary(target, action, targetIds.length),
         detail: { target, action, lights: targetIds.length, outcome: "ok" },
       });
       return text(action);
@@ -182,11 +226,9 @@ export async function handleLightShortcut(target: LightShortcutTarget, requested
     }
     rememberLightShortcutAction(target, action);
 
-    void emitDashboardEvent({
-      service: "lighting",
+    void attributeShortcut(request, {
       event: eventName,
-      source: "user",
-      phase: "end",
+      summary: shortcutSummary(target, action, targetIds.length),
       detail: { target, zone: zone.id, action, lights: targetIds.length, outcome: "ok" },
     });
     return text(action);

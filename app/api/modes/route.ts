@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import type { DashboardPreferences } from "../../../lib/types";
+import { attributeControl } from "../../../lib/control-attribution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -75,6 +76,12 @@ export async function POST(request: Request) {
   }
   const mode = MODES[source.mode];
   await mergeDashboardPreferences(mode.write(source.enabled, await readDashboardPreferences()));
+  void attributeControl(request, {
+    service: "system",
+    event: "mode-toggle",
+    summary: `${source.mode} mode ${source.enabled ? "on" : "off"}`,
+    detail: { route: "/api/modes", mode: source.mode, enabled: source.enabled },
+  });
   // Read back rather than echoing the request: the caller — including the
   // voice provider's verification — needs the state that actually landed.
   return NextResponse.json({
