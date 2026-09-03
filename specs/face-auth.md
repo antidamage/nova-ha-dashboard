@@ -350,6 +350,47 @@ and session termination for the veto path. It no longer drives the login flow.
 `harness.py` is a local WebAuthn RP test double so the register-then-assert round
 trip is provable without waiting on authentik's flow configuration.
 
+## Re-registration, and the two ways this broke — 2026-09-04
+
+Face sign-in was live but refusing every attempt, at two independent points.
+Both are worth writing down because neither showed up as a face problem.
+
+**1. The credential pair had gone one-sided.** authentik still held
+`nova-face-Addie`; the oracle's `credentials` table was empty. Every attempt
+recognised the subject (0.77-0.82 against a 0.42 threshold, liveness and
+anti-spoof passing) and then refused `403 no_credential`, because the half that
+signs was gone.
+
+The cause is `Store.delete_subject`, which cascades
+`DELETE FROM credentials WHERE subject_id=?`. Deleting or re-enrolling a
+subject therefore destroys its credential, while authentik keeps its device
+object — leaving a device nothing can ever assert.
+
+**That asymmetry is a real trap and is not fixed by this entry.** Nothing warns,
+nothing reconciles, and the symptom appears only at the next sign-in attempt.
+Anyone re-enrolling a subject must re-register the credential afterwards.
+
+Registration is still the hands-on `ak shell` operation `authenticator/authentik.py`
+documents, and deliberately so. What that docstring does not say, and cost an
+hour: the authentik **username is not the face subject id**. The subject here is
+`Addie`; the account is `Antidamage`. Look the user up rather than assuming.
+
+**2. Nothing carried the veto key.** `VetoClient._post` sent a `Content-Type`
+and nothing else, while the module's ingress route checks
+`x-nova-face-veto-key` against its `discord.faceVetoKey` secret. Every hook was
+refused `401`, which the client maps to UNKNOWN and proceeds on — correctly, so
+a Discord outage cannot lock the household out.
+
+The consequence is the one this design explicitly calls worse than having no
+veto: releases would have succeeded with the notice silently undelivered. Both
+halves were built and correct; no key existed between them. `NOVA_FACE_VETO_KEY`
+now travels in the header, and is absent-safe — no key, no header, and the
+previous behaviour.
+
+Recorded because both failures presented as "face login does not work" while
+the face pipeline was doing its job perfectly, and both would otherwise be
+re-diagnosed from scratch.
+
 ## Threat model, revised 2026-09-03
 
 Adeline, after the first live enrolment: *"I've stated it before and you ignored
