@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUp, ArrowLeft, AudioLines, Blocks, Bot, Database, Download, History, KeyRound, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
+import { ArrowDownUp, ArrowLeft, AudioLines, Blocks, Bot, Database, Download, History, KeyRound, LogOut, MonitorSmartphone, Paintbrush, Palette, ShieldAlert, ShieldCheck, Upload, UserRound } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -40,6 +40,51 @@ const VoiceConfig = dynamic(() => import("./VoiceConfig").then((module) => modul
 const VoiceInfrastructureConfig = dynamic(() => import("./VoiceInfrastructureConfig").then((module) => module.VoiceInfrastructureConfig));
 const VoiceTrainingConfig = dynamic(() => import("./VoiceTrainingConfig").then((module) => module.VoiceTrainingConfig));
 const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfig").then((module) => module.WaveshareWatchfaceConfig));
+
+// Signing out has to clear BOTH cookies, in this order. The outpost holds its
+// own session cookie alongside authentik's; hitting the outpost's sign_out
+// endpoint redirects straight back to /start, which would silently re-issue a
+// session from the still-valid authentik cookie. So clear the outpost cookie
+// with a fetch whose redirect we deliberately do not follow, then navigate to
+// authentik's invalidation flow to end the SSO session itself.
+const AUTHENTIK_INVALIDATION_URL = "https://nova.tuatara-dory.ts.net:9443/if/flow/default-invalidation-flow/";
+
+async function signOut() {
+  try {
+    await fetch("/outpost.goauthentik.io/sign_out", { credentials: "include", redirect: "manual" });
+  } catch (error) {
+    // An opaque-redirect rejection here is expected and harmless; the cookie is
+    // cleared by the response regardless. Anything else still must not block
+    // the invalidation navigation below, which is the half that matters.
+    console.warn("[nova-dashboard] outpost sign-out did not complete cleanly", error);
+  }
+  window.location.href = AUTHENTIK_INVALIDATION_URL;
+}
+
+function ConfigPageActions({ onBack }: { onBack: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        className="config-page-button icon-link-text-tone"
+        aria-label="Back to dashboard"
+        onClick={onBack}
+      >
+        <ArrowLeft className="h-5 w-5" />
+        Back
+      </button>
+      <button
+        type="button"
+        className="config-page-button icon-link-text-tone"
+        aria-label="Log out"
+        onClick={() => void signOut()}
+      >
+        <LogOut className="h-5 w-5" />
+        Log out
+      </button>
+    </>
+  );
+}
 
 function stringify(value: unknown) {
   return JSON.stringify(value, null, 2);
@@ -325,15 +370,7 @@ export function ConfigWorkspace({
         <div className={`config-layout mx-auto grid max-w-5xl gap-4 ${activeCategory ? "" : "config-layout-categories-closed"}`}>
         <UpdateBanner context="config" />
         <nav className="config-top-actions" aria-label="Configuration actions">
-          <button
-            type="button"
-            className="config-page-button icon-link-text-tone"
-            aria-label="Back to dashboard"
-            onClick={handleBack}
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Back
-          </button>
+          <ConfigPageActions onBack={handleBack} />
         </nav>
 
         <nav className="config-category-nav" aria-label="Configuration categories">
@@ -480,6 +517,9 @@ export function ConfigWorkspace({
           </div>
         ) : null}
         </div>
+        <nav className="config-bottom-actions" aria-label="Configuration actions (bottom)">
+          <ConfigPageActions onBack={handleBack} />
+        </nav>
       </main>
     </ConfigPreviewBackgroundProvider>
   );

@@ -6460,3 +6460,16 @@ textarea.module-config-input {
   outline: 2px solid var(--cyber-cyan);
   outline-offset: 1px;
 }
+
+/* Fixed bottom-right copy of the config page's Back / Log out pair, so neither
+   is a scroll away on a long category. Mirrors .dashboard-config-link's fixed
+   treatment (same z-index and safe-area handling) rather than inventing one. */
+.config-bottom-actions {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 80;
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+}
