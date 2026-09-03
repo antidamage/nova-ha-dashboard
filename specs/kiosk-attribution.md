@@ -190,6 +190,33 @@ unattended and nobody is watching the directory.
 stored.** The observation posted to the dashboard is a subject id, a score and a
 timestamp.
 
+### Orientation and frame rate — both required, both found live
+
+Two settings this camera needs, and neither is a default worth trusting.
+
+**Rotation.** The webcam is mounted on its side: the room arrives rotated a
+quarter turn anticlockwise, and a face in it is rotated with it. Captured with
+`WITNESS_ROTATE_DEGREES=90`, applied by ffmpeg's `transpose=1`.
+
+Corrected at capture rather than left to the service because this camera's
+mounting is a fixed, known fact and a pixel rotation costs nothing here, whereas
+making the service work it out costs extra detection passes on every clip. The
+service keeps a fallback for callers whose orientation is unknown — see below.
+
+**Frame rate.** The camera offers 1280x720 in both YUYV and MJPG, and v4l2 picks
+YUYV, which it can only deliver at **10 fps**. `FACE_CLIP_MIN_FPS` is 20, so
+every witness clip was refused `clip_low_fps` before a face was ever looked for.
+MJPG does the same resolution at 30. `WITNESS_INPUT_FORMAT=mjpeg`,
+`WITNESS_FRAMERATE=30` and `WITNESS_VIDEO_SIZE=1280x720` ask for it explicitly;
+left to negotiate, ffmpeg negotiates badly.
+
+Verified live: the capture is 720x1280 at 30/1 after rotation.
+
+**A busy device is expected and harmless.** Enrolment in the browser holds the
+same webcam, and ffmpeg then exits with "Device or resource busy". The daemon
+logs it and drops the capture, which is the designed behaviour — the witness may
+never be able to affect anything else on this host.
+
 ## Reaching the face service
 
 `https://nova.tuatara-dory.ts.net/face/identify`, through Caddy's existing

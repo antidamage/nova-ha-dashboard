@@ -179,6 +179,16 @@ def iso_time(value: float) -> str:
     return datetime.fromtimestamp(value, timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+# Quarter turns, counted the way `quarter_turns_to_upright` counts them: n is
+# how far the image is rotated clockwise, corrected by turning it back. Shared
+# so a probe rotation and a landmark correction compose by addition mod 4.
+QUARTER_TURN = {
+    1: cv2.ROTATE_90_COUNTERCLOCKWISE,
+    2: cv2.ROTATE_180,
+    3: cv2.ROTATE_90_CLOCKWISE,
+}
+
+
 class Refusal(HTTPException):
     """A refusal that names its reason in a stable machine-readable string.
 
@@ -958,24 +968,64 @@ class ClipAnalysis:
         motion that never happened.
         """
 
-        for frame in frames[: min(len(frames), 5)]:
-            faces = MODELS.detect(frame)
-            if not faces:
+        probes = frames[: min(len(frames), 5)]
+        for frame in probes:
+            turns = ClipAnalysis._turns_from_landmarks(frame)
+            if turns is None:
                 continue
-            best = max(faces, key=lambda item: item.score)
-            if best.score < DET_SCORE_MIN:
-                continue
-            turns = quarter_turns_to_upright(roll_degrees(best.landmarks))
-            if turns == 0:
-                return frames, 0
-            rotation = {
-                1: cv2.ROTATE_90_COUNTERCLOCKWISE,
-                2: cv2.ROTATE_180,
-                3: cv2.ROTATE_90_CLOCKWISE,
-            }[turns]
-            LOG.info("clip arrived rotated; correcting by %d quarter turn(s)", turns)
-            return [cv2.rotate(item, rotation) for item in frames], turns
+            if turns:
+                LOG.info("clip arrived rotated; correcting by %d quarter turn(s)", turns)
+            return ClipAnalysis._rotate(frames, turns), turns
+
+        # Nothing was detected at the incoming orientation.
+        #
+        # The landmark check above can only correct a rotation it can SEE, and
+        # it sees nothing until a face is detected. That is fine for a phone,
+        # which is off by a quarter turn at most and still detects. It is not
+        # fine for a camera mounted on its side: rotation then decides whether
+        # there is a detection AT ALL, and the clip is refused `no_face` for a
+        # face that is plainly in the frame.
+        #
+        # So probe the other three cardinal orientations before giving up. One
+        # frame each, and only on this path — a clip that detected normally
+        # costs nothing extra, and the worst case is three extra detections on a
+        # clip that was going to be refused anyway.
+        if probes:
+            for pre in (1, 2, 3):
+                turns = ClipAnalysis._turns_from_landmarks(cv2.rotate(probes[0], QUARTER_TURN[pre]))
+                if turns is None:
+                    continue
+                total = (pre + turns) % 4
+                LOG.info(
+                    "no face at the incoming orientation; detected after %d quarter turn(s), "
+                    "correcting the clip by %d",
+                    pre,
+                    total,
+                )
+                return ClipAnalysis._rotate(frames, total), total
         return frames, 0
+
+    @staticmethod
+    def _turns_from_landmarks(frame: np.ndarray) -> int | None:
+        """Quarter turns to upright from one frame, or None if no confident face.
+
+        The eye landmarks are the only orientation cue that survives a
+        re-encode; the bounding box carries no rotation.
+        """
+        faces = MODELS.detect(frame)
+        if not faces:
+            return None
+        best = max(faces, key=lambda item: item.score)
+        if best.score < DET_SCORE_MIN:
+            return None
+        return quarter_turns_to_upright(roll_degrees(best.landmarks))
+
+    @staticmethod
+    def _rotate(frames: list[np.ndarray], turns: int) -> list[np.ndarray]:
+        turns %= 4
+        if turns == 0:
+            return frames
+        return [cv2.rotate(item, QUARTER_TURN[turns]) for item in frames]
 
     @property
     def usable(self) -> int:
