@@ -255,7 +255,7 @@ type KioskSession = {
   lastTouchAt: string;
   actions: KioskAction[];
   digestSentAt: string | null;
-  digestRef: string | null;   // opaque handle so a continuation can edit, not repost
+  digestRef: string | null;   // reserved; see the note under The two timers
 };
 ```
 
@@ -297,7 +297,19 @@ digest window but **inside** the identity window. It is the same person and the
 same session. It appends to the digest already sent, by editing it, rather than
 posting a second message — the same edit-the-message-into-an-audit-trail
 discipline `nova-module-discord`'s `ProposalStore` already uses for proposals.
-`digestRef` is what makes that possible and is why it is stored.
+**Which side holds the message id.** The notifier does, keyed by session id,
+not the dashboard. `emitModuleEvent` is fire-and-forget and has no return path,
+so the dashboard cannot learn a Discord message id even in principle. What it
+sends is `continuation: true`, meaning "you have already reported this visit";
+the notifier looks up its own map and edits. A continuation whose original the
+notifier no longer knows — it restarted, or the first send failed — posts fresh,
+because duplicating a line beats losing one.
+
+The `digestRef` field on the session record is therefore reserved rather than
+load-bearing, and is currently always null. It is kept because a future notifier
+that CAN report an id back (an HTTP-based one, rather than a module event) would
+want somewhere to put it, and removing it later is cheaper than adding it to a
+persisted record in flight. Anything reading it should treat null as normal.
 
 Only once the identity TTL lapses does the next touch open a new session with a
 fresh capture and a new digest.
