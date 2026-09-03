@@ -155,10 +155,18 @@ export function LoginPanel({
     }
   }, [fail]);
 
-  // Open the password flow on mount so the fields are live immediately.
+  // Open the password flow once the origin is known to have a login path.
+  //
+  // NOT on mount. `/authentik/*` is proxied on the tailnet vhost only, because
+  // the LAN vhosts answer a flat 403 with no way to satisfy an authentik gate.
+  // Starting the flow regardless meant the LAN origin got Next.js's redirect
+  // instead of a challenge, which the client reported as "the sign-in service
+  // is not responding" -- alarming, wrong, and the opposite of the actual
+  // situation, which is that this address simply cannot sign anybody in.
   useEffect(() => {
+    if (loginPossible !== true) return;
     void start("password");
-  }, [start]);
+  }, [loginPossible, start]);
 
   const answer = useCallback(
     async (payload: Record<string, unknown>) => {
@@ -243,11 +251,24 @@ export function LoginPanel({
       }
     } catch (failure) {
       if (!liveRef.current) return;
-      // NotAllowedError covers both "user cancelled" and "timed out", and the
-      // browser deliberately does not distinguish them.
-      fail(failure instanceof Error && failure.name === "NotAllowedError"
-        ? "The passkey prompt was dismissed or timed out."
-        : "That passkey could not be used.");
+      // Name what actually threw. "That passkey could not be used" was a
+      // catch-all covering a dismissed prompt, an origin the credential cannot
+      // be used from, and a failed submit -- three different problems with
+      // three different fixes, reported identically.
+      if (failure instanceof FlowTransportError) {
+        fail(failure.message, "flow_unreachable");
+      } else if (failure instanceof Error && failure.name === "NotAllowedError") {
+        // Covers "dismissed", "timed out" AND "no credential matched", which
+        // the browser deliberately does not distinguish.
+        fail("The passkey prompt was dismissed, timed out, or found no matching passkey.", "webauthn_not_allowed");
+      } else if (failure instanceof Error && failure.name === "SecurityError") {
+        // The relying-party id is not usable from this origin -- almost always
+        // the wrong address rather than a bad credential.
+        fail("This passkey cannot be used from this address. Use the HTTPS address.", "webauthn_security");
+      } else {
+        const name = failure instanceof Error && failure.name ? failure.name : "unknown";
+        fail("That passkey could not be used.", `webauthn_${name}`);
+      }
     } finally {
       onNativePrompt?.(false);
       if (liveRef.current) setBusy(false);

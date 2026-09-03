@@ -81,6 +81,21 @@ async function readChallenge(response: Response): Promise<FlowChallenge> {
     body = null;
   }
   if (!body || typeof body !== "object") {
+    // A redirect or an HTML page here is not a broken service: it is this
+    // origin having no sign-in on it. `/authentik/*` is proxied on the tailnet
+    // vhost only, so a LAN address falls through to Next.js and answers 308.
+    // Saying "not responding" sent somebody hunting a fault that did not exist.
+    if (response.redirected || response.status === 404 || (response.status >= 300 && response.status < 400)) {
+      throw new FlowTransportError("There is no sign-in on this address. Use the HTTPS address.");
+    }
+    // A 500 with a session present is very likely the CSRF check: authentik
+    // answers PermissionDenied that way rather than 403. Say something the
+    // reader can act on instead of "not responding".
+    if (response.status === 500 && csrfToken() === null) {
+      throw new FlowTransportError(
+        "Sign-in could not be verified. Sign in on the authentik page once, then try again.",
+      );
+    }
     throw new FlowTransportError(
       response.ok
         ? "The sign-in service returned something unreadable."
@@ -92,6 +107,39 @@ async function readChallenge(response: Response): Promise<FlowChallenge> {
 
 /** Network or shape failure — distinct from a challenge that says "wrong password". */
 export class FlowTransportError extends Error {}
+
+/**
+ * authentik's CSRF token, from the cookie its own web client reads.
+ *
+ * **CSRF is enforced, and only once a session exists.** This was recorded the
+ * other way round after a probe that POSTed as an ANONYMOUS caller: DRF's
+ * `SessionAuthentication.enforce_csrf` only runs when session authentication
+ * resolves a user, so an anonymous POST sails through and an authenticated one
+ * is refused. The moment somebody had signed in, every stage POST — password,
+ * passkey and face alike — failed with
+ * `CSRF Failed: CSRF token missing` and an HTTP 500.
+ *
+ * `CSRF_COOKIE_HTTPONLY` is false on this instance, so the cookie is readable
+ * here by design. `CSRF_COOKIE_DOMAIN` is None, making it host-only — which
+ * still covers both ports, since cookies ignore them.
+ */
+const CSRF_COOKIE = "authentik_csrf";
+const CSRF_HEADER = "X-authentik-CSRF";
+
+export function csrfToken(cookie?: string): string | null {
+  const source = cookie ?? (typeof document === "undefined" ? "" : document.cookie);
+  // Split rather than match. A template-literal regex swallowed the `\s`
+  // escape and silently matched nothing, which is exactly the sort of failure
+  // this whole area has already produced too much of.
+  for (const part of source.split(";")) {
+    const entry = part.trim();
+    const eq = entry.indexOf("=");
+    if (eq > 0 && entry.slice(0, eq) === CSRF_COOKIE) {
+      return decodeURIComponent(entry.slice(eq + 1));
+    }
+  }
+  return null;
+}
 
 /**
  * Start (or restart) a flow and read its first challenge.
@@ -126,6 +174,7 @@ export async function submitFlow(
   slug: string,
   payload: Record<string, unknown>,
 ): Promise<FlowChallenge> {
+  const token = csrfToken();
   let response: Response;
   try {
     response = await fetch(flowUrl(slug), {
@@ -133,7 +182,13 @@ export async function submitFlow(
       credentials: "same-origin",
       cache: "no-store",
       redirect: "follow",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        // Absent when nobody is signed in yet, which is also when authentik
+        // does not ask for it.
+        ...(token ? { [CSRF_HEADER]: token } : {}),
+      },
       body: JSON.stringify(payload),
     });
   } catch {
