@@ -80,6 +80,29 @@ FORBIDDEN_DEVICES = {
 }
 
 CLIP_SECONDS = env_float("WITNESS_CLIP_SECONDS", 1.2)
+# Quarter turns CLOCKWISE to apply at capture, for a camera that is not mounted
+# upright. This panel's webcam sits on its side, so the room arrives rotated and
+# a face in it is rotated with it.
+#
+# Corrected here rather than left to the service: this camera's mounting is a
+# fixed, known fact, and a pixel rotation at capture costs nothing, whereas
+# making the service work it out costs extra detection passes on every clip.
+# The service's fallback still exists for callers whose orientation is unknown.
+WITNESS_ROTATE = env_int("WITNESS_ROTATE_DEGREES", 0) % 360
+
+# Capture format and rate.
+#
+# NOT cosmetic, and not a default worth trusting: this webcam offers 1280x720 in
+# both YUYV and MJPG, and v4l2 picks YUYV, which it can only deliver at 10 fps.
+# The service refuses any clip under FACE_CLIP_MIN_FPS (20) with `clip_low_fps`,
+# so every witness capture was being thrown away before a face was ever looked
+# for. MJPG does the same resolution at 30.
+#
+# Asking for the format explicitly is the whole fix. Left empty, ffmpeg
+# negotiates and negotiates badly.
+WITNESS_INPUT_FORMAT = env_str("WITNESS_INPUT_FORMAT", "mjpeg")
+WITNESS_FRAMERATE = env_str("WITNESS_FRAMERATE", "30")
+WITNESS_VIDEO_SIZE = env_str("WITNESS_VIDEO_SIZE", "1280x720")
 IDENTITY_TTL = env_float("KIOSK_IDENTITY_TTL_SECONDS", 30.0)
 IDENTIFY_RETRIES = env_int("WITNESS_IDENTIFY_RETRIES", 2)
 RETRY_MIN_SECONDS = env_float("WITNESS_RETRY_MIN_SECONDS", 5.0)
@@ -193,18 +216,31 @@ class Activity:
 
 def capture_clip(destination: Path) -> bool:
     """Record a short clip. Returns False rather than raising on any failure."""
+    # ffmpeg's transpose: 1 is 90 clockwise, 2 is 90 counter-clockwise.
+    rotate = {
+        90: ["-vf", "transpose=1"],
+        180: ["-vf", "transpose=1,transpose=1"],
+        270: ["-vf", "transpose=2"],
+    }.get(WITNESS_ROTATE, [])
+    source: list[str] = ["-f", "v4l2"]
+    if WITNESS_INPUT_FORMAT:
+        source += ["-input_format", WITNESS_INPUT_FORMAT]
+    if WITNESS_FRAMERATE:
+        source += ["-framerate", WITNESS_FRAMERATE]
+    if WITNESS_VIDEO_SIZE:
+        source += ["-video_size", WITNESS_VIDEO_SIZE]
     command = [
         "ffmpeg",
         "-hide_banner",
         "-loglevel",
         "error",
         "-y",
-        "-f",
-        "v4l2",
+        *source,
         "-i",
         VIDEO_DEVICE,
         "-t",
         f"{CLIP_SECONDS:.2f}",
+        *rotate,
         "-an",
         str(destination),
     ]
@@ -330,10 +366,14 @@ def run() -> int:
     activity = Activity()
     activity.drain()
     LOG.info(
-        "capturing from %s; identity ttl %.0fs, clip %.1fs",
+        "capturing from %s (%s %s @%sfps); identity ttl %.0fs, clip %.1fs, rotate %d deg",
         VIDEO_DEVICE,
+        WITNESS_INPUT_FORMAT or "auto",
+        WITNESS_VIDEO_SIZE or "auto",
+        WITNESS_FRAMERATE or "auto",
         IDENTITY_TTL,
         CLIP_SECONDS,
+        WITNESS_ROTATE,
     )
 
     interval = 1.0 / POLL_HZ if POLL_HZ > 0 else 1.0

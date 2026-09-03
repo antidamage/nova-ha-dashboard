@@ -659,6 +659,32 @@ Procedure, run after deploy and before the credential is registered:
 Record the measured populations in this file when they exist, replacing the
 "guess" marks above.
 
+## Orientation
+
+Clips are rotated upright before anything judges them. The eye landmarks are
+the only orientation cue that survives a `MediaRecorder` re-encode — the
+bounding box carries no rotation and the container flag is exactly what was
+lost. Orientation is decided ONCE, from the first frame with a confident
+detection, and applied to the whole clip: a rotation appearing halfway through
+would read to the liveness residual as motion that never happened.
+
+**Added 2026-09-04 — the no-detection case.** That check can only correct a
+rotation it can *see*, and it sees nothing until a face is detected. Fine for a
+phone, which is off by a quarter turn at most and still detects. Not fine for a
+camera mounted on its side, where rotation decides whether there is a detection
+**at all** and the clip is refused `no_face` for a face plainly in the frame.
+
+So when no frame yields a confident detection at the incoming orientation, the
+other three cardinal orientations are probed before giving up — one frame each,
+and only on that path. A clip that detected normally costs nothing extra, and
+the worst case is three extra detections on a clip that was going to be refused
+anyway. The probe rotation and the landmark correction compose by addition
+mod 4, which is why both use the same `QUARTER_TURN` map.
+
+This is a safety net for callers whose mounting is unknown. A caller that knows
+its own camera is sideways should still rotate at capture, as the kiosk witness
+does — see `kiosk-attribution.md`.
+
 ## Replay defence
 
 `POST /challenge` issues a 32-byte nonce, `FACE_NONCE_TTL_SECONDS` TTL, stored in
