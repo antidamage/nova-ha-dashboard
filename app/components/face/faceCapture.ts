@@ -46,47 +46,121 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export const CLIP_DURATION_MS = 4000;
 
 /**
- * The refusal strings, verbatim from `specs/face-auth.md` § Enrolment UI contract.
+ * The refusal strings.
  *
- * `liveness_rigid` and `antispoof` deliberately show the same text, and the
- * three lockout reasons collapse to one. The user gets no feedback about which
- * signal caught them — that distinction lives in the `attempts` table, where it
- * is calibration data, rather than in the UI, where it is a tuning aid for an
- * attacker.
+ * Two rules shape these, and they pull in opposite directions.
+ *
+ * **Say what actually failed, and what to do about it.** A message that does
+ * not distinguish "the camera could not see you", "you were not recognised" and
+ * "you were recognised but sign-in could not be released" leaves the only
+ * available action as "try again", which is wrong for two of the three.
+ *
+ * **Leak no topology.** The login screen is reachable by anyone who can load
+ * the page, so nothing here names a host, a port, a service, a key, or which
+ * third party a step depends on. "Recognised but not released" is the honest
+ * shape of that class of failure and says nothing about the machinery.
+ * `specs/login-surface.md` owns this rule.
  */
 export const FACE_REASON_MESSAGES: Record<string, string> = {
+  // --- the camera could not get a usable clip: retrying can work ---
   no_face: "No face found in that clip.",
   multiple_faces: "More than one face in frame.",
   face_too_small: "Move closer to the camera.",
   clip_too_short: "The clip was too short or too choppy. Try again.",
+  clip_too_long: "The clip was too short or too choppy. Try again.",
   clip_low_fps: "The clip was too short or too choppy. Try again.",
-  liveness_rigid: "That did not look like a live face.",
+  low_detection: "The camera could not see your face clearly enough.",
+  too_few_frames: "Too few usable frames in that clip. Try again.",
   liveness_unstable: "Too much movement. Hold steadier.",
+
+  // --- seen, but not matched to an enrolled person ---
+  // `liveness_rigid` and `antispoof` deliberately share this text, and neither
+  // says which signal caught them: that distinction lives in `attempts`, where
+  // it is calibration data.
+  liveness_rigid: "That did not look like a live face.",
   antispoof: "That did not look like a live face.",
+  ambiguous: "Your face was not recognised clearly enough.",
+  too_few_agreeing: "Your face was not recognised clearly enough.",
+
+  // --- recognised, but the sign-in was not released ---
+  // The honest shape without the machinery. Retrying will not help, and the
+  // password will, so the message says so.
+  no_veto_channel:
+    "Your face was recognised, but sign-in could not be released. Use your password instead.",
+  assertion_rejected:
+    "Your face was recognised, but the sign-in was refused. Use your password instead.",
+  // Recognised, but there is nothing to sign with: the sign-in credential for
+  // this person has not been registered, or has been removed. Distinct from
+  // every other failure because the fix is a one-off setup step, not a retry.
+  no_credential:
+    "Your face was recognised, but no sign-in credential is registered for you. Use your password, then set face sign-in up again.",
+  face_session_invalid: "That capture expired before it could be used. Try again.",
+  authentik_session_required: "That action needs a signed-in session. Use your password first.",
+
+  // --- switched off ---
+  // All three collapse to one string on purpose: which one it is tells anyone
+  // probing whether their attempts have tripped a counter.
+  disarmed: "Face sign-in is switched off. Sign in with your password to turn it back on.",
+  locked_out: "Face sign-in is switched off. Sign in with your password to turn it back on.",
+  rate_limited: "Face sign-in is switched off. Sign in with your password to turn it back on.",
+
+  // --- the request could not be made at all ---
+  nonce_invalid: "The capture expired. Try again.",
+  network_denied: "Face sign-in is not available from this network.",
+  insecure_context: "Camera access needs the HTTPS address.",
+  service_unavailable: "Face sign-in is not responding.",
+
+  // --- enrolment only ---
   inconsistent: "That clip does not match the others. Not counted.",
   conflicts_with_subject: "That face is already enrolled as someone else.",
-  nonce_invalid: "The capture expired. Try again.",
-  network_denied: "Face login is not available from this network.",
-  disarmed: "Face login is switched off. Sign in with your password to turn it back on.",
-  locked_out: "Face login is switched off. Sign in with your password to turn it back on.",
-  rate_limited: "Face login is switched off. Sign in with your password to turn it back on.",
-  no_veto_channel: "This person has no Discord account mapped. Face login is unavailable for them.",
-  insecure_context: "Camera access needs the HTTPS address.",
-  service_unavailable: "The face service is not responding.",
-  // Reasons the service can return that the spec's UI table does not name a
-  // string for. Written in the same register; not verbatim from the spec.
-  clip_too_long: "The clip was too short or too choppy. Try again.",
-  low_detection: "The camera could not see that face clearly enough.",
-  too_few_frames: "Too few usable frames in that clip. Try again.",
-  too_few_agreeing: "Not enough of the clip agreed. Try again.",
-  ambiguous: "That clip was ambiguous. Not counted.",
-  // Login-only: the assertion was signed but authentik would not take it.
-  assertion_rejected: "The sign-in was refused. Try again, or use your password.",
 };
 
+/**
+ * Reasons whose exact name is NOT shown to the user.
+ *
+ * Everything else gets its stable reason string rendered alongside the message,
+ * because a name that can be searched for is the difference between "it didn't
+ * work" and a fixable report. These are the exceptions:
+ *
+ * - the liveness and match signals, because naming which one caught you is a
+ *   tuning aid for somebody iterating against the thresholds; and
+ * - the three switched-off reasons, because telling them apart says whether a
+ *   probing campaign has tripped the lockout counter.
+ *
+ * Both exclusions are `specs/face-auth.md`'s existing decisions, kept rather
+ * than quietly reversed.
+ */
+const UNNAMED_REASONS = new Set([
+  "liveness_rigid",
+  "antispoof",
+  "ambiguous",
+  "too_few_agreeing",
+  "disarmed",
+  "locked_out",
+  "rate_limited",
+]);
+
+export type FaceReasonDetail = {
+  message: string;
+  /** Stable reason string to show beside the message, or null to withhold it. */
+  code: string | null;
+};
+
+export function faceReasonDetail(reason: unknown, fallback: string): FaceReasonDetail {
+  if (typeof reason !== "string" || !reason) {
+    return { message: fallback, code: null };
+  }
+  const known = FACE_REASON_MESSAGES[reason];
+  return {
+    // An unrecognised reason still gets named. A refusal the UI has no wording
+    // for is exactly the case where the raw string is worth the most.
+    message: known ?? fallback,
+    code: UNNAMED_REASONS.has(reason) ? null : reason,
+  };
+}
+
 export function faceReasonMessage(reason: unknown, fallback = "That clip was refused."): string {
-  if (typeof reason !== "string" || !reason) return fallback;
-  return FACE_REASON_MESSAGES[reason] ?? fallback;
+  return faceReasonDetail(reason, fallback).message;
 }
 
 /**
