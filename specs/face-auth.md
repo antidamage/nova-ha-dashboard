@@ -120,6 +120,14 @@ That was the previous pass's design and it is retired along with `/auth/face`.
 The browser drives the flow, exactly as it would for a hardware key; the oracle
 only signs.
 
+**The browser that drives it, added 2026-09-03.** Through this spec's first live
+pass there was no such browser: the credential worked, the ceremony was correct,
+and no UI anywhere could begin it. authentik's own login page cannot — it is a
+different origin and cannot reach `getUserMedia` or the dashboard's `/api/face/*`
+proxy. The **Use Face** button on the Nova login surface is the missing first
+step, and `specs/login-surface.md` owns it. Nothing in the ceremony above
+changes; a caller finally exists for it.
+
 ## Threat model
 
 Stated plainly, because the design rests on being honest here. None of the three
@@ -240,7 +248,7 @@ that is already compromised**. See the threat model above.
 | | value |
 |---|---|
 | RP ID | `nova.tuatara-dory.ts.net` |
-| Origin, pinned | `https://nova.tuatara-dory.ts.net:9443` |
+| Origin, pinned | `https://nova.tuatara-dory.ts.net` — **changed 2026-09-03, see below** |
 
 Both are configuration in `/etc/nova-face-auth.env` (`WEBAUTHN_RP_ID`,
 `WEBAUTHN_ORIGIN`), never constants — they are household hostnames and this repo
@@ -274,6 +282,43 @@ Changing it would mean routing `/api/v3/flows/**`, `/flows/**` and `/static/**`
 on the `:443` tailnet vhost to `127.0.0.1:9000` with `header_up Host`, and
 driving the flow from that origin. Not done: it edits shared ingress to buy a
 cosmetic difference.
+
+**Superseded 2026-09-03 — the origin is now `https://nova.tuatara-dory.ts.net`,
+with no port.** The paragraph above is kept because its reasoning was correct
+for the design it described, and because the change is only intelligible against
+it.
+
+What changed is not the analysis but the premise. That paragraph assumed nothing
+in a browser would ever drive one of these flows — the oracle was headless and
+the difference really was cosmetic. `specs/login-surface.md` puts a **Use Face**
+button on the dashboard, and a browser on a page served from `:443` produces
+`clientDataJSON.origin` of `https://nova.tuatara-dory.ts.net`. authentik expects
+whatever origin the flow was served from. Served on `:9443`, the two do not match
+and the button cannot work. It is now the difference between the feature existing
+and not existing.
+
+So the flow executor **is** proxied through the `:443` tailnet vhost, under
+`/authentik/*`, with `header_up Host nova.tuatara-dory.ts.net` — the
+`(ak_flow_routes)` snippet in `ops/iridium/nova.Caddyfile`. `login-surface.md`
+owns that snippet and its ordering.
+
+Consequences, all of them small:
+
+- **`WEBAUTHN_ORIGIN` in `/etc/nova-face-auth.env` drops the `:9443`.** It must
+  track the origin the flow is actually served from, because the oracle pins it
+  into `clientDataJSON` itself.
+- **No credential is invalidated.** RP IDs carry no port, and the RP ID is
+  unchanged, so `nova-face-Addie` and Adeline's LastPass passkey both survive.
+- **Ship the Caddy snippet and the env change together.** Between the two the
+  face path is broken, and there is no reason to have a deploy in which it is.
+- The face path now works from the dashboard origin and not from authentik's own
+  `:9443` page. That is fine: the button only exists on the dashboard, and the
+  oracle is not something a human invokes by hand.
+
+`/static/**` and `/flows/**` are **not** proxied. The dashboard renders its own
+login UI and never loads authentik's assets, so only the executor API and the
+flow-cancel endpoint are needed. Proxying less of authentik onto the dashboard's
+origin is the better default.
 
 **The oracle constructs `clientDataJSON` itself, with the pinned origin,
 regardless of where the clip came from.** That is correct, not a shortcut,

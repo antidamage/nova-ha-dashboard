@@ -120,6 +120,31 @@ This flows to the existing NATS → VictoriaLogs → Grafana path. The purpose i
 narrow and specific: the next time the heater changes on its own, the answer to
 "what sent this" must be one query, not a day of forensics.
 
+### Scope widened, 2026-09-03
+
+The two routes named above are no longer the whole of it, and this section's
+inventory is superseded by `specs/kiosk-attribution.md`.
+
+Two things changed. **Every device-control route is now attributed**, not just
+the heater-adjacent pair — `/api/entity`, `/api/zone`, the lighting shortcuts,
+the two sleep-timer routes that recorded nothing at all, `/api/modes`,
+`/api/doorbell/sequence` and `/api/desktop/**`. The narrow scope was right for
+the incident that prompted it and wrong as a permanent answer: "what sent this"
+is a question about any control, and a log that covers two routes reads as
+complete while being partial.
+
+And the caller record now carries a **person**, not only an address. IP and user
+agent answer "which machine", which for the shared wall panel is the same answer
+every time. `nocturniumIdentity()` joins a kiosk-originated write to the face
+observation for the session in front of the camera, adding `callerPerson`,
+`callerPersonScore`, `callerPersonAgeSeconds` and `kioskSessionId` to the same
+event `detail`. It is `null` when the person is not enrolled, and it is never
+guessed.
+
+The mechanism is unchanged and still `callerAttribution` plus
+`emitDashboardEvent`; the routes now call one shared `attributeControl` helper
+rather than each assembling the detail themselves.
+
 ## 5. A generic switch toggle may not arm Auto
 
 `lib/climate-control.ts:774-776` — `handleLegacyClimateAction`'s `turn_on`
