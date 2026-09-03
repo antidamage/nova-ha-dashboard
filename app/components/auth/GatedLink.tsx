@@ -44,6 +44,21 @@ export function GatedLink({
   const { requestLogin } = useLogin();
 
   const decide = useCallback(async () => {
+    // RESTORED 2026-09-04: the modal is not trusted to be the only way in.
+    //
+    // It briefly became the sole route to /config, and when it failed there was
+    // no way past it — the dashboard's own config page became unreachable
+    // because of a sign-in surface that is a convenience, not infrastructure.
+    // The forward-auth redirect to authentik is the path that worked before any
+    // of this existed and still does.
+    //
+    // So the modal is now opt-in via NEXT_PUBLIC_NOVA_LOGIN_MODAL, and the
+    // default is the plain navigation. Turn it on once it has been shown to
+    // work end to end; until then a failure here costs nothing.
+    if (process.env.NEXT_PUBLIC_NOVA_LOGIN_MODAL !== "true") {
+      window.location.assign(href);
+      return;
+    }
     const state = await fetchAuthState();
     if (state.status === "authed" || state.status === "unknown") {
       // Signed in, or the probe could not answer. A network blip must not
