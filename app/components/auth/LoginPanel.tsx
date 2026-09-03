@@ -94,6 +94,8 @@ export function LoginPanel({
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [loginPossible, setLoginPossible] = useState<boolean | null>(null);
+  // Where sign-in works, when it is not here. Empty until the config answers.
+  const [signInBaseUrl, setSignInBaseUrl] = useState("");
 
   const capture = useFaceCapture();
   const { openCamera, recordClip, secureContext, stopStream, videoRef } = capture;
@@ -113,6 +115,16 @@ export function LoginPanel({
       if (!liveRef.current) return;
       setLoginPossible(state.status !== "no-login");
     });
+    // Fetched unconditionally, so the "not here" branch already has somewhere
+    // to point rather than fetching only once it is needed.
+    void fetch("/api/config/client", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (!liveRef.current) return;
+        const url = typeof body?.signInBaseUrl === "string" ? body.signInBaseUrl : "";
+        setSignInBaseUrl(url);
+      })
+      .catch(() => undefined);
   }, []);
 
   const fail = useCallback((message: string | null, code: string | null = null) => {
@@ -379,11 +391,33 @@ export function LoginPanel({
   /* ---------------------------------------------------------------- */
 
   if (loginPossible === false) {
+    // The LAN addresses are HTTPS as well, so "use the HTTPS address" told
+    // somebody already on HTTPS to do what they were doing. They answer a flat
+    // 403 with no login path, and /config stays refused there whatever session
+    // you hold — so the only useful thing is the address that does work.
+    const elsewhere = signInBaseUrl
+      && typeof window !== "undefined"
+      && !window.location.href.startsWith(`${signInBaseUrl}/`);
+    const target = elsewhere
+      ? `${signInBaseUrl}${typeof window === "undefined" ? "/" : window.location.pathname}`
+      : null;
     return (
       <Shell compact={compact} onCancel={onCancel} title="Sign in">
         <p className="text-sm text-neutral-300">
-          There is no sign-in on this address. Open the dashboard on its HTTPS address to sign in.
+          This address cannot sign you in. Nova&rsquo;s configuration is only reachable on its
+          tailnet address.
         </p>
+        {target ? (
+          <a className="config-page-button justify-self-start" href={target}>
+            <LogIn className="h-4 w-4" aria-hidden="true" />
+            Continue on {new URL(signInBaseUrl).host}
+          </a>
+        ) : null}
+        {typeof window !== "undefined" ? (
+          <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+            {window.location.host}
+          </p>
+        ) : null}
       </Shell>
     );
   }

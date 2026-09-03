@@ -25,6 +25,14 @@ export async function GET() {
     tasks: {
       alertAudio: config.tasks.alertAudio,
     },
+    // Where sign-in actually works, when it is not this address.
+    //
+    // The LAN vhosts are HTTPS too, so "use the HTTPS address" was useless
+    // advice to somebody already on HTTPS. They answer config_gate_denied -- a
+    // flat 403 with no login path -- so a session obtained there would not open
+    // /config anyway. Naming the address that does work, as a link, is the only
+    // actionable thing to say.
+    signInBaseUrl: (process.env.NOVA_SIGNIN_BASE_URL ?? "").trim().replace(/\/+$/, ""),
     mapWeather: config.mapWeather,
     theme: config.theme,
   });
