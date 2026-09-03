@@ -37,9 +37,12 @@ export function useLogin(): LoginContextValue {
 
 export function LoginProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  // True while a browser-owned prompt (the passkey picker) is on screen.
+  const [nativePrompt, setNativePrompt] = useState(false);
   const pending = useRef<((granted: boolean) => void) | null>(null);
 
   const settle = useCallback((granted: boolean) => {
+    setNativePrompt(false);
     setOpen(false);
     const resolve = pending.current;
     pending.current = null;
@@ -74,8 +77,14 @@ export function LoginProvider({ children }: { children: React.ReactNode }) {
         onClose={() => settle(false)}
         ariaLabel="Sign in"
         className="system-confirm-card"
+        suspendFocusTrap={nativePrompt}
       >
-        <LoginPanel compact onCancel={() => settle(false)} onSuccess={() => settle(true)} />
+        <LoginPanel
+          compact
+          onCancel={() => settle(false)}
+          onSuccess={() => settle(true)}
+          onNativePrompt={setNativePrompt}
+        />
       </ModalOverlay>
     </LoginContext.Provider>
   );

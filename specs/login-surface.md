@@ -378,12 +378,48 @@ The modal is honest about it rather than failing silently:
 | `navigator.credentials` absent | The passkey button is not rendered. |
 | no camera, or `getUserMedia` refused | The face button renders its reason and stays disabled. |
 
-Face refusal strings are the `reason` values already tabulated in `face-auth.md`
-§Enrolment UI contract, reused verbatim — including that `liveness_rigid` and
-`antispoof` deliberately render identical text, and that the three lockout
-reasons collapse to one string. The user gets no feedback about which signal
-caught them; that distinction lives in `attempts`, where it is useful, rather
-than in the UI, where it is a tuning aid for an attacker.
+## Refusal messages
+
+Two rules, pulling against each other, and both are load-bearing.
+
+**Say what actually failed and what to do next.** Face refusals fall into four
+classes and each calls for a different action: the camera could not get a usable
+clip (retry), you were not recognised (retry, differently), you were recognised
+but the sign-in was not released (retrying cannot help — use the password), and
+the request never arrived. A single "that did not work" string is wrong for
+three of the four.
+
+**Leak no topology.** The login screen is reachable by anyone who can load the
+page, so no message names a host, a port, a service, a key, or which third party
+a step depends on. A unit test asserts this over the whole table.
+
+This replaced messages that broke both rules. `no_veto_channel` read "This
+person has no Discord account mapped" — naming a third party, and wrong in the
+case that actually occurred, where the *lookup* had failed rather than the
+mapping being absent. And `no_credential` — recognised, liveness passed, nothing
+to sign with — had no wording at all, so the one failure that actually happened
+in practice rendered as a generic line with the real cause invisible.
+
+### Reason codes are shown, with two exceptions
+
+The stable `reason` string is rendered small beneath the sentence. That is what
+turns "it didn't work" into something searchable and reportable, and a reason
+the UI has no wording for is exactly when the raw string is worth the most.
+
+Two sets are withheld, both carrying forward `face-auth.md`'s existing
+decisions rather than quietly reversing them:
+
+- **The liveness and match signals** (`liveness_rigid`, `antispoof`,
+  `ambiguous`, `too_few_agreeing`). Naming which signal caught you is a tuning
+  aid for somebody iterating against the thresholds. `liveness_rigid` and
+  `antispoof` also keep identical text, so the message does not leak what the
+  code withholds.
+- **The three switched-off reasons** (`disarmed`, `locked_out`,
+  `rate_limited`). Telling them apart says whether a probing campaign has
+  tripped the lockout counter. They collapse to one string as well.
+
+The precise reason is always in `attempts` regardless, which is where the
+calibration data belongs.
 
 ## Component reuse
 

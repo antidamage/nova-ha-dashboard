@@ -33,6 +33,7 @@ export function ModalOverlay({
   onClose,
   open,
   overlayClassName = "",
+  suspendFocusTrap = false,
 }: {
   ariaDescribedBy?: string;
   ariaLabel?: string;
@@ -43,11 +44,34 @@ export function ModalOverlay({
   onClose: () => void;
   open: boolean;
   overlayClassName?: string;
+  /**
+   * Stop pulling focus back into the dialog while a BROWSER-OWNED prompt is on
+   * screen — a WebAuthn passkey picker, a permission prompt.
+   *
+   * Those are native UI, not page content, and the focus trap fights them: the
+   * moment the picker takes focus, `focusin` fires with a target outside the
+   * dialog and the trap yanks it straight back. Chromium will not paint the
+   * picker for a document that keeps stealing focus, so the request sits
+   * pending and only appears once the dialog closes and the trap detaches.
+   * That is exactly the symptom the login modal hit -- the passkey dialog
+   * showing only after dismissing the modal, by which point the login was gone.
+   *
+   * Opt-in, and off by default: every other consumer keeps the trap it has.
+   * Escape, the backdrop and the scroll lock are untouched while suspended --
+   * only the focus containment stands down, and only for as long as the caller
+   * says a native prompt is up.
+   */
+  suspendFocusTrap?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  // Read through a ref inside the handler rather than adding it to the effect's
+  // dependencies: re-running the effect would tear down and rebuild the scroll
+  // lock and the inert background mid-ceremony.
+  const suspendFocusTrapRef = useRef(suspendFocusTrap);
+  suspendFocusTrapRef.current = suspendFocusTrap;
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +118,7 @@ export function ModalOverlay({
     (focusable()[0] ?? dialog).focus();
 
     const containFocus = (event: FocusEvent) => {
+      if (suspendFocusTrapRef.current) return;
       if (!dialog.contains(event.target as Node)) {
         (focusable()[0] ?? dialog).focus();
       }
@@ -134,7 +159,9 @@ export function ModalOverlay({
       document.documentElement.style.overflow = rootOverflow;
       Object.assign(document.body.style, bodyStyles);
       if (scrollX !== 0 || scrollY !== 0) window.scrollTo(scrollX, scrollY);
-      previouslyFocused?.focus();
+      // Restoring focus while a native prompt is still up would pull focus out
+      // of it, which is the same fight in the other direction.
+      if (!suspendFocusTrapRef.current) previouslyFocused?.focus();
     };
   }, [open]);
 

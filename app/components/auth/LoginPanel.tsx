@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import {
   FACE_REASON_MESSAGES,
-  faceReasonMessage,
+  faceReasonDetail,
   readJsonBody,
   useFaceCapture,
 } from "../face/faceCapture";
@@ -65,12 +65,19 @@ const RENDERABLE = new Set([
 export function LoginPanel({
   onSuccess,
   onCancel,
+  onNativePrompt,
   compact = false,
 }: {
   /** Called with a validated same-origin path once a flow completes. */
   onSuccess: (next: string) => void;
   /** Rendered as a Cancel button when supplied (the modal supplies it). */
   onCancel?: () => void;
+  /**
+   * Raised while a BROWSER-OWNED prompt is on screen (the passkey picker).
+   * The modal suspends its focus trap for the duration -- without that, the
+   * trap pulls focus back out of the picker and Chromium never paints it.
+   */
+  onNativePrompt?: (active: boolean) => void;
   compact?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>("password");
@@ -80,6 +87,10 @@ export function LoginPanel({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The stable reason string behind `error`, when it is one worth naming. Shown
+  // small, beside the sentence, so a failure can be reported and searched for
+  // rather than described as "it didn't work".
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [loginPossible, setLoginPossible] = useState<boolean | null>(null);
 
@@ -103,6 +114,11 @@ export function LoginPanel({
     });
   }, []);
 
+  const fail = useCallback((message: string | null, code: string | null = null) => {
+    setError(message);
+    setErrorCode(code);
+  }, []);
+
   const applyChallenge = useCallback(
     (next: FlowChallenge): boolean => {
       if (isTerminal(next)) {
@@ -110,15 +126,15 @@ export function LoginPanel({
         return true;
       }
       setChallenge(next);
-      setError(challengeError(next));
+      fail(challengeError(next));
       return false;
     },
-    [onSuccess],
+    [fail, onSuccess],
   );
 
   const start = useCallback(async (target: Mode) => {
     setBusy(true);
-    setError(null);
+    fail(null);
     setNote(null);
     try {
       const next = await beginFlow(MODE_FLOW[target]);
@@ -128,7 +144,7 @@ export function LoginPanel({
       return next;
     } catch (failure) {
       if (liveRef.current) {
-        setError(failure instanceof FlowTransportError
+        fail(failure instanceof FlowTransportError
           ? failure.message
           : "The sign-in service could not be reached.");
       }
@@ -136,7 +152,7 @@ export function LoginPanel({
     } finally {
       if (liveRef.current) setBusy(false);
     }
-  }, []);
+  }, [fail]);
 
   // Open the password flow on mount so the fields are live immediately.
   useEffect(() => {
@@ -147,7 +163,7 @@ export function LoginPanel({
     async (payload: Record<string, unknown>) => {
       if (!challenge) return;
       setBusy(true);
-      setError(null);
+      fail(null);
       try {
         const next = await submitFlow(MODE_FLOW[mode], { component: challenge.component, ...payload });
         if (!liveRef.current) return;
@@ -156,11 +172,11 @@ export function LoginPanel({
         // A fresh identification challenge after a submit means the credentials
         // were refused: authentik restarts the stage rather than saying so.
         if (next.component === challenge.component && !challengeError(next)) {
-          setError("That did not sign you in. Check the details and try again.");
+          fail("That did not sign you in. Check the details and try again.");
         }
       } catch (failure) {
         if (liveRef.current) {
-          setError(failure instanceof FlowTransportError
+          fail(failure instanceof FlowTransportError
             ? failure.message
             : "The sign-in service could not be reached.");
         }
@@ -170,7 +186,7 @@ export function LoginPanel({
         setCode("");
       }
     },
-    [applyChallenge, challenge, mode],
+    [applyChallenge, challenge, fail, mode],
   );
 
   const submitPassword = useCallback(() => {
@@ -200,16 +216,20 @@ export function LoginPanel({
     if (!opened) return;
     const device = webauthnChallenge(opened);
     if (!device) {
-      setError("No passkey is registered for this household.");
+      fail("No passkey is registered on this account.", "no_passkey");
       return;
     }
     setBusy(true);
+    // The picker is browser UI. Stand the focus trap down before asking for it,
+    // and only bring it back once the promise settles -- see ModalOverlay's
+    // suspendFocusTrap.
+    onNativePrompt?.(true);
     try {
       const credential = (await navigator.credentials.get({
         publicKey: toCredentialRequestOptions(device),
       })) as PublicKeyCredential | null;
       if (!credential) {
-        setError("No passkey was chosen.");
+        fail("No passkey was chosen.");
         return;
       }
       const next = await submitFlow(FLOW_PASSKEY, {
@@ -218,19 +238,20 @@ export function LoginPanel({
       });
       if (!liveRef.current) return;
       if (!applyChallenge(next)) {
-        setError(challengeError(next) ?? FACE_REASON_MESSAGES.assertion_rejected);
+        fail(challengeError(next) ?? FACE_REASON_MESSAGES.assertion_rejected, "assertion_rejected");
       }
     } catch (failure) {
       if (!liveRef.current) return;
       // NotAllowedError covers both "user cancelled" and "timed out", and the
       // browser deliberately does not distinguish them.
-      setError(failure instanceof Error && failure.name === "NotAllowedError"
-        ? "The passkey prompt was dismissed."
+      fail(failure instanceof Error && failure.name === "NotAllowedError"
+        ? "The passkey prompt was dismissed or timed out."
         : "That passkey could not be used.");
     } finally {
+      onNativePrompt?.(false);
       if (liveRef.current) setBusy(false);
     }
-  }, [applyChallenge, start]);
+  }, [applyChallenge, fail, onNativePrompt, start]);
 
   const useTheFace = useCallback(async () => {
     const opened = await start("face");
@@ -238,7 +259,7 @@ export function LoginPanel({
     const device = webauthnChallenge(opened);
     const webauthnValue = device ? webauthnChallengeValue(device) : null;
     if (!webauthnValue) {
-      setError("Face sign-in is not configured.");
+      fail("Face sign-in is not configured on this account.", "face_not_configured");
       return;
     }
 
@@ -247,7 +268,7 @@ export function LoginPanel({
       const failure = await openCamera();
       if (!liveRef.current) return;
       if (failure) {
-        setError(failure);
+        fail(failure);
         return;
       }
 
@@ -257,7 +278,8 @@ export function LoginPanel({
       const challengeBody = await readJsonBody(challengeResponse);
       const nonce = typeof challengeBody?.nonce === "string" ? challengeBody.nonce : "";
       if (!challengeResponse.ok || !nonce) {
-        setError(faceReasonMessage(challengeBody?.reason, FACE_REASON_MESSAGES.service_unavailable));
+        const detail = faceReasonDetail(challengeBody?.reason, FACE_REASON_MESSAGES.service_unavailable);
+        fail(detail.message, detail.code);
         return;
       }
 
@@ -277,7 +299,17 @@ export function LoginPanel({
       const assertBody = await readJsonBody(assertResponse);
       if (!liveRef.current) return;
       if (!assertResponse.ok || typeof assertBody?.signature !== "string") {
-        setError(faceReasonMessage(assertBody?.reason, "That did not sign you in."));
+        // The service names its refusal; render that rather than a generic
+        // line, because "recognised but not released", "not recognised" and
+        // "no credential registered" call for completely different next steps.
+        //
+        // The fallback is deliberately neutral. An earlier version guessed
+        // no_veto_channel for any 403, which was wrong for the case that
+        // actually happens most -- no_credential -- and a confidently wrong
+        // message is worse than an unspecific one. The reason code carries the
+        // truth when the wording cannot.
+        const detail = faceReasonDetail(assertBody?.reason, "That did not sign you in.");
+        fail(detail.message, detail.code);
         return;
       }
 
@@ -293,10 +325,19 @@ export function LoginPanel({
       });
       if (!liveRef.current) return;
       if (!applyChallenge(next)) {
-        setError(challengeError(next) ?? FACE_REASON_MESSAGES.assertion_rejected);
+        fail(challengeError(next) ?? FACE_REASON_MESSAGES.assertion_rejected, "assertion_rejected");
       }
-    } catch {
-      if (liveRef.current) setError("Face sign-in could not be completed.");
+    } catch (failure) {
+      // Distinguish "the request never got there" from "something in this
+      // component threw": the first is worth retrying, the second is a bug.
+      if (liveRef.current) {
+        fail(
+          failure instanceof FlowTransportError
+            ? failure.message
+            : "Face sign-in could not be completed.",
+          failure instanceof FlowTransportError ? "flow_unreachable" : "unexpected_error",
+        );
+      }
     } finally {
       // Release the camera whatever happened. A camera light left on in
       // someone's house is a real bug.
@@ -306,7 +347,7 @@ export function LoginPanel({
         setNote(null);
       }
     }
-  }, [applyChallenge, openCamera, recordClip, start, stopStream]);
+  }, [applyChallenge, fail, openCamera, recordClip, start, stopStream]);
 
   const backToPassword = useCallback(() => {
     stopStream();
@@ -452,9 +493,18 @@ export function LoginPanel({
 
       {note ? <p className="text-xs text-cyan-200">{note}</p> : null}
       {error ? (
-        <p role="alert" className="text-sm text-red-300">
-          {error}
-        </p>
+        <div role="alert" className="grid gap-1">
+          <p className="text-sm text-red-300">{error}</p>
+          {/* The stable reason string, when it is one worth naming. It is not
+              decoration: it is what makes a failure reportable and searchable
+              instead of "it didn't work". Withheld for the liveness, match and
+              switched-off reasons -- see UNNAMED_REASONS. */}
+          {errorCode ? (
+            <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+              {errorCode}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="grid gap-2 border-t border-neutral-800 pt-3">
