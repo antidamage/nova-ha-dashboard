@@ -136,6 +136,11 @@ AUTHENTIK_TOKEN = os.environ.get("AUTHENTIK_TOKEN", "").strip()
 # Where the Discord module listens for the veto hook, and the public origin the
 # fallback link is built on. Both are configuration for the same reason.
 VETO_HOOK_URL = os.environ.get("NOVA_FACE_VETO_HOOK_URL", "").strip()
+# The shared key the veto module checks on its ingress route. Without it every
+# hook is refused 401, which the client treats as UNKNOWN -- so releases went
+# through with the veto silently undelivered, which is the one state the design
+# calls worse than having no veto at all.
+VETO_HOOK_KEY = os.environ.get("NOVA_FACE_VETO_KEY", "").strip()
 PUBLIC_BASE_URL = os.environ.get("NOVA_FACE_PUBLIC_URL", "").strip()
 
 # The header the dashboard's authentik-gated proxy asserts an identity in, and
@@ -1180,10 +1185,13 @@ class VetoClient:
 
         if not self.url:
             return None
+        headers = {"Content-Type": "application/json"}
+        if VETO_HOOK_KEY:
+            headers["X-Nova-Face-Veto-Key"] = VETO_HOOK_KEY
         request = urllib.request.Request(
             self.url,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         try:
