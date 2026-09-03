@@ -9,6 +9,7 @@ import {
 import { parseZoneActionRequest } from "../../../lib/api/dashboard-requests";
 import { emitDashboardEvent } from "../../../lib/event-spool";
 import { emitModuleEvent, runModuleIntercepts } from "../../../lib/modules/runtime/hooks";
+import { attributeControl } from "../../../lib/control-attribution";
 import { setZoneAction } from "../../../lib/ha";
 import {
   claimLatestLightingCommand,
@@ -72,10 +73,11 @@ export async function POST(request: Request) {
       reason: action,
       data: { action, brightnessPct, rgb },
     });
-    void emitDashboardEvent({
+    void attributeControl(request, {
       service: "lighting",
       event: "zone-action",
-      source: "user",
+      summary: `${state.zones.find((zone) => zone.id === zoneId)?.name ?? zoneId} ${action}`
+        + (typeof brightnessPct === "number" ? ` at ${brightnessPct}%` : ""),
       detail: { zone: zoneId, action, brightnessPct },
     });
     return NextResponse.json(state);

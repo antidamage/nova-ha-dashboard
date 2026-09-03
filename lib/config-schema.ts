@@ -461,6 +461,20 @@ export const DashboardConfigSchema = z.object({
         }),
       }),
     }),
+    // The wall panel. Addresses only — this is how a control mutation is
+    // recognised as having come from the shared kiosk rather than from a phone
+    // on the tailnet, which is what lets it be attributed to whoever the face
+    // witness saw standing there. See specs/kiosk-attribution.md.
+    //
+    // Values live in nova-household, never here: this repo is public and
+    // lib/no-household-data.test.ts is a build-breaking tripwire for addresses
+    // in dashboard source. An empty list simply means no kiosk attribution,
+    // which is the correct behaviour for an installation without one.
+    kiosk: z
+      .object({
+        addresses: z.array(z.string()).default([]),
+      })
+      .default({ addresses: [] }),
     avatar: NovaAvatarConfigSchema,
     // The reminder sigil bar between the clock and zones panels. Presentation
     // and thresholds only — which reminder owns which sigil lives in its own

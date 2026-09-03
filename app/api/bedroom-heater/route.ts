@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { clampTargetTemperature } from "../../../lib/bedroom-heater-control";
 import { applyClimateControlIntent, type ClimateControlIntent } from "../../../lib/climate-control";
-import { emitDashboardEvent } from "../../../lib/event-spool";
 import { readDashboardPreferences } from "../../../lib/preferences";
-import { callerAttribution } from "../../../lib/request-attribution";
+import { attributeControl } from "../../../lib/control-attribution";
 import type { BedroomHeaterPreferences } from "../../../lib/types";
 
 export const dynamic = "force-dynamic";
@@ -35,18 +34,33 @@ function parseUpdate(body: unknown): BedroomHeaterPreferences {
   return update;
 }
 
+/** One line for the activity panel and the Discord digest. */
+function heaterSummary(
+  update: { mode?: string; temperature?: number; offTimerEndsAt?: string | null },
+  result: { mode?: string; temperature?: number } | undefined,
+): string {
+  const mode = update.mode ?? result?.mode;
+  const temperature = update.temperature ?? result?.temperature;
+  if (update.offTimerEndsAt) return "Bedroom heater sleep timer set";
+  if (mode && temperature !== undefined) return `Bedroom heater ${mode} at ${temperature}`;
+  if (mode) return `Bedroom heater ${mode}`;
+  if (temperature !== undefined) return `Bedroom heater to ${temperature}`;
+  return "Bedroom heater changed";
+}
+
 export async function POST(request: Request) {
   try {
     const update = parseUpdate(await request.json());
-    const caller = callerAttribution(request);
     await applyClimateControlIntent({ room: "bedroom", ...update } as ClimateControlIntent);
     const preferences = await readDashboardPreferences();
     // Attributed because this route is the heater's main writer and used to
-    // leave no trace at all. See specs/bedroom-heater-control-integrity.md §4.
-    void emitDashboardEvent({
+    // leave no trace at all. See specs/bedroom-heater-control-integrity.md §4;
+    // the caller record now carries a person as well as an address, per
+    // specs/kiosk-attribution.md.
+    void attributeControl(request, {
       service: "heating",
       event: "bedroom-heater-update",
-      source: "user",
+      summary: heaterSummary(update, preferences.bedroomHeater),
       detail: {
         route: "/api/bedroom-heater",
         mode: update.mode,
@@ -54,8 +68,6 @@ export async function POST(request: Request) {
         offTimerEndsAt: update.offTimerEndsAt,
         resultMode: preferences.bedroomHeater?.mode,
         resultTemperature: preferences.bedroomHeater?.temperature,
-        callerIp: caller.ip,
-        callerAgent: caller.userAgent,
       },
     });
     return NextResponse.json({ bedroomHeater: preferences.bedroomHeater ?? {} });

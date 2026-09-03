@@ -95,16 +95,33 @@ it is checked rather than documented.
 
 ## The trigger
 
-Local session idle time, polled at 1 Hz. Idle dropping below the poll interval
-means somebody just touched the panel.
+`/dev/input/event*`, polled at 1 Hz. Any event arriving since the last poll
+means somebody touched the panel.
 
-Preferred mechanism is the XScreenSaver extension through `ctypes`
-(`XScreenSaverQueryInfo`), which needs no new package. **Confirm the session is
-X11 first** — `XDG_SESSION_TYPE`. Nocturnium runs KDE Neon, and under Wayland
-neither XScreenSaver nor `xprintidle` works; the fallback there is reading
-`/dev/input` event device timestamps, which is more code and needs group access.
-The daemon reports which mechanism it selected at startup and refuses to run
-blind.
+**evdev, not XScreenSaver — settled live, 2026-09-03.** The plan proposed the
+X11 idle extension with a Wayland check as a caveat. The check was run first and
+the answer is Wayland: `loginctl show-session -p Type` reports `wayland` for the
+kiosk session on Nocturnium, and `xprintidle` is not installed either. Both X11
+routes would have failed *silently*, and a daemon that cannot see input looks
+exactly like a daemon watching an empty room — the worst shape a bug can take
+here, because nothing ever reports it.
+
+evdev sits below the display server, so it works on Wayland, X11 and a bare
+console alike, and does not depend on a desktop D-Bus API surviving an upgrade.
+Reading an event device does **not** steal events from the compositor: each open
+file description gets its own buffer, so this is a passive observer.
+
+Devices are selected from `/proc/bus/input/devices` by their `Handlers` row
+containing `mouse`, `kbd` or `js`. On this host that keeps the Melfas
+touchscreen (`event4`), the wireless keyboard and the mouse, and drops the three
+HD-Audio jack nodes, which also present event devices and would otherwise
+register as phantom touches. Verified against the live device table rather than
+assumed.
+
+It needs the `input` group: `/dev/input/event*` is `root:input 0660` and
+`antidamage` is not in it. The unit grants it with `SupplementaryGroups=input`
+— to the service, not to the login account, so nothing else the user runs gains
+the ability to read every keystroke on the machine.
 
 Touch is the right trigger rather than a timer. A person at the panel is the only
 thing this is trying to observe, and touching it is the only unambiguous evidence
@@ -361,13 +378,19 @@ omission.
 | `/api/bedroom-heater` | Already attributed; gains the person. |
 | `/api/aircon/timer`, `/api/panel-heater/timer` | Previously attributed nowhere at all. |
 | `/api/modes` | |
-| `/api/doorbell/sequence` | |
-| `/api/desktop/**` | |
+| `/api/desktop/sleep`, `/api/desktop/wake` | The two that are user actions. |
 
 Everything above funnels through one `callService()` in `lib/ha/client.ts`, so
 this inventory is complete rather than best-effort. A new control route that does
 not call `attributeControl` is a gap, and the route list here is where that gets
 noticed.
+
+**`/api/doorbell/sequence` is deliberately excluded**, having been listed in the
+plan. It is an inbound webhook from the doorbell device, bearer-authorised, not
+a control anybody touches. Attributing it to whoever the witness last saw at the
+panel would manufacture a claim that somebody pressed something they did not —
+the exact failure this feature exists to avoid. The same reasoning applies to any
+future device-originated callback: attribution is for things a person did.
 
 ---
 

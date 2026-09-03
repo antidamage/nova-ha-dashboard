@@ -4,9 +4,8 @@ import {
   applyClimateControlIntent,
   type ClimateControlIntent,
 } from "../../../lib/climate-control";
-import { emitDashboardEvent } from "../../../lib/event-spool";
 import { buildDashboardState } from "../../../lib/ha";
-import { callerAttribution } from "../../../lib/request-attribution";
+import { attributeControl } from "../../../lib/control-attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -45,15 +44,25 @@ function parseIntent(value: unknown): ClimateControlIntent {
   return intent;
 }
 
+/** One line for the activity panel and the Discord digest. */
+function climateSummary(intent: ClimateControlIntent): string {
+  const room = intent.room === "bedroom" ? "Bedroom heater" : "Lounge climate";
+  if (intent.offTimerEndsAt) return `${room} sleep timer set`;
+  if (intent.direction) return `${room} ${intent.direction}`;
+  if (intent.mode && intent.temperature !== undefined) return `${room} ${intent.mode} at ${intent.temperature}`;
+  if (intent.mode) return `${room} ${intent.mode}`;
+  if (intent.temperature !== undefined) return `${room} to ${intent.temperature}`;
+  return `${room} changed`;
+}
+
 export async function POST(request: Request) {
   try {
     const intent = parseIntent(await request.json());
-    const caller = callerAttribution(request);
     await applyClimateControlIntent(intent);
-    void emitDashboardEvent({
+    void attributeControl(request, {
       service: intent.room === "bedroom" ? "heating" : "climate",
       event: "climate-intent",
-      source: "api",
+      summary: climateSummary(intent),
       detail: {
         route: "/api/climate-control",
         room: intent.room,
@@ -61,8 +70,6 @@ export async function POST(request: Request) {
         direction: intent.direction,
         temperature: intent.temperature,
         offTimerEndsAt: intent.offTimerEndsAt,
-        callerIp: caller.ip,
-        callerAgent: caller.userAgent,
       },
     });
     return NextResponse.json(await buildDashboardState());

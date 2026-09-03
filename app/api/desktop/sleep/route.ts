@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseDesktopSleepRequest } from "../../../../lib/api/dashboard-requests";
 import { sleepDesktop } from "../../../../lib/desktop-sleep";
+import { attributeControl } from "../../../../lib/control-attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,12 @@ export async function POST(request: Request) {
   try {
     const { id } = parseDesktopSleepRequest(await request.json());
     const result = await sleepDesktop(id);
+    void attributeControl(request, {
+      service: "system",
+      event: "desktop-sleep",
+      summary: `${id} put to sleep`,
+      detail: { route: "/api/desktop/sleep", id },
+    });
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

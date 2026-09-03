@@ -172,7 +172,7 @@
 #     `/api/modules/{id}`.
 (config_gate_authed) {
 	@admin_any {
-		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/arm /api/face/health
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/arm /api/face/health /api/kiosk/witness/activity
 		not path /api/config/client
 	}
 	# Face routes and this gate, decided 2026-09-03.
@@ -347,7 +347,7 @@
 
 (config_gate_denied) {
 	@admin_any {
-		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/arm /api/face/health
+		path /config /config/* /api/config /api/config/* /api/preferences/history /api/system/* /api/voice/administration /api/voice/training/* /api/face/arm /api/face/health /api/kiosk/witness/activity
 		not path /api/config/client
 	}
 	# Same face-route reasoning as config_gate_authed above. Note the consequence
