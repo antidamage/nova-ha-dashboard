@@ -1,11 +1,31 @@
 "use client";
 
 import { Camera, RefreshCw, ScanFace, Trash2, Video } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ConfigAccordion } from "./ConfigControls";
 import { ConfigSelect, type ConfigSelectOption } from "./ConfigSelect";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import {
+  FACE_REASON_MESSAGES,
+  faceReasonMessage,
+  looksLikeCaptureCard,
+  readJsonBody,
+  useFaceCapture,
+} from "./face/faceCapture";
+
+// The camera lifecycle, the clip recorder, the device heuristics and the
+// refusal strings moved to ./face/faceCapture when the login surface gained a
+// Use Face button and became a second caller. Re-exported here because this
+// module was their published home and the enrolment tests import them from it.
+export {
+  CLIP_DURATION_MS,
+  FACE_REASON_MESSAGES,
+  faceReasonMessage,
+  looksLikeCaptureCard,
+  pickPreferredCamera,
+} from "./face/faceCapture";
+export type { CameraChoice } from "./face/faceCapture";
 
 /**
  * Face enrolment — the visual twin of `SpeakerProfilesConfig`, and for the same
@@ -24,30 +44,6 @@ import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
 /** `FACE_ENROL_MIN_CLIPS`. Only a starting value — the server's `needed` wins. */
 const DEFAULT_CLIPS_NEEDED = 5;
-
-/**
- * `MediaRecorder.stop()` timer.
- *
- * 4 s, not the 1 s this shipped with. `FACE_CLIP_MIN_SECONDS` is 0.8 so 1 s
- * cleared the bound, but clearing the bound was the wrong target: the liveness
- * test measures NON-RIGID motion — blink, micro-expression, out-of-plane
- * parallax — and a one-second window barely spans a single blink. It was
- * judging the clip on a signal the clip was too short to contain, which
- * pushes a genuine live face down toward the rigid end and gives the
- * anti-spoof model fewer distinct frames to work with.
- *
- * Observed on the first live enrolment: real residuals landed at 0.015-0.035
- * against a 0.012 floor — passing, but close enough to the floor that ordinary
- * stillness would fail.
- *
- * A longer clip is close to free. `core.even_frame_indices` samples a FIXED
- * `SAMPLE_FRAMES` (25) evenly across whatever length arrives, so four seconds
- * costs the same detection and embedding work as one and simply spreads those
- * 25 samples over a window wide enough to contain real movement. Only decode
- * cost grows. `FACE_CLIP_MAX_SECONDS` is raised to 6 on the service to leave
- * room for encoder overrun.
- */
-const CLIP_DURATION_MS = 4000;
 
 /**
  * One line per clip index, in order. The angles are not decoration: five frontal
@@ -76,97 +72,6 @@ export function anglePrompt(clipIndex: number): string {
   return ENROLMENT_ANGLE_PROMPTS[clipIndex % ENROLMENT_ANGLE_PROMPTS.length];
 }
 
-/**
- * The refusal strings, verbatim from `specs/face-auth.md` § Enrolment UI contract.
- *
- * `liveness_rigid` and `antispoof` deliberately show the same text, and the
- * three lockout reasons collapse to one. The user gets no feedback about which
- * signal caught them — that distinction lives in the `attempts` table, where it
- * is calibration data, rather than in the UI, where it is a tuning aid for an
- * attacker.
- */
-export const FACE_REASON_MESSAGES: Record<string, string> = {
-  no_face: "No face found in that clip.",
-  multiple_faces: "More than one face in frame.",
-  face_too_small: "Move closer to the camera.",
-  clip_too_short: "The clip was too short or too choppy. Try again.",
-  clip_low_fps: "The clip was too short or too choppy. Try again.",
-  liveness_rigid: "That did not look like a live face.",
-  liveness_unstable: "Too much movement. Hold steadier.",
-  antispoof: "That did not look like a live face.",
-  inconsistent: "That clip does not match the others. Not counted.",
-  conflicts_with_subject: "That face is already enrolled as someone else.",
-  nonce_invalid: "The capture expired. Try again.",
-  network_denied: "Face login is not available from this network.",
-  disarmed: "Face login is switched off. Sign in with your password to turn it back on.",
-  locked_out: "Face login is switched off. Sign in with your password to turn it back on.",
-  rate_limited: "Face login is switched off. Sign in with your password to turn it back on.",
-  no_veto_channel: "This person has no Discord account mapped. Face login is unavailable for them.",
-  insecure_context: "Camera access needs the HTTPS address.",
-  service_unavailable: "The face service is not responding.",
-  // Reasons the service can return that the spec's UI table does not name a
-  // string for. Written in the same register; not verbatim from the spec.
-  clip_too_long: "The clip was too short or too choppy. Try again.",
-  low_detection: "The camera could not see that face clearly enough.",
-  too_few_frames: "Too few usable frames in that clip. Try again.",
-  too_few_agreeing: "Not enough of the clip agreed. Try again.",
-  ambiguous: "That clip was ambiguous. Not counted.",
-};
-
-export function faceReasonMessage(reason: unknown, fallback = "That clip was refused."): string {
-  if (typeof reason !== "string" || !reason) return fallback;
-  return FACE_REASON_MESSAGES[reason] ?? fallback;
-}
-
-/**
- * A capture card is not a face camera.
- *
- * The kiosk host carries two video devices: a built-in UVC webcam and an MS2109
- * grabber wired to an outdoor security camera. Binding the grabber would point
- * enrolment at the street and enrol whoever walked past the front of the house.
- * This is a *preference*, not a lock — the picker still lists every device,
- * because the labels are vendor strings and no heuristic over them is reliable
- * enough to hide a device the user might actually need.
- *
- * Deliberately not host-specific: no device path, no host name, no fixed index.
- * It reads labels, so it works on any machine with the same problem.
- */
-const CAPTURE_CARD_HINTS = /(ms\d{4}|macrosilicon|capture|grabber|hdmi|usb ?video|cam ?link|av ?to ?usb|screen|virtual)/i;
-const FACE_CAMERA_HINTS = /(webcam|web cam|uvc|integrated|built[- ]?in|facetime|front|user|hd cam)/i;
-
-export function looksLikeCaptureCard(label: string): boolean {
-  return CAPTURE_CARD_HINTS.test(label) && !FACE_CAMERA_HINTS.test(label);
-}
-
-export type CameraChoice = { deviceId: string; label: string };
-
-/**
- * Highest-scoring video input, ties broken by enumeration order — which is the
- * browser's own default, so an unlabelled list behaves exactly as it would
- * without this function.
- */
-export function pickPreferredCamera<T extends CameraChoice>(devices: T[]): T | undefined {
-  let best: T | undefined;
-  let bestScore = -Infinity;
-  for (const device of devices) {
-    const label = device.label ?? "";
-    let score = 0;
-    if (looksLikeCaptureCard(label)) score -= 2;
-    if (FACE_CAMERA_HINTS.test(label)) score += 1;
-    if (score > bestScore) {
-      bestScore = score;
-      best = device;
-    }
-  }
-  return best;
-}
-
-function preferredClipMimeType(): string | undefined {
-  const candidates = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
-  const supported = typeof MediaRecorder !== "undefined" && typeof MediaRecorder.isTypeSupported === "function";
-  if (!supported) return undefined;
-  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
-}
 
 type FaceSubject = {
   id: string;
@@ -182,21 +87,17 @@ type Tone = "ok" | "error" | "info";
 
 const NEW_SUBJECT = "__new__";
 
-async function readJson(response: Response): Promise<Record<string, unknown> | null> {
-  try {
-    return (await response.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
 export function FaceEnrolmentConfig() {
-  // `null` until mounted: `window` does not exist during the server render, and
-  // guessing "secure" would flash a camera panel that cannot work.
-  const [secureContext, setSecureContext] = useState<boolean | null>(null);
-  const [devices, setDevices] = useState<CameraChoice[]>([]);
-  const [deviceId, setDeviceId] = useState("");
-  const [previewing, setPreviewing] = useState(false);
+  const {
+    videoRef,
+    devices,
+    deviceId,
+    previewing,
+    secureContext,
+    openCamera,
+    recordClip,
+    stopStream,
+  } = useFaceCapture();
   const [subjects, setSubjects] = useState<FaceSubject[]>([]);
   const [subjectId, setSubjectId] = useState<string>(NEW_SUBJECT);
   const [newName, setNewName] = useState("");
@@ -207,57 +108,11 @@ export function FaceEnrolmentConfig() {
   const [pendingDelete, setPendingDelete] = useState<FaceSubject | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const clipTimerRef = useRef<number | null>(null);
-
-  /**
-   * Release the camera.
-   *
-   * Called on unmount, when the section is collapsed (`ConfigAccordion` unmounts
-   * its body, so that is the same path), when the device changes, and once the
-   * final clip lands. A camera light left on in someone's house is a real bug.
-   */
-  const stopStream = useCallback(() => {
-    if (clipTimerRef.current !== null) {
-      window.clearTimeout(clipTimerRef.current);
-      clipTimerRef.current = null;
-    }
-    const recorder = recorderRef.current;
-    recorderRef.current = null;
-    if (recorder && recorder.state !== "inactive") {
-      try {
-        recorder.stop();
-      } catch {
-        // A recorder torn down mid-clip is expected during unmount.
-      }
-    }
-    const stream = streamRef.current;
-    streamRef.current = null;
-    stream?.getTracks().forEach((track) => track.stop());
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setPreviewing(false);
-  }, []);
-
-  useEffect(() => {
-    const media = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
-    setSecureContext(
-      typeof window !== "undefined"
-      && window.isSecureContext === true
-      && typeof media?.getUserMedia === "function",
-    );
-  }, []);
-
-  useEffect(() => stopStream, [stopStream]);
-
   const loadSubjects = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/face/subjects", { cache: "no-store" });
-      const payload = await readJson(response);
+      const payload = await readJsonBody(response);
       if (!response.ok) {
         setStatus({
           tone: "error",
@@ -280,88 +135,13 @@ export function FaceEnrolmentConfig() {
     void loadSubjects();
   }, [loadSubjects]);
 
-  const openCamera = useCallback(async (requestedId?: string) => {
-    const media = navigator.mediaDevices;
-    if (typeof media?.getUserMedia !== "function") {
-      setStatus({ tone: "error", text: FACE_REASON_MESSAGES.insecure_context });
-      return;
-    }
-    stopStream();
-    try {
-      let target = requestedId ?? deviceId;
-      let listed: CameraChoice[] = (await media.enumerateDevices())
-        .filter((device) => device.kind === "videoinput")
-        .map((device) => ({ deviceId: device.deviceId, label: device.label }));
-
-      // Labels are blank until the page holds a camera permission, and without
-      // labels the grabber and the webcam are indistinguishable. So when the
-      // list is unlabelled, take a permission grant first and stop it again
-      // BEFORE binding a preview — the probe may land on whatever the browser
-      // considers default, and that stream must not be the one we record from.
-      if (!target && listed.every((device) => !device.label)) {
-        const probe = await media.getUserMedia({ video: true });
-        probe.getTracks().forEach((track) => track.stop());
-        listed = (await media.enumerateDevices())
-          .filter((device) => device.kind === "videoinput")
-          .map((device) => ({ deviceId: device.deviceId, label: device.label }));
-      }
-      setDevices(listed);
-      if (!target) {
-        target = pickPreferredCamera(listed)?.deviceId ?? "";
-      }
-      setDeviceId(target);
-
-      const stream = await media.getUserMedia({
-        video: {
-          ...(target ? { deviceId: { exact: target } } : {}),
-          width: 1280,
-          height: 720,
-          facingMode: "user",
-        },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Wrapped rather than awaited directly: `play()` is absent in jsdom and
-        // returns undefined in older Safari, so calling `.catch` on its result
-        // is a TypeError that would look like a camera failure.
-        await Promise.resolve(videoRef.current.play?.()).catch(() => undefined);
-      }
-      setPreviewing(true);
-      setStatus(null);
-    } catch (error) {
-      stopStream();
-      setStatus({
-        tone: "error",
-        text: error instanceof Error && error.name === "NotAllowedError"
-          ? "Camera permission was refused for this page."
-          : "The camera could not be opened.",
-      });
-    }
-  }, [deviceId, stopStream]);
-
-  const recordClip = useCallback(async (): Promise<Blob> => {
-    const stream = streamRef.current;
-    if (!stream) throw new Error("The camera is not running.");
-    const mimeType = preferredClipMimeType();
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    recorderRef.current = recorder;
-    const chunks: Blob[] = [];
-    const finished = new Promise<Blob>((resolve, reject) => {
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) chunks.push(event.data);
-      };
-      recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType ?? "video/webm" }));
-      recorder.onerror = () => reject(new Error("The clip could not be recorded."));
-    });
-    recorder.start();
-    await new Promise<void>((resolve) => {
-      clipTimerRef.current = window.setTimeout(resolve, CLIP_DURATION_MS);
-    });
-    clipTimerRef.current = null;
-    if (recorder.state !== "inactive") recorder.stop();
-    return finished;
-  }, []);
+  // `useFaceCapture` returns the failure rather than presenting it, because the
+  // login modal shows the same failures in a different place. This is where it
+  // becomes a toned status line.
+  const startCamera = useCallback(async (requestedId?: string) => {
+    const failure = await openCamera(requestedId);
+    setStatus(failure ? { tone: "error", text: failure } : null);
+  }, [openCamera]);
 
   const subjectTarget = subjectId === NEW_SUBJECT ? newName.trim() : subjectId;
   const activeSubject = subjects.find((subject) => subject.id === subjectId) ?? null;
@@ -376,7 +156,7 @@ export function FaceEnrolmentConfig() {
       // Nonce first: it has a 20 s TTL, so it is fetched immediately before the
       // recording rather than held across the whole session.
       const challenge = await fetch("/api/face/challenge", { method: "POST" });
-      const challengePayload = await readJson(challenge);
+      const challengePayload = await readJsonBody(challenge);
       const nonce = typeof challengePayload?.nonce === "string" ? challengePayload.nonce : "";
       if (!challenge.ok || !nonce) {
         setStatus({
@@ -399,7 +179,7 @@ export function FaceEnrolmentConfig() {
         method: "POST",
         body: form,
       });
-      const payload = await readJson(response);
+      const payload = await readJsonBody(response);
 
       // Progress comes from the response, never from a client-side counter — a
       // rejected clip must not advance the count.
@@ -446,7 +226,7 @@ export function FaceEnrolmentConfig() {
         method: "DELETE",
       });
       if (!response.ok) {
-        const payload = await readJson(response);
+        const payload = await readJsonBody(response);
         setStatus({ tone: "error", text: faceReasonMessage(payload?.reason, "That person could not be removed.") });
         return;
       }
@@ -534,8 +314,9 @@ export function FaceEnrolmentConfig() {
                 options={deviceOptions}
                 disabled={!devices.length || busy}
                 onChange={(value) => {
-                  setDeviceId(value);
-                  void openCamera(value);
+                  // openCamera sets the device id itself once it has bound the
+                  // stream, so there is nothing to set here first.
+                  void startCamera(value);
                 }}
               />
             </div>
@@ -578,7 +359,7 @@ export function FaceEnrolmentConfig() {
                 type="button"
                 className="config-page-button"
                 disabled={busy}
-                onClick={() => (previewing ? stopStream() : void openCamera())}
+                onClick={() => (previewing ? stopStream() : void startCamera())}
               >
                 <Camera className="h-4 w-4" aria-hidden="true" />
                 {previewing ? "Stop camera" : "Start camera"}

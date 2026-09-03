@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AgentNameProvider } from "./components/AgentNameContext";
+import { LoginProvider } from "./components/auth/LoginProvider";
 import { DashboardGlobalServices } from "./components/DashboardGlobalServices";
 import { ModuleHost } from "./components/modules/ModuleHost";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
@@ -527,9 +528,11 @@ try {
       <body>
         <AgentNameProvider initialName={initialAgentName}>
           <DashboardGlobalServices initialTheme={initialOrbTheme} initialSun={initialSun} />
-          {/* Wraps both the dashboard and the config page: module slots and the
-              shared confirm dialog are needed on each. */}
-          <ModuleHost>{children}</ModuleHost>
+          {/* Wraps both the dashboard and the config page: module slots, the
+              shared confirm dialog and the sign-in modal are needed on each. */}
+          <LoginProvider>
+            <ModuleHost>{children}</ModuleHost>
+          </LoginProvider>
         </AgentNameProvider>
       </body>
     </html>

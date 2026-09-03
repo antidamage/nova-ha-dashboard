@@ -237,9 +237,26 @@ are discoverable and carry the identity, so no username is typed.
 Then:
 
 1. `POST /api/face/challenge` for a single-use nonce (20 s TTL).
-2. Record ~1 s of video via `getUserMedia` + `MediaRecorder`.
+2. Record a clip via `getUserMedia` + `MediaRecorder`.
 3. `POST /api/face/assert` with `clip`, `nonce` and the WebAuthn `challenge`.
 4. Submit the returned assertion back to the executor.
+
+**The clip is 4 s, the same as enrolment, and this is not a knob to turn down.**
+`/assert` runs the full liveness gate, and that gate measures *non-rigid* motion
+— blink, micro-expression, out-of-plane parallax. A one-second window barely
+spans a single blink, so it judges the clip on a signal the clip is too short to
+contain and pushes a genuinely live face toward the rigid end. The first live
+enrolment measured residuals of 0.015-0.035 against a 0.012 floor on 1 s clips:
+passing, but close enough that ordinary stillness would fail.
+
+Length is close to free. `core.even_frame_indices` samples a fixed 25 frames
+evenly across whatever arrives, so four seconds costs the same detection and
+embedding work as one and simply spreads those samples over a window wide enough
+to contain real movement. Only decode cost grows.
+
+This is why `CLIP_DURATION_MS` lives in the shared capture module rather than
+being passed per call site: a login that quietly used a shorter clip than
+enrolment would fail liveness for reasons no error string explains.
 
 The two nonces are unrelated and neither substitutes for the other: the face
 nonce defends the clip against replay, the WebAuthn challenge defends the

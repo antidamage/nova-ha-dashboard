@@ -155,6 +155,15 @@ enough for the real case and bounded for the bad one.
 ~1.2 s from the camera with ffmpeg, `WITNESS_CLIP_SECONDS`. Then
 `POST /face/identify` with the clip as multipart field `clip`.
 
+**A short clip is correct here and only here.** Enrolment and `/assert` record
+four seconds because they run the liveness gate, which measures non-rigid motion
+and needs a window wide enough to contain a blink. `/identify` is deliberately
+liveness-free and token-free — that is the whole reason `face-auth.md` kept it
+separate from `/verify` — so it needs enough frames to match an embedding and
+nothing more. Recognition wants a face in frame; liveness wants time. Do not
+"fix" this by raising it to match the other two: it would triple the decode cost
+of the most frequent call in the system for no gain.
+
 **Delete the clip in a `finally`.** An exception mid-upload must not leave a
 video of somebody's face on Nocturnium's disk. This is the same rule the face
 service applies to its own temp files, and it matters more here because this runs
