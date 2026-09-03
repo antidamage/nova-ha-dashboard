@@ -13,6 +13,7 @@ import {
   readJsonBody,
   useFaceCapture,
 } from "./face/faceCapture";
+import { FacePreview } from "./face/FacePreview";
 
 // The camera lifecycle, the clip recorder, the device heuristics and the
 // refusal strings moved to ./face/faceCapture when the login surface gained a
@@ -334,20 +335,12 @@ export function FaceEnrolmentConfig() {
               </label>
             ) : null}
 
-            <div className="relative border border-neutral-800 bg-black/40">
-              <video
-                ref={videoRef}
-                className="aspect-video w-full bg-black object-cover"
-                muted
-                playsInline
-                aria-label="Enrolment camera preview"
-              />
-              {!previewing ? (
-                <p className="absolute inset-0 flex items-center justify-center text-xs uppercase tracking-widest text-neutral-500">
-                  Camera off
-                </p>
-              ) : null}
-            </div>
+            <FacePreview
+              ariaLabel="Enrolment camera preview"
+              label={devices.find((device) => device.deviceId === deviceId)?.label}
+              previewing={previewing}
+              videoRef={videoRef}
+            />
 
             <p className="text-sm font-semibold text-cyan-200">{anglePrompt(clipsSoFar)}</p>
             <p className="text-xs text-neutral-500">

@@ -13,6 +13,11 @@ export async function GET() {
       bedroomHeater: config.dashboard.bedroomHeater,
       legacyPanelHeaterCardEnabled: config.dashboard.legacyPanelHeaterCardEnabled,
       lighting: config.dashboard.lighting,
+      // Rotation rules only. The kiosk ADDRESSES stay server-side: they are how
+      // a control mutation is recognised as coming from the panel, and handing
+      // that list to every browser would publish the household's topology for
+      // no gain.
+      kiosk: { cameraRotations: config.dashboard.kiosk.cameraRotations },
       reminders: config.dashboard.reminders,
       specialZones: config.dashboard.specialZones,
       timing: config.dashboard.timing,

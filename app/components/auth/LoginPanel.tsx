@@ -9,6 +9,7 @@ import {
   readJsonBody,
   useFaceCapture,
 } from "../face/faceCapture";
+import { FacePreview } from "../face/FacePreview";
 import {
   FLOW_DEFAULT,
   FLOW_FACE,
@@ -475,20 +476,12 @@ export function LoginPanel({
       ) : null}
 
       {mode === "face" ? (
-        <div className="relative border border-neutral-800 bg-black/40">
-          <video
-            ref={videoRef}
-            className="aspect-video w-full bg-black object-cover"
-            muted
-            playsInline
-            aria-label="Face sign-in camera preview"
-          />
-          {!capture.previewing ? (
-            <p className="absolute inset-0 flex items-center justify-center text-xs uppercase tracking-widest text-neutral-500">
-              Camera off
-            </p>
-          ) : null}
-        </div>
+        <FacePreview
+          ariaLabel="Face sign-in camera preview"
+          label={capture.devices.find((device) => device.deviceId === capture.deviceId)?.label}
+          previewing={capture.previewing}
+          videoRef={videoRef}
+        />
       ) : null}
 
       {note ? <p className="text-xs text-cyan-200">{note}</p> : null}

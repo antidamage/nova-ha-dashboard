@@ -473,8 +473,25 @@ export const DashboardConfigSchema = z.object({
     kiosk: z
       .object({
         addresses: z.array(z.string()).default([]),
+        // Cameras that are not mounted upright, keyed by a substring of the
+        // device label the browser reports. Keyed by LABEL rather than by host
+        // because a rotation is a property of the camera, not of the page: the
+        // same rule then corrects the preview wherever that camera is seen, and
+        // leaves every other camera alone.
+        //
+        // Preview only. The recorded clip is left as the camera produced it and
+        // the face service rotates it upright itself from the eye landmarks —
+        // rotating pixels twice would be work for nothing.
+        cameraRotations: z
+          .array(
+            z.object({
+              match: z.string().min(1),
+              degrees: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+            }),
+          )
+          .default([]),
       })
-      .default({ addresses: [] }),
+      .default({ addresses: [], cameraRotations: [] }),
     avatar: NovaAvatarConfigSchema,
     // The reminder sigil bar between the clock and zones panels. Presentation
     // and thresholds only — which reminder owns which sigil lives in its own

@@ -46,6 +46,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export const CLIP_DURATION_MS = 4000;
 
 /**
+ * How hard to try when the camera is busy rather than absent.
+ *
+ * Two retries a second apart comfortably outlasts the witness daemon's ~1.2 s
+ * capture, which is the contender that actually causes this, without leaving
+ * somebody staring at a dead button if the camera is genuinely gone.
+ */
+const CAMERA_BUSY_RETRIES = 2;
+const CAMERA_BUSY_RETRY_MS = 1000;
+
+/**
  * The refusal strings.
  *
  * Two rules shape these, and they pull in opposite directions.
@@ -298,7 +308,7 @@ export function useFaceCapture(): FaceCapture {
   // Unmount must release the camera even if the consumer forgets.
   useEffect(() => stopStream, [stopStream]);
 
-  const openCamera = useCallback(async (requestedId?: string): Promise<string | null> => {
+  const openCameraAttempt = useCallback(async (requestedId?: string, attempt = 0): Promise<string | null> => {
     const media = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
     if (typeof media?.getUserMedia !== "function") {
       return FACE_REASON_MESSAGES.insecure_context;
@@ -348,11 +358,30 @@ export function useFaceCapture(): FaceCapture {
       return null;
     } catch (error) {
       stopStream();
-      return error instanceof Error && error.name === "NotAllowedError"
-        ? "Camera permission was refused for this page."
-        : "The camera could not be opened.";
+      if (error instanceof Error && error.name === "NotAllowedError") {
+        return "Camera permission was refused for this page.";
+      }
+      // The device is momentarily held by something else, and on the kiosk that
+      // something else is usually the witness daemon: it grabs the same webcam
+      // for about a second whenever somebody touches the panel, which is
+      // exactly what tapping "Use Face" is. A second attempt then failed with
+      // "the camera could not be opened" and there was no way back without
+      // leaving the sign-in entirely.
+      //
+      // Retrying beats coordinating across two processes, and it covers every
+      // other transient holder as well.
+      if (attempt < CAMERA_BUSY_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, CAMERA_BUSY_RETRY_MS));
+        return openCameraAttempt(requestedId, attempt + 1);
+      }
+      return "The camera is in use. Wait a moment and try again.";
     }
   }, [deviceId, stopStream]);
+
+  const openCamera = useCallback(
+    (requestedId?: string) => openCameraAttempt(requestedId),
+    [openCameraAttempt],
+  );
 
   const recordClip = useCallback(async (): Promise<Blob> => {
     const stream = streamRef.current;
