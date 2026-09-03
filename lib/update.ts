@@ -80,6 +80,7 @@ export type UpdateStatus = {
   latestMessage: string | null;
   updateAvailable: boolean;
   autoUpdate: boolean;
+  showUpdatesOnHome: boolean;
   canRollback: boolean;
   previousSha: string | null;
   phase: UpdatePhase;
@@ -282,6 +283,9 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
   const latestSha = check?.ok ? definedSha(check.latestSha) : null;
   const phase = state?.phase ?? "idle";
   const autoUpdate = prefs.update?.autoUpdate ?? config.update.autoUpdate;
+  // Defaults off, and deliberately has no config-schema key to fall back to:
+  // the home page stays clear of the banner until someone asks for it here.
+  const showUpdatesOnHome = prefs.update?.showUpdatesOnHome ?? false;
 
   // Only claim an update is available when both shas are known and differ.
   const updateAvailable = Boolean(
@@ -298,6 +302,7 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
     latestMessage: check?.latestMessage ?? null,
     updateAvailable,
     autoUpdate,
+    showUpdatesOnHome,
     canRollback: Boolean(state?.canRollback && definedSha(state?.previousSha)),
     previousSha: definedSha(state?.previousSha),
     phase,
