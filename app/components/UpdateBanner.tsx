@@ -9,6 +9,7 @@ type UpdateStatus = {
   latestShortSha: string | null;
   latestMessage: string | null;
   updateAvailable: boolean;
+  showUpdatesOnHome: boolean;
   phase: string;
   phaseMessage: string | null;
   busy: boolean;
@@ -92,6 +93,14 @@ export function UpdateBanner({ context = "dashboard" }: { context?: "dashboard" 
   }, [status?.latestShortSha]);
 
   if (isDemo || !status) {
+    return null;
+  }
+
+  // The home page shows nothing about updates unless it has been asked to —
+  // not the offer, not the progress bar, not a failure. The config page's own
+  // banner is not gated by this, since that is where the setting lives and
+  // where an update is actually driven from.
+  if (context === "dashboard" && !status.showUpdatesOnHome) {
     return null;
   }
 

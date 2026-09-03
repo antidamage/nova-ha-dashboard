@@ -47,7 +47,13 @@ const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfi
 // session from the still-valid authentik cookie. So clear the outpost cookie
 // with a fetch whose redirect we deliberately do not follow, then navigate to
 // authentik's invalidation flow to end the SSO session itself.
-const AUTHENTIK_INVALIDATION_URL = "https://nova.tuatara-dory.ts.net:9443/if/flow/default-invalidation-flow/";
+// `dashboard-invalidation` rather than authentik's default invalidation flow:
+// it is the same user_logout stage followed by a static redirect stage back to
+// the dashboard front page, so signing out lands where you started instead of
+// on authentik's own "you have been logged out" page. The flow executor's
+// `?next=` argument cannot do this — it rejects absolute URLs, and authentik is
+// served on :9443 while the dashboard is on :443.
+const AUTHENTIK_INVALIDATION_URL = "https://nova.tuatara-dory.ts.net:9443/if/flow/dashboard-invalidation/";
 
 async function signOut() {
   try {

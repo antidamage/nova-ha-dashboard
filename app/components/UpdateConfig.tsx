@@ -15,6 +15,7 @@ type UpdateStatus = {
   latestMessage: string | null;
   updateAvailable: boolean;
   autoUpdate: boolean;
+  showUpdatesOnHome: boolean;
   canRollback: boolean;
   previousSha: string | null;
   phase: string;
@@ -45,6 +46,7 @@ function shortSha(value: string | null): string {
 export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolean }) {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [autoUpdate, setAutoUpdate] = useState<boolean>(initialAutoUpdate ?? true);
+  const [showUpdatesOnHome, setShowUpdatesOnHome] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
@@ -57,6 +59,7 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
   const applyStatus = useCallback((next: UpdateStatus) => {
     setStatus(next);
     setAutoUpdate(next.autoUpdate);
+    setShowUpdatesOnHome(next.showUpdatesOnHome);
   }, []);
 
   const load = useCallback(async () => {
@@ -185,6 +188,26 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
     }
   }, [autoUpdate, applyStatus, markInteraction]);
 
+  const toggleShowUpdatesOnHome = useCallback(async () => {
+    markInteraction();
+    const next = !showUpdatesOnHome;
+    setShowUpdatesOnHome(next); // optimistic
+    try {
+      const response = await fetch("/api/update/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showUpdatesOnHome: next }),
+      });
+      if (response.ok) {
+        applyStatus((await response.json()) as UpdateStatus);
+      } else {
+        setShowUpdatesOnHome(!next); // revert on failure
+      }
+    } catch {
+      setShowUpdatesOnHome(!next);
+    }
+  }, [showUpdatesOnHome, applyStatus, markInteraction]);
+
   const busy = status?.busy ?? false;
   const updateAvailable = status?.updateAvailable ?? false;
 
@@ -269,6 +292,21 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
             <span className="cyber-switch-thumb" />
           </MomentaryFeedbackButton>
           <span className="climate-switch-label">{autoUpdate ? "On" : "Off"}</span>
+        </div>
+
+        <div className="climate-switch-row border">
+          <span className="climate-switch-label">Show updates on home page</span>
+          <MomentaryFeedbackButton
+            type="button"
+            className={classNames("cyber-switch", showUpdatesOnHome && "cyber-switch-checked")}
+            role="switch"
+            aria-checked={showUpdatesOnHome}
+            aria-label="Show updates on home page"
+            onClick={() => void toggleShowUpdatesOnHome()}
+          >
+            <span className="cyber-switch-thumb" />
+          </MomentaryFeedbackButton>
+          <span className="climate-switch-label">{showUpdatesOnHome ? "On" : "Off"}</span>
         </div>
 
         {message ? <p className="text-sm font-semibold text-neutral-300">{message}</p> : null}

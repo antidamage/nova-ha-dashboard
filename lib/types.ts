@@ -917,6 +917,11 @@ export type LayoutPreferences = {
 export type UpdatePreferences = {
   /** Live override for the auto-update switch; falls back to config.update.autoUpdate. */
   autoUpdate?: boolean;
+  /**
+   * Whether the update banner is allowed to appear on the dashboard home page.
+   * Off unless explicitly turned on; the config page's banner is unaffected.
+   */
+  showUpdatesOnHome?: boolean;
   updatedAt?: string;
 };
 

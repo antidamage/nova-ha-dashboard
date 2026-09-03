@@ -6,15 +6,31 @@ export const dynamic = "force-dynamic";
 
 export async function PUT(request: Request) {
   try {
-    const body = (await request.json()) as { autoUpdate?: unknown };
-    if (typeof body.autoUpdate !== "boolean") {
+    const body = (await request.json()) as {
+      autoUpdate?: unknown;
+      showUpdatesOnHome?: unknown;
+    };
+    const patch: { autoUpdate?: boolean; showUpdatesOnHome?: boolean } = {};
+    if (body.autoUpdate !== undefined) {
+      if (typeof body.autoUpdate !== "boolean") {
+        return NextResponse.json({ error: "autoUpdate must be a boolean." }, { status: 400 });
+      }
+      patch.autoUpdate = body.autoUpdate;
+    }
+    if (body.showUpdatesOnHome !== undefined) {
+      if (typeof body.showUpdatesOnHome !== "boolean") {
+        return NextResponse.json({ error: "showUpdatesOnHome must be a boolean." }, { status: 400 });
+      }
+      patch.showUpdatesOnHome = body.showUpdatesOnHome;
+    }
+    if (Object.keys(patch).length === 0) {
       return NextResponse.json(
-        { error: "Expected { autoUpdate: boolean }." },
+        { error: "Expected at least one of { autoUpdate, showUpdatesOnHome }." },
         { status: 400 },
       );
     }
 
-    await mergeDashboardPreferences({ update: { autoUpdate: body.autoUpdate } });
+    await mergeDashboardPreferences({ update: patch });
     return NextResponse.json(await getUpdateStatus());
   } catch (error) {
     return NextResponse.json(
