@@ -72,11 +72,28 @@ findings are the reason the design is shaped the way it is.
   `allowCredentials: []` (discoverable credentials carry the identity),
   `userVerification: required`. Both flows are drivable from a custom UI with no
   prior session.
-- **CSRF is not enforced on the executor.** No `csrftoken` cookie is issued on
-  the GET, and a POST carrying only the `authentik_session` cookie — no
-  `X-authentik-CSRF` header — is accepted and processed. This was the single
-  largest unknown in the design and it was settled first, because a CSRF
-  requirement would have changed the client's shape.
+- **CSRF IS enforced on the executor — corrected 2026-09-04.** This entry
+  originally read the opposite, and that error broke every sign-in method at
+  once for anyone who already had a session.
+
+  The probe that "settled" it POSTed as an **anonymous** caller. DRF's
+  `SessionAuthentication.enforce_csrf` only runs once session authentication
+  resolves a user, so an anonymous POST is never checked and an authenticated
+  one always is. The moment somebody signed in, every stage POST — password,
+  passkey and face alike — answered
+  `CSRF Failed: CSRF token missing` with an HTTP 500.
+
+  The lesson is about the probe, not about authentik: a security control was
+  declared absent after testing only the path where it does not apply. Anything
+  of this shape has to be probed in the authenticated state as well, because
+  that is the state real users are in.
+
+  Concretely: cookie `authentik_csrf`, header `X-authentik-CSRF`,
+  `CSRF_COOKIE_HTTPONLY` false (so the client may read it, by design),
+  `CSRF_COOKIE_DOMAIN` None — host-only, which still spans both ports since
+  cookies ignore them. `lib/authentik-flow.ts` reads the cookie and sends the
+  header on every submit; when no session exists there is no cookie and none is
+  wanted.
 - **A stage POST answers `302` back to the executor URL itself**, not with the
   next challenge inline. The client must follow the redirect and read the JSON
   from the resulting GET. Use `redirect: "follow"` — do not set `manual` and try

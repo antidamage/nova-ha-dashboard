@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assertionToPayload,
+  csrfToken,
   base64UrlToBytes,
   bytesToBase64Url,
   challengeError,
@@ -175,6 +176,27 @@ describe("assertion payloads", () => {
         signature: "c",
       }).response.userHandle,
     ).toBeNull();
+  });
+});
+
+describe("csrfToken", () => {
+  // CSRF is enforced the moment a session exists -- DRF only runs the check
+  // when session authentication resolves a user, which is why an anonymous
+  // probe said it was not enforced and every signed-in submit then 500'd.
+  it("reads the token authentik's own client reads", () => {
+    expect(csrfToken("authentik_csrf=abc123")).toBe("abc123");
+    expect(csrfToken("other=1; authentik_csrf=abc123; more=2")).toBe("abc123");
+  });
+
+  it("url-decodes it", () => {
+    expect(csrfToken("authentik_csrf=a%2Bb")).toBe("a+b");
+  });
+
+  it("is null when absent, and does not match a lookalike name", () => {
+    expect(csrfToken("")).toBeNull();
+    expect(csrfToken("authentik_session=zzz")).toBeNull();
+    // Must not match a cookie that merely ends with the name.
+    expect(csrfToken("not_authentik_csrf=zzz")).toBeNull();
   });
 });
 
