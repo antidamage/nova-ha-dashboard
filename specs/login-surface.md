@@ -95,9 +95,42 @@ findings are the reason the design is shaped the way it is.
   header on every submit; when no session exists there is no cookie and none is
   wanted.
 - **A stage POST answers `302` back to the executor URL itself**, not with the
-  next challenge inline. The client must follow the redirect and read the JSON
-  from the resulting GET. Use `redirect: "follow"` — do not set `manual` and try
-  to interpret the `Location`.
+  next challenge inline. The next challenge is read with a second GET.
+- **That redirect must NOT be followed — corrected 2026-09-04.** This entry
+  originally said to use `redirect: "follow"`, and that instruction is what
+  broke sign-in outright.
+
+  Caddy proxies `/authentik/*` with `handle_path`, which **strips the prefix
+  before authentik sees the request**. authentik therefore builds its `Location`
+  from the stripped path:
+
+  ```
+  POST /authentik/api/v3/flows/executor/default-authentication-flow/?query=
+    -> 302 Location: /api/v3/flows/executor/default-authentication-flow/?query=
+  ```
+
+  That path is not proxied anywhere. On the dashboard origin it is Next.js,
+  which answers `308` (trailing-slash normalisation) and then `404` with an HTML
+  body. So every stage POST that authentik **accepted** ended on a 404: the
+  server logged `Successful authentication` for the right user, and the browser,
+  a few milliseconds later, showed a transport error. Password, TOTP, passkey
+  and face all die at the same place, because they all submit through the same
+  executor.
+
+  Two things changed, and either alone is sufficient:
+
+  1. `lib/authentik-flow.ts` posts with `redirect: "manual"` and, on a redirect,
+     re-reads the challenge from `flowUrl(slug)` — the **prefixed** url it
+     already knows. The `Location` carries no information: it is always the
+     executor url itself.
+  2. `ops/iridium/nova.Caddyfile` adds `header_down Location "^/" "/authentik/"`
+     to `ak_flow_routes`, so the prefix is restored on the way out for any other
+     consumer. Absolute URLs are untouched — `^/` cannot match them.
+
+  The lesson is the same shape as the CSRF entry above: a finding was recorded
+  from a probe that did not exercise the case that matters. "Follow the
+  redirect" was true of authentik on its own origin, and false of authentik
+  behind a prefix-stripping proxy.
 - Per-field validation comes back as `response_errors`, e.g.
   `{"password": [{"string": "This field is required.", "code": "required"}]}`.
 - The session cookie is `authentik_session`, `Domain=tuatara-dory.ts.net`,
@@ -242,6 +275,12 @@ the passkey and the face path need them and they are easy to get subtly wrong.
 **Password.** `executeFlow("default-authentication-flow")`, then submit
 `{component, uid_field, password}`. Follow with TOTP when the next challenge is
 `ak-stage-authenticator-validate` carrying a code field.
+
+TOTP after the password is the intended design, not a fault to route around —
+`authentik/specs/authentik-sso.md` says so, and
+`default-authentication-mfa-validation.device_classes`
+(`[static, totp, duo, sms, email]`) is explicitly off limits. A password sign-in
+that stops at "Authentication code" is working correctly.
 
 **Passkey.** `executeFlow("passkey-login")` returns
 `device_challenges[0].challenge` directly, unauthenticated. Pass it to

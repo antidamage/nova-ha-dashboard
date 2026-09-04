@@ -17,6 +17,7 @@ import {
   FlowTransportError,
   assertionToPayload,
   beginFlow,
+  cancelFlow,
   challengeError,
   faceAssertionToPayload,
   fieldError,
@@ -388,6 +389,22 @@ export function LoginPanel({
     void start("password");
   }, [start, stopStream]);
 
+  /**
+   * Abandon whatever the flow is part-way through and begin again.
+   *
+   * authentik resumes a flow from the session, so a half-finished attempt
+   * reappears on the next open -- which is how a password screen turns into a
+   * bare "Authentication code" with no way back to it.
+   */
+  const startOver = useCallback(async () => {
+    stopStream();
+    setUsername("");
+    setPassword("");
+    setCode("");
+    await cancelFlow();
+    await start("password");
+  }, [start, stopStream]);
+
   /* ---------------------------------------------------------------- */
 
   if (loginPossible === false) {
@@ -588,6 +605,15 @@ export function LoginPanel({
             Back to password
           </button>
         ) : null}
+
+        <button
+          type="button"
+          className="text-xs text-neutral-400 underline justify-self-start"
+          disabled={busy}
+          onClick={() => void startOver()}
+        >
+          Start over
+        </button>
       </div>
     </Shell>
   );

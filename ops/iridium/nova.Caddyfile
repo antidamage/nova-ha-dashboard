@@ -274,10 +274,27 @@
 #
 # NOT imported by the LAN vhosts. They use config_gate_denied, a flat 403 with
 # no login path, so a login endpoint there would be a route to nowhere.
+#
+# `header_down Location` repairs the prefix on the way back out, and it is not
+# cosmetic. `handle_path` STRIPS `/authentik` before authentik sees the request,
+# so every redirect authentik writes is built from the stripped path — a stage
+# POST that SUCCEEDS answers
+#     302 Location: /api/v3/flows/executor/<slug>/?query=
+# On this origin that path is Next.js, which answers 308 and then a 404 HTML
+# page. On 2026-09-04 that is exactly where every sign-in died: authentik logged
+# "Successful authentication", the browser followed the redirect off the proxy
+# into a 404, and the surface reported a transport failure. Rewriting the
+# Location keeps the redirect inside the proxy. Absolute URLs are left alone —
+# `^/` cannot match them.
+#
+# The login surface no longer depends on this (it takes the redirect manually;
+# see `lib/authentik-flow.ts`), but anything else pointed at `/authentik/*`
+# would fall into the same hole without it.
 (ak_flow_routes) {
 	handle_path /authentik/* {
 		reverse_proxy 127.0.0.1:9000 {
 			header_up Host nova.tuatara-dory.ts.net
+			header_down Location "^/" "/authentik/"
 		}
 	}
 }
