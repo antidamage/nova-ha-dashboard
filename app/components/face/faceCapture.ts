@@ -195,12 +195,38 @@ export function looksLikeCaptureCard(label: string): boolean {
 
 export type CameraChoice = { deviceId: string; label: string };
 
+/** One entry of `dashboard.kiosk.cameras` — the same ordered preference list
+ * the kiosk witness daemon and the rotated preview both read. */
+export type CameraPreference = { match: string; degrees?: number };
+
 /**
- * Highest-scoring video input, ties broken by enumeration order — which is the
- * browser's own default, so an unlabelled list behaves exactly as it would
- * without this function.
+ * Highest-scoring video input.
+ *
+ * `preferences` — `dashboard.kiosk.cameras`, most preferred first — is checked
+ * BEFORE the generic heuristic below, and decisively: a named match always
+ * outranks the label heuristic, in preference-list order. Without this, two
+ * cameras that both look like "a webcam" score identically under
+ * `FACE_CAMERA_HINTS` and the tie breaks on enumeration order, which is not a
+ * choice anyone made — it is whatever the browser happened to list first. A
+ * panel with a LifeCam AND a built-in webcam needs to pick the LifeCam every
+ * time, not on a coin flip.
+ *
+ * The generic heuristic remains the fallback for a device with no explicit
+ * preference: still avoid anything that looks like a capture card, still
+ * prefer anything that looks like a face-facing webcam, ties broken by
+ * enumeration order as before.
  */
-export function pickPreferredCamera<T extends CameraChoice>(devices: T[]): T | undefined {
+export function pickPreferredCamera<T extends CameraChoice>(
+  devices: T[],
+  preferences: CameraPreference[] = [],
+): T | undefined {
+  for (const pref of preferences) {
+    if (!pref.match) continue;
+    const wanted = pref.match.toLowerCase();
+    const found = devices.find((device) => (device.label ?? "").toLowerCase().includes(wanted));
+    if (found) return found;
+  }
+
   let best: T | undefined;
   let bestScore = -Infinity;
   for (const device of devices) {
@@ -214,6 +240,24 @@ export function pickPreferredCamera<T extends CameraChoice>(devices: T[]): T | u
     }
   }
   return best;
+}
+
+let cachedCameraPreferences: CameraPreference[] | null = null;
+
+/** `dashboard.kiosk.cameras`, cached for the life of the page — same source
+ * `FacePreview` reads for rotation, so selection and rotation never disagree
+ * about which camera is which. */
+async function loadCameraPreferences(): Promise<CameraPreference[]> {
+  if (cachedCameraPreferences) return cachedCameraPreferences;
+  try {
+    const response = await fetch("/api/config/client", { cache: "no-store" });
+    if (!response.ok) return (cachedCameraPreferences = []);
+    const body = (await response.json()) as { dashboard?: { kiosk?: { cameras?: CameraPreference[] } } };
+    cachedCameraPreferences = body.dashboard?.kiosk?.cameras ?? [];
+  } catch {
+    cachedCameraPreferences = [];
+  }
+  return cachedCameraPreferences;
 }
 
 export function preferredClipMimeType(): string | undefined {
@@ -334,7 +378,7 @@ export function useFaceCapture(): FaceCapture {
       }
       setDevices(listed);
       if (!target) {
-        target = pickPreferredCamera(listed)?.deviceId ?? "";
+        target = pickPreferredCamera(listed, await loadCameraPreferences())?.deviceId ?? "";
       }
       setDeviceId(target);
 

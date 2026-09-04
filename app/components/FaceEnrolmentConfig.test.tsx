@@ -53,6 +53,26 @@ describe("camera preference", () => {
     expect(pickPreferredCamera(devices)?.deviceId).toBe("a");
     expect(pickPreferredCamera([])).toBeUndefined();
   });
+
+  it("an explicit preference list wins over the generic heuristic, in order", () => {
+    // Both devices look like "a webcam" to the generic heuristic and would
+    // otherwise tie on enumeration order — not a choice anyone made, just
+    // whichever the browser happened to list first. A named preference has to
+    // decide it every time, not on a coin flip.
+    const devices = [
+      { deviceId: "builtin", label: "USB2.0 HD UVC WebCam: USB2.0 HD" },
+      { deviceId: "lifecam", label: "Microsoft® LifeCam Cinema(TM)" },
+    ];
+    expect(pickPreferredCamera(devices, [{ match: "LifeCam" }])?.deviceId).toBe("lifecam");
+  });
+
+  it("falls back to the next preference, then the heuristic, when nothing matches", () => {
+    const devices = [{ deviceId: "builtin", label: "USB2.0 HD UVC WebCam" }];
+    expect(
+      pickPreferredCamera(devices, [{ match: "LifeCam" }, { match: "USB2.0 HD" }])?.deviceId,
+    ).toBe("builtin");
+    expect(pickPreferredCamera(devices, [{ match: "NoSuchCamera" }])?.deviceId).toBe("builtin");
+  });
 });
 
 describe("prompts and refusal strings", () => {

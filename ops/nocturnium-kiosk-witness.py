@@ -68,27 +68,38 @@ DASHBOARD_URL = env_str("NOVA_DASHBOARD_URL", "http://127.0.0.1").rstrip("/")
 FACE_KEY = env_str("NOVA_FACE_KEY")
 WITNESS_KEY = env_str("NOVA_WITNESS_KEY")
 
-VIDEO_DEVICE = env_str("WITNESS_VIDEO_DEVICE", "/dev/video0")
-# A capture card is not a face camera. On this host /dev/video4 is the MS2109
-# grabber carrying the outdoor camera: pointing the witness at it would record
-# whoever walks past the front of the house, unattended, forever. Refusing to
-# start is the only safe response to that misconfiguration — a comment is not.
+# Which camera, in preference order, and how far each one is out of upright.
+#
+# `name=degrees`, comma separated, most preferred first. The name is matched as
+# a case-insensitive substring of the kernel's card name
+# (`/sys/class/video4linux/videoN/name`), so it survives the device numbers
+# moving about — which they do, every time something is plugged in.
+#
+# The panel has a Microsoft LifeCam on it, which is mounted upright, and a
+# built-in webcam lying on its side. Prefer the LifeCam; fall back to the
+# built-in only when the LifeCam is absent, and rotate ONLY the built-in.
+#
+# Resolved per capture rather than once at startup, so unplugging the LifeCam
+# falls back on the next touch instead of at the next restart.
+WITNESS_CAMERAS = env_str("WITNESS_CAMERAS", "LifeCam=0,USB2.0 HD=90")
+
+# Names that are never a face camera, whatever the preference list says.
+#
+# The MS2109 grabber carries the OUTDOOR camera. Selecting it would record
+# whoever walks past the front of the house, unattended, forever. Matched by
+# NAME as well as by device path, because the path moves.
 FORBIDDEN_DEVICES = {
     entry.strip()
-    for entry in env_str("WITNESS_FORBIDDEN_DEVICES", "/dev/video4").split(",")
+    for entry in env_str("WITNESS_FORBIDDEN_DEVICES", "/dev/video4,/dev/video5").split(",")
     if entry.strip()
 }
+FORBIDDEN_NAMES = [
+    entry.strip().lower()
+    for entry in env_str("WITNESS_FORBIDDEN_NAMES", "macrosilicon,2109").split(",")
+    if entry.strip()
+]
 
 CLIP_SECONDS = env_float("WITNESS_CLIP_SECONDS", 1.2)
-# Quarter turns CLOCKWISE to apply at capture, for a camera that is not mounted
-# upright. This panel's webcam sits on its side, so the room arrives rotated and
-# a face in it is rotated with it.
-#
-# Corrected here rather than left to the service: this camera's mounting is a
-# fixed, known fact, and a pixel rotation at capture costs nothing, whereas
-# making the service work it out costs extra detection passes on every clip.
-# The service's fallback still exists for callers whose orientation is unknown.
-WITNESS_ROTATE = env_int("WITNESS_ROTATE_DEGREES", 0) % 360
 
 # Capture format and rate.
 #
@@ -214,14 +225,67 @@ class Activity:
 # --------------------------------------------------------------------------
 
 
-def capture_clip(destination: Path) -> bool:
+def _camera_name(node: str) -> str:
+    try:
+        return Path(f"/sys/class/video4linux/{node}/name").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def camera_preferences() -> list[tuple[str, int]]:
+    """`[(name substring, degrees)]`, most preferred first."""
+    out: list[tuple[str, int]] = []
+    for entry in WITNESS_CAMERAS.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        name, _, degrees = entry.partition("=")
+        try:
+            turn = int(degrees) % 360 if degrees.strip() else 0
+        except ValueError:
+            turn = 0
+        if name.strip():
+            out.append((name.strip().lower(), turn))
+    return out
+
+
+def resolve_camera() -> tuple[str, int, str] | None:
+    """Pick the device to capture from: `(path, rotation, card name)`.
+
+    Walks the preference list in order and takes the LOWEST-numbered node whose
+    card name matches — a single camera presents several nodes and only the
+    first is the image; the rest are metadata, and on the built-in one of them
+    is an infrared sensor with its own name.
+    """
+    try:
+        nodes = sorted(
+            (n for n in os.listdir("/sys/class/video4linux") if n.startswith("video")),
+            key=lambda n: int(n[5:] or 0),
+        )
+    except OSError as error:
+        LOG.warning("could not enumerate cameras: %s", error)
+        return None
+
+    known = [(n, f"/dev/{n}", _camera_name(n)) for n in nodes]
+    for wanted, rotation in camera_preferences():
+        for node, path, name in known:
+            if wanted not in name.lower():
+                continue
+            if path in FORBIDDEN_DEVICES or any(bad in name.lower() for bad in FORBIDDEN_NAMES):
+                LOG.warning("refusing %s (%s): on the forbidden list", path, name)
+                continue
+            return path, rotation, name
+    return None
+
+
+def capture_clip(destination: Path, device: str, rotate: int) -> bool:
     """Record a short clip. Returns False rather than raising on any failure."""
     # ffmpeg's transpose: 1 is 90 clockwise, 2 is 90 counter-clockwise.
-    rotate = {
+    rotation = {
         90: ["-vf", "transpose=1"],
         180: ["-vf", "transpose=1,transpose=1"],
         270: ["-vf", "transpose=2"],
-    }.get(WITNESS_ROTATE, [])
+    }.get(rotate, [])
     source: list[str] = ["-f", "v4l2"]
     if WITNESS_INPUT_FORMAT:
         source += ["-input_format", WITNESS_INPUT_FORMAT]
@@ -237,10 +301,10 @@ def capture_clip(destination: Path) -> bool:
         "-y",
         *source,
         "-i",
-        VIDEO_DEVICE,
+        device,
         "-t",
         f"{CLIP_SECONDS:.2f}",
-        *rotate,
+        *rotation,
         "-an",
         str(destination),
     ]
@@ -285,11 +349,18 @@ def identify() -> dict | None:
     video of somebody's face on this host's disk, and nothing is watching this
     directory.
     """
+    chosen = resolve_camera()
+    if chosen is None:
+        LOG.warning("no usable camera found; preference list is %r", WITNESS_CAMERAS)
+        return None
+    device, rotate, name = chosen
+    LOG.info("capturing from %s (%s), rotate %d deg", device, name, rotate)
+
     handle, raw = tempfile.mkstemp(prefix="kiosk-witness-", suffix=".mp4")
     os.close(handle)
     clip = Path(raw)
     try:
-        if not capture_clip(clip):
+        if not capture_clip(clip, device, rotate):
             return None
         return post_multipart(
             f"{FACE_URL}/identify",
@@ -356,24 +427,21 @@ def run() -> int:
         sys.exit("NOVA_FACE_KEY is required; refusing to start without it")
     if not WITNESS_KEY:
         sys.exit("NOVA_WITNESS_KEY is required; refusing to start without it")
-    if VIDEO_DEVICE in FORBIDDEN_DEVICES:
-        sys.exit(
-            f"{VIDEO_DEVICE} is on the forbidden list. That device is the outdoor "
-            "camera's capture card, not the panel's webcam; pointing the witness at "
-            "it would record whoever walks past the house. Refusing to start."
-        )
+    if not camera_preferences():
+        sys.exit("WITNESS_CAMERAS is empty; there is no camera to prefer. Refusing to start.")
 
     activity = Activity()
     activity.drain()
+    chosen = resolve_camera()
     LOG.info(
-        "capturing from %s (%s %s @%sfps); identity ttl %.0fs, clip %.1fs, rotate %d deg",
-        VIDEO_DEVICE,
+        "camera preference %r -> %s; %s %s @%sfps; identity ttl %.0fs, clip %.1fs",
+        WITNESS_CAMERAS,
+        f"{chosen[0]} ({chosen[2]}) rotate {chosen[1]} deg" if chosen else "NONE FOUND",
         WITNESS_INPUT_FORMAT or "auto",
         WITNESS_VIDEO_SIZE or "auto",
         WITNESS_FRAMERATE or "auto",
         IDENTITY_TTL,
         CLIP_SECONDS,
-        WITNESS_ROTATE,
     )
 
     interval = 1.0 / POLL_HZ if POLL_HZ > 0 else 1.0

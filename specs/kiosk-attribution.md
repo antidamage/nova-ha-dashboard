@@ -78,20 +78,43 @@ modelled on the existing `ops/nocturnium-camera-proxy.py` / `.service` pair —
 
 ## The camera
 
-The built-in UVC webcam, `/dev/video0` — "IMC Networks USB2.0 HD UVC WebCam".
+**Added 2026-09-04 — a preference list, not a fixed device.** Nocturnium got a
+second camera, a Microsoft LifeCam mounted upright on the panel, alongside the
+built-in "USB2.0 HD UVC WebCam" mounted on its side. Which one is picked now
+matters, and the answer has to be "the LifeCam, when it's there" — not a device
+path, which moves every time something is plugged in or unplugged, and not a
+device index, for the same reason.
 
-**Never `/dev/video4`.** That is the MS2109 grabber carrying the Outside camera.
-It is already owned by the camera recorder, and pointing this at it would
-identify whoever walks past the front of the house rather than whoever is
-standing at the panel. `face-auth.md` calls out the same trap for enrolment; it
-applies here for the same reason and with worse consequences, because this runs
-unattended.
+`WITNESS_CAMERAS`, default `"LifeCam=0,USB2.0 HD=90"`: `name=degrees` pairs,
+comma-separated, most preferred first. `resolve_camera()` walks the list in
+order and takes the lowest-numbered `/dev/videoN` node whose kernel card name
+(`/sys/class/video4linux/videoN/name`) contains that substring, case-insensitive
+— matched by name because a camera presents several nodes (metadata, an
+infrared sensor on the built-in one) and only the first is the actual image.
+Resolved fresh on every capture, not once at startup, so unplugging the LifeCam
+falls back on the *next touch* rather than needing a restart.
 
-The device is configurable as `WITNESS_VIDEO_DEVICE` and defaults to
-`/dev/video0`, but the daemon refuses to start if it is pointed at the recorder's
-device, by name match against `WITNESS_FORBIDDEN_DEVICES` (default
-`/dev/video4`). A configuration mistake here is silent and privacy-relevant, so
-it is checked rather than documented.
+**The LifeCam needs no rotation; the built-in does.** That is the whole reason
+rotation lives in the same list as the name rather than as a separate setting —
+splitting them is how a camera ends up selected under one rule and rotated by
+the other's.
+
+**Never the MS2109 grabber** (`/dev/video4`/`5`, card name containing
+"MACROSILICON" or "2109"). That is the grabber carrying the Outside camera,
+already owned by the camera recorder; pointing the witness at it would identify
+whoever walks past the front of the house rather than whoever is standing at
+the panel. `face-auth.md` calls out the same trap for enrolment; it applies here
+for the same reason and with worse consequences, because this runs unattended.
+Checked by both device path (`WITNESS_FORBIDDEN_DEVICES`) and by name
+(`WITNESS_FORBIDDEN_NAMES`) — the path check alone stops meaning anything the
+moment node numbers move, which on this host is often. A configuration mistake
+here is silent and privacy-relevant, so it is checked rather than documented.
+
+The browser side reads the same shape of list — `dashboard.kiosk.cameras` in
+`nova-household`'s config, surfaced to the client via `/api/config/client` — so
+`pickPreferredCamera()` (face sign-in, enrolment) and the rotated preview both
+pick the LifeCam the same way the daemon does, from one source of truth rather
+than three separately-tuned heuristics.
 
 ## The trigger
 
@@ -192,25 +215,35 @@ timestamp.
 
 ### Orientation and frame rate — both required, both found live
 
-Two settings this camera needs, and neither is a default worth trusting.
+Two settings the *built-in* camera needs, neither a default worth trusting. The
+LifeCam needs neither — it is mounted upright and shares the built-in's frame
+rate ceiling for a different reason (see below), so both settings below apply
+per-camera via `WITNESS_CAMERAS`, not globally.
 
-**Rotation.** The webcam is mounted on its side: the room arrives rotated a
-quarter turn anticlockwise, and a face in it is rotated with it. Captured with
-`WITNESS_ROTATE_DEGREES=90`, applied by ffmpeg's `transpose=1`.
+**Rotation.** The built-in webcam is mounted on its side: the room arrives
+rotated a quarter turn anticlockwise, and a face in it is rotated with it.
+Captured with `=90` in its `WITNESS_CAMERAS` entry, applied by ffmpeg's
+`transpose=1`. The LifeCam's entry carries `=0` — explicitly, not by omission,
+so a reader of the config sees that its lack of rotation was decided rather than
+forgotten.
 
-Corrected at capture rather than left to the service because this camera's
+Corrected at capture rather than left to the service because each camera's
 mounting is a fixed, known fact and a pixel rotation costs nothing here, whereas
 making the service work it out costs extra detection passes on every clip. The
 service keeps a fallback for callers whose orientation is unknown — see below.
 
-**Frame rate.** The camera offers 1280x720 in both YUYV and MJPG, and v4l2 picks
-YUYV, which it can only deliver at **10 fps**. `FACE_CLIP_MIN_FPS` is 20, so
-every witness clip was refused `clip_low_fps` before a face was ever looked for.
-MJPG does the same resolution at 30. `WITNESS_INPUT_FORMAT=mjpeg`,
-`WITNESS_FRAMERATE=30` and `WITNESS_VIDEO_SIZE=1280x720` ask for it explicitly;
-left to negotiate, ffmpeg negotiates badly.
+**Frame rate.** Both cameras offer 1280x720 in YUYV and MJPG, and v4l2 picks
+YUYV by default, which only delivers **10 fps** at that size on either of them.
+`FACE_CLIP_MIN_FPS` is 20, so a clip at the default format was refused
+`clip_low_fps` before a face was ever looked for. MJPG does the same resolution
+at 30 fps on both cameras — verified against the LifeCam's own format table, not
+assumed from the built-in's. `WITNESS_INPUT_FORMAT=mjpeg`, `WITNESS_FRAMERATE=30`
+and `WITNESS_VIDEO_SIZE=1280x720` ask for it explicitly, applied to whichever
+device `resolve_camera()` picked; left to negotiate, ffmpeg negotiates badly.
 
-Verified live: the capture is 720x1280 at 30/1 after rotation.
+Verified live: the built-in's capture is 720x1280 at 30/1 after rotation; the
+LifeCam resolves correctly at `/dev/video6`, unrotated, from
+`WITNESS_CAMERAS="LifeCam=0,USB2.0 HD=90"`.
 
 **A busy device is expected and harmless.** Enrolment in the browser holds the
 same webcam, and ffmpeg then exits with "Device or resource busy". The daemon
@@ -487,8 +520,12 @@ Daemon, `/etc/nova-kiosk-witness.env` on Nocturnium:
 | `NOVA_WITNESS_KEY` | — | Required. The witness's own key for the dashboard routes. |
 | `NOVA_FACE_URL` | `https://nova.tuatara-dory.ts.net/face` | |
 | `NOVA_DASHBOARD_URL` | `http://127.0.0.1` | The kiosk's own local dashboard route. |
-| `WITNESS_VIDEO_DEVICE` | `/dev/video0` | |
-| `WITNESS_FORBIDDEN_DEVICES` | `/dev/video4` | Refuse to start if pointed here. |
+| `WITNESS_CAMERAS` | `LifeCam=0,USB2.0 HD=90` | `name=degrees` pairs, most preferred first. Matched against the kernel card name, not a device path. |
+| `WITNESS_FORBIDDEN_DEVICES` | `/dev/video4,/dev/video5` | Refuse to start if resolution lands here. |
+| `WITNESS_FORBIDDEN_NAMES` | `macrosilicon,2109` | Same refusal, by name — the path alone stops meaning anything once node numbers move. |
+| `WITNESS_INPUT_FORMAT` | `mjpeg` | v4l2's default (YUYV) caps at 10 fps on both cameras at 720p; MJPG does 30. |
+| `WITNESS_FRAMERATE` | `30` | |
+| `WITNESS_VIDEO_SIZE` | `1280x720` | |
 | `WITNESS_CLIP_SECONDS` | `1.2` | |
 | `WITNESS_IDENTIFY_RETRIES` | `2` | Per session, after a failed opening capture. |
 | `WITNESS_RETRY_MIN_SECONDS` | `5` | |

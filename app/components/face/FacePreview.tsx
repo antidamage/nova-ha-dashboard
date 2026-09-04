@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
  * the service a second rotation to undo.
  *
  * The rule is keyed on a substring of the device LABEL, from
- * `dashboard.kiosk.cameraRotations`, because a rotation is a property of the
+ * `dashboard.kiosk.cameras`, because a rotation is a property of the
  * camera rather than of the page: the same rule then corrects that camera
  * wherever it is seen, and leaves every other camera alone. No host, no device
  * path, nothing machine-specific in this repo.
@@ -33,9 +33,9 @@ async function loadRules(): Promise<CameraRotationRule[]> {
     const response = await fetch("/api/config/client", { cache: "no-store" });
     if (!response.ok) return (cachedRules = []);
     const body = (await response.json()) as {
-      dashboard?: { kiosk?: { cameraRotations?: CameraRotationRule[] } };
+      dashboard?: { kiosk?: { cameras?: CameraRotationRule[] } };
     };
-    cachedRules = body.dashboard?.kiosk?.cameraRotations ?? [];
+    cachedRules = body.dashboard?.kiosk?.cameras ?? [];
   } catch {
     // A preview that is merely the wrong way up is not worth failing over.
     cachedRules = [];
