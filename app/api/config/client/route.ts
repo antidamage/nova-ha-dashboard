@@ -17,7 +17,7 @@ export async function GET() {
       // a control mutation is recognised as coming from the panel, and handing
       // that list to every browser would publish the household's topology for
       // no gain.
-      kiosk: { cameraRotations: config.dashboard.kiosk.cameraRotations },
+      kiosk: { cameras: config.dashboard.kiosk.cameras },
       reminders: config.dashboard.reminders,
       specialZones: config.dashboard.specialZones,
       timing: config.dashboard.timing,

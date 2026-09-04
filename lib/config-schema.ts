@@ -473,16 +473,23 @@ export const DashboardConfigSchema = z.object({
     kiosk: z
       .object({
         addresses: z.array(z.string()).default([]),
-        // Cameras that are not mounted upright, keyed by a substring of the
-        // device label the browser reports. Keyed by LABEL rather than by host
-        // because a rotation is a property of the camera, not of the page: the
-        // same rule then corrects the preview wherever that camera is seen, and
+        // The cameras this installation uses, MOST PREFERRED FIRST, with how
+        // far each one is out of upright.
+        //
+        // Ordered, because the panel has more than one camera and which gets
+        // picked matters: a LifeCam sits on it facing the room, alongside a
+        // built-in webcam mounted on its side. Preference and rotation belong
+        // in one list because they are the same fact about the same device --
+        // splitting them is how a camera ends up selected but rotated by the
+        // other one's rule.
+        //
+        // Matched as a case-insensitive substring of the device label the
+        // browser reports, so a rule follows its camera between machines and
         // leaves every other camera alone.
         //
-        // Preview only. The recorded clip is left as the camera produced it and
-        // the face service rotates it upright itself from the eye landmarks —
-        // rotating pixels twice would be work for nothing.
-        cameraRotations: z
+        // Preview only, on the browser side: the recorded clip is left as the
+        // camera produced it and the face service rotates it upright itself.
+        cameras: z
           .array(
             z.object({
               match: z.string().min(1),
@@ -491,7 +498,7 @@ export const DashboardConfigSchema = z.object({
           )
           .default([]),
       })
-      .default({ addresses: [], cameraRotations: [] }),
+      .default({ addresses: [], cameras: [] }),
     avatar: NovaAvatarConfigSchema,
     // The reminder sigil bar between the clock and zones panels. Presentation
     // and thresholds only — which reminder owns which sigil lives in its own
