@@ -165,6 +165,14 @@ export function settlingTrendSupportsSameDirectionRestart(input: {
 export function planManualAirconTick(input: {
   direction: ManualAirconDirection;
   isOn: boolean;
+  /**
+   * The owner moved the target and it has not been acted on yet. Manual has the
+   * same defect Auto had before 2026-09-05: with the unit off it holds until the
+   * off-dwell AND the settling trend agree, which reads as a dead control. A
+   * person's request is not the sensor, so it is not held by sensor guards.
+   * See specs/aircon-auto-control.md §5.
+   */
+  userRequested?: boolean;
   rawTemperature: number | null;
   filteredTemperature: number | null;
   targetTemperature: number;
@@ -183,6 +191,12 @@ export function planManualAirconTick(input: {
       : input.rawTemperature <= input.targetTemperature);
   if (input.isOn) return reachedTarget ? "stop" as const : "hold" as const;
   if (input.filteredTemperature === null) return "hold" as const;
+  if (input.userRequested) {
+    const stillWanted = input.direction === "heat"
+      ? input.filteredTemperature < input.targetTemperature
+      : input.filteredTemperature > input.targetTemperature;
+    return stillWanted ? "start" as const : "hold" as const;
+  }
   const drifted = input.direction === "heat"
     ? input.filteredTemperature <= input.targetTemperature - input.resumeDriftC
     : input.filteredTemperature >= input.targetTemperature + input.resumeDriftC;
