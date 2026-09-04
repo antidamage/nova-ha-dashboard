@@ -84,6 +84,16 @@ const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
  */
 const AIRCON_AUTO_SENSOR_GRACE_MS = 2 * 60_000;
 
+/**
+ * How long an unserved owner request stays latched.
+ *
+ * Everything that can defer a request is measured in minutes, so half an hour
+ * unserved means it could not be served at all — the entity was unavailable, or
+ * someone took the unit over from the panel. Firing it later would act on a room
+ * that has since moved on, which is its own kind of surprise.
+ */
+export const AIRCON_USER_REQUEST_MAX_AGE_MS = 30 * 60_000;
+
 export const AIRCON_MODES = ["heat", "cool", "fan_only", "auto"] as const;
 export const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
 
@@ -166,6 +176,21 @@ export type AirconAutoState = {
    * AIRCON_AUTO_SENSOR_GRACE_MS — see its comment above.
    */
   sensorPendingSinceAt: number | null;
+  /**
+   * A change the OWNER made that has not been acted on yet — a target they
+   * moved, or a fresh press of Auto. Null means nothing is outstanding.
+   *
+   * This is a latch, deliberately, and that is the whole fix of 2026-09-05.
+   * The intent used to be inferred per tick from lastTargetTemperature, but
+   * every return path — including the refusals — adopted the new target, so a
+   * request that arrived while the compressor dwell was still running was
+   * erased five seconds later by the tick that refused it. The unit then sat
+   * off waiting for a settled sensor while the room drifted. A guard may defer
+   * a person's request; it may not consume it.
+   *
+   * See specs/aircon-auto-control.md §4 for what sets and clears it.
+   */
+  userRequestAt: number | null;
 };
 
 export const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
@@ -176,6 +201,7 @@ export const INITIAL_AIRCON_AUTO_STATE: AirconAutoState = {
   recentStartsAt: [],
   lastTargetTemperature: null,
   sensorPendingSinceAt: null,
+  userRequestAt: null,
 };
 
 /**
@@ -242,6 +268,14 @@ function normalizeAirconAutoState(state?: Partial<AirconAutoState>): AirconAutoS
     settlingFromTemperature:
       typeof merged.settlingFromTemperature === "number" && Number.isFinite(merged.settlingFromTemperature)
         ? merged.settlingFromTemperature
+        : null,
+    userRequestAt:
+      typeof merged.userRequestAt === "number" && Number.isFinite(merged.userRequestAt)
+        ? merged.userRequestAt
+        : null,
+    lastTargetTemperature:
+      typeof merged.lastTargetTemperature === "number" && Number.isFinite(merged.lastTargetTemperature)
+        ? merged.lastTargetTemperature
         : null,
   };
 }
@@ -456,6 +490,8 @@ export function airconAutoCycleRemember(state: AirconAutoState): AirconPreferenc
     autoRecentStartsAt: state.recentStartsAt,
     autoSettlingFromTemperature: state.settlingFromTemperature,
     autoSensorPendingSinceAt: state.sensorPendingSinceAt,
+    autoUserRequestAt: state.userRequestAt,
+    autoLastTargetTemperature: state.lastTargetTemperature,
   };
 }
 
@@ -470,6 +506,8 @@ export function airconAutoCycleStateFromPreferences(
     recentStartsAt: preferences?.autoRecentStartsAt ?? [],
     settlingFromTemperature: preferences?.autoSettlingFromTemperature ?? null,
     sensorPendingSinceAt: preferences?.autoSensorPendingSinceAt ?? null,
+    userRequestAt: preferences?.autoUserRequestAt ?? null,
+    lastTargetTemperature: preferences?.autoLastTargetTemperature ?? null,
   };
 }
 
@@ -704,9 +742,24 @@ export function planAirconAutoTick({
   // grace clock — see reopened's use there.
   const targetChanged =
     currentState.lastTargetTemperature !== null && currentState.lastTargetTemperature !== targetTemperature;
+
+  // The owner's request LATCHES. A tick that merely observes the new target must
+  // not consume it, or a guard that defers the start (the compressor dwell, most
+  // often) silently cancels it instead — which is exactly what left the unit off
+  // for six minutes on 2026-09-04 with the room two degrees under target. The
+  // latch is cleared only where it has been served or has become moot; see
+  // specs/aircon-auto-control.md §4.
+  const inheritedRequestAt =
+    currentState.userRequestAt !== null && now - currentState.userRequestAt < AIRCON_USER_REQUEST_MAX_AGE_MS
+      ? currentState.userRequestAt
+      : null;
+  const userRequestAt = targetChanged || forceRemember ? now : inheritedRequestAt;
   // A setpoint change reopens the comfort decision, but it must not erase the
   // compressor dwell, direction hold, or diagnostic start history.
-  const reopened = targetChanged || forceRemember;
+  const reopened = userRequestAt !== null;
+  currentState = autoPlanState(currentState, { userRequestAt });
+  /** Served, or moot: the request stops being outstanding. */
+  const served = { userRequestAt: null } satisfies Partial<AirconAutoState>;
   const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
 
   if (currentTemperature === null) {
@@ -724,6 +777,7 @@ export function planAirconAutoTick({
       // Ran blind for the whole grace window and still no usable reading. The
       // planner emits the safe stop; the unified controller clears Auto.
       const cycle = autoPlanState(pendingBase, {
+        ...served,
         sensorPendingSinceAt: null,
         lastTransitionAt: now,
         settlingFromTemperature: currentTemperature,
@@ -752,13 +806,15 @@ export function planAirconAutoTick({
     }
 
     // Respect the hardware guards even for a blind attempt, so a sensor that
-    // flaps between missing and present cannot short-cycle the compressor.
+    // flaps between missing and present cannot short-cycle the compressor. An
+    // outstanding owner request is not the sensor, so it is not held.
     const holdBlocked =
-      (currentState.lastMode &&
+      !reopened &&
+      ((currentState.lastMode &&
         currentState.lastMode !== attemptMode &&
         currentState.lastModeAt !== null &&
         now - currentState.lastModeAt < AIRCON_AUTO_MODE_HOLD_MS) ||
-      (currentState.lastTransitionAt !== null && now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS);
+        (currentState.lastTransitionAt !== null && now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS));
 
     if (holdBlocked) {
       return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
@@ -767,6 +823,7 @@ export function planAirconAutoTick({
     const modeChanged = currentState.lastMode !== attemptMode;
     const cycle: AirconAutoState = {
       ...pendingState,
+      ...served,
       lastMode: attemptMode,
       lastModeAt: modeChanged ? now : (currentState.lastModeAt ?? now),
       lastTransitionAt: now,
@@ -806,9 +863,16 @@ export function planAirconAutoTick({
   // temperature to swap heating and cooling. Do that directly: stopping first
   // would create a brand-new dwell lock and defeat the override on the next
   // tick. The fresh-input gate has already passed above.
-  // Reversals always stop first and pass through the normal off-dwell. A target
-  // edit is not permission to drive heat and cool back-to-back.
-  const changedTargetMode: ActiveAirconMode | null = null;
+  //
+  // Adeline, 2026-09-05: "if I do this then it was intentional, go straight into
+  // the other mode." This branch was dead for a while — the rule used to be that
+  // reversals always stop first — but the reversal that rule was written against
+  // was the SENSOR's (2026-08-09), and autonomous reversals still carry the full
+  // 3 C threshold and 30-minute hold below. airconUserModeIntent's one-degree
+  // margin is what separates "cool the room" from a comfort nudge near target.
+  const changedTargetMode: ActiveAirconMode | null = reopened
+    ? airconUserModeIntent(targetTemperature, currentTemperature) ?? null
+    : null;
   if (
     running &&
     changedTargetMode &&
@@ -817,10 +881,11 @@ export function planAirconAutoTick({
   ) {
     const fanStep = airconFanStepForTemperatureDelta(delta);
     const cycle = autoPlanState(cycleBase, {
+      ...served,
       lastMode: changedTargetMode,
       lastModeAt: now,
       lastTransitionAt: now,
-      recentStartsAt: [now],
+      recentStartsAt: [...recentStartsAt, now],
       settlingFromTemperature: null,
     });
     return {
@@ -841,7 +906,12 @@ export function planAirconAutoTick({
   }
 
   const rest = (reason: AirconAutoReason, overrides: Partial<AirconAutoState> = {}): AirconAutoPlan => {
-    const base = autoPlanState(cycleBase, overrides);
+    // A hold is a deferral, so it keeps the latch. Everything else here is an
+    // answer — the target is met, or it cannot be served — so it clears it.
+    const settles = reason === "mode-hold" || reason === "sensor-settling-hold" || reason === "min-cycle-hold"
+      ? {}
+      : served;
+    const base = autoPlanState(cycleBase, { ...settles, ...overrides });
     if (!isClimateEntityOn(entity)) {
       return { actions: [], nextState: base, reason };
     }
@@ -873,6 +943,7 @@ export function planAirconAutoTick({
 
     const fanStep = airconFanStepForTemperatureDelta(delta);
     const cycle = autoPlanState(cycleBase, {
+      ...served,
       lastMode: running,
       lastModeAt: currentState.lastModeAt ?? now,
       settlingFromTemperature: null,
@@ -923,6 +994,7 @@ export function planAirconAutoTick({
   // extend the hold, or a persistently wrong reading would freeze Auto forever.
   // A user who actually wants the other direction clears it (ClimateControls).
   if (
+    !reopened &&
     currentState.lastMode &&
     currentState.lastMode !== wantedMode &&
     currentState.lastModeAt !== null &&
@@ -970,6 +1042,7 @@ export function planAirconAutoTick({
   // Auto never selects, so someone else put it there — being held off a start is
   // no reason to leave it running.
   if (
+    !reopened &&
     currentState.lastTransitionAt !== null &&
     now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS
   ) {
@@ -980,6 +1053,7 @@ export function planAirconAutoTick({
   const modeChanged = currentState.lastMode !== wantedMode;
   const cycle: AirconAutoState = {
     ...cycleBase,
+    ...served,
     lastMode: wantedMode,
     lastModeAt: modeChanged ? now : currentState.lastModeAt ?? now,
     lastTransitionAt: now,
@@ -1034,6 +1108,9 @@ export class AirconAutoThermostat {
       lastTransitionAt: this.state.lastTransitionAt,
       recentStartsAt: this.state.recentStartsAt,
       settlingFromTemperature: this.state.settlingFromTemperature,
+      // A press of Auto IS a user request. Clearing the latch here would drop
+      // the very intent that caused this call.
+      userRequestAt: this.state.userRequestAt,
     };
   }
 
@@ -1062,6 +1139,14 @@ export class AirconAutoThermostat {
       lastMode: durableModeAt > memoryModeAt ? durable.lastMode ?? this.state.lastMode : this.state.lastMode,
       recentStartsAt: Array.from(new Set([...this.state.recentStartsAt, ...(durable.recentStartsAt ?? [])])),
       sensorPendingSinceAt: this.state.sensorPendingSinceAt ?? durable.sensorPendingSinceAt ?? null,
+      // Our own latch wins while we hold one. Otherwise adopt the durable one
+      // only if it was latched AFTER our last transition — a request this
+      // process has already served leaves null in memory, and a preferences
+      // copy written just before that action must not resurrect it.
+      userRequestAt:
+        this.state.userRequestAt ??
+        ((durable.userRequestAt ?? 0) > memoryTransitionAt ? durable.userRequestAt ?? null : null),
+      lastTargetTemperature: this.state.lastTargetTemperature ?? durable.lastTargetTemperature ?? null,
       settlingFromTemperature:
         durableTransitionAt > memoryTransitionAt
           ? durable.settlingFromTemperature ?? null

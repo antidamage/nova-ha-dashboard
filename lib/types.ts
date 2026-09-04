@@ -304,6 +304,14 @@ export type AirconPreferences = {
   autoSettlingFromTemperature?: number | null;
   /** See AirconAutoState.sensorPendingSinceAt in lib/aircon-control.ts. */
   autoSensorPendingSinceAt?: number | null;
+  /**
+   * The latched owner request — see AirconAutoState.userRequestAt and
+   * specs/aircon-auto-control.md §4. Durable so a request made seconds before a
+   * deploy or a kiosk reload is still served afterwards.
+   */
+  autoUserRequestAt?: number | null;
+  /** The change detector behind that latch; durable for the same reason. */
+  autoLastTargetTemperature?: number | null;
   updatedAt?: string;
 };
 
@@ -351,6 +359,12 @@ export type ClimateControlRoomState = {
   actuatorAvailable: boolean;
   overrideReason: string | null;
   lastStopReason: string | null;
+  /**
+   * An owner request the thermostat has latched but not yet acted on, ISO. For
+   * diagnostics only — the climate card deliberately shows nothing for it
+   * (specs/aircon-auto-control.md §3.4).
+   */
+  pendingUserRequestAt: string | null;
 };
 
 /**

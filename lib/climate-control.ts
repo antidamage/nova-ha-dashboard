@@ -5,6 +5,7 @@ import {
   AIRCON_SENSOR_SETTLE_MS,
   AIRCON_SENSOR_RESOLUTION_DEGREES,
   AIRCON_SENSOR_TIME_CONSTANT_MS,
+  AIRCON_USER_REQUEST_MAX_AGE_MS,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
   dashboardAirconEntity,
@@ -79,6 +80,9 @@ type PersistedRoom = {
   sensorPendingSinceAt: number | null;
   recentStartsAt: number[];
   manualDirection: Direction | null;
+  /** Change detector and latch for a Manual target the owner moved. */
+  manualTargetTemperature: number | null;
+  manualUserRequestAt: number | null;
 };
 
 type PersistedState = {
@@ -102,6 +106,8 @@ function defaultRoom(): PersistedRoom {
     sensorPendingSinceAt: null,
     recentStartsAt: [],
     manualDirection: null,
+    manualTargetTemperature: null,
+    manualUserRequestAt: null,
   };
 }
 
@@ -116,6 +122,7 @@ const emptyPublicRoom = (): ClimateControlRoomState => ({
   actuatorAvailable: false,
   overrideReason: null,
   lastStopReason: null,
+  pendingUserRequestAt: null,
 });
 
 type ClimateControlRuntime = {
@@ -535,10 +542,27 @@ async function driveAircon(
     } else if (mode === "manual" && (direction === "heat" || direction === "cool")) {
       const target = prefs?.temperature ?? Number(aircon.attributes.temperature);
       pruneStarts(room, now);
+      // Latch a target the owner moved, exactly as Auto does. Read as a number
+      // rather than against null so a state file written before this field
+      // existed does not read as a change on the first tick after a deploy.
+      if (Number.isFinite(target)) {
+        if (typeof room.manualTargetTemperature === "number" && room.manualTargetTemperature !== target) {
+          room.manualUserRequestAt = now;
+        }
+        room.manualTargetTemperature = target;
+      }
+      if (
+        typeof room.manualUserRequestAt === "number" &&
+        now - room.manualUserRequestAt >= AIRCON_USER_REQUEST_MAX_AGE_MS
+      ) {
+        room.manualUserRequestAt = null;
+      }
+      const userRequested = typeof room.manualUserRequestAt === "number";
       const decision = Number.isFinite(target)
         ? planManualAirconTick({
             direction,
             isOn: isClimateEntityOn(aircon),
+            userRequested,
             rawTemperature,
             filteredTemperature,
             targetTemperature: target,
@@ -552,6 +576,9 @@ async function driveAircon(
             resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
           })
         : "hold";
+      // Every outcome above is an answer once a request is latched — driving
+      // already, started now, or the target is met — so none of them defer it.
+      if (userRequested) room.manualUserRequestAt = null;
       if (decision === "stop") {
         room.lastTransitionAt = now;
         room.settlingFromTemperature = rawTemperature;
@@ -712,7 +739,8 @@ async function tick() {
     for (const { unit, aircon, mode, direction, external, rawTemperature, forcedOff } of airconResults) {
       const room = roomState(unit.id);
       const prefs = airconPreferencesFor(latest, unit.id);
-      const pendingAt = airconThermostatFor(unit.id).snapshot().sensorPendingSinceAt;
+      const snapshot = airconThermostatFor(unit.id).snapshot();
+      const pendingAt = snapshot.sensorPendingSinceAt;
       transitionMeta.set(unit.id, { title: unit.title, target: prefs?.temperature });
       publicState[unit.id] = publicRoom({
         owner: room.owner,
@@ -732,6 +760,9 @@ async function tick() {
         actuatorAvailable: usable(aircon),
         overrideReason: room.overrideReason,
         lastStopReason: room.lastStopReason,
+        pendingUserRequestAt: snapshot.userRequestAt === null
+          ? null
+          : new Date(snapshot.userRequestAt).toISOString(),
       });
     }
 

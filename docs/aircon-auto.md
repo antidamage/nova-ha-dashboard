@@ -20,10 +20,15 @@ recent fresh reports for starts and Auto direction selection.
   conservative 30-minute settling fallback.
 - Auto may choose a direction only while resting.
 - Fan-only Manual is continuous and sensor-independent.
-- Every start still observes the 10-minute compressor off-dwell.
+- Every sensor-driven start observes the 10-minute compressor off-dwell.
 - Heating and cooling have no starts-per-hour cap.
-- Auto direction changes observe a 30-minute hold and require a 3 C error.
-- No guard may delay a stop or permit a direct heat-to-cool reversal.
+- Sensor-driven direction changes observe a 30-minute hold and require a 3 C error.
+- No guard may delay a stop.
+- None of those guards apply to a change the owner made. A target the owner
+  moved, or a fresh press of Auto, is latched as `userRequestAt` and acted on
+  the next tick: it starts inside the dwell, skips the settling wait, and
+  reverses direction directly with no intervening off. See
+  `specs/aircon-auto-control.md`, which is the authority for this file.
 
 The predictor uses a 10-minute time constant. Home Assistant history across the
 recent Heat shutdowns shows the first whole-degree correction after 2-11

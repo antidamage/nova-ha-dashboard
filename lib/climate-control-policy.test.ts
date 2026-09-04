@@ -162,6 +162,36 @@ describe("fixed-direction Manual thermostat", () => {
     expect(planManualAirconTick({ ...common, isOn: false, rawTemperature: 24, filteredTemperature: 25, now: 30 * 60_000 + 1 })).toBe("hold");
   });
 
+  it("starts on a target the owner moved, without waiting out the dwell", () => {
+    // specs/aircon-auto-control.md §5 — the same defect Auto had. Two minutes
+    // after the last stop, well inside both the 10-minute dwell and the
+    // 30-minute settling window.
+    const early = { ...common, isOn: false, rawTemperature: 21, now: 2 * 60_000 };
+    expect(planManualAirconTick(early)).toBe("hold");
+    expect(planManualAirconTick({ ...early, userRequested: true })).toBe("start");
+  });
+
+  it("an owner request that is already satisfied does not start the unit", () => {
+    expect(planManualAirconTick({
+      ...common,
+      isOn: false,
+      rawTemperature: 26,
+      filteredTemperature: 26,
+      targetTemperature: 25,
+      now: 2 * 60_000,
+      userRequested: true,
+    })).toBe("hold");
+  });
+
+  it("an owner request never delays a stop", () => {
+    expect(planManualAirconTick({
+      ...common,
+      isOn: true,
+      rawTemperature: 26,
+      userRequested: true,
+    })).toBe("stop");
+  });
+
   it("does not impose a starts-per-hour limit after settling", () => {
     expect(planManualAirconTick({
       ...common,
