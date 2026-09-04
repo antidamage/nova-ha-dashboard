@@ -142,13 +142,13 @@ export function csrfToken(cookie?: string): string | null {
 }
 
 /**
- * Start (or restart) a flow and read its first challenge.
+ * Read the flow's current challenge.
  *
  * `cache: "no-store"` matters: a cached challenge carries a stale WebAuthn
  * nonce, and the assertion built from it is refused with an error that looks
  * like a broken credential rather than a cache hit.
  */
-export async function beginFlow(slug: string): Promise<FlowChallenge> {
+async function readFlow(slug: string): Promise<FlowChallenge> {
   let response: Response;
   try {
     response = await fetch(flowUrl(slug), {
@@ -162,13 +162,47 @@ export async function beginFlow(slug: string): Promise<FlowChallenge> {
   return readChallenge(response);
 }
 
+/** Start (or restart) a flow and read its first challenge. */
+export async function beginFlow(slug: string): Promise<FlowChallenge> {
+  return readFlow(slug);
+}
+
+/**
+ * True when a response is the executor's "go and re-read me" redirect.
+ *
+ * With `redirect: "manual"` a same-origin 3xx arrives as an opaque redirect:
+ * `type === "opaqueredirect"`, status 0, no readable headers. Node's fetch and
+ * jsdom expose the real 3xx status instead, so both shapes are recognised.
+ */
+function isExecutorRedirect(response: Response): boolean {
+  if (response.type === "opaqueredirect") return true;
+  return response.status === 0 || (response.status >= 300 && response.status < 400);
+}
+
 /**
  * Answer the current challenge and read the next one.
  *
  * **A stage POST answers 302 back to the executor URL itself**, rather than
  * returning the next challenge inline — verified live against the running
- * instance. `redirect: "follow"` is therefore load-bearing: with `manual` the
- * body is empty and the next challenge never arrives.
+ * instance.
+ *
+ * **That redirect must NOT be followed, and this is the whole reason sign-in
+ * was broken.** Caddy proxies `/authentik/*` with `handle_path`, which STRIPS
+ * the prefix before authentik sees the request, so authentik builds its
+ * `Location` from the stripped path:
+ *
+ *     Location: /api/v3/flows/executor/default-authentication-flow/?query=
+ *
+ * That path is not proxied. On the dashboard origin it is Next.js, which
+ * answers 308 (trailing slash) and then 404 with an HTML body. So every stage
+ * POST that the server ACCEPTED — password, TOTP, passkey, face alike — ended
+ * at a 404 the client reported as a transport failure, moments after authentik
+ * had logged "Successful authentication". Measured on 2026-09-04 against the
+ * live instance; the server-side flow was never at fault.
+ *
+ * The Location carries no information anyway: it is always the executor URL
+ * this client already knows. So the redirect is taken manually and the next
+ * challenge is re-read from the PREFIXED url, which stays inside the proxy.
  */
 export async function submitFlow(
   slug: string,
@@ -181,7 +215,8 @@ export async function submitFlow(
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",
-      redirect: "follow",
+      // See the note above: following this lands on Next.js, not authentik.
+      redirect: "manual",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -194,6 +229,9 @@ export async function submitFlow(
   } catch {
     throw new FlowTransportError("The sign-in service could not be reached.");
   }
+  // A stage that ACCEPTED the answer redirects; one that refused it answers
+  // 200 with the same challenge and `response_errors` filled in.
+  if (isExecutorRedirect(response)) return readFlow(slug);
   return readChallenge(response);
 }
 
@@ -222,6 +260,33 @@ export function challengeError(challenge: FlowChallenge): string | null {
     if (typeof first?.string === "string" && first.string) return first.string;
   }
   return null;
+}
+
+/**
+ * Abandon a part-finished flow and start it again.
+ *
+ * authentik keeps the flow plan in the session, so re-opening the sign-in
+ * resumes wherever it got to. That is correct, and it is also how somebody
+ * ends up staring at "Authentication code" with no idea where the username
+ * field went, or stuck on a stage they cannot complete. Cancelling clears the
+ * plan; the caller then begins the flow afresh.
+ *
+ * Failure is not worth surfacing: the worst case is the flow resumes where it
+ * was, which is where it already is.
+ */
+export async function cancelFlow(): Promise<void> {
+  try {
+    await fetch(`${AUTHENTIK_PREFIX}/flows/-/cancel/`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      // The cancel happens before the redirect is written, and that redirect
+      // is unprefixed like every other one authentik emits behind
+      // `handle_path` — following it would only fetch a Next.js 404.
+      redirect: "manual",
+    });
+  } catch {
+    // Nothing to do; the caller restarts regardless.
+  }
 }
 
 export function isTerminal(challenge: FlowChallenge): boolean {
