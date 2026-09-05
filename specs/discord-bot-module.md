@@ -200,6 +200,21 @@ than leaving a false "Done" as the last word.
 | `openProposals` | inbound proposals awaiting a button |
 | `lastError` | |
 
+## Agent attention pings
+
+`POST /api/modules/discord-bot/attention`, authenticated by the
+`discord.attentionKey` secret in an `x-nova-attention-key` header, DMs a single
+line: `🔔 **Needs you** — <summary>` (summary trimmed to 400 characters).
+
+It sends directly rather than joining the queue — the caller is an agent that
+has already stopped and is waiting on a human, so a batching delay is the one
+thing the message cannot afford. A bad key is `401`, a missing summary `400`,
+and an unsendable DM `503` with the reason. Never a quiet `200`: the calling
+agent has to know whether anyone was told.
+
+The rule that obliges agents to call it is in `AGENTS.md`, "Ping Discord before
+you stop for the owner".
+
 ---
 
 ## Inbound commands
