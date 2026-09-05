@@ -164,6 +164,19 @@ noisiest hook; anyone who wants more sets a longer template.
 - A failed send re-queues the batch once, then drops it and records
   `lastError`. The queue never grows without bound because of a dead network.
 
+### Once per occurrence
+
+A reminder is announced **once**. The key is the occurrence — event id, task
+id, and the event's own timestamp — so tomorrow's instance of a daily reminder
+still announces, and a completion is tracked apart from its due notice.
+
+The record is persisted (`echoed-reminders.json`, `src/echo-memory.ts`), which
+is the whole point: the dashboard's own edge guard for `reminder.due` is
+in-memory (`lib/dashboard-events.ts` → `store.taskAlertSessions`), so a
+restart re-fires for every reminder still inside its alert window. Kept on
+this side because this is the only layer that knows what was actually sent.
+Remembered for 7 days, capped at 500 occurrences, pruned on write.
+
 ## Per-reminder echo
 
 Injected into the reminder editor through `reminder.editor.fields`:
