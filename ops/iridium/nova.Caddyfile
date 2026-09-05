@@ -202,7 +202,11 @@
 	@admin_writes {
 		method PUT POST PATCH DELETE
 		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
-		not path /api/modules/events
+		# Caddy's `*` spans slashes, so /api/modules/* was matching the Discord
+		# module's own attention route — the DM an agent sends before it stops to
+		# ask a question — and answering the flat LAN 403. That route carries its
+		# own x-nova-attention-key secret; it is authenticated, just not here.
+		not path /api/modules/events /api/modules/*/attention
 	}
 	handle @admin_any {
 		import ak_forward_auth
@@ -376,7 +380,11 @@
 	@admin_writes {
 		method PUT POST PATCH DELETE
 		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
-		not path /api/modules/events
+		# Caddy's `*` spans slashes, so /api/modules/* was matching the Discord
+		# module's own attention route — the DM an agent sends before it stops to
+		# ask a question — and answering the flat LAN 403. That route carries its
+		# own x-nova-attention-key secret; it is authenticated, just not here.
+		not path /api/modules/events /api/modules/*/attention
 	}
 	handle @admin_any {
 		respond 403
