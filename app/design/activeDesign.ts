@@ -10,6 +10,7 @@
  * specs/design-modules.md, "Resolving the active design".
  */
 import { useEffect, useState } from "react";
+import { subscribeToDashboardEvents } from "../components/sharedDashboardEvents";
 import { DEFAULT_DESIGN_ID, isKnownDesignId } from "./registry";
 
 const DESIGN_STORAGE_KEY = "nova.dashboard.design.v1";
@@ -94,9 +95,33 @@ export function useActiveDesignId(): string {
       }
     };
 
+    // The design is one shared household setting, so a change made on any
+    // screen has to reach the others. Without this the kiosk keeps rendering
+    // the old presentation until somebody reloads it. Riding the existing
+    // shared EventSource matters: opening another one would cost a connection
+    // from the browser's ~6-per-origin budget, which this dashboard has
+    // already starved once (see sharedDashboardEvents.ts).
+    const unsubscribe = subscribeToDashboardEvents({
+      design: (event) => {
+        let next: unknown;
+        try {
+          next = (JSON.parse(event.data) as { activeId?: unknown }).activeId;
+        } catch {
+          return;
+        }
+        // An id this build does not know about is ignored rather than applied:
+        // a half-deployed house should keep rendering something.
+        if (!isKnownDesignId(next) || next === readActiveDesignId()) {
+          return;
+        }
+        applyActiveDesignId(next);
+      },
+    });
+
     window.addEventListener(DESIGN_CHANGE_EVENT, onChange);
     window.addEventListener("storage", onStorage);
     return () => {
+      unsubscribe();
       window.removeEventListener(DESIGN_CHANGE_EVENT, onChange);
       window.removeEventListener("storage", onStorage);
     };

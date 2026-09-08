@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import { activeDesignId, normalizeDesignPreferences } from "../../../lib/design-preferences";
+import { publishDesign } from "../../../lib/dashboard-events";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
     // mergeDashboardPreferences is the correct merge here — there are no
     // sibling keys under `design` for it to clobber.
     await mergeDashboardPreferences({ design: next, designUpdatedAt: updatedAt });
+    // Only after the write lands: every other screen in the house switches on
+    // this, so it must never announce a design that failed to persist.
+    publishDesign(next.activeId!);
     return NextResponse.json({ activeId: next.activeId, updatedAt });
   } catch (error) {
     return NextResponse.json(

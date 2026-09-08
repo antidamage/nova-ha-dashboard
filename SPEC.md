@@ -3416,6 +3416,12 @@ stores a well-formed unknown id as given, so uninstalling a design does not
 rewrite the preference. `localStorage["nova.dashboard.design.v1"]` is a read
 cache only.
 
+A change propagates to every connected screen: after the write lands, `POST
+/api/design` broadcasts an SSE `design` event (`publishDesign` in
+`lib/dashboard-events.ts`) and `useActiveDesignId` applies it through the shared
+EventSource, so a design picked on one device switches the kiosk live without a
+reload.
+
 ### 33.3 First paint and hydration
 
 `app/page.tsx` is `force-static` and `app/layout.tsx` is prerendered, and demo
