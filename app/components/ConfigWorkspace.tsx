@@ -10,6 +10,7 @@ import type { AppleTvSwipeSettings } from "../../lib/appletv-swipe";
 import type { AgentPreferences, VoicePreferences, WatchfacePreferences } from "../../lib/types";
 import type { SunThemeStatus, ThemeStorageValue } from "./accentColor";
 import { ConfigAccordion } from "./ConfigControls";
+import { useHorizontalDragScroll } from "./dashboard/useHorizontalDragScroll";
 import { getActiveConfigCategory, getConfigUiState, setActiveConfigCategory, setConfigScroll } from "./configUiState";
 import { ConfigPreviewBackground, ConfigPreviewBackgroundProvider } from "./ConfigPreviewBackground";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
@@ -225,6 +226,7 @@ export function ConfigWorkspace({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const categoryNavRef = useRef<HTMLElement | null>(null);
   const scrollRestoredRef = useRef(false);
   const systemLoadStartedRef = useRef(false);
   const [activeCategory, setActiveCategory] = useState<ConfigCategoryId | null>(null);
@@ -367,6 +369,7 @@ export function ConfigWorkspace({
   };
 
   const activeMeta = CONFIG_CATEGORIES.find(({ id }) => id === activeCategory);
+  useHorizontalDragScroll(categoryNavRef);
 
   return (
     <ConfigPreviewBackgroundProvider initialSun={initialSun} initialTheme={initialTheme}>
@@ -379,7 +382,12 @@ export function ConfigWorkspace({
           <ConfigPageActions onBack={handleBack} />
         </nav>
 
-        <nav className="config-category-nav" aria-label="Configuration categories">
+        <nav
+          ref={categoryNavRef}
+          className="config-category-nav"
+          aria-label="Configuration categories"
+          data-nova-no-drag-scroll
+        >
           {CONFIG_CATEGORIES.map(({ detail, icon: Icon, id, label }) => {
             const selected = activeCategory === id;
             return (

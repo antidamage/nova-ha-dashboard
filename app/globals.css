@@ -2406,7 +2406,6 @@ a.update-banner-button {
 .config-layout-categories-closed .config-category-nav {
   position: relative;
   top: auto;
-  width: 100%;
   margin-block: auto;
 }
 
@@ -2536,6 +2535,13 @@ html.nova-header-controls-disabled .dashboard-reload-link {
 }
 
 .config-category-nav {
+  /* Full-bleed: the nav breaks out of the centred max-w-5xl config column and
+     spans the viewport, so the category strip is never clipped to the column.
+     Page scrollbars are hidden (see the html/body rules above), so 100vw is the
+     client width and this adds no horizontal page overflow. */
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  cursor: grab;
   position: sticky;
   top: calc(8px + env(safe-area-inset-top, 0px));
   z-index: 70;
@@ -2545,7 +2551,7 @@ html.nova-header-controls-disabled .dashboard-reload-link {
   gap: 8px;
   overflow-x: auto;
   padding: 8px;
-  border: 1px solid var(--cyber-border-dim);
+  border-block: 1px solid var(--cyber-border-dim);
   background: color-mix(in srgb, var(--cyber-bg) 94%, transparent);
   backdrop-filter: blur(18px);
   scrollbar-width: none;
@@ -2629,7 +2635,6 @@ html.nova-header-controls-disabled .dashboard-reload-link {
 
 @media (max-width: 640px) {
   .config-category-nav {
-    margin-inline: -8px;
     grid-auto-columns: minmax(165px, 78vw);
   }
 }
