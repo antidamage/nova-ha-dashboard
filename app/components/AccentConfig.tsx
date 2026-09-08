@@ -111,6 +111,7 @@ import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { NovaAvatarConfig } from "./NovaAvatarConfig";
 import { useBuildReload } from "./useBuildReload";
 import { ThemeLibraryControl } from "./ThemeLibraryControl";
+import { DesignSelectControl } from "./DesignSelectControl";
 import { useThemeLibrary } from "./themeLibrary";
 import { copyColorToClipboard, copySectionToClipboard, useThemeClipboard } from "./themeClipboard";
 import { extractSection, mergeSection, type ThemeSectionKind } from "./themeSections";
@@ -2017,6 +2018,11 @@ export function AccentConfig({
               onDelete={(id) => library.remove(id)}
             />
             {library.error ? <p className="theme-library-error">{library.error}</p> : null}
+          </div>
+
+          <div className="grid gap-3">
+            <h2 className="theme-display-label zone-title-bar">Design</h2>
+            <DesignSelectControl />
           </div>
         </div>
       </section>

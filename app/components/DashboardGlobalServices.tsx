@@ -10,6 +10,8 @@ import { SystemActivityBlocker } from "./SystemActivityBlocker";
 import { TouchClickGuard } from "./TouchClickGuard";
 import type { SunThemeStatus, ThemeStorageValue } from "./accentColor";
 import BrowserVoiceSatellite from "./dashboard/BrowserVoiceSatellite";
+import { useActiveDesignId } from "../design/activeDesign";
+import { resolveDesign } from "../design/registry";
 
 type DashboardGlobalServicesProps = {
   initialTheme: ThemeStorageValue | null;
@@ -24,7 +26,16 @@ export function DashboardGlobalServices({
   initialSun,
 }: DashboardGlobalServicesProps) {
   const pathname = usePathname();
+  const activeDesignId = useActiveDesignId();
+
   if (pathname === "/phonoscope-debug") return null;
+
+  // The status orb is body-level chrome, but on the dashboard route it is the
+  // active Design's call whether it appears at all — that is what makes the
+  // `lite` declaration in a design manifest load-bearing rather than a comment.
+  // Everywhere else (notably /config, which no design owns) it always renders.
+  const onDashboardRoute = pathname === "/";
+  const showStatusOrb = !onDashboardRoute || resolveDesign(activeDesignId).lite.statusOrb;
 
   return (
     <>
@@ -32,7 +43,9 @@ export function DashboardGlobalServices({
       <HapticFeedback />
       <SmoothScrollController />
       <ExperienceModeModal />
-      <NovaAvatar size={200} initialTheme={initialTheme} initialSun={initialSun} />
+      {showStatusOrb ? (
+        <NovaAvatar size={200} initialTheme={initialTheme} initialSun={initialSun} />
+      ) : null}
       <BrowserVoiceSatellite />
       <DemoTooltipLayer />
       <SystemActivityBlocker />

@@ -201,7 +201,7 @@
 	# anyone on the LAN.
 	@admin_writes {
 		method PUT POST PATCH DELETE
-		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
+		path /api/theme /api/design /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
 		# Caddy's `*` spans slashes, so /api/modules/* was matching the Discord
 		# module's own attention route — the DM an agent sends before it stops to
 		# ask a question — and answering the flat LAN 403. That route carries its
@@ -379,7 +379,7 @@
 	# getUserMedia will hand the capture UI a camera. That is deliberate.
 	@admin_writes {
 		method PUT POST PATCH DELETE
-		path /api/theme /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
+		path /api/theme /api/design /api/layout /api/watchface /api/background-texture /api/theme-library /api/voice-personality-library /api/voice/engine /api/voice/options /api/voice/speaker-profiles /api/voice/speaker-profiles/* /api/voice/memories /api/camera/*/settings /api/camera/*/analysis* /api/update/* /api/modules /api/modules/* /api/modules/*/config
 		# Caddy's `*` spans slashes, so /api/modules/* was matching the Discord
 		# module's own attention route — the DM an agent sends before it stops to
 		# ask a question — and answering the flat LAN 403. That route carries its

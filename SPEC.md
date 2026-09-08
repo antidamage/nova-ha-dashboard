@@ -514,7 +514,9 @@ State publish rules:
   reminder glow, title tone, and satellite state.
 - Theme cookies preserve config scope and theme values.
 
-`app/page.tsx` renders the dynamic dashboard.
+`app/page.tsx` renders `DesignHost`, which mounts whichever **Design**
+(presentation layer) is active; `Dashboard` below is the `nova-classic`
+Design's root. See §33.
 
 `app/components/Dashboard.tsx`:
 
@@ -1751,6 +1753,10 @@ Config page:
 - Map contains the former map component controls plus Rain Radar settings.
 - The active Local/Shared config source button is highlighted with the current
   highlight color.
+- A **Design** selector sits directly below the Theme Library block in the
+  same section, using the same portalled cyber-listbox. It picks the active
+  presentation layer (§33). It has no save/rename/duplicate/delete actions —
+  designs are a registry, not a user library.
 - `ConfigWorkspace` shows one Back link, hides raw JSON editing and manual
   validation, and exposes config import/export only as Import and Export
   buttons.
@@ -3373,3 +3379,66 @@ enforces it.
 7. Add a `status()` test covering unconfigured, half-configured and configured,
    and confirm `lib/fresh-install.test.ts` still passes — that is the test that
    proves absence is safe.
+
+## 33. Design Modules
+
+A **Design** is a swappable presentation layer for the dashboard route. The
+original UX is the `nova-classic` Design; `plain` is a second, deliberately
+unornamented one. `specs/design-modules.md` owns the detail.
+
+Design and colour theme are independent axes. Changing the Design never alters
+a colour-theme value, and loading a saved colour theme never changes the active
+Design. Background and status-orb settings remain colour-theme properties.
+`/config` is core and is never styled by a Design.
+
+### 33.1 Contract and registry
+
+`app/design/contract.ts` defines `DesignModule`: a `manifest`
+(`id`/`name`/`description`/`version`), a `Root` component that renders the whole
+dashboard route, and a required `lite` declaration naming which of the four
+heavy features (status orb, background, camera, world map) the design places at
+all. `lite` is not documentation: `DashboardGlobalServices` consults the active
+design's `lite.statusOrb` on `/` and does not mount the orb for a design that
+declares `false`. This satisfies the §2 Experience Mode Parity rule.
+
+`app/design/registry.ts` is the only module that imports a design folder, so a
+runtime-installed design can later become a second source without any caller
+changing. `resolveDesign()` never throws and never returns undefined — an
+unknown id falls back to `DEFAULT_DESIGN_ID`, so a preferences file naming a
+removed design cannot blank the dashboard.
+
+### 33.2 Storage
+
+The active design is **shared**, not per-device — the same axis as the theme.
+`preferences.design = { activeId }` plus `preferences.designUpdatedAt`, read and
+written through `GET/POST /api/design`. `POST` validates the id's shape but
+stores a well-formed unknown id as given, so uninstalling a design does not
+rewrite the preference. `localStorage["nova.dashboard.design.v1"]` is a read
+cache only.
+
+### 33.3 First paint and hydration
+
+`app/page.tsx` is `force-static` and `app/layout.tsx` is prerendered, and demo
+mode is a static export with no API routes at all, so the server cannot know
+which design is active. `app/api/design/bootstrap` — a parser-blocking
+`<script src>` in `<head>`, modelled on `/api/camera/bootstrap` — sets
+`window.__NOVA_DESIGN__` and the `data-nova-design` attribute on `<html>` before
+first paint. Demo mode inlines the same values from its `sessionStorage` shim.
+
+`DesignHost` renders `DEFAULT_DESIGN_ID` on the server and on its first client
+render, then reads the global in an effect and swaps, so the first client render
+always matches the server (the §2 hydration rule). The cost is one discarded
+render when the active design is not the default; `globals.css` hides the
+default design's shell while `data-nova-design` names a different design, so
+that render is not visible. `DesignHost` keys `Root` by design id, so switching
+fully unmounts the outgoing design.
+
+### 33.4 CSS
+
+A design's stylesheet is authored entirely under
+`html[data-nova-design="<id>"]`. All built-in stylesheets are statically
+imported, so only the active one matches and switching needs no reload.
+`nova-classic` still uses `app/globals.css` unscoped: extracting the dashboard
+surface rules out of that file is a separate, screenshot-verified step, kept
+apart from the switching mechanism so a regression in one cannot be blamed on
+the other.

@@ -233,6 +233,39 @@ export function demoConfigBootstrapScript(
     return jsonResponse(readDemoThemeLibrary());
   }
 
+  // The demo is a static export with no API routes, so sessionStorage is the
+  // server here. "Shared, not per-device" still holds: there is exactly one
+  // client (specs/design-modules.md, "Demo parity").
+  function demoDesignKey() {
+    return "nova.demo.design.v1";
+  }
+
+  function readDemoDesignId() {
+    try {
+      var stored = window.sessionStorage.getItem(demoDesignKey());
+      if (stored) return stored;
+    } catch (_) {}
+    return "nova-classic";
+  }
+
+  function readDesignResponse() {
+    return jsonResponse({ activeId: readDemoDesignId(), updatedAt: null });
+  }
+
+  function writeDesignResponse(input, init) {
+    var body = null;
+    try {
+      body = JSON.parse((init && init.body) || "{}");
+    } catch (_) {
+      body = {};
+    }
+    var next = body && typeof body.activeId === "string" ? body.activeId : "nova-classic";
+    try {
+      window.sessionStorage.setItem(demoDesignKey(), next);
+    } catch (_) {}
+    return jsonResponse({ activeId: next, updatedAt: new Date().toISOString() });
+  }
+
   function writeThemeLibraryResponse(input, init) {
     return requestBodyText(input, init).then(function (text) {
       var body = text ? JSON.parse(text) : {};
@@ -401,6 +434,12 @@ export function demoConfigBootstrapScript(
     }
     if (pathname === "/api/theme-library" && method === "POST") {
       return writeThemeLibraryResponse(input, init);
+    }
+    if (pathname === "/api/design" && method === "GET") {
+      return readDesignResponse();
+    }
+    if (pathname === "/api/design" && method === "POST") {
+      return writeDesignResponse(input, init);
     }
     return null;
   }
