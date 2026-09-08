@@ -34,6 +34,29 @@ theme lives on.
 - `localStorage["nova.dashboard.design.v1"]` is a read cache only. The server
   is authoritative.
 
+### Every client follows a change
+
+One design is shared by the whole house, so a change made on any screen has to
+reach the rest — otherwise the wall panel keeps the old presentation until
+somebody reloads it. After the write lands (never before — an announcement must
+not name a design that failed to persist), `POST /api/design` calls
+`publishDesign()` in `lib/dashboard-events.ts`, which broadcasts an SSE event
+named `design` carrying the new id.
+
+`useActiveDesignId` subscribes through `subscribeToDashboardEvents`, the
+**shared** EventSource. That is not incidental: opening a second one would spend
+another of the browser's ~6 connections per origin, a budget this dashboard has
+already starved once (see the header comment in
+`app/components/sharedDashboardEvents.ts`). A receiver ignores an id its build
+does not know, so a half-deployed house keeps rendering something.
+
+The switch is live — the design root remounts under its new key and the scoped
+stylesheet takes over. No page reload is involved, and none is needed: every
+built-in design's CSS is already present.
+
+Demo mode has no server and therefore no stream, but it is a single client, so
+the local change event already covers it.
+
 Design-specific *settings* (as opposed to which design is active) live inside
 each colour-theme variant under a `designs.<designId>` namespace, so a theme
 carries the look of every design it has been used with. That namespace is

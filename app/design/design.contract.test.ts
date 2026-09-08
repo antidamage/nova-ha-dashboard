@@ -89,6 +89,40 @@ describe("design registry contract", () => {
   });
 });
 
+// The design is a shared household setting: a change made on one screen must
+// reach every other screen. That path is a server broadcast plus a client
+// subscription, neither of which has a runtime handle in jsdom, so assert the
+// wiring in source the way the lite-mode contract test does.
+describe("design change reaches every client", () => {
+  const root = join(__dirname, "..", "..");
+  const read = (file: string) => readFileSync(join(root, file), "utf8");
+
+  it("broadcasts the new design after the write lands", () => {
+    const events = read("lib/dashboard-events.ts");
+    expect(events, "publishDesign must exist").toContain("export function publishDesign");
+    expect(events, "it must broadcast on an SSE event named 'design'").toContain('sseEvent("design"');
+
+    const route = read("app/api/design/route.ts");
+    expect(route).toContain("publishDesign(");
+    // Announcing before the merge would tell the house about a design that may
+    // have failed to persist.
+    const mergeAt = route.indexOf("mergeDashboardPreferences");
+    const publishAt = route.indexOf("publishDesign(");
+    expect(mergeAt, "route must persist the design").toBeGreaterThan(-1);
+    expect(publishAt, "publish must come after the write").toBeGreaterThan(mergeAt);
+  });
+
+  it("subscribes every client to that broadcast on the shared EventSource", () => {
+    const active = read("app/design/activeDesign.ts");
+    // Must ride the shared stream: a second EventSource would spend one of the
+    // browser's ~6 connections per origin, which this dashboard has starved
+    // before (see app/components/sharedDashboardEvents.ts).
+    expect(active).toContain("subscribeToDashboardEvents");
+    expect(active).not.toContain("new EventSource");
+    expect(active).toContain("design:");
+  });
+});
+
 describe("design preferences normalisation", () => {
   it("defaults anything malformed rather than throwing", () => {
     expect(normalizeDesignPreferences(null).activeId).toBe(SERVER_DEFAULT);

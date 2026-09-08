@@ -308,6 +308,16 @@ export function publishReminderIcons(entries: unknown[]) {
   broadcastTask(sseEvent("reminder-icons", store.latestReminderIconsJson));
 }
 
+// The active Design (presentation layer) changed. Every screen in the house
+// shares one design, so a change made on any of them has to reach the rest —
+// otherwise the kiosk keeps the old presentation until someone reloads it.
+// The payload carries the id rather than being a bare nudge: it is a single
+// validated string, so there is nothing for a client to re-interpret and no
+// reason to make every screen fetch. Receivers ignore an id they do not know.
+export function publishDesign(activeId: string) {
+  broadcast(sseEvent("design", JSON.stringify({ activeId, at: Date.now() })));
+}
+
 // Phonoscope configuration changed. The GPU renderer on voiceHost subscribes to
 // this stream so a slider moved in the browser reaches the render in a frame or
 // two instead of waiting for its next config poll. The payload is deliberately
