@@ -6473,3 +6473,14 @@ textarea.module-config-input {
   gap: 10px;
   white-space: nowrap;
 }
+
+/* Design switching: hide the wrong design's first paint.
+   app/page.tsx is statically prerendered, so SSR always emits the DEFAULT
+   design's markup; DesignHost swaps to the real one after mount. When the
+   active design is not the default, that would flash Nova Classic for one
+   frame, so hide it until the swap. `:not(.config-shell)` matters — /config
+   reuses .dashboard-shell and is never owned by a design.
+   See specs/design-modules.md, "Resolving the active design". */
+html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:not(.config-shell) {
+  visibility: hidden;
+}

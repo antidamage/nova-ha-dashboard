@@ -112,6 +112,13 @@ the named component before introducing a one-off equivalent.
   it, and while it is held the panel refuses to replace its state from the
   server. Spread `onFocus`/`onBlur` onto any new text input in that panel —
   without it, a save's reply rewrites the field mid-rename.
+- `DesignSelectControl` — `app/components/DesignSelectControl.tsx`. This is the
+  presentation-layer (Design) picker on the config page. It is deliberately the
+  same portalled cyber-listbox as `ThemeLibraryControl` — same trigger, menu and
+  swatch classes — because a design and a colour theme are sibling choices and
+  must not read as two different kinds of control. It has no save/rename/
+  duplicate/delete row: designs come from the registry in `app/design/registry.ts`,
+  not from a user-editable library. See `specs/design-modules.md`.
 - `ThemeLibraryControl` and `VoicePersonalityLibraryControl` —
   `app/components/ThemeLibraryControl.tsx` and
   `app/components/VoicePersonalityLibraryControl.tsx`. These are the established

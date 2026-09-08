@@ -1,7 +1,7 @@
-import { Dashboard } from "./components/Dashboard";
+import { DesignHost } from "./design/DesignHost";
 
 export const dynamic = "force-static";
 
 export default function Home() {
-  return <Dashboard />;
+  return <DesignHost />;
 }

@@ -198,6 +198,17 @@ export default async function RootLayout({
           // camera client code hydrates.
           <script src="/api/camera/bootstrap" />
         )}
+        {demoMode ? (
+          // Static export has no API routes, so the demo reads the same
+          // sessionStorage key its /api/design shim writes (lib/demo-config.ts).
+          <script dangerouslySetInnerHTML={{ __html: 'try{var d=window.sessionStorage.getItem("nova.demo.design.v1")||"nova-classic";window.__NOVA_DESIGN__=d;document.documentElement.setAttribute("data-nova-design",d);}catch(_){window.__NOVA_DESIGN__="nova-classic";document.documentElement.setAttribute("data-nova-design","nova-classic");}' }} />
+        ) : (
+          // Which presentation layer to paint, resolved before first paint so
+          // the active design's scoped CSS applies from the first frame. Same
+          // reasoning as the camera bootstrap above: the layout is prerendered,
+          // so this cannot be read here directly (specs/design-modules.md).
+          <script src="/api/design/bootstrap" />
+        )}
         <script
           dangerouslySetInnerHTML={{
             __html: `

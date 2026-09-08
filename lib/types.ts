@@ -647,6 +647,17 @@ export type DashboardPreferences = {
   update?: UpdatePreferences;
   layout?: LayoutPreferences;
   phonoscope?: PhonoscopePreferences;
+  /**
+   * Which presentation layer the dashboard renders. Shared, like the theme —
+   * not per-device — so the house looks the same on every screen. Design and
+   * colour theme are independent axes: see specs/design-modules.md.
+   */
+  design?: DesignPreferences;
+  designUpdatedAt?: string;
+};
+
+export type DesignPreferences = {
+  activeId?: string;
 };
 
 export type PhonoscopePreferences = {

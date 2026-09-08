@@ -1,0 +1,89 @@
+/* Plain design.
+   Every selector is scoped under html[data-nova-design="plain"] so this sheet
+   is inert unless the design is active — that is what lets all built-in design
+   stylesheets ship together and switching happen without a reload
+   (specs/design-modules.md, "CSS scoping"). */
+
+html[data-nova-design="plain"] .plain-shell {
+  min-height: 100vh;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+  background: var(--cyber-bg);
+  color: var(--cyber-text, #e8e8e8);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+html[data-nova-design="plain"] .plain-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--cyber-border-dim);
+  padding-bottom: 12px;
+}
+
+html[data-nova-design="plain"] .plain-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+html[data-nova-design="plain"] .plain-config-link {
+  font-size: 14px;
+  color: var(--cyber-cyan);
+  text-decoration: none;
+  border: 1px solid var(--cyber-border-dim);
+  padding: 6px 12px;
+}
+
+html[data-nova-design="plain"] .plain-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+html[data-nova-design="plain"] .plain-nav-item {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 14px;
+  background: var(--cyber-panel);
+  color: inherit;
+  border: 1px solid var(--cyber-border-dim);
+  cursor: pointer;
+}
+
+html[data-nova-design="plain"] .plain-nav-item[aria-current="true"] {
+  background: var(--cyber-line);
+  color: var(--cyber-title-on-line, #000);
+  border-color: var(--cyber-line);
+}
+
+html[data-nova-design="plain"] .plain-body {
+  display: block;
+}
+
+html[data-nova-design="plain"] .plain-error,
+html[data-nova-design="plain"] .plain-notice,
+html[data-nova-design="plain"] .plain-toast {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid var(--cyber-border-dim);
+  background: var(--cyber-panel);
+}
+
+html[data-nova-design="plain"] .plain-error { border-color: #e05353; color: #ffb4b4; }
+
+html[data-nova-design="plain"] .plain-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
+}
