@@ -25,6 +25,8 @@ unknown face, never a nearest neighbour.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import hmac
 import json
@@ -273,6 +275,14 @@ class Store:
               id TEXT PRIMARY KEY, subject_id TEXT, released_at REAL NOT NULL
             );
             CREATE INDEX IF NOT EXISTS releases_at ON releases(released_at DESC);
+            CREATE TABLE IF NOT EXISTS quick_sessions (
+              id TEXT PRIMARY KEY, subject_id TEXT NOT NULL, authentik_username TEXT,
+              profile TEXT NOT NULL, idle_timeout_seconds INTEGER NOT NULL,
+              issued_at REAL NOT NULL, last_seen REAL NOT NULL,
+              prior_session_ids TEXT, authentik_session_id TEXT,
+              closed_at REAL, closed_reason TEXT
+            );
+            CREATE INDEX IF NOT EXISTS quick_sessions_open ON quick_sessions(closed_at, last_seen);
             CREATE TABLE IF NOT EXISTS vetoes (
               veto_id TEXT PRIMARY KEY, subject_id TEXT NOT NULL,
               authentik_session_id TEXT, authentik_username TEXT,
@@ -291,6 +301,7 @@ class Store:
                 ),
             ),
             ("credentials", (("sign_count", "INTEGER NOT NULL DEFAULT 0"),)),
+            ("quick_sessions", (("prior_session_ids", "TEXT"),)),
         ):
             columns = {row[1] for row in self.connection.execute(f"PRAGMA table_info({table})")}
             for column, definition in additions:
@@ -622,6 +633,90 @@ class Store:
                 return None
             return self.connection.execute("SELECT * FROM vetoes WHERE veto_id=?", (veto_id,)).fetchone()
 
+    # --- quick-profile sessions and their idle timeout ---------------------
+    #
+    # `quick` and `image` mint a session that ends after a period of inactivity.
+    # authentik's user_login stage offers only an absolute `session_duration`,
+    # so the idle part is enforced here: rows are opened at release, touched by
+    # the dashboard's heartbeat, and swept when they go quiet.
+    #
+    # Enforcement is server-side on purpose. A client that stops heartbeating —
+    # a closed tab, a killed browser, a machine that went to sleep, or a caller
+    # that simply chose not to — reaches the same end as one that reports
+    # honestly. There is nothing a client can withhold to stay signed in.
+
+    def open_quick_session(
+        self,
+        subject_id: str,
+        username: str | None,
+        profile: str,
+        idle_timeout: int,
+        now: float,
+        prior_session_ids: list[str] | None = None,
+    ) -> str:
+        """Open a row, recording which authentik sessions already existed.
+
+        The snapshot is what makes the later binding exact rather than a guess.
+        This runs before the browser has submitted the assertion, so authentik
+        has not yet created the session this sign-in will produce: any session
+        for this user that is NOT in the snapshot appeared afterwards, and is
+        therefore a candidate. Picking "the newest" instead would happily latch
+        onto a password session signed in from another tab a minute later and
+        terminate that.
+        """
+
+        session_key = secrets.token_urlsafe(16)
+        with self.lock:
+            self.connection.execute(
+                "INSERT INTO quick_sessions(id, subject_id, authentik_username, profile,"
+                " idle_timeout_seconds, issued_at, last_seen, prior_session_ids)"
+                " VALUES(?,?,?,?,?,?,?,?)",
+                (
+                    session_key, subject_id, username, profile, idle_timeout, now, now,
+                    json.dumps(sorted(prior_session_ids or [])),
+                ),
+            )
+            self.connection.commit()
+        return session_key
+
+    def touch_quick_sessions(self, username: str, now: float) -> int:
+        """Heartbeat. Extends every open row for this person.
+
+        Keyed on the authentik username rather than a row id because the client
+        doing the heartbeating is the browser, and the browser is never told
+        which row it belongs to — handing it one would make the row id a thing
+        worth stealing.
+        """
+
+        with self.lock:
+            cursor = self.connection.execute(
+                "UPDATE quick_sessions SET last_seen=? WHERE closed_at IS NULL AND authentik_username=?",
+                (now, username),
+            )
+            self.connection.commit()
+            return cursor.rowcount
+
+    def open_quick_sessions(self) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute("SELECT * FROM quick_sessions WHERE closed_at IS NULL ORDER BY issued_at")
+        )
+
+    def bind_quick_session(self, session_key: str, authentik_session_id: str) -> None:
+        with self.lock:
+            self.connection.execute(
+                "UPDATE quick_sessions SET authentik_session_id=? WHERE id=?",
+                (authentik_session_id, session_key),
+            )
+            self.connection.commit()
+
+    def close_quick_session(self, session_key: str, reason: str, now: float) -> None:
+        with self.lock:
+            self.connection.execute(
+                "UPDATE quick_sessions SET closed_at=?, closed_reason=? WHERE id=? AND closed_at IS NULL",
+                (now, reason, session_key),
+            )
+            self.connection.commit()
+
     def mint_session(self, subject_id: str, nonce: str | None) -> tuple[str, float]:
         token = secrets.token_urlsafe(32)
         expires = time.time() + SESSION_TTL_SECONDS
@@ -857,8 +952,12 @@ async def read_bounded(request: Request, upload: UploadFile) -> bytes:
     return b"".join(chunks)
 
 
-def decode_clip(payload: bytes) -> tuple[list[np.ndarray], float, float]:
+def decode_clip(payload: bytes, profile: core.CaptureProfile | None = None) -> tuple[list[np.ndarray], float, float]:
     """Decode a submitted clip to sampled BGR frames.
+
+    `profile` supplies the length bounds. `standard` passes None and gets the
+    service's configured FACE_CLIP_* values; `quick` carries its own shorter
+    window because a 1 s clip is `clip_too_short` under the standard floor.
 
     The temp file is removed in a `finally` that runs on every exception path.
     An exception mid-decode must not leave a video of somebody's face on disk;
@@ -894,9 +993,11 @@ def decode_clip(payload: bytes) -> tuple[list[np.ndarray], float, float]:
         if duration <= 0 and reported_fps > 0:
             duration = len(frames) / reported_fps
         fps = reported_fps if reported_fps > 0 else (len(frames) / duration if duration > 0 else 0.0)
+        min_seconds = CLIP_MIN_SECONDS if profile is None or profile.clip_min_seconds is None else profile.clip_min_seconds
+        max_seconds = CLIP_MAX_SECONDS if profile is None or profile.clip_max_seconds is None else profile.clip_max_seconds
         reason = clip_bounds_reason(
             duration, fps,
-            min_seconds=CLIP_MIN_SECONDS, max_seconds=CLIP_MAX_SECONDS, min_fps=CLIP_MIN_FPS,
+            min_seconds=min_seconds, max_seconds=max_seconds, min_fps=CLIP_MIN_FPS,
         )
         if reason:
             raise Refusal(422, reason, duration=round(duration, 3), fps=round(fps, 2))
@@ -1036,8 +1137,8 @@ class ClipAnalysis:
     def usable(self) -> int:
         return len(self.detections)
 
-    def require_frames(self) -> None:
-        if self.usable >= LIVENESS_MIN_FRAMES:
+    def require_frames(self, min_frames: int | None = None) -> None:
+        if self.usable >= (LIVENESS_MIN_FRAMES if min_frames is None else min_frames):
             return
         # Name what actually went wrong when the frames agree on a cause; a
         # bare "too_few_frames" for a subject standing too far away is a
@@ -1072,50 +1173,70 @@ class ClipAnalysis:
         return max(self.detections, key=lambda item: item[1].score)
 
 
-def run_liveness(analysis: ClipAnalysis) -> tuple[float, float]:
+def run_liveness(analysis: ClipAnalysis, profile: core.CaptureProfile | None = None) -> tuple[float | None, float | None]:
     """Both signals enforce, and both are returned so both get logged.
 
     The residual does not stand alone: a video replay on a screen is not
     geometrically rigid and passes it. The nonce and the texture model exist
     because of that.
+
+    A profile can switch either signal off, and then that signal is not measured
+    at all rather than measured and ignored — running a model whose verdict is
+    discarded costs GPU time on the path that exists to be fast, and a logged
+    score nothing enforced would read in `attempts` as though a gate had passed.
+    `None` in the returned pair means "not run", which is what the caller logs.
     """
 
-    decision = liveness_decision(
-        analysis.track(),
-        residual_min=LIVENESS_RESIDUAL_MIN,
-        residual_max=LIVENESS_RESIDUAL_MAX,
-        min_frames=LIVENESS_MIN_FRAMES,
-    )
-    if not decision.ok:
-        # Log the refusal too, not just the pass. The first live enrolment
-        # produced a run of 401s whose only visible evidence was the residual
-        # line -- which is emitted AFTER this branch, so every refusal here was
-        # silent and indistinguishable from the anti-spoof refusal below.
-        LOG.info(
-            "liveness REFUSED reason=%s residual=%s frames=%d",
-            decision.reason, decision.residual, analysis.usable,
+    profile = profile or core.CAPTURE_PROFILES[core.DEFAULT_CAPTURE_PROFILE]
+    if not profile.liveness and not profile.antispoof:
+        LOG.info("liveness and antispoof SKIPPED for profile=%s", profile.name)
+        return None, None
+
+    residual: float | None = None
+    if profile.liveness:
+        decision = liveness_decision(
+            analysis.track(),
+            residual_min=LIVENESS_RESIDUAL_MIN,
+            residual_max=LIVENESS_RESIDUAL_MAX,
+            min_frames=LIVENESS_MIN_FRAMES,
         )
-        raise Refusal(decision.status, decision.reason or "too_few_frames", residual=decision.residual)
-    LOG.info("liveness residual %.5f by landmark %s", decision.residual, decision.per_landmark)
-    antispoof = analysis.antispoof()
-    # Always log the score, pass or fail. The spec's whole calibration story is
-    # "record the actual score of every signal on every attempt so thresholds
-    # can be tuned from real logs rather than guessed twice" -- and this is the
-    # signal whose threshold is explicitly a guess. Logging it only on success
-    # would hide exactly the data the guess needs.
-    LOG.info("antispoof score %.4f (min %.4f) -> %s",
-             antispoof, ANTISPOOF_MIN, "pass" if antispoof >= ANTISPOOF_MIN else "REFUSE")
-    if antispoof < ANTISPOOF_MIN:
-        raise Refusal(401, "antispoof", residual=decision.residual, antispoof=round(antispoof, 4))
-    return float(decision.residual or 0.0), antispoof
+        if not decision.ok:
+            # Log the refusal too, not just the pass. The first live enrolment
+            # produced a run of 401s whose only visible evidence was the residual
+            # line -- which is emitted AFTER this branch, so every refusal here was
+            # silent and indistinguishable from the anti-spoof refusal below.
+            LOG.info(
+                "liveness REFUSED reason=%s residual=%s frames=%d",
+                decision.reason, decision.residual, analysis.usable,
+            )
+            raise Refusal(decision.status, decision.reason or "too_few_frames", residual=decision.residual)
+        LOG.info("liveness residual %.5f by landmark %s", decision.residual, decision.per_landmark)
+        residual = float(decision.residual or 0.0)
+
+    antispoof: float | None = None
+    if profile.antispoof:
+        antispoof = analysis.antispoof()
+        # Always log the score, pass or fail. The spec's whole calibration story is
+        # "record the actual score of every signal on every attempt so thresholds
+        # can be tuned from real logs rather than guessed twice" -- and this is the
+        # signal whose threshold is explicitly a guess. Logging it only on success
+        # would hide exactly the data the guess needs.
+        LOG.info("antispoof score %.4f (min %.4f) -> %s",
+                 antispoof, ANTISPOOF_MIN, "pass" if antispoof >= ANTISPOOF_MIN else "REFUSE")
+        if antispoof < ANTISPOOF_MIN:
+            raise Refusal(401, "antispoof", residual=residual, antispoof=round(antispoof, 4))
+
+    return residual, antispoof
 
 
-def identify_frames(analysis: ClipAnalysis, gallery: dict[str, list[np.ndarray]]):
+def identify_frames(analysis: ClipAnalysis, gallery: dict[str, list[np.ndarray]], min_agreeing: int | None = None):
     votes = [
         cosine_match(embedding, gallery, threshold=MATCH_COSINE, margin=MATCH_MARGIN)
         for embedding in analysis.embeddings()
     ]
-    return votes, aggregate_frames(votes, min_agreeing=MIN_AGREEING_FRAMES)
+    return votes, aggregate_frames(
+        votes, min_agreeing=MIN_AGREEING_FRAMES if min_agreeing is None else min_agreeing
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1312,7 +1433,17 @@ async def lifespan(app: FastAPI):
     if removed:
         LOG.info("removed %d stored face crop(s); thumbnails are no longer retained", removed)
     MODELS.warm_up()
-    yield
+
+    # The idle sweep. 60 s cadence against a 900 s timeout: the granularity is
+    # a minute, which is the right resolution for "has this person walked away"
+    # and costs one authentik list call per user with an open row.
+    sweep_task = asyncio.create_task(quick_session_sweeper())
+    try:
+        yield
+    finally:
+        sweep_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await sweep_task
 
 
 app = FastAPI(title="Nova face auth", version=VERSION, lifespan=lifespan)
@@ -1430,8 +1561,22 @@ async def identify(request: Request, clip: UploadFile | None = File(None), image
     }
 
 
-def verify_clip(payload: bytes, nonce: str, endpoint: str, *, client_ip: str | None = None) -> dict[str, Any]:
+def verify_clip(
+    payload: bytes,
+    nonce: str,
+    endpoint: str,
+    *,
+    client_ip: str | None = None,
+    profile: core.CaptureProfile | None = None,
+) -> dict[str, Any]:
     """The shared face half of /verify and /assert.
+
+    `profile` decides which gates run and how the payload is decoded — a clip
+    for `standard`/`quick`, a single still for `image`. It is recorded on the
+    `attempts` row on every path, because with the model gates off on two of the
+    three profiles the row is the only remaining record of what was actually
+    enforced, and a row that does not name its profile cannot be read as
+    calibration data at all.
 
     Writes an `attempts` row on every path — success and refusal alike — before
     the response leaves, and folds every refusal into the lockout counters.
@@ -1446,19 +1591,26 @@ def verify_clip(payload: bytes, nonce: str, endpoint: str, *, client_ip: str | N
     """
 
     started = time.time()
-    signals: dict[str, Any] = {}
+    profile = profile or core.CAPTURE_PROFILES[core.DEFAULT_CAPTURE_PROFILE]
+    signals: dict[str, Any] = {"profile": profile.name}
     reason: str | None = None
     try:
         if not store().consume_challenge(nonce):
             raise Refusal(401, "nonce_invalid")
-        frames = decode_clip(payload)[0]
+        frames = [decode_image(payload)] if profile.single_image else decode_clip(payload, profile)[0]
         analysis = ClipAnalysis(frames)
-        analysis.require_frames()
+        analysis.require_frames(profile.min_frames)
         signals["usableFrames"] = analysis.usable
-        residual, antispoof = run_liveness(analysis)
-        signals.update({"residual": round(residual, 6), "antispoof": round(antispoof, 4)})
+        residual, antispoof = run_liveness(analysis, profile)
+        # A skipped gate logs as null, never as a score. A row reading
+        # "antispoof: 0.0" would be indistinguishable from a model that ran and
+        # returned nothing, and the two mean opposite things.
+        signals.update({
+            "residual": None if residual is None else round(residual, 6),
+            "antispoof": None if antispoof is None else round(antispoof, 4),
+        })
         gallery = store().gallery()
-        votes, aggregate = identify_frames(analysis, gallery)
+        votes, aggregate = identify_frames(analysis, gallery, profile.min_agreeing)
         ordered = gallery_scores(analysis.mean_embedding(), gallery)
         signals["topScore"] = round(ordered[0][1], 4) if ordered else None
         signals["runnerUp"] = round(ordered[1][1], 4) if len(ordered) > 1 else None
@@ -1500,17 +1652,58 @@ def verify_clip(payload: bytes, nonce: str, endpoint: str, *, client_ip: str | N
         )
 
 
+def resolve_profile(name: str | None) -> core.CaptureProfile:
+    """Turn a submitted profile name into a profile, or refuse.
+
+    Unknown names are refused rather than downgraded to `standard`. A surface
+    that asked for a profile this build does not have has expectations that do
+    not match what would run, and quietly substituting one is how a caller ends
+    up believing it relaxed a gate that stayed on.
+    """
+
+    try:
+        return core.capture_profile(name)
+    except ValueError:
+        raise Refusal(422, "unknown_profile") from None
+
+
+async def read_capture(
+    request: Request, profile: core.CaptureProfile, clip: UploadFile | None, image: UploadFile | None
+) -> bytes:
+    """The submitted capture, checked against what the profile expects.
+
+    A profile and a payload that disagree are refused rather than reconciled:
+    `image` with a clip attached is a caller that thinks it is on a different
+    path than it is.
+    """
+
+    upload = image if profile.single_image else clip
+    if upload is None:
+        raise Refusal(422, "clip_undecodable")
+    return await read_bounded(request, upload)
+
+
 @app.post("/verify")
-async def verify(request: Request, clip: UploadFile = File(...), nonce: str = Form(...)) -> dict[str, Any]:
-    return verify_clip(await read_bounded(request, clip), nonce, "/verify", client_ip=client_ip(request))
+async def verify(
+    request: Request,
+    clip: UploadFile | None = File(None),
+    image: UploadFile | None = File(None),
+    nonce: str = Form(...),
+    profile: str | None = Form(None),
+) -> dict[str, Any]:
+    resolved = resolve_profile(profile)
+    payload = await read_capture(request, resolved, clip, image)
+    return verify_clip(payload, nonce, "/verify", client_ip=client_ip(request), profile=resolved)
 
 
 @app.post("/assert")
 async def assert_credential(
     request: Request,
-    clip: UploadFile = File(...),
+    clip: UploadFile | None = File(None),
+    image: UploadFile | None = File(None),
     nonce: str = Form(...),
     challenge: str = Form(...),
+    profile: str | None = Form(None),
 ) -> dict[str, Any]:
     """The endpoint the ceremony turns on: face in, WebAuthn assertion out.
 
@@ -1534,12 +1727,13 @@ async def assert_credential(
     6. The veto DM goes out before the assertion is returned to the browser.
     """
 
-    payload = await read_bounded(request, clip)
+    resolved = resolve_profile(profile)
+    payload = await read_capture(request, resolved, clip, image)
     address = client_ip(request)
     oracle = require_oracle()
     now = time.time()
 
-    result = verify_clip(payload, nonce, "/assert", client_ip=address)
+    result = verify_clip(payload, nonce, "/assert", client_ip=address, profile=resolved)
     subject = result["subject"]
 
     # Resolve the veto channel *before* signing. A subject with no mapped
@@ -1572,6 +1766,18 @@ async def assert_credential(
         raise Refusal(401, "face_session_invalid" if str(error) == "face_session_invalid" else "no_credential")
 
     store().record_release(subject, now)
+
+    # A relaxed capture buys a session that ends when the person stops using it.
+    # Opened here rather than after the flow completes because this is the last
+    # point that knows which profile released the credential; the sweep resolves
+    # the authentik session id afterwards, once authentik has actually made one.
+    if resolved.idle_timeout_seconds is not None:
+        quick_username = None if mapping is UNKNOWN else mapping.get("authentikUsername")
+        store().open_quick_session(
+            subject, quick_username, resolved.name, resolved.idle_timeout_seconds, now,
+            prior_session_ids=list_session_ids(quick_username),
+        )
+
     delivered = VETO.session_opened(
         subject=subject,
         username=None if mapping is UNKNOWN else mapping.get("authentikUsername"),
@@ -1640,6 +1846,169 @@ async def disarm(request: Request) -> dict[str, Any]:
     reason = str(body.get("reason") or "unspecified")[:200]
     store().set_armed(False, actor=f"veto:{token or 'no-token'}:{reason}")
     return {"armed": False}
+
+
+@app.post("/activity")
+async def activity(request: Request) -> dict[str, Any]:
+    """Heartbeat for quick-profile sessions.
+
+    Identity-bearing and therefore gated the same way `/arm` is: the API key
+    alone is not enough, because every satellite and every script holds it, and
+    a caller who can assert `X-authentik-username: adeline` with only the shared
+    key could keep a session alive indefinitely without holding one. The proxy
+    secret is what makes the username mean anything.
+
+    Extending is all it can do. There is no shape of this request that signs
+    anybody in, and a person with no open quick session gets `touched: 0`.
+    """
+
+    username = require_authentik_identity(request)
+    touched = store().touch_quick_sessions(username, time.time())
+    return {"touched": touched, "idleTimeoutSeconds": core.QUICK_IDLE_TIMEOUT_SECONDS}
+
+
+def list_session_ids(username: str | None) -> list[str]:
+    """This user's current authentik session ids, or an empty list.
+
+    Fails soft on purpose. An authentik that cannot be reached must not turn a
+    successful sign-in into a refusal — the assertion has already been signed by
+    the time this runs. An empty snapshot only costs precision later: the sweep
+    then sees more candidates than it should and declines to bind rather than
+    binding the wrong one.
+    """
+
+    if not username:
+        return []
+    try:
+        return [
+            str(session.get("uuid") or session.get("pk") or "")
+            for session in AuthentikClient(base_url=AUTHENTIK_BASE_URL, token=AUTHENTIK_TOKEN).sessions_for(username)
+            if session.get("uuid") or session.get("pk")
+        ]
+    except AuthentikError as error:
+        LOG.warning("could not snapshot sessions for %s: %s", username, error)
+        return []
+
+
+QUICK_SWEEP_INTERVAL_SECONDS = 60
+
+
+async def quick_session_sweeper() -> None:
+    """Run the sweep forever, and never die of one bad pass.
+
+    A sweep that raised would stop every future sweep, and the failure mode of
+    that is quick sessions living indefinitely — the exact thing the timeout
+    exists to prevent. So every pass is wrapped, and the loop continues.
+    """
+
+    while True:
+        await asyncio.sleep(QUICK_SWEEP_INTERVAL_SECONDS)
+        try:
+            closed = await asyncio.to_thread(sweep_quick_sessions)
+            if closed:
+                LOG.info("quick-session sweep closed %d session(s)", closed)
+        except Exception:  # noqa: BLE001
+            LOG.exception("quick-session sweep failed; continuing")
+
+
+def sweep_quick_sessions(now: float | None = None) -> int:
+    """Terminate quick sessions that have gone quiet. Returns how many.
+
+    Two jobs, in this order, because the first is what makes the second
+    possible. `/assert` runs before authentik has created a session — the
+    assertion it returns has not been submitted to the flow executor yet — so
+    the row is opened with a snapshot of the sessions that already existed, and
+    bound here on a later pass to whichever session appeared that was not in
+    that snapshot and is not claimed by another row.
+
+    Exactly one candidate binds. Zero or several does not: a guess here logs
+    somebody out of a session the face never released, possibly a password
+    session in active use, and a quick session outliving its timeout is the
+    lesser failure. Ambiguity is logged and the row closes without terminating.
+
+    A row that cannot be bound is still closed on time. It simply has nothing to
+    terminate, which is the honest outcome when the sign-in never completed:
+    there is no session to end because none was ever made.
+    """
+
+    now = time.time() if now is None else now
+    closed = 0
+    rows = store().open_quick_sessions()
+    if not rows:
+        return 0
+    client = AuthentikClient(base_url=AUTHENTIK_BASE_URL, token=AUTHENTIK_TOKEN)
+    sessions_by_user: dict[str, list[dict[str, Any]]] = {}
+
+    for row in rows:
+        username = row["authentik_username"]
+        session_id = row["authentik_session_id"]
+
+        if not session_id and username:
+            if username not in sessions_by_user:
+                try:
+                    sessions_by_user[username] = client.sessions_for(username)
+                except AuthentikError as error:
+                    LOG.warning("quick-session sweep could not list sessions for %s: %s", username, error)
+                    sessions_by_user[username] = []
+            try:
+                prior = set(json.loads(row["prior_session_ids"] or "[]"))
+            except (TypeError, ValueError):
+                prior = set()
+            # Already claimed by another open row: two quick sign-ins in the
+            # same window must not both bind the same session.
+            claimed = {
+                other["authentik_session_id"]
+                for other in rows
+                if other["authentik_session_id"] and other["id"] != row["id"]
+            }
+            candidates = [
+                candidate_id
+                for candidate_id in (
+                    str(session.get("uuid") or session.get("pk") or "")
+                    for session in sessions_by_user[username]
+                )
+                if candidate_id and candidate_id not in prior and candidate_id not in claimed
+            ]
+            if len(candidates) == 1:
+                session_id = candidates[0]
+                store().bind_quick_session(row["id"], session_id)
+            elif len(candidates) > 1:
+                # Ambiguous: more than one session appeared after this row was
+                # opened, so nothing here can say which one the face released.
+                # Terminating a guess could sign her out of a password session
+                # she is actively using, and that is a worse outcome than a
+                # quick session outliving its timeout — so this declines, says
+                # so, and lets the row close without terminating anything.
+                LOG.warning(
+                    "quick session %s cannot be bound: %d candidate sessions for %s",
+                    row["id"], len(candidates), username,
+                )
+
+        if now - row["last_seen"] < row["idle_timeout_seconds"]:
+            continue
+
+        if session_id:
+            try:
+                client.terminate_session(session_id)
+                LOG.info(
+                    "quick session idle-timed out: subject=%s profile=%s session=%s idle=%.0fs",
+                    row["subject_id"], row["profile"], session_id, now - row["last_seen"],
+                )
+            except AuthentikError as error:
+                # Leave the row open so the next pass tries again. A session that
+                # could not be reached is still a session that must end.
+                LOG.error("quick-session termination failed for %s: %s", session_id, error)
+                continue
+            store().close_quick_session(row["id"], "idle_timeout", now)
+        else:
+            # Never bound: the sign-in did not complete, the user is unmapped,
+            # or the candidates were ambiguous. There is nothing to terminate —
+            # which for an incomplete sign-in is the honest outcome, because no
+            # session was ever created.
+            store().close_quick_session(row["id"], "unbound", now)
+        closed += 1
+
+    return closed
 
 
 @app.post("/sessions/revoke")

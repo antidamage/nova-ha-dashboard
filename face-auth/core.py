@@ -65,6 +65,92 @@ ENROL_CENTROID_MAX = 0.45
 ENROL_MIN_CLIPS = 5
 SAMPLE_FRAMES = 25
 
+# --- Capture profiles -------------------------------------------------------
+#
+# Which gates run is a property of the SURFACE that asked for the sign-in, not
+# of the service. `specs/login-surface.md` § Capture profiles is the authority;
+# the short answer is that a 1 s clip cannot carry the non-rigid motion the
+# residual measures, and a floor low enough to pass a genuine 1 s capture is low
+# enough to pass a photograph. So the short paths switch the gate OFF rather
+# than tune it to a number that only looks like a gate.
+#
+# Adeline, 2026-09-09, asked for anti-spoof off on those paths too. It is
+# frame-level and would have survived a shorter clip on the merits; `image`
+# could not carry it in any case.
+#
+# What this costs is stated in the spec and repeated here because it is the kind
+# of thing a reader of this table needs to know: on `quick` and `image` a
+# printed photograph of an enrolled person is a working sign-in. What bounds it
+# is the session — see `QUICK_IDLE_TIMEOUT_SECONDS` — not the capture.
+#
+# Recognition is identical on every profile. MATCH_COSINE, MATCH_MARGIN and
+# MIN_AGREEING_FRAMES are not profile-dependent and must not become so: the
+# question "is this the enrolled person" does not get easier on a short clip.
+
+# Idle, not absolute. A person working continuously is not thrown out mid-task;
+# an unattended session does not outlive the person who walked away.
+QUICK_IDLE_TIMEOUT_SECONDS = 900
+
+
+@dataclass(frozen=True)
+class CaptureProfile:
+    """One row of the profile table.
+
+    `clip_min_seconds`/`clip_max_seconds` of None mean "use the service's
+    configured bounds", which is how `standard` picks up the FACE_CLIP_*
+    environment overrides without restating them.
+    """
+
+    name: str
+    liveness: bool
+    antispoof: bool
+    single_image: bool = False
+    clip_min_seconds: float | None = None
+    clip_max_seconds: float | None = None
+    idle_timeout_seconds: int | None = None
+    # None means "the service's configured value". Only `image` overrides these,
+    # and only because one frame is all it has: a single still cannot clear a
+    # 15-frame floor or win a 12-of-25 vote, and those two numbers are the whole
+    # reason a still would otherwise be refused rather than judged.
+    min_frames: int | None = None
+    min_agreeing: int | None = None
+
+
+CAPTURE_PROFILES: dict[str, CaptureProfile] = {
+    "standard": CaptureProfile(name="standard", liveness=True, antispoof=True),
+    # 0.4-2.0 s rather than exactly 1: MediaRecorder's actual clip length wanders
+    # either side of the timer it was stopped on, and a browser that delivered
+    # 0.93 s must not be refused for it.
+    "quick": CaptureProfile(
+        name="quick", liveness=False, antispoof=False,
+        clip_min_seconds=0.4, clip_max_seconds=2.0,
+        idle_timeout_seconds=QUICK_IDLE_TIMEOUT_SECONDS,
+    ),
+    "image": CaptureProfile(
+        name="image", liveness=False, antispoof=False, single_image=True,
+        idle_timeout_seconds=QUICK_IDLE_TIMEOUT_SECONDS,
+        min_frames=1, min_agreeing=1,
+    ),
+}
+
+DEFAULT_CAPTURE_PROFILE = "standard"
+
+
+def capture_profile(name: str | None) -> CaptureProfile:
+    """Resolve a submitted profile name, refusing anything unknown.
+
+    An unknown name is not silently downgraded to `standard`: a caller asking
+    for a profile this service does not have is a caller whose expectations do
+    not match what would actually run, and guessing on its behalf is how a
+    surface ends up believing it relaxed a gate that stayed on, or the reverse.
+    """
+
+    resolved = (name or DEFAULT_CAPTURE_PROFILE).strip().lower()
+    profile = CAPTURE_PROFILES.get(resolved)
+    if profile is None:
+        raise ValueError(f"unknown capture profile: {resolved!r}")
+    return profile
+
 # Control defaults, from the "Control thresholds" table in specs/face-auth.md.
 LOCKOUT_FAILURES = 5
 LOCKOUT_GLOBAL_FAILURES = 12

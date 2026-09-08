@@ -297,22 +297,73 @@ Then:
 3. `POST /api/face/assert` with `clip`, `nonce` and the WebAuthn `challenge`.
 4. Submit the returned assertion back to the executor.
 
-**The clip is 4 s, the same as enrolment, and this is not a knob to turn down.**
-`/assert` runs the full liveness gate, and that gate measures *non-rigid* motion
-— blink, micro-expression, out-of-plane parallax. A one-second window barely
-spans a single blink, so it judges the clip on a signal the clip is too short to
-contain and pushes a genuinely live face toward the rigid end. The first live
+## Capture profiles
+
+**Capture length is a per-site choice.** Adeline, 2026-09-09. The surface that
+asks for the sign-in names a profile; the service holds the thresholds and the
+consequences. Enrolment is not covered by any of this and keeps the full 4 s
+gate — a photograph enrolled into the gallery authenticates every later
+sign-in, so that path never relaxes.
+
+| profile | capture | liveness residual | anti-spoof | session |
+|---|---|---|---|---|
+| `standard` | 4 s clip | 0.012-0.080 | >= 0.85 | normal |
+| `quick` | 1 s clip | off | off | 15 min idle timeout |
+| `image` | one still, first recognised frame wins | off | off | 15 min idle timeout |
+
+Recognition is identical on all three: `MATCH_COSINE` 0.42, `MATCH_MARGIN` 0.06,
+`MIN_AGREEING_FRAMES` 12 of the 25 evenly-sampled frames. `image` agrees on its
+single frame. The lockout and release-rate counters apply unchanged to every
+profile.
+
+### Why the photo defences come off rather than down
+
+The liveness residual measures *non-rigid* motion — blink, micro-expression,
+out-of-plane parallax. A one-second window barely spans a single blink, so it
+judges the clip on a signal the clip is too short to contain. The first live
 enrolment measured residuals of 0.015-0.035 against a 0.012 floor on 1 s clips:
-passing, but close enough that ordinary stillness would fail.
+passing, but close enough that ordinary stillness would fail. A floor low enough
+for a genuine 1 s capture is low enough for a photograph, so the gate is
+switched off on the short paths rather than tuned to a number that only looks
+like a gate.
 
-Length is close to free. `core.even_frame_indices` samples a fixed 25 frames
-evenly across whatever arrives, so four seconds costs the same detection and
-embedding work as one and simply spreads those samples over a window wide enough
-to contain real movement. Only decode cost grows.
+Anti-spoof goes with it by instruction. It is frame-level and duration-
+independent, so it would have survived a shorter clip on the merits; Adeline
+asked for it off on the 1 s path, and `image` cannot carry it either.
 
-This is why `CLIP_DURATION_MS` lives in the shared capture module rather than
-being passed per call site: a login that quietly used a shorter clip than
-enrolment would fail liveness for reasons no error string explains.
+**What this costs, stated plainly:** on `quick` and `image` a printed photograph
+of an enrolled person, held to the camera, is a working sign-in. Nothing in the
+capture path detects it. `standard` is unchanged and still refuses one.
+
+### What bounds it instead
+
+The bound is the session, not the clip. A `quick` or `image` release mints a
+session that ends after **15 minutes without activity** — not an absolute cap,
+so a person working continuously is not thrown out mid-task, and an unattended
+session does not outlive the person who left it.
+
+authentik's `user_login` stage has only an absolute `session_duration`, so the
+idle timeout is enforced by the face service: `/assert` records the released
+session in `quick_sessions` against the authentik session id from
+`sessions_for(username)`, the dashboard sends a throttled activity heartbeat to
+`/api/face/activity`, and a sweep in the service `terminate_session`s any row
+whose `last_seen` is older than the timeout. Enforcement is server-side, so a
+closed tab, a killed browser or a client that simply stops heartbeating all
+reach the same end.
+
+`standard` sessions are not tracked and are not swept.
+
+### Assigning profiles to surfaces
+
+The config-page gate — `LoginProvider`'s modal, reached through `GatedLink` —
+uses `quick`. The standalone `/login` page, which is where every other site
+redirects, stays `standard`. `CLIP_DURATION_MS` remains the `standard` default
+in the shared capture module, so a surface that does not opt in does not change.
+
+The profile travels as a form field on `/verify` and `/assert` and is written
+into the `attempts` row. With the model gates off on two of the three paths,
+`attempts` is the only calibration record left, and it has to say which gate was
+actually run.
 
 The two nonces are unrelated and neither substitutes for the other: the face
 nonce defends the clip against replay, the WebAuthn challenge defends the

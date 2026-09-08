@@ -171,10 +171,14 @@ export function FaceEnrolmentConfig() {
       // ordinary movement and a person told only "Recording…" holds still for
       // the camera, which is the one thing that makes a real face look rigid.
       setStatus({ tone: "info", text: "Recording — blink and move naturally…" });
-      const clip = await recordClip();
+      // Enrolment is `standard` and stays there, so this is always a clip.
+      // A photograph enrolled into the gallery authenticates every later
+      // sign-in, including the ones that did keep their gates, which is why the
+      // short profiles are a login-surface choice and never an enrolment one.
+      const { blob } = await recordClip();
 
       const form = new FormData();
-      form.set("clip", clip, "clip.webm");
+      form.set("clip", blob, "clip.webm");
       form.set("nonce", nonce);
       const response = await fetch(`/api/face/enrol/${encodeURIComponent(subjectTarget)}`, {
         method: "POST",

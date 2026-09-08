@@ -8,7 +8,9 @@ import {
   faceReasonDetail,
   readJsonBody,
   useFaceCapture,
+  DEFAULT_CAPTURE,
 } from "../face/faceCapture";
+import type { CaptureSpec } from "../face/faceCapture";
 import { FacePreview } from "../face/FacePreview";
 import {
   FLOW_DEFAULT,
@@ -69,6 +71,7 @@ export function LoginPanel({
   onCancel,
   onNativePrompt,
   compact = false,
+  capture: captureSpec = DEFAULT_CAPTURE,
 }: {
   /** Called with a validated same-origin path once a flow completes. */
   onSuccess: (next: string) => void;
@@ -81,6 +84,16 @@ export function LoginPanel({
    */
   onNativePrompt?: (active: boolean) => void;
   compact?: boolean;
+  /**
+   * How this surface captures a face, and therefore which gate the service
+   * runs. Defaults to `standard` — a surface that does not opt in does not
+   * change, which is the point of the default rather than an accident of it.
+   *
+   * `specs/login-surface.md` § Assigning profiles to surfaces owns which
+   * surface gets which: the config-page modal is `quick`, and the standalone
+   * `/login` page, being where every other site lands, stays `standard`.
+   */
+  capture?: CaptureSpec;
 }) {
   const [mode, setMode] = useState<Mode>("password");
   const [challenge, setChallenge] = useState<FlowChallenge | null>(null);
@@ -98,7 +111,7 @@ export function LoginPanel({
   // Where sign-in works, when it is not here. Empty until the config answers.
   const [signInBaseUrl, setSignInBaseUrl] = useState("");
 
-  const capture = useFaceCapture();
+  const capture = useFaceCapture(captureSpec);
   const { openCamera, recordClip, secureContext, stopStream, videoRef } = capture;
   const liveRef = useRef(true);
   useEffect(() => {
@@ -308,7 +321,7 @@ export function LoginPanel({
       }
 
       // Nonce immediately before recording: it has a 20 s TTL, and the clip
-      // takes four seconds of that.
+      // spends up to four seconds of that.
       const challengeResponse = await fetch("/api/face/challenge", { method: "POST" });
       const challengeBody = await readJsonBody(challengeResponse);
       const nonce = typeof challengeBody?.nonce === "string" ? challengeBody.nonce : "";
@@ -318,18 +331,26 @@ export function LoginPanel({
         return;
       }
 
-      // Tell them what to DO. The liveness test measures ordinary movement, and
-      // someone told only "Recording…" holds still for the camera — the one
-      // thing that makes a real face look rigid.
-      setNote("Recording — blink and move naturally…");
-      const clip = await recordClip();
+      // Tell them what to DO — but only where it is true. On `standard` the
+      // liveness test measures ordinary movement, and someone told only
+      // "Recording…" holds still for the camera, which is the one thing that
+      // makes a real face look rigid. On the short profiles that gate is off,
+      // so asking for a blink would be asking for something nothing measures,
+      // in a window too small to contain it.
+      setNote(
+        captureSpec.profile === "standard"
+          ? "Recording — blink and move naturally…"
+          : "Look at the camera…",
+      );
+      const { blob, field } = await recordClip();
       if (!liveRef.current) return;
       setNote("Checking…");
 
       const form = new FormData();
-      form.set("clip", clip, "clip.webm");
+      form.set(field, blob, field === "image" ? "frame.jpg" : "clip.webm");
       form.set("nonce", nonce);
       form.set("challenge", webauthnValue);
+      form.set("profile", captureSpec.profile);
       const assertResponse = await fetch("/api/face/assert", { method: "POST", body: form });
       const assertBody = await readJsonBody(assertResponse);
       if (!liveRef.current) return;
@@ -382,7 +403,7 @@ export function LoginPanel({
         setNote(null);
       }
     }
-  }, [applyChallenge, fail, openCamera, recordClip, start, stopStream]);
+  }, [applyChallenge, captureSpec.profile, fail, openCamera, recordClip, start, stopStream]);
 
   const backToPassword = useCallback(() => {
     stopStream();

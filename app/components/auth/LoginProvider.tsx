@@ -2,7 +2,9 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { ModalOverlay } from "../ModalOverlay";
+import { CAPTURE_PROFILES } from "../face/faceCapture";
 import { LoginPanel } from "./LoginPanel";
+import { useActivityHeartbeat } from "./useActivityHeartbeat";
 
 /**
  * The login modal, mounted once for the whole app.
@@ -36,6 +38,10 @@ export function useLogin(): LoginContextValue {
 }
 
 export function LoginProvider({ children }: { children: React.ReactNode }) {
+  // Mounted once for the whole app, which is why the quick-session heartbeat
+  // lives here: it has to run wherever the dashboard is being used, not only
+  // while this modal is open.
+  useActivityHeartbeat();
   const [open, setOpen] = useState(false);
   // True while a browser-owned prompt (the passkey picker) is on screen.
   const [nativePrompt, setNativePrompt] = useState(false);
@@ -81,6 +87,13 @@ export function LoginProvider({ children }: { children: React.ReactNode }) {
       >
         <LoginPanel
           compact
+          // The modal is the config-page gate, and it captures for one second.
+          // Adeline, 2026-09-09. The service runs no liveness and no anti-spoof
+          // on this profile — a photograph gets in — and what bounds that is
+          // the 15-minute idle timeout the release carries, not the capture.
+          // The standalone /login page is where other sites land and stays
+          // `standard`. See `specs/login-surface.md` § Capture profiles.
+          capture={CAPTURE_PROFILES.quick}
           onCancel={() => settle(false)}
           onSuccess={() => settle(true)}
           onNativePrompt={setNativePrompt}
