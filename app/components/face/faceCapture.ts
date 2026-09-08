@@ -19,7 +19,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 
 /**
- * `MediaRecorder.stop()` timer.
+ * The `standard` clip length, and the default for any surface that does not ask
+ * for something else.
  *
  * 4 s, not 1 s. `FACE_CLIP_MIN_SECONDS` is 0.8 so a second clears the bound,
  * but clearing the bound was the wrong target: the liveness test measures
@@ -38,12 +39,43 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * 25 samples over a window wide enough to contain real movement. Only decode
  * cost grows.
  *
- * This lives here rather than at each call site precisely so login and
- * enrolment cannot drift apart. The kiosk witness is the one caller that
- * legitimately uses a shorter clip, and it is a Python daemon calling
- * `/identify`, which is liveness-free by design — see `specs/kiosk-attribution.md`.
+ * **A surface may choose a shorter capture, and the service then runs a
+ * different gate rather than the same gate on worse evidence.** That is the
+ * `CAPTURE_PROFILES` table below: `quick` and `image` switch the liveness and
+ * anti-spoof gates off outright, because a residual floor low enough to pass a
+ * genuine 1 s capture is low enough to pass a photograph, and a gate tuned to
+ * that number is not a gate. What replaces it is a session that expires after
+ * 15 minutes of inactivity — see `specs/login-surface.md`.
+ *
+ * Enrolment is not one of those surfaces and never becomes one. A photograph
+ * enrolled into the gallery authenticates every later sign-in, including the
+ * `standard` ones, so it keeps the full 4 s gate.
  */
 export const CLIP_DURATION_MS = 4000;
+
+/**
+ * What a surface asks for, and what the service will run because of it.
+ *
+ * The name is the contract: it travels to `/verify` and `/assert` as the
+ * `profile` field, and the thresholds live server-side in `core.CAPTURE_PROFILES`
+ * so that nothing here decides how hard the check is. This table only decides
+ * how the browser captures.
+ */
+export type CaptureProfileName = "standard" | "quick" | "image";
+
+export type CaptureSpec = {
+  profile: CaptureProfileName;
+  /** Clip length in ms. Ignored by `image`, which records nothing. */
+  clipMs: number;
+};
+
+export const CAPTURE_PROFILES: Record<CaptureProfileName, CaptureSpec> = {
+  standard: { profile: "standard", clipMs: CLIP_DURATION_MS },
+  quick: { profile: "quick", clipMs: 1000 },
+  image: { profile: "image", clipMs: 0 },
+};
+
+export const DEFAULT_CAPTURE = CAPTURE_PROFILES.standard;
 
 /**
  * How hard to try when the camera is busy rather than absent.
@@ -287,7 +319,22 @@ export type FaceCapture = {
   secureContext: boolean | null;
   /** Resolves to an error message, or `null` on success. */
   openCamera: (requestedId?: string) => Promise<string | null>;
-  recordClip: () => Promise<Blob>;
+  /**
+   * The capture this instance was configured for. Consumers post it as the
+   * `profile` field so the service runs the gate the surface asked for; reading
+   * it from here rather than restating it is what stops the two drifting.
+   */
+  capture: CaptureSpec;
+  /**
+   * One capture, in whatever form the profile calls for: a clip for
+   * `standard`/`quick`, a single still for `image`. The field name the blob
+   * must be posted under comes back with it, because that is the other half of
+   * the same decision and separating them is how a still ends up posted as a
+   * clip.
+   */
+  recordClip: () => Promise<{ blob: Blob; field: "clip" | "image" }>;
+  /** A single JPEG frame from the live preview. `image` uses this. */
+  captureStill: () => Promise<Blob>;
   stopStream: () => void;
 };
 
@@ -299,7 +346,7 @@ export type FaceCapture = {
  * the login modal has its own error slot — and a hook that owned the
  * presentation would force one of them into the other's shape.
  */
-export function useFaceCapture(): FaceCapture {
+export function useFaceCapture(spec: CaptureSpec = DEFAULT_CAPTURE): FaceCapture {
   const [secureContext, setSecureContext] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<CameraChoice[]>([]);
   const [deviceId, setDeviceId] = useState("");
@@ -427,7 +474,41 @@ export function useFaceCapture(): FaceCapture {
     [openCameraAttempt],
   );
 
-  const recordClip = useCallback(async (): Promise<Blob> => {
+  /**
+   * A single frame out of the live preview, as JPEG.
+   *
+   * Drawn from the `<video>` element rather than taken with `ImageCapture`:
+   * `ImageCapture` is absent in Safari and behind a flag in Firefox, and the
+   * preview is already the frame the person is looking at. 0.92 quality because
+   * the service scores real texture — anti-spoof is off on this path, but
+   * detection and the embedding are not, and JPEG ringing at low quality moves
+   * an embedding for no saving worth having.
+   */
+  const captureStill = useCallback(async (): Promise<Blob> => {
+    const video = videoRef.current;
+    if (!video || !streamRef.current) throw new Error("The camera is not running.");
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    // A preview that has not produced a frame yet has zero dimensions, and a
+    // 0x0 canvas encodes to a blob the service can only answer "no face" to.
+    if (!width || !height) throw new Error("The camera is not ready yet.");
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("The clip could not be recorded.");
+    context.drawImage(video, 0, 0, width, height);
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.92);
+    });
+    if (!blob) throw new Error("The clip could not be recorded.");
+    return blob;
+  }, []);
+
+  const recordClip = useCallback(async (): Promise<{ blob: Blob; field: "clip" | "image" }> => {
+    if (spec.profile === "image") {
+      return { blob: await captureStill(), field: "image" };
+    }
     const stream = streamRef.current;
     if (!stream) throw new Error("The camera is not running.");
     const mimeType = preferredClipMimeType();
@@ -443,12 +524,12 @@ export function useFaceCapture(): FaceCapture {
     });
     recorder.start();
     await new Promise<void>((resolve) => {
-      clipTimerRef.current = window.setTimeout(resolve, CLIP_DURATION_MS);
+      clipTimerRef.current = window.setTimeout(resolve, spec.clipMs);
     });
     clipTimerRef.current = null;
     if (recorder.state !== "inactive") recorder.stop();
-    return finished;
-  }, []);
+    return { blob: await finished, field: "clip" };
+  }, [captureStill, spec.clipMs, spec.profile]);
 
   return {
     videoRef,
@@ -457,7 +538,9 @@ export function useFaceCapture(): FaceCapture {
     previewing,
     secureContext,
     openCamera,
+    capture: spec,
     recordClip,
+    captureStill,
     stopStream,
   };
 }

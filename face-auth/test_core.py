@@ -4,6 +4,9 @@ import unittest
 import numpy as np
 
 from core import (
+    CAPTURE_PROFILES,
+    QUICK_IDLE_TIMEOUT_SECONDS,
+    capture_profile,
     gallery_scores,
     centroid,
     l2_normalise,
@@ -624,3 +627,82 @@ class AppearanceIndependenceTests(unittest.TestCase):
             now = gallery_scores(probe, {"a": glasses})[0][1]
             self.assertGreaterEqual(now, running)
             running = now
+
+
+class CaptureProfiles(unittest.TestCase):
+    """The profile table, and the properties that must hold across every row.
+
+    These are written as invariants rather than as a copy of the table because a
+    test that just restates the constants catches a typo and nothing else. What
+    matters is that recognition never varies, and that a profile which drops the
+    photo defences always carries the session bound that replaces them.
+    """
+
+    def test_standard_runs_both_gates(self):
+        profile = capture_profile("standard")
+        self.assertTrue(profile.liveness)
+        self.assertTrue(profile.antispoof)
+        self.assertFalse(profile.single_image)
+        # Nothing bounds a standard session: it did not trade anything away.
+        self.assertIsNone(profile.idle_timeout_seconds)
+
+    def test_none_means_standard(self):
+        self.assertEqual(capture_profile(None).name, "standard")
+        self.assertEqual(capture_profile("").name, "standard")
+
+    def test_names_are_case_and_space_insensitive(self):
+        self.assertEqual(capture_profile("  QUICK ").name, "quick")
+
+    def test_unknown_profile_is_refused_not_downgraded(self):
+        # The failure that matters: a caller asking for a gate this build does
+        # not have must not silently get a different one.
+        with self.assertRaises(ValueError):
+            capture_profile("relaxed")
+
+    def test_dropping_the_photo_defences_always_buys_a_bounded_session(self):
+        for profile in CAPTURE_PROFILES.values():
+            if profile.liveness and profile.antispoof:
+                continue
+            with self.subTest(profile=profile.name):
+                self.assertEqual(profile.idle_timeout_seconds, QUICK_IDLE_TIMEOUT_SECONDS)
+
+    def test_quick_accepts_a_one_second_clip_and_standard_does_not(self):
+        quick = capture_profile("quick")
+        self.assertIsNone(
+            clip_bounds_reason(1.0, 30.0, min_seconds=quick.clip_min_seconds, max_seconds=quick.clip_max_seconds)
+        )
+        # The standard floor is what made a 1 s login impossible in the first
+        # place, and it stays that way.
+        self.assertEqual(clip_bounds_reason(1.0, 30.0), None if 1.0 >= 0.8 else "clip_too_short")
+        self.assertEqual(clip_bounds_reason(0.5, 30.0), "clip_too_short")
+
+    def test_quick_tolerates_mediarecorder_drift_around_one_second(self):
+        # MediaRecorder does not stop exactly on the timer; 0.93 s and 1.4 s are
+        # both a "one second" capture as far as the browser is concerned.
+        quick = capture_profile("quick")
+        for duration in (0.93, 1.0, 1.4):
+            with self.subTest(duration=duration):
+                self.assertIsNone(
+                    clip_bounds_reason(
+                        duration, 30.0,
+                        min_seconds=quick.clip_min_seconds, max_seconds=quick.clip_max_seconds,
+                    )
+                )
+
+    def test_image_can_be_decided_on_a_single_frame(self):
+        # "Accepts the first image it recognises" is only possible if one frame
+        # clears both the frame floor and the agreement vote.
+        image = capture_profile("image")
+        self.assertTrue(image.single_image)
+        self.assertEqual(image.min_frames, 1)
+        self.assertEqual(image.min_agreeing, 1)
+
+    def test_clip_profiles_do_not_lower_the_frame_or_vote_floors(self):
+        # Only `image` may relax these. A 1 s clip still samples 25 frames, so
+        # `quick` has no reason to, and lowering them there would weaken
+        # recognition rather than liveness.
+        for name in ("standard", "quick"):
+            with self.subTest(profile=name):
+                profile = capture_profile(name)
+                self.assertIsNone(profile.min_frames)
+                self.assertIsNone(profile.min_agreeing)

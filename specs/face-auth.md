@@ -620,6 +620,38 @@ threshold without touching process state.
 | `FACE_ENROL_CENTROID_MAX` | 0.30 | Cosine distance from the running centroid an enrolment embedding may sit at. |
 | `FACE_ENROL_MIN_CLIPS` | 5 | Minimum accepted clips before a subject is usable. |
 
+### Capture profiles — which of these actually run
+
+The table above is the `standard` profile. From 2026-09-09 the *surface* asking
+for a sign-in names a capture profile, and the profile decides which gates run.
+`specs/login-surface.md` § Capture profiles is the authority on why; the part
+that belongs here is what it does to these thresholds.
+
+| profile | capture | residual gate | anti-spoof gate | frame floor | agreement |
+|---|---|---|---|---|---|
+| `standard` | 4 s clip, `FACE_CLIP_*` bounds | enforced | enforced | 15 | 12 of ~25 |
+| `quick` | 1 s clip, 0.4-2.0 s bounds | **not run** | **not run** | 15 | 12 of ~25 |
+| `image` | one still | **not run** | **not run** | 1 | 1 of 1 |
+
+A gate a profile switches off is **not measured**, not measured-and-ignored. A
+model whose verdict is discarded still costs GPU time on the path that exists to
+be fast, and a score written to `attempts` by a gate that enforced nothing would
+read exactly like a gate that passed.
+
+So on `quick` and `image` the `attempts` row carries `residual: null` and
+`antispoof: null`, and a `profile` column saying which table above was in force.
+With two of the three profiles enforcing neither model, that column is the only
+thing that makes the calibration data readable at all — a row without it cannot
+be told from a `standard` row that somehow scored nothing.
+
+`FACE_MATCH_COSINE` and `FACE_MATCH_MARGIN` are **not** profile-dependent and
+must not become so. "Is this the enrolled person" does not get an easier answer
+on a shorter capture, and the frame floor and agreement count are relaxed only
+by `image`, only because one frame is all it has.
+
+Enrolment is always `standard`. A photograph accepted into the gallery
+authenticates every later sign-in, including the ones that kept their gates.
+
 Decision shape mirrors `reference_identity()` (`camera-events/service.py:782`):
 top score, runner-up, threshold, and a margin — so the tuning story is one the
 household already knows.
