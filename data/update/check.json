@@ -1,8 +1,8 @@
 {
-  "checkedAt": "2026-08-15T10:31:46.229Z",
+  "checkedAt": "2026-09-08T13:39:48.691Z",
   "ok": true,
   "branch": "main",
-  "latestSha": "e5d8026cb9620f4a5d5450ca17f8a4b69a18cb51",
-  "latestMessage": "Merge pull request #1 from antidamage/agent/nova-dashboard-sync-20260729",
-  "latestCommittedAt": "2026-07-29T13:27:06Z"
+  "latestSha": "18845ace14532d3fb5136b6e07624582e9cb7bfa",
+  "latestMessage": "Fix live demo link in README.md",
+  "latestCommittedAt": "2026-08-25T00:35:41Z"
 }
