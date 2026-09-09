@@ -12,9 +12,10 @@ import { readWallpaperAssetFile } from "../../../../../lib/wallpaper-assets";
  * desktop's sync does, so a phone and a desktop asked at the same moment get
  * the same picture.
  *
- * `?orientation=landscape` serves the landscape asset; the default is portrait
- * (a phone), which falls back to the landscape asset when the theme has no
- * portrait one.
+ * `?orientation=landscape` serves the landscape asset, `?orientation=ipad`
+ * serves the iPad asset (falling back to the landscape asset when the theme
+ * has no iPad one, same as portrait); the default is portrait (a phone),
+ * which falls back to the landscape asset when the theme has no portrait one.
  *
  * Served at both `/api/desktop/wallpapers/current` and
  * `.../current/wallpaper.png`, because some clients will not treat a response
@@ -35,9 +36,8 @@ import { readWallpaperAssetFile } from "../../../../../lib/wallpaper-assets";
  * turns into its own 404.
  */
 export async function resolveCurrentWallpaper(request: Request) {
-  const orientation = new URL(request.url).searchParams.get("orientation") === "landscape"
-    ? "landscape"
-    : "portrait";
+  const requested = new URL(request.url).searchParams.get("orientation");
+  const orientation = requested === "landscape" || requested === "ipad" ? requested : "portrait";
   const preferences = await readDashboardPreferences();
   const config = await readDashboardConfig();
   const theme = themeResponseValue(preferences.theme, config.dashboard.avatar);

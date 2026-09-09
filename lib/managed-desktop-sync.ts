@@ -168,6 +168,7 @@ function recordValue(value: unknown): Record<string, unknown> | null {
 function wallpaperSettings(theme: unknown) {
   const settings = recordValue(recordValue(theme)?.desktopWallpaper);
   return {
+    ipadAssetId: typeof settings?.ipadAssetId === "string" ? settings.ipadAssetId : null,
     landscapeAssetId: typeof settings?.landscapeAssetId === "string" ? settings.landscapeAssetId : null,
     portraitAssetId: typeof settings?.portraitAssetId === "string" ? settings.portraitAssetId : null,
   };
@@ -225,14 +226,21 @@ function themeVariantValue(themeSet: Record<string, unknown>, variant: ThemeVari
   return recordValue(recordValue(themeSet.themes)?.[variant]);
 }
 
+// Managed computers are only ever landscape or portrait; the iPad Shortcuts
+// endpoint adds a third orientation that isn't a managed-computer concept.
+export type WallpaperClientOrientation = ManagedComputerOrientation | "ipad";
+
 function assetIdForOrientation(
   themeSet: Record<string, unknown>,
   variant: ThemeVariant,
-  orientation: ManagedComputerOrientation,
+  orientation: WallpaperClientOrientation,
 ) {
   const settings = wallpaperSettings(themeVariantValue(themeSet, variant));
   if (orientation === "portrait") {
     return settings.portraitAssetId ?? settings.landscapeAssetId;
+  }
+  if (orientation === "ipad") {
+    return settings.ipadAssetId ?? settings.landscapeAssetId;
   }
   return settings.landscapeAssetId;
 }
@@ -249,7 +257,7 @@ function assetIdForComputer(themeSet: Record<string, unknown>, variant: ThemeVar
  */
 export async function currentDesktopWallpaperAssetId(
   themeValue: unknown,
-  orientation: ManagedComputerOrientation,
+  orientation: WallpaperClientOrientation,
 ): Promise<{ assetId: string | null; variant: ThemeVariant } | null> {
   const themeSet = recordValue(themeValue);
   if (!themeSet) {

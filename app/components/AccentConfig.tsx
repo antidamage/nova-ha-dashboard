@@ -1009,7 +1009,7 @@ function BackgroundTextureControl({
   );
 }
 
-type DesktopWallpaperAssetSlot = "landscapeAssetId" | "portraitAssetId";
+type DesktopWallpaperAssetSlot = "ipadAssetId" | "landscapeAssetId" | "portraitAssetId";
 
 /**
  * Push the theme's current wallpaper to every subscribed device now. Same
@@ -1071,6 +1071,7 @@ function DesktopWallpaperControl({
 }) {
   const landscapeInputRef = useRef<HTMLInputElement | null>(null);
   const portraitInputRef = useRef<HTMLInputElement | null>(null);
+  const ipadInputRef = useRef<HTMLInputElement | null>(null);
   const [assets, setAssets] = useState<DesktopWallpaperAsset[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -1112,6 +1113,9 @@ function DesktopWallpaperControl({
       if (slot === "portraitAssetId" && portraitInputRef.current) {
         portraitInputRef.current.value = "";
       }
+      if (slot === "ipadAssetId" && ipadInputRef.current) {
+        ipadInputRef.current.value = "";
+      }
     }
   };
 
@@ -1141,7 +1145,9 @@ function DesktopWallpaperControl({
     inputRef: RefObject<HTMLInputElement | null>,
   ) => {
     const assetId = value[slot];
-    const fallbackAsset = slot === "portraitAssetId" && !assetId ? assetById.get(value.landscapeAssetId ?? "") : null;
+    const fallbackAsset = (slot === "portraitAssetId" || slot === "ipadAssetId") && !assetId
+      ? assetById.get(value.landscapeAssetId ?? "")
+      : null;
     const asset = assetById.get(assetId ?? "") ?? fallbackAsset ?? null;
     const dimensions = asset?.width && asset.height ? `${asset.width}x${asset.height}` : null;
 
@@ -1217,6 +1223,7 @@ function DesktopWallpaperControl({
     <div className="grid gap-3">
       {row("landscapeAssetId", "Desktop", "No landscape wallpaper", landscapeInputRef)}
       {row("portraitAssetId", "Portrait", "No portrait wallpaper", portraitInputRef)}
+      {row("ipadAssetId", "iPad", "No iPad wallpaper", ipadInputRef)}
       {message ? <p className="text-xs font-semibold text-cyan-100">{message}</p> : null}
     </div>
   );

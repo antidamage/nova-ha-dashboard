@@ -38,6 +38,7 @@ describe("theme section copy/paste", () => {
   it("copies desktop wallpaper refs with the background section", () => {
     const source = baseTheme();
     source.desktopWallpaper = {
+      ipadAssetId: null,
       landscapeAssetId: "wallpaper_00000000-0000-0000-0000-000000000000",
       portraitAssetId: null,
       useAsDashboardBackground: false,

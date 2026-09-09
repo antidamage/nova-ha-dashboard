@@ -68,6 +68,7 @@ export type FluidBackgroundSettings = {
 };
 
 export type DesktopWallpaperSettings = {
+  ipadAssetId: string | null;
   landscapeAssetId: string | null;
   portraitAssetId: string | null;
   useAsDashboardBackground: boolean;
@@ -366,6 +367,7 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     warpAmplitude: 220,
   },
   desktopWallpaper: {
+    ipadAssetId: null,
     landscapeAssetId: null,
     portraitAssetId: null,
     useAsDashboardBackground: false,
@@ -554,6 +556,7 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     warpAmplitude: 220,
   },
   desktopWallpaper: {
+    ipadAssetId: null,
     landscapeAssetId: null,
     portraitAssetId: null,
     useAsDashboardBackground: false,
@@ -821,6 +824,7 @@ function normalizeWallpaperAssetId(value: unknown) {
 
 export function normalizeDesktopWallpaperSettings(value: Partial<DesktopWallpaperSettings> | null | undefined): DesktopWallpaperSettings {
   return {
+    ipadAssetId: normalizeWallpaperAssetId(value?.ipadAssetId),
     landscapeAssetId: normalizeWallpaperAssetId(value?.landscapeAssetId),
     portraitAssetId: normalizeWallpaperAssetId(value?.portraitAssetId),
     useAsDashboardBackground: value?.useAsDashboardBackground === true,
