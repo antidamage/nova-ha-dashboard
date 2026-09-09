@@ -359,6 +359,27 @@ describe("managed desktop sync", () => {
     }
   });
 
+  it("resolves the iPad wallpaper, falling back to landscape when no iPad asset is set", async () => {
+    const { mod, tempDir } = await importSyncModule();
+    try {
+      const withoutIpad = themeWithWallpaper(ASSET_1);
+      await expect(mod.currentDesktopWallpaperAssetId(withoutIpad, "ipad")).resolves.toEqual({
+        assetId: ASSET_1,
+        variant: "dark",
+      });
+
+      const withIpad = themeWithWallpaper(ASSET_1, {
+        desktopWallpaper: { ipadAssetId: ASSET_3, landscapeAssetId: ASSET_1, portraitAssetId: null },
+      });
+      await expect(mod.currentDesktopWallpaperAssetId(withIpad, "ipad")).resolves.toEqual({
+        assetId: ASSET_3,
+        variant: "dark",
+      });
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
   it("notifies the theme-change webhook once per wallpaper, and again on force", async () => {
     const { mod, sendThemeChangeNotification, tempDir } = await importSyncModule();
     try {

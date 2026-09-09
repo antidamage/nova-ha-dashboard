@@ -20,7 +20,7 @@ describe("WallpaperBackground", () => {
 
     render(
       <WallpaperBackground
-        wallpaper={{ landscapeAssetId: "wallpaper_landscape", portraitAssetId: "wallpaper_portrait", useAsDashboardBackground: true }}
+        wallpaper={{ ipadAssetId: null, landscapeAssetId: "wallpaper_landscape", portraitAssetId: "wallpaper_portrait", useAsDashboardBackground: true }}
       />,
     );
 
@@ -33,7 +33,7 @@ describe("WallpaperBackground", () => {
 
     render(
       <WallpaperBackground
-        wallpaper={{ landscapeAssetId: "wallpaper_landscape", portraitAssetId: "wallpaper_portrait", useAsDashboardBackground: true }}
+        wallpaper={{ ipadAssetId: null, landscapeAssetId: "wallpaper_landscape", portraitAssetId: "wallpaper_portrait", useAsDashboardBackground: true }}
       />,
     );
 
@@ -46,7 +46,7 @@ describe("WallpaperBackground", () => {
 
     render(
       <WallpaperBackground
-        wallpaper={{ landscapeAssetId: "wallpaper_landscape", portraitAssetId: null, useAsDashboardBackground: true }}
+        wallpaper={{ ipadAssetId: null, landscapeAssetId: "wallpaper_landscape", portraitAssetId: null, useAsDashboardBackground: true }}
       />,
     );
 
@@ -59,7 +59,7 @@ describe("WallpaperBackground", () => {
 
     render(
       <WallpaperBackground
-        wallpaper={{ landscapeAssetId: null, portraitAssetId: null, useAsDashboardBackground: true }}
+        wallpaper={{ ipadAssetId: null, landscapeAssetId: null, portraitAssetId: null, useAsDashboardBackground: true }}
       />,
     );
 

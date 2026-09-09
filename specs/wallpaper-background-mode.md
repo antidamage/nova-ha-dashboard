@@ -13,10 +13,11 @@ use the same uploaded images as its own background.
 
 ## Data model
 
-`DesktopWallpaperSettings` (`app/components/accentColor.ts`) gains one field:
+`DesktopWallpaperSettings` (`app/components/accentColor.ts`):
 
 ```ts
 export type DesktopWallpaperSettings = {
+  ipadAssetId: string | null;
   landscapeAssetId: string | null;
   portraitAssetId: string | null;
   useAsDashboardBackground: boolean;
@@ -29,6 +30,7 @@ defaulting `false`:
 ```ts
 export function normalizeDesktopWallpaperSettings(value: Partial<DesktopWallpaperSettings> | null | undefined): DesktopWallpaperSettings {
   return {
+    ipadAssetId: normalizeWallpaperAssetId(value?.ipadAssetId),
     landscapeAssetId: normalizeWallpaperAssetId(value?.landscapeAssetId),
     portraitAssetId: normalizeWallpaperAssetId(value?.portraitAssetId),
     useAsDashboardBackground: value?.useAsDashboardBackground === true,
@@ -36,9 +38,39 @@ export function normalizeDesktopWallpaperSettings(value: Partial<DesktopWallpape
 }
 ```
 
-No other type changes. `FluidBackgroundSettings` / `backgroundEffect` are
-untouched — shader settings are preserved even while wallpaper mode is on,
-so switching back doesn't lose tuning.
+`FluidBackgroundSettings` / `backgroundEffect` are untouched — shader
+settings are preserved even while wallpaper mode is on, so switching back
+doesn't lose tuning.
+
+### iPad asset slot (added 2026-09-10)
+
+A third upload slot, `ipadAssetId`, alongside landscape/portrait. It exists
+purely for the `/api/desktop/wallpapers/current` endpoint — the dashboard's
+own `WallpaperBackground` component still only ever resolves landscape or
+portrait from the *window's own aspect ratio*, since the dashboard never runs
+on the iPad's browser chrome. The iPad instead runs an iOS Shortcut that
+fetches `GET /api/desktop/wallpapers/current?orientation=ipad` (also aliased
+at `.../current/wallpaper.png?orientation=ipad`) directly, the same way the
+phone Shortcut already fetches the portrait asset.
+
+Resolution, in `lib/managed-desktop-sync.ts`:
+
+```
+ipad orientation → wallpaper.ipadAssetId ?? wallpaper.landscapeAssetId
+```
+
+Same fallback-to-first-slot behavior portrait already has: if no iPad-specific
+image was ever uploaded, the endpoint serves the landscape asset instead of
+404ing. `ManagedComputerOrientation` (Windows/macOS/kde-linux managed-desktop
+sync) stays `"landscape" | "portrait"` — the iPad is not a managed computer,
+so a wider `WallpaperClientOrientation = ManagedComputerOrientation | "ipad"`
+type covers only `currentDesktopWallpaperAssetId` and the API handler.
+
+Settings UI: `DesktopWallpaperControl` (`app/components/AccentConfig.tsx`)
+gets a third `row("ipadAssetId", "iPad", ...)`, upload/remove/download working
+identically to the other two slots, sharing the same landscape-fallback
+"landscape fallback" badge label as portrait when displaying the resolved
+image.
 
 ## Orientation + asset resolution
 
