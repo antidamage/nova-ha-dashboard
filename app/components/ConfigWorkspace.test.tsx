@@ -148,4 +148,46 @@ describe("ConfigWorkspace", () => {
 
     await waitFor(() => expect(window.location.pathname).toBe("/config/assistant/identity/"));
   });
+
+  it("sends the browser to the front page, not authentik, once the session is gone", async () => {
+    let sessionGone = false;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url === "/api/auth/whoami") {
+        return sessionGone
+          ? { ok: false, status: 401, json: async () => ({}) }
+          : { ok: true, status: 200, json: async () => ({ authenticated: true, username: "adeline" }) };
+      }
+      return {
+        json: async () => url === "/api/update" ? updateStatus : { config, secrets },
+        ok: true,
+      };
+    }));
+
+    // jsdom doesn't implement real navigation; stand in a plain object so a
+    // `.href` write is observable instead of logging "Not implemented".
+    const originalLocation = window.location;
+    // @ts-expect-error -- deliberately replacing the read-only global for the test
+    delete window.location;
+    // @ts-expect-error -- partial Location, only `.href` is exercised
+    window.location = { ...originalLocation, href: originalLocation.href };
+
+    try {
+      render(<ConfigWorkspace />);
+      fireEvent.click(screen.getByRole("button", { name: /^assistant/i }));
+      await screen.findByRole("button", { name: /^identity$/i });
+
+      sessionGone = true;
+      // The idle/timer sweep is server-side and silent — the tab only learns
+      // about it from the next probe. Tab-visibility regain is one trigger for
+      // that probe; use it instead of waiting out the 60s poll interval.
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+      document.dispatchEvent(new Event("visibilitychange"));
+
+      await waitFor(() => expect(window.location.href).toBe("/"));
+    } finally {
+      // @ts-expect-error -- restoring the read-only global after the test
+      delete window.location;
+      window.location = originalLocation;
+    }
+  });
 });
