@@ -194,6 +194,32 @@ describe("ColorEncoder", () => {
     click.mockRestore();
   });
 
+  it("clicks once for a quick tap, twice for a deliberate press", () => {
+    const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
+    const now = vi.spyOn(performance, "now");
+    let clock = 5000;
+    now.mockImplementation(() => clock);
+
+    render(<ColorEncoder value={start} onChange={vi.fn()} />);
+    const dial = screen.getByRole("slider");
+
+    // Tap: down and straight back up. One click, on the way down.
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    clock += 90;
+    fireEvent.pointerUp(dial, { clientX: 0, clientY: 0, pointerId: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+
+    // Press and hold, then release without moving: two gestures, two clicks.
+    click.mockClear();
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    clock += 900;
+    fireEvent.pointerUp(dial, { clientX: 0, clientY: 0, pointerId: 1 });
+    expect(click).toHaveBeenCalledTimes(2);
+
+    now.mockRestore();
+    click.mockRestore();
+  });
+
   it("commits once per gesture, and a tap commits nothing", () => {
     const onChange = vi.fn();
     const onCommit = vi.fn();

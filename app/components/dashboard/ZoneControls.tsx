@@ -123,10 +123,10 @@ export function ZoneColorEncoder({
   return (
     <div className={className ? `zone-color-encoder ${className}` : "zone-color-encoder"}>
       <ColorEncoder
-        ariaLabel="Zone colour"
+        ariaLabel="Zone lights"
         defaultChannel="brightness"
-        demoTooltipTitle="Colour"
-        demoTooltip="Tap to switch between hue, brightness and saturation. Drag right or up to turn it up."
+        demoTooltipTitle="Lights"
+        demoTooltip="Tap to switch between brightness, saturation and hue. Drag right or up to turn it up."
         disabled={disabled}
         label={label}
         size={size}
