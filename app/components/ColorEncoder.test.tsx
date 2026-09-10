@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import * as haptics from "./haptics";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
 import { ColorEncoder, COLOR_ENCODER_CHANNELS_WITH_OPACITY } from "./ColorEncoder";
 import {
@@ -165,6 +166,34 @@ describe("ColorEncoder", () => {
     expect(onValue.mock.lastCall?.[0].v).toBe(52);
   });
 
+  it("clicks on press, then at most once per 400ms of turning", () => {
+    const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
+    const now = vi.spyOn(performance, "now");
+    let clock = 1000;
+    now.mockImplementation(() => clock);
+
+    render(<ColorEncoder value={start} onChange={vi.fn()} />);
+    const dial = screen.getByRole("slider");
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+
+    // A fast spin inside the floor: plenty of travel, but no further clicks.
+    for (let step = 1; step <= 10; step += 1) {
+      clock += 16;
+      fireEvent.pointerMove(dial, { buttons: 1, clientX: step * 20, clientY: 0, pointerId: 1 });
+    }
+    expect(click).toHaveBeenCalledTimes(1);
+
+    // Past the floor, with travel behind it, one more click.
+    clock += 400;
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: 400, clientY: 0, pointerId: 1 });
+    expect(click).toHaveBeenCalledTimes(2);
+
+    fireEvent.pointerUp(dial, { clientX: 400, clientY: 0, pointerId: 1 });
+    now.mockRestore();
+    click.mockRestore();
+  });
+
   it("commits once per gesture, and a tap commits nothing", () => {
     const onChange = vi.fn();
     const onCommit = vi.fn();
@@ -220,9 +249,23 @@ describe("ColorEncoder", () => {
     expect(input().value).toBe("rgba(255, 0, 0, 0.400)");
   });
 
-  it("has no written value anywhere on the control", () => {
+  it("names the active channel but writes no value anywhere", () => {
     const { container } = render(<ColorEncoder label="Accent" value={start} onChange={vi.fn()} />);
-    expect(container.textContent).toBe("Accent");
+    // The label and the channel caption are the only text: no hex, no numbers.
+    expect(container.textContent).toBe("AccentHUE");
+    expect(container.textContent).not.toMatch(/\d/);
+    const dial = screen.getByRole("slider");
+    tap(dial);
+    expect(container.textContent).toBe("AccentBRIGHT");
+    tap(dial);
+    expect(container.textContent).toBe("AccentSAT");
+  });
+
+  it("captions the opacity channel too", () => {
+    const { container } = render(
+      <ColorEncoder channels={COLOR_ENCODER_CHANNELS_WITH_OPACITY} activeChannel="opacity" value={start} onChange={vi.fn()} />,
+    );
+    expect(container.textContent).toBe("OPAC");
   });
 
   it("drives from the keyboard", () => {

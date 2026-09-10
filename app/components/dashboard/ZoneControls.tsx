@@ -100,7 +100,9 @@ export function ZoneColorEncoder({
   onColorCommit: (rgb: [number, number, number], brightnessPct: number, cursor: SpectrumCursor) => void;
   onSpectrumChange: (value: SpectrumValue) => void;
 }) {
-  const channelRef = useRef<ColorEncoderChannel>("hue");
+  // Lighting opens on brightness: dimming a room is what this card is reached
+  // for, colour far less often (Adeline, 2026-09-11).
+  const channelRef = useRef<ColorEncoderChannel>("brightness");
   // Grey and white carry no hue. Remember the last real one so turning
   // saturation down to zero and back up does not snap the dial to red.
   const hueMemory = useRef<Record<string, number>>({});
@@ -122,6 +124,7 @@ export function ZoneColorEncoder({
     <div className={className ? `zone-color-encoder ${className}` : "zone-color-encoder"}>
       <ColorEncoder
         ariaLabel="Zone colour"
+        defaultChannel="brightness"
         demoTooltipTitle="Colour"
         demoTooltip="Tap to switch between hue, brightness and saturation. Drag right or up to turn it up."
         disabled={disabled}

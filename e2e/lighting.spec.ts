@@ -17,26 +17,30 @@ test.describe("lighting controls", () => {
     await expect(page.locator(".zone-panel").getByRole("button", { name: "Off", exact: true })).toBeVisible();
   });
 
-  test("tapping the dial cycles hue, brightness, saturation", async ({ page }) => {
+  test("opens on brightness and cycles through saturation and hue", async ({ page }) => {
     await gotoDashboard(page);
     const dial = page.locator(".zone-panel").getByLabel("Zone colour");
 
-    await expect(dial).toHaveAttribute("data-channel", "hue");
-    await dial.click();
+    // Dimming a room is what this card is reached for, so brightness is lit
+    // on load rather than hue (specs/color-encoder.md, "Channels").
     await expect(dial).toHaveAttribute("data-channel", "brightness");
     await dial.click();
     await expect(dial).toHaveAttribute("data-channel", "saturation");
     await dial.click();
     await expect(dial).toHaveAttribute("data-channel", "hue");
+    await dial.click();
+    await expect(dial).toHaveAttribute("data-channel", "brightness");
   });
 
   test("dragging left on the brightness light turns the zone down", async ({ page }) => {
     const console = watchConsole(page);
     await gotoDashboard(page);
     const dial = page.locator(".zone-panel").getByLabel("Zone colour");
-    await dial.click();
     await expect(dial).toHaveAttribute("data-channel", "brightness");
 
+    // The drag is driven by page coordinates, so the dial has to be on screen
+    // for them to mean anything.
+    await dial.scrollIntoViewIfNeeded();
     const box = await dial.boundingBox();
     if (!box) throw new Error("dial has no box");
     const before = Number(await dial.getAttribute("aria-valuenow"));

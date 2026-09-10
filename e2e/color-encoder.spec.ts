@@ -70,7 +70,8 @@ test.describe("colour encoder", () => {
     await expectGeometry(root, 200);
     await expect(root.locator(".color-encoder-led")).toHaveCount(3);
 
-    for (const channel of ["hue", "brightness", "saturation"]) {
+    // Lighting opens on brightness, so the cycle starts there.
+    for (const channel of ["brightness", "saturation", "hue"]) {
       await expect(dial).toHaveAttribute("data-channel", channel);
       await expect(root.locator('.color-encoder-led[data-lit="true"]')).toHaveCount(1);
       await expect(root.locator('.color-encoder-led[data-lit="true"]')).toHaveAttribute("data-channel", channel);
@@ -87,7 +88,7 @@ test.describe("colour encoder", () => {
     expectNoConsoleErrors(console);
   });
 
-  test("the knob never takes the accent or highlight; the lit light does", async ({ page }) => {
+  test("the knob and lights never take the accent or highlight; the lit light is white", async ({ page }) => {
     await gotoDashboard(page);
     const root = page.locator(".zone-panel .zone-color-encoder .color-encoder");
     const dial = page.locator(".zone-panel").getByLabel("Zone colour");
@@ -125,8 +126,13 @@ test.describe("colour encoder", () => {
     await shot(root, "zone-pressed");
     await page.mouse.up();
 
+    // The lit light is white, not the highlight colour: at 50px a tinted 3px
+    // light does not read (specs/color-encoder.md, "Theming").
     const lit = await root.locator('.color-encoder-led[data-lit="true"]').evaluate((node) => getComputedStyle(node).backgroundImage);
-    expect(lit).toContain(colours.highlight);
+    expect(lit).toContain("rgb(255, 255, 255)");
+    expect(lit).not.toContain(colours.highlight);
+    const litGlow = await root.locator('.color-encoder-led[data-lit="true"]').evaluate((node) => getComputedStyle(node).boxShadow);
+    expect(litGlow).toContain("rgba(255, 255, 255");
   });
 
   test("dragging turns the rotor, and the rotor only", async ({ page }) => {
@@ -153,7 +159,7 @@ test.describe("colour encoder", () => {
     await shot(root, "zone-rotated");
   });
 
-  test("config dial: 50px, opacity light where the slot owns one", async ({ page }) => {
+  test("config dial: inline, 50px, opacity light where the slot owns one", async ({ page }) => {
     const console = watchConsole(page);
     await gotoConfig(page);
     const category = page.getByRole("button", { name: /Appearance & Dashboard/ });
@@ -165,30 +171,29 @@ test.describe("colour encoder", () => {
         await expect(level).toBeVisible({ timeout: 2_000 });
         if ((await level.getAttribute("aria-expanded")) !== "true") await level.click();
       }
-      await expect(page.locator(".theme-display-card").first()).toBeVisible({ timeout: 2_000 });
+      await expect(page.locator(".theme-widget-cell").first()).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
 
-    // Accent: three lights.
-    await page.locator(".theme-display-card", { hasText: /^Accent/ }).first().click();
-    const accent = page.getByRole("dialog").locator(".color-encoder");
-    await expect(accent).toBeVisible();
+    // The dials are on the page itself: no swatch card, and no modal to open.
+    await expect(page.locator(".theme-display-card")).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    const accent = page.locator(".theme-widget-cell", { hasText: "ACCENT" }).first().locator(".color-encoder");
+    await accent.scrollIntoViewIfNeeded();
     await expectGeometry(accent, 50);
     await expect(accent.locator(".color-encoder-led")).toHaveCount(3);
-    // No written value anywhere on the control.
-    expect((await accent.textContent())?.trim()).toBe("Accent");
+    // Label and channel caption are the only text: no value, no hex.
+    expect((await accent.textContent())?.trim()).toBe("AccentHUE");
     await shot(accent, "config-accent-50");
-    await page.keyboard.press("Escape");
 
     // Border owns its opacity, so its dial has the fourth light.
-    await page.locator(".theme-display-card", { hasText: /^Border/ }).first().click();
-    const border = page.getByRole("dialog").locator(".color-encoder");
-    await expect(border).toBeVisible();
+    const border = page.locator(".theme-widget-cell", { hasText: "BORDERS" }).first().locator(".color-encoder");
+    await border.scrollIntoViewIfNeeded();
     await expect(border.locator(".color-encoder-led")).toHaveCount(4);
     await expectGeometry(border, 50);
-    // And its old separate opacity slider is gone.
-    await expect(page.getByRole("dialog").getByLabel(/opacity/i)).toHaveCount(0);
+    await expect(page.getByLabel(/borders opacity/i)).toHaveCount(0);
 
-    // Take opacity to about 40% and check the checkerboard shows through.
+    // Take opacity to 40% and check the checkerboard shows through.
     const dial = border.locator(".color-encoder-dial");
     for (let index = 0; index < 3; index += 1) await dial.click();
     await expect(dial).toHaveAttribute("data-channel", "opacity");
@@ -202,7 +207,7 @@ test.describe("colour encoder", () => {
     const ringColour = await border.locator(".color-encoder-ring").evaluate((node) => getComputedStyle(node).backgroundColor);
     expect(ringColour).toMatch(/rgba\(.*, 0\.\d+\)/);
     await shot(border, "config-border-50-opacity");
-    await shot(page.getByRole("dialog"), "config-popover-border");
+    await shot(page.locator(".theme-widget-flow").first(), "config-colour-grid");
     await setSize(border, 200);
     await shot(border, "config-border-at-200-opacity");
     expectNoConsoleErrors(console);

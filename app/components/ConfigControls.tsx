@@ -12,7 +12,6 @@ import {
 } from "./configBreadcrumb";
 import { configAccordionKey, getAccordionOpen, setAccordionOpen } from "./configUiState";
 import { DotEnvelopeControl, DotLineControl, DotRangeControl, type EnvelopeDurations } from "./DotControls";
-import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
 type DotLineMarker = { active?: boolean; label: string; value: number };
@@ -531,105 +530,60 @@ export function EnvelopeSliderControlPanel({
   );
 }
 
+/**
+ * One colour slot on the configuration page: its dial, inline.
+ *
+ * Adeline, 2026-09-11: the controls must REPLACE the colour widget, not open in
+ * a popup modal. There is no swatch card and no open/closed state — the dial's
+ * ring is already the colour preview, so a card showing the same colour was
+ * only a click in the way. Slot-specific extras (a toggle, a size or shared
+ * opacity slider) render underneath the dial in the same cell.
+ */
 export function ColorWidget({
-  active,
   children,
-  detail,
   label,
   onCopyColor,
   onPasteColor,
-  onToggle,
   pasteColorDisabled,
-  rgb,
-  intensity,
-  swatchOpacity,
 }: {
-  active: boolean;
   children: ReactNode;
-  detail: string;
   label: string;
   onCopyColor?: () => void;
   onPasteColor?: () => void;
-  onToggle: () => void;
   pasteColorDisabled?: boolean;
-  rgb: [number, number, number];
-  intensity?: number;
-  swatchOpacity?: number;
 }) {
-  const displayedIntensity = Math.max(0, Math.min(100, intensity ?? 100));
-  const displayedRgb = rgb.map((component) =>
-    Math.round(component * displayedIntensity / 100)) as [number, number, number];
   return (
-    <div className={`theme-widget-cell ${active ? "theme-widget-cell-active" : ""}`}>
-      <button
-        type="button"
-        aria-expanded={active}
-        aria-haspopup="dialog"
-        className={`theme-display-card border p-4 text-left ${active ? "theme-display-card-active" : ""}`}
-        onClick={onToggle}
-      >
-        <span
-          className="theme-display-swatch border"
-          style={{
-            backgroundColor: `rgb(${displayedRgb.join(",")})`,
-            opacity: swatchOpacity,
-          }}
-        />
-        <span className="theme-display-copy">
-          <span className="theme-display-label zone-title-bar">{label}</span>
-          <span className="theme-display-detail">{detail}</span>
-          {intensity === undefined ? null : (
-            <span className="theme-display-detail">Intensity {Math.round(displayedIntensity)}%</span>
-          )}
-        </span>
-      </button>
-
-      <ModalOverlay
-        open={active}
-        onClose={onToggle}
-        ariaLabel={`${label} colour picker`}
-        className="theme-colour-popover"
-        overlayClassName="theme-colour-overlay"
-      >
-            <header className="theme-colour-popover-header">
-              <span className="theme-display-label zone-title-bar">{label}</span>
-              <button type="button" className="theme-colour-popover-close" aria-label={`Close ${label} colour picker`} onClick={onToggle}>
-                Close
-              </button>
-            </header>
-            <div className="theme-inline-editor grid gap-4 border border-cyan-300/30 bg-neutral-900/80 p-4">
-            {onCopyColor || onPasteColor ? (
-              <div className="theme-widget-actions">
-                {onCopyColor ? (
-                  <MomentaryFeedbackButton
-                    type="button"
-                    className="theme-widget-action"
-                    aria-label={`Copy ${label} colour`}
-                    data-demo-tooltip-title="Copy Colour"
-                    data-demo-tooltip="Copy this colour, intensity and opacity."
-                    onClick={onCopyColor}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </MomentaryFeedbackButton>
-                ) : null}
-                {onPasteColor ? (
-                  <MomentaryFeedbackButton
-                    type="button"
-                    className="theme-widget-action"
-                    aria-label={`Paste colour into ${label}`}
-                    disabled={pasteColorDisabled}
-                    data-demo-tooltip-title="Paste Colour"
-                    data-demo-tooltip="Paste the copied colour into this widget."
-                    onClick={onPasteColor}
-                  >
-                    <Clipboard className="h-4 w-4" />
-                  </MomentaryFeedbackButton>
-                ) : null}
-              </div>
-            ) : null}
-            <div className="config-color-editor">{children}</div>
-            </div>
-      </ModalOverlay>
+    <div className="theme-widget-cell">
+      {onCopyColor || onPasteColor ? (
+        <div className="theme-widget-actions">
+          {onCopyColor ? (
+            <MomentaryFeedbackButton
+              type="button"
+              className="theme-widget-action"
+              aria-label={`Copy ${label} colour`}
+              data-demo-tooltip-title="Copy Colour"
+              data-demo-tooltip="Copy this colour, intensity and opacity."
+              onClick={onCopyColor}
+            >
+              <Copy className="h-4 w-4" />
+            </MomentaryFeedbackButton>
+          ) : null}
+          {onPasteColor ? (
+            <MomentaryFeedbackButton
+              type="button"
+              className="theme-widget-action"
+              aria-label={`Paste colour into ${label}`}
+              disabled={pasteColorDisabled}
+              data-demo-tooltip-title="Paste Colour"
+              data-demo-tooltip="Paste the copied colour into this widget."
+              onClick={onPasteColor}
+            >
+              <Clipboard className="h-4 w-4" />
+            </MomentaryFeedbackButton>
+          ) : null}
+        </div>
+      ) : null}
+      <div className="config-color-editor">{children}</div>
     </div>
   );
 }

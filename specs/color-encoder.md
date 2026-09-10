@@ -43,6 +43,7 @@ Files:
 | Index line | `1.2% × 20%` of `--ce-size`, from `7%` inset |
 | Notch | `5%` circle at `30%` from top |
 | Label gap | `5% of --ce-size` |
+| Channel caption | `clamp(10px, 7.5% of --ce-size, 14px)`, `5.5%` below the lights |
 
 Label sits above the dial, centred, uppercase, letter-spaced — the same
 treatment as existing config control labels.
@@ -63,6 +64,9 @@ treatment as existing config control labels.
 9. **Fixed specular** — above the rotor, so the texture passes under a
    stationary highlight.
 10. **Lights** — dead centre, stationary, one lit at a time.
+11. **Channel caption** — the active channel's name under the lights: `HUE`,
+    `BRIGHT`, `SAT`, `OPAC`. A channel name, not a value; the ring is still the
+    only readout. Stationary, like the lights.
 
 The annulus clip is
 `radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%)`
@@ -79,6 +83,11 @@ Fixed order, left to right, matching the click-cycle order:
 
 Exactly one light is lit at any time. Adding the fourth light is opt-in per
 call site (`channels` prop), not a global switch.
+
+**Which light is lit on load** is per call site too, via `defaultChannel`.
+Adeline, 2026-09-11: **lighting opens on brightness** — the centre light —
+because dimming a room is what that card is reached for, and colour far less
+often. A colour picker opens on hue, the first channel, which is the default.
 
 ## Interaction
 
@@ -100,6 +109,11 @@ call site (`channels` prop), not a global switch.
 - **Keyboard**: focusable. Right/Up and Left/Down arrows nudge the active
   channel (8px-equivalent, 1px-equivalent with Shift). Enter/Space cycles the
   channel.
+- **Click cadence**: one click on press, then at most one per 400ms of turning,
+  gated behind 12px of travel. The dial does not use the shared
+  `SliderHapticController`: that pulses on distance with an 80ms floor, which on
+  a fast spin is a dozen clicks a second. Adeline, 2026-09-11: about five times
+  less often, hence the 400ms floor — 5x the shared one.
 - No numeric entry, no long-press hex field, no readout — deliberately. Exact
   colours move between slots through the existing theme clipboard
   (`app/components/themeClipboard.ts`).
@@ -111,8 +125,12 @@ call site (`channels` prop), not a global switch.
   2026-09-10: the accent and highlight colours are not used on the dial.
   Hover and press are achromatic — hover lifts the dome slightly, press
   deepens the inset.
-- The **lights** use `--cyber-highlight` when lit and a glossy near-black
-  when off. The lit light carries a subtle bloom in the highlight colour.
+- The **lit light is white and glows white**; the others are a glossy
+  near-black. Adeline, 2026-09-11: at 50px a light is 3px wide, and a
+  tinted one that small does not read. The bloom carries a px floor
+  (`max(4px, …)`) for the same reason — a radius derived purely from the
+  light's width vanishes with it. Nothing on the dial uses the accent or
+  highlight colour now; `--ce-led-on` remains as the override point.
 - Focus ring follows the surface convention: highlight-coloured outline on
   `:focus-visible`.
 
@@ -214,6 +232,19 @@ rather than once per frame.
   them from CSS without touching the component.
 - `sensitivity` prop overrides the per-channel px rates.
 
+## The config surface
+
+Adeline, 2026-09-11: **the dial replaces the colour widget; it does not open in
+a popup modal.** There is no swatch card and no open/closed state — the ring is
+already the colour preview, so a card showing the same colour was only a click
+in the way. Every slot renders its dial inline in the grid, and slot-specific
+extras (a toggle, a shared-opacity or size slider) sit under the dial in the
+same cell. `ColorWidget` is now that inline cell: children, a label for its
+copy/paste actions, and nothing else. The retired card and modal took their CSS
+with them (`theme-display-card*`, `theme-colour-popover*`, `theme-inline-editor*`,
+`theme-display-swatch/copy/detail/label`), along with the session-stored
+"which widget is open" key.
+
 ## What it replaces
 
 Every one of these loses its old control and gains a `ColorEncoder`:
@@ -260,8 +291,8 @@ deleted, along with its exports, README row and showcase card. Adeline,
 - The rotor turns while dragging and the knob's lighting does not.
 - The ring shows the colour, the checkerboard shows through as opacity drops,
   and the glow follows the 50% rule.
-- The knob never takes the accent or highlight colour; the lit light always
-  does.
+- Neither the knob nor the lights take the accent or highlight colour; the lit
+  light is white and reads clearly at 50px.
 - Every widget in the replacement list above is gone, with no colour
   spectrum pad, intensity slider or folded-in opacity slider left behind.
 - `npx tsc --noEmit`, `npm run test:unit`, `npm run test:e2e` clean.

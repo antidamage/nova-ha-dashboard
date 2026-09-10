@@ -21,7 +21,7 @@ import {
   wrapHue,
   type Hsva,
 } from "./colorEncoderModel";
-import { selectionHaptic, SliderHapticController } from "./haptics";
+import { selectionHaptic } from "./haptics";
 import { TAP_MOVE_THRESHOLD_PX } from "./sliderTapGesture";
 
 export type ColorEncoderChannel = "hue" | "brightness" | "saturation" | "opacity";
@@ -51,6 +51,18 @@ const DEGREES_PER_PX = 0.5;
 /** Shift or Alt makes every channel this much finer. */
 const FINE_DIVISOR = 8;
 
+/**
+ * The dial's own click cadence, rather than the shared slider controller's.
+ *
+ * That controller pulses on distance with an 80ms floor, which on a fast drag
+ * is up to a dozen clicks a second — a buzz on a control you spin. Adeline,
+ * 2026-09-11: about five times less often. So: a 400ms floor (5x the shared
+ * one) plus a travel gate, so a slow, deliberate turn still ticks and a jittery
+ * pointer does not.
+ */
+const HAPTIC_MIN_INTERVAL_MS = 400;
+const HAPTIC_TRAVEL_PX = 12;
+
 /** Keyboard nudge, expressed as the drag distance it stands in for. */
 const KEY_STEP_PX = 8;
 const KEY_STEP_FINE_PX = 1;
@@ -60,6 +72,14 @@ const CHANNEL_LABEL: Record<ColorEncoderChannel, string> = {
   brightness: "brightness",
   saturation: "saturation",
   opacity: "opacity",
+};
+
+/** The caption under the lights. Abbreviated to fit inside a 50px knob. */
+const CHANNEL_CAPTION: Record<ColorEncoderChannel, string> = {
+  hue: "HUE",
+  brightness: "BRIGHT",
+  saturation: "SAT",
+  opacity: "OPAC",
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -101,6 +121,8 @@ export type ColorEncoderProps = {
   /** Which lights the dial has, in order. Defaults to hue/brightness/saturation. */
   channels?: ColorEncoderChannel[];
   className?: string;
+  /** Which light is lit on load. Defaults to the first channel. */
+  defaultChannel?: ColorEncoderChannel;
   demoTooltip?: string;
   demoTooltipTitle?: string;
   disabled?: boolean;
@@ -126,6 +148,7 @@ export function ColorEncoder({
   ariaLabel,
   channels = COLOR_ENCODER_CHANNELS,
   className,
+  defaultChannel,
   demoTooltip,
   demoTooltipTitle,
   disabled = false,
@@ -142,13 +165,17 @@ export function ColorEncoder({
   const labelId = useId();
   const incoming = useMemo(() => normalizeHsva(value), [value]);
 
-  const [internalChannel, setInternalChannel] = useState<ColorEncoderChannel>(channels[0]);
+  const [internalChannel, setInternalChannel] = useState<ColorEncoderChannel>(
+    defaultChannel && channels.includes(defaultChannel) ? defaultChannel : channels[0],
+  );
   const channel = activeChannel && channels.includes(activeChannel) ? activeChannel : internalChannel;
   // A caller that narrows `channels` must not leave the dial pointing at a
   // light that is no longer rendered.
   useEffect(() => {
-    if (!channels.includes(internalChannel)) setInternalChannel(channels[0]);
-  }, [channels, internalChannel]);
+    if (!channels.includes(internalChannel)) {
+      setInternalChannel(defaultChannel && channels.includes(defaultChannel) ? defaultChannel : channels[0]);
+    }
+  }, [channels, defaultChannel, internalChannel]);
 
   const [angle, setAngle] = useState(0);
   const [pressed, setPressed] = useState(false);
@@ -162,7 +189,18 @@ export function ColorEncoder({
   if (!sameStoredColour(valueRef.current, incoming)) valueRef.current = incoming;
   const normalized = valueRef.current;
   const dragRef = useRef<{ x: number; y: number; travel: number } | null>(null);
-  const hapticsRef = useRef(new SliderHapticController());
+  const hapticRef = useRef({ at: 0, travel: 0 });
+
+  /** One click per HAPTIC_TRAVEL_PX of turn, and never inside the floor. */
+  const tick = (pixels: number) => {
+    const haptic = hapticRef.current;
+    haptic.travel += Math.abs(pixels);
+    const now = typeof performance === "undefined" ? Date.now() : performance.now();
+    if (haptic.travel < HAPTIC_TRAVEL_PX || now - haptic.at < HAPTIC_MIN_INTERVAL_MS) return;
+    haptic.travel = 0;
+    haptic.at = now;
+    selectionHaptic();
+  };
 
   const dialSize = clamp(Math.round(size), COLOR_ENCODER_MIN_SIZE, COLOR_ENCODER_MAX_SIZE);
   const withAlpha = channels.includes("opacity");
@@ -199,7 +237,8 @@ export function ColorEncoder({
         event.currentTarget.setPointerCapture(event.pointerId);
         dragRef.current = { x: event.clientX, y: event.clientY, travel: 0 };
         setPressed(true);
-        hapticsRef.current.start({ value: channelValue(valueRef.current, channel) });
+        hapticRef.current = { at: typeof performance === "undefined" ? Date.now() : performance.now(), travel: 0 };
+        selectionHaptic();
       },
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
         const drag = dragRef.current;
@@ -212,14 +251,13 @@ export function ColorEncoder({
         if (dx === 0 && dy === 0) return;
         // Right and up turn the value up, left and down turn it down; a
         // diagonal sums the two.
-        const next = nudge(dx - dy, event.shiftKey || event.altKey);
-        hapticsRef.current.move(Math.abs(dx - dy) / dialSize, { value: channelValue(next, channel) });
+        nudge(dx - dy, event.shiftKey || event.altKey);
+        tick(dx - dy);
       },
       onPointerUp: () => {
         const drag = dragRef.current;
         dragRef.current = null;
         setPressed(false);
-        hapticsRef.current.stop();
         if (!drag) return;
         if (drag.travel < TAP_MOVE_THRESHOLD_PX) {
           cycleChannel();
@@ -230,7 +268,6 @@ export function ColorEncoder({
       onPointerCancel: () => {
         dragRef.current = null;
         setPressed(false);
-        hapticsRef.current.stop();
       },
       onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
         const step = event.shiftKey ? KEY_STEP_FINE_PX : KEY_STEP_PX;
@@ -304,6 +341,7 @@ export function ColorEncoder({
             />
           ))}
         </span>
+        <span className="color-encoder-channel">{CHANNEL_CAPTION[channel]}</span>
       </div>
       {name ? <input type="hidden" name={name} value={hsvaToFormValue(normalized, format, withAlpha)} /> : null}
     </div>

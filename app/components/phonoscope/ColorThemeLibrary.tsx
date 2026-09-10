@@ -60,7 +60,6 @@ export function ColorThemeLibrary({
   soloId: string;
   onSolo: (themeId: string) => void;
 }) {
-  const [activeSlot, setActiveSlot] = useState<string | null>(null);
   // One lock for the whole library: only one name can have focus at a time, and
   // moving between two of them blurs the first before focusing the second.
   const editLock = useEditLock();
@@ -135,16 +134,7 @@ export function ColorThemeLibrary({
                   const value = theme.colors[slot.id] ?? defaultColor(slot);
                   const slotKey = `${theme.id}:${slot.id}`;
                   return (
-                    <ColorWidget
-                      key={slot.id}
-                      active={activeSlot === slotKey}
-                      detail={`rgb ${value.rgb.map(Math.round).join(" ")}`}
-                      label={slot.label}
-                      rgb={value.rgb}
-                      intensity={value.intensity}
-                      swatchOpacity={value.opacity / 100}
-                      onToggle={() => setActiveSlot(activeSlot === slotKey ? null : slotKey)}
-                    >
+                    <ColorWidget key={slot.id} label={slot.label}>
                       {/*
                         One dial carries hue, brightness (the stored
                         intensity), saturation and opacity

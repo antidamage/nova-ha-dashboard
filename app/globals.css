@@ -2866,29 +2866,6 @@ button.config-breadcrumb-crumb:focus-visible {
   box-shadow: 0 0 18px rgb(var(--cyber-cyan-rgb) / 0.38) !important;
 }
 
-.theme-display-card,
-.theme-choice-tab {
-  border-color: var(--cyber-border-dim) !important;
-  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
-}
-
-.theme-display-card {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  min-height: 76px;
-  padding: 10px !important;
-  color: var(--cyber-title-on-bg) !important;
-}
-
-.theme-display-card-active,
-.theme-choice-tab-active {
-  border-color: var(--cyber-cyan) !important;
-  background: rgb(var(--cyber-cyan-rgb) / 0.11) !important;
-  color: var(--cyber-title-on-cyan) !important;
-}
-
 .theme-choice-tab[aria-selected="true"],
 .theme-choice-tab[data-active="true"],
 .theme-scope-tab-active {
@@ -2909,143 +2886,38 @@ button.config-breadcrumb-crumb:focus-visible {
   text-shadow: 0 0 1px var(--cyber-title-glow-cyan) !important;
 }
 
-.theme-choice-tab[aria-selected="true"] .theme-display-detail,
-.theme-choice-tab[data-active="true"] .theme-display-detail,
-.theme-scope-tab-active .theme-display-detail {
-  color: var(--cyber-title-on-bg) !important;
-  opacity: 0.78;
-}
-
-.theme-display-card-active .zone-title-bar {
-  background: var(--cyber-cyan);
-  color: var(--cyber-title-on-cyan) !important;
-  -webkit-text-fill-color: var(--cyber-title-on-cyan) !important;
-  text-shadow: 0 0 1px var(--cyber-title-glow-cyan) !important;
-}
-
-.theme-inline-editor-reveal {
-  max-height: 1200px;
-  overflow: hidden;
-  animation: theme-inline-editor-reveal 540ms cubic-bezier(0.2, 0.9, 0.25, 1)
-    both;
-}
-
-.theme-inline-editor {
-  min-width: 0;
-}
-
 /* Collapsed colour chips run left-to-right and wrap naturally at the edge. */
+/* One colour slot, inline. The dial replaces the swatch card that used to open
+   a modal (Adeline, 2026-09-11), so the cell itself now carries the framing.
+   It sizes to the dial and grows only for slots that carry extra controls. */
+.theme-widget-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 132px;
+  padding: 12px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+}
+
+.theme-widget-cell .config-color-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Extras (a toggle, a shared-opacity or size slider) sit under the dial and
+   take the cell's full width rather than the dial's. */
+.theme-widget-cell .config-color-editor > *:not(.config-color-encoder) {
+  width: 100%;
+}
+
 .theme-widget-flow {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
-}
-
-/* A centred card, not a full-screen sheet.
- *
- * It used to be `width: 100%; height: 100dvh` over a `stretch` overlay, which
- * covered the viewport edge to edge -- so there was no backdrop left to click
- * and "tap outside to dismiss" could never fire, even though ModalOverlay has
- * always wired it up. Sized generously and scrollable so it is still usable
- * under a finger on the wall kiosk. */
-.theme-colour-popover {
-  width: min(560px, 92vw);
-  max-height: min(86dvh, 900px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  background: var(--cyber-panel);
-  border: 1px solid var(--cyber-border-dim);
-}
-
-.modal-overlay.theme-colour-overlay {
-  /* Inherits the shared layer's centring. Half-opaque rather than the shared
-     0.78 so the picture behind stays readable while you match a colour to it. */
-  background: rgb(0 0 0 / 0.5);
-}
-
-.theme-colour-popover-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  background: var(--cyber-panel);
-  border-bottom: 1px solid var(--cyber-border-dim);
-}
-
-.theme-colour-popover-close {
-  border: 1px solid var(--cyber-border-dim);
-  padding: 7px 10px;
-  color: var(--cyber-line);
-  font-family: var(--cyber-mono);
-  font-size: 0.75rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-/* A colour editor reads top-to-bottom: spectrum first, then its sliders. */
-.theme-colour-popover .config-color-editor {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-@keyframes theme-inline-editor-reveal {
-  from {
-    max-height: 0;
-  }
-
-  to {
-    max-height: 1200px;
-  }
-}
-
-.theme-display-swatch {
-  display: block;
-  height: 44px;
-  width: 44px;
-  border-color: rgb(var(--cyber-line-rgb) / 0.55) !important;
-  box-shadow: inset 0 0 0 6px var(--cyber-panel);
-}
-
-.theme-display-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.theme-display-label,
-.theme-choice-tab {
-  font-family: var(--cyber-mono);
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.theme-display-label {
-  font-size: clamp(0.72rem, 2vw, 0.9rem);
-  line-height: 1;
-}
-
-.theme-display-card .zone-title-bar,
-.cyber-checkbox-row .zone-title-bar {
-  width: max-content;
-  max-width: 100%;
-  padding: 4px 8px 3px 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.theme-display-detail {
-  color: var(--cyber-muted);
-  font-family: var(--cyber-mono);
-  font-size: 0.68rem;
-  text-transform: uppercase;
 }
 
 /* --- Per-widget colour copy / paste actions ----------------------------- */
@@ -3737,13 +3609,6 @@ button.config-breadcrumb-crumb:focus-visible {
 .cyber-mini-checkbox-input:focus-visible + .cyber-mini-checkbox {
   outline: 2px solid var(--cyber-cyan);
   outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-inline-editor-reveal {
-    animation: none;
-    max-height: none;
-  }
 }
 
 .router-panel {
@@ -6491,7 +6356,7 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   --ce-ring-outer: calc(var(--ce-size) + 2 * var(--ce-ring));
   --ce-led-w: max(3px, calc(var(--ce-size) * 0.048));
   --ce-tint: var(--background, #050608);
-  --ce-led-on: var(--cyber-highlight, #22d3ee);
+  --ce-led-on: #ffffff;
   --ce-checker-a: #c4c5c9;
   --ce-checker-b: #7a7b80;
   --ce-color: #ffffff;
@@ -6695,6 +6560,24 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   border-radius: 0;
 }
 
+/* Names the channel the lights are showing. A channel name, not a value — the
+   ring stays the only readout. Clamped 10-14px so it is legible in a 50px knob
+   and does not balloon in a 200px one (Adeline, 2026-09-11). */
+.color-encoder-dial > .color-encoder-channel {
+  top: calc(50% + var(--ce-led-w) + calc(var(--ce-size) * 0.055));
+  transform: translate(-50%, 0);
+  border-radius: 0;
+  color: var(--cyber-text, #e5e7eb);
+  font-size: clamp(10px, calc(var(--ce-size) * 0.075), 14px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0.16em;
+  white-space: nowrap;
+  opacity: 0.78;
+}
+
 .color-encoder-led {
   width: var(--ce-led-w);
   height: calc(var(--ce-led-w) * 2);
@@ -6704,11 +6587,17 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   transition: background 160ms linear, box-shadow 160ms linear;
 }
 
+/* The lit light is white, and glows white. Adeline, 2026-09-11: at 50px the
+   light is 3px wide, and a tinted light that small does not read — white is the
+   only fill that carries at every size the dial scales to. The glow keeps a px
+   floor for the same reason: a radius derived purely from the light's width
+   disappears along with it. */
 .color-encoder-led[data-lit="true"] {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--ce-led-on) 78%, #fff 22%), var(--ce-led-on));
+  background: linear-gradient(180deg, #ffffff, #eef2f6);
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
-    0 0 calc(var(--ce-led-w) * 1.6) calc(var(--ce-led-w) * 0.4) color-mix(in srgb, var(--ce-led-on) 55%, transparent);
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 0 max(4px, calc(var(--ce-led-w) * 1.3)) max(1px, calc(var(--ce-led-w) * 0.35)) rgba(255, 255, 255, 0.9),
+    0 0 max(9px, calc(var(--ce-led-w) * 3)) max(2px, calc(var(--ce-led-w) * 0.9)) rgba(255, 255, 255, 0.45);
 }
 
 @media (prefers-reduced-motion: reduce) {
