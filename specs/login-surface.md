@@ -351,6 +351,18 @@ whose `last_seen` is older than the timeout. Enforcement is server-side, so a
 closed tab, a killed browser or a client that simply stops heartbeating all
 reach the same end.
 
+**Landing somewhere sane when it fires.** Termination happens server-side with
+nothing to tell an open tab it happened, and Caddy's forward-auth gate answers
+an unauthenticated hit on `/config*` with a 302 into authentik's own hosted
+login screen — correct, but a stark place to land from a page that still looks
+open. `ConfigWorkspace` polls `/api/auth/whoami` (the same bare-401 probe
+`GatedLink` uses — it never redirects, so it's safe to call from a fetch)
+every 60 seconds and on tab-visibility regain, and sends the browser to `/`
+itself the moment the session is gone, rather than waiting for a later reload
+to hit the gate. Same destination the explicit sign-out flow uses (see
+`dashboard-invalidation` above) — a session ending, however it ends, always
+surfaces on the dashboard's own front page, never on authentik's.
+
 `standard` sessions are not tracked and are not swept.
 
 ### Assigning profiles to surfaces
