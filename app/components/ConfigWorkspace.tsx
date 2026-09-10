@@ -9,7 +9,16 @@ import type { DashboardConfig } from "../../lib/config-schema";
 import type { AppleTvSwipeSettings } from "../../lib/appletv-swipe";
 import type { AgentPreferences, VoicePreferences, WatchfacePreferences } from "../../lib/types";
 import type { SunThemeStatus, ThemeStorageValue } from "./accentColor";
-import { ConfigAccordion } from "./ConfigControls";
+import { CONFIG_ACCORDION_CLOSE_EVENT, CONFIG_ACCORDION_OPEN_EVENT, ConfigAccordion } from "./ConfigControls";
+import { ConfigBreadcrumb } from "./ConfigBreadcrumbBar";
+import {
+  clearPendingBreadcrumbSlugs,
+  computeOpenAccordionChain,
+  getPendingBreadcrumb,
+  scrollToAccordionId,
+  seedPendingBreadcrumb,
+  subscribePendingBreadcrumb,
+} from "./configBreadcrumb";
 import { useHorizontalDragScroll } from "./dashboard/useHorizontalDragScroll";
 import { getActiveConfigCategory, getConfigUiState, setActiveConfigCategory, setConfigScroll } from "./configUiState";
 import { ConfigPreviewBackground, ConfigPreviewBackgroundProvider } from "./ConfigPreviewBackground";
@@ -146,6 +155,10 @@ const CONFIG_CATEGORIES: Array<{
   { id: "system-data", label: "System & Data", detail: "Secrets, transfer, updates and power", icon: Database },
 ];
 
+// Legacy-link translation only, now — the URL's own source of truth is the
+// path (see parseConfigPath/CONFIG_PATH_PREFIX below). This map still covers
+// bookmarks and hard-coded links from before the breadcrumb path existed
+// (UpdateBanner's /config#updates, chiefly), translated once on initial load.
 const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   agent: "assistant",
   assistant: "assistant",
@@ -176,9 +189,43 @@ const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   system: "system-data",
 };
 
-function categoryFromHash(): ConfigCategoryId | null {
-  if (typeof window === "undefined") return null;
-  return HASH_CATEGORY[window.location.hash.replace(/^#/, "")] ?? null;
+const CONFIG_PATH_PREFIX = "/config";
+
+/** Parse "/config/<category>/<slug>/<slug>/..." into its category and slug chain. */
+function parseConfigPath(pathname: string): { category: ConfigCategoryId | null; slugs: string[] } {
+  const withoutTrailingSlash = pathname.replace(/\/+$/, "");
+  const rest = withoutTrailingSlash.startsWith(CONFIG_PATH_PREFIX)
+    ? withoutTrailingSlash.slice(CONFIG_PATH_PREFIX.length)
+    : "";
+  const [maybeCategory, ...slugs] = rest.split("/").filter(Boolean);
+  const category = CONFIG_CATEGORIES.some(({ id }) => id === maybeCategory)
+    ? (maybeCategory as ConfigCategoryId)
+    : null;
+  return { category, slugs: category ? slugs : [] };
+}
+
+/** True when the current URL (path or legacy hash) names a specific section to open. */
+function hasDeepLinkTarget(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (parseConfigPath(window.location.pathname).slugs.length > 0) {
+    return true;
+  }
+  const hashKey = window.location.hash.replace(/^#/, "");
+  return hashKey.length > 0 && Boolean(HASH_CATEGORY[hashKey]);
+}
+
+/** Rewrite the URL's pathname to match the open accordion chain, trailing slash included. */
+function syncConfigPath(category: ConfigCategoryId | null, chain: string[]) {
+  const path = category ? `${CONFIG_PATH_PREFIX}/${[category, ...chain].join("/")}/` : `${CONFIG_PATH_PREFIX}/`;
+  const current = new URL(window.location.href);
+  if (current.pathname === path) {
+    return;
+  }
+  // Never pushState: folding/unfolding replaces the current history entry,
+  // matching the category-switch behaviour this replaces.
+  window.history.replaceState(window.history.state, "", `${path}${current.search}`);
 }
 
 function ToolbarButton({
@@ -261,16 +308,111 @@ export function ConfigWorkspace({
     }
   }, []);
 
+  // Resolve the initial category (and seed the deep-link slug queue) once from
+  // the URL on mount. The path is the source of truth from here on — there is
+  // no hashchange listener any more, because folding/unfolding now rewrites
+  // the path instead of the hash (see the chain-sync effect below).
   useEffect(() => {
-    const selectFromLocation = () => {
-      const fromHash = categoryFromHash();
-      const remembered = getActiveConfigCategory();
-      const next = fromHash ?? (CONFIG_CATEGORIES.some(({ id }) => id === remembered) ? remembered as ConfigCategoryId : null);
-      setActiveCategory(next);
+    const { category: pathCategory, slugs } = parseConfigPath(window.location.pathname);
+    if (pathCategory) {
+      setActiveCategory(pathCategory);
+      if (slugs.length > 0) {
+        seedPendingBreadcrumb(slugs);
+      }
+      return;
+    }
+
+    // Legacy compat: a bare /config with a hash (UpdateBanner's /config#updates,
+    // or an old bookmark) predates the path scheme. Translate it once instead
+    // of maintaining a separate redirect table.
+    const hashKey = window.location.hash.replace(/^#/, "");
+    const hashCategory = HASH_CATEGORY[hashKey];
+    if (hashCategory) {
+      setActiveCategory(hashCategory);
+      if (hashKey !== hashCategory) {
+        seedPendingBreadcrumb([hashKey]);
+      }
+      return;
+    }
+
+    const remembered = getActiveConfigCategory();
+    setActiveCategory(CONFIG_CATEGORIES.some(({ id }) => id === remembered) ? (remembered as ConfigCategoryId) : null);
+  }, []);
+
+  // Recompute the open-accordion chain and rewrite the URL whenever an
+  // accordion opens or closes, or the active category changes. This covers
+  // both an ordinary fold/unfold and the deep-link resolution pass above:
+  // each matched accordion opens itself via openExclusively, which dispatches
+  // the same open event this listens for.
+  useEffect(() => {
+    const syncUrl = () => syncConfigPath(activeCategory, computeOpenAccordionChain());
+    let pendingFrame = 0;
+    // The open/close events are dispatched synchronously right after
+    // setOpen(...), i.e. before React has committed that state to the DOM
+    // (the .config-accordion-open class computeOpenAccordionChain reads).
+    // Deferring the read by a frame lets the commit and paint land first;
+    // the pending-frame guard coalesces multiple events in the same tick
+    // into a single scheduled read.
+    const scheduleSync = () => {
+      if (pendingFrame) {
+        return;
+      }
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = 0;
+        syncUrl();
+      });
     };
-    selectFromLocation();
-    window.addEventListener("hashchange", selectFromLocation);
-    return () => window.removeEventListener("hashchange", selectFromLocation);
+    syncUrl();
+    window.addEventListener(CONFIG_ACCORDION_OPEN_EVENT, scheduleSync);
+    window.addEventListener(CONFIG_ACCORDION_CLOSE_EVENT, scheduleSync);
+    return () => {
+      window.removeEventListener(CONFIG_ACCORDION_OPEN_EVENT, scheduleSync);
+      window.removeEventListener(CONFIG_ACCORDION_CLOSE_EVENT, scheduleSync);
+      if (pendingFrame) {
+        window.cancelAnimationFrame(pendingFrame);
+      }
+    };
+  }, [activeCategory]);
+
+  // Auto-scroll to the deepest section only once the whole requested deep-link
+  // chain has resolved — not once per intermediate level, which would jump the
+  // page repeatedly as Phonoscope's async accordions mount one at a time.
+  const chainResolvedScrolledRef = useRef(false);
+  useEffect(() => {
+    const checkResolved = () => {
+      const pending = getPendingBreadcrumb();
+      if (pending.slugs.length === 0 && pending.resolvedIds.length > 0 && !chainResolvedScrolledRef.current) {
+        chainResolvedScrolledRef.current = true;
+        scrollToAccordionId(pending.resolvedIds[pending.resolvedIds.length - 1]);
+      }
+    };
+    checkResolved();
+    return subscribePendingBreadcrumb(checkResolved);
+  }, []);
+
+  // Give up silently on a stale/deleted/mistyped segment rather than waiting
+  // forever: if nothing has matched for a few seconds, drop whatever remains
+  // unmatched and leave the resolved prefix open. Restarts on every match, so
+  // Phonoscope's slow-to-mount dynamic accordions get the full window each.
+  useEffect(() => {
+    let timer: number | undefined;
+    const scheduleGiveUp = () => {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+      if (getPendingBreadcrumb().slugs.length === 0) {
+        return;
+      }
+      timer = window.setTimeout(() => clearPendingBreadcrumbSlugs(), 4000);
+    };
+    scheduleGiveUp();
+    const unsubscribe = subscribePendingBreadcrumb(scheduleGiveUp);
+    return () => {
+      unsubscribe();
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -287,7 +429,7 @@ export function ConfigWorkspace({
       return;
     }
     scrollRestoredRef.current = true;
-    if (categoryFromHash()) {
+    if (hasDeepLinkTarget()) {
       return;
     }
     const state = getConfigUiState();
@@ -358,11 +500,13 @@ export function ConfigWorkspace({
       document.activeElement.blur();
     }
     const next = activeCategory === category ? null : category;
+    // A manual category switch abandons any unresolved deep-link chain from
+    // the initial load — the new category's accordion tree starts fresh, and
+    // the chain-sync effect (keyed on activeCategory) rewrites the URL to the
+    // bare category path once it re-runs.
+    seedPendingBreadcrumb([]);
     setActiveCategory(next);
     setActiveConfigCategory(next);
-    const url = new URL(window.location.href);
-    url.hash = next ?? "";
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
     if (next) {
       window.requestAnimationFrame(() => document.getElementById("config-category-content")?.scrollIntoView?.({ block: "start" }));
     }
@@ -408,6 +552,8 @@ export function ConfigWorkspace({
             );
           })}
         </nav>
+
+        <ConfigBreadcrumb activeCategory={activeCategory} categoryLabel={activeMeta?.label ?? null} />
 
         {activeCategory ? (
           <div id="config-category-content" className="config-category-content grid gap-4" data-category={activeCategory}>

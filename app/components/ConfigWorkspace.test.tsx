@@ -65,7 +65,7 @@ describe("ConfigWorkspace", () => {
     expect(await screen.findByRole("button", { name: /^identity$/i })).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /validate/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /back to dashboard/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /back to dashboard/i })[0]).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /cancel configuration/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /save configuration/i })).not.toBeInTheDocument();
 
@@ -94,7 +94,7 @@ describe("ConfigWorkspace", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^assistant/i }));
     await screen.findByRole("button", { name: /^identity$/i });
-    fireEvent.click(screen.getByRole("button", { name: /back to dashboard/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /back to dashboard/i })[0]);
 
     expect(routerPush).toHaveBeenCalledWith("/");
     await waitFor(() =>
@@ -125,5 +125,27 @@ describe("ConfigWorkspace", () => {
     fireEvent.change(screen.getByLabelText("Config import file"), { target: { files: [file] } });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/config", expect.objectContaining({ method: "PUT" })));
+  });
+
+  it("syncs the URL to the post-commit accordion state, not the pre-commit one", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+      json: async () => url === "/api/update" ? updateStatus : { config, secrets },
+      ok: true,
+    })));
+
+    render(<ConfigWorkspace />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^assistant/i }));
+    await screen.findByRole("button", { name: /^identity$/i });
+
+    // The accordion-open/close events fire synchronously right after
+    // setOpen(...), before React commits the state change that adds the
+    // `.config-accordion-open` class the URL sync reads. Opening "Identity"
+    // here should NOT be reflected in the URL in the same tick — only after
+    // the deferred (rAF) read runs following commit + paint.
+    fireEvent.click(screen.getByRole("button", { name: "Identity" }));
+    expect(window.location.pathname).not.toBe("/config/assistant/identity/");
+
+    await waitFor(() => expect(window.location.pathname).toBe("/config/assistant/identity/"));
   });
 });

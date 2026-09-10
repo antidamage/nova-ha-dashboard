@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const env = Object.fromEntries(Object.entries({
@@ -44,6 +44,18 @@ try {
   });
   if (code === 0) {
     await writeFile(path.join(process.cwd(), "out", ".nojekyll"), "");
+
+    // GitHub Pages SPA-fallback trick: the static export only covers the
+    // config paths generateStaticParams knew about at build time (see
+    // app/components/configStaticTree.ts) — chiefly, it can't enumerate
+    // Phonoscope's dynamic, data-dependent accordions. Any other /config/*
+    // path 404s server-side on GitHub Pages, which serves this file back;
+    // overwriting Next's own generic 404.html with the built config page's
+    // shell lets ConfigWorkspace's client-side pending-breadcrumb queue
+    // (configBreadcrumb.ts) take over from there and resolve the rest of the
+    // path exactly as it would on a real cold load.
+    const outDir = path.join(process.cwd(), "out");
+    await copyFile(path.join(outDir, "config", "index.html"), path.join(outDir, "404.html"));
   }
 } finally {
   await restoreApiDir();
