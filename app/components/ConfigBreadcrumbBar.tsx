@@ -28,9 +28,12 @@ function accordionTitle(id: string): string {
 export function ConfigBreadcrumb({
   activeCategory,
   categoryLabel,
+  onSelectRoot,
 }: {
   activeCategory: string | null;
   categoryLabel: string | null;
+  /** Clicking the root crumb backs out to the category menu. */
+  onSelectRoot: () => void;
 }) {
   const [chain, setChain] = useState<string[]>([]);
   const navRef = useRef<HTMLElement | null>(null);
@@ -67,14 +70,26 @@ export function ConfigBreadcrumb({
     return null;
   }
 
+  // Just the category, no accordion open yet: the trail isn't telling you
+  // anything a glance at the page header doesn't already. Fade it out rather
+  // than unmount it, so it doesn't pop in with a layout jump the moment the
+  // first accordion opens.
+  const isShallow = chain.length === 0;
+
   return (
     <nav
       ref={navRef}
-      className="config-breadcrumb"
+      className={`config-breadcrumb ${isShallow ? "config-breadcrumb-shallow" : ""}`}
       aria-label="Configuration section path"
       data-nova-no-drag-scroll
     >
-      <span className="config-breadcrumb-crumb config-breadcrumb-root">{categoryLabel ?? activeCategory}</span>
+      <button
+        type="button"
+        className="config-breadcrumb-crumb config-breadcrumb-root"
+        onClick={onSelectRoot}
+      >
+        {categoryLabel ?? activeCategory}
+      </button>
       {chain.map((id) => (
         <span key={id} className="config-breadcrumb-segment">
           <ChevronRight className="config-breadcrumb-chevron h-3.5 w-3.5" aria-hidden="true" />
