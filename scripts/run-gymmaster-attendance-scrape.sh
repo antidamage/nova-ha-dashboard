@@ -24,11 +24,19 @@ if command -v flock >/dev/null 2>&1; then
   fi
 fi
 
+# Only forward a dashboard URL when one is set in this shell. Passing a default
+# here overrode GYMMASTER_DASHBOARD_URL from --env-file, which sent every write
+# to the port-80 catch-all instead of the dashboard on :3001.
+DASHBOARD_URL_ARGS=()
+if [[ -n "${GYMMASTER_DASHBOARD_URL:-}" ]]; then
+  DASHBOARD_URL_ARGS=(-e "GYMMASTER_DASHBOARD_URL=$GYMMASTER_DASHBOARD_URL")
+fi
+
 docker run --rm \
   --network host \
   --env-file "$ENV_FILE" \
   -e TZ=Pacific/Auckland \
-  -e GYMMASTER_DASHBOARD_URL="${GYMMASTER_DASHBOARD_URL:-http://127.0.0.1}" \
+  "${DASHBOARD_URL_ARGS[@]}" \
   -e GYMMASTER_DATA_DIR=/gymmaster-data \
   -e NOVA_DASHBOARD_PREFERENCES=/dashboard-data/dashboard-preferences.json \
   -v "$APP_DIR:/app:ro" \

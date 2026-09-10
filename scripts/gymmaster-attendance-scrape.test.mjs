@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertWatchfaceEcho,
   extractVisitCandidatesFromJson,
   extractVisitCandidatesFromText,
   pickLatestVisitCandidate,
@@ -48,5 +49,35 @@ describe("GymMaster attendance scrape parsing", () => {
     );
 
     expect(candidates.map((candidate) => candidate.raw)).toEqual(["03-06-2026"]);
+  });
+});
+
+describe("dashboard watchface write verification", () => {
+  const jsonResponse = (body, ok = true) => ({
+    ok,
+    status: ok ? 200 : 500,
+    json: async () => body,
+  });
+
+  it("accepts a response that echoes the value back", async () => {
+    await expect(
+      assertWatchfaceEcho(jsonResponse({ watchface: { gymLastResetAt: "2026-09-07T09:21:00.000Z" } }), "2026-09-07T09:21:00.000Z"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects the port-80 catch-all that answers 200 with an empty body", async () => {
+    await expect(
+      assertWatchfaceEcho({ ok: true, status: 200, json: async () => { throw new Error("Unexpected end of JSON input"); } }, "2026-09-07T09:21:00.000Z"),
+    ).rejects.toThrow(/did not reach/);
+  });
+
+  it("rejects a stale echo", async () => {
+    await expect(
+      assertWatchfaceEcho(jsonResponse({ watchface: { gymLastResetAt: "2026-08-30T09:47:00.000Z" } }), "2026-09-07T09:21:00.000Z"),
+    ).rejects.toThrow(/expected/);
+  });
+
+  it("rejects a non-ok response", async () => {
+    await expect(assertWatchfaceEcho(jsonResponse({}, false), "2026-09-07T09:21:00.000Z")).rejects.toThrow(/HTTP 500/);
   });
 });

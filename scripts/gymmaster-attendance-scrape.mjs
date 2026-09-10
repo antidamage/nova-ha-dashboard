@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 
 const DEFAULT_PORTAL_URL = "https://allfit.gymmasteronline.com/portal/account/visithistory";
 const DEFAULT_DATA_DIR = path.resolve("data", "gymmaster");
-const DEFAULT_DASHBOARD_URL = "http://127.0.0.1:3000";
+const DEFAULT_DASHBOARD_URL = "http://127.0.0.1:3001";
 const DEFAULT_TIME_ZONE = "Pacific/Auckland";
 const LOGIN_TIMEOUT_MS = 90_000;
 const PAGE_TIMEOUT_MS = 60_000;
@@ -568,6 +568,25 @@ async function updatePreferenceFile(preferencesPath, lastVisitAt) {
   return { method: "preferences-file", preferencesPath };
 }
 
+// A bare 200 is not proof the dashboard saw the write: 127.0.0.1:80 is a Caddy
+// catch-all that answers 200 with an empty body to any path, which silently
+// froze the gym tile for eleven days. Require the route to echo the value back.
+export async function assertWatchfaceEcho(response, lastVisitAt) {
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("dashboard returned a non-JSON body; the request did not reach /api/watchface");
+  }
+  const echoed = payload?.watchface?.gymLastResetAt ?? null;
+  if (echoed !== lastVisitAt) {
+    throw new Error(`dashboard echoed gymLastResetAt=${JSON.stringify(echoed)}, expected ${JSON.stringify(lastVisitAt)}`);
+  }
+}
+
 async function updateDashboardWatchface(lastVisitAt, { dashboardUrl, preferencesPath }) {
   let apiError = null;
   if (dashboardUrl && dashboardUrl.toLowerCase() !== "none") {
@@ -577,9 +596,7 @@ async function updateDashboardWatchface(lastVisitAt, { dashboardUrl, preferences
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      await assertWatchfaceEcho(response, lastVisitAt);
       return { method: "dashboard-api", url: new URL("/api/watchface", dashboardUrl).toString() };
     } catch (error) {
       apiError = error instanceof Error ? error.message : String(error);
