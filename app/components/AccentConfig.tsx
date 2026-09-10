@@ -2052,8 +2052,9 @@ export function AccentConfig({
           <ThemeVariantTabs value={editingVariant} onChange={setEditingVariant} />
 
           <div role="tabpanel" aria-label={`${THEME_VARIANT_LABELS[editingVariant]} theme settings`}>
-            <ConfigAccordion title="Theme Settings" icon={<SlidersHorizontal className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-sub-accordion">
+            <ConfigAccordion id="theme-settings" title="Theme Settings" icon={<SlidersHorizontal className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-sub-accordion">
           <ConfigAccordion
+            id="theme-colours"
             title="Theme Colours"
             icon={<Palette className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"
@@ -2090,6 +2091,7 @@ export function AccentConfig({
           </ConfigAccordion>
 
           <ConfigAccordion
+            id="fonts"
             title="Fonts"
             icon={<Type className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"
@@ -2140,6 +2142,7 @@ export function AccentConfig({
           </ConfigAccordion>
 
           <ConfigAccordion
+            id="status-orb"
             title="Status Orb"
             icon={<CircleDot className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"
@@ -2154,6 +2157,7 @@ export function AccentConfig({
           </ConfigAccordion>
 
           <ConfigAccordion
+            id="background"
             title="Background"
             icon={<ImageIcon className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"
@@ -2191,6 +2195,7 @@ export function AccentConfig({
           </ConfigAccordion>
 
           <ConfigAccordion
+            id="map"
             title="Map"
             icon={<MapIcon className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"
@@ -2229,6 +2234,7 @@ export function AccentConfig({
           </ConfigAccordion>
 
           <ConfigAccordion
+            id="theme-reminders"
             title="Reminders"
             icon={<Bell className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"
@@ -2247,6 +2253,7 @@ export function AccentConfig({
           </ConfigAccordion>
 
           <ConfigAccordion
+            id="sound"
             title="Sound"
             icon={<Volume2 className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
             className="config-sub-accordion"

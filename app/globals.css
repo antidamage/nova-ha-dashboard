@@ -2528,6 +2528,70 @@ html.nova-header-controls-disabled .dashboard-reload-link {
   pointer-events: none;
 }
 
+/* Floating "where am I" breadcrumb over the config page — same fixed-top
+   pattern as .dashboard-config-link/.dashboard-reload-link (top offset +
+   safe-area inset, centred instead of edge-anchored), same dark-panel
+   language as .config-page-button/.config-category-button. Purely a jump-to
+   readout: crumbs are plain buttons, see ConfigBreadcrumb.tsx. */
+.config-breadcrumb {
+  position: fixed !important;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+  cursor: grab;
+  border: 1px solid rgb(64 64 64);
+  background: rgb(10 10 10 / 0.7);
+  padding: 6px 10px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  scrollbar-width: none;
+}
+
+.config-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.config-breadcrumb-segment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.config-breadcrumb-chevron {
+  color: rgb(163 163 163);
+  flex-shrink: 0;
+}
+
+.config-breadcrumb-crumb {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--cyber-title-on-bg);
+}
+
+.config-breadcrumb-root {
+  color: rgb(163 163 163);
+}
+
+button.config-breadcrumb-crumb:hover,
+button.config-breadcrumb-crumb:focus-visible {
+  color: var(--cyber-cyan);
+  outline: none;
+  cursor: pointer;
+}
+
 .config-import-export-actions {
   display: flex;
   flex-wrap: wrap;

@@ -162,7 +162,7 @@ export function UpdateBanner({ context = "dashboard" }: { context?: "dashboard" 
         A new version is available
         {status.latestShortSha ? <span className="update-banner-sha"> ({status.latestShortSha})</span> : null}.
       </span>
-      <Link className="update-banner-button" href="/config#updates">
+      <Link className="update-banner-button" href="/config/system-data/updates/">
         Update
       </Link>
       <button

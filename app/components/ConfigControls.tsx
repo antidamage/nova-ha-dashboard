@@ -7,6 +7,11 @@ import {
   themeRgbAtPosition,
   type ThemeColorValue,
 } from "./accentColor";
+import {
+  consumePendingBreadcrumbSlug,
+  getPendingBreadcrumb,
+  subscribePendingBreadcrumb,
+} from "./configBreadcrumb";
 import { configAccordionKey, getAccordionOpen, setAccordionOpen } from "./configUiState";
 import { ConfigColorPicker } from "./ConfigColorPicker";
 import { DotEnvelopeControl, DotLineControl, DotRangeControl, type EnvelopeDurations } from "./DotControls";
@@ -14,9 +19,18 @@ import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 
 type DotLineMarker = { active?: boolean; label: string; value: number };
-const CONFIG_ACCORDION_OPEN_EVENT = "nova-config-accordion-open";
+export const CONFIG_ACCORDION_OPEN_EVENT = "nova-config-accordion-open";
+// Mirrors the open event so a fold (not just an unfold) is observable — the
+// breadcrumb chain computation needs to know when the deepest-open leaf
+// collapses, not only when a new one opens.
+export const CONFIG_ACCORDION_CLOSE_EVENT = "nova-config-accordion-close";
 
 type ConfigAccordionOpenDetail = {
+  element: HTMLElement;
+  persistKey: string;
+};
+
+type ConfigAccordionCloseDetail = {
   element: HTMLElement;
   persistKey: string;
 };
@@ -142,6 +156,11 @@ export function ConfigAccordion({
     if (open) {
       setOpen(false);
       setAccordionOpen(persistKey, false);
+      if (sectionRef.current) {
+        window.dispatchEvent(new CustomEvent<ConfigAccordionCloseDetail>(CONFIG_ACCORDION_CLOSE_EVENT, {
+          detail: { element: sectionRef.current, persistKey },
+        }));
+      }
       return;
     }
     // Scrolls only on a real click. The restore-on-return effect below also
@@ -162,6 +181,11 @@ export function ConfigAccordion({
       if (ownParent === openedParent) {
         setOpen(false);
         setAccordionOpen(persistKey, false);
+        if (sectionRef.current) {
+          window.dispatchEvent(new CustomEvent<ConfigAccordionCloseDetail>(CONFIG_ACCORDION_CLOSE_EVENT, {
+            detail: { element: sectionRef.current, persistKey },
+          }));
+        }
       }
     };
 
@@ -170,8 +194,9 @@ export function ConfigAccordion({
   }, [persistKey]);
 
   // Restore the previously-expanded state when returning to /config within the 5-min
-  // window. Runs once and before the hash-target effect below, so a #id deep-link
-  // still wins over a remembered collapsed state.
+  // window. Runs once and before the pending-breadcrumb effect below, so a deep-linked
+  // path still wins over a remembered collapsed state (the effect below opens
+  // exclusively, overriding whatever this one decided).
   useEffect(() => {
     if (restoredRef.current) {
       return;
@@ -185,22 +210,35 @@ export function ConfigAccordion({
     }
   }, [defaultOpen, openExclusively, persistKey]);
 
-  // When navigated to with a matching hash (e.g. the update banner links to
-  // /config#updates), open this section and scroll it into view.
+  // Deep-link resolution: on mount, and whenever the shared pending-breadcrumb
+  // queue changes, check whether this accordion is the queue's next unmatched
+  // slug and its nearest enclosing accordion is the one this same resolution
+  // pass already opened (or it's top-level and this is the first slug). A
+  // match opens it exclusively — without the click-only scroll, since the
+  // whole-chain auto-scroll in ConfigWorkspace handles that once — and
+  // consumes the slug. Runs on mount (not just on queue-change events) so an
+  // accordion that mounts after the queue was seeded — Phonoscope's dynamic
+  // ones, chiefly — still gets checked.
   useEffect(() => {
-    if (!id || typeof window === "undefined") {
+    if (!id) {
       return;
     }
-    const focusIfTargeted = () => {
-      if (window.location.hash === `#${id}`) {
-        // Same deferred scroll as a click: arriving by hash also collapses the
-        // open sibling, so scrolling inline measures a layout about to change.
-        openExclusively({ scrollIntoView: true });
+    const tryConsumePendingSlug = () => {
+      const pending = getPendingBreadcrumb();
+      if (pending.slugs[0] !== id || !sectionRef.current) {
+        return;
       }
+      const ownParent = sectionRef.current.parentElement?.closest(".config-accordion");
+      const expectedParentId = pending.resolvedIds[pending.resolvedIds.length - 1];
+      const isNextTopLevel = !ownParent && expectedParentId === undefined;
+      if (!isNextTopLevel && ownParent?.id !== expectedParentId) {
+        return;
+      }
+      openExclusively();
+      consumePendingBreadcrumbSlug(id);
     };
-    focusIfTargeted();
-    window.addEventListener("hashchange", focusIfTargeted);
-    return () => window.removeEventListener("hashchange", focusIfTargeted);
+    tryConsumePendingSlug();
+    return subscribePendingBreadcrumb(tryConsumePendingSlug);
   }, [id, openExclusively]);
 
   return (
