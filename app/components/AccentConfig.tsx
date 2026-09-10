@@ -213,42 +213,7 @@ function voiceTranscriptSlotKey(slot: VoiceTranscriptConfigSlot) {
   return slot === "voiceTranscript.background" ? "background" : "text";
 }
 
-const CONFIG_WIDGET_STORAGE_KEY = "nova.dashboard.configWidget.v1";
 const TASK_GLOW_PREVIEW_MS = 2600;
-function selectedConfigWidgetFromStorage(): ThemeConfigSlot | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const widget = window.sessionStorage.getItem(CONFIG_WIDGET_STORAGE_KEY);
-    if (widget === "map.buildings") {
-      return "map.buildingLow";
-    }
-    if (widget === "map.majorRoads" || widget === "map.minorRoads") {
-      return "map.roads";
-    }
-    return isThemeConfigSlot(widget) ? widget : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeSelectedConfigWidgetToStorage(widget: ThemeConfigSlot | null) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    if (widget) {
-      window.sessionStorage.setItem(CONFIG_WIDGET_STORAGE_KEY, widget);
-    } else {
-      window.sessionStorage.removeItem(CONFIG_WIDGET_STORAGE_KEY);
-    }
-  } catch {
-    // Browsers can deny storage in private or restricted contexts; selection can still live in React state.
-  }
-}
 
 function removeLegacyConfigWidgetParam() {
   if (typeof window === "undefined") {
@@ -1475,7 +1440,6 @@ export function AccentConfig({
   useAutoFullscreen(autoFullscreen);
   const [experienceFeatures, setExperienceFeature] = useExperienceFeatures();
   const [statusOrbInfoVisible, setStatusOrbInfoVisible] = useStatusOrbInfoSetting();
-  const [activeSlot, setActiveSlot] = useState<ThemeConfigSlot | null>(selectedConfigWidgetFromStorage);
   const [taskReminderAudioExists, setTaskReminderAudioExists] = useState(false);
   const taskAudioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const taskAudioPreviewStopTimer = useRef<number | null>(null);
@@ -1645,14 +1609,6 @@ export function AccentConfig({
     updateSlotColor(slot, clip.value);
   };
 
-  const selectSlot = useCallback((slot: ThemeConfigSlot) => {
-    setActiveSlot((current) => {
-      const next = current === slot ? null : slot;
-      writeSelectedConfigWidgetToStorage(next);
-      return next;
-    });
-  }, []);
-
   const updateBorder = (border: ThemeBorderValue, options: { persist?: boolean } = {}) => {
     setTheme({ ...theme, border }, options);
   };
@@ -1722,12 +1678,10 @@ export function AccentConfig({
     }, TASK_GLOW_PREVIEW_MS);
   }, [previewTaskAudio]);
 
+  // The colour dials are always on screen now, so there is no open widget to
+  // restore — only the legacy ?widget= parameter to sweep out of old links.
   useEffect(() => {
     removeLegacyConfigWidgetParam();
-
-    const onPageShow = () => setActiveSlot(selectedConfigWidgetFromStorage());
-    window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
   useEffect(() => {
@@ -1740,31 +1694,16 @@ export function AccentConfig({
     };
   }, [stopTaskAudioPreview]);
 
-  useEffect(() => {
-    if (theme.radarPaletteMode === "custom" || !isRadarPaletteSlot(activeSlot)) {
-      return;
-    }
-
-    setActiveSlot(null);
-    writeSelectedConfigWidgetToStorage(null);
-  }, [activeSlot, theme.radarPaletteMode]);
-
   const renderWidget = (choice: ThemeSlotChoice) => {
     const value = themeColorForSlot(theme, choice.slot);
     const rgb = choice.slot === "border" ? borderRgb : appliedThemeRgb(value);
-    const active = activeSlot === choice.slot;
     const isBuilding = choice.slot === "map.buildingLow" || choice.slot === "map.buildingHigh";
     const isLabels = choice.slot === "map.labels";
     const isWater = choice.slot === "map.water";
     return (
       <ColorWidget
         key={choice.slot}
-        active={active}
-        detail={choice.detail}
         label={choice.label}
-        rgb={rgb}
-        swatchOpacity={isWater ? (theme.mapWater.enabled ? Math.max(0.18, theme.mapWater.opacity / 100) : 0.24) : undefined}
-        onToggle={() => selectSlot(choice.slot)}
         onCopyColor={() => copyColorForSlot(choice.slot)}
         onPasteColor={() => pasteColorIntoSlot(choice.slot)}
         pasteColorDisabled={!clipboard.color}

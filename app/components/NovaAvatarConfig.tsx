@@ -271,7 +271,6 @@ function NovaAvatarConfigView({
   const previewTheme = useCallback((next: NovaAvatarTheme) => {
     onThemePreview?.(normalizeNovaAvatarTheme(next));
   }, [onThemePreview]);
-  const [activeSlot, setActiveSlot] = useState<AvatarSlot | null>(null);
 
   // The active module's declared sliders ("Module options"). Values come from
   // the theme's per-module overrides with declared defaults filled in, so the
@@ -371,26 +370,12 @@ function NovaAvatarConfigView({
     },
     [opacityTheme, slotTheme],
   );
-  const selectSlot = useCallback((slot: AvatarSlot) => {
-    setActiveSlot((current) => (current === slot ? null : slot));
-  }, []);
-
   const renderWidget = (choice: AvatarSlotChoice) => {
     const value = readSlot(theme, choice.slot);
-    const rgb = appliedThemeRgb(value);
-    const active = activeSlot === choice.slot;
     const opacity = opacityForSlot(theme, choice.slot);
 
     return (
-      <ColorWidget
-        key={choice.slot}
-        active={active}
-        detail={choice.detail}
-        label={choice.label}
-        rgb={rgb}
-        swatchOpacity={opacity === null ? undefined : Math.max(0.18, opacity / 100)}
-        onToggle={() => selectSlot(choice.slot)}
-      >
+      <ColorWidget key={choice.slot} label={choice.label}>
         <ColorEncoderPanel
           label={choice.label}
           value={value}

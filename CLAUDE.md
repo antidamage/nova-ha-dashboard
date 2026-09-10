@@ -65,15 +65,21 @@ the named component before introducing a one-off equivalent.
 - `ColorEncoder` — `app/components/ColorEncoder.tsx`. Nova's rotary colour
   control and the surface's **only** colour picker: tap cycles hue /
   brightness / saturation (plus opacity when `channels` includes it), drag
-  right or up turns it up. Scaled by one `size` prop, 50–200px. Use
+  right or up turns it up. The active channel is named under the lights
+  (`HUE`/`BRIGHT`/`SAT`/`OPAC`); `defaultChannel` picks which light is lit on
+  load — lighting opens on brightness, pickers on hue. Scaled by one `size` prop, 50–200px. Use
   `ColorEncoderPanel` (`app/components/ConfigControls.tsx`) over a stored
   `ThemeColorValue` in config; `ZoneColorEncoder` in `dashboard/ZoneControls.tsx`
   is the lighting-card wrapper. HSVA maths and the lossless `ThemeColorValue`
   adapters are in `app/components/colorEncoderModel.ts`. See
   `specs/color-encoder.md`. The old `ColorSpectrum`, `ColorIntensitySlider` and
   `ConfigColorPicker` are gone — do not reintroduce a spectrum pad.
-- `ColorWidget` — `app/components/ConfigControls.tsx`. This is the standard
-  colour swatch/editor popover used by theme and Nova-avatar configuration.
+- `ColorWidget` — `app/components/ConfigControls.tsx`. This is one colour slot
+  on the config page: an inline cell holding a `ColorEncoder` and any
+  slot-specific extras, plus the copy/paste colour actions. It is deliberately
+  **not** a swatch card and **not** a modal — the dial replaced both
+  (`specs/color-encoder.md`, "The config surface"). Do not reintroduce a
+  popover to edit a colour.
 - `MomentaryFeedbackButton` — `app/components/MomentaryFeedbackButton.tsx`. This
   supplies Nova's pressed/feedback behavior and is used by custom checkbox rows,
   climate controls, library actions, system controls, and icon buttons.
