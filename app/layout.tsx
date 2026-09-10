@@ -3,6 +3,7 @@ import "./globals.css";
 import { AgentNameProvider } from "./components/AgentNameContext";
 import { LoginProvider } from "./components/auth/LoginProvider";
 import { DashboardGlobalServices } from "./components/DashboardGlobalServices";
+import { LightingTintOverlay } from "./components/LightingTintOverlay";
 import { ModuleHost } from "./components/modules/ModuleHost";
 import { demoConfigBootstrapScript } from "../lib/demo-config";
 import { getLatestDashboardSun } from "../lib/dashboard-events";
@@ -511,6 +512,9 @@ try {
     fontSlot("clock", themeValue.clockFont, defaultClockFontId, 900);
     fontSlot("gym", themeValue.gymFont, defaultFontId, 500);
     document.documentElement.style.setProperty("--cyber-map-satellite", mapSatellite ? "1" : "0");
+    var tintStrength = Number(themeValue.lightingTintStrength);
+    document.documentElement.setAttribute("data-lighting-tint", themeValue.lightingTint === true ? "on" : "off");
+    document.documentElement.style.setProperty("--nova-lighting-tint-strength", String(Number.isFinite(tintStrength) ? clamp(Math.round(tintStrength), 0, 100) : 30));
   };
   if (stored) {
     applyTheme(stored, serverSun);
@@ -544,6 +548,7 @@ try {
           <LoginProvider>
             <ModuleHost>{children}</ModuleHost>
           </LoginProvider>
+          <LightingTintOverlay />
         </AgentNameProvider>
       </body>
     </html>

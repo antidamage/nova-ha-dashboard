@@ -24,6 +24,8 @@ import {
   FLUID_BACKGROUND_WARP_AMPLITUDE_MAX,
   FLUID_BACKGROUND_WARP_AMPLITUDE_MIN,
   FluidBackgroundSettings,
+  LIGHTING_TINT_STRENGTH_MAX,
+  LIGHTING_TINT_STRENGTH_MIN,
   MAP_BUILDING_OPACITY_DEFAULT,
   MAP_BUILDING_OPACITY_MAX,
   MAP_BUILDING_OPACITY_MIN,
@@ -105,6 +107,7 @@ import {
 import { VoiceInputDeviceGroup } from "./VoiceInputDeviceGroup";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
+import { LightingTintZoneSelect } from "./LightingTintZoneSelect";
 import { useExperienceFeatures } from "./dashboard/experienceModeSetting";
 import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { NovaAvatarConfig } from "./NovaAvatarConfig";
@@ -1880,6 +1883,7 @@ export function AccentConfig({
               }
               onChange={(checked) => setExperienceFeature("worldMap", checked)}
             />
+            <LightingTintZoneSelect />
           </div>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
@@ -1968,6 +1972,30 @@ export function AccentConfig({
                 {TITLE_THEME_SLOTS.map(renderWidget)}
               </div>
               {renderWidget(CLOCK_THEME_SLOT)}
+              <CheckboxRow
+                checked={theme.lightingTint}
+                label="Tint dashboard to match lighting"
+                detail={
+                  theme.lightingTint
+                    ? "Each device follows the zone set under This Device"
+                    : "Colours are not affected by the lights"
+                }
+                onChange={(lightingTint) => setTheme({ ...theme, lightingTint })}
+              />
+              <SliderControlPanel
+                activeColor={highlightRgb}
+                ariaLabel="Lighting tint strength"
+                ariaValueText={`${theme.lightingTintStrength}%`}
+                color={accentRgb}
+                label="Tint Strength"
+                max={LIGHTING_TINT_STRENGTH_MAX}
+                min={LIGHTING_TINT_STRENGTH_MIN}
+                step={1}
+                value={theme.lightingTintStrength}
+                valueText={`${theme.lightingTintStrength}%`}
+                onPreview={(lightingTintStrength) => setTheme({ ...theme, lightingTintStrength }, { persist: false })}
+                onCommit={(lightingTintStrength) => setTheme({ ...theme, lightingTintStrength })}
+              />
             </div>
           </ConfigAccordion>
 
