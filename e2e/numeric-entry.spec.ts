@@ -9,13 +9,16 @@ test.describe("slider numeric entry", () => {
     await page.getByRole("button", { name: /Appearance & Dashboard/ }).click();
     // Apple TV Expert Settings is a plain column of sliders, so it needs no
     // colour modal opened first to have one on screen.
-    const section = page.getByRole("button", { name: "Apple TV Expert Settings" });
+    // Scoped to the accordion: the breadcrumb renders a button of the same name.
+    const section = page.locator("#appletv-swipe").getByRole("button", { name: "Apple TV Expert Settings" });
     await expect(async () => {
       await section.click();
       await expect(section).toHaveAttribute("aria-expanded", "true");
     }).toPass({ timeout: 15_000 });
 
-    const slider = page.locator('[role="slider"]').first();
+    // The colour dial is a slider too, and it deliberately has no numeric
+    // entry — this test is about the sliders that do.
+    const slider = page.locator('[role="slider"]:not(.color-encoder-dial)').first();
     await expect(slider).toBeVisible({ timeout: 20_000 });
     await slider.scrollIntoViewIfNeeded();
     const before = await slider.getAttribute("aria-valuenow");

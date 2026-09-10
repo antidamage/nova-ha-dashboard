@@ -4,11 +4,9 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { PhonoscopeColorTheme, PhonoscopeColorValue } from "../../../lib/types";
 import {
-  ColorIntensitySlider,
-  ColorSpectrum,
+  ColorEncoderPanel,
   ColorWidget,
   ConfigAccordion,
-  SliderControlPanel,
 } from "../ConfigControls";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { CentreImageLibrary } from "./CentreImageLibrary";
@@ -147,63 +145,27 @@ export function ColorThemeLibrary({
                       swatchOpacity={value.opacity / 100}
                       onToggle={() => setActiveSlot(activeSlot === slotKey ? null : slotKey)}
                     >
-                      <ColorSpectrum
-                        label={slot.label}
-                        // `ColorSpectrum` works in the dashboard's own colour
-                        // shape, which requires a cursor. A Phonoscope colour
-                        // carries one optionally, so it is defaulted to centre.
-                        value={{
-                          rgb: value.rgb,
-                          intensity: value.intensity,
-                          cursor: value.cursor ?? { x: 0.5, y: 0.5 },
-                        }}
-                        onPreview={(color) => updateTheme(theme.id, {
-                          colors: { ...theme.colors, [slot.id]: { ...color, opacity: value.opacity } },
-                        })}
-                        onCommit={(color) => updateTheme(theme.id, {
-                          colors: { ...theme.colors, [slot.id]: { ...color, opacity: value.opacity } },
-                        }, true)}
-                      />
                       {/*
-                        Intensity is a separate control from the spectrum, the
-                        same way it is in the dashboard theme editor: the
-                        spectrum picks the hue, this picks how hard it is
-                        driven. The cursor is defaulted to centre here for the
-                        same reason as above — a Phonoscope colour carries one
-                        only optionally, and dropping it would move the
-                        spectrum's crosshair every time intensity changed.
+                        One dial carries hue, brightness (the stored
+                        intensity), saturation and opacity
+                        (specs/color-encoder.md). A Phonoscope colour carries a
+                        cursor only optionally, so it is defaulted to centre
+                        for the shared colour shape; the dial writes a real one
+                        back.
                       */}
-                      <ColorIntensitySlider
+                      <ColorEncoderPanel
                         label={slot.label}
                         value={{
                           rgb: value.rgb,
                           intensity: value.intensity,
                           cursor: value.cursor ?? { x: 0.5, y: 0.5 },
                         }}
-                        onPreview={(color) => updateTheme(theme.id, {
-                          colors: { ...theme.colors, [slot.id]: { ...color, opacity: value.opacity } },
+                        opacity={value.opacity}
+                        onPreview={(color, opacity) => updateTheme(theme.id, {
+                          colors: { ...theme.colors, [slot.id]: { ...color, opacity } },
                         })}
-                        onCommit={(color) => updateTheme(theme.id, {
-                          colors: { ...theme.colors, [slot.id]: { ...color, opacity: value.opacity } },
-                        }, true)}
-                      />
-                      <SliderControlPanel
-                        ariaLabel={`${slot.label} opacity`}
-                        ariaValueText={`${Math.round(value.opacity)}%`}
-                        color={value.rgb}
-                        dotOpacity={value.opacity / 100}
-                        intensity={value.intensity}
-                        label="Opacity"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={value.opacity}
-                        valueText={`${Math.round(value.opacity)}%`}
-                        onPreview={(opacity) => updateTheme(theme.id, {
-                          colors: { ...theme.colors, [slot.id]: { ...value, opacity } },
-                        })}
-                        onCommit={(opacity) => updateTheme(theme.id, {
-                          colors: { ...theme.colors, [slot.id]: { ...value, opacity } },
+                        onCommit={(color, opacity) => updateTheme(theme.id, {
+                          colors: { ...theme.colors, [slot.id]: { ...color, opacity } },
                         }, true)}
                       />
                     </ColorWidget>

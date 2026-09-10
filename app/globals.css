@@ -2049,106 +2049,6 @@ a.update-banner-button {
   border-color: rgb(148 163 184 / 0.28) !important;
 }
 
-/* Compact, static theme spectrum. This intentionally does not share any of
- * the animated dot treatment used by the live lighting-zone picker. */
-.config-color-picker {
-  border-radius: 10px;
-  height: 132px;
-  min-height: 132px;
-  cursor: crosshair;
-  border: 1px solid rgb(var(--cyber-line-rgb) / 0.72);
-  background: #111318;
-  clip-path: polygon(
-    0 0,
-    calc(100% - 12px) 0,
-    100% 12px,
-    100% 100%,
-    12px 100%,
-    0 calc(100% - 12px)
-  );
-}
-
-.config-color-picker-spectrum {
-  background:
-    linear-gradient(to bottom, transparent 0%, rgb(245 245 245) 100%),
-    linear-gradient(
-      to right,
-      #ff0000 0%,
-      #ffff00 16.67%,
-      #00ff00 33.33%,
-      #00ffff 50%,
-      #0000ff 66.67%,
-      #ff00ff 83.33%,
-      #ff0000 100%
-    );
-}
-
-.config-color-picker::before,
-.config-color-picker::after {
-  position: absolute;
-  z-index: 1;
-  width: 20px;
-  height: 20px;
-  content: "";
-  border-color: rgb(255 255 255 / 0.8);
-}
-
-.config-color-picker::before {
-  top: 6px;
-  left: 6px;
-  border-top: 2px solid;
-  border-left: 2px solid;
-}
-
-.config-color-picker::after {
-  right: 6px;
-  bottom: 6px;
-  border-right: 2px solid;
-  border-bottom: 2px solid;
-}
-
-.config-color-picker-reticle {
-  z-index: 2;
-  width: 24px;
-  height: 24px;
-  transform: translate(-50%, -50%);
-  border: 2px solid #fff;
-  outline: 2px solid #101116;
-  box-shadow:
-    0 0 0 4px rgb(var(--cyber-line-rgb) / 0.82),
-    0 0 14px rgb(255 255 255 / 0.85);
-  clip-path: polygon(
-    0 0,
-    35% 0,
-    50% 15%,
-    65% 0,
-    100% 0,
-    100% 35%,
-    85% 50%,
-    100% 65%,
-    100% 100%,
-    65% 100%,
-    50% 85%,
-    35% 100%,
-    0 100%,
-    0 65%,
-    15% 50%,
-    0 35%
-  );
-}
-
-.config-color-picker-reticle-dragging {
-  box-shadow:
-    0 0 0 4px rgb(var(--cyber-line-rgb) / 1),
-    0 0 20px rgb(255 255 255 / 1);
-}
-
-.config-color-picker-disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-  filter: grayscale(1);
-}
-
 .config-color-editor {
   display: grid;
   gap: 12px;
@@ -6562,3 +6462,259 @@ textarea.module-config-input {
 html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:not(.config-shell) {
   visibility: hidden;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   ColorEncoder — rotary colour control (specs/color-encoder.md).
+   Every dimension derives from --ce-size, the knob diameter (50–200px).
+   The knob stays on the theme background colour: accent and highlight are
+   never used on the dial itself, only on the lit channel light.
+   ══════════════════════════════════════════════════════════════════════ */
+.color-encoder {
+  --ce-size: 200px;
+  --ce-ring: calc(var(--ce-size) * 0.1);
+  --ce-bevel: calc(var(--ce-size) * 0.022);
+  --ce-outer: calc(var(--ce-size) + 2 * var(--ce-ring) + 2 * var(--ce-bevel));
+  --ce-ring-outer: calc(var(--ce-size) + 2 * var(--ce-ring));
+  --ce-led-w: max(3px, calc(var(--ce-size) * 0.048));
+  --ce-tint: var(--background, #050608);
+  --ce-led-on: var(--cyber-highlight, #22d3ee);
+  --ce-checker-a: #c4c5c9;
+  --ce-checker-b: #7a7b80;
+  --ce-color: #ffffff;
+  --ce-glow: 0 0 0 rgba(0, 0, 0, 0);
+  --ce-angle: 0deg;
+  --ce-annulus: radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--ce-size) * 0.05);
+  max-width: 100%;
+}
+
+.color-encoder-label {
+  max-width: min(100%, calc(var(--ce-outer) * 1.6));
+  color: var(--cyber-text, #e5e7eb);
+  font-size: max(11px, calc(var(--ce-size) * 0.07));
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.color-encoder-dial {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--ce-outer);
+  height: var(--ce-outer);
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.color-encoder-dial[data-pressed="true"] {
+  cursor: grabbing;
+}
+
+.color-encoder-dial:focus-visible {
+  outline: 2px solid var(--cyber-highlight, #22d3ee);
+  outline-offset: 3px;
+}
+
+.color-encoder-disabled .color-encoder-dial {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.color-encoder-dial > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Raised lip around the colour ring. */
+.color-encoder-outer-bevel {
+  width: var(--ce-outer);
+  height: var(--ce-outer);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3) 55%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.color-encoder-glow {
+  width: var(--ce-ring-outer);
+  height: var(--ce-ring-outer);
+  box-shadow: var(--ce-glow);
+  transition: box-shadow 180ms linear;
+}
+
+.color-encoder-checker,
+.color-encoder-ring,
+.color-encoder-ring-shade {
+  width: var(--ce-ring-outer);
+  height: var(--ce-ring-outer);
+  -webkit-mask: var(--ce-annulus);
+  mask: var(--ce-annulus);
+}
+
+.color-encoder-checker {
+  background-image: conic-gradient(var(--ce-checker-a) 0 25%, var(--ce-checker-b) 0 50%, var(--ce-checker-a) 0 75%, var(--ce-checker-b) 0);
+  background-size: max(5px, calc(var(--ce-size) * 0.05)) max(5px, calc(var(--ce-size) * 0.05));
+}
+
+.color-encoder-ring {
+  background: var(--ce-color);
+}
+
+/* Sunken shading over the ring so it reads as a channel, not a painted band. */
+.color-encoder-ring-shade {
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 40%, rgba(255, 255, 255, 0.18));
+  box-shadow: inset 0 0 calc(var(--ce-ring) * 0.5) rgba(0, 0, 0, 0.55);
+}
+
+/* The lip between ring and knob. */
+.color-encoder-inner-bevel {
+  width: calc(var(--ce-size) + 2px);
+  height: calc(var(--ce-size) + 2px);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.16),
+    0 calc(var(--ce-size) * -0.008) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.4);
+}
+
+/* Knob face. Its lighting is fixed; only the rotor above it turns. */
+.color-encoder-knob {
+  width: var(--ce-size);
+  height: var(--ce-size);
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      color-mix(in srgb, var(--ce-tint) 82%, #fff 18%),
+      var(--ce-tint) 70%,
+      color-mix(in srgb, var(--ce-tint) 74%, #000 26%) 100%);
+  box-shadow:
+    inset 0 0 calc(var(--ce-size) * 0.08) rgba(0, 0, 0, 0.35),
+    0 calc(var(--ce-size) * 0.01) calc(var(--ce-size) * 0.05) rgba(0, 0, 0, 0.35);
+  transition: filter 520ms ease, box-shadow 520ms ease;
+}
+
+/* Achromatic hover and press: the dome lifts, then sinks. */
+.color-encoder-dial:hover .color-encoder-knob {
+  filter: brightness(1.14);
+}
+
+.color-encoder-dial[data-pressed="true"] .color-encoder-knob {
+  filter: brightness(0.92);
+  box-shadow:
+    inset 0 calc(var(--ce-size) * 0.012) calc(var(--ce-size) * 0.1) rgba(0, 0, 0, 0.5),
+    0 calc(var(--ce-size) * 0.004) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.35);
+  transition-duration: 160ms;
+}
+
+.color-encoder-disabled .color-encoder-dial:hover .color-encoder-knob {
+  filter: none;
+}
+
+/* The only layer that turns: index line, notch, hairline texture. */
+.color-encoder-dial > .color-encoder-rotor {
+  width: var(--ce-size);
+  height: var(--ce-size);
+  transform: translate(-50%, -50%) rotate(var(--ce-angle));
+}
+
+/* Hairline texture on an outer band only: at the centre the stripes converge
+   and alias into a visible moire cross. */
+.color-encoder-rotor::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.03) 0deg 1.2deg, rgba(0, 0, 0, 0.03) 1.2deg 2.4deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 52%, #000 72% 95%, transparent 97%);
+  mask: radial-gradient(circle closest-side, transparent 0 52%, #000 72% 95%, transparent 97%);
+}
+
+.color-encoder-index {
+  position: absolute;
+  top: calc(var(--ce-size) * 0.07);
+  left: 50%;
+  width: max(1px, calc(var(--ce-size) * 0.012));
+  height: calc(var(--ce-size) * 0.2);
+  border-radius: 999px;
+  /* Light body plus a dark outline, so the index reads on a dark knob and on a
+     light one — the knob takes the theme's background colour, which is both. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+.color-encoder-notch {
+  position: absolute;
+  top: calc(var(--ce-size) * 0.3);
+  left: 50%;
+  width: max(3px, calc(var(--ce-size) * 0.05));
+  height: max(3px, calc(var(--ce-size) * 0.05));
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15));
+  box-shadow: inset 0 -1px 1px rgba(255, 255, 255, 0.22), 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateX(-50%);
+}
+
+/* Fixed specular above the rotor, so the texture passes under the light. */
+.color-encoder-spec {
+  width: var(--ce-size);
+  height: var(--ce-size);
+  background: radial-gradient(ellipse 55% 38% at 36% 20%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 70%);
+}
+
+/* Channel lights: 2:1 tall, gap = 3 x width, dead centre, never rotate. */
+.color-encoder-dial > .color-encoder-leds {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ce-led-w) * 3);
+  border-radius: 0;
+}
+
+.color-encoder-led {
+  width: var(--ce-led-w);
+  height: calc(var(--ce-led-w) * 2);
+  border-radius: calc(var(--ce-led-w) * 0.35);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  transition: background 160ms linear, box-shadow 160ms linear;
+}
+
+.color-encoder-led[data-lit="true"] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ce-led-on) 78%, #fff 22%), var(--ce-led-on));
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0 calc(var(--ce-led-w) * 1.6) calc(var(--ce-led-w) * 0.4) color-mix(in srgb, var(--ce-led-on) 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .color-encoder-knob,
+  .color-encoder-glow,
+  .color-encoder-led {
+    transition: none;
+  }
+}
+
+/* ColorEncoder placements (specs/color-encoder.md). */
+.zone-color-encoder {
+  display: flex;
+  justify-content: center;
+  padding-block: 12px;
+}
+
+.config-color-encoder {
+  display: flex;
+  justify-content: center;
+  padding-block: 8px;
+}
+

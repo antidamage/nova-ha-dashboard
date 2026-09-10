@@ -135,7 +135,7 @@ internal fetch/side effects — this is a pure UI library.
 7. **`DimmerKnob`** — small read-style dial: rotates a tick mark by
    `value` (0–100 → -135deg..135deg sweep), flanking `+`/`−`
    `StepperButton`s (#10) reused, not reimplemented.
-8. **`ColorEncoder`** — hero component, own section below.
+8. ~~`ColorEncoder`~~ — retired 2026-09-10, see below.
 9. **`Slider`** — horizontal filled-track + round thumb. Optional end
    labels (`startLabel`/`endLabel` props, e.g. "Low"/"High"). Pointer-drag
    + click-to-position + arrow-key nudge.
@@ -171,59 +171,12 @@ internal fetch/side effects — this is a pure UI library.
 (Room-preview thumbnails and literal desk/photo backgrounds seen in some
 mockups are decorative bitmap content, not controls — excluded.)
 
-## Hero component: `ColorEncoder`
+## Retired: `ColorEncoder`
 
-The one component with behaviour that doesn't come from any mockup —
-defined here precisely since nothing else pins it down.
-
-**Visuals**: large circular knob (styled after `image_d8c9d1c2.jpg`'s
-climate dial proportions — brushed-metal outer ring via a conic-gradient
-sweep + the AO/spec layers, dark inner face). A **dark ring** immediately
-inside the outer bevel renders the *currently selected colour* as a solid
-`background: hsl(h, s%, l%)` arc/ring (full ring, not a pointer — the whole
-ring recolours live as H/S/L changes). Centre of the knob is inert (no
-pointer indicator needed; the ring color view is the readout).
-
-**Mode indicator — 3-light row**: horizontal row of three thin,
-slightly-rounded-rectangle "lights" (`border-radius` ~40% of height,
-width:height ≈ 4:1) centered below the knob face, order = Hue, Saturation,
-Lightness (left to right, fixed order, matches click-cycle order). Off
-state: glossy black (`background: linear-gradient` dark charcoal-to-black
-with a thin top specular sliver — reuses the `Lighting` spec layer at low
-strength for the glossy look even when "off"). On state (the active
-channel): lit fill in a colour appropriate to that channel — Hue lit uses
-the current hue's own colour, Saturation and Lightness lit use a neutral
-warm-white/amber — plus a `box-shadow` bloom (`0 0 6px 2px` in the lit
-colour) simulating glow/radiance. Exactly one light is ever lit.
-
-**Interaction contract**:
-- **Click** (pointerdown+pointerup with no meaningful drag distance, same
-  threshold used elsewhere for tap-vs-drag, e.g. `< 4px`) cycles the active
-  channel: Hue → Saturation → Lightness → Hue → …
-- **Drag** (pointer down + move past the tap threshold) adjusts *only* the
-  currently active channel, regardless of where on the knob the drag
-  started: horizontal delta only (matches "dragging the knob left and
-  right"). Sensitivity: Hue moves 1° per ~2px of drag (full 360° over
-  ~720px, i.e. roughly one knob-width of travel per full turn);
-  Saturation/Lightness move 1% per ~4px of drag (0–100% over ~400px).
-  Values clamp: Hue wraps 0–360 (no clamp, cyclic); Saturation/Lightness
-  clamp 0–100.
-- **Alt or Shift held while dragging** = fine-tune: divide the above
-  sensitivity by 8 (i.e. ~16px per hue-degree, ~32px per saturation/
-  lightness percent). Either modifier alone triggers fine mode; holding
-  both is still just fine mode (no further stacking).
-- Drag uses Pointer Events (`onPointerDown/Move/Up`, `setPointerCapture`)
-  so it tracks outside the element bounds, not native
-  `<input type="range">` — needed for the click-vs-drag distinction and
-  modifier-key sensitivity switch.
-- Keyboard equivalent for a11y: knob is focusable, Left/Right arrow = same
-  per-step adjustment as a small drag increment on the active channel, Tab
-  order unaffected, Enter/Space = cycle mode (same as click).
-
-**Props**: `hue`, `saturation`, `lightness` (controlled, 0–360 / 0–100 /
-0–100), `onChange(next: {hue,saturation,lightness})`, `activeChannel`
-optional controlled override (defaults to internal state starting at
-`"hue"`), `onActiveChannelChange`.
+Adeline, 2026-09-10: the system9 `ColorEncoder` was a poor first attempt and is
+not reused. It was deleted from this package. The rotary colour control now
+lives in the dashboard itself — `app/components/ColorEncoder.tsx`, specified in
+`specs/color-encoder.md`.
 
 ## Showcase page
 
@@ -239,11 +192,6 @@ toggle.
 ## Verification
 
 - `npm run build` and `tsc --noEmit` clean in `nova-ui-system9/`.
-- Showcase renders all 18 inventory items in both themes, no console
+- Showcase renders all 17 remaining inventory items in both themes, no console
   errors, AO/spec overlay layers visibly present on every raised/recessed
   surface.
-- `ColorEncoder`: click cycles H→S→L→H with the correct single light lit
-  each time; drag adjusts only the active channel; ring colour updates
-  live from the H/S/L state; Alt and Shift each measurably reduce drag
-  sensitivity (~8x); keyboard arrow keys adjust the active channel;
-  Enter/Space cycles mode.

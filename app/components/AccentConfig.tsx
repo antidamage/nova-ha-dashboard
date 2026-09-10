@@ -74,8 +74,7 @@ import {
 import { type NovaAvatarTheme } from "./avatarThemeModel";
 import {
   CheckboxRow,
-  ColorIntensitySlider,
-  ColorSpectrum,
+  ColorEncoderPanel,
   ColorWidget,
   ConfigAccordion,
   SliderControlPanel,
@@ -271,36 +270,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function BorderOpacity({
-  border,
-  color,
-  onCommit,
-  onPreview,
-}: {
-  border: ThemeBorderValue;
-  color: [number, number, number];
-  onCommit: (border: ThemeBorderValue) => void;
-  onPreview: (border: ThemeBorderValue) => void;
-}) {
-  return (
-    <SliderControlPanel
-      activeColor={color}
-      ariaLabel="Border opacity"
-      ariaValueText={`${border.opacity}%`}
-      color={color}
-      dotOpacity={border.opacity / 100}
-      label="Opacity"
-      max={100}
-      min={0}
-      step={1}
-      value={border.opacity}
-      valueText={`${border.opacity}%`}
-      onPreview={(opacity) => onPreview({ ...border, opacity })}
-      onCommit={(opacity) => onCommit({ ...border, opacity })}
-    />
-  );
-}
-
 function BorderToggle({
   checked,
   onChange,
@@ -403,38 +372,6 @@ function WaterToggle({
       label="Water Fill"
       detail={checked ? "Harbour fill is visible on the map" : "Water layer is hidden on the map"}
       onChange={onChange}
-    />
-  );
-}
-
-function WaterOpacity({
-  color,
-  onCommit,
-  onPreview,
-  water,
-}: {
-  color: [number, number, number];
-  onCommit: (water: ThemeMapLayerValue) => void;
-  onPreview: (water: ThemeMapLayerValue) => void;
-  water: ThemeMapLayerValue;
-}) {
-  const opacity = clamp(Math.round(Number(water.opacity)), 0, 100);
-
-  return (
-    <SliderControlPanel
-      activeColor={color}
-      ariaLabel="Water opacity"
-      ariaValueText={`${opacity}%`}
-      color={color}
-      dotOpacity={opacity / 100}
-      label="Water Opacity"
-      max={100}
-      min={0}
-      step={1}
-      value={opacity}
-      valueText={`${opacity}%`}
-      onPreview={(nextOpacity) => onPreview({ ...water, opacity: nextOpacity })}
-      onCommit={(nextOpacity) => onCommit({ ...water, opacity: nextOpacity })}
     />
   );
 }
@@ -1585,6 +1522,32 @@ export function AccentConfig({
     setThemeColor(slot, value, options);
   };
 
+  // Opacity folds into the colour dial only where it belongs to exactly one
+  // colour slot (specs/color-encoder.md, "Opacity"). Buildings and radar share
+  // one opacity across two colours, so they keep their own slider.
+  const slotOpacity = (slot: ThemeConfigSlot) => {
+    if (slot === "border") return theme.border.opacity;
+    if (slot === "map.water") return theme.mapWater.opacity;
+    return undefined;
+  };
+
+  const updateSlotColorAndOpacity = (
+    slot: ThemeConfigSlot,
+    value: ThemeColorValue,
+    opacity: number,
+    options: { persist?: boolean } = {},
+  ) => {
+    if (slot === "border") {
+      setTheme({ ...theme, border: { ...theme.border, color: value, opacity } }, options);
+      return;
+    }
+    if (slot === "map.water") {
+      setTheme({ ...theme, map: { ...theme.map, [mapSlotKey(slot)]: value }, mapWater: { ...theme.mapWater, opacity } }, options);
+      return;
+    }
+    updateSlotColor(slot, value, options);
+  };
+
   const swapAccentHighlight = () => {
     setTheme({ ...theme, accent: theme.highlight, highlight: theme.accent });
   };
@@ -1818,17 +1781,12 @@ export function AccentConfig({
             onChange={(enabled) => updateMapWater({ ...theme.mapWater, enabled })}
           />
         ) : null}
-        <ColorSpectrum
+        <ColorEncoderPanel
           label={choice.label}
           value={value}
-          onPreview={(nextValue) => updateSlotColor(choice.slot, nextValue, { persist: false })}
-          onCommit={(nextValue) => updateSlotColor(choice.slot, nextValue)}
-        />
-        <ColorIntensitySlider
-          label={choice.label}
-          value={value}
-          onPreview={(nextValue) => updateSlotColor(choice.slot, nextValue, { persist: false })}
-          onCommit={(nextValue) => updateSlotColor(choice.slot, nextValue)}
+          opacity={slotOpacity(choice.slot)}
+          onPreview={(nextValue, opacity) => updateSlotColorAndOpacity(choice.slot, nextValue, opacity, { persist: false })}
+          onCommit={(nextValue, opacity) => updateSlotColorAndOpacity(choice.slot, nextValue, opacity)}
         />
         {isLabels ? (
           <MapLabelSizeControl
@@ -1845,22 +1803,6 @@ export function AccentConfig({
             value={theme.mapBuildingOpacity}
             onPreview={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity }, { persist: false })}
             onCommit={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity })}
-          />
-        ) : null}
-        {isWater ? (
-          <WaterOpacity
-            water={theme.mapWater}
-            color={waterRgb}
-            onPreview={(mapWater) => updateMapWater(mapWater, { persist: false })}
-            onCommit={updateMapWater}
-          />
-        ) : null}
-        {choice.slot === "border" ? (
-          <BorderOpacity
-            border={theme.border}
-            color={borderRgb}
-            onPreview={(border) => updateBorder(border, { persist: false })}
-            onCommit={updateBorder}
           />
         ) : null}
         {choice.slot === "voiceTranscript.text" ? (

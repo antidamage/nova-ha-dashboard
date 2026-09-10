@@ -12,7 +12,8 @@ import type {
   WeatherStatus,
 } from "../../../lib/types";
 import type { EntityActionInput } from "../../../lib/aircon-control";
-import { DotLineControl, DotSpectrumControl } from "../DotControls";
+import { ColorEncoder, type ColorEncoderChannel } from "../ColorEncoder";
+import { hsvToRgb, rgbToHsv, type Hsva } from "../colorEncoderModel";
 import { LabeledSwitch } from "./ClimateControls";
 import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "./EnvironmentPanels";
 import { IconButton } from "./IconButton";
@@ -36,7 +37,6 @@ import {
   adaptiveCandlelightSpectrum,
   candlelightBrightnessPct,
   spectrumFromZone,
-  spectrumRgbAtPosition,
   spectrumWithCursor,
   type SpectrumValue,
 } from "./lighting";
@@ -61,93 +61,95 @@ function spectrumValuesEqual(left: SpectrumValue, right: SpectrumValue) {
   );
 }
 
-function SpectrumPad({
-  disabled,
+/**
+ * The zone's one colour-and-level control: a 200px `ColorEncoder`
+ * (specs/color-encoder.md). Hue and saturation become `rgb_color` at full
+ * value; the brightness light is the zone's `brightness_pct`. There is no
+ * second brightness control on the card.
+ *
+ * With every light off, hue and saturation are inert — a colour command would
+ * otherwise turn the zone on in a colour nobody could see being chosen — but
+ * brightness still works, since raising it is how the zone comes back on.
+ */
+export function ZoneColorEncoder({
   brightness,
-  value,
-  onValueChange,
-  onPick,
-}: {
-  disabled: boolean;
-  brightness: number;
-  value: SpectrumValue;
-  onValueChange: (value: SpectrumValue) => void;
-  onPick: (rgb: [number, number, number], cursor: SpectrumCursor) => void;
-}) {
-  return (
-    <div className="relative">
-      <DotSpectrumControl
-        ariaLabel="Zone color spectrum"
-        cursor={value.cursor}
-        demoTooltipTitle="Color Spectrum"
-        demoTooltip="Drag to pick the active light colour."
-        disabled={disabled}
-        intensity={brightness}
-        rgbAtPosition={spectrumRgbAtPosition}
-        onChange={(cursor, rgb) => {
-          if (disabled) {
-            return;
-          }
-          // Preview the colour locally while dragging; the command is only sent
-          // when the control is released (onCommit).
-          onValueChange({ cursor, preview: rgb });
-        }}
-        onCommit={(cursor, rgb) => {
-          if (disabled) {
-            return;
-          }
-          onPick(rgb, cursor);
-        }}
-      />
-      <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-neutral-300">
-        <span className="uppercase text-fuchsia-200">Spectrum</span>
-        <span className="tabular-nums text-neutral-400">brightness {brightness}%</span>
-      </div>
-    </div>
-  );
-}
-
-function IntensityControl({
-  brightness,
-  color,
+  className,
+  colorEnabled,
   disabled,
+  label = "Colour",
+  size = 200,
+  spectrum,
+  zoneId,
   onBrightnessChange,
   onBrightnessCommit,
+  onColorCommit,
+  onSpectrumChange,
 }: {
   brightness: number;
-  color: [number, number, number];
+  /** Added to the wrapper, for surfaces that lay the dial out differently. */
+  className?: string;
+  colorEnabled: boolean;
   disabled: boolean;
+  label?: string;
+  /** Dial diameter in px; the zone card uses 200, Quick Access 56. */
+  size?: number;
+  spectrum: SpectrumValue;
+  zoneId: string;
   onBrightnessChange: (value: number) => void;
   onBrightnessCommit: (value: number) => void;
+  onColorCommit: (rgb: [number, number, number], brightnessPct: number, cursor: SpectrumCursor) => void;
+  onSpectrumChange: (value: SpectrumValue) => void;
 }) {
+  const channelRef = useRef<ColorEncoderChannel>("hue");
+  // Grey and white carry no hue. Remember the last real one so turning
+  // saturation down to zero and back up does not snap the dial to red.
+  const hueMemory = useRef<Record<string, number>>({});
+  const derived = rgbToHsv(spectrum.preview);
+  if (derived.s >= 1) hueMemory.current[zoneId] = derived.h;
+  const value: Hsva = {
+    h: derived.s >= 1 ? derived.h : hueMemory.current[zoneId] ?? derived.h,
+    s: derived.s,
+    v: brightness,
+    a: 100,
+  };
+
+  const spectrumFor = (next: Hsva): SpectrumValue => ({
+    cursor: { x: next.h / 359, y: 1 - next.s / 100 },
+    preview: hsvToRgb(next.h, next.s, 100),
+  });
+
   return (
-    <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
-      <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_96px] md:items-center">
-        <p className="text-sm font-black uppercase text-cyan-200">Intensity</p>
-        <div className="px-1">
-          <DotLineControl
-            ariaLabel="Brightness"
-            color={color}
-            demoTooltipTitle="Brightness"
-            demoTooltip="Drag to dim or brighten this zone."
-            disabled={disabled}
-            fill
-            intensity={brightness}
-            max={100}
-            min={0}
-            snapRemote
-            step={1}
-            value={brightness}
-            onChange={(value) => {
-              // Update the displayed brightness while dragging; the command is
-              // only sent when the slider is released (onCommit).
-              onBrightnessChange(value);
-            }}
-            onCommit={onBrightnessCommit}
-          />
-        </div>
-        <p className="text-4xl font-black tabular-nums text-neutral-50 md:text-right">{Math.round(brightness)}%</p>
-      </div>
+    <div className={className ? `zone-color-encoder ${className}` : "zone-color-encoder"}>
+      <ColorEncoder
+        ariaLabel="Zone colour"
+        demoTooltipTitle="Colour"
+        demoTooltip="Tap to switch between hue, brightness and saturation. Drag right or up to turn it up."
+        disabled={disabled}
+        label={label}
+        size={size}
+        value={value}
+        onActiveChannelChange={(channel) => {
+          channelRef.current = channel;
+        }}
+        onChange={(next) => {
+          if (channelRef.current === "brightness") {
+            onBrightnessChange(Math.round(next.v));
+            return;
+          }
+          if (!colorEnabled) return;
+          if (next.s >= 1) hueMemory.current[zoneId] = next.h;
+          onSpectrumChange(spectrumFor(next));
+        }}
+        onCommit={(next) => {
+          if (channelRef.current === "brightness") {
+            onBrightnessCommit(Math.round(next.v));
+            return;
+          }
+          if (!colorEnabled) return;
+          const committed = spectrumFor(next);
+          onColorCommit(committed.preview, Math.round(next.v) || 100, committed.cursor);
+        }}
+      />
     </div>
   );
 }
@@ -353,20 +355,16 @@ export function ZoneControls({
                   onChange={() => void toggleHouseParty()}
                 />
               </section>
-              <SpectrumPad
-                disabled={!hasActiveLights}
+              <ZoneColorEncoder
                 brightness={brightness}
-                value={spectrum}
-                onValueChange={rememberSpectrum}
-                onPick={(rgb, cursor) => onZoneAction("color", { rgb, brightnessPct: brightness || 100, cursor })}
-              />
-
-              <IntensityControl
-                brightness={brightness}
-                color={spectrum.preview}
+                colorEnabled={hasActiveLights}
                 disabled={!hasLightDevices}
+                spectrum={spectrum}
+                zoneId={zone.id}
                 onBrightnessChange={setLocalBrightness}
                 onBrightnessCommit={(value) => onZoneAction("brightness", { brightnessPct: value })}
+                onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
+                onSpectrumChange={rememberSpectrum}
               />
               {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
             </>
