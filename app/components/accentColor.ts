@@ -161,6 +161,9 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   desktopWallpaper: DesktopWallpaperSettings;
   font: ThemeFontSetting;
   gymFont: ThemeFontSetting;
+  /** Blend the room's light colour over the page. See specs/lighting-tint.md. */
+  lightingTint: boolean;
+  lightingTintStrength: number;
   map: Record<MapThemeColorSlot, ThemeColorValue>;
   mapBuildingOpacity: number;
   mapLabelSize: number;
@@ -243,6 +246,9 @@ export const MAP_BUILDING_OPACITY_MIN = 0;
 export const TASK_GLOW_INTENSITY_DEFAULT = 100;
 export const TASK_GLOW_INTENSITY_MAX = 300;
 export const TASK_GLOW_INTENSITY_MIN = 50;
+export const LIGHTING_TINT_STRENGTH_DEFAULT = 30;
+export const LIGHTING_TINT_STRENGTH_MAX = 100;
+export const LIGHTING_TINT_STRENGTH_MIN = 0;
 export const FLUID_BACKGROUND_APEX_GLOW_DEFAULT = 55;
 export const FLUID_BACKGROUND_APEX_GLOW_MAX = 240;
 export const FLUID_BACKGROUND_APEX_GLOW_MIN = 0;
@@ -441,6 +447,8 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
+  lightingTint: false,
+  lightingTintStrength: LIGHTING_TINT_STRENGTH_DEFAULT,
   mapWater: {
     enabled: true,
     opacity: 10,
@@ -630,6 +638,8 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
+  lightingTint: false,
+  lightingTintStrength: LIGHTING_TINT_STRENGTH_DEFAULT,
   mapWater: {
     enabled: true,
     opacity: 10,
@@ -933,6 +943,8 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     mapBuildingOpacity: normalizeMapBuildingOpacity(value?.mapBuildingOpacity),
     mapLabelSize: normalizeMapLabelSize(value?.mapLabelSize),
     mapSatellite: value?.mapSatellite !== false,
+    lightingTint: value?.lightingTint === true,
+    lightingTintStrength: normalizeNumber(value?.lightingTintStrength, LIGHTING_TINT_STRENGTH_DEFAULT, LIGHTING_TINT_STRENGTH_MIN, LIGHTING_TINT_STRENGTH_MAX),
     mapWater: {
       enabled: mapWaterValue?.enabled !== false,
       opacity: normalizePercent(mapWaterValue?.opacity, DEFAULT_THEME.mapWater.opacity),
@@ -1313,6 +1325,8 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyThemeFontVars("transcript", normalized.transcriptFont);
   document.documentElement.style.setProperty("--cyber-map-radar-mode", normalized.radarPaletteMode);
   document.documentElement.style.setProperty("--cyber-map-satellite", normalized.mapSatellite ? "1" : "0");
+  document.documentElement.dataset.lightingTint = normalized.lightingTint ? "on" : "off";
+  document.documentElement.style.setProperty("--nova-lighting-tint-strength", String(normalized.lightingTintStrength));
 }
 
 function mixedThemeColor(from: ThemeColorValue, to: ThemeColorValue, amount: number): ThemeColorValue {
