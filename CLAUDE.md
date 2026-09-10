@@ -10,12 +10,13 @@ Keep it current when adding, renaming, or retiring reusable controls. Search
 the named component before introducing a one-off equivalent.
 
 - `DotLineControl` and `DotSpectrumControl` —
-  `app/components/DotControls.tsx`. These are Nova's custom magnitude/step
-  slider and colour-spectrum controls. They are used by `SliderControlPanel`,
-  camera/climate settings, and zone brightness/colour controls.
+  `app/components/DotControls.tsx`. `DotLineControl` is Nova's custom
+  magnitude/step slider, used by `SliderControlPanel` and camera/climate
+  settings. `DotSpectrumControl` no longer has a colour-picking caller on the
+  Nova Classic surface — colour is `ColorEncoder`'s job.
   `DotLineControl` eases its thumb toward incoming values by default; pass
   `snapRemote` for a control whose displayed number must always be a real value
-  rather than a frame of that animation (zone intensity does).
+  rather than a frame of that animation.
 - `DotRangeControl` — `app/components/DotControls.tsx`. This is Nova's
   two-thumb, touch-sized minimum/maximum range control. Use it through
   `RangeSliderControlPanel` for driven visualiser parameters and future bounded
@@ -39,10 +40,10 @@ the named component before introducing a one-off equivalent.
   appears — use it for long lists (the status-orb module picker) rather than
   building a second grouped picker. Lists that set no `group` render exactly as
   before.
-- `SliderControlPanel`, `ColorSpectrum`, and `ColorIntensitySlider` —
-  `app/components/ConfigControls.tsx`. These are the standard configuration-page
-  slider and colour wrappers, with separate preview and commit boundaries. They
-  are used throughout `AccentConfig`, `AgentConfig`, `PhonoscopeConfig`,
+- `SliderControlPanel` — `app/components/ConfigControls.tsx`. This is the
+  standard configuration-page slider wrapper, with separate preview and commit
+  boundaries. It
+  is used throughout `AccentConfig`, `AgentConfig`, `PhonoscopeConfig`,
   `VoiceConfig`, `FontControl`, climate configuration, and hardware
   configuration.
 - `RangeSliderControlPanel` — `app/components/ConfigControls.tsx`. This is the
@@ -55,14 +56,22 @@ the named component before introducing a one-off equivalent.
 - `EnvelopeSliderControlPanel` — `app/components/ConfigControls.tsx`. This wraps
   `DotEnvelopeControl` with standard preview/commit behavior and per-phase
   duration readouts.
-- `ConfigColorPicker` — `app/components/ConfigColorPicker.tsx`. This is the
-  configuration colour picker used by `ColorSpectrum`.
 - `CheckboxRow` — `app/components/ConfigControls.tsx`. This is the standard
   styled configuration checkbox/toggle row used by appearance, reminders, and
   voice input-device settings.
 - `ConfigAccordion` — `app/components/ConfigControls.tsx`. This is the
   persistent, exclusive, auto-scrolling configuration section used across the
   config workspace.
+- `ColorEncoder` — `app/components/ColorEncoder.tsx`. Nova's rotary colour
+  control and the surface's **only** colour picker: tap cycles hue /
+  brightness / saturation (plus opacity when `channels` includes it), drag
+  right or up turns it up. Scaled by one `size` prop, 50–200px. Use
+  `ColorEncoderPanel` (`app/components/ConfigControls.tsx`) over a stored
+  `ThemeColorValue` in config; `ZoneColorEncoder` in `dashboard/ZoneControls.tsx`
+  is the lighting-card wrapper. HSVA maths and the lossless `ThemeColorValue`
+  adapters are in `app/components/colorEncoderModel.ts`. See
+  `specs/color-encoder.md`. The old `ColorSpectrum`, `ColorIntensitySlider` and
+  `ConfigColorPicker` are gone — do not reintroduce a spectrum pad.
 - `ColorWidget` — `app/components/ConfigControls.tsx`. This is the standard
   colour swatch/editor popover used by theme and Nova-avatar configuration.
 - `MomentaryFeedbackButton` — `app/components/MomentaryFeedbackButton.tsx`. This
@@ -87,6 +96,19 @@ the named component before introducing a one-off equivalent.
   vehicle reference editor. These use the shared `ModalOverlay`; scene and
   reference geometry stays normalized to the source frame and is edited
   visually rather than as raw coordinate fields.
+- `QuickAccessCard` and its segments (`QuickLightsSegment`,
+  `QuickAirconSegment`, `QuickHeaterSegment`, `QuickWeatherSegment`) —
+  `app/components/dashboard/QuickAccessCard.tsx`. The one-line card above the
+  zone menu; props only, so a surface can mount it or any one segment. See
+  `specs/quick-access-card.md`.
+- `useAirconCommands` / `useBedroomHeaterCommands` —
+  `app/components/dashboard/climateCommands.ts`. The only home of the aircon's
+  power-intent hold, Auto arming and debounced setpoint, and the heater's
+  server-truth saves. Any new climate control calls these; never copy them.
+- `useZoneLighting` — `app/components/dashboard/useZoneLighting.ts`. A zone's
+  displayed brightness/colour bound to the server plus its preset and colour
+  commands. Pair it with the exported `ZoneColorEncoder`
+  (`ZoneControls.tsx`, `size` 50–200) for a zone colour dial anywhere.
 - `IconButton` — `app/components/dashboard/IconButton.tsx`. This is the
   dashboard's themed icon action used by zone lighting controls.
 - `LabeledSwitch` — `app/components/dashboard/ClimateControls.tsx`. This is the

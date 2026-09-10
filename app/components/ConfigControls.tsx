@@ -2,18 +2,15 @@
 
 import { Check, ChevronRight, Clipboard, Copy } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import {
-  appliedThemeRgb,
-  themeRgbAtPosition,
-  type ThemeColorValue,
-} from "./accentColor";
+import type { ThemeColorValue } from "./accentColor";
+import { COLOR_ENCODER_CHANNELS, COLOR_ENCODER_CHANNELS_WITH_OPACITY, ColorEncoder } from "./ColorEncoder";
+import { hsvaFromThemeColor, themeColorFromHsva } from "./colorEncoderModel";
 import {
   consumePendingBreadcrumbSlug,
   getPendingBreadcrumb,
   subscribePendingBreadcrumb,
 } from "./configBreadcrumb";
 import { configAccordionKey, getAccordionOpen, setAccordionOpen } from "./configUiState";
-import { ConfigColorPicker } from "./ConfigColorPicker";
 import { DotEnvelopeControl, DotLineControl, DotRangeControl, type EnvelopeDurations } from "./DotControls";
 import { ModalOverlay } from "./ModalOverlay";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
@@ -266,34 +263,44 @@ export function ConfigAccordion({
   );
 }
 
-export function ColorSpectrum({
+/**
+ * The configuration colour control: a `ColorEncoder` over a stored
+ * `ThemeColorValue` (specs/color-encoder.md). Hue, brightness and saturation
+ * write the colour; passing `opacity` adds the fourth light, which writes the
+ * slot's own sibling opacity field. `onPreview` is local only and `onCommit`
+ * is the single persistence boundary, once per gesture — the same contract as
+ * `SliderControlPanel`.
+ */
+export function ColorEncoderPanel({
   label,
   onCommit,
   onPreview,
+  opacity,
+  size = 50,
   value,
 }: {
   label: string;
-  onCommit: (value: ThemeColorValue) => void;
-  onPreview: (value: ThemeColorValue) => void;
+  onCommit: (value: ThemeColorValue, opacity: number) => void;
+  onPreview: (value: ThemeColorValue, opacity: number) => void;
+  /** 0–100. When given, the dial gains its opacity light. */
+  opacity?: number;
+  size?: number;
   value: ThemeColorValue;
 }) {
-  const displayRgb = appliedThemeRgb(value);
-
+  const withOpacity = opacity !== undefined;
   return (
-    <div>
-      <ConfigColorPicker
-        ariaLabel={`${label} color spectrum`}
-        cursor={value.cursor}
-        demoTooltipTitle={`${label} Spectrum`}
-        demoTooltip="Drag to tune this theme colour."
-        rgbAtPosition={themeRgbAtPosition}
-        onChange={(cursor, rgb) => onPreview({ ...value, cursor, rgb })}
-        onCommit={(cursor, rgb) => onCommit({ ...value, cursor, rgb })}
+    <div className="config-color-encoder">
+      <ColorEncoder
+        ariaLabel={`${label} colour`}
+        channels={withOpacity ? COLOR_ENCODER_CHANNELS_WITH_OPACITY : COLOR_ENCODER_CHANNELS}
+        demoTooltipTitle={label}
+        demoTooltip="Tap to switch channel. Drag right or up to turn it up."
+        label={label}
+        size={size}
+        value={hsvaFromThemeColor(value, opacity)}
+        onChange={(next) => onPreview(themeColorFromHsva(next, value), Math.round(next.a))}
+        onCommit={(next) => onCommit(themeColorFromHsva(next, value), Math.round(next.a))}
       />
-      <div className="mt-3 flex items-center justify-between gap-3 text-sm font-semibold text-neutral-300">
-        <span className="uppercase text-fuchsia-200">{label}</span>
-        <span className="tabular-nums text-neutral-400">rgb {displayRgb.join(" ")}</span>
-      </div>
     </div>
   );
 }
@@ -521,35 +528,6 @@ export function EnvelopeSliderControlPanel({
         </div>
       </div>
     </div>
-  );
-}
-
-export function ColorIntensitySlider({
-  label,
-  onCommit,
-  onPreview,
-  value,
-}: {
-  label: string;
-  onCommit: (value: ThemeColorValue) => void;
-  onPreview: (value: ThemeColorValue) => void;
-  value: ThemeColorValue;
-}) {
-  return (
-    <SliderControlPanel
-      ariaLabel={`${label} intensity`}
-      ariaValueText={`${value.intensity}%`}
-      color={value.rgb}
-      intensity={value.intensity}
-      label="Intensity"
-      max={100}
-      min={0}
-      step={1}
-      value={value.intensity}
-      valueText={`${value.intensity}%`}
-      onPreview={(intensity) => onPreview({ ...value, intensity })}
-      onCommit={(intensity) => onCommit({ ...value, intensity })}
-    />
   );
 }
 

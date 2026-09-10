@@ -6,8 +6,7 @@ import { createPortal } from "react-dom";
 import { resolveOrbModuleSettings, type OrbModule } from "../../lib/orb-modules";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
 import {
-  ColorIntensitySlider,
-  ColorSpectrum,
+  ColorEncoderPanel,
   ColorWidget,
   ConfigAccordion,
   SliderControlPanel,
@@ -46,40 +45,6 @@ const AVATAR_SLOTS: AvatarSlotChoice[] = [
   { slot: "line1", label: "Line 2", detail: "Second arc colour" },
   { slot: "line2", label: "Line 3", detail: "Third arc colour" },
 ];
-
-function NovaOpacity({
-  color,
-  label,
-  onCommit,
-  onPreview,
-  value,
-}: {
-  color: ThemeColorValue;
-  label: string;
-  onCommit: (value: number) => void;
-  onPreview: (value: number) => void;
-  value: number;
-}) {
-  const displayRgb = appliedThemeRgb(color);
-
-  return (
-    <SliderControlPanel
-      ariaLabel={`${label} opacity`}
-      ariaValueText={`${value}%`}
-      color={displayRgb}
-      dotOpacity={Math.max(0.18, value / 100)}
-      intensity={100}
-      label="Opacity"
-      max={100}
-      min={0}
-      step={1}
-      value={value}
-      valueText={`${value}%`}
-      onPreview={onPreview}
-      onCommit={onCommit}
-    />
-  );
-}
 
 /** Swatch render size in CSS pixels (the trigger slot is 44px). */
 const ORB_SWATCH_SIZE = 44;
@@ -391,6 +356,21 @@ function NovaAvatarConfigView({
     },
     [theme],
   );
+  // A slot with its own opacity carries it on the colour dial's fourth light
+  // (specs/color-encoder.md), so one gesture can write both fields.
+  const colorAndOpacityTheme = useCallback(
+    (slot: AvatarSlot, value: ThemeColorValue, opacity: number | null) => {
+      const withColor = slotTheme(slot, value);
+      if (opacity === null) return withColor;
+      const withOpacity = opacityTheme(slot, opacity);
+      return {
+        ...withColor,
+        gymNumberOpacity: withOpacity.gymNumberOpacity,
+        lineOpacities: withOpacity.lineOpacities,
+      };
+    },
+    [opacityTheme, slotTheme],
+  );
   const selectSlot = useCallback((slot: AvatarSlot) => {
     setActiveSlot((current) => (current === slot ? null : slot));
   }, []);
@@ -411,29 +391,13 @@ function NovaAvatarConfigView({
         swatchOpacity={opacity === null ? undefined : Math.max(0.18, opacity / 100)}
         onToggle={() => selectSlot(choice.slot)}
       >
-        <ColorSpectrum
+        <ColorEncoderPanel
           label={choice.label}
           value={value}
-          onPreview={(next) => {
-            previewTheme(slotTheme(choice.slot, next));
-          }}
-          onCommit={(next) => setTheme(slotTheme(choice.slot, next))}
+          opacity={opacity === null ? undefined : opacity}
+          onPreview={(next, nextOpacity) => previewTheme(colorAndOpacityTheme(choice.slot, next, opacity === null ? null : nextOpacity))}
+          onCommit={(next, nextOpacity) => setTheme(colorAndOpacityTheme(choice.slot, next, opacity === null ? null : nextOpacity))}
         />
-        <ColorIntensitySlider
-          label={choice.label}
-          value={value}
-          onPreview={(next) => previewTheme(slotTheme(choice.slot, next))}
-          onCommit={(next) => setTheme(slotTheme(choice.slot, next))}
-        />
-        {opacity !== null ? (
-          <NovaOpacity
-            color={value}
-            label={choice.label}
-            value={opacity}
-            onPreview={(next) => previewTheme(opacityTheme(choice.slot, next))}
-            onCommit={(next) => setTheme(opacityTheme(choice.slot, next))}
-          />
-        ) : null}
       </ColorWidget>
     );
   };

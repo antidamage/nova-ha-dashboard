@@ -5,31 +5,42 @@ import type { DashboardEntity, DashboardZone, RouterStatus } from "../../../lib/
 import { REMOTE_SETTING_MIN_HOLD_MS, REMOTE_SETTING_SETTLE_MS } from "./useRemoteSetting";
 import { ZoneControls } from "./ZoneControls";
 
-type DotLineControlProps = {
-  onChange: (value: number) => void;
-  onCommit?: (value: number) => void;
-  value: number;
-};
+type Hsva = { h: number; s: number; v: number; a: number };
+type EncoderChannel = "hue" | "brightness" | "saturation" | "opacity";
 
-type DotSpectrumControlProps = {
+type ColorEncoderProps = {
   disabled?: boolean;
-  onChange: (cursor: { x: number; y: number }, rgb: [number, number, number]) => void;
-  onCommit?: (cursor: { x: number; y: number }, rgb: [number, number, number]) => void;
+  onActiveChannelChange?: (channel: EncoderChannel) => void;
+  onChange: (value: Hsva) => void;
+  onCommit?: (value: Hsva) => void;
+  value: Hsva;
 };
 
-let latestLineControl: DotLineControlProps | null = null;
-let latestSpectrumControl: DotSpectrumControlProps | null = null;
+let latestEncoder: ColorEncoderProps | null = null;
 
-vi.mock("../DotControls", () => ({
-  DotLineControl: (props: DotLineControlProps) => {
-    latestLineControl = props;
-    return <div aria-label="Brightness" />;
-  },
-  DotSpectrumControl: (props: DotSpectrumControlProps) => {
-    latestSpectrumControl = props;
-    return <div aria-label="Zone color spectrum" />;
+vi.mock("../ColorEncoder", () => ({
+  ColorEncoder: (props: ColorEncoderProps) => {
+    latestEncoder = props;
+    return <div aria-label="Zone colour" />;
   },
 }));
+
+/** Turns the zone dial on its brightness light, as a tap would. */
+function selectChannel(channel: EncoderChannel) {
+  act(() => {
+    latestEncoder?.onActiveChannelChange?.(channel);
+  });
+}
+
+function dialBrightness() {
+  return latestEncoder?.value.v;
+}
+
+function setBrightness(value: number) {
+  act(() => {
+    latestEncoder?.onChange({ ...latestEncoder.value, v: value });
+  });
+}
 
 function light(overrides: Partial<DashboardEntity> = {}): DashboardEntity {
   return {
@@ -116,8 +127,7 @@ function expectBefore(left: HTMLElement, right: HTMLElement) {
 
 describe("ZoneControls", () => {
   beforeEach(() => {
-    latestLineControl = null;
-    latestSpectrumControl = null;
+    latestEncoder = null;
   });
 
   afterEach(() => {
@@ -125,17 +135,17 @@ describe("ZoneControls", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps lounge controls ordered as lighting, intensity, then environment", () => {
+  it("keeps lounge controls ordered as lighting, colour dial, then environment", () => {
     render(renderZoneControls(loungeZone()));
 
     const lightAction = screen.getByRole("button", { name: "White" });
-    const spectrum = screen.getByText("Spectrum");
-    const intensity = screen.getByText("Intensity");
+    const dial = screen.getByLabelText("Zone colour");
     const environment = screen.getByRole("heading", { name: "Environment" });
 
-    expectBefore(lightAction, spectrum);
-    expectBefore(spectrum, intensity);
-    expectBefore(intensity, environment);
+    expectBefore(lightAction, dial);
+    expectBefore(dial, environment);
+    // The dial owns brightness: there is no second brightness control.
+    expect(screen.queryByLabelText("Brightness")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /sleep/i })).not.toBeInTheDocument();
   });
 
@@ -176,12 +186,11 @@ describe("ZoneControls", () => {
 
     const { rerender } = render(renderZoneControls(loungeZone({ brightnessPct: 100 })));
 
-    expect(latestLineControl?.value).toBe(100);
+    expect(dialBrightness()).toBe(100);
 
-    act(() => {
-      latestLineControl?.onChange(40);
-    });
-    expect(latestLineControl?.value).toBe(40);
+    selectChannel("brightness");
+    setBrightness(40);
+    expect(dialBrightness()).toBe(40);
 
     // Mid-fade zone averages keep arriving and must never reach the control,
     // however long the fade takes.
@@ -190,7 +199,7 @@ describe("ZoneControls", () => {
       act(() => {
         vi.advanceTimersByTime(REMOTE_SETTING_SETTLE_MS - 1);
       });
-      expect(latestLineControl?.value).toBe(40);
+      expect(dialBrightness()).toBe(40);
     }
 
     // Arrived: a fixture settling a point off still reads as the set value.
@@ -198,7 +207,7 @@ describe("ZoneControls", () => {
     act(() => {
       vi.advanceTimersByTime(REMOTE_SETTING_MIN_HOLD_MS + REMOTE_SETTING_SETTLE_MS);
     });
-    expect(latestLineControl?.value).toBe(40);
+    expect(dialBrightness()).toBe(40);
   });
 
   it("shows where a transition is going, not the fade, on a client that did not command it", () => {
@@ -210,18 +219,18 @@ describe("ZoneControls", () => {
     const { rerender } = render(
       renderZoneControls(loungeZone({ brightnessPct: 88, brightnessTransition: { targetPct: 25 } })),
     );
-    expect(latestLineControl?.value).toBe(25);
+    expect(dialBrightness()).toBe(25);
 
     // Later waypoints of the same fade change nothing.
     rerender(renderZoneControls(loungeZone({ brightnessPct: 61, brightnessTransition: { targetPct: 25 } })));
     act(() => {
       vi.advanceTimersByTime(REMOTE_SETTING_MIN_HOLD_MS + REMOTE_SETTING_SETTLE_MS);
     });
-    expect(latestLineControl?.value).toBe(25);
+    expect(dialBrightness()).toBe(25);
 
     // Transition over: the settled reading is a result and is taken as one.
     rerender(renderZoneControls(loungeZone({ brightnessPct: 25 })));
-    expect(latestLineControl?.value).toBe(25);
+    expect(dialBrightness()).toBe(25);
   });
 
   it("never gives up a locally set value to a transitional reading", () => {
@@ -230,9 +239,8 @@ describe("ZoneControls", () => {
 
     const { rerender } = render(renderZoneControls(loungeZone({ brightnessPct: 100 })));
 
-    act(() => {
-      latestLineControl?.onChange(40);
-    });
+    selectChannel("brightness");
+    setBrightness(40);
 
     // A long, slow fade reporting a stable-looking waypoint must not accrue
     // settle time toward replacing what was entered.
@@ -240,7 +248,7 @@ describe("ZoneControls", () => {
     act(() => {
       vi.advanceTimersByTime((REMOTE_SETTING_MIN_HOLD_MS + REMOTE_SETTING_SETTLE_MS) * 3);
     });
-    expect(latestLineControl?.value).toBe(40);
+    expect(dialBrightness()).toBe(40);
   });
 
   it("adopts a brightness change made elsewhere once it settles", () => {
@@ -249,53 +257,55 @@ describe("ZoneControls", () => {
 
     const { rerender } = render(renderZoneControls(loungeZone({ brightnessPct: 100 })));
 
-    act(() => {
-      latestLineControl?.onChange(40);
-    });
-    expect(latestLineControl?.value).toBe(40);
+    selectChannel("brightness");
+    setBrightness(40);
+    expect(dialBrightness()).toBe(40);
 
     // Something else set the zone to 80 and it stays there.
     rerender(renderZoneControls(loungeZone({ brightnessPct: 80 })));
     act(() => {
       vi.advanceTimersByTime(REMOTE_SETTING_SETTLE_MS);
     });
-    expect(latestLineControl?.value).toBe(40);
+    expect(dialBrightness()).toBe(40);
 
     act(() => {
       vi.advanceTimersByTime(REMOTE_SETTING_MIN_HOLD_MS);
     });
-    expect(latestLineControl?.value).toBe(80);
+    expect(dialBrightness()).toBe(80);
   });
 
   it("sends lighting commands only when the control is released, not while dragging", () => {
     const onZoneAction = vi.fn(async () => undefined);
     render(renderZoneControls(loungeZone(), onZoneAction));
 
-    // Dragging the brightness slider previews locally but sends nothing.
-    act(() => {
-      latestLineControl?.onChange(80);
-    });
+    // Turning the dial on its brightness light previews locally, sends nothing.
+    selectChannel("brightness");
+    setBrightness(80);
     expect(onZoneAction).not.toHaveBeenCalled();
 
-    // Releasing the slider sends the brightness command once.
+    // Releasing sends the brightness command once.
     act(() => {
-      latestLineControl?.onCommit?.(80);
+      latestEncoder?.onCommit?.({ ...latestEncoder.value, v: 80 });
     });
     expect(onZoneAction).toHaveBeenCalledWith("brightness", { brightnessPct: 80 });
 
     onZoneAction.mockClear();
 
-    // Dragging the spectrum previews locally but sends nothing.
+    // Turning it on the hue light previews locally, sends nothing.
+    selectChannel("hue");
     act(() => {
-      latestSpectrumControl?.onChange({ x: 0.4, y: 0.5 }, [120, 80, 40]);
+      latestEncoder?.onChange({ h: 30, s: 67, v: 80, a: 100 });
     });
     expect(onZoneAction).not.toHaveBeenCalled();
 
-    // Releasing the spectrum sends the colour command once.
+    // Releasing sends one colour command: rgb at full value, level as brightness.
     act(() => {
-      latestSpectrumControl?.onCommit?.({ x: 0.4, y: 0.5 }, [120, 80, 40]);
+      latestEncoder?.onCommit?.({ h: 30, s: 67, v: 80, a: 100 });
     });
-    expect(onZoneAction).toHaveBeenCalledWith("color", expect.objectContaining({ rgb: [120, 80, 40] }));
+    expect(onZoneAction).toHaveBeenCalledWith("color", expect.objectContaining({
+      brightnessPct: 80,
+      rgb: [255, 170, 84],
+    }));
   });
 
   it("does not send colour changes while every light in the zone is off", () => {
@@ -306,13 +316,18 @@ describe("ZoneControls", () => {
       isOn: false,
     }), onZoneAction));
 
-    expect(latestSpectrumControl?.disabled).toBe(true);
-
+    selectChannel("hue");
     act(() => {
-      latestSpectrumControl?.onChange({ x: 0.2, y: 0.3 }, [10, 20, 30]);
-      latestSpectrumControl?.onCommit?.({ x: 0.2, y: 0.3 }, [10, 20, 30]);
+      latestEncoder?.onChange({ h: 200, s: 50, v: 0, a: 100 });
+      latestEncoder?.onCommit?.({ h: 200, s: 50, v: 0, a: 100 });
     });
-
     expect(onZoneAction).not.toHaveBeenCalled();
+
+    // Brightness still works with the zone off: raising it is how it comes on.
+    selectChannel("brightness");
+    act(() => {
+      latestEncoder?.onCommit?.({ h: 200, s: 50, v: 60, a: 100 });
+    });
+    expect(onZoneAction).toHaveBeenCalledWith("brightness", { brightnessPct: 60 });
   });
 });

@@ -36,6 +36,6 @@ test.describe("dashboard shell", () => {
     await gotoDashboard(page);
     await page.getByRole("link", { name: /Config/ }).click();
     await expect(page).toHaveURL(/\/config\/?$/);
-    await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back" }).first()).toBeVisible();
   });
 });

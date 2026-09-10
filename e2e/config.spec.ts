@@ -6,7 +6,7 @@ test.describe("configuration workspace", () => {
     const console = watchConsole(page);
     await gotoConfig(page);
 
-    await expect(page.getByRole("button", { name: "Back to dashboard" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back to dashboard" }).first()).toBeVisible();
     for (const category of ["Assistant", "Voice & People", "Appearance & Dashboard", "Devices", "System & Data"]) {
       await expect(page.getByRole("button", { name: new RegExp(category.replace("&", "\\&")) })).toBeVisible();
     }
@@ -24,7 +24,7 @@ test.describe("configuration workspace", () => {
     await gotoConfig(page);
     await page.getByRole("button", { name: /System & Data/ }).click();
 
-    const header = page.getByRole("button", { name: /Config Import\/Export/ });
+    const header = page.locator("#config-transfer").getByRole("button", { name: /Config Import\/Export/ });
     // The workspace re-renders when its config finishes loading, which can reset
     // a freshly toggled accordion, so retry the open until the body sticks.
     await expect(async () => {
@@ -37,7 +37,7 @@ test.describe("configuration workspace", () => {
 
   test("returns to the dashboard via Back", async ({ page }) => {
     await gotoConfig(page);
-    await page.getByRole("button", { name: "Back to dashboard" }).click();
+    await page.getByRole("button", { name: "Back to dashboard" }).first().click();
     await expect(page.getByLabel(/avatar$/)).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
   });

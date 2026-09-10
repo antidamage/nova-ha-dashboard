@@ -92,7 +92,7 @@ export async function gotoDashboard(
 export async function gotoConfig(page: Page) {
   await seedExperienceMode(page);
   await page.goto("/config/", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: "Back" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Back" }).first()).toBeVisible({ timeout: 30_000 });
 }
 
 /**
