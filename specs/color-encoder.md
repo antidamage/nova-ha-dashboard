@@ -29,7 +29,8 @@ Files:
 
 `--ce-size` is the knob diameter and the only scale input. Valid range
 **50px–200px**; the component clamps to it. 200px on the zone lighting card,
-50px in config.
+100px in config (Adeline, 2026-09-11: 50px was too small to use), 56px in the
+Quick Access card.
 
 | Part | Size |
 |---|---|
@@ -42,7 +43,7 @@ Files:
 | Gap between lights | `3 × light width` |
 | Index line | `1.2% × 10%` of `--ce-size`, flush with the knob's rim |
 | Label gap | `5% of --ce-size` |
-| Channel caption | `clamp(10px, 7.5% of --ce-size, 14px)`, `5.5%` below the lights |
+| Channel caption | `clamp(10px, 7.5% of --ce-size, 14px)`, `5.5%` below the lights; abbreviated below 133px |
 
 Label sits above the dial, centred, uppercase, letter-spaced — the same
 treatment as existing config control labels.
@@ -64,9 +65,11 @@ treatment as existing config control labels.
 9. **Fixed specular** — above the rotor, so the texture passes under a
    stationary highlight.
 10. **Lights** — dead centre, stationary, one lit at a time.
-11. **Channel caption** — the active channel's name under the lights: `HUE`,
-    `BRIGHT`, `SAT`, `OPAC`. A channel name, not a value; the ring is still the
-    only readout. Stationary, like the lights.
+11. **Channel caption** — the active channel's name under the lights, in two
+    lengths: `HUE`/`BRIGHT`/`SAT`/`ALPHA`, shortening to `BRT` and `ALPH` below
+    133px, the size at which the caption's font hits its 10px floor and a long
+    word starts crowding the lights. A channel name, not a value; the ring is
+    still the only readout. Stationary, like the lights.
 
 The annulus clip is
 `radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%)`
@@ -79,7 +82,10 @@ Fixed order, left to right, matching the click-cycle order:
 1. **hue** — wraps forever, no ends.
 2. **brightness** — stops at 0 and 100.
 3. **saturation** — stops at 0 and 100.
-4. **opacity** — optional fourth light, stops at 0 and 100.
+4. **alpha** — optional fourth light, stops at 0 and 100. Adeline,
+   2026-09-11: the channel is called alpha, not opacity. The stored field it
+   writes keeps the theme's own name (`opacity`), and so does
+   `ColorEncoderPanel`'s prop — only the channel is renamed.
 
 Exactly one light is lit at any time. Adding the fourth light is opt-in per
 call site (`channels` prop), not a global switch.
@@ -130,12 +136,23 @@ often. A colour picker opens on hue, the first channel, which is the default.
   2026-09-10: the accent and highlight colours are not used on the dial.
   Hover and press are achromatic — hover lifts the dome slightly, press
   deepens the inset.
+- **No theme colour touches the knob face.** Adeline, 2026-09-11. The caption
+  is *etched*, not printed: glyphs that catch light with a dark cut above and
+  below them, all from black and white overlays, so it reads as engraving over
+  whatever tint the knob has and owes nothing to the palette. The knob's own
+  colour (`--ce-tint`, the theme background) and the focus ring outside the dial
+  are the only theme-derived values left on the control.
 - The **lit light is white and glows white**; the others are a glossy
   near-black. Adeline, 2026-09-11: at 50px a light is 3px wide, and a
   tinted one that small does not read. The bloom carries a px floor
   (`max(4px, …)`) for the same reason — a radius derived purely from the
   light's width vanishes with it. Nothing on the dial uses the accent or
-  highlight colour now; `--ce-led-on` remains as the override point.
+  highlight colour now; `--ce-led-on` remains as the override point. The lit
+  fill is declared as a **97-byte 1x8 PNG** of its white-to-`#eef2f6` ramp, with
+  the gradient kept underneath as a fallback: Chromium's "Auto Dark Mode for
+  Web Contents", which Brave exposes as a flag and Adeline runs with, rewrites
+  light background *colours* but leaves background *images* alone, so declared
+  as a gradient the lit light came out grey there.
 - Focus ring follows the surface convention: highlight-coloured outline on
   `:focus-visible`.
 
@@ -238,6 +255,15 @@ different colour (more than 3/255 on any rgb channel, or more than 1 on value
 or opacity) — otherwise a fine drag's sub-unit steps would be rounded away
 on every echo and the dial would never move. The same rule is why a grey keeps
 the hue it had: rgb carries no hue for it, so nothing contradicts the dial's.
+
+**A drag owns the value until it ends.** While the pointer is down the dial
+adopts nothing, however different the incoming value is. Otherwise an echo that
+lands mid-turn — a zone reporting a waypoint of a fade — counts as a genuinely
+different colour under the rule above and yanks the dial away from the hand
+turning it; at the top of the brightness range it read as a blip down to a low
+value (Adeline, 2026-09-11). After release, outside changes are taken again; on
+the lighting card `useRemoteSetting` already holds the commanded value through
+the fade that follows.
 
 ## Preview versus commit
 

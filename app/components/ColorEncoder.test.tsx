@@ -3,7 +3,7 @@ import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import * as haptics from "./haptics";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
-import { ColorEncoder, COLOR_ENCODER_CHANNELS_WITH_OPACITY } from "./ColorEncoder";
+import { ColorEncoder, COLOR_ENCODER_CHANNELS_WITH_ALPHA } from "./ColorEncoder";
 import {
   hsvaFromThemeColor,
   hsvToRgb,
@@ -95,9 +95,9 @@ describe("ColorEncoder", () => {
     expect(litChannel(container)).toBe("hue");
   });
 
-  it("adds the opacity light only when asked", () => {
+  it("adds the alpha light only when asked", () => {
     const { container } = render(
-      <ColorEncoder channels={COLOR_ENCODER_CHANNELS_WITH_OPACITY} value={start} onChange={vi.fn()} />,
+      <ColorEncoder channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} value={start} onChange={vi.fn()} />,
     );
     expect(container.querySelectorAll(".color-encoder-led")).toHaveLength(4);
   });
@@ -220,6 +220,29 @@ describe("ColorEncoder", () => {
     click.mockRestore();
   });
 
+  it("ignores an incoming value while the drag is still in the hand", () => {
+    // A zone reporting a waypoint of a fade must not yank a turn in progress.
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <ColorEncoder activeChannel="brightness" value={{ ...start, v: 90 }} onChange={onChange} />,
+    );
+    const dial = screen.getByRole("slider");
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: 30, clientY: 0, pointerId: 1 });
+    expect(onChange.mock.lastCall?.[0].v).toBeCloseTo(100, 5);
+
+    // Mid-drag echo of a much lower brightness: ignored.
+    rerender(<ColorEncoder activeChannel="brightness" value={{ ...start, v: 12 }} onChange={onChange} />);
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: 60, clientY: 0, pointerId: 1 });
+    expect(onChange.mock.lastCall?.[0].v).toBe(100);
+    expect(dial.getAttribute("aria-valuenow")).toBe("100");
+
+    // Once the gesture is over, a genuine outside change is taken.
+    fireEvent.pointerUp(dial, { clientX: 60, clientY: 0, pointerId: 1 });
+    rerender(<ColorEncoder activeChannel="brightness" value={{ ...start, v: 12 }} onChange={onChange} />);
+    expect(dial.getAttribute("aria-valuenow")).toBe("12");
+  });
+
   it("commits once per gesture, and a tap commits nothing", () => {
     const onChange = vi.fn();
     const onCommit = vi.fn();
@@ -267,7 +290,7 @@ describe("ColorEncoder", () => {
     rerender(
       <ColorEncoder
         name="colour"
-        channels={COLOR_ENCODER_CHANNELS_WITH_OPACITY}
+        channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA}
         value={{ h: 0, s: 100, v: 100, a: 40 }}
         onChange={vi.fn()}
       />,
@@ -287,11 +310,21 @@ describe("ColorEncoder", () => {
     expect(container.textContent).toBe("AccentSAT");
   });
 
-  it("captions the opacity channel too", () => {
-    const { container } = render(
-      <ColorEncoder channels={COLOR_ENCODER_CHANNELS_WITH_OPACITY} activeChannel="opacity" value={start} onChange={vi.fn()} />,
+  it("captions the alpha channel, and abbreviates at the smaller size", () => {
+    const { container, rerender } = render(
+      <ColorEncoder channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} activeChannel="alpha" value={start} onChange={vi.fn()} />,
     );
-    expect(container.textContent).toBe("OPAC");
+    expect(container.textContent).toBe("ALPHA");
+
+    // At 100px the caption font is pinned at its 10px floor, so it shortens.
+    rerender(
+      <ColorEncoder size={100} channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} activeChannel="alpha" value={start} onChange={vi.fn()} />,
+    );
+    expect(container.textContent).toBe("ALPH");
+    rerender(<ColorEncoder size={100} activeChannel="brightness" value={start} onChange={vi.fn()} />);
+    expect(container.textContent).toBe("BRT");
+    rerender(<ColorEncoder size={200} activeChannel="brightness" value={start} onChange={vi.fn()} />);
+    expect(container.textContent).toBe("BRIGHT");
   });
 
   it("drives from the keyboard", () => {

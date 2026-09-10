@@ -28,14 +28,14 @@ import { NOVA_THEME_SET_CHANGE_EVENT } from "./accentColor";
 import { selectionHaptic } from "./haptics";
 import { TAP_MAX_MS, TAP_MOVE_THRESHOLD_PX } from "./sliderTapGesture";
 
-export type ColorEncoderChannel = "hue" | "brightness" | "saturation" | "opacity";
+export type ColorEncoderChannel = "hue" | "brightness" | "saturation" | "alpha";
 
 export const COLOR_ENCODER_CHANNELS: ColorEncoderChannel[] = ["hue", "brightness", "saturation"];
-export const COLOR_ENCODER_CHANNELS_WITH_OPACITY: ColorEncoderChannel[] = [
+export const COLOR_ENCODER_CHANNELS_WITH_ALPHA: ColorEncoderChannel[] = [
   "hue",
   "brightness",
   "saturation",
-  "opacity",
+  "alpha",
 ];
 
 export const COLOR_ENCODER_MIN_SIZE = 50;
@@ -46,7 +46,7 @@ const SENSITIVITY: Record<ColorEncoderChannel, number> = {
   hue: 0.5,
   brightness: 1 / 3,
   saturation: 1 / 3,
-  opacity: 1 / 3,
+  alpha: 1 / 3,
 };
 
 /** Degrees the rotor turns per pixel of signed drag. Visual only. */
@@ -75,16 +75,25 @@ const CHANNEL_LABEL: Record<ColorEncoderChannel, string> = {
   hue: "hue",
   brightness: "brightness",
   saturation: "saturation",
-  opacity: "opacity",
+  alpha: "alpha",
 };
 
-/** The caption under the lights. Abbreviated to fit inside a 50px knob. */
-const CHANNEL_CAPTION: Record<ColorEncoderChannel, string> = {
-  hue: "HUE",
-  brightness: "BRIGHT",
-  saturation: "SAT",
-  opacity: "OPAC",
+/**
+ * The caption under the lights, in two lengths.
+ *
+ * The caption's font size is clamped 10-14px, so below the size at which it
+ * would fall under 10px there is no more room to give — and a long word starts
+ * crowding the lights. Adeline, 2026-09-11: at the smaller size, BRT and ALPH.
+ */
+const CHANNEL_CAPTION: Record<ColorEncoderChannel, [long: string, short: string]> = {
+  hue: ["HUE", "HUE"],
+  brightness: ["BRIGHT", "BRT"],
+  saturation: ["SAT", "SAT"],
+  alpha: ["ALPHA", "ALPH"],
 };
+
+/** Below this the caption font is pinned at its 10px floor (10 / 0.075). */
+const CAPTION_SHORT_BELOW_PX = 10 / 0.075;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -222,9 +231,16 @@ export function ColorEncoder({
   // only when it is a genuinely different colour (a preset, a paste, another
   // client), never when it is just our own value rounded.
   const valueRef = useRef(incoming);
-  if (!sameStoredColour(valueRef.current, incoming)) valueRef.current = incoming;
-  const normalized = valueRef.current;
   const dragRef = useRef<{ at: number; x: number; y: number; travel: number } | null>(null);
+  // A drag owns the value until it ends. Without this, an echo that arrives
+  // mid-turn — a zone reporting a waypoint of a fade, say — is a different
+  // colour by the rule above and gets adopted, yanking the dial away from the
+  // hand that is turning it. At the top of the brightness range that reads as a
+  // blip down to a low value (Adeline, 2026-09-11).
+  if (!dragRef.current && !sameStoredColour(valueRef.current, incoming)) {
+    valueRef.current = incoming;
+  }
+  const normalized = valueRef.current;
   const hapticRef = useRef({ at: 0, travel: 0 });
 
   /** One click per HAPTIC_TRAVEL_PX of turn, and never inside the floor. */
@@ -239,7 +255,7 @@ export function ColorEncoder({
   };
 
   const dialSize = clamp(Math.round(size), COLOR_ENCODER_MIN_SIZE, COLOR_ENCODER_MAX_SIZE);
-  const withAlpha = channels.includes("opacity");
+  const withAlpha = channels.includes("alpha");
   const rgb = hsvaToRgb(normalized);
 
   // Below half brightness the colour is not emitting anything, so no glow at
@@ -386,7 +402,9 @@ export function ColorEncoder({
             />
           ))}
         </span>
-        <span className="color-encoder-channel">{CHANNEL_CAPTION[channel]}</span>
+        <span className="color-encoder-channel">
+          {CHANNEL_CAPTION[channel][dialSize < CAPTION_SHORT_BELOW_PX ? 1 : 0]}
+        </span>
       </div>
       {name ? <input type="hidden" name={name} value={hsvaToFormValue(normalized, format, withAlpha)} /> : null}
     </div>

@@ -159,7 +159,7 @@ test.describe("colour encoder", () => {
     await shot(root, "zone-rotated");
   });
 
-  test("config dial: inline, 50px, opacity light where the slot owns one", async ({ page }) => {
+  test("config dial: inline, 100px, alpha light where the slot owns one", async ({ page }) => {
     const console = watchConsole(page);
     await gotoConfig(page);
     const category = page.getByRole("button", { name: /Appearance & Dashboard/ });
@@ -180,23 +180,23 @@ test.describe("colour encoder", () => {
 
     const accent = page.locator(".theme-widget-cell", { hasText: "ACCENT" }).first().locator(".color-encoder");
     await accent.scrollIntoViewIfNeeded();
-    await expectGeometry(accent, 50);
+    await expectGeometry(accent, 100);
     await expect(accent.locator(".color-encoder-led")).toHaveCount(3);
     // Label and channel caption are the only text: no value, no hex.
     expect((await accent.textContent())?.trim()).toBe("AccentHUE");
-    await shot(accent, "config-accent-50");
+    await shot(accent, "config-accent-100");
 
-    // Border owns its opacity, so its dial has the fourth light.
+    // Border owns its opacity, so its dial has the fourth (alpha) light.
     const border = page.locator(".theme-widget-cell", { hasText: "BORDERS" }).first().locator(".color-encoder");
     await border.scrollIntoViewIfNeeded();
     await expect(border.locator(".color-encoder-led")).toHaveCount(4);
-    await expectGeometry(border, 50);
+    await expectGeometry(border, 100);
     await expect(page.getByLabel(/borders opacity/i)).toHaveCount(0);
 
     // Take opacity to 40% and check the checkerboard shows through.
     const dial = border.locator(".color-encoder-dial");
     for (let index = 0; index < 3; index += 1) await dial.click();
-    await expect(dial).toHaveAttribute("data-channel", "opacity");
+    await expect(dial).toHaveAttribute("data-channel", "alpha");
     const before = Number(await dial.getAttribute("aria-valuenow"));
     const dialBox = await box(dial);
     await page.mouse.move(dialBox.x + dialBox.width / 2, dialBox.y + dialBox.height / 2);
@@ -206,7 +206,7 @@ test.describe("colour encoder", () => {
     await expect.poll(async () => Number(await dial.getAttribute("aria-valuenow"))).toBe(40);
     const ringColour = await border.locator(".color-encoder-ring").evaluate((node) => getComputedStyle(node).backgroundColor);
     expect(ringColour).toMatch(/rgba\(.*, 0\.\d+\)/);
-    await shot(border, "config-border-50-opacity");
+    await shot(border, "config-border-100-alpha");
     await shot(page.locator(".theme-widget-flow").first(), "config-colour-grid");
     await setSize(border, 200);
     await shot(border, "config-border-at-200-opacity");

@@ -3,7 +3,7 @@
 import { Check, ChevronRight, Clipboard, Copy } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { ThemeColorValue } from "./accentColor";
-import { COLOR_ENCODER_CHANNELS, COLOR_ENCODER_CHANNELS_WITH_OPACITY, ColorEncoder } from "./ColorEncoder";
+import { COLOR_ENCODER_CHANNELS, COLOR_ENCODER_CHANNELS_WITH_ALPHA, ColorEncoder } from "./ColorEncoder";
 import { hsvaFromThemeColor, themeColorFromHsva } from "./colorEncoderModel";
 import {
   consumePendingBreadcrumbSlug,
@@ -275,13 +275,17 @@ export function ColorEncoderPanel({
   onCommit,
   onPreview,
   opacity,
-  size = 50,
+  size = 100,
   value,
 }: {
   label: string;
   onCommit: (value: ThemeColorValue, opacity: number) => void;
   onPreview: (value: ThemeColorValue, opacity: number) => void;
-  /** 0–100. When given, the dial gains its opacity light. */
+  /**
+   * 0–100. When given, the dial gains its alpha light. The prop keeps the
+   * storage field's name: the theme calls this opacity, the dial calls the
+   * channel alpha (Adeline, 2026-09-11).
+   */
   opacity?: number;
   size?: number;
   value: ThemeColorValue;
@@ -291,7 +295,7 @@ export function ColorEncoderPanel({
     <div className="config-color-encoder">
       <ColorEncoder
         ariaLabel={`${label} colour`}
-        channels={withOpacity ? COLOR_ENCODER_CHANNELS_WITH_OPACITY : COLOR_ENCODER_CHANNELS}
+        channels={withOpacity ? COLOR_ENCODER_CHANNELS_WITH_ALPHA : COLOR_ENCODER_CHANNELS}
         demoTooltipTitle={label}
         demoTooltip="Tap to switch channel. Drag right or up to turn it up."
         label={label}

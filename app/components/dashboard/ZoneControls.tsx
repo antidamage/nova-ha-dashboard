@@ -76,7 +76,7 @@ export function ZoneColorEncoder({
   className,
   colorEnabled,
   disabled,
-  label = "Colour",
+  label = "Lights",
   size = 200,
   spectrum,
   zoneId,
