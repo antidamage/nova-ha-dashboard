@@ -40,8 +40,7 @@ Files:
 | Light width | `4.8% of --ce-size`, floor 3px |
 | Light height | `2 × light width` |
 | Gap between lights | `3 × light width` |
-| Index line | `1.2% × 20%` of `--ce-size`, from `7%` inset |
-| Notch | `5%` circle at `30%` from top |
+| Index line | `1.2% × 10%` of `--ce-size`, flush with the knob's rim |
 | Label gap | `5% of --ce-size` |
 | Channel caption | `clamp(10px, 7.5% of --ce-size, 14px)`, `5.5%` below the lights |
 
@@ -59,8 +58,9 @@ treatment as existing config control labels.
    channel rather than a painted band.
 6. **Inner bevel** — the lip between ring and knob.
 7. **Knob face** — soft CSS-gradient dome. **Its lighting never rotates.**
-8. **Rotor** — the only layer that turns: index line, notch, faint hairline
-   texture.
+8. **Rotor** — the only layer that turns: a single index line joined to the
+   knob's rim, plus a faint hairline texture. Adeline, 2026-09-11: one mark, not
+   two — a line and a notch on a knob this soft read as clutter.
 9. **Fixed specular** — above the rotor, so the texture passes under a
    stationary highlight.
 10. **Lights** — dead centre, stationary, one lit at a time.
@@ -109,6 +109,11 @@ often. A colour picker opens on hue, the first channel, which is the default.
 - **Keyboard**: focusable. Right/Up and Left/Down arrows nudge the active
   channel (8px-equivalent, 1px-equivalent with Shift). Enter/Space cycles the
   channel.
+- **A quick tap clicks once.** The press clicks and the channel change clicks,
+  which is right for two gestures but wrong for one: if the release comes within
+  `TAP_MAX_MS` (400ms) of the press, the change is silent. A deliberate
+  press-and-hold, released without dragging, still gets both. Enter/Space always
+  clicks, having had no press to click for.
 - **Click cadence**: one click on press, then at most one per 400ms of turning,
   gated behind 12px of travel. The dial does not use the shared
   `SliderHapticController`: that pulses on distance with an 80ms floor, which on
@@ -133,6 +138,27 @@ often. A colour picker opens on hue, the first channel, which is the default.
   highlight colour now; `--ce-led-on` remains as the override point.
 - Focus ring follows the surface convention: highlight-coloured outline on
   `:focus-visible`.
+
+### Light and dark
+
+The dark treatment is the design; light is its counterpart, not an inversion.
+The dial decides which it is **from the colour it is actually painted in**: it
+sets `color: var(--ce-tint)` on its root, reads that back resolved, and stamps
+`data-mode="light"` when the Rec. 709 luma is over 0.5. The dashboard's two
+theme variants differ only in custom-property values — nothing in the DOM says
+which is active — so this keeps the control self-contained and correct on the
+config page, inside a design module, and for any caller that overrides
+`--ce-tint`. It starts dark on the server and first client render (SPEC.md §2)
+and re-reads on `nova-accent-change`, `nova-theme-set-change` and
+`nova-sun-change`.
+
+In light mode (Adeline, 2026-09-11): the knob is a soft off-white (`#eceef1`),
+shading is pulled well back so black shadows do not read as grime on a pale
+face, the specular is dropped (a light dome has little to catch), the index line
+inverts to dark with a light edge, and the unlit wells go *darker* than in dark
+mode — the lit light is white, so the contrast between them has to come from
+the wells. The white bloom stays but does little on a pale knob, which is why
+the wells carry that work.
 
 ## Glow
 
@@ -249,6 +275,10 @@ with them (`theme-display-card*`, `theme-colour-popover*`, `theme-inline-editor*
 
 Every one of these loses its old control and gains a `ColorEncoder`:
 
+On the zone card the dial is labelled **Lights**, not Colour: it sets the
+zone's brightness as well as its colour, so naming it after one channel
+misdescribes it (Adeline, 2026-09-11).
+
 **Dashboard control surface** — `app/components/dashboard/ZoneControls.tsx`:
 the `SpectrumPad` (`DotSpectrumControl`) and the zone `Brightness`
 (`DotLineControl`) both go. One 200px, 3-light encoder replaces the pair:
@@ -288,7 +318,8 @@ deleted, along with its exports, README row and showcase card. Adeline,
   and 200px other than scale.
 - Tap cycles; drag adjusts the active channel with the specified signs and
   rates; hue wraps and the others stop; Shift/Alt is 8× finer.
-- The rotor turns while dragging and the knob's lighting does not.
+- The rotor turns while dragging and the knob's lighting does not; the rotor
+  carries exactly one mark.
 - The ring shows the colour, the checkerboard shows through as opacity drops,
   and the glow follows the 50% rule.
 - Neither the knob nor the lights take the accent or highlight colour; the lit

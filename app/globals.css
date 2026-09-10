@@ -6349,6 +6349,9 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
    never used on the dial itself, only on the lit channel light.
    ══════════════════════════════════════════════════════════════════════ */
 .color-encoder {
+  /* The dial paints itself in this colour so it can read its own surface back
+     and pick a light or dark treatment (see isLightSurface in ColorEncoder). */
+  color: var(--ce-tint);
   --ce-size: 200px;
   --ce-ring: calc(var(--ce-size) * 0.1);
   --ce-bevel: calc(var(--ce-size) * 0.022);
@@ -6368,6 +6371,76 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   align-items: center;
   gap: calc(var(--ce-size) * 0.05);
   max-width: 100%;
+}
+
+/* Light mode. The dark treatment is the design; this is its counterpart, not an
+   inversion of it: a soft off-white knob (Adeline, 2026-09-11), shading pulled
+   back so black shadows do not read as grime on a pale face, and the specular
+   dropped since a light dome has little to catch. The light wells stay dark, so
+   the white lit one still reads against them. */
+.color-encoder[data-mode="light"] {
+  --ce-tint: #eceef1;
+  --ce-checker-a: #d7d8dc;
+  --ce-checker-b: #9b9ca1;
+}
+
+.color-encoder[data-mode="light"] .color-encoder-outer-bevel {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.16) 55%, rgba(255, 255, 255, 0.6));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+}
+
+.color-encoder[data-mode="light"] .color-encoder-ring-shade {
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 42%, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 0 calc(var(--ce-ring) * 0.5) rgba(0, 0, 0, 0.28);
+}
+
+.color-encoder[data-mode="light"] .color-encoder-inner-bevel {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 calc(var(--ce-size) * -0.008) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.16);
+}
+
+.color-encoder[data-mode="light"] .color-encoder-knob {
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      #ffffff,
+      var(--ce-tint) 68%,
+      color-mix(in srgb, var(--ce-tint) 86%, #000 14%) 100%);
+  box-shadow:
+    inset 0 0 calc(var(--ce-size) * 0.08) rgba(0, 0, 0, 0.09),
+    0 calc(var(--ce-size) * 0.01) calc(var(--ce-size) * 0.045) rgba(0, 0, 0, 0.18);
+}
+
+.color-encoder[data-mode="light"] .color-encoder-spec {
+  background: none;
+}
+
+.color-encoder[data-mode="light"] .color-encoder-rotor::before {
+  background: repeating-conic-gradient(from 0deg, rgba(0, 0, 0, 0.035) 0deg 1.2deg, rgba(255, 255, 255, 0.035) 1.2deg 2.4deg);
+}
+
+.color-encoder[data-mode="light"] .color-encoder-index {
+  background: linear-gradient(180deg, rgba(40, 44, 52, 0.85), rgba(40, 44, 52, 0.55));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+/* Unlit wells go darker still on a pale knob: the lit one is white, so the
+   contrast between them has to come from the wells. */
+.color-encoder[data-mode="light"] .color-encoder-led {
+  background: linear-gradient(180deg, rgba(28, 31, 36, 0.62), rgba(18, 20, 24, 0.86));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* A white bloom is invisible on a pale knob, so the lit light reads by contrast
+   against its own dark well instead. */
+.color-encoder[data-mode="light"] .color-encoder-led[data-lit="true"] {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 max(3px, calc(var(--ce-led-w) * 1.1)) max(1px, calc(var(--ce-led-w) * 0.3)) rgba(255, 255, 255, 0.75),
+    0 0 max(7px, calc(var(--ce-led-w) * 2.4)) max(1px, calc(var(--ce-led-w) * 0.6)) rgba(80, 86, 96, 0.35);
 }
 
 .color-encoder-label {
@@ -6519,29 +6592,18 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   mask: radial-gradient(circle closest-side, transparent 0 52%, #000 72% 95%, transparent 97%);
 }
 
+/* One mark, joined to the rim and half its old length (Adeline, 2026-09-11). */
 .color-encoder-index {
   position: absolute;
-  top: calc(var(--ce-size) * 0.07);
+  top: 0;
   left: 50%;
   width: max(1px, calc(var(--ce-size) * 0.012));
-  height: calc(var(--ce-size) * 0.2);
+  height: calc(var(--ce-size) * 0.1);
   border-radius: 999px;
   /* Light body plus a dark outline, so the index reads on a dark knob and on a
      light one — the knob takes the theme's background colour, which is both. */
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34));
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.3);
-  transform: translateX(-50%);
-}
-
-.color-encoder-notch {
-  position: absolute;
-  top: calc(var(--ce-size) * 0.3);
-  left: 50%;
-  width: max(3px, calc(var(--ce-size) * 0.05));
-  height: max(3px, calc(var(--ce-size) * 0.05));
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 30%, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15));
-  box-shadow: inset 0 -1px 1px rgba(255, 255, 255, 0.22), 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateX(-50%);
 }
 

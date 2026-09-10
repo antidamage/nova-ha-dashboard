@@ -62,7 +62,7 @@ test.describe("colour encoder", () => {
   test("zone dial: geometry at 50, 120 and 200px, every channel", async ({ page }) => {
     const console = watchConsole(page);
     await gotoDashboard(page);
-    const dial = page.locator(".zone-panel").getByLabel("Zone colour");
+    const dial = page.locator(".zone-panel").getByLabel("Zone lights");
     const root = page.locator(".zone-panel .zone-color-encoder .color-encoder");
     await expect(dial).toBeVisible();
     await dial.scrollIntoViewIfNeeded();
@@ -91,7 +91,7 @@ test.describe("colour encoder", () => {
   test("the knob and lights never take the accent or highlight; the lit light is white", async ({ page }) => {
     await gotoDashboard(page);
     const root = page.locator(".zone-panel .zone-color-encoder .color-encoder");
-    const dial = page.locator(".zone-panel").getByLabel("Zone colour");
+    const dial = page.locator(".zone-panel").getByLabel("Zone lights");
     await dial.scrollIntoViewIfNeeded();
 
     const colours = await page.evaluate(() => {
@@ -138,7 +138,7 @@ test.describe("colour encoder", () => {
   test("dragging turns the rotor, and the rotor only", async ({ page }) => {
     await gotoDashboard(page);
     const root = page.locator(".zone-panel .zone-color-encoder .color-encoder");
-    const dial = page.locator(".zone-panel").getByLabel("Zone colour");
+    const dial = page.locator(".zone-panel").getByLabel("Zone lights");
     await dial.scrollIntoViewIfNeeded();
     const transform = (selector: string) => root.locator(selector).evaluate((node) => getComputedStyle(node).transform);
     const knobBefore = await transform(".color-encoder-knob");

@@ -8,6 +8,9 @@
  * resulting colour and is the control's *only* readout — there is deliberately
  * no hex code, no RGB triplet and no numeric value anywhere on it.
  *
+ * The rotor carries a single index line joined to the knob's rim — no notch;
+ * two marks on a knob this soft read as clutter (Adeline, 2026-09-11).
+ *
  * Everything scales from `size` (the knob diameter, 50–200px), which is
  * published as `--ce-size` so a caller or a design module can override any
  * derived dimension from CSS without touching this file.
@@ -21,8 +24,9 @@ import {
   wrapHue,
   type Hsva,
 } from "./colorEncoderModel";
+import { NOVA_THEME_SET_CHANGE_EVENT } from "./accentColor";
 import { selectionHaptic } from "./haptics";
-import { TAP_MOVE_THRESHOLD_PX } from "./sliderTapGesture";
+import { TAP_MAX_MS, TAP_MOVE_THRESHOLD_PX } from "./sliderTapGesture";
 
 export type ColorEncoderChannel = "hue" | "brightness" | "saturation" | "opacity";
 
@@ -84,6 +88,24 @@ const CHANNEL_CAPTION: Record<ColorEncoderChannel, string> = {
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Light or dark, decided from the theme colour the knob is actually painted in.
+ *
+ * The dashboard's light and dark variants differ only in the values of their
+ * CSS custom properties — nothing in the DOM says which is active — so the dial
+ * reads its own resolved tint and judges it. That keeps the control
+ * self-contained: it works on the config page, inside a design module, and
+ * anywhere a caller overrides `--ce-tint` to something of its own.
+ */
+function isLightSurface(element: HTMLElement | null) {
+  if (!element || typeof window === "undefined") return false;
+  const parsed = window.getComputedStyle(element).color.match(/[\d.]+/g);
+  if (!parsed || parsed.length < 3) return false;
+  const [r, g, b] = parsed.map(Number);
+  // Rec. 709 luma, the same weighting the wallpaper sampler uses.
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5;
 }
 
 function channelValue(value: Hsva, channel: ColorEncoderChannel) {
@@ -179,6 +201,20 @@ export function ColorEncoder({
 
   const [angle, setAngle] = useState(0);
   const [pressed, setPressed] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [mode, setMode] = useState<"dark" | "light">("dark");
+
+  // Server and first client render must agree (SPEC.md §2), so the dial starts
+  // dark and re-reads its surface after mount and on every theme change.
+  useEffect(() => {
+    const read = () => setMode(isLightSurface(rootRef.current) ? "light" : "dark");
+    read();
+    const events = ["nova-accent-change", NOVA_THEME_SET_CHANGE_EVENT, "nova-sun-change"];
+    for (const event of events) window.addEventListener(event, read);
+    return () => {
+      for (const event of events) window.removeEventListener(event, read);
+    };
+  }, []);
 
   // The dial keeps its own unrounded value. Callers store integer intensity and
   // rgb, so feeding their rounded echo back into the next nudge would swallow
@@ -188,7 +224,7 @@ export function ColorEncoder({
   const valueRef = useRef(incoming);
   if (!sameStoredColour(valueRef.current, incoming)) valueRef.current = incoming;
   const normalized = valueRef.current;
-  const dragRef = useRef<{ x: number; y: number; travel: number } | null>(null);
+  const dragRef = useRef<{ at: number; x: number; y: number; travel: number } | null>(null);
   const hapticRef = useRef({ at: 0, travel: 0 });
 
   /** One click per HAPTIC_TRAVEL_PX of turn, and never inside the floor. */
@@ -213,11 +249,17 @@ export function ColorEncoder({
     ? "0 0 0 rgba(0, 0, 0, 0)"
     : `0 0 ${(dialSize * (0.03 + 0.11 * glowAmount)).toFixed(1)}px ${(dialSize * 0.012 * glowAmount).toFixed(1)}px rgba(${rgb.join(", ")}, ${(0.62 * glowAmount).toFixed(3)})`;
 
-  const cycleChannel = () => {
+  /**
+   * `silent` suppresses the click, for a quick tap that already clicked on the
+   * way down. Adeline, 2026-09-11: a press and a change are two events and two
+   * clicks when they are two gestures, but a tap is one gesture and should
+   * sound once. A deliberate press-and-hold still gets both.
+   */
+  const cycleChannel = (silent = false) => {
     const next = channels[(channels.indexOf(channel) + 1) % channels.length];
     setInternalChannel(next);
     onActiveChannelChange?.(next);
-    selectionHaptic();
+    if (!silent) selectionHaptic();
   };
 
   const nudge = (pixels: number, fine: boolean) => {
@@ -235,9 +277,10 @@ export function ColorEncoder({
     : {
       onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
         event.currentTarget.setPointerCapture(event.pointerId);
-        dragRef.current = { x: event.clientX, y: event.clientY, travel: 0 };
+        const at = typeof performance === "undefined" ? Date.now() : performance.now();
+        dragRef.current = { at, x: event.clientX, y: event.clientY, travel: 0 };
         setPressed(true);
-        hapticRef.current = { at: typeof performance === "undefined" ? Date.now() : performance.now(), travel: 0 };
+        hapticRef.current = { at, travel: 0 };
         selectionHaptic();
       },
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
@@ -260,7 +303,8 @@ export function ColorEncoder({
         setPressed(false);
         if (!drag) return;
         if (drag.travel < TAP_MOVE_THRESHOLD_PX) {
-          cycleChannel();
+          const now = typeof performance === "undefined" ? Date.now() : performance.now();
+          cycleChannel(now - drag.at < TAP_MAX_MS);
           return;
         }
         onCommit?.(valueRef.current);
@@ -289,6 +333,8 @@ export function ColorEncoder({
 
   return (
     <div
+      ref={rootRef}
+      data-mode={mode}
       className={["color-encoder", disabled ? "color-encoder-disabled" : "", className].filter(Boolean).join(" ")}
       style={{
         "--ce-size": `${dialSize}px`,
@@ -328,7 +374,6 @@ export function ColorEncoder({
         <span className="color-encoder-knob" aria-hidden />
         <span className="color-encoder-rotor" aria-hidden>
           <span className="color-encoder-index" />
-          <span className="color-encoder-notch" />
         </span>
         <span className="color-encoder-spec" aria-hidden />
         <span className="color-encoder-leds" aria-hidden>

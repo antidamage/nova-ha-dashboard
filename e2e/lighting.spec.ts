@@ -7,7 +7,7 @@ test.describe("lighting controls", () => {
   test("renders the colour dial and preset controls", async ({ page }) => {
     await gotoDashboard(page);
 
-    const dial = page.locator(".zone-panel").getByLabel("Zone colour");
+    const dial = page.locator(".zone-panel").getByLabel("Zone lights");
     await expect(dial).toBeVisible();
     await expect(dial).toHaveAttribute("aria-valuenow", /\d+/);
     // The dial owns brightness; there is no second brightness control.
@@ -19,7 +19,7 @@ test.describe("lighting controls", () => {
 
   test("opens on brightness and cycles through saturation and hue", async ({ page }) => {
     await gotoDashboard(page);
-    const dial = page.locator(".zone-panel").getByLabel("Zone colour");
+    const dial = page.locator(".zone-panel").getByLabel("Zone lights");
 
     // Dimming a room is what this card is reached for, so brightness is lit
     // on load rather than hue (specs/color-encoder.md, "Channels").
@@ -35,7 +35,7 @@ test.describe("lighting controls", () => {
   test("dragging left on the brightness light turns the zone down", async ({ page }) => {
     const console = watchConsole(page);
     await gotoDashboard(page);
-    const dial = page.locator(".zone-panel").getByLabel("Zone colour");
+    const dial = page.locator(".zone-panel").getByLabel("Zone lights");
     await expect(dial).toHaveAttribute("data-channel", "brightness");
 
     // The drag is driven by page coordinates, so the dial has to be on screen
@@ -65,7 +65,7 @@ test.describe("lighting controls", () => {
     await page.locator(".zone-panel").getByRole("button", { name: /^On/ }).first().click();
 
     // Controls remain interactive after a round trip through the command path.
-    await expect(page.locator(".zone-panel").getByLabel("Zone colour")).toBeVisible();
+    await expect(page.locator(".zone-panel").getByLabel("Zone lights")).toBeVisible();
     expectNoConsoleErrors(console);
   });
 
@@ -74,7 +74,7 @@ test.describe("lighting controls", () => {
     await gotoDashboard(page);
 
     await page.locator(".zone-panel").getByRole("button", { name: "White", exact: true }).click();
-    await expect(page.locator(".zone-panel").getByLabel("Zone colour")).toBeVisible();
+    await expect(page.locator(".zone-panel").getByLabel("Zone lights")).toBeVisible();
     expectNoConsoleErrors(console);
   });
 });

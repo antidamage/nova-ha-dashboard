@@ -21,7 +21,7 @@ let latestEncoder: ColorEncoderProps | null = null;
 vi.mock("../ColorEncoder", () => ({
   ColorEncoder: (props: ColorEncoderProps) => {
     latestEncoder = props;
-    return <div aria-label="Zone colour" />;
+    return <div aria-label="Zone lights" />;
   },
 }));
 
@@ -135,11 +135,11 @@ describe("ZoneControls", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps lounge controls ordered as lighting, colour dial, then environment", () => {
+  it("keeps lounge controls ordered as lighting, the dial, then environment", () => {
     render(renderZoneControls(loungeZone()));
 
     const lightAction = screen.getByRole("button", { name: "White" });
-    const dial = screen.getByLabelText("Zone colour");
+    const dial = screen.getByLabelText("Zone lights");
     const environment = screen.getByRole("heading", { name: "Environment" });
 
     expectBefore(lightAction, dial);
