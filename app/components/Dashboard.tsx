@@ -7,10 +7,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDeviceTheme, type ThemeVariant } from "./accentColor";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
 import { ClockPanel } from "./dashboard/ClockPanel";
+import { ClimateCommandsProvider } from "./dashboard/ClimateCommandsProvider";
+import { QuickAccessCard } from "./dashboard/QuickAccessCard";
 import { ReminderIconBar } from "./dashboard/ReminderIconBar";
 import { ZoneControls } from "./dashboard/ZoneControls";
 import {
   bedroomHeaterDevices,
+  climateDevicesForZone,
   findLoungeEnvironment,
 } from "./dashboard/shared";
 import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
@@ -73,6 +76,9 @@ export function Dashboard() {
     [data, bedroomHeaterConfig],
   );
   const bedroomTemperature = bedroomHeater.temperature;
+  // One climate command instance per room, shared by the Quick Access segments
+  // and the full climate cards below (see ClimateCommandsProvider).
+  const climateDevices = useMemo(() => climateDevicesForZone(zoneTree.climate), [zoneTree.climate]);
   const [autoFullscreen] = useAutoFullscreenSetting();
   useAutoFullscreen(autoFullscreen);
   const showBackground = useExperienceFeature("background");
@@ -81,7 +87,15 @@ export function Dashboard() {
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("nova-sun-change", { detail: data?.sun ?? null }));
   }, [data?.sun]);
-  const { applyDesktopSleep, applyDesktopWake, applyEntityActions, applyZoneAction, desktopSleepBusy, desktopWakeBusy } = useDashboardCommands({
+  const {
+    applyDesktopSleep,
+    applyDesktopWake,
+    applyEntityActions,
+    applyZoneAction,
+    applyZoneActionFor,
+    desktopSleepBusy,
+    desktopWakeBusy,
+  } = useDashboardCommands({
     data,
     eventClientId,
     pausePolling,
@@ -145,10 +159,37 @@ export function Dashboard() {
             </div>
           ) : null}
 
+          <ClimateCommandsProvider
+            aircon={{
+              controlState: data?.climateControl?.lounge,
+              entity: climateDevices.aircon,
+              preferences: data?.preferences?.aircon,
+              quietSwitch: climateDevices.quietSwitch,
+              turboSwitch: climateDevices.turboSwitch,
+              onEntityActions: applyEntityActions,
+            }}
+            heater={{ onNotice: setToast, preferences: data?.preferences?.bedroomHeater }}
+          >
           <div className="dashboard-layout grid gap-5">
             <ClockPanel />
 
             <ReminderIconBar />
+
+            <QuickAccessCard
+              bedroomHeater={bedroomHeater}
+              climateControl={data?.climateControl}
+              climateZone={zoneTree.climate}
+              homeZone={zoneTree.inside}
+              preferences={data?.preferences}
+              spectrumCursor={zoneTree.inside ? data?.spectrumCursors?.[zoneTree.inside.id] : undefined}
+              sun={data?.sun}
+              weather={data?.weather}
+              onEntityActions={applyEntityActions}
+              onHomeZoneAction={(action, body) =>
+                zoneTree.inside ? applyZoneActionFor(zoneTree.inside, action, body) : Promise.resolve()
+              }
+              onNotice={setToast}
+            />
 
             <ZonesPanel
               data={data}
@@ -188,6 +229,7 @@ export function Dashboard() {
               )}
             </div>
           </div>
+          </ClimateCommandsProvider>
 
           <VoiceTranscriptPanel />
 

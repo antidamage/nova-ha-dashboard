@@ -123,18 +123,20 @@ export function useDashboardCommands({
     };
   }, [refresh, selectedZone?.id]);
 
-  const applyZoneAction = useCallback(
-    async (action: string, body: Record<string, unknown> = {}) => {
-      if (!selectedZone) {
-        return;
-      }
-
+  /**
+   * A zone action for any zone, not only the selected one. Quick Access drives
+   * the Home zone while another zone is open (specs/quick-access-card.md). The
+   * sequence and abort controller stay shared: the server treats every
+   * interactive lighting command as superseding the last, whatever its zone.
+   */
+  const applyZoneActionFor = useCallback(
+    async (zone: DashboardZone, action: string, body: Record<string, unknown> = {}) => {
       // Module interceptors run BEFORE the optimistic write and the poll hold,
       // so a cancelled action leaves neither behind.
       const proceed = await runModuleIntercepts({
         id: "zone.action",
         source: "client",
-        zone: { id: selectedZone.id, name: selectedZone.name },
+        zone: { id: zone.id, name: zone.name },
         service: action,
         data: body,
       });
@@ -149,7 +151,7 @@ export function useDashboardCommands({
       if (holdLightPolling) {
         pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
         setData((current) =>
-          current ? optimisticStateForZoneAction(current, selectedZone.id, action, body) : current,
+          current ? optimisticStateForZoneAction(current, zone.id, action, body) : current,
         );
       }
 
@@ -163,7 +165,7 @@ export function useDashboardCommands({
         const response = await fetch("/api/zone", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ zoneId: selectedZone.id, action, sourceClientId: eventClientId.current, ...body }),
+          body: JSON.stringify({ zoneId: zone.id, action, sourceClientId: eventClientId.current, ...body }),
           signal: controller?.signal,
         });
         const payload = await response.json();
@@ -182,7 +184,7 @@ export function useDashboardCommands({
           setData(payload);
         }
 
-        setToast(`${selectedZone.name}: ${action}`);
+        setToast(`${zone.name}: ${action}`);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
           return;
@@ -199,7 +201,13 @@ export function useDashboardCommands({
         }
       }
     },
-    [eventClientId, pausePolling, refresh, runModuleIntercepts, scheduleLightResumePoll, selectedZone, setData, setToast],
+    [eventClientId, pausePolling, refresh, runModuleIntercepts, scheduleLightResumePoll, setData, setToast],
+  );
+
+  const applyZoneAction = useCallback(
+    (action: string, body: Record<string, unknown> = {}) =>
+      selectedZone ? applyZoneActionFor(selectedZone, action, body) : Promise.resolve(),
+    [applyZoneActionFor, selectedZone],
   );
 
   const applyEntityActions = useCallback(
@@ -343,6 +351,7 @@ export function useDashboardCommands({
     applyDesktopWake,
     applyEntityActions,
     applyZoneAction,
+    applyZoneActionFor,
     desktopSleepBusy,
     desktopWakeBusy,
   };

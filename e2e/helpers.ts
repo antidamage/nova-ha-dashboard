@@ -125,7 +125,14 @@ export async function waitForStableLayout(page: Page, quietMs = 500, timeoutMs =
   );
 }
 
-/** Click a zone button in the Zones panel by its accessible name. */
+/**
+ * Click a zone button in the Zones panel by its accessible name.
+ *
+ * Scoped to the panel, not the page: the Quick Access card above it carries
+ * buttons named after the room they control ("Raise Climate target"), which an
+ * unscoped `/Climate/` matched first because that card comes earlier in the DOM
+ * — so the zone never opened.
+ */
 export async function selectZone(page: Page, name: string | RegExp) {
-  await page.getByRole("button", { name }).first().click();
+  await page.locator(".zones-panel").getByRole("button", { name }).first().click();
 }
