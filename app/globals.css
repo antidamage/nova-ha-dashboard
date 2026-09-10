@@ -2547,9 +2547,18 @@ html.nova-header-controls-disabled .dashboard-reload-link {
   cursor: grab;
   border: 1px solid rgb(64 64 64);
   background: rgb(10 10 10 / 0.7);
-  padding: 6px 10px;
+  padding: 6px 20px;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
   scrollbar-width: none;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+/* Just the category, nothing unfolded yet — the trail has nothing to add
+   over the page header, so keep it out of the way until one level deep. */
+.config-breadcrumb-shallow {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .config-breadcrumb::-webkit-scrollbar {

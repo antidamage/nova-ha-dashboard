@@ -553,7 +553,11 @@ export function ConfigWorkspace({
           })}
         </nav>
 
-        <ConfigBreadcrumb activeCategory={activeCategory} categoryLabel={activeMeta?.label ?? null} />
+        <ConfigBreadcrumb
+          activeCategory={activeCategory}
+          categoryLabel={activeMeta?.label ?? null}
+          onSelectRoot={() => activeCategory && selectCategory(activeCategory)}
+        />
 
         {activeCategory ? (
           <div id="config-category-content" className="config-category-content grid gap-4" data-category={activeCategory}>
