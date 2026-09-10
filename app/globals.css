@@ -5765,19 +5765,33 @@ button.config-breadcrumb-crumb:focus-visible {
     margin-top: 0 !important;
   }
 
-  /* Three rows, not two, so the sidebar's height does not dictate the clock's.
-     The reminder bar spans rows 1-2 and the control stage spans rows 2-3, which
-     lets the control stage begin directly under the clock while the zones menu
-     still begins under the reminder bar. With a single shared row the reserved
-     orb space above the reminder bar set the row height and left a tall empty
-     band under the clock. */
+  /* Three rows. Quick Access takes the middle one, full width: one line does
+     not fit the 300px sidebar, and a full-width row is the only placement that
+     is both above the zone menu and above every panel below it
+     (specs/quick-access-card.md).
+
+     The reminder bar used to span rows 1-2 (with the control stage spanning
+     2-3) so that the orb space reserved above it could not set the clock row's
+     height and leave a tall empty band under the clock. Quick Access now ends
+     that row instead, and the bar's `align-self: end` still pins it to the
+     card below — measured at 1920x1080 and 1180x820, the gaps above and below
+     the card are the layout's normal ~20px.
+
+     Every area here is one rectangle: a four-row version splitting `control`
+     across non-adjacent rows is invalid and drops the whole declaration. This
+     is the ONLY grid-template-areas for this breakpoint — do not add a second
+     block overriding it. */
   .dashboard-layout {
     align-items: start;
     grid-template-areas:
       "reminders clock"
-      "reminders control"
+      "quick quick"
       "zones control";
     grid-template-columns: 300px minmax(0, 1fr) !important;
+  }
+
+  .quick-access {
+    grid-area: quick;
   }
 
   /* Landscape keeps portrait's arrangement — title row above a bordered clock
@@ -6718,3 +6732,219 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   padding-block: 8px;
 }
 
+/* ── Quick Access (specs/quick-access-card.md) ─────────────────────────────
+   One line of the controls used most, above the zone menu. Its own border,
+   a highlight rail on the left and a name tab on the top edge keep it apart
+   from the panels below.
+
+   One line needs ~1480px of card. Below that the segments form a 2×2 grid,
+   and on a phone they stack with each tile's controls wrapping inside it.
+   Segments always move as whole tiles — never a horizontal scrollbar. */
+.quick-access {
+  position: relative;
+  min-width: 0;
+  container-type: inline-size;
+  border: 1px solid var(--cyber-border-dim);
+  border-left: 3px solid var(--cyber-highlight);
+  background: color-mix(in srgb, var(--cyber-panel) 88%, transparent);
+  padding: 16px 10px 10px;
+}
+
+.dashboard-shell .quick-access-kicker {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  margin: 0;
+  padding: 3px 10px 2px;
+  transform: translateY(-50%);
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-highlight) !important;
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow: none !important;
+  text-transform: uppercase;
+}
+
+.quick-access-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quick-segment {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 84px;
+  align-items: center;
+  justify-content: flex-start;
+  /* Not space-between: with only 2-4 clusters per tile that scattered them
+     across a wide tile and read as leftover space. One cluster left, the
+     buttons pinned right. */
+  gap: 8px 14px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  padding: 6px 8px;
+}
+
+@container (min-width: 920px) {
+  .quick-segment {
+    flex-basis: calc(50% - 4px);
+    flex-wrap: nowrap;
+  }
+}
+
+@container (min-width: 1480px) {
+  .quick-access-row {
+    flex-wrap: nowrap;
+  }
+
+  .quick-segment {
+    flex: 1 1 auto;
+  }
+}
+
+.quick-segment-lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-segment-text {
+  display: flex;
+  min-width: 4.5rem;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-shell .quick-segment-title {
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-display);
+  font-size: 0.95rem;
+  font-weight: var(--cyber-display-weight, 700);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quick-segment-state,
+.quick-stepper-caption {
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quick-current,
+.quick-stepper-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-current-number,
+.quick-stepper-number {
+  min-width: 2.6ch;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.quick-access-degree {
+  font-size: 0.6em;
+  vertical-align: top;
+}
+
+.quick-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-stepper-disabled .quick-stepper-value {
+  opacity: 0.6;
+}
+
+.quick-button-pair {
+  display: flex;
+  gap: 6px;
+  margin-inline-start: auto;
+}
+
+.quick-button,
+.quick-stepper-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
+  font-family: var(--cyber-mono);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quick-button {
+  padding-inline: 9px;
+}
+
+.quick-stepper-button {
+  width: 44px;
+  padding: 0;
+}
+
+/* The house chamfer is 14px, sized for 64px buttons; at 44px it eats the label. */
+.dashboard-shell .quick-button,
+.dashboard-shell .quick-stepper-button {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+.dashboard-shell .quick-button-active,
+.dashboard-shell .quick-button-active:hover:not(:disabled) {
+  border-color: var(--cyber-highlight) !important;
+  background: var(--cyber-highlight) !important;
+  color: var(--cyber-title-on-highlight) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .quick-button-active svg {
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.quick-button:disabled,
+.quick-stepper-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.zone-color-encoder.quick-access-encoder {
+  flex: none;
+  padding-block: 0;
+}
+
+.quick-weather-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--cyber-title-on-bg);
+}

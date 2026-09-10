@@ -165,8 +165,30 @@ export function formatWeatherNumber(value: number | null, digits = 0) {
   return value.toFixed(digits);
 }
 
+/**
+ * Home Assistant's condition ids run words together ("partlycloudy") or hyphenate
+ * them ("clear-night"); this used to swap underscores only, so the weather panel
+ * read "PARTLYCLOUDY". Every surface showing a condition calls this, so they
+ * cannot disagree about the same live weather.
+ */
+const WEATHER_CONDITION_LABELS: Record<string, string> = {
+  "clear-night": "Clear",
+  exceptional: "Extreme",
+  lightning: "Storm",
+  "lightning-rainy": "Storm",
+  partlycloudy: "Partly cloudy",
+  pouring: "Heavy rain",
+  "snowy-rainy": "Sleet",
+};
+
 export function weatherLabel(condition: string) {
-  return condition.replaceAll("_", " ");
+  const text = condition.trim().toLowerCase();
+  if (!text) {
+    return "Unknown";
+  }
+
+  const label = WEATHER_CONDITION_LABELS[text] ?? text.replace(/[_-]+/g, " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function entityText(entity: DashboardEntity) {
