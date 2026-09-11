@@ -43,9 +43,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * different gate rather than the same gate on worse evidence.** That is the
  * `CAPTURE_PROFILES` table below: `quick` and `image` switch the liveness and
  * anti-spoof gates off outright, because a residual floor low enough to pass a
- * genuine 1 s capture is low enough to pass a photograph, and a gate tuned to
- * that number is not a gate. What replaces it is a session that expires after
- * 15 minutes of inactivity — see `specs/login-surface.md`.
+ * genuine one-second capture is low enough to pass a photograph, and a gate
+ * tuned to that number is not a gate. What replaces it is a session that
+ * expires after 15 minutes of inactivity — see `specs/login-surface.md`.
+ *
+ * `quick` records no clip at all any more (2026-09-11). It posts single stills
+ * until the service holds two it can use, then stops — so clip length and frame
+ * rate, which refused a modest webcam outright before a face was ever looked
+ * at, are not judged on that path at all.
  *
  * Enrolment is not one of those surfaces and never becomes one. A photograph
  * enrolled into the gallery authenticates every later sign-in, including the
@@ -65,15 +70,55 @@ export type CaptureProfileName = "standard" | "quick" | "image";
 
 export type CaptureSpec = {
   profile: CaptureProfileName;
-  /** Clip length in ms. Ignored by `image`, which records nothing. */
+  /** Clip length in ms. Only `standard` records a clip. */
   clipMs: number;
+  /**
+   * Set on streamed profiles (`quick`): stills go to `/api/face/frame` one at
+   * a time until the service holds enough good ones, or this long after the
+   * preview's first frame, whichever comes first.
+   */
+  streamGiveUpMs?: number;
 };
 
 export const CAPTURE_PROFILES: Record<CaptureProfileName, CaptureSpec> = {
   standard: { profile: "standard", clipMs: CLIP_DURATION_MS },
-  quick: { profile: "quick", clipMs: 1000 },
+  quick: { profile: "quick", clipMs: 0, streamGiveUpMs: 5000 },
   image: { profile: "image", clipMs: 0 },
 };
+
+/** Outcome of `streamFrames`: `reason` is set only when the service refused outright. */
+export type StreamResult = { complete: boolean; reason: string | null };
+
+/**
+ * Refusals from `/frame` that end the attempt without an `/assert`. Anything
+ * else — a skipped still, `frame_limit` — just means "keep going" or "go and
+ * let `/assert` decide".
+ */
+const STREAM_FATAL_REASONS = new Set([
+  "nonce_invalid",
+  "network_denied",
+  "disarmed",
+  "locked_out",
+  "rate_limited",
+  "service_unavailable",
+  "forbidden",
+]);
+
+/** Resolve on the next decoded video frame, or after `timeoutMs` without one. */
+function nextVideoFrame(video: HTMLVideoElement, timeoutMs = 250): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, timeoutMs);
+    const withCallback = video as HTMLVideoElement & {
+      requestVideoFrameCallback?: (callback: () => void) => number;
+    };
+    if (typeof withCallback.requestVideoFrameCallback === "function") {
+      withCallback.requestVideoFrameCallback(() => {
+        window.clearTimeout(timer);
+        resolve();
+      });
+    }
+  });
+}
 
 export const DEFAULT_CAPTURE = CAPTURE_PROFILES.standard;
 
@@ -112,7 +157,7 @@ export const FACE_REASON_MESSAGES: Record<string, string> = {
   clip_too_long: "The clip was too short or too choppy. Try again.",
   clip_low_fps: "The clip was too short or too choppy. Try again.",
   low_detection: "The camera could not see your face clearly enough.",
-  too_few_frames: "Too few usable frames in that clip. Try again.",
+  too_few_frames: "The camera did not get a clear enough look at you. Try again.",
   liveness_unstable: "Too much movement. Hold steadier.",
 
   // --- seen, but not matched to an enrolled person ---
@@ -333,6 +378,12 @@ export type FaceCapture = {
    * clip.
    */
   recordClip: () => Promise<{ blob: Blob; field: "clip" | "image" }>;
+  /**
+   * Streamed profiles only: post stills until the service holds enough good
+   * frames, or the give-up time passes. Either way the caller then posts
+   * `/assert` with no upload — the service judges what it held.
+   */
+  streamFrames: (nonce: string) => Promise<StreamResult>;
   /** A single JPEG frame from the live preview. `image` uses this. */
   captureStill: () => Promise<Blob>;
   stopStream: () => void;
@@ -505,7 +556,62 @@ export function useFaceCapture(spec: CaptureSpec = DEFAULT_CAPTURE): FaceCapture
     return blob;
   }, []);
 
+  /**
+   * Post stills to `/api/face/frame` until the service holds enough good ones.
+   *
+   * There is no clip and no fixed length. Each still goes as soon as the
+   * previous answer lands, so a camera that delivers four frames a second is
+   * simply slower to get there rather than refused for it — the clip-length and
+   * frame-rate gates were what made a sign-in from a modest webcam impossible.
+   * Stills the service skips (no face, too small, out of focus) cost only
+   * another loop, which is also what gives a kiosk camera time to find focus.
+   *
+   * The clock starts at the preview's FIRST frame, not at the call: waiting for
+   * the camera to hand over a frame is not time spent trying.
+   */
+  const streamFrames = useCallback(async (nonce: string): Promise<StreamResult> => {
+    const giveUpMs = spec.streamGiveUpMs ?? 0;
+    const video = videoRef.current;
+    if (!giveUpMs || !video || !streamRef.current) {
+      throw new Error("The camera is not running.");
+    }
+    // The preview has no frame yet for the first moments after getUserMedia.
+    const readyBy = Date.now() + giveUpMs;
+    while (!video.videoWidth || !video.videoHeight) {
+      if (Date.now() > readyBy) return { complete: false, reason: null };
+      await nextVideoFrame(video, 50);
+    }
+
+    const deadline = Date.now() + giveUpMs;
+    let lastReason: string | null = null;
+    while (Date.now() < deadline) {
+      const form = new FormData();
+      form.set("image", await captureStill(), "frame.jpg");
+      form.set("nonce", nonce);
+      const response = await fetch("/api/face/frame", { method: "POST", body: form });
+      const body = await readJsonBody(response);
+      if (!streamRef.current) return { complete: false, reason: null };
+      const reason = typeof body?.reason === "string" ? body.reason : null;
+      if (!response.ok) {
+        // A refusal that ends the attempt is reported; anything else (a spent
+        // frame budget, an unreadable still) falls through to `/assert`, which
+        // names what was actually wrong with the frames it has.
+        return { complete: false, reason: reason && STREAM_FATAL_REASONS.has(reason) ? reason : null };
+      }
+      if (body?.complete === true) return { complete: true, reason: null };
+      lastReason = reason ?? lastReason;
+      // Never post the same decoded frame twice: on a slow camera the preview
+      // may not have advanced since the last still, and two copies of one frame
+      // are not two frames.
+      await nextVideoFrame(video);
+    }
+    return { complete: false, reason: null };
+  }, [captureStill, spec.streamGiveUpMs]);
+
   const recordClip = useCallback(async (): Promise<{ blob: Blob; field: "clip" | "image" }> => {
+    if (spec.streamGiveUpMs) {
+      throw new Error("A streamed profile posts stills to /api/face/frame; call streamFrames.");
+    }
     if (spec.profile === "image") {
       return { blob: await captureStill(), field: "image" };
     }
@@ -540,6 +646,7 @@ export function useFaceCapture(spec: CaptureSpec = DEFAULT_CAPTURE): FaceCapture
     openCamera,
     capture: spec,
     recordClip,
+    streamFrames,
     captureStill,
     stopStream,
   };

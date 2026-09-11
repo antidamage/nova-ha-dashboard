@@ -177,6 +177,11 @@ MAX_DECODE_FRAMES = 600
 
 MODELS = FaceModels()
 
+# Streamed (`quick`) stills held per nonce until /assert takes them. In memory
+# on purpose: one uvicorn worker, and a restart that drops a half-streamed
+# attempt only costs that attempt.
+FRAMES = core.FrameHold(ttl_seconds=NONCE_TTL_SECONDS)
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -764,7 +769,7 @@ def store() -> Store:
 # the armed state governs. /healthz, /detect, /embed and /identify are the
 # recognition half — camera-events and the kiosk use them and they release
 # nothing — so they carry the key requirement but not the login gates.
-GATED_PATHS = ("/challenge", "/verify", "/assert", "/enrol")
+GATED_PATHS = ("/challenge", "/frame", "/verify", "/assert", "/enrol")
 
 
 def client_ip(request: Request) -> str | None:
@@ -955,9 +960,9 @@ async def read_bounded(request: Request, upload: UploadFile) -> bytes:
 def decode_clip(payload: bytes, profile: core.CaptureProfile | None = None) -> tuple[list[np.ndarray], float, float]:
     """Decode a submitted clip to sampled BGR frames.
 
-    `profile` supplies the length bounds. `standard` passes None and gets the
-    service's configured FACE_CLIP_* values; `quick` carries its own shorter
-    window because a 1 s clip is `clip_too_short` under the standard floor.
+    `profile` supplies the length bounds; None means the service's configured
+    FACE_CLIP_* values. `quick` never arrives here — it streams stills to
+    /frame instead of posting a clip.
 
     The temp file is removed in a `finally` that runs on every exception path.
     An exception mid-decode must not leave a video of somebody's face on disk;
@@ -1022,6 +1027,21 @@ def decode_image(payload: bytes) -> np.ndarray:
 
 
 class ClipAnalysis:
+    @classmethod
+    def from_stream(cls, held: core.HeldStream) -> "ClipAnalysis":
+        """The frames /frame gathered for a nonce, as an analysis /assert can judge.
+
+        Detections only — the stills were never kept — so `antispoof()` and
+        `track()` are unavailable, which is why a streamed profile has both
+        gates off.
+        """
+
+        analysis = cls.__new__(cls)
+        analysis.detections = [(None, detection) for detection in held.good]
+        analysis.rejections = list(held.rejections)
+        analysis.quarter_turns = 0
+        return analysis
+
     def __init__(self, frames: list[np.ndarray]) -> None:
         self.detections = []
         self.rejections: list[str] = []
@@ -1571,8 +1591,10 @@ def verify_clip(
 ) -> dict[str, Any]:
     """The shared face half of /verify and /assert.
 
-    `profile` decides which gates run and how the payload is decoded — a clip
-    for `standard`/`quick`, a single still for `image`. It is recorded on the
+    `profile` decides which gates run and where the frames come from — a clip
+    for `standard`, a single still for `image`, and for `quick` the stills
+    /frame already judged and held against this nonce (`payload` is empty).
+    It is recorded on the
     `attempts` row on every path, because with the model gates off on two of the
     three profiles the row is the only remaining record of what was actually
     enforced, and a row that does not name its profile cannot be read as
@@ -1597,8 +1619,14 @@ def verify_clip(
     try:
         if not store().consume_challenge(nonce):
             raise Refusal(401, "nonce_invalid")
-        frames = [decode_image(payload)] if profile.single_image else decode_clip(payload, profile)[0]
-        analysis = ClipAnalysis(frames)
+        if profile.frame_stream:
+            # Taken before judging, so a refused attempt cannot leave its
+            # embeddings behind for anything else to find.
+            held = FRAMES.take(nonce) or core.HeldStream(started=started)
+            analysis = ClipAnalysis.from_stream(held)
+        else:
+            frames = [decode_image(payload)] if profile.single_image else decode_clip(payload, profile)[0]
+            analysis = ClipAnalysis(frames)
         analysis.require_frames(profile.min_frames)
         signals["usableFrames"] = analysis.usable
         residual, antispoof = run_liveness(analysis, profile)
@@ -1674,13 +1702,55 @@ async def read_capture(
 
     A profile and a payload that disagree are refused rather than reconciled:
     `image` with a clip attached is a caller that thinks it is on a different
-    path than it is.
+    path than it is. A streamed profile carries no upload at all — its frames
+    went to /frame.
     """
 
+    if profile.frame_stream:
+        if clip is not None or image is not None:
+            raise Refusal(422, "unexpected_upload")
+        return b""
     upload = image if profile.single_image else clip
     if upload is None:
         raise Refusal(422, "clip_undecodable")
     return await read_bounded(request, upload)
+
+
+@app.post("/frame")
+async def stream_frame(
+    request: Request,
+    image: UploadFile = File(...),
+    nonce: str = Form(...),
+) -> dict[str, Any]:
+    """One still of a streamed (`quick`) capture.
+
+    Judged with the detection rules every profile uses; a good one's detection
+    is held against the nonce, a bad one's reason is noted. Nothing is decided
+    here — /assert spends the nonce and judges what was held. So a skipped
+    still writes no `attempts` row and does not count toward the lockout; the
+    final /assert does both.
+
+    Once enough good frames are held, later stills are answered without being
+    analysed: "take the first two".
+    """
+
+    if not store().challenge_is_live(nonce):
+        raise Refusal(401, "nonce_invalid")
+    held = FRAMES.get(nonce, time.time())
+    if not FRAMES.complete(held):
+        if FRAMES.exhausted(held):
+            raise Refusal(422, "frame_limit", goodFrames=len(held.good))
+        analysis = ClipAnalysis([decode_image(await read_bounded(request, image))])
+        FRAMES.record(held, [detection for _, detection in analysis.detections], analysis.rejections)
+        reason = analysis.rejections[0] if analysis.rejections else None
+    else:
+        reason = None
+    return {
+        "goodFrames": len(held.good),
+        "needed": FRAMES.good_needed,
+        "complete": FRAMES.complete(held),
+        "reason": reason,
+    }
 
 
 @app.post("/verify")
