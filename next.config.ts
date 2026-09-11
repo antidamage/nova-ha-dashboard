@@ -12,6 +12,7 @@ const devOrigins = (process.env.NOVA_DEV_ORIGINS ?? "")
   .filter(Boolean);
 
 const nextConfig: NextConfig = {
+  distDir: process.env.NOVA_NEXT_DIST_DIR || ".next",
   ...(devOrigins.length > 0 ? { allowedDevOrigins: devOrigins } : {}),
   ...(demoMode
     ? {
