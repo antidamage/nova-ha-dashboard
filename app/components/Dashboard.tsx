@@ -3,6 +3,7 @@
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { Settings } from "lucide-react";
 import { GatedLink } from "./auth/GatedLink";
+import type { DashboardZone } from "../../lib/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDeviceTheme, type ThemeVariant } from "./accentColor";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
@@ -15,6 +16,7 @@ import {
   bedroomHeaterDevices,
   climateDevicesForZone,
   findLoungeEnvironment,
+  TASKS_ZONE_ID,
 } from "./dashboard/shared";
 import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
 import { useDashboardState } from "./dashboard/state";
@@ -26,7 +28,8 @@ import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useDashboardCommands } from "./dashboard/useDashboardCommands";
 import { useHousePartyThemeFollow } from "./dashboard/useHousePartyThemeFollow";
 import { useHousePartyClockSync } from "./dashboard/useHousePartyClockSync";
-import { useDashboardSelection } from "./dashboard/useDashboardSelection";
+import { useDashboardSelection, zoneForSelection } from "./dashboard/useDashboardSelection";
+import { useGroupSelection } from "./dashboard/useGroupSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
 import { isHorizontalDashboard } from "./dashboard/useClickDragScroll";
@@ -94,7 +97,6 @@ export function Dashboard() {
     applyDesktopSleep,
     applyDesktopWake,
     applyEntityActions,
-    applyZoneAction,
     applyZoneActionFor,
     desktopSleepBusy,
     desktopWakeBusy,
@@ -108,33 +110,38 @@ export function Dashboard() {
     setToast,
   });
 
-  // Portrait renders the controls in their own stage below the zone list; the
-  // horizontal layout joins them to the accordion entry that owns the selected
-  // zone (specs/landscape-layout.md). Only one copy is ever mounted.
-  const controlStage = (
+  const { homeId, systemsId, groupOf } = useGroupSelection(zoneTree, selectedZoneId, data !== null);
+
+  const zoneControlsFor = (zone: DashboardZone) => (
+    <ZoneControls
+      zone={zone}
+      bedroomHeater={bedroomHeater}
+      bedroomTemperature={bedroomTemperature}
+      climateControl={data?.climateControl}
+      desktopSleepBusy={desktopSleepBusy}
+      desktopWakeBusy={desktopWakeBusy}
+      loungeEnvironment={loungeEnvironment}
+      sun={data?.sun}
+      onDesktopSleep={applyDesktopSleep}
+      onDesktopWake={applyDesktopWake}
+      onEntityActions={applyEntityActions}
+      onNotice={setToast}
+      onZoneAction={(action, body) => applyZoneActionFor(zone, action, body)}
+      preferences={data?.preferences}
+      router={data?.router}
+      spectrumCursor={data?.spectrumCursors?.[zone.id]}
+      weather={data?.weather}
+    />
+  );
+
+  // Portrait: one control stage below the zone list, holding the always-mounted
+  // TasksPanel (it runs reminders even while hidden).
+  const portraitStage = (
     <div className="control-stage grid gap-5">
       <TasksPanel showPanel={tasksZoneSelected} />
 
       {tasksZoneSelected ? null : selectedZone ? (
-        <ZoneControls
-          zone={selectedZone}
-          bedroomHeater={bedroomHeater}
-          bedroomTemperature={bedroomTemperature}
-          climateControl={data?.climateControl}
-          desktopSleepBusy={desktopSleepBusy}
-          desktopWakeBusy={desktopWakeBusy}
-          loungeEnvironment={loungeEnvironment}
-          sun={data?.sun}
-          onDesktopSleep={applyDesktopSleep}
-          onDesktopWake={applyDesktopWake}
-          onEntityActions={applyEntityActions}
-          onNotice={setToast}
-          onZoneAction={applyZoneAction}
-          preferences={data?.preferences}
-          router={data?.router}
-          spectrumCursor={data?.spectrumCursors?.[selectedZone.id]}
-          weather={data?.weather}
-        />
+        zoneControlsFor(selectedZone)
       ) : (
         <div className="min-h-96 border border-neutral-700 bg-neutral-950/70 p-8 text-neutral-400">
           Loading zone controls
@@ -142,6 +149,15 @@ export function Dashboard() {
       )}
     </div>
   );
+
+  // Landscape: each accordion group has its own selected zone and joins its
+  // controls to its entry (specs/landscape-layout.md).
+  const groupStage = (zoneId: string | null, group: string) => {
+    const zone = zoneForSelection(data, zoneId);
+    return zone ? (
+      <div className="control-stage" data-group={group}>{zoneControlsFor(zone)}</div>
+    ) : null;
+  };
 
   return (
     <Tooltip.Provider delayDuration={250}>
@@ -232,15 +248,16 @@ export function Dashboard() {
 
             <ZonesPanel
               data={data}
-              selectedZone={selectedZone}
-              selectedZoneId={selectedZoneId}
+              homeSelectedId={wide ? homeId : selectedZone?.id ?? selectedZoneId}
+              systemsSelectedId={wide ? systemsId : selectedZone?.id ?? selectedZoneId}
               zones={zoneTree}
-              controls={wide ? controlStage : null}
+              homeControls={wide ? groupStage(homeId, "home") : null}
+              systemsControls={wide ? groupStage(systemsId, "systems") : null}
               onSelectZone={(zoneId) => {
                 selectZone(zoneId);
                 if (isHorizontalDashboard()) {
                   requestAnimationFrame(() => {
-                    document.querySelector(".dashboard-home .control-stage")?.scrollIntoView({
+                    document.querySelector(`.dashboard-home .control-stage[data-group="${groupOf(zoneId)}"]`)?.scrollIntoView({
                       block: "nearest", inline: "nearest", behavior: "instant",
                     });
                   });
@@ -248,7 +265,15 @@ export function Dashboard() {
               }}
             />
 
-            {wide ? null : controlStage}
+            {wide ? (
+              // Kept mounted in one place so reminders keep running; shown as
+              // the Systems entry's joined panel when Tasks is its selection.
+              <div className="control-stage tasks-stage" data-group="systems" hidden={systemsId !== TASKS_ZONE_ID}>
+                <TasksPanel showPanel={systemsId === TASKS_ZONE_ID} />
+              </div>
+            ) : (
+              portraitStage
+            )}
             <VoiceTranscriptPanel />
           </div>
           </ClimateCommandsProvider>

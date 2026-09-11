@@ -3835,9 +3835,15 @@ button.config-breadcrumb-crumb:focus-visible {
   flex-wrap: wrap;
 }
 
+/* Last row of a lighting zone panel, full width (the panel is a flex column
+   and this carries mt-auto). The gap keeps it off the controls above when the
+   panel is too short for mt-auto to add space. */
 .zone-party-control {
   width: 100%;
-  max-width: 320px;
+}
+
+.zone-panel > .mt-8 {
+  margin-bottom: 20px;
 }
 
 .zone-party-control > header {
@@ -3851,11 +3857,6 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 @container zone-panel (min-width: 580px) {
-  .zone-lighting-controls {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 32px;
-  }
-
   .zone-panel-header {
     flex-direction: row !important;
     justify-content: space-between;
@@ -5697,19 +5698,21 @@ button.config-breadcrumb-crumb:focus-visible {
   /* ==== LEFT SIDEBAR (specs/landscape-layout.md) ===========================
      Portrait's top bar turned sideways. Everything is a continuous function of
      --nova-header-fade (0..1), which NovaAvatar sets from scrollX / 400px in
-     this layout: the sidebar narrows 184px -> 88px, the orb (200px canvas)
-     scales 0.8 -> 0.32 (160px -> 64px) via --nova-avatar-scale (1 -> 0.4),
+     this layout: the sidebar narrows 224px -> 124px, the orb (200px canvas)
+     scales 200px -> 100px via --nova-avatar-scale (1 -> 0.5),
      the shadow and mini time/date fade in, Reload/Config fade out. */
   body:has(.dashboard-home) {
-    --dashboard-sidebar-width: calc(184px - 96px * var(--nova-header-fade, 0));
-    --dashboard-sidebar-orb-top: 64px;
-    --dashboard-sidebar-orb-bottom: calc(64px + 160px - 96px * var(--nova-header-fade, 0));
+    --dashboard-sidebar-width: calc(224px - 100px * var(--nova-header-fade, 0));
+    /* Orb is vertically centred: its rendered size is 200px -> 100px. */
+    --dashboard-sidebar-orb-size: calc(200px - 100px * var(--nova-header-fade, 0));
+    --dashboard-sidebar-orb-top: calc(50dvh - var(--dashboard-sidebar-orb-size) / 2);
+    --dashboard-sidebar-orb-bottom: calc(50dvh + var(--dashboard-sidebar-orb-size) / 2);
   }
 
   body:has(.dashboard-home) .nova-avatar-host:not(.nova-avatar-speaking) {
     top: var(--dashboard-sidebar-orb-top);
     left: calc(var(--dashboard-sidebar-width) / 2 + env(safe-area-inset-left, 0px));
-    transform: translateX(-50%) scale(calc(var(--nova-avatar-scale, 1) * 0.8));
+    transform: translateX(-50%) scale(var(--nova-avatar-scale, 1));
     transform-origin: top center;
   }
 
@@ -5771,8 +5774,8 @@ button.config-breadcrumb-crumb:focus-visible {
     width: max-content;
     min-width: 100%;
     min-height: 100dvh;
-    /* Left padding clears the resting 184px sidebar plus a gap. */
-    padding: 48px 40px 48px calc(184px + 24px + env(safe-area-inset-left, 0px)) !important;
+    /* Left padding clears the resting 224px sidebar plus a gap. */
+    padding: 48px 40px 48px calc(224px + 24px + env(safe-area-inset-left, 0px)) !important;
     overflow: clip;
   }
 
@@ -6012,11 +6015,25 @@ button.config-breadcrumb-crumb:focus-visible {
     overflow-y: auto;
     scrollbar-width: none;
     /* Clear the shrunk sidebar when scrolled into view. */
-    scroll-margin-inline-start: 112px;
+    scroll-margin-inline-start: 148px;
     scroll-margin-inline-end: 40px;
   }
 
   .dashboard-home .control-stage::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* TasksPanel stays mounted in its own column straight after the zones
+     panel; it closes the layout gap so it reads as the Systems entry's joined
+     panel, and hides with that entry. */
+  .dashboard-home .tasks-stage {
+    margin-left: -28px;
+    border: 1px solid var(--cyber-border-dim);
+    border-left: 0;
+    background: var(--cyber-panel);
+  }
+
+  .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
     display: none;
   }
 
@@ -7085,11 +7102,11 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   stroke: rgba(0, 0, 0, 0.55);
 }
 
-/* Filled from the start to the thumb in white, like the lit light, and glowing
-   in the dial's own colour — the colour ring's (Adeline, 2026-09-11). The bloom
-   keeps a px floor, the lit light's rule, so it still reads on a thin ring. */
+/* Filled from the start to the thumb in the colour ring's colour, and glowing
+   in it (Adeline, 2026-09-11). The bloom keeps a px floor, the lit light's
+   rule, so it still reads on a thin ring. */
 .color-encoder-rings .color-encoder-fill {
-  stroke: #ffffff;
+  stroke: var(--ce-color);
   /* One tight bloom. A second, wider one filled the gaps between rings and
      washed out the wells' dark edges, so the tracks stopped reading as
      channels. */
@@ -7132,7 +7149,7 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 .color-encoder-etch-lip { fill: rgba(0, 0, 0, 0.5); }
 
 /* Light mode, as for the colour ring and the lights: paler lip and shading,
-   and a darker well so the white fill still reads against it. */
+   and a darker well so the coloured fill still reads against it. */
 .color-encoder[data-mode="light"] .color-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.9); }
 .color-encoder[data-mode="light"] .color-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.16); }
 .color-encoder[data-mode="light"] .color-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.6); }
@@ -7141,10 +7158,6 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 
 .color-encoder[data-mode="light"] .color-encoder-rings .color-encoder-well {
   stroke: rgba(28, 31, 36, 0.6);
-}
-
-.color-encoder[data-mode="light"] .color-encoder-rings .color-encoder-fill {
-  filter: drop-shadow(0 0 max(4px, calc(var(--ce-track) * 0.3)) rgba(255, 255, 255, 0.55));
 }
 
 .color-encoder[data-mode="light"] .color-encoder-thumb {

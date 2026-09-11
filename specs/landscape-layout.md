@@ -26,57 +26,76 @@ Scroll progress `t = clamp(scrollX / 400, 0, 1)`.
 
 | item | at t = 0 | at t = 1 |
 |---|---|---|
-| Status orb | 160px, centred horizontally in the sidebar, top-anchored | 64px |
-| Sidebar width | 184px (orb + 12px each side) | 88px (64px orb + 12px each side) |
+| Status orb | 200px, centred horizontally and vertically in the sidebar | 100px, still centred |
+| Sidebar width | 224px (orb + 12px each side) | 124px (100px orb + 12px each side) |
 | Shadow gradient | invisible | fully in; black at the left edge fading to transparent at the right, sidebar width |
 | Reload button | top of sidebar, fully visible and usable | faded out; no pointer events from t ≥ 0.5 |
 | Config link | bottom of sidebar, fully visible and usable | same fade as Reload |
-| Mini time / date | invisible | fully in, stacked under the orb |
+| Mini time / date | invisible | fully in, stacked under the orb's bottom edge |
 
 - Everything is a continuous function of `scrollX`, no timers or triggered
   animations, same contract as portrait's `--nova-header-fade`: stopping
   mid-scroll holds, scrolling back reverses exactly.
-- Orb scale is `1 → 0.4` (160 → 64). The orb's 96px base is rendered at a
-  larger base size in landscape so the 160px rest state is not upscaled.
-- Page content begins to the right of the full-width (184px) sidebar at
+- Orb scale is `1 → 0.5` on its native 200px canvas, so the rest state is not
+  upscaled.
+- Page content begins to the right of the full-width (224px) sidebar at
   scroll 0 and never sits beneath it at rest. As the sidebar narrows, content
   scrolls under the shadow.
 - No top padding is reserved for the orb in landscape.
 - The orb's voice speaking migration (move to centre and enlarge) still works
   from its sidebar position.
 - Devices with the orb off (`data-nova-no-orb`, lite mode): sidebar keeps its
-  buttons, width is the 88px minimum, no orb.
+  buttons, no orb.
 
 ## Zone accordions joined to their controls
 
 Two `HorizontalAccordion` entries: **Home** (the Home zone and its subzones)
 and **Systems** (climate, outside, world, network, power, tasks).
 
-- Each entry, when open, is one joined unit: vertical title bar, zone list,
-  and — if the selected zone belongs to that entry — the selected zone's
-  controls attached directly to the right of the list. Shared borders, no gap
-  between list and controls; reads as one bordered panel.
-- There is no separate control column in landscape any more.
-- Entries open and close independently (both may be open). The selected
-  zone's controls attach only to the entry that owns it; the other open entry
-  shows its list alone.
-- Selecting a zone in an entry that owns it keeps that entry open; selecting
-  programmatically a zone whose entry is closed opens that entry.
-- After selection the page scrolls so the controls are in view (instant,
+- **Each group has its own selected zone.** Within a group the choice is
+  exclusive (Home vs Bedroom; Climate vs Outside). Across groups it is not:
+  choosing Climate never changes, hides or collapses Home's selection or
+  controls, and the reverse. Applies to every zone.
+- Each open entry is one joined unit: vertical title bar, zone list, and that
+  group's selected zone's controls attached directly to the right of the list.
+  Shared borders, no gap; reads as one bordered panel. Both entries can be
+  open at once, each showing its own controls.
+- The global selection (portrait, the stored zone, anything that selects a
+  zone programmatically) is routed to the group that owns it; the other group
+  keeps its choice. Both groups' choices persist across reloads
+  (`nova.dashboard.groupZones.v1`).
+- A group with no choice yet shows its list alone.
+- When a group's selection changes while its entry is closed, the entry opens.
+  First load restores saved open/closed state and does not force it open.
+- After selection the page scrolls that group's controls into view (instant,
   nearest).
+- Tasks: `TasksPanel` must stay mounted at all times (it runs reminders while
+  hidden), so in landscape it lives in a fixed column directly after the zones
+  panel, shown as the Systems entry's joined panel when Tasks is Systems'
+  selection and hidden otherwise or when Systems is closed.
 - The list and the controls each scroll vertically on their own; the
   drag-scroll rule above applies to both.
 - Controls width: same as the old control stage, `min(760px, 100vw - 80px)`,
   minimum 520px.
-- Portrait keeps the old layout: list in the zones panel, controls in the
-  control stage below.
+- Portrait keeps the old layout and single global selection: list in the
+  zones panel, controls in the control stage below.
+
+## Zone control panel: House Party
+
+- House Party spans the full width of its zone panel and is always the panel's
+  last row, pinned to the bottom of the panel however short the controls above
+  it are (the panel is a flex column; House Party carries `margin-top: auto`).
+- Lighting zones only, as before. Portrait and landscape alike.
+- The colour dial it used to share a row with now has that row to itself.
 
 ## Done means
 
-- Landscape at 1920x1080 and 1280x800: sidebar at 184px with a 160px orb at
-  scroll 0; at scrollX ≥ 400 it is 88px with a 64px orb, shadow in, buttons
-  out, mini time/date in. Scrolling back restores the rest state.
-- Home open with Bedroom selected shows list + Bedroom controls as one unit;
-  Systems open with Climate selected shows list + climate controls as one unit.
+- Landscape at 1920x1080 and 1280x800: sidebar at 224px with a 200px orb at
+  scroll 0, orb centre at half the viewport height; at scrollX ≥ 400 it is
+  124px with a 100px orb, shadow in, buttons out, mini time/date in.
+  Scrolling back restores the rest state.
+- Home open with Bedroom selected and Systems open with Climate selected show
+  both units at once; selecting Outside leaves Bedroom's controls in place.
+- House Party is full width at the bottom of every lighting zone panel.
 - Portrait layout unchanged.
 - Unit tests pass; deployed and checked live.

@@ -24,7 +24,7 @@ Files:
 | `app/components/ColorEncoder.tsx` | the control |
 | `app/components/colorEncoderModel.ts` | HSVA maths + `ThemeColorValue` adapters |
 | `app/components/colorEncoderGeometry.ts` | ring geometry and pointer maths |
-| `app/color-encoder-rings/page.tsx` | the rings demo page, `/color-encoder-rings` |
+| `app/color-encoder-rings/page.tsx` | the rings demo page, `/color-encoder-rings`; its "Ring fill follows the colour ring" row seeds distinct hues (and one in the light theme) so the fill can be checked against the ring |
 | `app/globals.css` | its styles, under `.color-encoder*` (this surface uses `globals.css`, not CSS modules) |
 
 ## Geometry — everything derives from one number
@@ -222,8 +222,10 @@ layout, but overriding those does not move the rings.
 - The track is a **sunken channel**, the colour ring's treatment: a dark well
   with inset shading and a thin raised lip. In light mode the lip and shading
   go paler while the well goes darker, as the unlit LED wells do.
-- The track is **filled from 7:30 to the thumb in white, and the fill glows in
-  the dial's current colour** (`--ce-color`), not white — Adeline, 2026-09-11.
+- The track is **filled from 7:30 to the thumb in the colour ring's colour,
+  and the fill glows in it** — both are `--ce-color`, the value the colour
+  ring paints, in dark and light mode alike (Adeline, 2026-09-11; an earlier
+  revision had drifted to a white fill with only the glow coloured).
   A single tight bloom, `max(4px, 30% of T)`, keeping the LED's px floor so it
   still reads at small sizes. The fill is about 60% of `T` so the well's edges
   still show it as a channel. At `min` the fill is empty.
@@ -507,8 +509,11 @@ now, and get rings in a later task.
 | Slot | Ring |
 |---|---|
 | `map.labels` | Label Size (`mapLabelSize`) |
-| `map.buildingLow` and `map.buildingHigh` | Building Opacity (`mapBuildingOpacity`) |
-| `map.radarLow` and `map.radarHigh` | Radar Opacity (`mapRadarOpacity`) |
+| `map.buildingLow` and `map.buildingHigh` | Opacity (`mapBuildingOpacity`) |
+| `map.radarLow` and `map.radarHigh` | Opacity (`mapRadarOpacity`) |
+
+A ring that controls opacity is labelled plain **Opacity** — the dial it sits
+on already names the thing (Adeline, 2026-09-11).
 
 Buildings and radar each share **one** value between two colour slots. Both
 dials of a pair carry the same ring, and turning either moves the one shared
