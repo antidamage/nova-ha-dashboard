@@ -172,7 +172,7 @@ describe("ColorEncoder", () => {
     expect(onValue.mock.lastCall?.[0].v).toBe(52);
   });
 
-  it("clicks on press, then at most once per 400ms of turning", () => {
+  it("clicks on press and on release of a drag, never while turning", () => {
     const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
     const now = vi.spyOn(performance, "now");
     let clock = 1000;
@@ -183,19 +183,15 @@ describe("ColorEncoder", () => {
     fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
     expect(click).toHaveBeenCalledTimes(1);
 
-    // A fast spin inside the floor: plenty of travel, but no further clicks.
-    for (let step = 1; step <= 10; step += 1) {
-      clock += 16;
+    // A long turn, fast and then slow: no clicks at any rate.
+    for (let step = 1; step <= 40; step += 1) {
+      clock += step <= 20 ? 16 : 600;
       fireEvent.pointerMove(dial, { buttons: 1, clientX: step * 20, clientY: 0, pointerId: 1 });
     }
     expect(click).toHaveBeenCalledTimes(1);
 
-    // Past the floor, with travel behind it, one more click.
-    clock += 400;
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: 400, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(dial, { clientX: 800, clientY: 0, pointerId: 1 });
     expect(click).toHaveBeenCalledTimes(2);
-
-    fireEvent.pointerUp(dial, { clientX: 400, clientY: 0, pointerId: 1 });
     now.mockRestore();
     click.mockRestore();
   });
