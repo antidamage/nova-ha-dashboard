@@ -6673,29 +6673,29 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 
 /* ══════════════════════════════════════════════════════════════════════
    ColorEncoder — the rotary colour control (specs/color-encoder.md).
-   Every dial dimension derives from --ce-size, the knob diameter (50–200px);
+   Every dial dimension derives from --re-size, the knob diameter (50–200px);
    ring geometry is computed in the component and drawn in SVG. The ringed
    copy this block came from was merged back in on 2026-09-11, so there is
    one dial again.
    ══════════════════════════════════════════════════════════════════════ */
-.color-encoder {
+.rotary-encoder {
   /* The dial paints itself in this colour so it can read its own surface back
      and pick a light or dark treatment (see isLightSurface in ColorEncoder). */
-  color: var(--ce-tint);
-  --ce-size: 200px;
-  --ce-ring: calc(var(--ce-size) * 0.1);
-  --ce-bevel: calc(var(--ce-size) * 0.022);
-  --ce-outer: calc(var(--ce-size) + 2 * var(--ce-ring) + 2 * var(--ce-bevel));
-  --ce-ring-outer: calc(var(--ce-size) + 2 * var(--ce-ring));
-  --ce-led-w: max(3px, calc(var(--ce-size) * 0.048));
-  --ce-tint: var(--background, #050608);
-  --ce-led-on: #ffffff;
-  --ce-checker-a: #c4c5c9;
-  --ce-checker-b: #7a7b80;
-  --ce-color: #ffffff;
-  --ce-glow: 0 0 0 rgba(0, 0, 0, 0);
-  --ce-angle: 0deg;
-  --ce-annulus: radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%);
+  color: var(--re-tint);
+  --re-size: 200px;
+  --re-ring: calc(var(--re-size) * 0.1);
+  --re-bevel: calc(var(--re-size) * 0.022);
+  --re-outer: calc(var(--re-size) + 2 * var(--re-ring) + 2 * var(--re-bevel));
+  --re-ring-outer: calc(var(--re-size) + 2 * var(--re-ring));
+  --re-led-w: max(3px, calc(var(--re-size) * 0.048));
+  --re-tint: var(--background, #050608);
+  --re-led-on: #ffffff;
+  --re-checker-a: #c4c5c9;
+  --re-checker-b: #7a7b80;
+  --re-color: #ffffff;
+  --re-glow: 0 0 0 rgba(0, 0, 0, 0);
+  --re-angle: 0deg;
+  --re-annulus: radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%);
   /* The rings' SVG and the dial share one grid cell, both centred, so the
      dial sits dead centre inside its rings with no absolute positioning. */
   display: inline-grid;
@@ -6703,7 +6703,7 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   max-width: 100%;
 }
 
-.color-encoder > * {
+.rotary-encoder > * {
   grid-area: 1 / 1;
 }
 
@@ -6712,57 +6712,57 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
    back so black shadows do not read as grime on a pale face, and the specular
    dropped since a light dome has little to catch. The light wells stay dark, so
    the white lit one still reads against them. */
-.color-encoder[data-mode="light"] {
-  --ce-tint: #eceef1;
-  --ce-checker-a: #d7d8dc;
-  --ce-checker-b: #9b9ca1;
+.rotary-encoder[data-mode="light"] {
+  --re-tint: #eceef1;
+  --re-checker-a: #d7d8dc;
+  --re-checker-b: #9b9ca1;
 }
 
-.color-encoder[data-mode="light"] .color-encoder-outer-bevel {
+.rotary-encoder[data-mode="light"] .rotary-encoder-outer-bevel {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.16) 55%, rgba(255, 255, 255, 0.6));
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.14);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-ring-shade {
+.rotary-encoder[data-mode="light"] .rotary-encoder-ring-shade {
   background: linear-gradient(160deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 42%, rgba(255, 255, 255, 0.5));
-  box-shadow: inset 0 0 calc(var(--ce-ring) * 0.5) rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 calc(var(--re-ring) * 0.5) rgba(0, 0, 0, 0.28);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-inner-bevel {
+.rotary-encoder[data-mode="light"] .rotary-encoder-inner-bevel {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.18),
     inset 0 1px 1px rgba(255, 255, 255, 0.9),
-    0 calc(var(--ce-size) * -0.008) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.16);
+    0 calc(var(--re-size) * -0.008) calc(var(--re-size) * 0.02) rgba(0, 0, 0, 0.16);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-knob {
+.rotary-encoder[data-mode="light"] .rotary-encoder-knob {
   background:
     radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 58%),
     radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
     radial-gradient(circle at 50% 42%,
       #ffffff,
-      var(--ce-tint) 68%,
-      color-mix(in srgb, var(--ce-tint) 86%, #000 14%) 100%);
+      var(--re-tint) 68%,
+      color-mix(in srgb, var(--re-tint) 86%, #000 14%) 100%);
   box-shadow:
-    inset 0 0 calc(var(--ce-size) * 0.08) rgba(0, 0, 0, 0.09),
-    0 calc(var(--ce-size) * 0.01) calc(var(--ce-size) * 0.045) rgba(0, 0, 0, 0.18);
+    inset 0 0 calc(var(--re-size) * 0.08) rgba(0, 0, 0, 0.09),
+    0 calc(var(--re-size) * 0.01) calc(var(--re-size) * 0.045) rgba(0, 0, 0, 0.18);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-spec {
+.rotary-encoder[data-mode="light"] .rotary-encoder-spec {
   background: none;
 }
 
-.color-encoder[data-mode="light"] .color-encoder-rotor::before {
+.rotary-encoder[data-mode="light"] .rotary-encoder-rotor::before {
   background: repeating-conic-gradient(from 0deg, rgba(0, 0, 0, 0.035) 0deg 1.2deg, rgba(255, 255, 255, 0.035) 1.2deg 2.4deg);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-index {
+.rotary-encoder[data-mode="light"] .rotary-encoder-index {
   background: linear-gradient(180deg, rgba(40, 44, 52, 0.85), rgba(40, 44, 52, 0.55));
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-channel,
-.color-encoder[data-mode="light"] .color-encoder-label {
+.rotary-encoder[data-mode="light"] .rotary-encoder-channel,
+.rotary-encoder[data-mode="light"] .rotary-encoder-label {
   color: rgba(0, 0, 0, 0.46);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95), 0 -1px 0 rgba(0, 0, 0, 0.06);
 }
@@ -6771,25 +6771,25 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
    contrast between them has to come from the wells. */
 /* Unlit only: without [data-lit="false"] this outranks the lit light's own
    fill and leaves no light lit in light mode. */
-.color-encoder[data-mode="light"] .color-encoder-led[data-lit="false"] {
+.rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="false"] {
   background: linear-gradient(180deg, rgba(28, 31, 36, 0.62), rgba(18, 20, 24, 0.86));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
 /* A white bloom is invisible on a pale knob, so the lit light reads by contrast
    against its own dark well instead. */
-.color-encoder[data-mode="light"] .color-encoder-led[data-lit="true"] {
+.rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="true"] {
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.45),
-    0 0 max(3px, calc(var(--ce-led-w) * 1.1)) max(1px, calc(var(--ce-led-w) * 0.3)) rgba(255, 255, 255, 0.75),
-    0 0 max(7px, calc(var(--ce-led-w) * 2.4)) max(1px, calc(var(--ce-led-w) * 0.6)) rgba(80, 86, 96, 0.35);
+    0 0 max(3px, calc(var(--re-led-w) * 1.1)) max(1px, calc(var(--re-led-w) * 0.3)) rgba(255, 255, 255, 0.75),
+    0 0 max(7px, calc(var(--re-led-w) * 2.4)) max(1px, calc(var(--re-led-w) * 0.6)) rgba(80, 86, 96, 0.35);
 }
 
-.color-encoder-dial {
+.rotary-encoder-dial {
   position: relative;
   flex: 0 0 auto;
-  width: var(--ce-outer);
-  height: var(--ce-outer);
+  width: var(--re-outer);
+  height: var(--re-outer);
   border-radius: 50%;
   cursor: grab;
   touch-action: none;
@@ -6797,21 +6797,21 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   -webkit-tap-highlight-color: transparent;
 }
 
-.color-encoder-dial[data-pressed="true"] {
+.rotary-encoder-dial[data-pressed="true"] {
   cursor: grabbing;
 }
 
-.color-encoder-dial:focus-visible {
+.rotary-encoder-dial:focus-visible {
   outline: 2px solid var(--cyber-highlight, #22d3ee);
   outline-offset: 3px;
 }
 
-.color-encoder-disabled .color-encoder-dial {
+.rotary-encoder-disabled .rotary-encoder-dial {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
-.color-encoder-dial > span {
+.rotary-encoder-dial > span {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -6821,105 +6821,107 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 }
 
 /* Raised lip around the colour ring. */
-.color-encoder-outer-bevel {
-  width: var(--ce-outer);
-  height: var(--ce-outer);
+.rotary-encoder-outer-bevel {
+  width: var(--re-outer);
+  height: var(--re-outer);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3) 55%, rgba(255, 255, 255, 0.1));
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
-.color-encoder-glow {
-  width: var(--ce-ring-outer);
-  height: var(--ce-ring-outer);
-  box-shadow: var(--ce-glow);
+.rotary-encoder-glow {
+  width: var(--re-ring-outer);
+  height: var(--re-ring-outer);
+  box-shadow: var(--re-glow);
   transition: box-shadow 180ms linear;
 }
 
-.color-encoder-checker,
-.color-encoder-ring,
-.color-encoder-ring-shade {
-  width: var(--ce-ring-outer);
-  height: var(--ce-ring-outer);
-  -webkit-mask: var(--ce-annulus);
-  mask: var(--ce-annulus);
+.rotary-encoder-checker,
+.rotary-encoder-ring,
+.rotary-encoder-ring-shade {
+  width: var(--re-ring-outer);
+  height: var(--re-ring-outer);
+  -webkit-mask: var(--re-annulus);
+  mask: var(--re-annulus);
 }
 
-.color-encoder-checker {
-  background-image: conic-gradient(var(--ce-checker-a) 0 25%, var(--ce-checker-b) 0 50%, var(--ce-checker-a) 0 75%, var(--ce-checker-b) 0);
-  background-size: max(5px, calc(var(--ce-size) * 0.05)) max(5px, calc(var(--ce-size) * 0.05));
+.color-encoder .rotary-encoder-checker {
+  background-image: conic-gradient(var(--re-checker-a) 0 25%, var(--re-checker-b) 0 50%, var(--re-checker-a) 0 75%, var(--re-checker-b) 0);
+  background-size: max(5px, calc(var(--re-size) * 0.05)) max(5px, calc(var(--re-size) * 0.05));
 }
 
-.color-encoder-ring {
-  background: var(--ce-color);
+/* The caller's paint: a plain colour by default, or a gradient it supplies
+   (the temperature dial's target-over-room ring). */
+.rotary-encoder-ring {
+  background: var(--re-ring-paint, var(--re-color));
 }
 
 /* Sunken shading over the ring so it reads as a channel, not a painted band. */
-.color-encoder-ring-shade {
+.rotary-encoder-ring-shade {
   background: linear-gradient(160deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 40%, rgba(255, 255, 255, 0.18));
-  box-shadow: inset 0 0 calc(var(--ce-ring) * 0.5) rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 calc(var(--re-ring) * 0.5) rgba(0, 0, 0, 0.55);
 }
 
 /* The lip between ring and knob. */
-.color-encoder-inner-bevel {
-  width: calc(var(--ce-size) + 2px);
-  height: calc(var(--ce-size) + 2px);
+.rotary-encoder-inner-bevel {
+  width: calc(var(--re-size) + 2px);
+  height: calc(var(--re-size) + 2px);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.5),
     inset 0 1px 1px rgba(255, 255, 255, 0.16),
-    0 calc(var(--ce-size) * -0.008) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.4);
+    0 calc(var(--re-size) * -0.008) calc(var(--re-size) * 0.02) rgba(0, 0, 0, 0.4);
 }
 
 /* Knob face. Its lighting is fixed; only the rotor above it turns. */
-.color-encoder-knob {
-  width: var(--ce-size);
-  height: var(--ce-size);
+.rotary-encoder-knob {
+  width: var(--re-size);
+  height: var(--re-size);
   background:
     radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%),
     radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%),
     radial-gradient(circle at 50% 42%,
-      color-mix(in srgb, var(--ce-tint) 82%, #fff 18%),
-      var(--ce-tint) 70%,
-      color-mix(in srgb, var(--ce-tint) 74%, #000 26%) 100%);
+      color-mix(in srgb, var(--re-tint) 82%, #fff 18%),
+      var(--re-tint) 70%,
+      color-mix(in srgb, var(--re-tint) 74%, #000 26%) 100%);
   box-shadow:
-    inset 0 0 calc(var(--ce-size) * 0.08) rgba(0, 0, 0, 0.35),
-    0 calc(var(--ce-size) * 0.01) calc(var(--ce-size) * 0.05) rgba(0, 0, 0, 0.35);
+    inset 0 0 calc(var(--re-size) * 0.08) rgba(0, 0, 0, 0.35),
+    0 calc(var(--re-size) * 0.01) calc(var(--re-size) * 0.05) rgba(0, 0, 0, 0.35);
   transition: filter 520ms ease, box-shadow 520ms ease;
 }
 
 /* Achromatic hover and press: the dome lifts, then sinks. */
-.color-encoder-dial:hover .color-encoder-knob {
+.rotary-encoder-dial:hover .rotary-encoder-knob {
   filter: brightness(1.14);
 }
 
-.color-encoder-dial[data-pressed="true"] .color-encoder-knob {
+.rotary-encoder-dial[data-pressed="true"] .rotary-encoder-knob {
   filter: brightness(0.92);
   box-shadow:
-    inset 0 calc(var(--ce-size) * 0.012) calc(var(--ce-size) * 0.1) rgba(0, 0, 0, 0.5),
-    0 calc(var(--ce-size) * 0.004) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.35);
+    inset 0 calc(var(--re-size) * 0.012) calc(var(--re-size) * 0.1) rgba(0, 0, 0, 0.5),
+    0 calc(var(--re-size) * 0.004) calc(var(--re-size) * 0.02) rgba(0, 0, 0, 0.35);
   transition-duration: 160ms;
 }
 
-.color-encoder-disabled .color-encoder-dial:hover .color-encoder-knob {
+.rotary-encoder-disabled .rotary-encoder-dial:hover .rotary-encoder-knob {
   filter: none;
 }
 
 /* The only layer that turns: index line, notch, hairline texture. */
-.color-encoder-dial > .color-encoder-rotor {
-  width: var(--ce-size);
-  height: var(--ce-size);
-  transform: translate(-50%, -50%) rotate(var(--ce-angle));
+.rotary-encoder-dial > .rotary-encoder-rotor {
+  width: var(--re-size);
+  height: var(--re-size);
+  transform: translate(-50%, -50%) rotate(var(--re-angle));
   /* The index shows the value: a channel change or an outside value re-points
      it with a quick sweep; under the hand it tracks 1:1. */
   transition: transform 250ms ease-out;
 }
 
-.color-encoder-dial[data-pressed="true"] > .color-encoder-rotor {
+.rotary-encoder-dial[data-pressed="true"] > .rotary-encoder-rotor {
   transition: none;
 }
 
 /* Hairline texture on an outer band only: at the centre the stripes converge
    and alias into a visible moire cross. */
-.color-encoder-rotor::before {
+.rotary-encoder-rotor::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -6930,12 +6932,12 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 }
 
 /* One mark, joined to the rim and half its old length (Adeline, 2026-09-11). */
-.color-encoder-index {
+.rotary-encoder-index {
   position: absolute;
   top: 0;
   left: 50%;
-  width: max(1px, calc(var(--ce-size) * 0.012));
-  height: calc(var(--ce-size) * 0.1);
+  width: max(1px, calc(var(--re-size) * 0.012));
+  height: calc(var(--re-size) * 0.1);
   border-radius: 999px;
   /* Light body plus a dark outline, so the index reads on a dark knob and on a
      light one — the knob takes the theme's background colour, which is both. */
@@ -6945,17 +6947,17 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 }
 
 /* Fixed specular above the rotor, so the texture passes under the light. */
-.color-encoder-spec {
-  width: var(--ce-size);
-  height: var(--ce-size);
+.rotary-encoder-spec {
+  width: var(--re-size);
+  height: var(--re-size);
   background: radial-gradient(ellipse 55% 38% at 36% 20%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 70%);
 }
 
 /* Channel lights: 2:1 tall, gap = 3 x width, dead centre, never rotate. */
-.color-encoder-dial > .color-encoder-leds {
+.rotary-encoder-dial > .rotary-encoder-leds {
   display: flex;
   align-items: center;
-  gap: calc(var(--ce-led-w) * 3);
+  gap: calc(var(--re-led-w) * 3);
   border-radius: 0;
 }
 
@@ -6966,13 +6968,13 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
    it. No theme colour touches the knob face (Adeline, 2026-09-11) — this is
    black and white over whatever tint the knob happens to have, so it reads as
    engraving on a dark face and on a pale one. */
-.color-encoder-dial > .color-encoder-channel,
-.color-encoder-dial > .color-encoder-label {
-  top: calc(50% + var(--ce-led-w) + calc(var(--ce-size) * 0.055));
+.rotary-encoder-dial > .rotary-encoder-channel,
+.rotary-encoder-dial > .rotary-encoder-label {
+  top: calc(50% + var(--re-led-w) + calc(var(--re-size) * 0.055));
   transform: translate(-50%, 0);
   border-radius: 0;
   color: rgba(255, 255, 255, 0.46);
-  font-size: clamp(10px, calc(var(--ce-size) * 0.075), 14px);
+  font-size: clamp(10px, calc(var(--re-size) * 0.075), 14px);
   font-weight: 700;
   letter-spacing: 0.16em;
   line-height: 1;
@@ -6985,20 +6987,20 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 /* The dial's label sits on the knob above the lights, mirroring the caption
    below them: its bottom edge is as far above the lights as the caption's top
    edge is below. Same font and etching as the caption (Adeline, 2026-09-11). */
-.color-encoder-dial > .color-encoder-label {
+.rotary-encoder-dial > .rotary-encoder-label {
   top: auto;
-  bottom: calc(50% + var(--ce-led-w) + calc(var(--ce-size) * 0.055));
+  bottom: calc(50% + var(--re-led-w) + calc(var(--re-size) * 0.055));
   /* The component cuts the text to fit (with "...", see ColorEncoder);
      this only guards the rounding. */
-  max-width: calc(var(--ce-size) * 0.7);
+  max-width: calc(var(--re-size) * 0.7);
   overflow: hidden;
   text-transform: uppercase;
 }
 
-.color-encoder-led {
-  width: var(--ce-led-w);
-  height: calc(var(--ce-led-w) * 2);
-  border-radius: calc(var(--ce-led-w) * 0.35);
+.rotary-encoder-led {
+  width: var(--re-led-w);
+  height: calc(var(--re-led-w) * 2);
+  border-radius: calc(var(--re-led-w) * 0.35);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.55));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
   transition: background 160ms linear, box-shadow 160ms linear;
@@ -7009,7 +7011,7 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
    only fill that carries at every size the dial scales to. The glow keeps a px
    floor for the same reason: a radius derived purely from the light's width
    disappears along with it. */
-.color-encoder-led[data-lit="true"] {
+.rotary-encoder-led[data-lit="true"] {
   /* An image, not a colour. Chromium's "Auto Dark Mode for Web Contents"
      (which Brave exposes as a flag and Adeline has enabled) rewrites light
      background COLOURS but leaves background images alone, so a lit light
@@ -7024,73 +7026,79 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   background-repeat: no-repeat;
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.25),
-    0 0 max(4px, calc(var(--ce-led-w) * 1.3)) max(1px, calc(var(--ce-led-w) * 0.35)) rgba(255, 255, 255, 0.9),
-    0 0 max(9px, calc(var(--ce-led-w) * 3)) max(2px, calc(var(--ce-led-w) * 0.9)) rgba(255, 255, 255, 0.45);
+    0 0 max(4px, calc(var(--re-led-w) * 1.3)) max(1px, calc(var(--re-led-w) * 0.35)) rgba(255, 255, 255, 0.9),
+    0 0 max(9px, calc(var(--re-led-w) * 3)) max(2px, calc(var(--re-led-w) * 0.9)) rgba(255, 255, 255, 0.45);
 }
 
 /* A disabled dial is dark: nothing on it is emitting (Adeline, 2026-09-11).
    No light is lit and the ring's glow is off, on top of the fade. The colour
    ring keeps its colour — it is the readout. Placed after the lit-light rules,
    and carrying the dial's own class, so it outranks them in both modes. */
-.color-encoder.color-encoder-disabled .color-encoder-led[data-lit="true"] {
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-led[data-lit="true"] {
   background-color: transparent;
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.55));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 
-.color-encoder.color-encoder-disabled[data-mode="light"] .color-encoder-led[data-lit="true"] {
+.rotary-encoder.rotary-encoder-disabled[data-mode="light"] .rotary-encoder-led[data-lit="true"] {
   background-image: linear-gradient(180deg, rgba(28, 31, 36, 0.62), rgba(18, 20, 24, 0.86));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
-.color-encoder.color-encoder-disabled .color-encoder-glow {
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-glow {
   box-shadow: none;
 }
 
-.color-encoder.color-encoder-disabled .color-encoder-rings .color-encoder-fill {
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-rings .rotary-encoder-fill {
   filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .color-encoder-knob,
-  .color-encoder-glow,
-  .color-encoder-led,
-  .color-encoder-dial > .color-encoder-rotor {
+  .rotary-encoder-knob,
+  .rotary-encoder-glow,
+  .rotary-encoder-led,
+  .rotary-encoder-dial > .rotary-encoder-rotor {
     transition: none;
+  }
+
+  /* The rings still tuck away, but they only fade: no shrink. */
+  .rotary-encoder-ring-slider {
+    transform: none !important;
+    transition: opacity 450ms linear;
   }
 }
 
 
 /* ── Slider rings ───────────────────────────────────────────────────────── */
-.color-encoder-rings {
+.rotary-encoder-rings {
   overflow: visible;
   touch-action: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.color-encoder-rings path {
+.rotary-encoder-rings path {
   fill: none;
   stroke-linecap: round;
 }
 
-.color-encoder-ring-slider {
+.rotary-encoder-ring-slider {
   cursor: pointer;
   outline: none;
 }
 
-.color-encoder-ring-slider[data-disabled="true"] {
+.rotary-encoder-ring-slider[data-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
 /* Focus follows the ring: the surface's highlight-coloured focus convention,
    outside the knob face. */
-.color-encoder-rings .color-encoder-focus {
+.rotary-encoder-rings .rotary-encoder-focus {
   stroke: transparent;
 }
 
-.color-encoder-ring-slider:focus-visible .color-encoder-focus {
+.rotary-encoder-ring-slider:focus-visible .rotary-encoder-focus {
   stroke: var(--cyber-highlight, #22d3ee);
   stroke-opacity: 0.55;
 }
@@ -7098,50 +7106,50 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 /* A sunken channel like the colour ring: a raised lip, a dark well, and the
    ring's lighting — darker at the top left, catching light at the bottom
    right. */
-.color-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.2); }
-.color-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.3); }
-.color-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.1); }
-.color-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.42); }
-.color-encoder-shade-b { stop-color: rgba(0, 0, 0, 0); }
-.color-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.18); }
+.rotary-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.2); }
+.rotary-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.3); }
+.rotary-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.1); }
+.rotary-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.42); }
+.rotary-encoder-shade-b { stop-color: rgba(0, 0, 0, 0); }
+.rotary-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.18); }
 
-.color-encoder-rings .color-encoder-well {
+.rotary-encoder-rings .rotary-encoder-well {
   stroke: rgba(0, 0, 0, 0.55);
 }
 
 /* Filled from the start to the thumb in the colour ring's colour, and glowing
    in it (Adeline, 2026-09-11). The bloom keeps a px floor, the lit light's
    rule, so it still reads on a thin ring. */
-.color-encoder-rings .color-encoder-fill {
-  stroke: var(--ce-color);
+.rotary-encoder-rings .rotary-encoder-fill {
+  stroke: var(--re-color);
   /* One tight bloom. A second, wider one filled the gaps between rings and
      washed out the wells' dark edges, so the tracks stopped reading as
      channels. */
-  filter: drop-shadow(0 0 max(4px, calc(var(--ce-track) * 0.3)) var(--ce-color));
+  filter: drop-shadow(0 0 max(4px, calc(var(--re-track) * 0.3)) var(--re-color));
 }
 
 /* The thumb is a small piece of the knob: its tint, a lighter crown, a dark
    edge and a drop shadow. No theme colour. */
-.color-encoder-thumb {
+.rotary-encoder-thumb {
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
 }
 
-.color-encoder-rings .color-encoder-thumb-edge {
+.rotary-encoder-rings .rotary-encoder-thumb-edge {
   stroke: rgba(0, 0, 0, 0.6);
 }
 
-.color-encoder-rings .color-encoder-thumb-body {
-  stroke: color-mix(in srgb, var(--ce-tint) 78%, #fff 22%);
+.rotary-encoder-rings .rotary-encoder-thumb-body {
+  stroke: color-mix(in srgb, var(--re-tint) 78%, #fff 22%);
 }
 
-.color-encoder-rings .color-encoder-thumb-crown {
-  stroke: color-mix(in srgb, var(--ce-tint) 62%, #fff 38%);
+.rotary-encoder-rings .rotary-encoder-thumb-crown {
+  stroke: color-mix(in srgb, var(--re-tint) 62%, #fff 38%);
   stroke-opacity: 0.7;
 }
 
 /* Ring labels: curved through the bottom gap, etched like the dial's caption.
    The face is drawn over a dark cut 1px above and a lip 1px below. */
-.color-encoder-ring-label {
+.rotary-encoder-ring-label {
   font-weight: 700;
   letter-spacing: 0.16em;
   /* Left-aligned to the start of its own ring (Adeline, 2026-09-11), so the
@@ -7151,41 +7159,101 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   pointer-events: none;
 }
 
-.color-encoder-etch-face { fill: rgba(255, 255, 255, 0.46); }
-.color-encoder-etch-cut { fill: rgba(0, 0, 0, 0.55); }
-.color-encoder-etch-lip { fill: rgba(0, 0, 0, 0.5); }
+.rotary-encoder-etch-face { fill: rgba(255, 255, 255, 0.46); }
+.rotary-encoder-etch-cut { fill: rgba(0, 0, 0, 0.55); }
+.rotary-encoder-etch-lip { fill: rgba(0, 0, 0, 0.5); }
 
 /* Light mode, as for the colour ring and the lights: paler lip and shading,
    and a darker well so the coloured fill still reads against it. */
-.color-encoder[data-mode="light"] .color-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.9); }
-.color-encoder[data-mode="light"] .color-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.16); }
-.color-encoder[data-mode="light"] .color-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.6); }
-.color-encoder[data-mode="light"] .color-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.22); }
-.color-encoder[data-mode="light"] .color-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.5); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.9); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.16); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.6); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.22); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.5); }
 
-.color-encoder[data-mode="light"] .color-encoder-rings .color-encoder-well {
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-well {
   stroke: rgba(28, 31, 36, 0.6);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-thumb {
+.rotary-encoder[data-mode="light"] .rotary-encoder-thumb {
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.28));
 }
 
-.color-encoder[data-mode="light"] .color-encoder-rings .color-encoder-thumb-edge {
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-edge {
   stroke: rgba(0, 0, 0, 0.26);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-rings .color-encoder-thumb-body {
-  stroke: var(--ce-tint);
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-body {
+  stroke: var(--re-tint);
 }
 
-.color-encoder[data-mode="light"] .color-encoder-rings .color-encoder-thumb-crown {
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-crown {
   stroke: #ffffff;
 }
 
-.color-encoder[data-mode="light"] .color-encoder-etch-face { fill: rgba(0, 0, 0, 0.46); }
-.color-encoder[data-mode="light"] .color-encoder-etch-cut { fill: rgba(0, 0, 0, 0.06); }
-.color-encoder[data-mode="light"] .color-encoder-etch-lip { fill: rgba(255, 255, 255, 0.95); }
+/* A ring's value, right-aligned so it ends where its track ends
+   (specs/color-encoder.md, "Value on the right"). */
+.rotary-encoder-ring-value {
+  text-anchor: end;
+}
+
+/* A selector's or a toggle's fill: the whole track, in the caller's colour,
+   rather than filling behind a thumb. A toggle fades over half a second. */
+.rotary-encoder-whole-fill {
+  transition: stroke 500ms ease, opacity 500ms ease;
+}
+
+.rotary-encoder-whole-fill[data-on="true"] {
+  filter: drop-shadow(0 0 max(4px, calc(var(--re-track) * 0.3)) var(--re-fill));
+  opacity: 1;
+}
+
+.rotary-encoder-whole-fill[data-on="false"] {
+  opacity: 0;
+}
+
+/* Tuck-away: each ring shrinks towards the centre and fades behind the knob,
+   innermost first (specs/color-encoder.md, "Tuck-away"). */
+.rotary-encoder-ring-slider {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 450ms ease-out, opacity 450ms ease-out;
+}
+
+.rotary-encoder[data-locked="true"] .rotary-encoder-ring-slider {
+  transition-timing-function: ease-in;
+}
+
+.rotary-encoder-rings[data-collapsed="true"] {
+  pointer-events: none;
+}
+
+/* The floating ring layer: portalled to the body and pinned over the dial, so
+   a scrolling or clipped ancestor cannot cut it off. It is clipped to an
+   annulus, which leaves the knob visible and tappable through the middle and
+   hides a ring collapsing behind it. Under modals (10000) and the lighting
+   tint (2147483647). */
+.rotary-encoder-ring-layer {
+  position: fixed;
+  z-index: 9000;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.rotary-encoder-ring-layer .rotary-encoder-rings {
+  pointer-events: auto;
+}
+
+/* Swallows a tap that lands between two rings, so it never reaches a control
+   underneath. */
+.rotary-encoder-blocker {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-etch-face { fill: rgba(0, 0, 0, 0.46); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-etch-cut { fill: rgba(0, 0, 0, 0.06); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-etch-lip { fill: rgba(255, 255, 255, 0.95); }
 /* ColorEncoder placements (specs/color-encoder.md). */
 .zone-color-encoder {
   display: flex;

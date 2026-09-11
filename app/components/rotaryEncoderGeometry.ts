@@ -1,9 +1,13 @@
 /**
- * Ring geometry and pointer maths for `ColorEncoder`'s slider rings
+ * Ring geometry and pointer maths for `RotaryEncoder`'s slider rings
  * (specs/color-encoder.md, "Rings — the arc sliders").
  *
  * Angles are clockwise degrees from 12 o'clock, the convention the dial's index
  * already uses. Every length is in px and derives from the knob diameter.
+ *
+ * A ring starts at 7:30 and ends at 4:30 unless its label and value need more
+ * room in the bottom gap, in which case its end is pulled back anticlockwise
+ * (specs/color-encoder.md, "Value on the right, and rings that shorten to fit").
  */
 
 export const RING_LIMIT = 5;
@@ -13,6 +17,9 @@ export const ARC_START = -135;
 export const ARC_END = 135;
 export const ARC_SPAN = ARC_END - ARC_START;
 
+/** A shortened ring never gets smaller than this, or it stops reading as a ring. */
+export const ARC_MIN_SPAN = 180;
+
 /** Track and gap as fractions of the knob diameter, before the pitch floor. */
 const TRACK_SHARE = 0.06;
 const GAP_SHARE = 0.025;
@@ -21,10 +28,13 @@ const GAP_SHARE = 0.025;
 export const THUMB_THICKNESS = 1.3;
 export const THUMB_LENGTH = 2.4;
 
+/** Clearance between a ring's label and its value, in label font sizes. */
+export const LABEL_VALUE_CLEARANCE = 1.5;
+
 export type RingGeometry = {
   /** Knob diameter. */
   size: number;
-  /** Radius of the dial's own footprint (`--ce-outer / 2`). */
+  /** Radius of the dial's own footprint (`--re-outer / 2`). */
   dialRadius: number;
   /** Label font size: the channel caption's rule. */
   font: number;
@@ -80,8 +90,8 @@ export function pointerAngle(dx: number, dy: number) {
 }
 
 /** Whether an angle is on the arc rather than in the label gap at the bottom. */
-export function onArc(angle: number) {
-  return angle >= ARC_START && angle <= ARC_END;
+export function onArc(angle: number, end: number = ARC_END) {
+  return angle >= ARC_START && angle <= end;
 }
 
 /**
@@ -98,15 +108,17 @@ export function ringAt(geometry: RingGeometry, distance: number) {
  * The thumb's centre travels an inset arc so its ends never leave the track;
  * the value still spans its full range across that travel.
  */
-export function thumbAngle(t: number, halfAngle: number) {
+export function thumbAngle(t: number, halfAngle: number, end: number = ARC_END) {
   const start = ARC_START + halfAngle;
-  return start + clamp(t, 0, 1) * (ARC_SPAN - 2 * halfAngle);
+  return start + clamp(t, 0, 1) * (end - ARC_START - 2 * halfAngle);
 }
 
 /** Inverse of `thumbAngle`: where along the range an angle on the arc sits. */
-export function fractionAt(angle: number, halfAngle: number) {
+export function fractionAt(angle: number, halfAngle: number, end: number = ARC_END) {
   const start = ARC_START + halfAngle;
-  return clamp((angle - start) / (ARC_SPAN - 2 * halfAngle), 0, 1);
+  const span = end - ARC_START - 2 * halfAngle;
+  if (span <= 0) return 0;
+  return clamp((angle - start) / span, 0, 1);
 }
 
 /** A point on a circle about (cx, cy) at a clockwise-from-12 angle. */
@@ -124,21 +136,51 @@ export function arcPath(cx: number, cy: number, radius: number, from: number, to
 }
 
 /**
- * SVG path through the label gap, left to right: 7:30 → 6 → 4:30. Travelling
- * that way the text's "up" points at the centre, so labels sit upright.
+ * SVG path through the label gap, left to right: the ring's start (7:30), under
+ * the bottom, round to the ring's end. Travelling that way the text's "up"
+ * points at the centre, so labels sit upright.
  */
-export function labelPath(cx: number, cy: number, radius: number) {
-  const start = polar(cx, cy, radius, ARC_START);
-  const end = polar(cx, cy, radius, ARC_END);
-  return `M ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius.toFixed(3)} ${radius.toFixed(3)} 0 0 0 ${end.x.toFixed(3)} ${end.y.toFixed(3)}`;
+export function labelPath(cx: number, cy: number, radius: number, end: number = ARC_END) {
+  const from = polar(cx, cy, radius, ARC_START);
+  const to = polar(cx, cy, radius, end);
+  const large = gapSpan(end) > 180 ? 1 : 0;
+  return `M ${from.x.toFixed(3)} ${from.y.toFixed(3)} A ${radius.toFixed(3)} ${radius.toFixed(3)} 0 ${large} 0 ${to.x.toFixed(3)} ${to.y.toFixed(3)}`;
+}
+
+/** Degrees of gap at the bottom for a ring ending at `end`. */
+export function gapSpan(end: number = ARC_END) {
+  return 360 - (end - ARC_START);
+}
+
+/** Arc length of the bottom gap on ring `index`. */
+export function gapLength(geometry: RingGeometry, index: number, end: number = ARC_END) {
+  return geometry.radii[index] * ((gapSpan(end) * Math.PI) / 180);
 }
 
 /**
  * Room for a label in the gap: the gap's arc length, less the tracks' round
  * ends (half a track each side) and half a track of clearance past each.
  */
-export function labelRoom(geometry: RingGeometry, index: number) {
-  return geometry.radii[index] * (Math.PI / 2) - 2 * geometry.track;
+export function labelRoom(geometry: RingGeometry, index: number, end: number = ARC_END) {
+  return gapLength(geometry, index, end) - 2 * geometry.track;
+}
+
+/**
+ * Where a ring's arc has to end for `label` and `value` to sit in its gap with
+ * the clearances above, or `ARC_END` when they already fit. Widths are in px,
+ * measured in the label's own font.
+ *
+ * The start never moves: only the end is pulled back, and never past
+ * `ARC_MIN_SPAN`.
+ */
+export function ringEndFor(geometry: RingGeometry, index: number, labelWidth: number, valueWidth: number) {
+  const needed = labelWidth + valueWidth + (valueWidth > 0 ? LABEL_VALUE_CLEARANCE * geometry.font : 0) + 2 * geometry.track;
+  const radius = geometry.radii[index];
+  if (radius <= 0) return ARC_END;
+  if (needed <= gapLength(geometry, index)) return ARC_END;
+  const neededDegrees = (needed / radius) * (180 / Math.PI);
+  const end = 225 - neededDegrees;
+  return clamp(end, ARC_START + ARC_MIN_SPAN, ARC_END);
 }
 
 export type RingDrag = {
@@ -155,12 +197,12 @@ export type RingDrag = {
  * there until the pointer is back on the arc in that end's half, so coming out
  * of the gap on the far side can never jump the value across the range.
  */
-export function dragStep(drag: RingDrag, angle: number, halfAngle: number): RingDrag {
-  if (!onArc(angle)) {
+export function dragStep(drag: RingDrag, angle: number, halfAngle: number, end: number = ARC_END): RingDrag {
+  if (!onArc(angle, end)) {
     const pinned = drag.pinned ?? (drag.t < 0.5 ? "min" : "max");
     return { pinned, t: pinned === "min" ? 0 : 1 };
   }
-  const t = fractionAt(angle, halfAngle);
+  const t = fractionAt(angle, halfAngle, end);
   if (drag.pinned === "min" && t >= 0.5) return drag;
   if (drag.pinned === "max" && t < 0.5) return drag;
   return { pinned: null, t };

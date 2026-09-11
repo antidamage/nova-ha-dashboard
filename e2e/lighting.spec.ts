@@ -23,20 +23,20 @@ test.describe("lighting controls", () => {
 
     // Dimming a room is what this card is reached for, so brightness is lit
     // on load rather than hue (specs/color-encoder.md, "Channels").
-    await expect(dial).toHaveAttribute("data-channel", "brightness");
+    await expect(dial).toHaveAttribute("data-led", "brightness");
     await dial.click();
-    await expect(dial).toHaveAttribute("data-channel", "saturation");
+    await expect(dial).toHaveAttribute("data-led", "saturation");
     await dial.click();
-    await expect(dial).toHaveAttribute("data-channel", "hue");
+    await expect(dial).toHaveAttribute("data-led", "hue");
     await dial.click();
-    await expect(dial).toHaveAttribute("data-channel", "brightness");
+    await expect(dial).toHaveAttribute("data-led", "brightness");
   });
 
   test("dragging left on the brightness light turns the zone down", async ({ page }) => {
     const console = watchConsole(page);
     await gotoDashboard(page);
     const dial = page.locator(".zone-panel").getByLabel("Zone lights");
-    await expect(dial).toHaveAttribute("data-channel", "brightness");
+    await expect(dial).toHaveAttribute("data-led", "brightness");
 
     // The turn is driven by page coordinates, so the dial has to be on screen
     // for them to mean anything.
