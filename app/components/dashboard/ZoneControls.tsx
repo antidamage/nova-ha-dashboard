@@ -342,33 +342,35 @@ export function ZoneControls({
           ) : (
             <>
               {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
-              <section className="border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
-                <header className="mb-4 flex items-center gap-3">
-                  <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
-                  <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
-                </header>
+              <div className="zone-lighting-controls">
+                <section className="zone-party-control border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
+                  <header className="mb-4 flex items-center gap-3">
+                    <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
+                    <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
+                  </header>
 
-                <LabeledSwitch
-                  checked={housePartyEnabled}
-                  disabled={housePartyBusy || !hasLightDevices}
-                  icon={<PartyPopper className="h-4 w-4" />}
-                  label="House Party"
-                  leftLabel="Off"
-                  rightLabel="On"
-                  onChange={() => void toggleHouseParty()}
+                  <LabeledSwitch
+                    checked={housePartyEnabled}
+                    disabled={housePartyBusy || !hasLightDevices}
+                    icon={<PartyPopper className="h-4 w-4" />}
+                    label="House Party"
+                    leftLabel="Off"
+                    rightLabel="On"
+                    onChange={() => void toggleHouseParty()}
+                  />
+                </section>
+                <ZoneColorEncoder
+                  brightness={brightness}
+                  colorEnabled={hasActiveLights}
+                  disabled={!hasLightDevices}
+                  spectrum={spectrum}
+                  zoneId={zone.id}
+                  onBrightnessChange={setLocalBrightness}
+                  onBrightnessCommit={(value) => onZoneAction("brightness", { brightnessPct: value })}
+                  onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
+                  onSpectrumChange={rememberSpectrum}
                 />
-              </section>
-              <ZoneColorEncoder
-                brightness={brightness}
-                colorEnabled={hasActiveLights}
-                disabled={!hasLightDevices}
-                spectrum={spectrum}
-                zoneId={zone.id}
-                onBrightnessChange={setLocalBrightness}
-                onBrightnessCommit={(value) => onZoneAction("brightness", { brightnessPct: value })}
-                onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
-                onSpectrumChange={rememberSpectrum}
-              />
+              </div>
               {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
             </>
           )}

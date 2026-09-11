@@ -16,20 +16,15 @@ request was executed directly).
 - Sits **above the zone menu** (`ZonesPanel`) and **below the reminder icon
   bar**, and reads as distinct from the panels below it: its own border and a
   highlight-coloured left rail *(decided)*, with the normal layout gap under it.
-- Wide landscape (the two-column layout at `min-width: 1126px` landscape): the
-  card takes its own **full-width grid row** between the reminders/clock row
-  and the zones/control row. A 300px sidebar cannot hold one line, and a
-  full-width row is the only spot that is both "above the zone selection"
-  and "distinct from the panels below it". Grid areas become:
+- Landscape begins when the viewport is wider than it is tall. The page is a
+  horizontally scrolling row of top-aligned columns, centered vertically:
+  clock/reminders, Quick Access, zones, selected controls. Quick Access is a
+  520px column with its four segments stacked in their usual order.
+- Square and taller windows keep the vertical order: clock, reminders, Quick
+  Access, zones, control stage. Mouse dragging and native touch scrolling move
+  the page; landscape also maps the mouse wheel to horizontal movement outside
+  controls and vertically scrolling panels. Scrollbars are hidden.
 
-  ```
-  "reminders clock"
-  "quick     quick"
-  "zones     control"
-  ```
-
-- Single-column layouts (portrait, phone, narrow): clock, reminders, Quick
-  Access, zones, control stage, in that order.
 - Nova Classic design only *(decided)*. The Plain design reuses `ZoneControls`
   but has its own chrome; it does not get the card in this change.
 

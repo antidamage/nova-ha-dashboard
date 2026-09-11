@@ -1,21 +1,22 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isHorizontalDashboard } from "./useClickDragScroll";
 
 // Restores the window scroll position across reloads. The dashboard's content
-// height depends on async state (zones/panels render after the first
+// extent depends on async state (zones/panels render after the first
 // snapshot), so the browser's native restoration can't work: at restore time
 // the page is still short. This hook saves the offset as the user scrolls and
 // replays it once the dashboard reports real content, waiting for the layout
-// to grow tall enough (bounded by a timeout). Any user scroll input while a
+// to grow large enough (bounded by a timeout). Any user scroll input while a
 // restore is pending cancels it — the user wins.
 
-const SCROLL_STORAGE_KEY = "nova.dashboard.scrollY.v1";
+const scrollStorageKey = () => isHorizontalDashboard() ? "nova.dashboard.scrollX.v1" : "nova.dashboard.scrollY.v1";
 const RESTORE_TIMEOUT_MS = 3_000;
 
-function readStoredScrollY(): number | null {
+function readStoredScroll(): number | null {
   try {
-    const raw = window.localStorage.getItem(SCROLL_STORAGE_KEY);
+    const raw = window.localStorage.getItem(scrollStorageKey());
     if (raw === null) {
       return null;
     }
@@ -44,7 +45,7 @@ export function useScrollRestore(ready: boolean) {
       raf = window.requestAnimationFrame(() => {
         raf = 0;
         try {
-          window.localStorage.setItem(SCROLL_STORAGE_KEY, String(Math.round(window.scrollY)));
+          window.localStorage.setItem(scrollStorageKey(), String(Math.round(isHorizontalDashboard() ? window.scrollX : window.scrollY)));
         } catch {
           // Storage denied — scroll restore silently degrades.
         }
@@ -65,7 +66,7 @@ export function useScrollRestore(ready: boolean) {
       return;
     }
 
-    const target = readStoredScrollY();
+    const target = readStoredScroll();
     if (target === null || target <= 0) {
       restoreDoneRef.current = true;
       return;
@@ -88,17 +89,20 @@ export function useScrollRestore(ready: boolean) {
     };
     const attempt = () => {
       raf = 0;
-      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const horizontal = isHorizontalDashboard();
+      const maxScroll = horizontal
+        ? document.documentElement.scrollWidth - window.innerWidth
+        : document.documentElement.scrollHeight - window.innerHeight;
       if (maxScroll >= target) {
         // Restore is an explicit instant jump so it never animates on reload.
-        window.scrollTo({ top: target, behavior: "auto" });
+        window.scrollTo({ top: horizontal ? 0 : target, left: horizontal ? target : 0, behavior: "instant" });
         finish();
         return;
       }
       if (Date.now() - startedAt > RESTORE_TIMEOUT_MS) {
         // Content never grew tall enough (layout changed since the save) —
         // land as deep as the page allows rather than jumping later.
-        window.scrollTo({ top: Math.max(0, maxScroll), behavior: "auto" });
+        window.scrollTo({ top: horizontal ? 0 : Math.max(0, maxScroll), left: horizontal ? Math.max(0, maxScroll) : 0, behavior: "instant" });
         finish();
         return;
       }
