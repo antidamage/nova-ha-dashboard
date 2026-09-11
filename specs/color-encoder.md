@@ -110,6 +110,13 @@ often. A colour picker opens on hue, the first channel, which is the default.
 - **Rotation**: the rotor turns `0.5° per px` of signed drag input and
   **keeps its accumulated angle** after release — it is an endless encoder,
   not a pointer that snaps back. Rotation is visual only; it carries no value.
+- **Rotation stops at a channel's limits.** Adeline, 2026-09-11. Brightness,
+  saturation and alpha clamp at 0 and 100, and once the value is pinned there
+  the rotor stops turning too: the rotor turns only by the share of the input
+  that actually moved the value (`Δangle = Δvalue / rate × 0.5°`). Pushing
+  further past the end moves nothing; reversing moves the value and rotor at
+  once, with no dead zone to wind back through. Hue has no ends and turns
+  forever. No haptic click is spent on input that moved nothing.
 - Pointer Events with `setPointerCapture`, so a drag tracks outside the
   element.
 - **Keyboard**: focusable. Right/Up and Left/Down arrows nudge the active
@@ -155,6 +162,48 @@ often. A colour picker opens on hue, the first channel, which is the default.
   as a gradient the lit light came out grey there.
 - Focus ring follows the surface convention: highlight-coloured outline on
   `:focus-visible`.
+
+### Surviving Brave's auto dark mode
+
+Adeline, 2026-09-11: on desktop Brave, with Chromium's "Auto Dark Mode for
+Web Contents" flag on, the **ring goes dark** as a bright colour is
+desaturated (and darkens oddly either way on brightness), and the lit LED shows
+white for a moment and then settles to a **blue-grey**. Both are that flag
+repainting light colours after first paint, not the dial's value — the LED's
+PNG fill turned out not to be enough on its own. The ring and the lit LED must
+show their true colour with the flag on. Fixes are tried in this order, each
+checked under forced dark mode, and the first that holds is kept:
+
+1. `!important` on the ring's and the lit LED's fill.
+2. The dashboard opts out of auto dark mode page-wide by declaring
+   `color-scheme: dark` on the root (Adeline's pick over a per-control
+   workaround). Adeline, 2026-09-11: the page **always** tells the browser it
+   is dark, whichever Nova theme — dark or light — is selected; the flag must
+   not affect it at all.
+3. A tiling image of the exact colour — a generated PNG data URI — instead of a
+   CSS colour value, for the ring and the LED.
+
+**Held: option 2 — `<meta name="color-scheme" content="dark">` in
+`app/layout.tsx`, mirrored as `color-scheme: dark` on `:root` in
+`globals.css`.** Measured 2026-09-11 by sampling swatch pixels:
+
+- With forced dark on, plain, `!important` and gradient fills of white and pale
+  colours were all repainted dark (255,230,230 came out 54,36,37); tiling PNGs
+  were inverted too (white to black, 255,230,230 to 126,0,0) — the same image
+  pass that turns the LED blue-grey after a moment. Options 1 and 3 do not work.
+- With Chromium's real `WebContentsForceDark` feature (Brave's flag) in the full
+  browser, the browser reports `prefers-color-scheme: dark`; a page declaring
+  nothing had 255,207,102 repainted 81,51,0 (the reported symptom), and a page
+  declaring `color-scheme: dark` was left untouched.
+- Testing trap: the `--blink-settings=forceDarkModeEnabled=true` switch and the
+  headless shell do **not** reproduce this. The former repaints even pages that
+  declare dark, because it leaves the browser reporting light; the latter
+  ignores the feature entirely. Test with `channel: "chromium"` and
+  `--enable-features=WebContentsForceDark`.
+
+`body` sets its own `color` and `background` and hides scrollbars, so the
+visible side effect of declaring dark is limited to native form controls, which
+take the UA's dark styling in either Nova theme.
 
 ### Light and dark
 
@@ -353,6 +402,18 @@ deleted, along with its exports, README row and showcase card. Adeline,
 - Every widget in the replacement list above is gone, with no colour
   spectrum pad, intensity slider or folded-in opacity slider left behind.
 - `npx tsc --noEmit`, `npm run test:unit`, `npm run test:e2e` clean.
+- Brightness, saturation and alpha stop the rotor at their ends; hue does not.
+- **Sweep smoke test** (Adeline, 2026-09-11), in a real browser against the
+  dashboard, with lighting commands intercepted in the page and never sent to
+  Home Assistant: from a bright, saturated start, brightness and saturation are
+  each driven 0→100→0 in 10% steps and hue through 360° in 30° steps. At every
+  step the test checks the dial's value and the intercepted command payload
+  against the expected HSV, **samples the ring's rendered pixel from a
+  screenshot** and compares it with `hsvToRgb` of the expected value, and keeps
+  the screenshot for a visual check. It runs once normally and once with
+  Chromium's real auto dark mode feature on; both must pass.
+  `e2e/color-encoder-sweep.spec.ts`; `COLOR_ENCODER_SHOTS=<dir>` keeps the
+  screenshots.
 - An adversarial visual gauntlet passes: the control screenshotted at 50px,
   120px and 200px, in dark and light themes, in every channel state, with
   opacity at 100 and 40 — reviewed against this spec until a reviewer finds

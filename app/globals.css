@@ -5,6 +5,9 @@
 @import "tailwindcss";
 
 :root {
+  /* Always dark to the browser, whichever theme is selected, so Chromium's
+     auto dark mode never repaints the page (see the meta in app/layout.tsx). */
+  color-scheme: dark;
   --background: #1a1a1a;
   --foreground: #333333;
   --cyber-bg: #1a1a1a;

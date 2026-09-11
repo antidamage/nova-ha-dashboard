@@ -180,6 +180,14 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Always tells the browser this page is dark, whichever Nova theme is
+            selected, so Chromium's auto dark mode (a Brave flag Adeline runs)
+            leaves it alone. That mode repaints light fills after first paint:
+            the ColorEncoder ring went dark as a bright colour was desaturated
+            and the lit LED settled to blue-grey, and `!important` and image
+            fills are rewritten too. Mirrored on `:root` in globals.css
+            (specs/color-encoder.md, "Surviving Brave's auto dark mode"). */}
+        <meta name="color-scheme" content="dark" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={googleFontsHref()} />
