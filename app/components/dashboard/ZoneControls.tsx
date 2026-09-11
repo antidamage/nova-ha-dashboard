@@ -76,6 +76,7 @@ export function ZoneColorEncoder({
   className,
   colorEnabled,
   disabled,
+  knobSkin,
   label = "Lights",
   size = 200,
   spectrum,
@@ -90,6 +91,8 @@ export function ZoneColorEncoder({
   className?: string;
   colorEnabled: boolean;
   disabled: boolean;
+  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  knobSkin?: "auto" | "dark" | "light";
   label?: string;
   /** Dial diameter in px; the zone card uses 200, Quick Access 56. */
   size?: number;
@@ -128,6 +131,7 @@ export function ZoneColorEncoder({
         demoTooltipTitle="Lights"
         demoTooltip="Tap to switch between brightness, saturation and hue. Turn it like a knob."
         disabled={disabled}
+        knobSkin={knobSkin}
         label={label}
         size={size}
         value={value}
@@ -163,6 +167,7 @@ export function ZoneControls({
   climateControl,
   desktopSleepBusy,
   desktopWakeBusy,
+  knobSkin,
   loungeEnvironment,
   sun,
   zone,
@@ -181,6 +186,8 @@ export function ZoneControls({
   climateControl?: ClimateControlState;
   desktopSleepBusy?: boolean;
   desktopWakeBusy?: boolean;
+  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  knobSkin?: "auto" | "dark" | "light";
   loungeEnvironment?: LoungeEnvironment | null;
   sun?: SunStatus | null;
   zone: DashboardZone;
@@ -347,6 +354,7 @@ export function ZoneControls({
                   brightness={brightness}
                   colorEnabled={hasActiveLights}
                   disabled={!hasLightDevices}
+                  knobSkin={knobSkin}
                   spectrum={spectrum}
                   zoneId={zone.id}
                   onBrightnessChange={setLocalBrightness}

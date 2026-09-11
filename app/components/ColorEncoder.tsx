@@ -207,6 +207,8 @@ export type ColorEncoderProps = {
   format?: "hex" | "rgb";
   /** Shown on the knob, above the lights. */
   label?: string;
+  /** Forces the bevel/LED skin instead of reading it from the painted surface. Default "auto". */
+  knobSkin?: "auto" | "dark" | "light";
   name?: string;
   /** Up to five slider rings, innermost first. */
   rings?: ColorEncoderRing[];
@@ -241,6 +243,7 @@ export function ColorEncoder({
   disabled = false,
   format = "hex",
   label,
+  knobSkin = "auto",
   name,
   rings = [],
   sensitivity,
@@ -270,6 +273,10 @@ export function ColorEncoder({
   const [mode, setMode] = useState<"dark" | "light">("dark");
 
   useEffect(() => {
+    if (knobSkin === "dark" || knobSkin === "light") {
+      setMode(knobSkin);
+      return;
+    }
     const read = () => setMode(isLightSurface(rootRef.current) ? "light" : "dark");
     read();
     const events = ["nova-accent-change", NOVA_THEME_SET_CHANGE_EVENT, "nova-sun-change"];
@@ -277,7 +284,7 @@ export function ColorEncoder({
     return () => {
       for (const event of events) window.removeEventListener(event, read);
     };
-  }, []);
+  }, [knobSkin]);
 
   // The dial keeps its own unrounded value and a drag owns it until release —
   // see ColorEncoder and specs/color-encoder.md, "Rounding".

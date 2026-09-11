@@ -24,6 +24,7 @@ export type ThemeSelection = "auto" | "dark" | "light";
 export type ThemeVariant = "dark" | "light";
 export type ThemeTitleTone = "auto" | "light" | "dark";
 export type RadarPaletteMode = "spectrum" | "custom";
+export type KnobSkinMode = "auto" | "dark" | "light";
 export type MapThemeColorSlot = "base" | "water" | "land" | "buildingLow" | "buildingHigh" | "roads" | "labels" | "radarLow" | "radarHigh";
 
 export type ThemeColorValue = {
@@ -161,6 +162,9 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   desktopWallpaper: DesktopWallpaperSettings;
   font: ThemeFontSetting;
   gymFont: ThemeFontSetting;
+  /** ColorEncoder's bevel/LED skin for this theme variant. "auto" keeps the
+   *  knob's own luminance detection; see specs/color-encoder.md, "Light and dark". */
+  knobSkin: KnobSkinMode;
   /** Blend the room's light colour over the page. See specs/lighting-tint.md. */
   lightingTint: boolean;
   lightingTintStrength: number;
@@ -234,6 +238,7 @@ function isThemePollingPaused() {
 }
 export const THEME_SELECTIONS: ThemeSelection[] = ["dark", "light", "auto"];
 export const THEME_VARIANTS: ThemeVariant[] = ["dark", "light"];
+export const KNOB_SKIN_MODES: KnobSkinMode[] = ["auto", "dark", "light"];
 export const RADAR_OPACITY_DEFAULT = 87;
 export const RADAR_OPACITY_MAX = 100;
 export const RADAR_OPACITY_MIN = 0;
@@ -444,6 +449,7 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
       rgb: [106, 255, 0],
     },
   },
+  knobSkin: "auto",
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
@@ -635,6 +641,7 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
       rgb: [106, 255, 0],
     },
   },
+  knobSkin: "auto",
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
@@ -744,6 +751,10 @@ function normalizeColor(value: Partial<ThemeColorValue> | null | undefined, fall
 
 function normalizeRadarPaletteMode(value: unknown): RadarPaletteMode {
   return value === "spectrum" ? "spectrum" : "custom";
+}
+
+function normalizeKnobSkin(value: unknown): KnobSkinMode {
+  return value === "dark" || value === "light" ? value : "auto";
 }
 
 function normalizeThemeScope(value: unknown): ThemeConfigScope {
@@ -940,6 +951,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
       radarLow: normalizeColor(mapValue?.radarLow, DEFAULT_THEME.map.radarLow),
       radarHigh: normalizeColor(mapValue?.radarHigh, DEFAULT_THEME.map.radarHigh),
     },
+    knobSkin: normalizeKnobSkin(value?.knobSkin),
     mapBuildingOpacity: normalizeMapBuildingOpacity(value?.mapBuildingOpacity),
     mapLabelSize: normalizeMapLabelSize(value?.mapLabelSize),
     mapSatellite: value?.mapSatellite !== false,

@@ -200,11 +200,14 @@ function CurrentTemperature({ value }: { value: number | null | undefined }) {
 
 /** The Home zone's single colour control plus Candlelight and Off. */
 export function QuickLightsSegment({
+  knobSkin,
   spectrumCursor,
   sun,
   zone,
   onZoneAction,
 }: {
+  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  knobSkin?: "auto" | "dark" | "light";
   spectrumCursor?: SpectrumCursor;
   sun?: SunStatus | null;
   zone: DashboardZone;
@@ -223,6 +226,7 @@ export function QuickLightsSegment({
           className="quick-access-encoder"
           colorEnabled={hasActiveLights}
           disabled={!lighting.hasLightDevices}
+          knobSkin={knobSkin}
           label=""
           size={QUICK_ENCODER_SIZE}
           spectrum={lighting.spectrum}
@@ -422,6 +426,8 @@ export type QuickAccessCardProps = {
   climateZone?: DashboardZone | null;
   /** The Home zone (`everything`): every light except those excluded in config. */
   homeZone?: DashboardZone | null;
+  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  knobSkin?: "auto" | "dark" | "light";
   preferences?: { aircon?: AirconPreferences; bedroomHeater?: BedroomHeaterPreferences };
   spectrumCursor?: SpectrumCursor;
   sun?: SunStatus | null;
@@ -436,6 +442,7 @@ export function QuickAccessCard({
   climateControl,
   climateZone,
   homeZone,
+  knobSkin,
   preferences,
   spectrumCursor,
   sun,
@@ -455,7 +462,7 @@ export function QuickAccessCard({
       </h2>
       <div className="quick-access-row">
         {homeZone ? (
-          <QuickLightsSegment spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
+          <QuickLightsSegment knobSkin={knobSkin} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
         ) : null}
         {aircon ? (
           <QuickAirconSegment
