@@ -205,7 +205,7 @@
       "dashboardEventHeartbeatMs": 15000,
       "dashboardEventPushDebounceMs": 150,
       "lightCommandEventHoldMs": 5000,
-      "weatherRefreshIntervalMs": 1800000,
+      "weatherRefreshIntervalMs": 60000,
       "adaptiveLightingPollMs": 60000,
       "buildReloadAfterOutageMs": 8000
     }
