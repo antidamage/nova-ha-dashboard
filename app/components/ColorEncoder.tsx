@@ -74,18 +74,6 @@ function nearestTurn(target: number, from: number) {
 /** Shift or Alt makes every channel this much finer. */
 const FINE_DIVISOR = 8;
 
-/**
- * The dial's own click cadence, rather than the shared slider controller's.
- *
- * That controller pulses on distance with an 80ms floor, which on a fast drag
- * is up to a dozen clicks a second — a buzz on a control you spin. Adeline,
- * 2026-09-11: about five times less often. So: a 400ms floor (5x the shared
- * one) plus a travel gate, so a slow, deliberate turn still ticks and a jittery
- * pointer does not.
- */
-const HAPTIC_MIN_INTERVAL_MS = 400;
-const HAPTIC_TRAVEL_PX = 12;
-
 /** Keyboard nudge, expressed as the drag distance it stands in for. */
 const KEY_STEP_PX = 8;
 const KEY_STEP_FINE_PX = 1;
@@ -260,7 +248,6 @@ export function ColorEncoder({
     valueRef.current = incoming;
   }
   const normalized = valueRef.current;
-  const hapticRef = useRef({ at: 0, travel: 0 });
 
   // The index shows the active channel's value (specs/color-encoder.md,
   // "Interaction"). The displayed angle is that value's angle plus whole turns,
@@ -284,17 +271,6 @@ export function ColorEncoder({
   }
   spinRef.current = 0;
   angleRef.current = { angle, channel, turns: angle - target };
-
-  /** One click per HAPTIC_TRAVEL_PX of turn, and never inside the floor. */
-  const tick = (pixels: number) => {
-    const haptic = hapticRef.current;
-    haptic.travel += Math.abs(pixels);
-    const now = typeof performance === "undefined" ? Date.now() : performance.now();
-    if (haptic.travel < HAPTIC_TRAVEL_PX || now - haptic.at < HAPTIC_MIN_INTERVAL_MS) return;
-    haptic.travel = 0;
-    haptic.at = now;
-    selectionHaptic();
-  };
 
   const dialSize = clamp(Math.round(size), COLOR_ENCODER_MIN_SIZE, COLOR_ENCODER_MAX_SIZE);
   const withAlpha = channels.includes("alpha");
@@ -324,17 +300,14 @@ export function ColorEncoder({
     const rate = (sensitivity?.[channel] ?? SENSITIVITY[channel]) / (fine ? FINE_DIVISOR : 1);
     const current = valueRef.current;
     const next = withChannel(current, channel, channelValue(current, channel) + pixels * rate);
-    // Only the share of the input that moved the value counts: pinned at an
-    // end, brightness, saturation and alpha move nothing — so the index, which
-    // shows the value, stops too — and spend no click. Hue has no ends.
-    const moved = channel === "hue" ? pixels : (channelValue(next, channel) - channelValue(current, channel)) / rate;
-    if (moved === 0) return 0;
+    // Pinned at an end, brightness, saturation and alpha move nothing — so the
+    // index, which shows the value, stops too. Hue has no ends.
+    if (channel !== "hue" && channelValue(next, channel) === channelValue(current, channel)) return;
     valueRef.current = next;
     if (channel === "hue") spinRef.current += pixels * rate;
     // Re-render for the new ring and index even if the caller ignores the value.
     rerender((count) => count + 1);
     onChange(next);
-    return moved;
   };
 
   const pointerHandlers = disabled
@@ -345,7 +318,8 @@ export function ColorEncoder({
         const at = typeof performance === "undefined" ? Date.now() : performance.now();
         dragRef.current = { at, x: event.clientX, y: event.clientY, travel: 0 };
         setPressed(true);
-        hapticRef.current = { at, travel: 0 };
+        // A drag clicks on press and on release, never while turning
+        // (Adeline, 2026-09-11: any rate of clicking mid-turn was annoying).
         selectionHaptic();
       },
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
@@ -359,8 +333,7 @@ export function ColorEncoder({
         if (dx === 0 && dy === 0) return;
         // Right and up turn the value up, left and down turn it down; a
         // diagonal sums the two.
-        const moved = nudge(dx - dy, event.shiftKey || event.altKey);
-        if (moved !== 0) tick(moved);
+        nudge(dx - dy, event.shiftKey || event.altKey);
       },
       onPointerUp: () => {
         const drag = dragRef.current;
@@ -372,6 +345,7 @@ export function ColorEncoder({
           cycleChannel(now - drag.at < TAP_MAX_MS);
           return;
         }
+        selectionHaptic();
         onCommit?.(valueRef.current);
       },
       onPointerCancel: () => {

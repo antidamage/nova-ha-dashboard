@@ -122,8 +122,7 @@ often. A colour picker opens on hue, the first channel, which is the default.
 - **Rotation stops at a channel's limits.** Adeline, 2026-09-11. Brightness,
   saturation and alpha clamp at 0 and 100, so the index stops at 7:30 and 4:30.
   Pushing further past the end moves nothing; reversing moves the value and
-  index at once, with no dead zone to wind back through. No haptic click is
-  spent on input that moved nothing.
+  index at once, with no dead zone to wind back through.
 - **Changing channel re-points the index.** A tap moves the index to the new
   channel's value with a quick sweep (250ms, ease-out), taking the short way
   round, so it can be watched landing. Outside value changes (a preset, another
@@ -140,11 +139,11 @@ often. A colour picker opens on hue, the first channel, which is the default.
   `TAP_MAX_MS` (400ms) of the press, the change is silent. A deliberate
   press-and-hold, released without dragging, still gets both. Enter/Space always
   clicks, having had no press to click for.
-- **Click cadence**: one click on press, then at most one per 400ms of turning,
-  gated behind 12px of travel. The dial does not use the shared
-  `SliderHapticController`: that pulses on distance with an 80ms floor, which on
-  a fast spin is a dozen clicks a second. Adeline, 2026-09-11: about five times
-  less often, hence the 400ms floor — 5x the shared one.
+- **A drag clicks twice: on press and on release.** Nothing while turning, at
+  any rate. Adeline, 2026-09-11: clicking during a turn was annoying whatever
+  its rate — this replaces the earlier 400ms/12px cadence. The dial does not
+  use the shared `SliderHapticController`, which pulses on distance. Keyboard
+  nudges do not click.
 - No numeric entry, no long-press hex field, no readout — deliberately. Exact
   colours move between slots through the existing theme clipboard
   (`app/components/themeClipboard.ts`).
