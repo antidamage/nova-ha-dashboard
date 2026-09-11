@@ -6701,6 +6701,501 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   RingedColorEncoder — the colour dial with arc sliders
+   (specs/color-encoder-rings.md). The dial half is a deliberate copy of the
+   .color-encoder* rules above, so the two dials evolve independently; edit
+   one without touching the other. Every dial dimension derives from
+   --ce-size, the knob diameter (50–200px); ring geometry is computed in the
+   component and drawn in SVG.
+   ══════════════════════════════════════════════════════════════════════ */
+.ringed-encoder {
+  /* The dial paints itself in this colour so it can read its own surface back
+     and pick a light or dark treatment (see isLightSurface in ColorEncoder). */
+  color: var(--ce-tint);
+  --ce-size: 200px;
+  --ce-ring: calc(var(--ce-size) * 0.1);
+  --ce-bevel: calc(var(--ce-size) * 0.022);
+  --ce-outer: calc(var(--ce-size) + 2 * var(--ce-ring) + 2 * var(--ce-bevel));
+  --ce-ring-outer: calc(var(--ce-size) + 2 * var(--ce-ring));
+  --ce-led-w: max(3px, calc(var(--ce-size) * 0.048));
+  --ce-tint: var(--background, #050608);
+  --ce-led-on: #ffffff;
+  --ce-checker-a: #c4c5c9;
+  --ce-checker-b: #7a7b80;
+  --ce-color: #ffffff;
+  --ce-glow: 0 0 0 rgba(0, 0, 0, 0);
+  --ce-angle: 0deg;
+  --ce-annulus: radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%);
+  /* The rings' SVG and the dial share one grid cell, both centred, so the
+     dial sits dead centre inside its rings with no absolute positioning. */
+  display: inline-grid;
+  place-items: center;
+  max-width: 100%;
+}
+
+.ringed-encoder > * {
+  grid-area: 1 / 1;
+}
+
+/* Light mode. The dark treatment is the design; this is its counterpart, not an
+   inversion of it: a soft off-white knob (Adeline, 2026-09-11), shading pulled
+   back so black shadows do not read as grime on a pale face, and the specular
+   dropped since a light dome has little to catch. The light wells stay dark, so
+   the white lit one still reads against them. */
+.ringed-encoder[data-mode="light"] {
+  --ce-tint: #eceef1;
+  --ce-checker-a: #d7d8dc;
+  --ce-checker-b: #9b9ca1;
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-outer-bevel {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.16) 55%, rgba(255, 255, 255, 0.6));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-ring-shade {
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 42%, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 0 calc(var(--ce-ring) * 0.5) rgba(0, 0, 0, 0.28);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-inner-bevel {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 calc(var(--ce-size) * -0.008) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.16);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-knob {
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      #ffffff,
+      var(--ce-tint) 68%,
+      color-mix(in srgb, var(--ce-tint) 86%, #000 14%) 100%);
+  box-shadow:
+    inset 0 0 calc(var(--ce-size) * 0.08) rgba(0, 0, 0, 0.09),
+    0 calc(var(--ce-size) * 0.01) calc(var(--ce-size) * 0.045) rgba(0, 0, 0, 0.18);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-spec {
+  background: none;
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-rotor::before {
+  background: repeating-conic-gradient(from 0deg, rgba(0, 0, 0, 0.035) 0deg 1.2deg, rgba(255, 255, 255, 0.035) 1.2deg 2.4deg);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-index {
+  background: linear-gradient(180deg, rgba(40, 44, 52, 0.85), rgba(40, 44, 52, 0.55));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-channel,
+.ringed-encoder[data-mode="light"] .ringed-encoder-label {
+  color: rgba(0, 0, 0, 0.46);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95), 0 -1px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Unlit wells go darker still on a pale knob: the lit one is white, so the
+   contrast between them has to come from the wells. */
+/* Unlit only: without [data-lit="false"] this outranks the lit light's own
+   fill and leaves no light lit in light mode. */
+.ringed-encoder[data-mode="light"] .ringed-encoder-led[data-lit="false"] {
+  background: linear-gradient(180deg, rgba(28, 31, 36, 0.62), rgba(18, 20, 24, 0.86));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* A white bloom is invisible on a pale knob, so the lit light reads by contrast
+   against its own dark well instead. */
+.ringed-encoder[data-mode="light"] .ringed-encoder-led[data-lit="true"] {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 max(3px, calc(var(--ce-led-w) * 1.1)) max(1px, calc(var(--ce-led-w) * 0.3)) rgba(255, 255, 255, 0.75),
+    0 0 max(7px, calc(var(--ce-led-w) * 2.4)) max(1px, calc(var(--ce-led-w) * 0.6)) rgba(80, 86, 96, 0.35);
+}
+
+.ringed-encoder-dial {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--ce-outer);
+  height: var(--ce-outer);
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ringed-encoder-dial[data-pressed="true"] {
+  cursor: grabbing;
+}
+
+.ringed-encoder-dial:focus-visible {
+  outline: 2px solid var(--cyber-highlight, #22d3ee);
+  outline-offset: 3px;
+}
+
+.ringed-encoder-disabled .ringed-encoder-dial {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ringed-encoder-dial > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Raised lip around the colour ring. */
+.ringed-encoder-outer-bevel {
+  width: var(--ce-outer);
+  height: var(--ce-outer);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3) 55%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.ringed-encoder-glow {
+  width: var(--ce-ring-outer);
+  height: var(--ce-ring-outer);
+  box-shadow: var(--ce-glow);
+  transition: box-shadow 180ms linear;
+}
+
+.ringed-encoder-checker,
+.ringed-encoder-ring,
+.ringed-encoder-ring-shade {
+  width: var(--ce-ring-outer);
+  height: var(--ce-ring-outer);
+  -webkit-mask: var(--ce-annulus);
+  mask: var(--ce-annulus);
+}
+
+.ringed-encoder-checker {
+  background-image: conic-gradient(var(--ce-checker-a) 0 25%, var(--ce-checker-b) 0 50%, var(--ce-checker-a) 0 75%, var(--ce-checker-b) 0);
+  background-size: max(5px, calc(var(--ce-size) * 0.05)) max(5px, calc(var(--ce-size) * 0.05));
+}
+
+.ringed-encoder-ring {
+  background: var(--ce-color);
+}
+
+/* Sunken shading over the ring so it reads as a channel, not a painted band. */
+.ringed-encoder-ring-shade {
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0) 40%, rgba(255, 255, 255, 0.18));
+  box-shadow: inset 0 0 calc(var(--ce-ring) * 0.5) rgba(0, 0, 0, 0.55);
+}
+
+/* The lip between ring and knob. */
+.ringed-encoder-inner-bevel {
+  width: calc(var(--ce-size) + 2px);
+  height: calc(var(--ce-size) + 2px);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.16),
+    0 calc(var(--ce-size) * -0.008) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.4);
+}
+
+/* Knob face. Its lighting is fixed; only the rotor above it turns. */
+.ringed-encoder-knob {
+  width: var(--ce-size);
+  height: var(--ce-size);
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      color-mix(in srgb, var(--ce-tint) 82%, #fff 18%),
+      var(--ce-tint) 70%,
+      color-mix(in srgb, var(--ce-tint) 74%, #000 26%) 100%);
+  box-shadow:
+    inset 0 0 calc(var(--ce-size) * 0.08) rgba(0, 0, 0, 0.35),
+    0 calc(var(--ce-size) * 0.01) calc(var(--ce-size) * 0.05) rgba(0, 0, 0, 0.35);
+  transition: filter 520ms ease, box-shadow 520ms ease;
+}
+
+/* Achromatic hover and press: the dome lifts, then sinks. */
+.ringed-encoder-dial:hover .ringed-encoder-knob {
+  filter: brightness(1.14);
+}
+
+.ringed-encoder-dial[data-pressed="true"] .ringed-encoder-knob {
+  filter: brightness(0.92);
+  box-shadow:
+    inset 0 calc(var(--ce-size) * 0.012) calc(var(--ce-size) * 0.1) rgba(0, 0, 0, 0.5),
+    0 calc(var(--ce-size) * 0.004) calc(var(--ce-size) * 0.02) rgba(0, 0, 0, 0.35);
+  transition-duration: 160ms;
+}
+
+.ringed-encoder-disabled .ringed-encoder-dial:hover .ringed-encoder-knob {
+  filter: none;
+}
+
+/* The only layer that turns: index line, notch, hairline texture. */
+.ringed-encoder-dial > .ringed-encoder-rotor {
+  width: var(--ce-size);
+  height: var(--ce-size);
+  transform: translate(-50%, -50%) rotate(var(--ce-angle));
+  /* The index shows the value: a channel change or an outside value re-points
+     it with a quick sweep; under the hand it tracks 1:1. */
+  transition: transform 250ms ease-out;
+}
+
+.ringed-encoder-dial[data-pressed="true"] > .ringed-encoder-rotor {
+  transition: none;
+}
+
+/* Hairline texture on an outer band only: at the centre the stripes converge
+   and alias into a visible moire cross. */
+.ringed-encoder-rotor::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.03) 0deg 1.2deg, rgba(0, 0, 0, 0.03) 1.2deg 2.4deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 52%, #000 72% 95%, transparent 97%);
+  mask: radial-gradient(circle closest-side, transparent 0 52%, #000 72% 95%, transparent 97%);
+}
+
+/* One mark, joined to the rim and half its old length (Adeline, 2026-09-11). */
+.ringed-encoder-index {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: max(1px, calc(var(--ce-size) * 0.012));
+  height: calc(var(--ce-size) * 0.1);
+  border-radius: 999px;
+  /* Light body plus a dark outline, so the index reads on a dark knob and on a
+     light one — the knob takes the theme's background colour, which is both. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+/* Fixed specular above the rotor, so the texture passes under the light. */
+.ringed-encoder-spec {
+  width: var(--ce-size);
+  height: var(--ce-size);
+  background: radial-gradient(ellipse 55% 38% at 36% 20%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 70%);
+}
+
+/* Channel lights: 2:1 tall, gap = 3 x width, dead centre, never rotate. */
+.ringed-encoder-dial > .ringed-encoder-leds {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ce-led-w) * 3);
+  border-radius: 0;
+}
+
+/* Names the channel the lights are showing. A channel name, not a value — the
+   ring stays the only readout. Clamped 10-14px so it is legible in a 50px knob
+   and does not balloon in a 200px one (Adeline, 2026-09-11). */
+/* Etched into the knob, not printed on it: a dark cut with a light lip under
+   it. No theme colour touches the knob face (Adeline, 2026-09-11) — this is
+   black and white over whatever tint the knob happens to have, so it reads as
+   engraving on a dark face and on a pale one. */
+.ringed-encoder-dial > .ringed-encoder-channel,
+.ringed-encoder-dial > .ringed-encoder-label {
+  top: calc(50% + var(--ce-led-w) + calc(var(--ce-size) * 0.055));
+  transform: translate(-50%, 0);
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: clamp(10px, calc(var(--ce-size) * 0.075), 14px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0.16em;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+
+/* The dial's label sits on the knob above the lights, mirroring the caption
+   below them: its bottom edge is as far above the lights as the caption's top
+   edge is below. Same font and etching as the caption (Adeline, 2026-09-11). */
+.ringed-encoder-dial > .ringed-encoder-label {
+  top: auto;
+  bottom: calc(50% + var(--ce-led-w) + calc(var(--ce-size) * 0.055));
+  /* The component cuts the text to fit (with "...", see RingedColorEncoder);
+     this only guards the rounding. */
+  max-width: calc(var(--ce-size) * 0.7);
+  overflow: hidden;
+  text-transform: uppercase;
+}
+
+.ringed-encoder-led {
+  width: var(--ce-led-w);
+  height: calc(var(--ce-led-w) * 2);
+  border-radius: calc(var(--ce-led-w) * 0.35);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  transition: background 160ms linear, box-shadow 160ms linear;
+}
+
+/* The lit light is white, and glows white. Adeline, 2026-09-11: at 50px the
+   light is 3px wide, and a tinted light that small does not read — white is the
+   only fill that carries at every size the dial scales to. The glow keeps a px
+   floor for the same reason: a radius derived purely from the light's width
+   disappears along with it. */
+.ringed-encoder-led[data-lit="true"] {
+  /* An image, not a colour. Chromium's "Auto Dark Mode for Web Contents"
+     (which Brave exposes as a flag and Adeline has enabled) rewrites light
+     background COLOURS but leaves background images alone, so a lit light
+     declared as a gradient came out grey there. This is a 97-byte 1x8 PNG of
+     the same white-to-#eef2f6 ramp, with the gradient kept underneath for any
+     engine that fails to decode it. */
+  background-color: #ffffff;
+  background-image:
+    url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAICAIAAAC3eAIWAAAAKElEQVR42gXBBw4AIAgAsfv/Y41xIEPElqoi8+FxUQu2OlOMvg5tyAd4dxdNMt07oQAAAABJRU5ErkJggg=="),
+    linear-gradient(180deg, #ffffff, #eef2f6);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 0 max(4px, calc(var(--ce-led-w) * 1.3)) max(1px, calc(var(--ce-led-w) * 0.35)) rgba(255, 255, 255, 0.9),
+    0 0 max(9px, calc(var(--ce-led-w) * 3)) max(2px, calc(var(--ce-led-w) * 0.9)) rgba(255, 255, 255, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringed-encoder-knob,
+  .ringed-encoder-glow,
+  .ringed-encoder-led,
+  .ringed-encoder-dial > .ringed-encoder-rotor {
+    transition: none;
+  }
+}
+
+
+/* ── Slider rings ───────────────────────────────────────────────────────── */
+.ringed-encoder-rings {
+  overflow: visible;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ringed-encoder-rings path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.ringed-encoder-ring-slider {
+  cursor: pointer;
+  outline: none;
+}
+
+.ringed-encoder-ring-slider[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Focus follows the ring: the surface's highlight-coloured focus convention,
+   outside the knob face. */
+.ringed-encoder-rings .ringed-encoder-focus {
+  stroke: transparent;
+}
+
+.ringed-encoder-ring-slider:focus-visible .ringed-encoder-focus {
+  stroke: var(--cyber-highlight, #22d3ee);
+  stroke-opacity: 0.55;
+}
+
+/* A sunken channel like the colour ring: a raised lip, a dark well, and the
+   ring's lighting — darker at the top left, catching light at the bottom
+   right. */
+.ringed-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.2); }
+.ringed-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.3); }
+.ringed-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.1); }
+.ringed-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.42); }
+.ringed-encoder-shade-b { stop-color: rgba(0, 0, 0, 0); }
+.ringed-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.18); }
+
+.ringed-encoder-rings .ringed-encoder-well {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+/* Filled from the start to the thumb in white, like the lit light, and glowing
+   white. The bloom keeps a px floor, the lit light's rule, so it still reads on
+   a thin ring (Adeline, 2026-09-11). */
+.ringed-encoder-rings .ringed-encoder-fill {
+  stroke: #ffffff;
+  /* One tight bloom. A second, wider one filled the gaps between rings and
+     washed out the wells' dark edges, so the tracks stopped reading as
+     channels. */
+  filter: drop-shadow(0 0 max(4px, calc(var(--rce-track) * 0.3)) rgba(255, 255, 255, 0.6));
+}
+
+/* The thumb is a small piece of the knob: its tint, a lighter crown, a dark
+   edge and a drop shadow. No theme colour. */
+.ringed-encoder-thumb {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+}
+
+.ringed-encoder-rings .ringed-encoder-thumb-edge {
+  stroke: rgba(0, 0, 0, 0.6);
+}
+
+.ringed-encoder-rings .ringed-encoder-thumb-body {
+  stroke: color-mix(in srgb, var(--ce-tint) 78%, #fff 22%);
+}
+
+.ringed-encoder-rings .ringed-encoder-thumb-crown {
+  stroke: color-mix(in srgb, var(--ce-tint) 62%, #fff 38%);
+  stroke-opacity: 0.7;
+}
+
+/* Ring labels: curved through the bottom gap, etched like the dial's caption.
+   The face is drawn over a dark cut 1px above and a lip 1px below. */
+.ringed-encoder-ring-label {
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.ringed-encoder-etch-face { fill: rgba(255, 255, 255, 0.46); }
+.ringed-encoder-etch-cut { fill: rgba(0, 0, 0, 0.55); }
+.ringed-encoder-etch-lip { fill: rgba(0, 0, 0, 0.5); }
+
+/* Light mode, as for the colour ring and the lights: paler lip and shading,
+   and a darker well so the white fill still reads against it. */
+.ringed-encoder[data-mode="light"] .ringed-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.9); }
+.ringed-encoder[data-mode="light"] .ringed-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.16); }
+.ringed-encoder[data-mode="light"] .ringed-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.6); }
+.ringed-encoder[data-mode="light"] .ringed-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.22); }
+.ringed-encoder[data-mode="light"] .ringed-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.5); }
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-rings .ringed-encoder-well {
+  stroke: rgba(28, 31, 36, 0.6);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-rings .ringed-encoder-fill {
+  filter: drop-shadow(0 0 max(4px, calc(var(--rce-track) * 0.3)) rgba(255, 255, 255, 0.55));
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-thumb {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.28));
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-rings .ringed-encoder-thumb-edge {
+  stroke: rgba(0, 0, 0, 0.26);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-rings .ringed-encoder-thumb-body {
+  stroke: var(--ce-tint);
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-rings .ringed-encoder-thumb-crown {
+  stroke: #ffffff;
+}
+
+.ringed-encoder[data-mode="light"] .ringed-encoder-etch-face { fill: rgba(0, 0, 0, 0.46); }
+.ringed-encoder[data-mode="light"] .ringed-encoder-etch-cut { fill: rgba(0, 0, 0, 0.06); }
+.ringed-encoder[data-mode="light"] .ringed-encoder-etch-lip { fill: rgba(255, 255, 255, 0.95); }
 /* ColorEncoder placements (specs/color-encoder.md). */
 .zone-color-encoder {
   display: flex;

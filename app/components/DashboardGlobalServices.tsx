@@ -30,6 +30,19 @@ export function DashboardGlobalServices({
 
   if (pathname === "/phonoscope-debug") return null;
 
+  // The RingedColorEncoder demo (specs/color-encoder-rings.md) is a control
+  // bench: the orb would sit over the dials and the first-run modal over the
+  // page. It keeps the haptics, since how the dials click is part of the demo.
+  // Demo-mode builds add a trailing slash.
+  if (pathname?.replace(/\/$/, "") === "/color-encoder-rings") {
+    return (
+      <>
+        <TouchClickGuard />
+        <HapticFeedback />
+      </>
+    );
+  }
+
   // The status orb is body-level chrome, but on the dashboard route it is the
   // active Design's call whether it appears at all — that is what makes the
   // `lite` declaration in a design manifest load-bearing rather than a comment.
