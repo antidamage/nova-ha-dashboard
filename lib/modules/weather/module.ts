@@ -5,12 +5,32 @@ import { readDashboardConfig } from "../../dashboard-config";
 import { stateById } from "../../ha/states";
 import type { DashboardModule, ModuleStateContext, ModuleStatus } from "../types";
 
-const WEATHER_FORECAST_CACHE_MS = 35 * 60 * 1000;
+// See specs/weather-refresh.md. The background timer asks HA once per interval;
+// the cache outlives the interval slightly so a state build never fetches on its
+// own while the timer runs. Failures are cached too, so nothing retries early.
+export const WEATHER_REFRESH_INTERVAL_MS = 60 * 1000;
+const WEATHER_CACHE_GRACE_MS = 5 * 1000;
+const UNAVAILABLE_STATES = new Set(["unavailable", "unknown"]);
 
 type WeatherForecastEntry = Record<string, unknown>;
+type WeatherForecastResult = { value: WeatherForecastEntry | null; error: Error | null };
 
-let weatherForecastCache: { at: number; entityId: string; value: WeatherForecastEntry | null } | null = null;
-let weatherForecastRequest: Promise<WeatherForecastEntry | null> | null = null;
+let weatherForecastCache: ({ at: number; entityId: string } & WeatherForecastResult) | null = null;
+let weatherForecastRequest: Promise<WeatherForecastResult> | null = null;
+let lastGoodWeather: WeatherStatus | null = null;
+const downWeatherEntities = new Set<string>();
+
+export function weatherRefreshIntervalMs(config: DashboardConfig) {
+  return config.dashboard?.timing?.weatherRefreshIntervalMs || WEATHER_REFRESH_INTERVAL_MS;
+}
+
+/** Test hook: forget cached forecasts and the last good status. */
+export function resetWeatherCacheForTests() {
+  weatherForecastCache = null;
+  weatherForecastRequest = null;
+  lastGoodWeather = null;
+  downWeatherEntities.clear();
+}
 
 function numberOrNull(value: unknown) {
   const number = Number(value);
@@ -50,20 +70,29 @@ function apparentTemperature(temperature: number | null, humidity: number | null
   return roundOne(temperature + 0.33 * vapourPressure - 0.7 * windMs - 4);
 }
 
-async function dailyWeatherForecast(entityId: string) {
+async function dailyWeatherForecast(entityId: string, cacheMs: number): Promise<WeatherForecastResult> {
   const now = Date.now();
-  if (weatherForecastCache?.entityId === entityId && now - weatherForecastCache.at < WEATHER_FORECAST_CACHE_MS) {
-    return weatherForecastCache.value;
+  if (weatherForecastCache?.entityId === entityId && now - weatherForecastCache.at < cacheMs) {
+    return weatherForecastCache;
   }
 
   if (!weatherForecastRequest) {
     weatherForecastRequest = callServiceWithResponse<{
       service_response?: Record<string, { forecast?: WeatherForecastEntry[] }>;
     }>("weather", "get_forecasts", { entity_id: entityId, type: "daily" })
-      .then((response) => response.service_response?.[entityId]?.forecast?.[0] ?? null)
-      .then((value) => {
-        weatherForecastCache = { at: Date.now(), entityId, value };
-        return value;
+      .then(
+        (response): WeatherForecastResult => ({
+          value: response.service_response?.[entityId]?.forecast?.[0] ?? null,
+          error: null,
+        }),
+        (error): WeatherForecastResult => ({
+          value: null,
+          error: error instanceof Error ? error : new Error(String(error)),
+        }),
+      )
+      .then((result) => {
+        weatherForecastCache = { at: Date.now(), entityId, ...result };
+        return result;
       })
       .finally(() => {
         weatherForecastRequest = null;
@@ -74,11 +103,17 @@ async function dailyWeatherForecast(entityId: string) {
 }
 
 export async function warmWeatherCache(entityId?: string): Promise<void> {
-  const weatherEntityId = entityId ?? (await readDashboardConfig()).homeAssistant.weatherEntityId;
+  const config = await readDashboardConfig();
+  const weatherEntityId = entityId ?? config.homeAssistant.weatherEntityId;
+  // HA answers 500 for an unavailable entity; don't ask until a state build sees it back.
+  if (downWeatherEntities.has(weatherEntityId)) {
+    return;
+  }
   weatherForecastCache = null;
-  await dailyWeatherForecast(weatherEntityId).catch((error) => {
+  const { error } = await dailyWeatherForecast(weatherEntityId, weatherRefreshIntervalMs(config) + WEATHER_CACHE_GRACE_MS);
+  if (error) {
     console.warn("[nova-dashboard] Background weather refresh failed", { error });
-  });
+  }
 }
 
 export async function buildWeatherStatus(
@@ -92,13 +127,41 @@ export async function buildWeatherStatus(
     return null;
   }
 
-  let forecast: WeatherForecastEntry | null = null;
-  try {
-    forecast = await dailyWeatherForecast(weatherState.entity_id);
-  } catch (error) {
-    warnings.push(error instanceof Error ? `Weather forecast unavailable: ${error.message}` : "Weather forecast unavailable.");
+  const entityId = weatherState.entity_id;
+  const lastGood = lastGoodWeather?.entity_id === entityId ? lastGoodWeather : null;
+
+  const down = UNAVAILABLE_STATES.has(weatherState.state);
+  if (down) {
+    downWeatherEntities.add(entityId);
+    warnings.push("Weather entity unavailable.");
+    if (lastGood) {
+      return lastGood;
+    }
+  } else if (downWeatherEntities.delete(entityId)) {
+    // Back from unavailable: drop the failure cached while it was down.
+    weatherForecastCache = null;
   }
 
+  let forecast: WeatherForecastEntry | null = null;
+  if (!down) {
+    const result = await dailyWeatherForecast(entityId, weatherRefreshIntervalMs(config) + WEATHER_CACHE_GRACE_MS);
+    if (result.error) {
+      warnings.push(`Weather forecast unavailable: ${result.error.message}`);
+      if (lastGood) {
+        return lastGood;
+      }
+    }
+    forecast = result.value;
+  }
+
+  const status = weatherStatusFrom(weatherState, forecast);
+  if (!down && forecast) {
+    lastGoodWeather = status;
+  }
+  return status;
+}
+
+function weatherStatusFrom(weatherState: HaState, forecast: WeatherForecastEntry | null): WeatherStatus {
   const attrs = weatherState.attributes ?? {};
   const windUnit = String(attrs.wind_speed_unit ?? "km/h");
   const precipitation = numberOrNull(forecast?.precipitation);

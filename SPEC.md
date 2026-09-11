@@ -417,7 +417,11 @@ Weather and sun:
 
 - Weather reads use the configured `weather.*` entity.
 - Daily forecast data is fetched through HA `weather.get_forecasts`.
-- Forecast results are cached for approximately 35 minutes.
+- The dashboard asks HA for the forecast at most once a minute
+  (`dashboard.timing.weatherRefreshIntervalMs`); failures are cached for the
+  same interval, no call is made while the entity is unavailable, and the last
+  good status is shown during a failure. HA fetches from met.no every 10
+  minutes via an automation. Detail: `specs/weather-refresh.md`.
 - The dashboard derives conditions, temperature, min/max, rain chance, wind,
   UV, humidity, and feels-like data where available.
 - Sun state comes from the configured `sun.sun` entity.
