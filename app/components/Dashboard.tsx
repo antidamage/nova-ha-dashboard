@@ -120,6 +120,7 @@ export function Dashboard() {
       climateControl={data?.climateControl}
       desktopSleepBusy={desktopSleepBusy}
       desktopWakeBusy={desktopWakeBusy}
+      knobSkin={theme.knobSkin}
       loungeEnvironment={loungeEnvironment}
       sun={data?.sun}
       onDesktopSleep={applyDesktopSleep}
@@ -162,7 +163,7 @@ export function Dashboard() {
   return (
     <Tooltip.Provider delayDuration={250}>
       <main className="min-h-screen bg-neutral-950 text-neutral-100">
-        <div className="dashboard-shell dashboard-home min-h-screen px-4 py-5 sm:px-6">
+        <div className="dashboard-shell dashboard-home min-h-screen px-4 py-5 sm:px-6" data-demo={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? "true" : undefined}>
           {/* Devices with the background feature off skip the WebGL background
               entirely; the shell's own static themed grid background remains. */}
           {showBackground ? (
@@ -235,6 +236,7 @@ export function Dashboard() {
               climateControl={data?.climateControl}
               climateZone={zoneTree.climate}
               homeZone={zoneTree.inside}
+              knobSkin={theme.knobSkin}
               preferences={data?.preferences}
               spectrumCursor={zoneTree.inside ? data?.spectrumCursors?.[zoneTree.inside.id] : undefined}
               sun={data?.sun}

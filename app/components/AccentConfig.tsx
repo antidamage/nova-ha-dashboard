@@ -36,6 +36,8 @@ import {
   RADAR_OPACITY_DEFAULT,
   RADAR_OPACITY_MAX,
   RADAR_OPACITY_MIN,
+  KNOB_SKIN_MODES,
+  KnobSkinMode,
   RadarPaletteMode,
   SunThemeStatus,
   TASK_GLOW_INTENSITY_DEFAULT,
@@ -185,6 +187,12 @@ const THEME_VARIANT_LABELS: Record<ThemeVariant, string> = {
   light: "Light",
 };
 
+const KNOB_SKIN_LABELS: Record<KnobSkinMode, string> = {
+  auto: "Auto",
+  dark: "Dark",
+  light: "Light",
+};
+
 function isThemeConfigSlot(value: string | null): value is ThemeConfigSlot {
   return ALL_THEME_SLOTS.some((choice) => choice.slot === value);
 }
@@ -325,6 +333,45 @@ function ThemeVariantTabs({
         );
       })}
     </div>
+  );
+}
+
+function KnobSkinControl({
+  accentColor,
+  highlightColor,
+  onCommit,
+  onPreview,
+  value,
+}: {
+  accentColor: [number, number, number];
+  highlightColor: [number, number, number];
+  onCommit: (value: KnobSkinMode) => void;
+  onPreview: (value: KnobSkinMode) => void;
+  value: KnobSkinMode;
+}) {
+  const activeIndex = Math.max(0, KNOB_SKIN_MODES.findIndex((mode) => mode === value));
+  const activeLabel = KNOB_SKIN_LABELS[value] ?? "Auto";
+
+  return (
+    <SliderControlPanel
+      activeColor={highlightColor}
+      ariaLabel="Colour knob controls"
+      ariaValueText={activeLabel}
+      color={accentColor}
+      label="Colour Knob Controls"
+      max={KNOB_SKIN_MODES.length - 1}
+      min={0}
+      step={1}
+      value={activeIndex}
+      valueText={activeLabel}
+      onPreview={(index) => onPreview(KNOB_SKIN_MODES[Math.round(index)] ?? "auto")}
+      onCommit={(index) => onCommit(KNOB_SKIN_MODES[Math.round(index)] ?? "auto")}
+      markers={KNOB_SKIN_MODES.map((mode, index) => ({
+        active: mode === value,
+        label: KNOB_SKIN_LABELS[mode],
+        value: index,
+      }))}
+    />
   );
 }
 
@@ -1659,6 +1706,7 @@ export function AccentConfig({
           />
         ) : null}
         <ColorEncoderPanel
+          knobSkin={theme.knobSkin}
           label={choice.label}
           value={value}
           opacity={slotOpacity(choice.slot)}
@@ -1856,6 +1904,13 @@ export function AccentConfig({
           <ThemeVariantTabs value={editingVariant} onChange={setEditingVariant} />
 
           <div role="tabpanel" aria-label={`${THEME_VARIANT_LABELS[editingVariant]} theme settings`}>
+            <KnobSkinControl
+              accentColor={accentRgb}
+              highlightColor={highlightRgb}
+              value={theme.knobSkin}
+              onPreview={(knobSkin) => setTheme({ ...theme, knobSkin }, { persist: false })}
+              onCommit={(knobSkin) => setTheme({ ...theme, knobSkin })}
+            />
             <ConfigAccordion id="theme-settings" title="Theme Settings" icon={<SlidersHorizontal className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-sub-accordion">
           <ConfigAccordion
             id="theme-colours"

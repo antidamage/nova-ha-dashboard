@@ -279,6 +279,7 @@ export function ConfigAccordion({
  * `SliderControlPanel`.
  */
 export function ColorEncoderPanel({
+  knobSkin,
   label,
   onCommit,
   onPreview,
@@ -288,6 +289,8 @@ export function ColorEncoderPanel({
   value,
 }: {
   label: string;
+  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  knobSkin?: "auto" | "dark" | "light";
   onCommit: (value: ThemeColorValue, opacity: number) => void;
   onPreview: (value: ThemeColorValue, opacity: number) => void;
   /**
@@ -313,6 +316,7 @@ export function ColorEncoderPanel({
         channels={withOpacity ? COLOR_ENCODER_CHANNELS_WITH_ALPHA : COLOR_ENCODER_CHANNELS}
         demoTooltipTitle={label}
         demoTooltip="Tap to switch channel. Turn it like a knob."
+        knobSkin={knobSkin}
         label={label}
         rings={rings}
         size={size}

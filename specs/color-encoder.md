@@ -379,6 +379,41 @@ more specific selector and overrides the lit light's own fill, which left
 **no light lit at all** in light mode (found 2026-09-11, by the
 `RingedColorEncoder` review).
 
+### Knob skin override
+
+Adeline, 2026-09-11. The auto-detect above is the default and stays correct
+for any caller — it is why the control needs no `mode` prop at all in the
+common case. Each theme mode can still override it: `DeviceTheme.knobSkin`
+(`accentColor.ts`) is `"auto" | "dark" | "light"`, defaulting to `"auto"`
+(`normalizeKnobSkin`, `DEFAULT_DARK_THEME`/`DEFAULT_LIGHT_THEME`) so existing
+saved theme sets are unaffected until the owner opts in. It has nothing to do
+with the accent colour applied to the knob face or ring — it only picks which
+bevel/LED skin (the CSS in the section above) is used.
+
+`ColorEncoder` takes this as an optional `knobSkin` prop, also defaulting to
+`"auto"`. When set to `"dark"` or `"light"` it sets `mode` directly and skips
+the `isLightSurface` sample; `"auto"` keeps today's behaviour, including the
+re-sample on `nova-accent-change`, `nova-theme-set-change` and
+`nova-sun-change`.
+
+Every caller rendering the dial against a resolved theme forwards
+`theme.knobSkin` rather than leaving it unset:
+
+- `ColorEncoderPanel` (config colour slots) — forwards to whichever variant
+  (`editingVariant`) is being edited.
+- `ZoneColorEncoder` (lighting card, Quick Access) — forwards the live
+  resolved theme's `knobSkin` down from `Dashboard.tsx`'s `useDeviceTheme()`.
+
+The config control (`KnobSkinControl`, `AccentConfig.tsx`) sits directly under
+`ThemeVariantTabs`, inside the tab panel — so editing the dark theme's knob
+skin and the light theme's knob skin are independent settings, same shape as
+`ThemeSelectionControl` (a `SliderControlPanel` over a small fixed list, here
+`KNOB_SKIN_MODES = ["auto", "dark", "light"]`).
+
+This is unrelated to Phonoscope's `altActive` colour-group flip
+(`lib/phonoscope-theme-state.ts`) — that is a separate, visualiser-only
+concept and this feature does not touch it.
+
 ## Glow
 
 The ring glows in the currently selected colour. Below 50% brightness there
