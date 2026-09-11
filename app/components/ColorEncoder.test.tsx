@@ -14,7 +14,7 @@ import {
   type Hsva,
 } from "./colorEncoderModel";
 
-/** The 200px dial's box: --ce-outer is 1.244 knob diameters. */
+/** The 200px dial's box: --re-outer is 1.244 knob diameters. */
 const DIAL_BOX = 248.8;
 const CENTRE = DIAL_BOX / 2;
 /** Where the test grabs the knob: well outside the dead centre. */
@@ -30,7 +30,7 @@ beforeAll(() => {
   // keep reading zero, so that everything "fits" here as it did before.
   const real = HTMLElement.prototype.getBoundingClientRect;
   HTMLElement.prototype.getBoundingClientRect = function boxed(this: HTMLElement) {
-    if (!this.classList?.contains("color-encoder-dial")) return real.call(this);
+    if (!this.classList?.contains("rotary-encoder-dial")) return real.call(this);
     return { x: 0, y: 0, left: 0, top: 0, right: DIAL_BOX, bottom: DIAL_BOX, width: DIAL_BOX, height: DIAL_BOX, toJSON: () => ({}) } as DOMRect;
   };
 });
@@ -76,7 +76,7 @@ function tap(dial: HTMLElement) {
 }
 
 function litChannel(container: HTMLElement) {
-  const lit = container.querySelectorAll('.color-encoder-led[data-lit="true"]');
+  const lit = container.querySelectorAll('.rotary-encoder-led[data-lit="true"]');
   expect(lit).toHaveLength(1);
   return (lit[0] as HTMLElement).dataset.channel;
 }
@@ -120,7 +120,7 @@ describe("ColorEncoder", () => {
   it("cycles hue, brightness, saturation on tap, with exactly one light lit", () => {
     const { container } = render(<ColorEncoder label="Colour" value={start} onChange={vi.fn()} />);
     const dial = screen.getByRole("slider");
-    expect(container.querySelectorAll(".color-encoder-led")).toHaveLength(3);
+    expect(container.querySelectorAll(".rotary-encoder-led")).toHaveLength(3);
     expect(litChannel(container)).toBe("hue");
     tap(dial);
     expect(litChannel(container)).toBe("brightness");
@@ -134,7 +134,7 @@ describe("ColorEncoder", () => {
     const { container } = render(
       <ColorEncoder channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} value={start} onChange={vi.fn()} />,
     );
-    expect(container.querySelectorAll(".color-encoder-led")).toHaveLength(4);
+    expect(container.querySelectorAll(".rotary-encoder-led")).toHaveLength(4);
   });
 
   it("turns clockwise up and anticlockwise down, from wherever it was grabbed", () => {
@@ -297,8 +297,8 @@ describe("ColorEncoder", () => {
     // own fill, leaving no light lit at all in light mode (2026-09-11). jsdom
     // loads no CSS, so this guards the stylesheet itself.
     const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
-    expect(css).toContain('.color-encoder[data-mode="light"] .color-encoder-led[data-lit="false"] {');
-    expect(css).not.toContain('.color-encoder[data-mode="light"] .color-encoder-led {');
+    expect(css).toContain('.rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="false"] {');
+    expect(css).not.toContain('.rotary-encoder[data-mode="light"] .rotary-encoder-led {');
   });
 
   it("ignores an incoming value while the drag is still in the hand", () => {
@@ -337,7 +337,7 @@ describe("ColorEncoder", () => {
   });
 
   const angleOf = (container: HTMLElement) =>
-    (container.querySelector(".color-encoder") as HTMLElement).style.getPropertyValue("--ce-angle");
+    (container.querySelector(".color-encoder") as HTMLElement).style.getPropertyValue("--re-angle");
 
   it("points the index at the value: 0 at 7:30, 50 at 12, 100 at 4:30, over the top", () => {
     for (const [v, expected] of [[0, "-135.00deg"], [50, "0.00deg"], [100, "135.00deg"], [20, "-81.00deg"]] as const) {
@@ -417,17 +417,17 @@ describe("ColorEncoder", () => {
   it("glows only from half brightness up", () => {
     const { container, rerender } = render(<ColorEncoder value={{ ...start, v: 49 }} onChange={vi.fn()} />);
     const root = container.querySelector(".color-encoder") as HTMLElement;
-    expect(root.style.getPropertyValue("--ce-glow")).toBe("0 0 0 rgba(0, 0, 0, 0)");
+    expect(root.style.getPropertyValue("--re-glow")).toBe("0 0 0 rgba(0, 0, 0, 0)");
     rerender(<ColorEncoder value={{ ...start, v: 100 }} onChange={vi.fn()} />);
-    expect(root.style.getPropertyValue("--ce-glow")).toMatch(/px rgba\(/);
+    expect(root.style.getPropertyValue("--re-glow")).toMatch(/px rgba\(/);
   });
 
   it("clamps size to 50–200px", () => {
     const { container, rerender } = render(<ColorEncoder size={20} value={start} onChange={vi.fn()} />);
     const root = () => container.querySelector(".color-encoder") as HTMLElement;
-    expect(root().style.getPropertyValue("--ce-size")).toBe("50px");
+    expect(root().style.getPropertyValue("--re-size")).toBe("50px");
     rerender(<ColorEncoder size={500} value={start} onChange={vi.fn()} />);
-    expect(root().style.getPropertyValue("--ce-size")).toBe("200px");
+    expect(root().style.getPropertyValue("--re-size")).toBe("200px");
   });
 
   it("submits hex, rgb, or rgba with opacity", () => {

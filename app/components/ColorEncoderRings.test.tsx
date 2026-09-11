@@ -18,9 +18,9 @@ import {
   ringGeometry,
   thumbAngle,
   valueAt,
-} from "./colorEncoderGeometry";
+} from "./rotaryEncoderGeometry";
 
-/** The 200px dial's box: --ce-outer is 1.244 knob diameters. */
+/** The 200px dial's box: --re-outer is 1.244 knob diameters. */
 const DIAL_BOX = 248.8;
 const DIAL_CENTRE = DIAL_BOX / 2;
 
@@ -34,7 +34,7 @@ beforeAll(() => {
   // place a pointer by angle and radius about the origin.
   const real = HTMLElement.prototype.getBoundingClientRect;
   HTMLElement.prototype.getBoundingClientRect = function boxed(this: HTMLElement) {
-    if (!this.classList?.contains("color-encoder-dial")) return real.call(this);
+    if (!this.classList?.contains("rotary-encoder-dial")) return real.call(this);
     return { x: 0, y: 0, left: 0, top: 0, right: DIAL_BOX, bottom: DIAL_BOX, width: DIAL_BOX, height: DIAL_BOX, toJSON: () => ({}) } as DOMRect;
   };
 });
@@ -86,7 +86,7 @@ function Controlled({ rings = 1, initial = [50, 50, 50, 50, 50], size = 200, spy
 }
 
 function svgOf(container: HTMLElement) {
-  const svg = container.querySelector("svg.color-encoder-rings");
+  const svg = container.querySelector("svg.rotary-encoder-rings");
   if (!svg) throw new Error("no rings drawn");
   return svg as SVGSVGElement;
 }
@@ -189,10 +189,10 @@ describe("dragging through the gap", () => {
 describe("ColorEncoder", () => {
   it("puts the label on the knob, above the lights", () => {
     const { container } = render(<ColorEncoder label="Lights" value={start} onChange={vi.fn()} />);
-    const label = container.querySelector(".color-encoder-label");
-    expect(label?.parentElement?.classList.contains("color-encoder-dial")).toBe(true);
+    const label = container.querySelector(".rotary-encoder-label");
+    expect(label?.parentElement?.classList.contains("rotary-encoder-dial")).toBe(true);
     const children = Array.from(label!.parentElement!.children);
-    expect(children.indexOf(label!)).toBeLessThan(children.indexOf(container.querySelector(".color-encoder-leds")!));
+    expect(children.indexOf(label!)).toBeLessThan(children.indexOf(container.querySelector(".rotary-encoder-leds")!));
     expect(screen.getByRole("slider", { name: "Lights" })).toBeTruthy();
   });
 
@@ -294,7 +294,7 @@ describe("ColorEncoder", () => {
         fireEvent.pointerMove(dial, { buttons: 1, ...onKnob(step * 8), pointerId: 1 });
       }
       expect(click).toHaveBeenCalledTimes(1);
-      // 240° of turn takes brightness from 50 past its top, so it ends pinned.
+      // 240Â° of turn takes brightness from 50 past its top, so it ends pinned.
       fireEvent.pointerUp(dial, { ...onKnob(240), pointerId: 1 });
       expect(click).toHaveBeenCalledTimes(2);
 

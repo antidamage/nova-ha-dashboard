@@ -18,7 +18,7 @@ test.describe("slider numeric entry", () => {
 
     // The colour dial is a slider too, and it deliberately has no numeric
     // entry — this test is about the sliders that do.
-    const slider = page.locator('[role="slider"]:not(.color-encoder-dial)').first();
+    const slider = page.locator('[role="slider"]:not(.rotary-encoder-dial)').first();
     await expect(slider).toBeVisible({ timeout: 20_000 });
     await slider.scrollIntoViewIfNeeded();
     const before = await slider.getAttribute("aria-valuenow");

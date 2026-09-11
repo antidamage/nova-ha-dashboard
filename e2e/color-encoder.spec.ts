@@ -25,16 +25,16 @@ async function box(locator: Locator): Promise<Box> {
 /** Measures one dial against the spec's geometry table. */
 async function expectGeometry(root: Locator, size: number) {
   const tolerance = Math.max(1.5, size * 0.01);
-  const dial = await box(root.locator(".color-encoder-dial"));
+  const dial = await box(root.locator(".rotary-encoder-dial"));
   expect(Math.abs(dial.width - size * 1.244)).toBeLessThanOrEqual(tolerance);
 
-  const ring = await box(root.locator(".color-encoder-ring"));
-  const knob = await box(root.locator(".color-encoder-knob"));
+  const ring = await box(root.locator(".rotary-encoder-ring"));
+  const knob = await box(root.locator(".rotary-encoder-knob"));
   expect(Math.abs(knob.width - size)).toBeLessThanOrEqual(tolerance);
   // Ring cross-section is 10% of the knob.
   expect(Math.abs((ring.width - knob.width) / 2 - size * 0.1)).toBeLessThanOrEqual(tolerance);
 
-  const leds = root.locator(".color-encoder-led");
+  const leds = root.locator(".rotary-encoder-led");
   const count = await leds.count();
   const boxes: Box[] = [];
   for (let index = 0; index < count; index += 1) boxes.push(await box(leds.nth(index)));
@@ -80,7 +80,7 @@ function degreesFor(percent: number) {
 
 async function setSize(root: Locator, size: number) {
   await root.evaluate((element, px) => {
-    (element as HTMLElement).style.setProperty("--ce-size", `${px}px`);
+    (element as HTMLElement).style.setProperty("--re-size", `${px}px`);
   }, size);
 }
 
@@ -94,13 +94,13 @@ test.describe("colour encoder", () => {
     await dial.scrollIntoViewIfNeeded();
 
     await expectGeometry(root, 200);
-    await expect(root.locator(".color-encoder-led")).toHaveCount(3);
+    await expect(root.locator(".rotary-encoder-led")).toHaveCount(3);
 
     // Lighting opens on brightness, so the cycle starts there.
     for (const channel of ["brightness", "saturation", "hue"]) {
-      await expect(dial).toHaveAttribute("data-channel", channel);
-      await expect(root.locator('.color-encoder-led[data-lit="true"]')).toHaveCount(1);
-      await expect(root.locator('.color-encoder-led[data-lit="true"]')).toHaveAttribute("data-channel", channel);
+      await expect(dial).toHaveAttribute("data-led", channel);
+      await expect(root.locator('.rotary-encoder-led[data-lit="true"]')).toHaveCount(1);
+      await expect(root.locator('.rotary-encoder-led[data-lit="true"]')).toHaveAttribute("data-channel", channel);
       await shot(root, `zone-200-${channel}`);
       await dial.click();
     }
@@ -132,7 +132,7 @@ test.describe("colour encoder", () => {
       return out;
     });
 
-    const knobImage = async () => root.locator(".color-encoder-knob").evaluate((node) => getComputedStyle(node).backgroundImage);
+    const knobImage = async () => root.locator(".rotary-encoder-knob").evaluate((node) => getComputedStyle(node).backgroundImage);
     const atRest = await knobImage();
     expect(atRest).toContain(colours.background);
     expect(atRest).not.toContain(colours.accent);
@@ -155,10 +155,10 @@ test.describe("colour encoder", () => {
 
     // The lit light is white, not the highlight colour: at 50px a tinted 3px
     // light does not read (specs/color-encoder.md, "Theming").
-    const lit = await root.locator('.color-encoder-led[data-lit="true"]').evaluate((node) => getComputedStyle(node).backgroundImage);
+    const lit = await root.locator('.rotary-encoder-led[data-lit="true"]').evaluate((node) => getComputedStyle(node).backgroundImage);
     expect(lit).toContain("rgb(255, 255, 255)");
     expect(lit).not.toContain(colours.highlight);
-    const litGlow = await root.locator('.color-encoder-led[data-lit="true"]').evaluate((node) => getComputedStyle(node).boxShadow);
+    const litGlow = await root.locator('.rotary-encoder-led[data-lit="true"]').evaluate((node) => getComputedStyle(node).boxShadow);
     expect(litGlow).toContain("rgba(255, 255, 255");
   });
 
@@ -168,15 +168,15 @@ test.describe("colour encoder", () => {
     const dial = page.locator(".zone-panel").getByLabel("Zone lights");
     await dial.scrollIntoViewIfNeeded();
     const transform = (selector: string) => root.locator(selector).evaluate((node) => getComputedStyle(node).transform);
-    const knobBefore = await transform(".color-encoder-knob");
-    const ledsBefore = await transform(".color-encoder-leds");
-    const rotorBefore = await transform(".color-encoder-rotor");
+    const knobBefore = await transform(".rotary-encoder-knob");
+    const ledsBefore = await transform(".rotary-encoder-leds");
+    const rotorBefore = await transform(".rotary-encoder-rotor");
 
     await turnDial(page, dial, 45);
 
-    expect(await transform(".color-encoder-rotor")).not.toBe(rotorBefore);
-    expect(await transform(".color-encoder-knob")).toBe(knobBefore);
-    expect(await transform(".color-encoder-leds")).toBe(ledsBefore);
+    expect(await transform(".rotary-encoder-rotor")).not.toBe(rotorBefore);
+    expect(await transform(".rotary-encoder-knob")).toBe(knobBefore);
+    expect(await transform(".rotary-encoder-leds")).toBe(ledsBefore);
     await shot(root, "zone-rotated");
   });
 
@@ -202,7 +202,7 @@ test.describe("colour encoder", () => {
     const accent = page.locator(".theme-widget-cell", { hasText: "ACCENT" }).first().locator(".color-encoder");
     await accent.scrollIntoViewIfNeeded();
     await expectGeometry(accent, 100);
-    await expect(accent.locator(".color-encoder-led")).toHaveCount(3);
+    await expect(accent.locator(".rotary-encoder-led")).toHaveCount(3);
     // Label and channel caption are the only text: no value, no hex.
     expect((await accent.textContent())?.trim()).toBe("AccentHUE");
     await shot(accent, "config-accent-100");
@@ -210,18 +210,18 @@ test.describe("colour encoder", () => {
     // Border owns its opacity, so its dial has the fourth (alpha) light.
     const border = page.locator(".theme-widget-cell", { hasText: "BORDERS" }).first().locator(".color-encoder");
     await border.scrollIntoViewIfNeeded();
-    await expect(border.locator(".color-encoder-led")).toHaveCount(4);
+    await expect(border.locator(".rotary-encoder-led")).toHaveCount(4);
     await expectGeometry(border, 100);
     await expect(page.getByLabel(/borders opacity/i)).toHaveCount(0);
 
     // Take opacity to 40% and check the checkerboard shows through.
-    const dial = border.locator(".color-encoder-dial");
+    const dial = border.locator(".rotary-encoder-dial");
     for (let index = 0; index < 3; index += 1) await dial.click();
-    await expect(dial).toHaveAttribute("data-channel", "alpha");
+    await expect(dial).toHaveAttribute("data-led", "alpha");
     const before = Number(await dial.getAttribute("aria-valuenow"));
     await turnDial(page, dial, degreesFor(40 - before));
     await expect.poll(async () => Number(await dial.getAttribute("aria-valuenow"))).toBe(40);
-    const ringColour = await border.locator(".color-encoder-ring").evaluate((node) => getComputedStyle(node).backgroundColor);
+    const ringColour = await border.locator(".rotary-encoder-ring").evaluate((node) => getComputedStyle(node).backgroundColor);
     expect(ringColour).toMatch(/rgba\(.*, 0\.\d+\)/);
     await shot(border, "config-border-100-alpha");
     await shot(page.locator(".theme-widget-flow").first(), "config-colour-grid");

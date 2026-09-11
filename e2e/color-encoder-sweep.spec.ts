@@ -73,14 +73,14 @@ function degreesFor(percent: number) {
 }
 
 async function angle(root: Locator) {
-  return root.evaluate((node) => (node as HTMLElement).style.getPropertyValue("--ce-angle"));
+  return root.evaluate((node) => (node as HTMLElement).style.getPropertyValue("--re-angle"));
 }
 
 async function selectChannel(dial: Locator, channel: string) {
-  for (let index = 0; index < 4 && (await dial.getAttribute("data-channel")) !== channel; index += 1) {
+  for (let index = 0; index < 4 && (await dial.getAttribute("data-led")) !== channel; index += 1) {
     await dial.click();
   }
-  await expect(dial).toHaveAttribute("data-channel", channel);
+  await expect(dial).toHaveAttribute("data-led", channel);
 }
 
 async function readChannel(dial: Locator, channel: string) {
@@ -94,12 +94,12 @@ async function readChannel(dial: Locator, channel: string) {
  * it reads the ring fill itself — which is exactly what auto dark mode repaints.
  */
 async function sampleRing(page: Page, root: Locator): Promise<[number, number, number]> {
-  const ring = await root.locator(".color-encoder-ring").boundingBox();
+  const ring = await root.locator(".rotary-encoder-ring").boundingBox();
   if (!ring) throw new Error("ring has no box");
   const style = await page.addStyleTag({
     // The demo tooltip follows the pointer, which rests on the dial after a
     // turn, and it covered the sample point at 3 o'clock.
-    content: `.color-encoder-ring-shade,.color-encoder-inner-bevel,.color-encoder-outer-bevel,.color-encoder-glow,.lighting-tint-overlay,.demo-tooltip{visibility:hidden!important}`,
+    content: `.rotary-encoder-ring-shade,.rotary-encoder-inner-bevel,.rotary-encoder-outer-bevel,.rotary-encoder-glow,.lighting-tint-overlay,.demo-tooltip{visibility:hidden!important}`,
   });
   const radius = (ring.width / 2) * ((0.833 + 1) / 2);
   const x = Math.round(ring.x + ring.width / 2 + radius) - 1;
@@ -143,7 +143,7 @@ async function sweep(page: Page, run: string) {
     body: getComputedStyle(document.body).colorScheme,
   }));
   // The ring itself must resolve to dark: auto dark mode decides per element.
-  const ringScheme = await page.locator(".zone-panel .color-encoder-ring").evaluate((node) => getComputedStyle(node).colorScheme);
+  const ringScheme = await page.locator(".zone-panel .rotary-encoder-ring").evaluate((node) => getComputedStyle(node).colorScheme);
   expect({ ...scheme, ring: ringScheme }, JSON.stringify({ ...scheme, ring: ringScheme })).toMatchObject({ meta: "dark", root: "dark", ring: "dark" });
   await recordCommands(page);
   const dial = page.locator(".zone-panel").getByLabel("Zone lights");
