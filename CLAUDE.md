@@ -62,8 +62,33 @@ the named component before introducing a one-off equivalent.
 - `ConfigAccordion` — `app/components/ConfigControls.tsx`. This is the
   persistent, exclusive, auto-scrolling configuration section used across the
   config workspace.
+- `RotaryEncoder` — `app/components/RotaryEncoder.tsx`. The dial every Nova knob
+  is built on: the bevelled knob and its sunken ring, the relative-angle drag,
+  the click rules, the arc slider rings, the light/dark treatment, and
+  tuck-away. It knows nothing about what it is setting — the caller supplies
+  the LEDs (any number; a tap cycles them), the face text above and below them,
+  the ring's paint and glow, and the value's domain (`min`/`max`/`step`, or
+  `wrap` for a value with no ends). Rings come in three kinds: `slider`,
+  `selector` (evenly spaced stops, the whole track filled in the caller's
+  colour) and `toggle` (tap to flip, fading over 500ms), and each can carry a
+  `valueText` drawn at the ring's end — pass `valueTextWidest` so the ring's
+  length does not change as the value does. `tuckAfterMs` makes a dial lock
+  itself when idle and float its rings over the page in a body portal. Geometry
+  is in `rotaryEncoderGeometry.ts`. Build a new knob on this rather than
+  copying `ColorEncoder`. See `specs/color-encoder.md`.
+- `TemperatureEncoder` — `app/components/TemperatureEncoder.tsx`. The climate
+  knob: the base with the mode lights (Auto/Manual/Off, or the heater's two),
+  the target above them and the room temperature below, and a colour ring
+  showing the target across its top half and the room across its bottom.
+  100–200px. `AirconKnob` and `HeaterKnob`
+  (`app/components/dashboard/ClimateKnobs.tsx`) are the wired versions the
+  climate cards and Quick Access mount; they own the ring bindings and call the
+  shared command hooks. `TemperatureEncoderDemo.tsx` is the deviceless sample
+  used by `/temperature-encoder` and `/color-encoder-rings`. See
+  `specs/temperature-encoder.md`.
 - `ColorEncoder` — `app/components/ColorEncoder.tsx`. Nova's rotary colour
-  control and the surface's **only** colour picker: tap cycles hue /
+  control and the surface's **only** colour picker, and the colour wrapper over
+  `RotaryEncoder`: tap cycles hue /
   brightness / saturation (plus alpha when `channels` includes it), and it
   **turns like a real knob** — a drag applies the angle swept about the centre,
   relative to where it was grabbed. The index line shows the active channel's
