@@ -282,10 +282,15 @@ export function ColorEncoder({
     const rate = (sensitivity?.[channel] ?? SENSITIVITY[channel]) / (fine ? FINE_DIVISOR : 1);
     const current = valueRef.current;
     const next = withChannel(current, channel, channelValue(current, channel) + pixels * rate);
+    // The rotor turns only by the share of the input that moved the value, so
+    // it stops when brightness, saturation or alpha is pinned at an end and
+    // starts again the moment the turn reverses. Hue has no ends.
+    const moved = channel === "hue" ? pixels : (channelValue(next, channel) - channelValue(current, channel)) / rate;
+    if (moved === 0) return 0;
     valueRef.current = next;
-    setAngle((previous) => previous + pixels * DEGREES_PER_PX);
+    setAngle((previous) => previous + moved * DEGREES_PER_PX);
     onChange(next);
-    return next;
+    return moved;
   };
 
   const pointerHandlers = disabled
@@ -310,8 +315,8 @@ export function ColorEncoder({
         if (dx === 0 && dy === 0) return;
         // Right and up turn the value up, left and down turn it down; a
         // diagonal sums the two.
-        nudge(dx - dy, event.shiftKey || event.altKey);
-        tick(dx - dy);
+        const moved = nudge(dx - dy, event.shiftKey || event.altKey);
+        if (moved !== 0) tick(moved);
       },
       onPointerUp: () => {
         const drag = dragRef.current;

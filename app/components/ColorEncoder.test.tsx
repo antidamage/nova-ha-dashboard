@@ -35,6 +35,12 @@ function drag(dial: HTMLElement, moves: Array<[number, number]>, modifiers: { sh
   fireEvent.pointerUp(dial, { clientX: x, clientY: y, pointerId: 1 });
 }
 
+/** A parent that stores what the dial sends, as every real caller does. */
+function Controlled({ initial, ...props }: { initial: Hsva } & Omit<React.ComponentProps<typeof ColorEncoder>, "value" | "onChange">) {
+  const [value, setValue] = useState<Hsva>(initial);
+  return <ColorEncoder {...props} value={value} onChange={setValue} />;
+}
+
 function tap(dial: HTMLElement) {
   fireEvent.pointerDown(dial, { buttons: 1, clientX: 50, clientY: 50, pointerId: 1 });
   fireEvent.pointerUp(dial, { clientX: 51, clientY: 50, pointerId: 1 });
@@ -261,6 +267,44 @@ describe("ColorEncoder", () => {
     expect(root.style.getPropertyValue("--ce-angle")).toBe("0.00deg");
     drag(screen.getByRole("slider"), [[40, 0]]);
     expect(root.style.getPropertyValue("--ce-angle")).toBe("20.00deg");
+  });
+
+  it("stops the rotor when a clamped channel hits its end, and turns again on reversal", () => {
+    const { container } = render(<Controlled activeChannel="saturation" initial={{ ...start, s: 95 }} />);
+    const root = container.querySelector(".color-encoder") as HTMLElement;
+    const dial = screen.getByRole("slider");
+    // 15px moves saturation the last 5%; the other 285px push against the stop.
+    drag(dial, [[300, 0]]);
+    expect(dial.getAttribute("aria-valuenow")).toBe("100");
+    expect(root.style.getPropertyValue("--ce-angle")).toBe("7.50deg");
+    // Pushing further past the end turns nothing.
+    drag(dial, [[200, 0]]);
+    expect(root.style.getPropertyValue("--ce-angle")).toBe("7.50deg");
+    // Reversing moves value and rotor at once — no wind-back through the overshoot.
+    drag(dial, [[-30, 0]]);
+    expect(dial.getAttribute("aria-valuenow")).toBe("90");
+    expect(root.style.getPropertyValue("--ce-angle")).toBe("-7.50deg");
+  });
+
+  it("stops at zero too, for brightness and alpha", () => {
+    for (const channel of ["brightness", "alpha"] as const) {
+      const { container, unmount } = render(
+        <Controlled channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} activeChannel={channel} initial={{ ...start, v: 3, a: 3 }} />,
+      );
+      const root = container.querySelector(".color-encoder") as HTMLElement;
+      drag(screen.getByRole("slider"), [[-300, 0]]);
+      expect(screen.getByRole("slider").getAttribute("aria-valuenow")).toBe("0");
+      // 9px of input moved the value 3%; that is all the rotor turned.
+      expect(root.style.getPropertyValue("--ce-angle")).toBe("-4.50deg");
+      unmount();
+    }
+  });
+
+  it("turns forever on hue", () => {
+    const { container } = render(<ColorEncoder value={start} onChange={vi.fn()} />);
+    const root = container.querySelector(".color-encoder") as HTMLElement;
+    drag(screen.getByRole("slider"), [[1000, 0]]);
+    expect(root.style.getPropertyValue("--ce-angle")).toBe("500.00deg");
   });
 
   it("glows only from half brightness up", () => {
