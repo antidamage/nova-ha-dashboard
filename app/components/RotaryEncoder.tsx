@@ -317,15 +317,31 @@ export function RotaryEncoder({
   // leave the tree once the outermost has finished.
   const ringCount = Math.min(rings.length, RING_LIMIT);
   const collapseMs = TUCK_RING_MS + Math.max(0, ringCount - 1) * TUCK_RING_STAGGER_MS;
+  // A ring layer that has fully left the tree remounts with its target style
+  // already applied, so there is nothing for the CSS transition to animate
+  // from — it would pop straight in. `entering` holds it at the tucked style
+  // for one frame after remount, so the very next frame's flip to the open
+  // style is a real transition, not a jump.
+  const [entering, setEntering] = useState(false);
+  const wasShowingRingsRef = useRef(showRings);
   useEffect(() => {
     if (!tuckable) return;
     if (!locked) {
+      if (!wasShowingRingsRef.current) setEntering(true);
+      wasShowingRingsRef.current = true;
       setShowRings(true);
       return;
     }
+    wasShowingRingsRef.current = false;
     const timer = window.setTimeout(() => setShowRings(false), collapseMs);
     return () => window.clearTimeout(timer);
   }, [collapseMs, locked, tuckable]);
+
+  useEffect(() => {
+    if (!entering) return;
+    const frame = window.requestAnimationFrame(() => setEntering(false));
+    return () => window.cancelAnimationFrame(frame);
+  }, [entering]);
 
   // Locks itself after a quiet spell. A pointer held down is not quiet.
   useEffect(() => {
@@ -871,11 +887,16 @@ export function RotaryEncoder({
         // travels well inside the rim, where the annulus clip hides it behind
         // the knob.
         const tucked = (geometry.dialRadius * 0.78) / radius;
+        const tuckedStyle = locked || entering;
+        // Hiding goes innermost-first, outermost-last; unlocking is that
+        // collapse in reverse, so the ring that was last to leave is first
+        // to come back.
+        const stagger = locked ? index : shown.length - 1 - index;
         const collapse: CSSProperties = tuckable
           ? {
-            transform: locked ? `scale(${tucked.toFixed(3)})` : "scale(1)",
-            opacity: locked ? 0 : 1,
-            transitionDelay: `${index * TUCK_RING_STAGGER_MS}ms`,
+            transform: tuckedStyle ? `scale(${tucked.toFixed(3)})` : "scale(1)",
+            opacity: tuckedStyle ? 0 : 1,
+            transitionDelay: `${stagger * TUCK_RING_STAGGER_MS}ms`,
           }
           : {};
         return (

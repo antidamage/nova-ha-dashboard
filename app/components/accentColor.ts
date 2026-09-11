@@ -35,7 +35,6 @@ export type ThemeColorValue = {
 
 export type ThemeBorderValue = {
   color: ThemeColorValue;
-  enabled: boolean;
   opacity: number;
 };
 
@@ -389,7 +388,6 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
       intensity: 100,
       rgb: [255, 196, 0],
     },
-    enabled: true,
     opacity: 15,
   },
   clockColor: {
@@ -581,7 +579,6 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
       intensity: 100,
       rgb: [255, 208, 0],
     },
-    enabled: true,
     opacity: 19,
   },
   clockColor: {
@@ -937,7 +934,6 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     transcriptFont: normalizeThemeFontSetting(value?.transcriptFont, DEFAULT_THEME_FONT_ID, DEFAULT_TRANSCRIPT_FONT_SETTING.weight),
     border: {
       color: normalizeColor(borderValue?.color, DEFAULT_THEME.border.color),
-      enabled: borderValue?.enabled === undefined ? DEFAULT_THEME.border.enabled : borderValue.enabled === true,
       opacity: clamp(Math.round(Number(borderValue?.opacity ?? DEFAULT_THEME.border.opacity)), 0, 100),
     },
     map: {
@@ -1106,14 +1102,13 @@ function applyCssColor(name: "line" | "cyan", rgb: [number, number, number]) {
   root.style.setProperty("--cyber-highlight-rgb", value);
 }
 
-function applyCssBorder(border: ThemeBorderValue, fallbackRgb: [number, number, number]) {
+function applyCssBorder(border: ThemeBorderValue) {
   const normalizedBorder = {
     color: normalizeColor(border.color, DEFAULT_THEME.border.color),
-    enabled: border.enabled === true,
     opacity: clamp(Math.round(Number(border.opacity ?? DEFAULT_THEME.border.opacity)), 0, 100),
   };
-  const rgb = normalizedBorder.enabled ? appliedThemeRgb(normalizedBorder.color) : fallbackRgb;
-  const opacity = normalizedBorder.enabled ? normalizedBorder.opacity / 100 : 0.36;
+  const rgb = appliedThemeRgb(normalizedBorder.color);
+  const opacity = normalizedBorder.opacity / 100;
   const value = `${rgb[0]} ${rgb[1]} ${rgb[2]}`;
   const root = document.documentElement;
 
@@ -1318,7 +1313,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
 
   applyCssColor("line", accent);
   applyCssColor("cyan", highlight);
-  applyCssBorder(normalized.border, accent);
+  applyCssBorder(normalized.border);
   applyCssBackground(background);
   applyCssTitleColors(normalized.titleColors);
   applyCssTitleTone(normalized.titleTone, accent, highlight, background, normalized.clockColor, normalized.titleColors);

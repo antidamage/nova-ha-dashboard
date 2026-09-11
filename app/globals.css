@@ -6944,6 +6944,13 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34));
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.3);
   transform: translateX(-50%);
+  transition: opacity 300ms ease;
+}
+
+/* Locked, the dial gives up nothing about the value: the index goes blank and
+   fades back in as it unlocks (Adeline, 2026-09-12). */
+.rotary-encoder[data-locked="true"] .rotary-encoder-index {
+  opacity: 0;
 }
 
 /* Fixed specular above the rotor, so the texture passes under the light. */
