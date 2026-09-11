@@ -74,6 +74,16 @@ the named component before introducing a one-off equivalent.
   adapters are in `app/components/colorEncoderModel.ts`. See
   `specs/color-encoder.md`. The old `ColorSpectrum`, `ColorIntensitySlider` and
   `ConfigColorPicker` are gone — do not reintroduce a spectrum pad.
+- `RingedColorEncoder` — `app/components/RingedColorEncoder.tsx`. A copy of
+  `ColorEncoder` (not a wrapper; its `.ringed-encoder*` CSS is copied too, so
+  the two evolve independently) that carries up to five slider rings: 270°
+  arcs round the colour ring, thumbs that bend with the track, labels curved
+  through the bottom gap. Its label sits on the knob above the lights, and it
+  clicks on press and on a release that changed something — never mid-drag.
+  Geometry maths is in `ringedColorEncoderGeometry.ts`; demo at
+  `/color-encoder-rings`. See `specs/color-encoder-rings.md`. Use it where a
+  colour slot carries its own sliders instead of stacking separate sliders
+  under a `ColorEncoder`.
 - `ColorWidget` — `app/components/ConfigControls.tsx`. This is one colour slot
   on the config page: an inline cell holding a `ColorEncoder` and any
   slot-specific extras, plus the copy/paste colour actions. It is deliberately
