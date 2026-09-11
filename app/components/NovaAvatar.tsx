@@ -59,10 +59,10 @@ const LOAD_EASE = 1.0; // ease toward server-reported load
 const SPEECH_RESOLUTION_BOOST = 2;
 // The return migration must outlast the CSS transition (globals.css).
 const SPEECH_RETURN_FALLBACK_MS = 600;
-// Horizontal dashboard sidebar: the orb shrinks to 40% over the first 400px of
-// sideways scroll (specs/landscape-layout.md).
+// Horizontal dashboard sidebar: the 200px orb shrinks to half over the first
+// 400px of sideways scroll (specs/landscape-layout.md).
 const SIDEBAR_SCROLL_DISTANCE = 400;
-const SIDEBAR_SCALE_MIN = 0.4;
+const SIDEBAR_SCALE_MIN = 0.5;
 
 /** How large the speaking orb should be relative to the viewport. */
 function speechScaleFor(viewportWidth: number, viewportHeight: number, size: number) {
@@ -387,8 +387,7 @@ function NovaAvatarVisual({
     const onScroll = () => {
       // The horizontal dashboard turns the top bar into a left sidebar driven
       // by sideways scroll (specs/landscape-layout.md): same progress value,
-      // its own distance and floor. CSS maps the scale onto the sidebar's
-      // 160px -> 64px orb.
+      // its own distance and floor: the 200px canvas at 1 -> 0.5.
       const horizontal = isHorizontalDashboard();
       const offset = horizontal ? window.scrollX || 0 : window.scrollY || 0;
       const t = Math.min(1, Math.max(0, offset / (horizontal ? SIDEBAR_SCROLL_DISTANCE : distance)));

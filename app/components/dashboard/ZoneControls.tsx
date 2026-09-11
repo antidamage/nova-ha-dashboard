@@ -280,7 +280,7 @@ export function ZoneControls({
   const adaptivePresetLabel = adaptiveCandlelightLabel(sun);
 
   return (
-    <section className="zone-panel relative min-h-[620px] border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
+    <section className="zone-panel relative flex min-h-[620px] flex-col border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
       <div className="panel-corner panel-corner-left" />
       <div className="panel-corner panel-corner-right" />
       <header className="zone-panel-header flex flex-col gap-4">
@@ -343,22 +343,6 @@ export function ZoneControls({
             <>
               {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
               <div className="zone-lighting-controls">
-                <section className="zone-party-control border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
-                  <header className="mb-4 flex items-center gap-3">
-                    <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
-                    <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
-                  </header>
-
-                  <LabeledSwitch
-                    checked={housePartyEnabled}
-                    disabled={housePartyBusy || !hasLightDevices}
-                    icon={<PartyPopper className="h-4 w-4" />}
-                    label="House Party"
-                    leftLabel="Off"
-                    rightLabel="On"
-                    onChange={() => void toggleHouseParty()}
-                  />
-                </section>
                 <ZoneColorEncoder
                   brightness={brightness}
                   colorEnabled={hasActiveLights}
@@ -377,6 +361,27 @@ export function ZoneControls({
         </div>
         <ModuleSlot id="zone.controls.after" context={{ zone }} />
       </div>
+
+      {/* House Party spans the panel and is always its last row, pushed to
+          the bottom of the panel however short the controls above are. */}
+      {lightingZone ? (
+        <section className="zone-party-control mt-auto border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
+          <header className="mb-4 flex items-center gap-3">
+            <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
+            <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
+          </header>
+
+          <LabeledSwitch
+            checked={housePartyEnabled}
+            disabled={housePartyBusy || !hasLightDevices}
+            icon={<PartyPopper className="h-4 w-4" />}
+            label="House Party"
+            leftLabel="Off"
+            rightLabel="On"
+            onChange={() => void toggleHouseParty()}
+          />
+        </section>
+      ) : null}
     </section>
   );
 }

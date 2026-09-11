@@ -15,6 +15,17 @@ import {
   writeSelectedZoneToStorage,
 } from "./shell";
 
+/**
+ * The zone object for a selection id — including the Power and World pseudo
+ * zones — or null for Tasks, an unknown id, or before the first snapshot.
+ */
+export function zoneForSelection(data: DashboardState | null, zoneId: string | null) {
+  if (!zoneId) return null;
+  if (zoneId === POWER_ZONE_ID && (!data || data.activeModuleIds?.includes("power"))) return POWER_ZONE;
+  if (zoneId === WORLD_ZONE_ID) return WORLD_ZONE;
+  return data?.zones.find((zone) => zone.id === zoneId) ?? null;
+}
+
 export function useDashboardSelection(data: DashboardState | null) {
   const [selectedZoneId, setSelectedZoneId] = useState(selectedZoneIdFromStorage);
 

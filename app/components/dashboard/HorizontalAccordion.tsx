@@ -22,13 +22,20 @@ export function useWideDashboard(): boolean {
   return useSyncExternalStore(subscribeWide, readWide, readServerWide);
 }
 
-// `attached` is the selected zone's controls when this entry owns the selected
-// zone: rendered to the right of the list as one joined unit, landscape only
-// (specs/landscape-layout.md). `attachKey` is the selected zone id; when the
-// selection moves to a zone this entry owns while it is closed, it opens.
+// `attached` is this entry's selected-zone controls: rendered to the right of
+// the list as one joined unit, landscape only (specs/landscape-layout.md).
+// `attachKey` is this entry's selected zone id; when it changes while the entry
+// is closed, the entry opens. `group` names the entry for CSS.
 export function HorizontalAccordion({
-  title, persistKey, children, attached, attachKey,
-}: { title: string; persistKey: string; children: ReactNode; attached?: ReactNode; attachKey?: string | null }) {
+  title, persistKey, children, attached, attachKey, group,
+}: {
+  title: string;
+  persistKey: string;
+  children: ReactNode;
+  attached?: ReactNode;
+  attachKey?: string | null;
+  group?: string;
+}) {
   const wide = useWideDashboard();
   const [open, setOpen] = useState(false);
   const contentId = useId();
@@ -45,17 +52,17 @@ export function HorizontalAccordion({
     lastAttachKey.current = attachKey;
     // `previous` is empty while the first snapshot loads: that is a restore,
     // not a selection, so it leaves the saved open/closed state alone.
-    if (previous && attachKey && attached) {
+    if (previous && attachKey) {
       setOpen(true);
       setAccordionOpen(persistKey, true);
     }
-  }, [attachKey, attached, persistKey]);
+  }, [attachKey, persistKey]);
 
   // Portrait keeps the existing uncollapsed menu. Landscape state survives a
   // rotation and uses the dashboard's existing short-lived accordion storage.
   const expanded = !wide || open;
   return (
-    <section className="horizontal-accordion" data-open={expanded}>
+    <section className="horizontal-accordion" data-open={expanded} data-group={group}>
       <MomentaryFeedbackButton
         id={triggerId}
         type="button"

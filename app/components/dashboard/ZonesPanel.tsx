@@ -2,7 +2,7 @@
 
 import { Zap } from "lucide-react";
 import type { ReactNode } from "react";
-import type { DashboardState, DashboardZone } from "../../../lib/types";
+import type { DashboardState } from "../../../lib/types";
 import { ZoneButton } from "./ZoneButton";
 import { HorizontalAccordion } from "./HorizontalAccordion";
 import {
@@ -43,29 +43,36 @@ export function buildZoneTree(data: DashboardState | null) {
   };
 }
 
+/** True when the zone id belongs to the Home group (the Home zone and its subzones). */
+export function homeGroupOwns(zones: ReturnType<typeof buildZoneTree>, zoneId: string | null | undefined) {
+  return !!zoneId && (zoneId === zones.inside?.id || zones.indoor.some((zone) => zone.id === zoneId));
+}
+
+// Each group (Home, Systems) has its own selected zone, so choosing a zone in
+// one never deselects or collapses the other (specs/landscape-layout.md).
+// Portrait passes the one global selection as both.
 export function ZonesPanel({
   data,
-  selectedZone,
-  selectedZoneId,
+  homeSelectedId,
+  systemsSelectedId,
   zones,
-  controls,
+  homeControls,
+  systemsControls,
   onSelectZone,
 }: {
   data: DashboardState | null;
-  selectedZone: DashboardZone | null;
-  selectedZoneId: string;
+  homeSelectedId: string | null;
+  systemsSelectedId: string | null;
   zones: ReturnType<typeof buildZoneTree>;
-  // The selected zone's controls, joined to the accordion entry that owns the
-  // zone. Passed only in the horizontal layout; portrait renders them below.
-  controls?: ReactNode;
+  // Each group's selected-zone controls, joined to its accordion entry.
+  // Passed only in the horizontal layout; portrait renders them below.
+  homeControls?: ReactNode;
+  systemsControls?: ReactNode;
   onSelectZone: (zoneId: string) => void;
 }) {
-  const tasksZoneSelected = selectedZoneId === TASKS_ZONE_ID;
-  const powerZoneSelected = selectedZoneId === POWER_ZONE_ID;
-  const worldZoneSelected = selectedZoneId === WORLD_ZONE_ID;
-  const activeId = selectedZone?.id ?? selectedZoneId;
-  const homeOwnsSelection =
-    activeId === zones.inside?.id || zones.indoor.some((zone) => zone.id === activeId);
+  const tasksZoneSelected = systemsSelectedId === TASKS_ZONE_ID;
+  const powerZoneSelected = systemsSelectedId === POWER_ZONE_ID;
+  const worldZoneSelected = systemsSelectedId === WORLD_ZONE_ID;
 
   return (
     <aside className="zones-panel border border-neutral-700 bg-neutral-950/70 p-4">
@@ -77,14 +84,14 @@ export function ZonesPanel({
         <HorizontalAccordion
           title="Home"
           persistKey="dashboard-zones-home"
-          attached={homeOwnsSelection ? controls : null}
-          attachKey={activeId}
+          attached={homeControls}
+          attachKey={homeSelectedId}
         >
         {zones.inside ? (
           <div className={classNames("zone-tree", zones.indoor.length > 0 && "zone-parent-widget")}>
             <ZoneButton
               zone={zones.inside}
-              selected={selectedZone?.id === zones.inside.id}
+              selected={homeSelectedId === zones.inside.id}
               onClick={() => onSelectZone(zones.inside!.id)}
               hideCounts={zones.indoor.length > 0}
             />
@@ -96,7 +103,7 @@ export function ZonesPanel({
                     key={zone.id}
                     zone={zone}
                     nested
-                    selected={selectedZone?.id === zone.id}
+                    selected={homeSelectedId === zone.id}
                     onClick={() => onSelectZone(zone.id)}
                     routerStatus={data?.router}
                   />
@@ -109,7 +116,7 @@ export function ZonesPanel({
             <ZoneButton
               key={zone.id}
               zone={zone}
-              selected={selectedZone?.id === zone.id}
+              selected={homeSelectedId === zone.id}
               onClick={() => onSelectZone(zone.id)}
               routerStatus={data?.router}
             />
@@ -120,13 +127,14 @@ export function ZonesPanel({
         <HorizontalAccordion
           title="Systems"
           persistKey="dashboard-zones-systems"
-          attached={homeOwnsSelection ? null : controls}
-          attachKey={activeId}
+          group="systems"
+          attached={systemsControls}
+          attachKey={systemsSelectedId}
         >
         {zones.climate ? (
           <ZoneButton
             zone={zones.climate}
-            selected={selectedZone?.id === zones.climate.id}
+            selected={systemsSelectedId === zones.climate.id}
             onClick={() => onSelectZone(zones.climate!.id)}
           />
         ) : null}
@@ -134,7 +142,7 @@ export function ZonesPanel({
         {zones.outside ? (
           <ZoneButton
             zone={zones.outside}
-            selected={selectedZone?.id === zones.outside.id}
+            selected={systemsSelectedId === zones.outside.id}
             onClick={() => onSelectZone(zones.outside!.id)}
             domains={["light"]}
           />
@@ -150,7 +158,7 @@ export function ZonesPanel({
         {zones.network ? (
           <ZoneButton
             zone={zones.network}
-            selected={selectedZone?.id === zones.network.id}
+            selected={systemsSelectedId === zones.network.id}
             onClick={() => onSelectZone(zones.network!.id)}
             routerStatus={data?.router}
           />

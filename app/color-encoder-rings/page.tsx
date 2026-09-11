@@ -19,13 +19,26 @@ type DemoDialProps = {
   channels?: ColorEncoderChannel[];
   disabled?: boolean;
   id: string;
+  initial?: Hsva;
   label: string;
   rings: number;
   size: number;
 };
 
-function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, label, rings, size }: DemoDialProps) {
-  const [colour, setColour] = useState<Hsva>({ h: 200, s: 70, v: 85, a: 80 });
+const DEFAULT_COLOUR: Hsva = { h: 200, s: 70, v: 85, a: 80 };
+
+// Seeds for the ring-fill section: the fill is the colour ring's colour, so a
+// row of distinct hues shows it tracking.
+const FILL_COLOURS: Hsva[] = [
+  { h: 0, s: 85, v: 95, a: 100 },
+  { h: 35, s: 90, v: 100, a: 100 },
+  { h: 120, s: 70, v: 85, a: 100 },
+  { h: 275, s: 65, v: 90, a: 100 },
+  { h: 0, s: 0, v: 100, a: 100 },
+];
+
+function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, initial = DEFAULT_COLOUR, label, rings, size }: DemoDialProps) {
+  const [colour, setColour] = useState<Hsva>(initial);
   const [values, setValues] = useState<number[]>(() => RING_NAMES.map((_, index) => 20 + index * 15));
 
   return (
@@ -79,6 +92,12 @@ export default function ColorEncoderRingsDemo() {
         ))}
       </Section>
 
+      <Section title="Ring fill follows the colour ring">
+        {FILL_COLOURS.map((initial) => (
+          <DemoDial key={initial.h + "-" + initial.s} id={`fill-${initial.h}-${initial.s}`} initial={initial} label="Lights" rings={3} size={140} />
+        ))}
+      </Section>
+
       <Section title="Size sweep, 5 rings">
         {[200, 100, 56].map((size) => (
           <DemoDial key={size} id={`size-${size}`} label="Lights" rings={5} size={size} />
@@ -88,6 +107,7 @@ export default function ColorEncoderRingsDemo() {
       <Section light title="Light theme">
         <DemoDial id="light-5" label="Lights" rings={5} size={200} />
         <DemoDial id="light-100" label="Lights" rings={3} size={100} />
+        <DemoDial id="light-amber" initial={FILL_COLOURS[1]} label="Lights" rings={3} size={140} />
       </Section>
 
       <Section title="States">
