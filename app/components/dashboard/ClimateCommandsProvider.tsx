@@ -40,6 +40,7 @@ const ClimateCommandsContext = createContext<ClimateCommandsValue | null>(null);
 export type AirconCommandsInput = {
   controlState?: ClimateControlRoomState;
   entity?: DashboardEntity;
+  freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
   quietSwitch?: DashboardEntity;
   turboSwitch?: DashboardEntity;

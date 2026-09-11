@@ -26,15 +26,20 @@ import {
   bedroomHeaterTargetTemperature,
 } from "../../../lib/bedroom-heater-control";
 import {
+  AIRCON_FAN_STEPS,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
   airconEntityMode,
+  airconFanModeServiceValue,
+  airconFanStep,
+  airconFanStepActions,
   airconModeSupported,
   buildAirconAutoActions,
   climateTargetTemperature,
   isAirconMode,
   isClimateEntityOn,
   stringListAttribute,
+  type AirconFanStep,
   type AirconMode,
   type EntityActionInput,
 } from "../../../lib/aircon-control";
@@ -51,6 +56,17 @@ export type EntityActionsHandler = (
 // How long after the last temperature tap we wait before sending the final
 // set_temperature to the air conditioner. Only the last value is ever sent.
 export const AIRCON_TEMPERATURE_SEND_DEBOUNCE_MS = 2000;
+
+/**
+ * How long after the last mode tap the mode is actually sent.
+ *
+ * The temperature knob cycles its mode lights on a tap, so Auto to Off passes
+ * through Manual. Sending each one as it is tapped would switch the air
+ * conditioner on for a moment on the way past (Adeline, 2026-09-12:
+ * specs/temperature-encoder.md). The light moves at once; only the mode the
+ * taps settle on is commanded.
+ */
+export const CLIMATE_MODE_COMMIT_DEBOUNCE_MS = 1500;
 
 // The control sound is a UX press acknowledgement, so any command that fires
 // later than the gesture (debounce timers, off-timer expiry) must pass
@@ -101,6 +117,41 @@ export function useClimateCardTitles() {
   return titles;
 }
 
+async function postClimate(path: string, body: unknown, fallbackMessage: string) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error ?? fallbackMessage);
+  }
+  return payload;
+}
+
+/** The aircon's sleep timer. The server enforces its expiry. */
+export async function saveAirconTimer(offTimerEndsAt: string | null) {
+  await postClimate("/api/aircon/timer", { offTimerEndsAt }, "Failed to update aircon timer");
+}
+
+/**
+ * A target set while the unit is off: remembered for the next start, with no
+ * command to a device the owner has switched off (specs/temperature-encoder.md).
+ */
+export async function saveAirconTarget(temperature: number) {
+  await postClimate("/api/aircon/target", { temperature }, "Failed to update aircon target");
+}
+
+function timerEndMs(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 function autoPreferenceFallbackAction(entity: DashboardEntity, settings: AirconPreferences): EntityActionInput {
   const temperature = typeof settings.temperature === "number" ? settings.temperature : climateTargetTemperature(entity);
   const mode = isAirconMode(settings.hvacMode) && settings.hvacMode !== "auto"
@@ -130,6 +181,7 @@ function autoPreferenceFallbackAction(entity: DashboardEntity, settings: AirconP
 export function useAirconCommands({
   controlState,
   entity,
+  freshAirSwitch,
   preferences,
   quietSwitch,
   turboSwitch,
@@ -137,6 +189,7 @@ export function useAirconCommands({
 }: {
   controlState?: ClimateControlRoomState;
   entity?: DashboardEntity;
+  freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
   quietSwitch?: DashboardEntity;
   turboSwitch?: DashboardEntity;
@@ -225,6 +278,61 @@ export function useAirconCommands({
       }
     };
   }, []);
+
+  // The sleep timer. The server enforces its expiry (lib/climate-control.ts
+  // stops the unit and clears Auto), and this side sets and displays it; the
+  // turn_off below is the backup for a room the controller is not driving.
+  const persistedTimerEndsAt = typeof preferences?.offTimerEndsAt === "string" ? preferences.offTimerEndsAt : null;
+  const [localTimerEndsAt, setLocalTimerEndsAt] = useState<string | null>(persistedTimerEndsAt);
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+  const timerExpiryInFlight = useRef(false);
+  const offTimerEndsAtMs = timerEndMs(localTimerEndsAt);
+  const offTimerMinutes = offTimerEndsAtMs === null
+    ? 0
+    : Math.max(0, Math.ceil((offTimerEndsAtMs - timerNow) / 60000));
+
+  useEffect(() => {
+    setLocalTimerEndsAt(persistedTimerEndsAt);
+  }, [persistedTimerEndsAt]);
+
+  useEffect(() => {
+    if (offTimerEndsAtMs === null) {
+      return;
+    }
+
+    setTimerNow(Date.now());
+    const timer = window.setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [offTimerEndsAtMs]);
+
+  useEffect(() => {
+    if (!entity || offTimerEndsAtMs === null || offTimerEndsAtMs > timerNow || timerExpiryInFlight.current) {
+      return;
+    }
+
+    timerExpiryInFlight.current = true;
+    setLocalTimerEndsAt(null);
+    void callClimateActions(
+      [
+        {
+          entityId: entity.entity_id,
+          domain: "climate",
+          service: "turn_off",
+          remember: { aircon: { autoMode: false, offTimerEndsAt: null } },
+        },
+      ],
+      onEntityActions,
+      "Air Conditioner timer expired",
+      { silent: true },
+    ).finally(() => {
+      timerExpiryInFlight.current = false;
+    });
+  }, [entity, offTimerEndsAtMs, onEntityActions, timerNow]);
 
   // Record what a press asked for. Omitting `mode` means the press does not
   // choose a direction — Auto picks its own, so the mode row keeps following the
@@ -440,6 +548,9 @@ export function useAirconCommands({
   const setTemperature = (temperature: number) => {
     setSelectedTargetTemperature(temperature);
     pendingTemperatureRef.current = temperature;
+    // In Off there is nothing to command: the target is remembered for the next
+    // start instead (Adeline, 2026-09-12, specs/temperature-encoder.md).
+    const offline = activePowerState === "off";
     if (temperatureSendTimerRef.current) {
       clearTimeout(temperatureSendTimerRef.current);
     }
@@ -447,9 +558,16 @@ export function useAirconCommands({
       temperatureSendTimerRef.current = null;
       const value = pendingTemperatureRef.current;
       pendingTemperatureRef.current = null;
-      if (value !== null) {
-        void sendTemperature(value);
+      if (value === null) {
+        return;
       }
+      if (offline) {
+        void saveAirconTarget(value).catch(() => {
+          // The next start sends the remembered target anyway.
+        });
+        return;
+      }
+      void sendTemperature(value);
     }, AIRCON_TEMPERATURE_SEND_DEBOUNCE_MS);
     return Promise.resolve();
   };
@@ -464,18 +582,139 @@ export function useAirconCommands({
     return setOff();
   };
 
+  // ── The temperature knob (specs/temperature-encoder.md) ───────────────────
+
+  // Cycling the mode lights must not command every mode it passes through, so
+  // the light moves at once and the mode the taps settle on is sent after
+  // CLIMATE_MODE_COMMIT_DEBOUNCE_MS — and only if it differs from the mode the
+  // run of taps started on.
+  const [pendingPower, setPendingPower] = useState<ClimateControlMode | null>(null);
+  const modeCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modeRunStartRef = useRef<ClimateControlMode | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (modeCommitTimerRef.current) {
+        clearTimeout(modeCommitTimerRef.current);
+      }
+    };
+  }, []);
+
+  const choosePowerStateAfterTaps = (state: ClimateControlMode) => {
+    if (modeRunStartRef.current === null) {
+      modeRunStartRef.current = activePowerState;
+    }
+    setPendingPower(state);
+    if (modeCommitTimerRef.current) {
+      clearTimeout(modeCommitTimerRef.current);
+    }
+    modeCommitTimerRef.current = setTimeout(() => {
+      modeCommitTimerRef.current = null;
+      const from = modeRunStartRef.current;
+      modeRunStartRef.current = null;
+      setPendingPower(null);
+      if (state !== from) {
+        void choosePowerState(state);
+      }
+    }, CLIMATE_MODE_COMMIT_DEBOUNCE_MS);
+  };
+
+  /** What the mode lights show: the tapped mode until it is sent, then the unit's. */
+  const displayedPowerState: ClimateControlMode = pendingPower ?? activePowerState;
+
+  const fanStep = entity ? airconFanStep(entity, quietSwitch, turboSwitch) : "medium";
+
+  // A setting chosen by hand while the unit is off starts it in Manual with
+  // that setting (Adeline, 2026-09-12).
+  const setFanStep = async (step: AirconFanStep) => {
+    if (!entity) return;
+    if (activePowerState === "off") {
+      await setOn();
+    }
+    const fanMode = airconFanModeServiceValue(step);
+    const actions = airconFanStepActions({
+      entity,
+      quietSwitch,
+      remember: {
+        autoMode: false,
+        fanMode,
+        quietMode: step === "quiet",
+        turboMode: step === "turbo",
+      },
+      step,
+      turboSwitch,
+    });
+
+    // Choosing a fan speed by hand carries autoMode: false, so it leaves Auto —
+    // but only when it actually sends something, since the remember rides on the
+    // last action and a no-op change sends none.
+    if (actions.length) {
+      commandControl({ power: "manual" });
+    }
+
+    await callClimateActions(actions, onEntityActions, `Air Conditioner fan ${step}`);
+  };
+
+  // Fresh air is the exception: in Off it flips the switch and leaves the unit
+  // off (Adeline, 2026-09-12).
+  const freshAirOn = freshAirSwitch?.state === "on";
+  const toggleFreshAir = () =>
+    freshAirSwitch
+      ? callClimateActions(
+        [
+          {
+            entityId: freshAirSwitch.entity_id,
+            domain: "switch",
+            service: freshAirOn ? "turn_off" : "turn_on",
+          },
+        ],
+        onEntityActions,
+        `Air Conditioner fresh air ${freshAirOn ? "off" : "on"}`,
+      )
+      : Promise.resolve();
+
+  const setOffTimer = (offTimerEndsAt: string | null) => {
+    setLocalTimerEndsAt(offTimerEndsAt);
+    void saveAirconTimer(offTimerEndsAt).catch(() => {
+      setLocalTimerEndsAt(persistedTimerEndsAt);
+    });
+  };
+
+  /** The timer ring's value: 0 clears it, and anything else starts the unit. */
+  const setOffTimerMinutes = async (minutes: number) => {
+    if (minutes <= 0) {
+      setOffTimer(null);
+      return;
+    }
+    if (activePowerState === "off") {
+      await setOn();
+    }
+    setOffTimer(new Date(Date.now() + minutes * 60000).toISOString());
+  };
+
   return {
     activeMode,
     activePowerState,
     airconSettings,
     choosePowerState,
+    choosePowerStateAfterTaps,
     commandControl,
+    displayedPowerState,
     entityUnavailable,
+    fanStep,
+    freshAirOn,
+    freshAirSwitch,
     isControlOn,
+    offTimerEndsAt: localTimerEndsAt,
+    offTimerMinutes,
+    setFanStep,
     setMode,
+    setOffTimer,
+    setOffTimerMinutes,
     setSelectedTargetTemperature,
     setTemperature,
     supportedModes,
+    toggleFreshAir,
   };
 }
 
@@ -686,13 +925,86 @@ export function useBedroomHeaterCommands({
     });
   };
 
+  // ── The temperature knob (specs/temperature-encoder.md) ───────────────────
+
+  // The knob's lights move on the tap and the mode is saved once the taps
+  // settle, as on the air conditioner. The heater has two lights, Auto and Off.
+  const [pendingMode, setPendingMode] = useState<BedroomHeaterMode | null>(null);
+  const modeCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modeRunStartRef = useRef<BedroomHeaterMode | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (modeCommitTimerRef.current) {
+        clearTimeout(modeCommitTimerRef.current);
+      }
+    };
+  }, []);
+
+  const chooseModeAfterTaps = (next: BedroomHeaterMode) => {
+    if (modeRunStartRef.current === null) {
+      modeRunStartRef.current = mode;
+    }
+    setPendingMode(next);
+    if (modeCommitTimerRef.current) {
+      clearTimeout(modeCommitTimerRef.current);
+    }
+    modeCommitTimerRef.current = setTimeout(() => {
+      modeCommitTimerRef.current = null;
+      const from = modeRunStartRef.current;
+      modeRunStartRef.current = null;
+      setPendingMode(null);
+      if (next !== from) {
+        void chooseMode(next);
+      }
+    }, CLIMATE_MODE_COMMIT_DEBOUNCE_MS);
+  };
+
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+  const offTimerEndsAtMs = localTimerEndsAt ? new Date(localTimerEndsAt).getTime() : null;
+  const offTimerMinutes = offTimerEndsAtMs === null || !Number.isFinite(offTimerEndsAtMs)
+    ? 0
+    : Math.max(0, Math.ceil((offTimerEndsAtMs - timerNow) / 60000));
+
+  useEffect(() => {
+    if (offTimerEndsAtMs === null) {
+      return;
+    }
+
+    setTimerNow(Date.now());
+    const timer = window.setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [offTimerEndsAtMs]);
+
+  /** The timer ring's value: 0 clears it, and anything else starts the heater. */
+  const setOffTimerMinutes = async (minutes: number) => {
+    if (minutes <= 0) {
+      setOffTimer(null);
+      return;
+    }
+    if (mode === "off") {
+      await chooseMode("auto");
+    }
+    setOffTimer(new Date(Date.now() + minutes * 60000).toISOString());
+  };
+
   return {
     changeTarget,
     chooseMode,
+    chooseModeAfterTaps,
     localTimerEndsAt,
     mode,
+    /** What the knob's lights show: the tapped mode until it is saved. */
+    displayedMode: pendingMode ?? mode,
     /** The target to display: an unsaved tap while it is in flight, else the server's. */
     displayedTarget: pending?.target ?? target,
+    offTimerMinutes,
     setOffTimer,
+    setOffTimerMinutes,
   };
 }

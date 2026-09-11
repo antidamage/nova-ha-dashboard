@@ -17,16 +17,13 @@ import {
   CloudSnow,
   CloudSun,
   Flame,
-  Gauge,
-  Minus,
   Moon,
-  Plus,
   PowerOff,
   Sun,
   Wind,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type {
   AirconPreferences,
   BedroomHeaterPreferences,
@@ -37,20 +34,16 @@ import type {
   SunStatus,
   WeatherStatus,
 } from "../../../lib/types";
-import { BEDROOM_HEATER_MAX_TARGET_C, BEDROOM_HEATER_MIN_TARGET_C } from "../../../lib/bedroom-heater-control";
-import { airconAutoMeasuredTemperature, airconAutoSupported } from "../../../lib/aircon-control";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { AirconKnob, HeaterKnob } from "./ClimateKnobs";
 import { useClimateCardTitles, type EntityActionsHandler } from "./climateCommands";
-import { useSharedAirconCommands, useSharedBedroomHeaterCommands } from "./ClimateCommandsProvider";
 import { adaptiveCandlelightLabel } from "./lighting";
-import { airconStateLabel, heaterStateLabel, lightsOnLabel } from "./quickAccessModel";
+import { lightsOnLabel } from "./quickAccessModel";
 import {
   classNames,
   climateDevicesForZone,
   dashboardEntityIsOn,
-  formatTemperature,
   formatWeatherNumber,
-  temperatureDelta,
   weatherLabel,
   type BedroomHeaterDevices,
 } from "./shared";
@@ -58,16 +51,8 @@ import { useZoneLighting, type ZoneActionHandler } from "./useZoneLighting";
 import { ZoneColorEncoder } from "./ZoneControls";
 
 const QUICK_ENCODER_SIZE = 56;
-
-function Degrees({ value }: { value: number | null | undefined }) {
-  const shown = value ?? null;
-  return (
-    <>
-      {formatTemperature(shown)}
-      {shown === null ? null : <span className="quick-access-degree">&deg;</span>}
-    </>
-  );
-}
+/** The temperature knob's floor: it is unusable smaller (Adeline, 2026-09-12). */
+const QUICK_TEMPERATURE_SIZE = 100;
 
 function QuickSegment({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
   return (
@@ -118,85 +103,10 @@ function QuickButton({
 }
 
 /**
- * Target temperature with −/+ either side. Same stepping as the full cards'
- * `TemperatureStepper`: entity min/max via `temperatureDelta`, then any
- * caller-supplied Nova bounds on top.
+ * The climate segments' stepper, current-temperature readout and Auto/Off pair
+ * are gone: the temperature knob carries all three (Adeline, 2026-09-12,
+ * specs/temperature-encoder.md).
  */
-function QuickStepper({
-  current,
-  disabled,
-  entity,
-  label,
-  max,
-  min,
-  target,
-  onChange,
-}: {
-  /** Falls back to the room's measured temperature, as TemperatureStepper does. */
-  current?: number | null;
-  disabled?: boolean;
-  entity: DashboardEntity;
-  label: string;
-  max?: number;
-  min?: number;
-  target: number | null | undefined;
-  onChange: (temperature: number) => void;
-}) {
-  const [shown, setShown] = useState(target ?? null);
-
-  useEffect(() => {
-    setShown(target ?? null);
-  }, [target, entity.entity_id]);
-
-  const nudge = (delta: number) => {
-    if (disabled) return;
-    const stepped = temperatureDelta(entity, delta, 1, shown ?? target ?? current ?? 20);
-    const next = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, stepped));
-    if (next === shown) return;
-    setShown(next);
-    onChange(next);
-  };
-
-  return (
-    <div className={classNames("quick-stepper", disabled && "quick-stepper-disabled")}>
-      <MomentaryFeedbackButton
-        type="button"
-        className="quick-stepper-button border"
-        aria-label={`Lower ${label} target`}
-        disabled={disabled}
-        onClick={() => nudge(-1)}
-      >
-        <Minus className="h-4 w-4" aria-hidden="true" />
-      </MomentaryFeedbackButton>
-      <div className="quick-stepper-value" aria-live="polite">
-        <span className="quick-stepper-caption">Target</span>
-        <span className="quick-stepper-number">
-          <Degrees value={shown} />
-        </span>
-      </div>
-      <MomentaryFeedbackButton
-        type="button"
-        className="quick-stepper-button border"
-        aria-label={`Raise ${label} target`}
-        disabled={disabled}
-        onClick={() => nudge(1)}
-      >
-        <Plus className="h-4 w-4" aria-hidden="true" />
-      </MomentaryFeedbackButton>
-    </div>
-  );
-}
-
-function CurrentTemperature({ value }: { value: number | null | undefined }) {
-  return (
-    <div className="quick-current">
-      <span className="quick-stepper-caption">Now</span>
-      <span className="quick-current-number">
-        <Degrees value={value} />
-      </span>
-    </div>
-  );
-}
 
 /** The Home zone's single colour control plus Candlelight and Off. */
 export function QuickLightsSegment({
@@ -256,10 +166,16 @@ export function QuickLightsSegment({
   );
 }
 
-/** The lounge air conditioner reduced to Auto/Off, target, current and state. */
+/**
+ * The lounge air conditioner: the room's name and a 100px temperature knob
+ * (Adeline, 2026-09-12). The stepper, the state word and the Auto/Off buttons
+ * are all on the knob now — see specs/temperature-encoder.md. Its rings float
+ * over the page, so the tile is only as tall as the knob.
+ */
 export function QuickAirconSegment({
   climateControl,
   entity,
+  freshAirSwitch,
   preferences,
   quietSwitch,
   title,
@@ -268,57 +184,32 @@ export function QuickAirconSegment({
 }: {
   climateControl?: ClimateControlState;
   entity: DashboardEntity;
+  freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
   quietSwitch?: DashboardEntity;
   title: string;
   turboSwitch?: DashboardEntity;
   onEntityActions: EntityActionsHandler;
 }) {
-  const aircon = useSharedAirconCommands({
-    controlState: climateControl?.lounge,
-    entity,
-    preferences,
-    quietSwitch,
-    turboSwitch,
-    onEntityActions,
-  });
-  const autoSupported = airconAutoSupported(aircon.supportedModes);
-
   return (
     <QuickSegment className="quick-segment-climate" label={`${title} air conditioner`}>
-      <SegmentTitle title={title} state={airconStateLabel(entity, aircon.activePowerState)} />
-      <CurrentTemperature value={airconAutoMeasuredTemperature(entity)} />
-      <QuickStepper
-        current={airconAutoMeasuredTemperature(entity)}
-        disabled={aircon.entityUnavailable || !aircon.isControlOn}
+      <span className="quick-segment-title">{title}</span>
+      <AirconKnob
+        climateControl={climateControl?.lounge}
         entity={entity}
-        label={title}
-        target={aircon.airconSettings.temperature}
-        onChange={(next) => void aircon.setTemperature(next)}
+        freshAirSwitch={freshAirSwitch}
+        preferences={preferences}
+        quietSwitch={quietSwitch}
+        size={QUICK_TEMPERATURE_SIZE}
+        title={title}
+        turboSwitch={turboSwitch}
+        onEntityActions={onEntityActions}
       />
-      <div className="quick-button-pair">
-        <QuickButton
-          active={aircon.activePowerState === "auto"}
-          disabled={aircon.entityUnavailable || !autoSupported}
-          icon={Gauge}
-          label="Auto"
-          pressed={aircon.activePowerState === "auto"}
-          onClick={() => void aircon.choosePowerState("auto")}
-        />
-        <QuickButton
-          active={aircon.activePowerState === "off"}
-          disabled={aircon.entityUnavailable}
-          icon={PowerOff}
-          label="Off"
-          pressed={aircon.activePowerState === "off"}
-          onClick={() => void aircon.choosePowerState("off")}
-        />
-      </div>
     </QuickSegment>
   );
 }
 
-/** The bedroom heater reduced to Auto/Off, target, current and state. */
+/** The bedroom heater: the room's name and a 100px temperature knob. */
 export function QuickHeaterSegment({
   devices,
   preferences,
@@ -330,42 +221,18 @@ export function QuickHeaterSegment({
   title: string;
   onNotice?: (message: string) => void;
 }) {
-  const heater = useSharedBedroomHeaterCommands({ onNotice, preferences });
-  const switchEntity = devices.switchEntity;
-  const unavailable = ["unavailable", "unknown"].includes(switchEntity.state);
-
   return (
     <QuickSegment className="quick-segment-climate" label={`${title} heater`}>
-      <SegmentTitle title={title} state={heaterStateLabel(switchEntity, heater.mode)} />
-      <CurrentTemperature value={devices.temperature} />
-      <QuickStepper
-        current={devices.temperature}
-        disabled={unavailable || heater.mode === "off"}
-        entity={switchEntity}
-        label={title}
-        max={BEDROOM_HEATER_MAX_TARGET_C}
-        min={BEDROOM_HEATER_MIN_TARGET_C}
-        target={heater.displayedTarget}
-        onChange={(next) => void heater.changeTarget(next)}
+      <span className="quick-segment-title">{title}</span>
+      <HeaterKnob
+        humidity={devices.humidity}
+        preferences={preferences}
+        size={QUICK_TEMPERATURE_SIZE}
+        switchEntity={devices.switchEntity}
+        temperature={devices.temperature ?? null}
+        title={title}
+        onNotice={onNotice}
       />
-      <div className="quick-button-pair">
-        <QuickButton
-          active={heater.mode === "auto"}
-          disabled={unavailable}
-          icon={Gauge}
-          label="Auto"
-          pressed={heater.mode === "auto"}
-          onClick={() => void heater.chooseMode("auto")}
-        />
-        <QuickButton
-          active={heater.mode === "off"}
-          disabled={unavailable}
-          icon={PowerOff}
-          label="Off"
-          pressed={heater.mode === "off"}
-          onClick={() => void heater.chooseMode("off")}
-        />
-      </div>
     </QuickSegment>
   );
 }
@@ -452,7 +319,7 @@ export function QuickAccessCard({
   onNotice,
 }: QuickAccessCardProps) {
   const titles = useClimateCardTitles();
-  const { aircon, quietSwitch, turboSwitch } = climateDevicesForZone(climateZone);
+  const { aircon, freshAirSwitch, quietSwitch, turboSwitch } = climateDevicesForZone(climateZone);
   const heaterSwitch = bedroomHeater?.switchEntity;
 
   return (
@@ -468,6 +335,7 @@ export function QuickAccessCard({
           <QuickAirconSegment
             climateControl={climateControl}
             entity={aircon}
+            freshAirSwitch={freshAirSwitch}
             preferences={preferences?.aircon}
             quietSwitch={quietSwitch}
             title={titles.aircon}

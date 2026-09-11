@@ -12,6 +12,7 @@ import {
   type ColorEncoderChannel,
 } from "../components/ColorEncoder";
 import type { Hsva } from "../components/colorEncoderModel";
+import { DemoTemperatureDial } from "../components/TemperatureEncoderDemo";
 
 const RING_NAMES = ["Opacity", "Size", "Glow", "Speed", "Softness"];
 
@@ -113,6 +114,13 @@ export default function ColorEncoderRingsDemo() {
       <Section title="States">
         <DemoDial id="alpha" channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} label="Accent" rings={2} size={200} />
         <DemoDial id="disabled" disabled label="Lights" rings={3} size={200} />
+      </Section>
+
+      {/* Adeline, 2026-09-12: a sample temperature knob here as well as on its
+          own page, so the base's new rings can be seen beside the colour dial
+          they came from. Local state only. */}
+      <Section title="Temperature knob">
+        <DemoTemperatureDial id="sample" timerMinutes={38} />
       </Section>
     </main>
   );

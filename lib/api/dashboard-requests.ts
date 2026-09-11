@@ -211,6 +211,18 @@ export function parseAirconTimerUpdateRequest(value: unknown) {
   return { offTimerEndsAt: normalized };
 }
 
+/** A target the knob set with the unit off: remembered, never commanded. */
+export function parseAirconTargetUpdateRequest(value: unknown) {
+  const body = requestRecord(value);
+  const temperature = Number(body.temperature);
+
+  if (!Number.isFinite(temperature)) {
+    throw new Error("Aircon target temperature must be a number");
+  }
+
+  return { temperature };
+}
+
 export function isoTimestampFrom(value: unknown) {
   if (typeof value !== "string" && typeof value !== "number") {
     return undefined;

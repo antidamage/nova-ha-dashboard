@@ -7254,6 +7254,30 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 .rotary-encoder[data-mode="light"] .rotary-encoder-etch-face { fill: rgba(0, 0, 0, 0.46); }
 .rotary-encoder[data-mode="light"] .rotary-encoder-etch-cut { fill: rgba(0, 0, 0, 0.06); }
 .rotary-encoder[data-mode="light"] .rotary-encoder-etch-lip { fill: rgba(255, 255, 255, 0.95); }
+/* A climate card is its knob and nothing else (Adeline, 2026-09-12). The rings
+   float over the page, so the card reserves only the knob's own footprint. */
+.climate-knob-body {
+  display: flex;
+  justify-content: center;
+  padding-block: 12px;
+}
+
+/* ── TemperatureEncoder (specs/temperature-encoder.md) ────────────────────
+   The climate knob is the same dial with two temperatures on its face: the
+   target above the lights, large, and the room's own below them, small. Both
+   are etched like the caption, so no theme colour touches the knob. */
+.temperature-encoder .rotary-encoder-dial > .rotary-encoder-label.temperature-encoder-target {
+  font-size: clamp(14px, calc(var(--re-size) * 0.11), 24px);
+  letter-spacing: 0.04em;
+  text-indent: 0.04em;
+  text-transform: none;
+}
+
+.temperature-encoder .rotary-encoder-dial > .rotary-encoder-channel.temperature-encoder-room {
+  letter-spacing: 0.06em;
+  text-indent: 0.06em;
+}
+
 /* ColorEncoder placements (specs/color-encoder.md). */
 .zone-color-encoder {
   display: flex;
