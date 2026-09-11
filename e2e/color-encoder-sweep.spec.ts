@@ -153,6 +153,11 @@ async function sweep(page: Page, run: string) {
   let v = 100;
   let s = 100;
   const check = async (channel: string, h: number, label: string) => {
+    // The index shows the value: 0–100 channels sweep 7:30 → 12 → 4:30, hue is degrees.
+    const expectedAngle = channel === "hue" ? h : -135 + 2.7 * (channel === "saturation" ? s : v);
+    const shown = parseFloat(await angle(root));
+    const offTurn = ((((shown - expectedAngle) % 360) + 540) % 360) - 180;
+    expect(Math.abs(offTurn), `${label} index at ${shown}°, expected ${expectedAngle}° (mod 360)`).toBeLessThan(1);
     const expectedRing = hsvToRgb(h, s, v);
     expectClose(await sampleRing(page, root), expectedRing, RING_TOLERANCE, `${run} ring at ${label}`);
     const command = await lastCommand(page);
