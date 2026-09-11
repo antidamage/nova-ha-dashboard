@@ -91,6 +91,12 @@ SAMPLE_FRAMES = 25
 # an unattended session does not outlive the person who walked away.
 QUICK_IDLE_TIMEOUT_SECONDS = 900
 
+# A streamed capture stops at this many good frames; later stills are not
+# analysed. At most FRAME_STREAM_MAX_FRAMES stills are analysed per nonce — the
+# browser gives up after 5 s, so this only bounds a client that does not.
+STREAM_GOOD_FRAMES = 2
+FRAME_STREAM_MAX_FRAMES = 60
+
 
 @dataclass(frozen=True)
 class CaptureProfile:
@@ -105,6 +111,12 @@ class CaptureProfile:
     liveness: bool
     antispoof: bool
     single_image: bool = False
+    # Stills posted one at a time to /frame, held against the nonce as
+    # embeddings, and judged by /assert with no upload of its own. There is no
+    # clip, so the clip bounds never apply. The frames themselves are not kept,
+    # which is why a streamed profile can never run liveness or anti-spoof —
+    # both need pixels or a landmark track across a clip.
+    frame_stream: bool = False
     clip_min_seconds: float | None = None
     clip_max_seconds: float | None = None
     idle_timeout_seconds: int | None = None
@@ -118,13 +130,14 @@ class CaptureProfile:
 
 CAPTURE_PROFILES: dict[str, CaptureProfile] = {
     "standard": CaptureProfile(name="standard", liveness=True, antispoof=True),
-    # 0.4-2.0 s rather than exactly 1: MediaRecorder's actual clip length wanders
-    # either side of the timer it was stopped on, and a browser that delivered
-    # 0.93 s must not be refused for it.
+    # Two good stills, then stop (Adeline, 2026-09-11). Replaced a 1 s clip that
+    # a low-frame-rate webcam could not deliver: it was refused clip_too_short /
+    # clip_low_fps before a face was ever looked at. Either good frame may carry
+    # the match.
     "quick": CaptureProfile(
-        name="quick", liveness=False, antispoof=False,
-        clip_min_seconds=0.4, clip_max_seconds=2.0,
+        name="quick", liveness=False, antispoof=False, frame_stream=True,
         idle_timeout_seconds=QUICK_IDLE_TIMEOUT_SECONDS,
+        min_frames=STREAM_GOOD_FRAMES, min_agreeing=1,
     ),
     "image": CaptureProfile(
         name="image", liveness=False, antispoof=False, single_image=True,
@@ -150,6 +163,70 @@ def capture_profile(name: str | None) -> CaptureProfile:
     if profile is None:
         raise ValueError(f"unknown capture profile: {resolved!r}")
     return profile
+
+
+@dataclass
+class HeldStream:
+    """What /frame has gathered for one nonce: good detections and skip reasons."""
+
+    started: float
+    good: list = field(default_factory=list)
+    rejections: list[str] = field(default_factory=list)
+    analysed: int = 0
+
+
+class FrameHold:
+    """Per-nonce buffer for streamed stills, in memory only.
+
+    Holds detections (box, landmarks, embedding), never pixels. Entries are
+    dropped when /assert takes them, or by the sweep once they are older than
+    `ttl_seconds` — the nonce they belong to has expired by then, so nothing can
+    ever claim them.
+
+    Not thread-safe on its own; the service calls it from the event loop only.
+    """
+
+    def __init__(
+        self,
+        *,
+        good_needed: int = STREAM_GOOD_FRAMES,
+        max_frames: int = FRAME_STREAM_MAX_FRAMES,
+        ttl_seconds: float = 20.0,
+    ) -> None:
+        self.good_needed = good_needed
+        self.max_frames = max_frames
+        self.ttl_seconds = ttl_seconds
+        self._held: dict[str, HeldStream] = {}
+
+    def _sweep(self, now: float) -> None:
+        stale = [nonce for nonce, held in self._held.items() if now - held.started > self.ttl_seconds]
+        for nonce in stale:
+            del self._held[nonce]
+
+    def get(self, nonce: str, now: float) -> HeldStream:
+        self._sweep(now)
+        held = self._held.get(nonce)
+        if held is None:
+            held = self._held[nonce] = HeldStream(started=now)
+        return held
+
+    def complete(self, held: HeldStream) -> bool:
+        return len(held.good) >= self.good_needed
+
+    def exhausted(self, held: HeldStream) -> bool:
+        return held.analysed >= self.max_frames
+
+    def record(self, held: HeldStream, good: list, rejections: list[str]) -> None:
+        """Fold one analysed still in. Only the first `good_needed` good frames are kept."""
+
+        held.analysed += 1
+        held.rejections.extend(rejections)
+        room = self.good_needed - len(held.good)
+        if room > 0:
+            held.good.extend(good[:room])
+
+    def take(self, nonce: str) -> HeldStream | None:
+        return self._held.pop(nonce, None)
 
 # Control defaults, from the "Control thresholds" table in specs/face-auth.md.
 LOCKOUT_FAILURES = 5
@@ -474,6 +551,11 @@ def aggregate_frames(
         return None
     subject, matches = max(tally.items(), key=lambda item: len(item[1]))
     if len(matches) < min_agreeing:
+        return None
+    # Two subjects with the same count is no decision. It matters most where the
+    # vote is 1 of 2 (`quick`): frames naming two different people must not be
+    # settled by which one happened to be sampled first.
+    if sum(1 for items in tally.values() if len(items) == len(matches)) > 1:
         return None
     return FrameAggregate(
         subject=subject,

@@ -112,7 +112,7 @@ export function LoginPanel({
   const [signInBaseUrl, setSignInBaseUrl] = useState("");
 
   const capture = useFaceCapture(captureSpec);
-  const { openCamera, recordClip, secureContext, stopStream, videoRef } = capture;
+  const { openCamera, recordClip, secureContext, stopStream, streamFrames, videoRef } = capture;
   const liveRef = useRef(true);
   useEffect(() => {
     liveRef.current = true;
@@ -320,8 +320,8 @@ export function LoginPanel({
         return;
       }
 
-      // Nonce immediately before recording: it has a 20 s TTL, and the clip
-      // spends up to four seconds of that.
+      // Nonce immediately before capture: it has a 20 s TTL, and a standard
+      // clip spends four seconds of that, a streamed capture up to five.
       const challengeResponse = await fetch("/api/face/challenge", { method: "POST" });
       const challengeBody = await readJsonBody(challengeResponse);
       const nonce = typeof challengeBody?.nonce === "string" ? challengeBody.nonce : "";
@@ -342,12 +342,27 @@ export function LoginPanel({
           ? "Recording — blink and move naturally…"
           : "Look at the camera…",
       );
-      const { blob, field } = await recordClip();
-      if (!liveRef.current) return;
+      const form = new FormData();
+      if (captureSpec.streamGiveUpMs) {
+        // Streamed: stills go one at a time until the service holds two it can
+        // use, then the camera is released and `/assert` judges what it held.
+        // A give-up posts `/assert` anyway — the service names which frames it
+        // got and why the rest were skipped, and records the attempt.
+        const streamed = await streamFrames(nonce);
+        if (!liveRef.current) return;
+        stopStream();
+        if (streamed.reason) {
+          const detail = faceReasonDetail(streamed.reason, "That did not sign you in.");
+          fail(detail.message, detail.code);
+          return;
+        }
+      } else {
+        const { blob, field } = await recordClip();
+        if (!liveRef.current) return;
+        form.set(field, blob, field === "image" ? "frame.jpg" : "clip.webm");
+      }
       setNote("Checking…");
 
-      const form = new FormData();
-      form.set(field, blob, field === "image" ? "frame.jpg" : "clip.webm");
       form.set("nonce", nonce);
       form.set("challenge", webauthnValue);
       form.set("profile", captureSpec.profile);
@@ -403,7 +418,17 @@ export function LoginPanel({
         setNote(null);
       }
     }
-  }, [applyChallenge, captureSpec.profile, fail, openCamera, recordClip, start, stopStream]);
+  }, [
+    applyChallenge,
+    captureSpec.profile,
+    captureSpec.streamGiveUpMs,
+    fail,
+    openCamera,
+    recordClip,
+    start,
+    stopStream,
+    streamFrames,
+  ]);
 
   const backToPassword = useCallback(() => {
     stopStream();

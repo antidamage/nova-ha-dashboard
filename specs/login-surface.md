@@ -308,13 +308,56 @@ sign-in, so that path never relaxes.
 | profile | capture | liveness residual | anti-spoof | session |
 |---|---|---|---|---|
 | `standard` | 4 s clip | 0.012-0.080 | >= 0.85 | normal |
-| `quick` | 1 s clip | off | off | 15 min idle timeout |
+| `quick` | streamed stills until 2 good frames, 5 s give-up | off | off | 15 min idle timeout |
 | `image` | one still, first recognised frame wins | off | off | 15 min idle timeout |
 
-Recognition is identical on all three: `MATCH_COSINE` 0.42, `MATCH_MARGIN` 0.06,
-`MIN_AGREEING_FRAMES` 12 of the 25 evenly-sampled frames. `image` agrees on its
-single frame. The lockout and release-rate counters apply unchanged to every
-profile.
+Recognition thresholds are identical on all three: `MATCH_COSINE` 0.42,
+`MATCH_MARGIN` 0.06. The agreement vote differs only in how many frames it has:
+`standard` needs 12 of its 25 evenly-sampled frames; `quick` needs 1 of its 2
+good frames; `image` agrees on its single frame. The lockout and release-rate
+counters apply unchanged to every profile.
+
+### `quick`: two good frames, then stop
+
+Adeline, 2026-09-11. Replaces the 1 s clip, which ununhexium's webcam could not
+deliver: every attempt from it was refused `clip_too_short` or `clip_low_fps`
+before a face was looked at. *"Who cares about video feed quality"* — so
+`quick` records no clip and has no duration or frame-rate gate at all.
+
+1. The browser opens the camera and takes a nonce, as before.
+2. It grabs single JPEG stills from the live preview, one at a time, and posts
+   each to `POST /api/face/frame` (`nonce`, `image`). No fixed rate and no fixed
+   length — the next still goes as soon as the previous answer lands.
+3. The service judges each still with the same detection rules every profile
+   uses — one face, detection score >= 0.70, short side >= 96 px, framed
+   within the image. A still that passes is **good**; its embedding (never its
+   pixels) is held in memory against the nonce. A still that fails is skipped
+   and its reason noted. The first two good stills are the ones used; anything
+   after them is not analysed.
+4. As soon as the answer says two good frames are held, the browser releases
+   the camera and posts `/api/face/assert` with the nonce, the WebAuthn
+   challenge and `profile=quick`, and no upload.
+5. `/assert` spends the nonce, takes the held embeddings, and runs recognition:
+   **either** frame naming an enrolled person (0.42 / 0.06) is enough.
+6. If two good frames have not arrived **5 s after the preview shows its first
+   frame**, the browser stops sampling, releases the camera and posts
+   `/assert` anyway. With fewer than two good frames the service refuses with
+   the dominant skip reason (e.g. `face_too_small` → "Move closer to the
+   camera"), or `too_few_frames`, and writes the `attempts` row. That refusal
+   counts toward the lockout exactly as a refused clip did.
+
+Keeping on trying is the point, not a fallback: the kiosk camera is sometimes
+out of focus when it opens, and a stream that keeps sampling gives autofocus the
+time to settle, where a fixed clip judged whatever it caught.
+
+Limits: `/frame` is behind the same network and armed gates as `/assert`,
+refuses a spent or expired nonce (`nonce_invalid`), and analyses at most 60
+stills per nonce (`frame_limit` after that). Held embeddings are dropped when
+the nonce is spent or expires. Skipped stills write no `attempts` row and do not
+count toward the lockout — only the final `/assert` does.
+
+Anti-spoof stays off on `quick` (asked and confirmed 2026-09-11). The second
+good frame buys a second chance at recognition, not a photo check.
 
 ### Why the photo defences come off rather than down
 

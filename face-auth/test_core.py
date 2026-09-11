@@ -6,6 +6,8 @@ import numpy as np
 from core import (
     CAPTURE_PROFILES,
     QUICK_IDLE_TIMEOUT_SECONDS,
+    STREAM_GOOD_FRAMES,
+    FrameHold,
     capture_profile,
     gallery_scores,
     centroid,
@@ -238,6 +240,14 @@ class FrameAggregationTests(unittest.TestCase):
 
     def test_no_agreeing_frames_at_all_is_refused(self):
         self.assertIsNone(aggregate_frames([None] * 25))
+
+    def test_one_of_two_is_enough_for_quick(self):
+        result = aggregate_frames([Match("subject-a", 0.61, 0.20), None], min_agreeing=1)
+        self.assertEqual(result.subject, "subject-a")
+
+    def test_two_frames_naming_two_people_is_refused(self):
+        votes = [Match("subject-a", 0.61, 0.20), Match("subject-b", 0.60, 0.20)]
+        self.assertIsNone(aggregate_frames(votes, min_agreeing=1))
 
 
 class EnrolmentTests(unittest.TestCase):
@@ -666,28 +676,27 @@ class CaptureProfiles(unittest.TestCase):
             with self.subTest(profile=profile.name):
                 self.assertEqual(profile.idle_timeout_seconds, QUICK_IDLE_TIMEOUT_SECONDS)
 
-    def test_quick_accepts_a_one_second_clip_and_standard_does_not(self):
+    def test_quick_streams_two_good_frames_and_either_may_match(self):
+        # Adeline, 2026-09-11: take the first two good images, then sign in.
         quick = capture_profile("quick")
-        self.assertIsNone(
-            clip_bounds_reason(1.0, 30.0, min_seconds=quick.clip_min_seconds, max_seconds=quick.clip_max_seconds)
-        )
-        # The standard floor is what made a 1 s login impossible in the first
-        # place, and it stays that way.
-        self.assertEqual(clip_bounds_reason(1.0, 30.0), None if 1.0 >= 0.8 else "clip_too_short")
-        self.assertEqual(clip_bounds_reason(0.5, 30.0), "clip_too_short")
+        self.assertTrue(quick.frame_stream)
+        self.assertFalse(quick.single_image)
+        self.assertEqual(quick.min_frames, STREAM_GOOD_FRAMES)
+        self.assertEqual(STREAM_GOOD_FRAMES, 2)
+        self.assertEqual(quick.min_agreeing, 1)
 
-    def test_quick_tolerates_mediarecorder_drift_around_one_second(self):
-        # MediaRecorder does not stop exactly on the timer; 0.93 s and 1.4 s are
-        # both a "one second" capture as far as the browser is concerned.
-        quick = capture_profile("quick")
-        for duration in (0.93, 1.0, 1.4):
-            with self.subTest(duration=duration):
-                self.assertIsNone(
-                    clip_bounds_reason(
-                        duration, 30.0,
-                        min_seconds=quick.clip_min_seconds, max_seconds=quick.clip_max_seconds,
-                    )
-                )
+    def test_streamed_profiles_never_run_the_pixel_gates(self):
+        # Streamed stills are held as detections, not pixels, so there is
+        # nothing for anti-spoof to score or for liveness to track.
+        for profile in CAPTURE_PROFILES.values():
+            if profile.frame_stream:
+                with self.subTest(profile=profile.name):
+                    self.assertFalse(profile.liveness)
+                    self.assertFalse(profile.antispoof)
+
+    def test_standard_clip_floor_unchanged(self):
+        self.assertEqual(clip_bounds_reason(0.5, 30.0), "clip_too_short")
+        self.assertEqual(clip_bounds_reason(1.0, 10.0), "clip_low_fps")
 
     def test_image_can_be_decided_on_a_single_frame(self):
         # "Accepts the first image it recognises" is only possible if one frame
@@ -697,12 +706,41 @@ class CaptureProfiles(unittest.TestCase):
         self.assertEqual(image.min_frames, 1)
         self.assertEqual(image.min_agreeing, 1)
 
-    def test_clip_profiles_do_not_lower_the_frame_or_vote_floors(self):
-        # Only `image` may relax these. A 1 s clip still samples 25 frames, so
-        # `quick` has no reason to, and lowering them there would weaken
-        # recognition rather than liveness.
-        for name in ("standard", "quick"):
-            with self.subTest(profile=name):
-                profile = capture_profile(name)
-                self.assertIsNone(profile.min_frames)
-                self.assertIsNone(profile.min_agreeing)
+    def test_standard_does_not_lower_the_frame_or_vote_floors(self):
+        profile = capture_profile("standard")
+        self.assertIsNone(profile.min_frames)
+        self.assertIsNone(profile.min_agreeing)
+
+
+class FrameHoldTests(unittest.TestCase):
+    def test_keeps_only_the_first_two_good_frames(self):
+        hold = FrameHold(good_needed=2)
+        held = hold.get("n", 0.0)
+        hold.record(held, [], ["low_detection"])
+        self.assertFalse(hold.complete(held))
+        hold.record(held, ["a"], [])
+        hold.record(held, ["b"], [])
+        hold.record(held, ["c"], [])
+        self.assertTrue(hold.complete(held))
+        self.assertEqual(held.good, ["a", "b"])
+        self.assertEqual(held.rejections, ["low_detection"])
+        self.assertEqual(held.analysed, 4)
+
+    def test_take_removes_the_entry(self):
+        hold = FrameHold()
+        hold.record(hold.get("n", 0.0), ["a"], [])
+        self.assertEqual(hold.take("n").good, ["a"])
+        self.assertIsNone(hold.take("n"))
+
+    def test_expired_entries_are_swept(self):
+        hold = FrameHold(ttl_seconds=20.0)
+        hold.record(hold.get("old", 0.0), ["a"], [])
+        hold.get("new", 25.0)
+        self.assertIsNone(hold.take("old"))
+
+    def test_analysis_is_capped_per_nonce(self):
+        hold = FrameHold(max_frames=3)
+        held = hold.get("n", 0.0)
+        for _ in range(3):
+            hold.record(held, [], ["no_face"])
+        self.assertTrue(hold.exhausted(held))
