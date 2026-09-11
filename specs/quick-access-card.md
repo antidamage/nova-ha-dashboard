@@ -47,8 +47,11 @@ request was executed directly).
   - **<920px** (portrait, phone): one tile per row; a tile's own controls
     may wrap to a second line inside it.
   Never a horizontal scrollbar, never a segment cut in half.
-- Tile height is 84px, set by the colour encoder footprint (56px dial ×
-  1.244). A tile only grows past that when its controls wrap on a phone.
+- Tile height was 84px, set by the colour encoder footprint (56px dial ×
+  1.244). Since 2026-09-12 the climate tiles carry a 100px temperature knob,
+  so the row's height is that knob's footprint, about 124px. A tile only grows
+  past that when its controls wrap on a phone. The knob's rings float over the
+  page and take no layout space.
 - A segment whose device is absent in this home is **not rendered** (same rule
   as `ClimateControls`: no empty card for a room the home does not have).
 
@@ -88,7 +91,15 @@ outside lighting through `homeAssistant.everythingExcludedEntityIds`
 
 ## Climate segments (Lounge, Bedroom)
 
-Two separate segments, greatly reduced versions of the full cards. Each has
+**Superseded 2026-09-12 (Adeline):** each climate segment is now the **title
+plus a 100px `TemperatureEncoder`**, with the same rings as the full card
+floating over the page (`specs/temperature-encoder.md`). The current
+temperature, the state word, the − / + stepper and the Auto / Off buttons
+below are gone; the knob shows the target, the room temperature and the mode.
+The shared-hook rules in this section still apply. The original list is kept
+below as history.
+
+Two separate segments, greatly reduced versions of the full cards. Each had
 only:
 
 1. **Title** — from config (`dashboard.aircon.title`,

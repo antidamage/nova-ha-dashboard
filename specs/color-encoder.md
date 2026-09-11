@@ -17,20 +17,57 @@ filled with the resulting colour — that ring is the *entire* colour readout.
 There is no hex code, no RGB triplet, no numeric value anywhere on the
 control.
 
+## The shared base
+
+Adeline, 2026-09-12: everything generic in this control moved into a base,
+`RotaryEncoder`, so changes to the dial reach every knob built on it. The
+colour knob keeps its behaviour and its public API; the temperature knob
+(`specs/temperature-encoder.md`) is the second knob on the base. Plan:
+`~/.claude/plans/let-s-make-a-new-floofy-papert.md`.
+
+`RotaryEncoder` owns: the layers, the relative-angle drag and dead centre,
+fine mode, the index that shows the value (with its sweep), keyboard, clicks,
+light/dark self-detection and `knobSkin`, the disabled treatment, the rings,
+label fitting, and tuck-away. It knows nothing about colour. Its caller
+supplies:
+
+- **LEDs**: any number, each with an id and an accessible name. A tap cycles
+  them and wraps, as the three-light channel cycle always has.
+- **Face text**: a label slot above the LEDs and a caption slot below them,
+  each with its own font rule.
+- **The knob's value domain** for the active LED: `min`, `max`, optional
+  `step`, or `wrap` for a value with no ends. A bounded domain maps 7:30 →
+  4:30 over the top and turns at `(max − min) / 270°` per degree; a wrapped
+  one maps one turn to its range. `sensitivity` still overrides the rate.
+- **Colour-ring paint** (a CSS background) and **glow** (a box-shadow).
+- **Size limits**: `minSize` (default 50) to 200.
+
+`ColorEncoder` is a wrapper that maps HSVA onto the base: channels as LEDs,
+the channel caption, checkerboard plus colour paint, the brightness-keyed
+glow, the adoption rule under "Rounding", and the hidden form input.
+
+CSS *(decided)*: the base's classes are `.rotary-encoder*` and its custom
+properties `--re-*` (formerly `.color-encoder*`, `--ce-*` and `--rce-*`).
+Colour-only rules, such as the checkerboard, sit under the `.color-encoder`
+modifier class that `ColorEncoder` adds to the root. The rest of this spec
+still says `--ce-*` in places where it records history; read those as `--re-*`.
+
 Files:
 
 | | |
 |---|---|
-| `app/components/ColorEncoder.tsx` | the control |
+| `app/components/RotaryEncoder.tsx` | the shared dial |
+| `app/components/rotaryEncoderGeometry.ts` | ring geometry and pointer maths (formerly `colorEncoderGeometry.ts`) |
+| `app/components/ColorEncoder.tsx` | the colour wrapper |
 | `app/components/colorEncoderModel.ts` | HSVA maths + `ThemeColorValue` adapters |
-| `app/components/colorEncoderGeometry.ts` | ring geometry and pointer maths |
 | `app/color-encoder-rings/page.tsx` | the rings demo page, `/color-encoder-rings`; its "Ring fill follows the colour ring" row seeds distinct hues (and one in the light theme) so the fill can be checked against the ring |
-| `app/globals.css` | its styles, under `.color-encoder*` (this surface uses `globals.css`, not CSS modules) |
+| `app/globals.css` | its styles, under `.rotary-encoder*` (this surface uses `globals.css`, not CSS modules) |
 
 ## Geometry — everything derives from one number
 
 `--ce-size` is the knob diameter and the only scale input. Valid range
-**50px–200px**; the component clamps to it. 200px on the zone lighting card,
+**50px–200px** for the colour knob; the component clamps to it. The
+temperature knob's floor is 100px (Adeline, 2026-09-12). 200px on the zone lighting card,
 100px in config (Adeline, 2026-09-11: 50px was too small to use), 56px in the
 Quick Access card.
 
@@ -237,9 +274,85 @@ layout, but overriding those does not move the rings.
   reading left to right and upright, in font `F` with the caption's etched
   treatment. It is **left-aligned to where its ring's track starts** (7:30),
   not centred on 6 o'clock (Adeline, 2026-09-11), so every ring's label begins
-  on the same radius and they stack into a readable column. Name only: the thumb is the readout. A label
+  on the same radius and they stack into a readable column. A label
   longer than the gap's arc length, less half a track of clearance at each end,
   is cut and ends in three periods (not `…`, which reads as a dash at 10px).
+
+### Value on the right, and rings that shorten to fit
+
+Adeline, 2026-09-12.
+
+- A ring can carry `valueText`, drawn in the label's font and etched
+  treatment, **right-aligned so it ends where the ring's track ends**. A ring
+  shows a value only when its caller passes one; the config map rings keep
+  their label alone (Adeline).
+- **A ring shortens to fit.** Every ring still starts at 7:30. When the label
+  plus the ring's widest possible value (`valueTextWidest`, so the length
+  does not change as the value does) do not fit the bottom gap, the ring's
+  **end** is pulled back anticlockwise from 4:30 until they fit. The label
+  and value are at least `1.5 × F` apart, and the half-track clearance at
+  each end stays *(decided)*. The thumb's travel spans the shortened arc.
+- A ring never gets shorter than 180° (7:30 → 1:30) *(decided)*; past that,
+  the three-period cut applies to the label.
+- A `symmetric` ring never shortens and never shows a value.
+
+### Ring kinds
+
+- **`slider`** — everything above. The default.
+- **`selector`** — discrete stops spaced evenly across the arc (thumb
+  centres inset as for a slider). Tap to jump to the nearest stop, drag to
+  snap between stops. It **does not fill behind the thumb**: the caller gives
+  the whole track one fill colour for the current stop, or none, which leaves
+  an empty well. Arrows move one stop.
+- **`toggle`** — no thumb and no drag. A tap anywhere on the track toggles it,
+  and the whole track's fill fades in or out over **500ms**. Enter or Space
+  toggles it. It clicks once on press.
+
+## Tuck-away
+
+Adeline, 2026-09-12. Opt-in through `tuckAfterMs`; the temperature knob uses
+it, the colour knob does not.
+
+- A tuckable dial starts **locked**. Locked, it cannot be turned, its LEDs
+  do not cycle, and its rings are hidden. The face still shows everything the
+  caller puts on it.
+- **One tap unlocks it**: press and release with under 5px of travel
+  (`TAP_MOVE_THRESHOLD_PX`), held **60–400ms** (Adeline). A drag, a brush
+  across it, a glancing touch or a long hold does nothing. The unlocking tap
+  does nothing else.
+- It locks again **after `tuckAfterMs` (5000ms on the temperature knob)
+  without input**. Input means a pointer release on the dial or its rings, a
+  key, or a value change. It never locks while a pointer is down.
+- **A tap anywhere outside the dial and its rings locks it at once**, and the
+  tap still reaches whatever it landed on (Adeline).
+- Escape locks it. Enter or Space on a focused locked dial unlocks it
+  *(decided)*.
+- **Motion: the rings shrink in** (Adeline). Each ring's radius drops towards
+  the centre and it fades out, passing behind the knob. **Innermost hides
+  first, outermost last; on unlock, innermost appears first, outermost
+  last.** Each ring takes **450ms**, with **150ms** between rings, about 1s in
+  all (Adeline). Ease-in to hide, ease-out to show *(decided)*. Under
+  `prefers-reduced-motion` the rings only fade *(decided)*.
+
+### Floating rings
+
+When tuck-away is on, the rings float over the page instead of taking layout
+space (Adeline).
+
+- The dial's layout box is its footprint alone, `1.244 × size`, so locking
+  and unlocking never reflow the card around it.
+- The ring layer is portalled to `document.body` (the dashboard's dropdown
+  rule: a scrolling or clipped ancestor must not cut it off) and pinned over
+  the dial as the page scrolls, resizes or lays out again.
+- It sits **above other dashboard content and below the knob, the lighting
+  tint and modals**: z-index 9000 *(decided)*, under `.modal-overlay` (10000)
+  and `.lighting-tint-overlay` (2147483647).
+- The layer is clipped to an annulus starting at the dial's rim, so the knob
+  shows through it and stays tappable, and a shrinking ring disappears
+  behind it.
+- While unlocked, a **hidden annular blocker** covers the whole ring
+  footprint and swallows pointer events, so a tap between two rings never
+  reaches a control underneath. A tap on it counts as input.
 
 ### Ring interaction
 
@@ -640,6 +753,12 @@ deleted, along with its exports, README row and showcase card. Adeline,
   Chromium's real auto dark mode feature on; both must pass.
   `e2e/color-encoder-sweep.spec.ts`; `COLOR_ENCODER_SHOTS=<dir>` keeps the
   screenshots.
+- After the base split (2026-09-12) every item above still holds, the colour
+  knob's call sites are unchanged, and its unit tests, e2e specs and the sweep
+  pass with only their selectors renamed.
+- The base's new pieces — variable LED count, ring value text and shortening,
+  `selector` and `toggle` rings, tuck-away and floating rings — have unit
+  tests, and the sample temperature knob on `/color-encoder-rings` shows them.
 - An adversarial visual gauntlet passes: the control screenshotted at 50px,
   120px and 200px, in dark and light themes, in every channel state, with
   opacity at 100 and 40 — reviewed against this spec until a reviewer finds
