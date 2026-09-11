@@ -866,9 +866,14 @@ export function RotaryEncoder({
         const wholeTrackFill = kind === "toggle" ? (on ? ring.fill ?? null : null) : kind === "selector" ? ring.fill ?? null : null;
         // Innermost hides first and appears first; the outermost is last either
         // way (specs/color-encoder.md, "Tuck-away").
+        // Shrinking only as far as the knob's rim is a few percent on the
+        // innermost ring, which does not read as movement at all — so a ring
+        // travels well inside the rim, where the annulus clip hides it behind
+        // the knob.
+        const tucked = (geometry.dialRadius * 0.78) / radius;
         const collapse: CSSProperties = tuckable
           ? {
-            transform: locked ? `scale(${(geometry.dialRadius / radius).toFixed(3)})` : "scale(1)",
+            transform: locked ? `scale(${tucked.toFixed(3)})` : "scale(1)",
             opacity: locked ? 0 : 1,
             transitionDelay: `${index * TUCK_RING_STAGGER_MS}ms`,
           }

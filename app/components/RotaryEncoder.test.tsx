@@ -7,8 +7,10 @@ import {
   ARC_START,
   ARC_MIN_SPAN,
   LABEL_VALUE_CLEARANCE,
+  captionFont,
   ringEndFor,
   ringGeometry,
+  ringLabelFont,
   thumbAngle,
   fractionAt,
   gapLength,
@@ -206,6 +208,31 @@ describe("a ring's value", () => {
     }];
     const { container } = render(<Dial rings={rings} />);
     expect(container.querySelectorAll(".rotary-encoder-ring-value")).toHaveLength(0);
+  });
+});
+
+describe("the ring label font", () => {
+  it("shrinks on a dial with four or more rings, without moving the rings", () => {
+    const three = ringGeometry(200, 3);
+    const four = ringGeometry(200, 4);
+    expect(three.font).toBe(14);
+    // 11px at 200px: the pitch less 6, so neighbouring labels clear each other.
+    expect(four.font).toBe(11);
+    expect(four.pitch).toBe(three.pitch);
+    expect(four.track).toBe(three.track);
+  });
+
+  it("never shrinks past the 10px floor", () => {
+    for (const size of [100, 120, 150, 200]) {
+      expect(ringGeometry(size, 5).font).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it("leaves a dial with three rings or fewer exactly as it was", () => {
+    for (const size of [56, 100, 200]) {
+      expect(ringGeometry(size, 3).font).toBe(ringLabelFont(size, 3, ringGeometry(size, 3).pitch));
+      expect(ringGeometry(size, 3).font).toBe(captionFont(size));
+    }
   });
 });
 

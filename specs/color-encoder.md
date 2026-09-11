@@ -232,7 +232,7 @@ type ColorEncoderRing = {
 
 | Quantity | Value |
 |---|---|
-| Label font `F` | `clamp(10px, 0.075 × S, 14px)` — the caption rule |
+| Label font `F` | `clamp(10px, 0.075 × S, 14px)` — the caption rule; **on a dial with four or more rings, `clamp(10px, P − 6, caption)`** (Adeline, 2026-09-12) |
 | Ring pitch `P` | `max(0.085 × S, F + 2px)` |
 | Track thickness `T` | `P × 6 / 8.5` — 6% of `S` when the pitch is proportional |
 | Gap `G` | `P − T` — 2.5% of `S` when proportional |
@@ -242,7 +242,17 @@ type ColorEncoderRing = {
 The pitch floor exists because a curved label is `F` tall and sits on its
 ring's centreline: with a proportional pitch, a 100px dial puts rings 8.5px
 apart while the label font is pinned at its 10px floor, and neighbouring
-labels would overlap. Rings keep their 6 : 2.5 track-to-gap proportion and
+labels would overlap.
+
+**Four labels in one gap shrink instead of spreading.** Adeline, 2026-09-12,
+after an adversarial review of the temperature knob: at 200px the pitch is
+17px against a 14px caption, so four curved labels sat 3px apart and read as a
+block rather than a column. On a dial with four or more rings the label font
+drops to `P − 6` (11px at 200px, a 6px gap), never below the 10px floor. The
+**pitch is unchanged** — it is measured against the caption, not the label
+font, so a fourth ring never pulls the rings closer together, and the knob
+keeps its size. Her call over spacing the rings further apart, which would have
+widened the control. Rings keep their 6 : 2.5 track-to-gap proportion and
 grow relatively thicker below 200px.
 
 Ring geometry is computed from `size` in `app/components/colorEncoderGeometry.ts`,
