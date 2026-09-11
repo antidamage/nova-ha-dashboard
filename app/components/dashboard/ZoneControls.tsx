@@ -126,7 +126,7 @@ export function ZoneColorEncoder({
         ariaLabel="Zone lights"
         defaultChannel="brightness"
         demoTooltipTitle="Lights"
-        demoTooltip="Tap to switch between brightness, saturation and hue. Drag right or up to turn it up."
+        demoTooltip="Tap to switch between brightness, saturation and hue. Turn it like a knob."
         disabled={disabled}
         label={label}
         size={size}

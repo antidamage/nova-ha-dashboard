@@ -78,6 +78,7 @@ import {
   CheckboxRow,
   ColorEncoderPanel,
   ColorWidget,
+  type ColorEncoderRingSpec,
   ConfigAccordion,
   SliderControlPanel,
 } from "./ConfigControls";
@@ -344,80 +345,6 @@ function WaterToggle({
   );
 }
 
-function MapLabelSizeControl({
-  color,
-  onCommit,
-  onPreview,
-  value,
-}: {
-  color: [number, number, number];
-  onCommit: (value: number) => void;
-  onPreview: (value: number) => void;
-  value: number;
-}) {
-  const labelSize = clamp(Math.round(Number(value)), MAP_LABEL_SIZE_MIN, MAP_LABEL_SIZE_MAX);
-
-  return (
-    <SliderControlPanel
-      activeColor={color}
-      ariaLabel="Map label size"
-      ariaValueText={`${labelSize}%`}
-      color={color}
-      label="Label Size"
-      max={MAP_LABEL_SIZE_MAX}
-      min={MAP_LABEL_SIZE_MIN}
-      step={50}
-      value={labelSize}
-      valueText={`${labelSize}%`}
-      onPreview={onPreview}
-      onCommit={onCommit}
-      markers={[
-        { active: labelSize === MAP_LABEL_SIZE_MIN, label: "Min", value: MAP_LABEL_SIZE_MIN },
-        { active: labelSize === MAP_LABEL_SIZE_DEFAULT, label: "Default", value: MAP_LABEL_SIZE_DEFAULT },
-        { active: labelSize === MAP_LABEL_SIZE_MAX, label: "Max", value: MAP_LABEL_SIZE_MAX },
-      ]}
-    />
-  );
-}
-
-function BuildingOpacityControl({
-  highColor,
-  lowColor,
-  onCommit,
-  onPreview,
-  value,
-}: {
-  highColor: [number, number, number];
-  lowColor: [number, number, number];
-  onCommit: (value: number) => void;
-  onPreview: (value: number) => void;
-  value: number;
-}) {
-  const opacity = clamp(Math.round(Number(value)), MAP_BUILDING_OPACITY_MIN, MAP_BUILDING_OPACITY_MAX);
-
-  return (
-    <SliderControlPanel
-      activeColor={highColor}
-      ariaLabel="Building opacity"
-      ariaValueText={`${opacity}%`}
-      color={lowColor}
-      dotOpacity={opacity / 100}
-      label="Building Opacity"
-      max={MAP_BUILDING_OPACITY_MAX}
-      min={MAP_BUILDING_OPACITY_MIN}
-      step={1}
-      value={opacity}
-      valueText={`${opacity}%`}
-      onPreview={onPreview}
-      onCommit={onCommit}
-      markers={[
-        { active: opacity === MAP_BUILDING_OPACITY_DEFAULT, label: "Default", value: MAP_BUILDING_OPACITY_DEFAULT },
-        { active: opacity === MAP_BUILDING_OPACITY_MAX, label: "Max", value: MAP_BUILDING_OPACITY_MAX },
-      ]}
-    />
-  );
-}
-
 function TitleToneControl({
   accentColor,
   highlightColor,
@@ -499,39 +426,6 @@ function RadarPaletteModeControl({
 // FontSelect + the reusable FontControl now live in ./FontControl so the gym readout
 // and other panels can share them (and the font list's alphabetical-with-current-first
 // sorting lives in one place).
-
-function RadarOpacityControl({
-  highColor,
-  lowColor,
-  value,
-  onCommit,
-  onPreview,
-}: {
-  highColor: [number, number, number];
-  lowColor: [number, number, number];
-  value: number;
-  onCommit: (value: number) => void;
-  onPreview: (value: number) => void;
-}) {
-  const opacity = normalizeRadarOpacity(value);
-
-  return (
-    <SliderControlPanel
-      activeColor={highColor}
-      ariaLabel="Radar overlay opacity"
-      ariaValueText={`${opacity}%`}
-      color={lowColor}
-      label="Radar Opacity"
-      max={RADAR_OPACITY_MAX}
-      min={RADAR_OPACITY_MIN}
-      step={1}
-      value={opacity}
-      valueText={`${opacity}%`}
-      onPreview={(nextValue) => onPreview(nextValue)}
-      onCommit={(nextValue) => onCommit(nextValue)}
-    />
-  );
-}
 
 function TaskGlowIntensityControl({
   color,
@@ -1450,9 +1344,6 @@ export function AccentConfig({
   const accentRgb = appliedThemeRgb(theme.accent);
   const highlightRgb = appliedThemeRgb(theme.highlight);
   const borderRgb = appliedThemeRgb(theme.border.color);
-  const buildingLowRgb = appliedThemeRgb(theme.map.buildingLow);
-  const buildingHighRgb = appliedThemeRgb(theme.map.buildingHigh);
-  const labelRgb = appliedThemeRgb(theme.map.labels);
   const waterRgb = appliedThemeRgb(theme.map.water);
   const radarLowRgb = appliedThemeRgb(theme.map.radarLow);
   const radarHighRgb = appliedThemeRgb(theme.map.radarHigh);
@@ -1697,11 +1588,55 @@ export function AccentConfig({
     };
   }, [stopTaskAudioPreview]);
 
+  /**
+   * A map slot's extra slider, as a ring round its dial
+   * (specs/color-encoder.md, "The map colour slots carry their sliders as
+   * rings"). Buildings and radar share one value between their Low and High
+   * slots: both dials carry the ring and either one moves it.
+   */
+  const ringsForSlot = (slot: ThemeSlotChoice["slot"]): ColorEncoderRingSpec[] | undefined => {
+    if (slot === "map.labels") {
+      return [{
+        id: "map-label-size",
+        label: "Label Size",
+        value: clamp(Math.round(Number(theme.mapLabelSize)), MAP_LABEL_SIZE_MIN, MAP_LABEL_SIZE_MAX),
+        min: MAP_LABEL_SIZE_MIN,
+        max: MAP_LABEL_SIZE_MAX,
+        step: 50,
+        onChange: (mapLabelSize) => setTheme({ ...theme, mapLabelSize }, { persist: false }),
+        onCommit: (mapLabelSize) => setTheme({ ...theme, mapLabelSize }),
+      }];
+    }
+    if (slot === "map.buildingLow" || slot === "map.buildingHigh") {
+      return [{
+        id: "map-building-opacity",
+        label: "Building Opacity",
+        value: clamp(Math.round(Number(theme.mapBuildingOpacity)), MAP_BUILDING_OPACITY_MIN, MAP_BUILDING_OPACITY_MAX),
+        min: MAP_BUILDING_OPACITY_MIN,
+        max: MAP_BUILDING_OPACITY_MAX,
+        step: 1,
+        onChange: (mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity }, { persist: false }),
+        onCommit: (mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity }),
+      }];
+    }
+    if (slot === "map.radarLow" || slot === "map.radarHigh") {
+      return [{
+        id: "map-radar-opacity",
+        label: "Radar Opacity",
+        value: normalizeRadarOpacity(theme.radarOpacity ?? RADAR_OPACITY_DEFAULT),
+        min: RADAR_OPACITY_MIN,
+        max: RADAR_OPACITY_MAX,
+        step: 1,
+        onChange: (radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) }, { persist: false }),
+        onCommit: (radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) }),
+      }];
+    }
+    return undefined;
+  };
+
   const renderWidget = (choice: ThemeSlotChoice) => {
     const value = themeColorForSlot(theme, choice.slot);
     const rgb = choice.slot === "border" ? borderRgb : appliedThemeRgb(value);
-    const isBuilding = choice.slot === "map.buildingLow" || choice.slot === "map.buildingHigh";
-    const isLabels = choice.slot === "map.labels";
     const isWater = choice.slot === "map.water";
     return (
       <ColorWidget
@@ -1727,26 +1662,10 @@ export function AccentConfig({
           label={choice.label}
           value={value}
           opacity={slotOpacity(choice.slot)}
+          rings={ringsForSlot(choice.slot)}
           onPreview={(nextValue, opacity) => updateSlotColorAndOpacity(choice.slot, nextValue, opacity, { persist: false })}
           onCommit={(nextValue, opacity) => updateSlotColorAndOpacity(choice.slot, nextValue, opacity)}
         />
-        {isLabels ? (
-          <MapLabelSizeControl
-            color={labelRgb}
-            value={theme.mapLabelSize}
-            onPreview={(mapLabelSize) => setTheme({ ...theme, mapLabelSize }, { persist: false })}
-            onCommit={(mapLabelSize) => setTheme({ ...theme, mapLabelSize })}
-          />
-        ) : null}
-        {isBuilding ? (
-          <BuildingOpacityControl
-            lowColor={buildingLowRgb}
-            highColor={buildingHighRgb}
-            value={theme.mapBuildingOpacity}
-            onPreview={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity }, { persist: false })}
-            onCommit={(mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity })}
-          />
-        ) : null}
         {choice.slot === "voiceTranscript.text" ? (
           <>
             <SliderControlPanel
@@ -2126,13 +2045,6 @@ export function AccentConfig({
                 value={theme.radarPaletteMode}
                 onPreview={(radarPaletteMode) => setTheme({ ...theme, radarPaletteMode }, { persist: false })}
                 onCommit={(radarPaletteMode) => setTheme({ ...theme, radarPaletteMode })}
-              />
-              <RadarOpacityControl
-                lowColor={radarLowRgb}
-                highColor={radarHighRgb}
-                value={theme.radarOpacity ?? RADAR_OPACITY_DEFAULT}
-                onPreview={(radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) }, { persist: false })}
-                onCommit={(radarOpacity) => setTheme({ ...theme, radarOpacity: normalizeRadarOpacity(radarOpacity) })}
               />
               {theme.radarPaletteMode === "custom" ? (
                 <div className="theme-widget-flow">

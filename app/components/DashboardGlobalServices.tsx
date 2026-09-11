@@ -30,7 +30,7 @@ export function DashboardGlobalServices({
 
   if (pathname === "/phonoscope-debug") return null;
 
-  // The RingedColorEncoder demo (specs/color-encoder-rings.md) is a control
+  // The colour-encoder rings demo (specs/color-encoder.md) is a control
   // bench: the orb would sit over the dials and the first-run modal over the
   // page. It keeps the haptics, since how the dials click is part of the demo.
   // Demo-mode builds add a trailing slash.

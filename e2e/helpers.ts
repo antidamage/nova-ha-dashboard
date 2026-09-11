@@ -84,7 +84,9 @@ export async function gotoDashboard(
   await seedReminderBanners(page, options.reminderBanners ?? false);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByLabel(/avatar$/)).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+  // The zones panel itself, not its "Zones" heading: the landscape layout
+  // hides that heading, so waiting on it hung every test at these viewports.
+  await expect(page.locator(".zones-panel")).toBeVisible();
   if (options.neutralizeAlerts !== false) await neutralizeTaskAlerts(page);
 }
 

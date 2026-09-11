@@ -3,8 +3,8 @@ import fs from "fs";
 import path from "path";
 import { expectNoConsoleErrors, seedExperienceMode, watchConsole } from "./helpers";
 
-// RingedColorEncoder on its demo page, measured in a real browser against
-// specs/color-encoder-rings.md. Setting COLOR_ENCODER_SHOTS to a directory
+// ColorEncoder on its demo page, measured in a real browser against
+// specs/color-encoder.md. Setting COLOR_ENCODER_SHOTS to a directory
 // also writes the screenshots the visual gauntlet reviews.
 const SHOTS = process.env.COLOR_ENCODER_SHOTS;
 
@@ -18,11 +18,11 @@ async function openDemo(page: Page) {
   // Without a stored choice the first-run experience-mode dialog covers the page.
   await seedExperienceMode(page);
   await page.goto("/color-encoder-rings/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator('[data-demo-dial="count-5"] .ringed-encoder-rings')).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[data-demo-dial="count-5"] .color-encoder-rings')).toBeVisible({ timeout: 30_000 });
 }
 
 function dial(page: Page, id: string) {
-  return page.locator(`[data-demo-dial="${id}"] .ringed-encoder`);
+  return page.locator(`[data-demo-dial="${id}"] .color-encoder`);
 }
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -44,22 +44,22 @@ function expected(size: number, rings: number) {
   return { font, pitch, track, radii, dialRadius };
 }
 
-test.describe("RingedColorEncoder demo", () => {
+test.describe("ColorEncoder demo", () => {
   test("draws 0–5 rings with the dial dead centre and the label above the lights", async ({ page }) => {
     const console = watchConsole(page);
     await openDemo(page);
     for (const rings of [0, 1, 2, 3, 4, 5]) {
       const root = dial(page, `count-${rings}`);
-      await expect(root.locator(".ringed-encoder-ring-slider")).toHaveCount(rings);
+      await expect(root.locator(".color-encoder-ring-slider")).toHaveCount(rings);
       const whole = await box(root);
-      const knob = await box(root.locator(".ringed-encoder-knob"));
+      const knob = await box(root.locator(".color-encoder-knob"));
       expect(Math.abs(knob.width - 200)).toBeLessThanOrEqual(2);
       expect(Math.abs(whole.x + whole.width / 2 - (knob.x + knob.width / 2))).toBeLessThanOrEqual(1);
       expect(Math.abs(whole.y + whole.height / 2 - (knob.y + knob.height / 2))).toBeLessThanOrEqual(1);
 
-      const label = await box(root.locator(".ringed-encoder-label"));
-      const leds = await box(root.locator(".ringed-encoder-leds"));
-      const caption = await box(root.locator(".ringed-encoder-channel"));
+      const label = await box(root.locator(".color-encoder-label"));
+      const leds = await box(root.locator(".color-encoder-leds"));
+      const caption = await box(root.locator(".color-encoder-channel"));
       // Mirrors the caption: as far above the lights as the caption is below.
       const above = leds.y - (label.y + label.height);
       const below = caption.y - (leds.y + leds.height);
@@ -68,7 +68,7 @@ test.describe("RingedColorEncoder demo", () => {
       // Same font as the caption.
       const sizes = await root.evaluate((element) => {
         const read = (selector: string) => getComputedStyle(element.querySelector(selector)!).fontSize;
-        return [read(".ringed-encoder-label"), read(".ringed-encoder-channel")];
+        return [read(".color-encoder-label"), read(".color-encoder-channel")];
       });
       expect(sizes[0]).toBe(sizes[1]);
       await shot(root, `count-${rings}`);
@@ -82,10 +82,10 @@ test.describe("RingedColorEncoder demo", () => {
       const root = dial(page, `size-${size}`);
       const geometry = expected(size, 5);
       const measured = await root.evaluate((element) => {
-        const svg = element.querySelector("svg.ringed-encoder-rings") as SVGSVGElement;
+        const svg = element.querySelector("svg.color-encoder-rings") as SVGSVGElement;
         const box = svg.getBoundingClientRect();
         const cy = box.top + box.height / 2;
-        const wells = Array.from(svg.querySelectorAll<SVGPathElement>(".ringed-encoder-well")).map((well) => ({
+        const wells = Array.from(svg.querySelectorAll<SVGPathElement>(".color-encoder-well")).map((well) => ({
           width: Number(well.getAttribute("stroke-width")),
           // A path's box is its geometry without the stroke, so the top of each
           // arc sits its centreline radius above the centre.
@@ -94,7 +94,7 @@ test.describe("RingedColorEncoder demo", () => {
         // Each glyph's centre, as a radius and a clockwise-from-12 angle about
         // the dial centre, in the SVG's own units.
         const centre = svg.viewBox.baseVal.width / 2;
-        const labels = Array.from(svg.querySelectorAll<SVGTextElement>(".ringed-encoder-etch-face")).map((text) => {
+        const labels = Array.from(svg.querySelectorAll<SVGTextElement>(".color-encoder-etch-face")).map((text) => {
           const glyphs = [];
           for (let index = 0; index < text.getNumberOfChars(); index += 1) {
             const extent = text.getExtentOfChar(index);
@@ -131,7 +131,7 @@ test.describe("RingedColorEncoder demo", () => {
   test("dragging a thumb round the arc moves only that ring, and pins in the gap", async ({ page }) => {
     await openDemo(page);
     const root = dial(page, "count-3");
-    const svg = root.locator("svg.ringed-encoder-rings");
+    const svg = root.locator("svg.color-encoder-rings");
     const frame = await box(svg);
     const cx = frame.x + frame.width / 2;
     const cy = frame.y + frame.height / 2;
@@ -164,7 +164,7 @@ test.describe("RingedColorEncoder demo", () => {
     await expect(dial(page, "count-5")).toHaveAttribute("data-mode", "dark");
     // The lit light keeps its white fill in light mode; unlit ones are dark.
     const fills = await dial(page, "light-5").evaluate((element) =>
-      Array.from(element.querySelectorAll<HTMLElement>(".ringed-encoder-led")).map((led) => ({
+      Array.from(element.querySelectorAll<HTMLElement>(".color-encoder-led")).map((led) => ({
         lit: led.dataset.lit === "true",
         image: getComputedStyle(led).backgroundImage,
       })));
@@ -173,7 +173,7 @@ test.describe("RingedColorEncoder demo", () => {
 
     // A disabled control dims each ring once, to 45%, not 45% of 45%.
     const opacity = await dial(page, "disabled").evaluate((element) => {
-      const ring = element.querySelector(".ringed-encoder-ring-slider") as Element;
+      const ring = element.querySelector(".color-encoder-ring-slider") as Element;
       let total = 1;
       for (let node: Element | null = ring; node && node !== element.parentElement; node = node.parentElement) {
         total *= Number(getComputedStyle(node).opacity);

@@ -1,6 +1,6 @@
 /**
- * Ring geometry and pointer maths for `RingedColorEncoder`
- * (specs/color-encoder-rings.md, "Geometry" and "Interaction").
+ * Ring geometry and pointer maths for `ColorEncoder`'s slider rings
+ * (specs/color-encoder.md, "Rings — the arc sliders").
  *
  * Angles are clockwise degrees from 12 o'clock, the convention the dial's index
  * already uses. Every length is in px and derives from the knob diameter.

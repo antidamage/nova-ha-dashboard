@@ -52,6 +52,32 @@ async function expectGeometry(root: Locator, size: number) {
   expect(Math.abs(rowCentre - (knob.x + knob.width / 2))).toBeLessThanOrEqual(1);
 }
 
+/**
+ * Turns a dial by `degrees`: press on the knob, sweep about its centre,
+ * release. The knob is relative, so where the press lands does not matter —
+ * only the angle swept (specs/color-encoder.md, "Interaction").
+ */
+async function turnDial(page: Page, dial: Locator, degrees: number) {
+  const measured = await box(dial);
+  const cx = measured.x + measured.width / 2;
+  const cy = measured.y + measured.height / 2;
+  const grip = (measured.width / 2) * 0.7;
+  const at = (angle: number): [number, number] => {
+    const radians = (angle * Math.PI) / 180;
+    return [cx + grip * Math.sin(radians), cy - grip * Math.cos(radians)];
+  };
+  await page.mouse.move(...at(0));
+  await page.mouse.down();
+  const steps = Math.max(3, Math.ceil(Math.abs(degrees) / 30));
+  for (let step = 1; step <= steps; step += 1) await page.mouse.move(...at((degrees * step) / steps));
+  await page.mouse.up();
+}
+
+/** Degrees of turn that move a 0–100 channel by `percent`. */
+function degreesFor(percent: number) {
+  return percent * 2.7;
+}
+
 async function setSize(root: Locator, size: number) {
   await root.evaluate((element, px) => {
     (element as HTMLElement).style.setProperty("--ce-size", `${px}px`);
@@ -119,9 +145,10 @@ test.describe("colour encoder", () => {
     await shot(root, "zone-hover");
 
     const dialBox = await box(dial);
-    await page.mouse.move(dialBox.x + dialBox.width / 2, dialBox.y + dialBox.height / 2);
+    const grip = (dialBox.width / 2) * 0.7;
+    await page.mouse.move(dialBox.x + dialBox.width / 2, dialBox.y + dialBox.height / 2 - grip);
     await page.mouse.down();
-    await page.mouse.move(dialBox.x + dialBox.width / 2 + 30, dialBox.y + dialBox.height / 2, { steps: 3 });
+    await page.mouse.move(dialBox.x + dialBox.width / 2 + grip, dialBox.y + dialBox.height / 2, { steps: 3 });
     expect(await knobImage()).toBe(atRest);
     await shot(root, "zone-pressed");
     await page.mouse.up();
@@ -145,13 +172,7 @@ test.describe("colour encoder", () => {
     const ledsBefore = await transform(".color-encoder-leds");
     const rotorBefore = await transform(".color-encoder-rotor");
 
-    const dialBox = await box(dial);
-    const x = dialBox.x + dialBox.width / 2;
-    const y = dialBox.y + dialBox.height / 2;
-    await page.mouse.move(x, y);
-    await page.mouse.down();
-    await page.mouse.move(x + 90, y, { steps: 9 });
-    await page.mouse.up();
+    await turnDial(page, dial, 45);
 
     expect(await transform(".color-encoder-rotor")).not.toBe(rotorBefore);
     expect(await transform(".color-encoder-knob")).toBe(knobBefore);
@@ -198,11 +219,7 @@ test.describe("colour encoder", () => {
     for (let index = 0; index < 3; index += 1) await dial.click();
     await expect(dial).toHaveAttribute("data-channel", "alpha");
     const before = Number(await dial.getAttribute("aria-valuenow"));
-    const dialBox = await box(dial);
-    await page.mouse.move(dialBox.x + dialBox.width / 2, dialBox.y + dialBox.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(dialBox.x + dialBox.width / 2 + (40 - before) * 3, dialBox.y + dialBox.height / 2, { steps: 20 });
-    await page.mouse.up();
+    await turnDial(page, dial, degreesFor(40 - before));
     await expect.poll(async () => Number(await dial.getAttribute("aria-valuenow"))).toBe(40);
     const ringColour = await border.locator(".color-encoder-ring").evaluate((node) => getComputedStyle(node).backgroundColor);
     expect(ringColour).toMatch(/rgba\(.*, 0\.\d+\)/);
