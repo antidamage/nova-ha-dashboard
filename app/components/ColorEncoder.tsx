@@ -49,8 +49,27 @@ const SENSITIVITY: Record<ColorEncoderChannel, number> = {
   alpha: 1 / 3,
 };
 
-/** Degrees the rotor turns per pixel of signed drag. Visual only. */
-const DEGREES_PER_PX = 0.5;
+/**
+ * Where the index points for a 0–100 channel: 0 at 7:30, 100 at 4:30, over the
+ * top (Adeline, 2026-09-11). Clockwise degrees from 12 o'clock.
+ */
+const BOUNDED_ANGLE_START = -135;
+const BOUNDED_ANGLE_SPAN = 270;
+
+/**
+ * The index angle a channel's value calls for, before any whole turns are
+ * added. Hue reads straight off as degrees, so one turn is one trip round the
+ * wheel; the rest sweep 7:30 → 12 → 4:30.
+ */
+function indexAngle(value: Hsva, channel: ColorEncoderChannel) {
+  if (channel === "hue") return value.h;
+  return BOUNDED_ANGLE_START + (BOUNDED_ANGLE_SPAN * channelValue(value, channel)) / 100;
+}
+
+/** `target` plus the whole turns that land it nearest `from`: the short way round. */
+function nearestTurn(target: number, from: number) {
+  return target + 360 * Math.round((from - target) / 360);
+}
 
 /** Shift or Alt makes every channel this much finer. */
 const FINE_DIVISOR = 8;
@@ -208,8 +227,8 @@ export function ColorEncoder({
     }
   }, [channels, defaultChannel, internalChannel]);
 
-  const [angle, setAngle] = useState(0);
   const [pressed, setPressed] = useState(false);
+  const [, rerender] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<"dark" | "light">("dark");
 
@@ -242,6 +261,29 @@ export function ColorEncoder({
   }
   const normalized = valueRef.current;
   const hapticRef = useRef({ at: 0, travel: 0 });
+
+  // The index shows the active channel's value (specs/color-encoder.md,
+  // "Interaction"). The displayed angle is that value's angle plus whole turns,
+  // chosen so it never jumps: a channel change re-points the short way round,
+  // and hue stays continuous across 360→0 so it turns forever. Within a 0–100
+  // channel the turns are held fixed, so a big outside change still sweeps over
+  // the top rather than under it.
+  const angleRef = useRef<{ angle: number; channel: ColorEncoderChannel; turns: number } | null>(null);
+  // Hue turned by our own hand since the last render, unwrapped: a fast flick
+  // can pass 180° in one move, which "the short way round" would read backwards.
+  const spinRef = useRef(0);
+  const target = indexAngle(normalized, channel);
+  const previous = angleRef.current;
+  let angle = target;
+  if (previous && previous.channel === channel && channel === "hue" && spinRef.current !== 0) {
+    angle = nearestTurn(target, previous.angle + spinRef.current);
+  } else if (previous) {
+    angle = previous.channel === channel && channel !== "hue"
+      ? target + previous.turns
+      : nearestTurn(target, previous.angle);
+  }
+  spinRef.current = 0;
+  angleRef.current = { angle, channel, turns: angle - target };
 
   /** One click per HAPTIC_TRAVEL_PX of turn, and never inside the floor. */
   const tick = (pixels: number) => {
@@ -282,13 +324,15 @@ export function ColorEncoder({
     const rate = (sensitivity?.[channel] ?? SENSITIVITY[channel]) / (fine ? FINE_DIVISOR : 1);
     const current = valueRef.current;
     const next = withChannel(current, channel, channelValue(current, channel) + pixels * rate);
-    // The rotor turns only by the share of the input that moved the value, so
-    // it stops when brightness, saturation or alpha is pinned at an end and
-    // starts again the moment the turn reverses. Hue has no ends.
+    // Only the share of the input that moved the value counts: pinned at an
+    // end, brightness, saturation and alpha move nothing — so the index, which
+    // shows the value, stops too — and spend no click. Hue has no ends.
     const moved = channel === "hue" ? pixels : (channelValue(next, channel) - channelValue(current, channel)) / rate;
     if (moved === 0) return 0;
     valueRef.current = next;
-    setAngle((previous) => previous + moved * DEGREES_PER_PX);
+    if (channel === "hue") spinRef.current += pixels * rate;
+    // Re-render for the new ring and index even if the caller ignores the value.
+    rerender((count) => count + 1);
     onChange(next);
     return moved;
   };

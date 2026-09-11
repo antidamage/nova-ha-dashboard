@@ -261,29 +261,62 @@ describe("ColorEncoder", () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
-  it("rotates the rotor while dragging", () => {
-    const { container } = render(<ColorEncoder value={start} onChange={vi.fn()} />);
-    const root = container.querySelector(".color-encoder") as HTMLElement;
-    expect(root.style.getPropertyValue("--ce-angle")).toBe("0.00deg");
-    drag(screen.getByRole("slider"), [[40, 0]]);
-    expect(root.style.getPropertyValue("--ce-angle")).toBe("20.00deg");
+  const angleOf = (container: HTMLElement) =>
+    (container.querySelector(".color-encoder") as HTMLElement).style.getPropertyValue("--ce-angle");
+
+  it("points the index at the value: 0 at 7:30, 50 at 12, 100 at 4:30, over the top", () => {
+    for (const [v, expected] of [[0, "-135.00deg"], [50, "0.00deg"], [100, "135.00deg"], [20, "-81.00deg"]] as const) {
+      const { container, unmount } = render(
+        <ColorEncoder activeChannel="brightness" value={{ ...start, v }} onChange={vi.fn()} />,
+      );
+      expect(angleOf(container)).toBe(expected);
+      unmount();
+    }
   });
 
-  it("stops the rotor when a clamped channel hits its end, and turns again on reversal", () => {
-    const { container } = render(<Controlled activeChannel="saturation" initial={{ ...start, s: 95 }} />);
-    const root = container.querySelector(".color-encoder") as HTMLElement;
+  it("points at hue as degrees", () => {
+    const { container } = render(<ColorEncoder value={start} onChange={vi.fn()} />);
+    expect(angleOf(container)).toBe("200.00deg");
+  });
+
+  it("re-points the index on a channel change, the short way round", () => {
+    // Hue 200 (south-south-west), brightness 50 (12 o'clock), saturation 100 (4:30).
+    const { container } = render(<ColorEncoder value={{ h: 200, s: 100, v: 50, a: 100 }} onChange={vi.fn()} />);
     const dial = screen.getByRole("slider");
-    // 15px moves saturation the last 5%; the other 285px push against the stop.
+    expect(angleOf(container)).toBe("200.00deg");
+    tap(dial);
+    // 0° is 160° from 200° going clockwise, 200° going back: clockwise to 360.
+    expect(angleOf(container)).toBe("360.00deg");
+    tap(dial);
+    expect(angleOf(container)).toBe("495.00deg");
+    tap(dial);
+    // Back on hue: 200° is nearest 495° at 560°.
+    expect(angleOf(container)).toBe("560.00deg");
+  });
+
+  it("tracks the drag 1:1 and sweeps over the top on a big outside change", () => {
+    const { container, rerender } = render(
+      <ColorEncoder activeChannel="brightness" value={{ ...start, v: 0 }} onChange={vi.fn()} />,
+    );
+    expect(angleOf(container)).toBe("-135.00deg");
+    // 0 → 100 from outside must go through 12 o'clock, not under the bottom.
+    rerender(<ColorEncoder activeChannel="brightness" value={{ ...start, v: 100 }} onChange={vi.fn()} />);
+    expect(angleOf(container)).toBe("135.00deg");
+  });
+
+  it("stops the index when a clamped channel hits its end, and moves again on reversal", () => {
+    const { container } = render(<Controlled activeChannel="saturation" initial={{ ...start, s: 95 }} />);
+    const dial = screen.getByRole("slider");
     drag(dial, [[300, 0]]);
     expect(dial.getAttribute("aria-valuenow")).toBe("100");
-    expect(root.style.getPropertyValue("--ce-angle")).toBe("7.50deg");
+    expect(angleOf(container)).toBe("135.00deg");
     // Pushing further past the end turns nothing.
     drag(dial, [[200, 0]]);
-    expect(root.style.getPropertyValue("--ce-angle")).toBe("7.50deg");
-    // Reversing moves value and rotor at once — no wind-back through the overshoot.
+    expect(angleOf(container)).toBe("135.00deg");
+    // Reversing moves value and index at once — no wind-back through the overshoot.
     drag(dial, [[-30, 0]]);
     expect(dial.getAttribute("aria-valuenow")).toBe("90");
-    expect(root.style.getPropertyValue("--ce-angle")).toBe("-7.50deg");
+    expect(angleOf(container)).toBe("108.00deg");
   });
 
   it("stops at zero too, for brightness and alpha", () => {
@@ -291,20 +324,19 @@ describe("ColorEncoder", () => {
       const { container, unmount } = render(
         <Controlled channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} activeChannel={channel} initial={{ ...start, v: 3, a: 3 }} />,
       );
-      const root = container.querySelector(".color-encoder") as HTMLElement;
       drag(screen.getByRole("slider"), [[-300, 0]]);
       expect(screen.getByRole("slider").getAttribute("aria-valuenow")).toBe("0");
-      // 9px of input moved the value 3%; that is all the rotor turned.
-      expect(root.style.getPropertyValue("--ce-angle")).toBe("-4.50deg");
+      expect(angleOf(container)).toBe("-135.00deg");
       unmount();
     }
   });
 
-  it("turns forever on hue", () => {
-    const { container } = render(<ColorEncoder value={start} onChange={vi.fn()} />);
-    const root = container.querySelector(".color-encoder") as HTMLElement;
+  it("turns forever on hue, continuous across 360", () => {
+    const { container } = render(<Controlled initial={start} />);
     drag(screen.getByRole("slider"), [[1000, 0]]);
-    expect(root.style.getPropertyValue("--ce-angle")).toBe("500.00deg");
+    // +500° of hue from 200°: the index has gone round, not snapped back to 340°.
+    expect(angleOf(container)).toBe("700.00deg");
+    expect(screen.getByRole("slider").getAttribute("aria-valuenow")).toBe("340");
   });
 
   it("glows only from half brightness up", () => {

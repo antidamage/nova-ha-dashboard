@@ -6586,6 +6586,13 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   width: var(--ce-size);
   height: var(--ce-size);
   transform: translate(-50%, -50%) rotate(var(--ce-angle));
+  /* The index shows the value: a channel change or an outside value re-points
+     it with a quick sweep; under the hand it tracks 1:1. */
+  transition: transform 250ms ease-out;
+}
+
+.color-encoder-dial[data-pressed="true"] > .color-encoder-rotor {
+  transition: none;
 }
 
 /* Hairline texture on an outer band only: at the centre the stripes converge
@@ -6688,7 +6695,8 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 @media (prefers-reduced-motion: reduce) {
   .color-encoder-knob,
   .color-encoder-glow,
-  .color-encoder-led {
+  .color-encoder-led,
+  .color-encoder-dial > .color-encoder-rotor {
     transition: none;
   }
 }
@@ -6760,8 +6768,8 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   align-items: center;
   justify-content: flex-start;
   /* Not space-between: with only 2-4 clusters per tile that scattered them
-     across a wide tile and read as leftover space. One cluster left, the
-     buttons pinned right. */
+     across a wide tile and read as leftover space. Everything packs left, the
+     buttons beside the control they belong to (Adeline, 2026-09-11). */
   gap: 8px 14px;
   border: 1px solid var(--cyber-border-dim);
   background: rgb(var(--cyber-line-rgb) / 0.045);
@@ -6858,7 +6866,6 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 .quick-button-pair {
   display: flex;
   gap: 6px;
-  margin-inline-start: auto;
 }
 
 .quick-button,

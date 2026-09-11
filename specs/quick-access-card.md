@@ -39,8 +39,10 @@ request was executed directly).
   Outside**. Each segment is its own bordered tile with a gap between, rather
   than a shared hairline divider *(decided)* — tiles are what wrap cleanly when
   the row breaks, and they match the boxed zone buttons below.
-- Within a tile, content clusters from the left and the buttons are pinned
-  right, so a wide tile has one intentional gap instead of scattered ones.
+- Within a tile, everything clusters from the left: the buttons sit beside
+  the control they belong to — the lights dial, the climate stepper — not
+  pinned to the tile's right edge. Adeline, 2026-09-11 (previously pinned
+  right); any spare width is left over at the right.
 - Measured natural widths (demo, all four segments): lights ~340px, aircon
   ~442px, heater ~423px, outside ~313px — about 1,575px with gaps. With 44px
   touch targets that does not fit a tablet, so the row has three layouts,

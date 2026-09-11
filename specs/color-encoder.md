@@ -107,16 +107,29 @@ often. A colour picker opens on hue, the first channel, which is the default.
 - **Sensitivity**: hue `0.5°/px`; brightness, saturation and opacity
   `0.333%/px`. Holding Shift or Alt divides by 8. Either modifier alone is
   enough; both is still just fine mode.
-- **Rotation**: the rotor turns `0.5° per px` of signed drag input and
-  **keeps its accumulated angle** after release — it is an endless encoder,
-  not a pointer that snaps back. Rotation is visual only; it carries no value.
+- **The index shows the active channel's value.** Adeline, 2026-09-11: the
+  index line is how a vague parameter is confirmed at a glance, so the rotor's
+  angle is derived from the value, not accumulated from the drag. Angles are
+  clockwise from 12 o'clock:
+  - **Brightness, saturation, alpha** (0–100): `angle = −135° + 2.7° × value`.
+    0 is 45° below horizontal on the left (7:30), 50 is straight up, 100 is 45°
+    below horizontal on the right (4:30); the sweep runs **over the top**, never
+    through the dead zone at the bottom.
+  - **Hue**: `angle = hue`, so one turn of the knob is one trip round the
+    colour wheel — red at 12, cyan at 6. The drag rate (0.5°/px) equals the
+    rotor's, so the knob follows the hand exactly, and it turns forever: the
+    angle stays continuous across 360→0 rather than spinning back.
 - **Rotation stops at a channel's limits.** Adeline, 2026-09-11. Brightness,
-  saturation and alpha clamp at 0 and 100, and once the value is pinned there
-  the rotor stops turning too: the rotor turns only by the share of the input
-  that actually moved the value (`Δangle = Δvalue / rate × 0.5°`). Pushing
-  further past the end moves nothing; reversing moves the value and rotor at
-  once, with no dead zone to wind back through. Hue has no ends and turns
-  forever. No haptic click is spent on input that moved nothing.
+  saturation and alpha clamp at 0 and 100, so the index stops at 7:30 and 4:30.
+  Pushing further past the end moves nothing; reversing moves the value and
+  index at once, with no dead zone to wind back through. No haptic click is
+  spent on input that moved nothing.
+- **Changing channel re-points the index.** A tap moves the index to the new
+  channel's value with a quick sweep (250ms, ease-out), taking the short way
+  round, so it can be watched landing. Outside value changes (a preset, another
+  client) sweep the same way. While the pointer is down the rotor tracks the
+  value with no transition, so a drag stays 1:1. No sweep under
+  `prefers-reduced-motion`.
 - Pointer Events with `setPointerCapture`, so a drag tracks outside the
   element.
 - **Keyboard**: focusable. Right/Up and Left/Down arrows nudge the active
@@ -403,12 +416,14 @@ deleted, along with its exports, README row and showcase card. Adeline,
   spectrum pad, intensity slider or folded-in opacity slider left behind.
 - `npx tsc --noEmit`, `npm run test:unit`, `npm run test:e2e` clean.
 - Brightness, saturation and alpha stop the rotor at their ends; hue does not.
+- The index points at the active channel's value per the angle rules above,
+  re-points with a sweep on a channel change, and tracks 1:1 while dragging.
 - **Sweep smoke test** (Adeline, 2026-09-11), in a real browser against the
   dashboard, with lighting commands intercepted in the page and never sent to
   Home Assistant: from a bright, saturated start, brightness and saturation are
   each driven 0→100→0 in 10% steps and hue through 360° in 30° steps. At every
-  step the test checks the dial's value and the intercepted command payload
-  against the expected HSV, **samples the ring's rendered pixel from a
+  step the test checks the dial's value, the index angle and the intercepted
+  command payload against the expected HSV, **samples the ring's rendered pixel from a
   screenshot** and compares it with `hsvToRgb` of the expected value, and keeps
   the screenshot for a visual check. It runs once normally and once with
   Chromium's real auto dark mode feature on; both must pass.
