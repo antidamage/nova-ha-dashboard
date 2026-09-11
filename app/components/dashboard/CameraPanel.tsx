@@ -9,6 +9,7 @@ import { cameraUrl } from "./cameraHost";
 import { arePageUpdatesPaused } from "./pageUpdatePause";
 import { SliderHapticController } from "../haptics";
 import { CameraEventReport } from "./CameraEventReport";
+import { demoAssetUrl } from "../../../lib/demo-assets";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
@@ -243,7 +244,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // The canvas clock is only a warming-up/demo placeholder — never a stand-in for
   // a missing camera. Suppress it when offline so the panel reads "No signal".
   const showPlaceholder = DEMO_MODE || !streamReady;
-  const showPlaceholderClock = showPlaceholder && !offline;
+  const showPlaceholderClock = showPlaceholder && !offline && !DEMO_MODE;
   useCanvasClock(canvasRef, showPlaceholderClock);
 
   // Poll backend status (live mode only — the static demo has no API).
@@ -675,6 +676,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       </header>
 
       <div className="camera-stage">
+        {DEMO_MODE ? <img className="camera-video" src={demoAssetUrl("assets/outside-demo.png")} alt="Fictional demo camera scene: front garden, ginger cat and parked car" /> : null}
         <video
           ref={videoRef}
           className={classNames("camera-video", showPlaceholder && "opacity-0")}
@@ -686,7 +688,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
         <div className={classNames("camera-live-pill", isLive ? "is-live" : "is-rewound")}>
           <span className="camera-live-dot" />
-          {isLive ? "LIVE" : formatOffset(behindLiveSeconds)}
+          {DEMO_MODE ? "SAMPLE SCENE" : isLive ? "LIVE" : formatOffset(behindLiveSeconds)}
         </div>
 
         {offline ? (
@@ -698,7 +700,8 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         ) : null}
       </div>
 
-      <div className="camera-controls">
+      {DEMO_MODE ? <p className="px-3 py-2 text-xs text-neutral-400">AI-generated sample scene. Explore event review below; recording and playback require a connected camera.</p> : null}
+      <div className={classNames("camera-controls", DEMO_MODE && "hidden")}>
         <button type="button" className="camera-control-button" onClick={togglePlay} aria-label={showAsPlaying ? "Pause" : "Play"}>
           {showAsPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </button>
@@ -751,7 +754,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         </button>
       </div>
 
-      {!DEMO_MODE ? <CameraEventReport cameraId={cameraId} /> : null}
+      <CameraEventReport cameraId={cameraId} />
 
       {!DEMO_MODE ? (
         <div className="camera-snapshots">

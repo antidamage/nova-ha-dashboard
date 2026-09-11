@@ -28,7 +28,7 @@ export function AgentNameProvider({
   const [agentName, setAgentName] = useState(initialName);
   const [transcriptTemplate, setTranscriptTemplate] = useState(DEFAULT_TRANSCRIPT_TEMPLATE);
   useEffect(() => {
-    document.title = `${agentName} Control`;
+    document.title = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? `Nova Demo · ${agentName}` : `${agentName} Control`;
   }, [agentName]);
 
   // `/` is statically generated (app/page.tsx: dynamic = "force-static"), so

@@ -4,9 +4,12 @@ import {
   DEMO_CONFIG_STORAGE_KEY,
   DEMO_THEME_STORAGE_KEY,
   demoClientConfig,
+  demoDashboardConfig,
   demoConfigBootstrapScript,
   demoSecretSetupStatus,
 } from "./demo-config";
+import demoTheme from "../config/demo-theme.default.json";
+import demoLibrary from "../config/demo-theme-library.default.json";
 
 const DEMO_THEME = {
   theme: {
@@ -17,6 +20,17 @@ const DEMO_THEME = {
 };
 
 describe("demo config storage", () => {
+  it("wires the fictional devices without changing fresh-install defaults and starts in Golden Brown", async () => {
+    const config = await readDefaultDashboardConfig();
+    const original = structuredClone(config);
+    const demo = demoDashboardConfig(config);
+    expect(config).toEqual(original);
+    expect(demo.dashboard.bedroomHeater.switchEntityIds).toEqual(["switch.bedroom_heater"]);
+    expect(demo.dashboard.aircon.matchTokens).toContain("c6780cad");
+    const active = demoLibrary.entries.find((entry) => entry.id === demoLibrary.activeId);
+    expect(active?.name).toBe("Golden Brown");
+    expect(demoTheme.theme).toEqual(active?.themeSet);
+  });
   afterEach(() => {
     window.sessionStorage.clear();
     window.localStorage.clear();

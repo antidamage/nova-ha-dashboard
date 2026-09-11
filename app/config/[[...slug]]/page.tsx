@@ -7,6 +7,7 @@ import { themeResponseValue } from "../../../lib/theme-values";
 import { ConfigWorkspace } from "../../components/ConfigWorkspace";
 import type { ThemeStorageValue } from "../../components/accentColor";
 import { configStaticSlugParams } from "../../components/configStaticTree";
+import { demoDashboardConfig } from "../../../lib/demo-config";
 
 const THEME_COOKIE_NAME = "nova.dashboard.accent.v1";
 const THEME_SCOPE_COOKIE_NAME = "nova.dashboard.configScope.v1";
@@ -42,7 +43,7 @@ export function generateStaticParams() {
 export default async function ConfigPage() {
   const demoMode = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
   const cookieStore = demoMode ? null : await cookies();
-  const dashboardConfig = demoMode ? await readDefaultDashboardConfig() : await readDashboardConfig();
+  const dashboardConfig = demoMode ? demoDashboardConfig(await readDefaultDashboardConfig()) : await readDashboardConfig();
   const localTheme = readInitialTheme(cookieStore?.get(THEME_COOKIE_NAME)?.value);
   const configScope = cookieStore?.get(THEME_SCOPE_COOKIE_NAME)?.value === "local" ? "local" : "shared";
   const sharedPreferences = demoMode
