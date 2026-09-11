@@ -29,6 +29,7 @@ import { SystemControlConfig } from "./SystemControlConfig";
 import { ThemeChangeNotificationSecret } from "./ThemeChangeNotificationSecret";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
+import { DEMO_CONFIG_STORAGE_KEY, DEMO_THEME_STORAGE_KEY, DEMO_THEME_LIBRARY_STORAGE_KEY } from "../../lib/demo-config";
 
 const isDemoMode = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
@@ -67,6 +68,12 @@ const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfi
 const AUTHENTIK_INVALIDATION_URL = "https://nova.tuatara-dory.ts.net:9443/if/flow/dashboard-invalidation/";
 
 async function signOut() {
+  if (isDemoMode) {
+    for (const key of [DEMO_CONFIG_STORAGE_KEY, DEMO_THEME_STORAGE_KEY, DEMO_THEME_LIBRARY_STORAGE_KEY, "nova.demo.design.v1"]) window.sessionStorage.removeItem(key);
+    window.localStorage.removeItem("nova.demo.provider.v1");
+    window.location.href = `${process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH ?? ""}/`;
+    return;
+  }
   try {
     await fetch("/outpost.goauthentik.io/sign_out", { credentials: "include", redirect: "manual" });
   } catch (error) {
@@ -93,11 +100,11 @@ function ConfigPageActions({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         className="config-page-button icon-link-text-tone"
-        aria-label="Log out"
+        aria-label={isDemoMode ? "Reset demo" : "Log out"}
         onClick={() => void signOut()}
       >
         <LogOut className="h-5 w-5" />
-        Log out
+        {isDemoMode ? "Reset demo" : "Log out"}
       </button>
     </>
   );
@@ -190,7 +197,7 @@ const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   system: "system-data",
 };
 
-const CONFIG_PATH_PREFIX = "/config";
+const CONFIG_PATH_PREFIX = `${isDemoMode ? (process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH ?? "").replace(/\/$/, "") : ""}/config`;
 
 /** Parse "/config/<category>/<slug>/<slug>/..." into its category and slug chain. */
 function parseConfigPath(pathname: string): { category: ConfigCategoryId | null; slugs: string[] } {
@@ -284,6 +291,10 @@ export function ConfigWorkspace({
   // Leaving config is the moment we push wallpapers to configured managed desktops.
   // The sync is deduplicated server-side.
   const handleBack = useCallback(() => {
+    if (isDemoMode) {
+      window.location.assign(`${process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH ?? ""}/`);
+      return;
+    }
     void requestManagedDesktopWallpaperSync().catch((error) => {
       console.error("[nova-dashboard] managed desktop wallpaper sync failed", error);
     });
@@ -553,6 +564,7 @@ export function ConfigWorkspace({
         <ConfigPreviewBackground />
         <ReloadButton />
         <div className={`config-layout mx-auto grid max-w-5xl gap-4 ${activeCategory ? "" : "config-layout-categories-closed"}`}>
+        {isDemoMode ? <p className="text-xs text-neutral-400">Interactive demo. Settings stay in this browser; hardware, voice generation and external services are previews. Reset demo restores the sample household.</p> : null}
         <UpdateBanner context="config" />
         <nav className="config-top-actions" aria-label="Configuration actions">
           <ConfigPageActions onBack={handleBack} />

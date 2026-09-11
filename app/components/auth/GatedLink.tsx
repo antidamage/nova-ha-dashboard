@@ -44,6 +44,11 @@ export function GatedLink({
   const { requestLogin } = useLogin();
 
   const decide = useCallback(async () => {
+    if (process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true") {
+      const base = (process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH ?? "").replace(/\/$/, "");
+      window.location.assign(href.startsWith("/") ? `${base}${href}` : href);
+      return;
+    }
     const state = await fetchAuthState();
     if (state.status === "authed" || state.status === "unknown") {
       // Signed in, or the probe could not answer. A network blip must not
@@ -71,7 +76,7 @@ export function GatedLink({
   );
 
   return (
-    <Link {...rest} href={href} className={className} onClick={onClick}>
+    <Link {...rest} href={href} prefetch={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? false : undefined} className={className} onClick={onClick}>
       {children}
     </Link>
   );

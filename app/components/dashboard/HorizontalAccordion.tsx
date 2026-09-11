@@ -27,7 +27,7 @@ export function useWideDashboard(): boolean {
 // `attachKey` is this entry's selected zone id; when it changes while the entry
 // is closed, the entry opens. `group` names the entry for CSS.
 export function HorizontalAccordion({
-  title, persistKey, children, attached, attachKey, group,
+  title, persistKey, children, attached, attachKey, group, defaultOpen = false,
 }: {
   title: string;
   persistKey: string;
@@ -35,6 +35,7 @@ export function HorizontalAccordion({
   attached?: ReactNode;
   attachKey?: string | null;
   group?: string;
+  defaultOpen?: boolean;
 }) {
   const wide = useWideDashboard();
   const [open, setOpen] = useState(false);
@@ -43,8 +44,8 @@ export function HorizontalAccordion({
   const lastAttachKey = useRef(attachKey);
 
   useEffect(() => {
-    setOpen(getAccordionOpen(persistKey) ?? false);
-  }, [persistKey]);
+    setOpen(getAccordionOpen(persistKey) ?? defaultOpen);
+  }, [persistKey, defaultOpen]);
 
   useEffect(() => {
     const previous = lastAttachKey.current;

@@ -5,12 +5,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NormalizedRectangle } from "../../lib/reference-selection";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { VehicleReferenceEditor } from "./VehicleReferenceEditor";
+import { demoAssetUrl } from "../../lib/demo-assets";
 
 type Point = [number, number];
 type SceneZone = { id: string; label: string; kind: "activity" | "vehicle" | "exclude"; points: Point[] };
 type AnalysisSettings = { enabled: boolean; alertsEnabled: boolean; zones: SceneZone[] };
 type ReferenceKind = "cat" | "vehicle" | "person";
 type ReferenceImage = {
+  imageUrl?: string;
   id: string;
   kind: ReferenceKind;
   name: string;
@@ -236,7 +238,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         ))}
       </div>
       <div ref={stageRef} className="camera-analysis-stage" data-nova-no-drag-scroll onPointerDown={addPoint} onPointerMove={dragPoint} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
-        <img src={`/api/camera/${cameraId}/analysis/frame?daylight=${frameMode === "daylight"}&v=${frameVersion}`} alt={`${frameMode === "daylight" ? "Daytime reference" : "Current"} Outside camera frame for zone calibration`} draggable={false} />
+        <img src={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? demoAssetUrl("assets/outside-demo.png") : `/api/camera/${cameraId}/analysis/frame?daylight=${frameMode === "daylight"}&v=${frameVersion}`} alt={`${frameMode === "daylight" ? "Daytime reference" : "Current"} Outside camera frame for zone calibration`} draggable={false} />
         <svg viewBox="0 0 1000 562.5" preserveAspectRatio="none" aria-hidden="true">
           {settings.zones.map((zone) => (
             <g key={zone.id} opacity={selectedId === zone.id ? 1 : 0.45}>
@@ -270,7 +272,7 @@ export function CameraAnalysisConfig({ cameraId }: { cameraId: string }) {
         </div>
         <ul className="camera-reference-list">
           {references.filter((reference) => reference.kind === referenceKind).map((reference) => <li key={reference.id}>
-            <img src={`/api/camera/${cameraId}/analysis/references/${reference.id}/image`} alt="" />
+            <img src={reference.imageUrl ?? `/api/camera/${cameraId}/analysis/references/${reference.id}/image`} alt="" />
             <span><strong>{reference.name}</strong><small>{reference.legacy ? "Legacy whole-photo reference" : reference.crop ? `Designated from ${reference.source_name ?? "photo"}` : reference.kind === "person" ? "Owner reference" : "Image reference"}</small></span>
             <button type="button" aria-label={`Delete ${reference.name} reference`} onClick={() => void deleteReference(reference.id)}><Trash2 className="h-4 w-4" /></button>
           </li>)}

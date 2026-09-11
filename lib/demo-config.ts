@@ -1,8 +1,8 @@
 import type { DashboardConfig, SecretSetupStatus } from "./config-schema";
 
-export const DEMO_CONFIG_STORAGE_KEY = "nova.dashboard.demoConfig.v1";
-export const DEMO_THEME_STORAGE_KEY = "nova.dashboard.demoTheme.v1";
-export const DEMO_THEME_LIBRARY_STORAGE_KEY = "nova.dashboard.demoThemeLibrary.v1";
+export const DEMO_CONFIG_STORAGE_KEY = "nova.dashboard.demoConfig.v2";
+export const DEMO_THEME_STORAGE_KEY = "nova.dashboard.demoTheme.v2";
+export const DEMO_THEME_LIBRARY_STORAGE_KEY = "nova.dashboard.demoThemeLibrary.v2";
 export const DEMO_CONFIG_CHANGE_EVENT = "nova-demo-config-change";
 
 export type DemoThemeEnvelope = {
@@ -472,6 +472,9 @@ export function demoConfigBootstrapScript(
       providerPromise = import(new URL("provider.mjs", bootstrap.providerBase).href)
         .then(function (module) {
           return module.createNovaDummyProvider({ baseUrl: bootstrap.providerBase });
+        }).catch(function (error) {
+          providerPromise = null;
+          throw error;
         });
     }
     return providerPromise;
@@ -488,7 +491,12 @@ export function demoConfigBootstrapScript(
     var configResponse = handleDemoConfigRequest(parsed.pathname, input, init);
     if (configResponse) return configResponse;
     return loadProvider().then(function (provider) {
-      return provider.handleRequest(parsed.pathname + parsed.search, init || input);
+      var providerBody = init && init.body instanceof FormData ? Promise.resolve(init.body) : requestBodyText(input, init);
+      return providerBody.then(function (body) {
+        return provider.handleRequest(parsed.pathname + parsed.search, {
+          method: requestMethod(input, init), body: body,
+        });
+      });
     });
   };
 

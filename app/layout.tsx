@@ -112,7 +112,7 @@ async function readInitialOrbTheme(): Promise<ThemeStorageValue | null> {
 
 async function readInitialAgentName(): Promise<string> {
   if (isDemoMode) {
-    return normalizeVoiceSettings((await readDefaultDashboardPreferences()).voice).agentName;
+    return "Johnny Silverhand";
   }
   try {
     return normalizeVoiceSettings((await readDashboardPreferences()).voice).agentName;
@@ -129,8 +129,8 @@ async function readInitialAgentName(): Promise<string> {
 export async function generateMetadata(): Promise<Metadata> {
   const agentName = await readInitialAgentName();
   return {
-    title: `${agentName} Control`,
-    description: `Zone-based Home Assistant controls for ${agentName}`,
+    title: isDemoMode ? "Nova — Interactive Smart Home Demo" : `${agentName} Control`,
+    description: isDemoMode ? "Explore Nova's room controls, energy dashboard, reminders, camera review and custom voice personalities in an interactive fictional household." : `Zone-based Home Assistant controls for ${agentName}`,
     icons: {
       icon: publicAssetPath("/favicon.ico"),
       apple: [

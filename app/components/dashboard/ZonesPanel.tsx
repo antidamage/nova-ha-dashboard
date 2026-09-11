@@ -84,6 +84,7 @@ export function ZonesPanel({
         <HorizontalAccordion
           title="Home"
           persistKey="dashboard-zones-home"
+          defaultOpen={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true"}
           attached={homeControls}
           attachKey={homeSelectedId}
         >
