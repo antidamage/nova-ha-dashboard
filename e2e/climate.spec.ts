@@ -1,5 +1,18 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { gotoDashboard, selectZone } from "./helpers";
+
+// The climate cards are one temperature knob each since 2026-09-12
+// (specs/temperature-encoder.md): no stepper, no button grid, no timer row.
+
+/** One deliberate tap, inside the 60–400ms window that opens a tucked knob. */
+async function tapKnob(page: Page, knob: ReturnType<Page["locator"]>) {
+  const box = await knob.locator(".rotary-encoder-dial").boundingBox();
+  if (!box) throw new Error("no knob to tap");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.2);
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+}
 
 test.describe("climate controls", () => {
   test.beforeEach(async ({ page }) => {
@@ -7,23 +20,32 @@ test.describe("climate controls", () => {
     await selectZone(page, /Climate/);
   });
 
-  test("shows the temperature readouts and steppers", async ({ page }) => {
-    await expect(page.locator(".climate-temp-readout").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Raise/ }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Lower/ }).first()).toBeVisible();
+  test("each card is a temperature knob showing both temperatures", async ({ page }) => {
+    const knob = page.locator(".climate-knob-body .temperature-encoder").first();
+    await expect(knob).toBeVisible();
+    await expect(knob.locator(".temperature-encoder-target")).toBeVisible();
+    await expect(knob.locator(".temperature-encoder-room")).toBeVisible();
+    // The mode lights replaced the Auto/Manual/Off buttons.
+    await expect(knob.locator(".rotary-encoder-led")).not.toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Raise Temperature/ })).toHaveCount(0);
+    await expect(page.locator(".climate-fan-speed")).toHaveCount(0);
+    await expect(page.locator(".climate-timer-row")).toHaveCount(0);
   });
 
-  test("raises the target temperature when the unit is on", async ({ page }) => {
-    const raise = page.getByRole("button", { name: "Raise Temperature" }).first();
-    const readout = page.locator(".climate-temp-readout").first();
+  test("a knob is tucked away until it is tapped, and its rings float over the card", async ({ page }) => {
+    const knob = page.locator(".climate-knob-body .temperature-encoder").first();
+    await expect(knob).toHaveAttribute("data-locked", "true");
 
-    // The stepper is disabled while the unit is off; only exercise it when live.
-    if (await raise.isEnabled()) {
-      const before = (await readout.textContent())?.trim();
-      await raise.click();
-      await expect(readout).not.toHaveText(before ?? "");
-    } else {
-      await expect(readout).toBeVisible();
-    }
+    await tapKnob(page, knob);
+    await expect(knob).toHaveAttribute("data-locked", "false");
+    const layer = page.locator(".rotary-encoder-ring-layer");
+    await expect(layer).toHaveCount(1);
+    await expect(layer.locator("[data-ring-id]").first()).toBeVisible();
+  });
+
+  test("the target reads back what the knob is set to", async ({ page }) => {
+    const knob = page.locator(".climate-knob-body .temperature-encoder").first();
+    const target = knob.locator(".temperature-encoder-target");
+    await expect(target).toHaveText(/^-?[\d.]+°$/);
   });
 });

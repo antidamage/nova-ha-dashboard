@@ -23,7 +23,8 @@ test.describe("zone navigation", () => {
 
   test("opens the climate zone", async ({ page }) => {
     await selectZone(page, /Climate/);
-    await expect(page.locator(".climate-temp-readout").first()).toBeVisible();
+    // The climate cards are temperature knobs now (specs/temperature-encoder.md).
+    await expect(page.locator(".climate-knob-body .temperature-encoder").first()).toBeVisible();
   });
 
   test("opens the network zone", async ({ page }) => {

@@ -19,9 +19,12 @@ for (const width of [1280, 1920]) {
     const pairs = page.locator(".quick-segment .quick-button-pair");
     await expect(pairs.first()).toBeVisible();
     const count = await pairs.count();
-    // The lights segment and at least one climate segment (the demo home's).
+    // Only the lights segment has buttons now: the climate tiles are a title
+    // and a temperature knob, whose modes and timer are on the dial itself
+    // (Adeline, 2026-09-12, specs/temperature-encoder.md).
     await expect(page.locator(".quick-segment-lights .quick-button-pair")).toHaveCount(1);
-    await expect(page.locator(".quick-segment-climate .quick-button-pair").first()).toBeVisible();
+    await expect(page.locator(".quick-segment-climate .quick-button-pair")).toHaveCount(0);
+    await expect(page.locator(".quick-segment-climate .temperature-encoder").first()).toBeVisible();
 
     for (let index = 0; index < count; index += 1) {
       const measured = await pairs.nth(index).evaluate((pair) => {
