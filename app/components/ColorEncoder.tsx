@@ -74,6 +74,11 @@ function nearestTurn(target: number, from: number) {
 /** Shift or Alt makes every channel this much finer. */
 const FINE_DIVISOR = 8;
 
+/** Whether a drag ended on the value it started from, click for click. */
+function sameHsva(left: Hsva, right: Hsva) {
+  return left.h === right.h && left.s === right.s && left.v === right.v && left.a === right.a;
+}
+
 /** Keyboard nudge, expressed as the drag distance it stands in for. */
 const KEY_STEP_PX = 8;
 const KEY_STEP_FINE_PX = 1;
@@ -238,7 +243,7 @@ export function ColorEncoder({
   // only when it is a genuinely different colour (a preset, a paste, another
   // client), never when it is just our own value rounded.
   const valueRef = useRef(incoming);
-  const dragRef = useRef<{ at: number; x: number; y: number; travel: number } | null>(null);
+  const dragRef = useRef<{ at: number; x: number; y: number; travel: number; start: Hsva } | null>(null);
   // A drag owns the value until it ends. Without this, an echo that arrives
   // mid-turn — a zone reporting a waypoint of a fade, say — is a different
   // colour by the rule above and gets adopted, yanking the dial away from the
@@ -316,7 +321,7 @@ export function ColorEncoder({
       onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         const at = typeof performance === "undefined" ? Date.now() : performance.now();
-        dragRef.current = { at, x: event.clientX, y: event.clientY, travel: 0 };
+        dragRef.current = { at, x: event.clientX, y: event.clientY, travel: 0, start: valueRef.current };
         setPressed(true);
         // A drag clicks on press and on release, never while turning
         // (Adeline, 2026-09-11: any rate of clicking mid-turn was annoying).
@@ -345,7 +350,10 @@ export function ColorEncoder({
           cycleChannel(now - drag.at < TAP_MAX_MS);
           return;
         }
-        selectionHaptic();
+        // Only if the drag actually moved the value (Adeline, 2026-09-11): a
+        // turn that ends where it started, or that only pushed against an end,
+        // releases silently.
+        if (!sameHsva(drag.start, valueRef.current)) selectionHaptic();
         onCommit?.(valueRef.current);
       },
       onPointerCancel: () => {

@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -220,6 +222,42 @@ describe("ColorEncoder", () => {
 
     now.mockRestore();
     click.mockRestore();
+  });
+
+  it("releases silently when the drag changed nothing", () => {
+    const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
+
+    function Dial() {
+      const [value, setValue] = useState<Hsva>({ ...start, v: 100 });
+      return <ColorEncoder activeChannel="brightness" value={value} onChange={setValue} />;
+    }
+    render(<Dial />);
+    const dial = screen.getByRole("slider");
+
+    // Brightness is at its top; pushing further moves nothing.
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: 90, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(dial, { clientX: 90, clientY: 0, pointerId: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+
+    // Out and back to where it started: still one click, the press.
+    click.mockClear();
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: -30, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(dial, { clientX: 0, clientY: 0, pointerId: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+
+    click.mockRestore();
+  });
+
+  it("scopes the light-mode well rule to unlit lights", () => {
+    // Unscoped, it is the more specific selector and overrides the lit light's
+    // own fill, leaving no light lit at all in light mode (2026-09-11). jsdom
+    // loads no CSS, so this guards the stylesheet itself.
+    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    expect(css).toContain('.color-encoder[data-mode="light"] .color-encoder-led[data-lit="false"] {');
+    expect(css).not.toContain('.color-encoder[data-mode="light"] .color-encoder-led {');
   });
 
   it("ignores an incoming value while the drag is still in the hand", () => {

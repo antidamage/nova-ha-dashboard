@@ -139,11 +139,13 @@ often. A colour picker opens on hue, the first channel, which is the default.
   `TAP_MAX_MS` (400ms) of the press, the change is silent. A deliberate
   press-and-hold, released without dragging, still gets both. Enter/Space always
   clicks, having had no press to click for.
-- **A drag clicks twice: on press and on release.** Nothing while turning, at
-  any rate. Adeline, 2026-09-11: clicking during a turn was annoying whatever
-  its rate — this replaces the earlier 400ms/12px cadence. The dial does not
-  use the shared `SliderHapticController`, which pulses on distance. Keyboard
-  nudges do not click.
+- **A drag clicks on press, and again on release only if it changed the
+  value.** Nothing while turning, at any rate. Adeline, 2026-09-11: clicking
+  during a turn was annoying whatever its rate — this replaces the earlier
+  400ms/12px cadence — and a release that changed nothing (a turn that ends
+  where it started, or one that only pushed against an end) stays silent. The
+  dial does not use the shared `SliderHapticController`, which pulses on
+  distance. Keyboard nudges do not click.
 - No numeric entry, no long-press hex field, no readout — deliberately. Exact
   colours move between slots through the existing theme clipboard
   (`app/components/themeClipboard.ts`).
@@ -237,6 +239,11 @@ inverts to dark with a light edge, and the unlit wells go *darker* than in dark
 mode — the lit light is white, so the contrast between them has to come from
 the wells. The white bloom stays but does little on a pale knob, which is why
 the wells carry that work.
+
+The light-mode well rule is scoped to `[data-lit="false"]`. Unscoped it is the
+more specific selector and overrides the lit light's own fill, which left
+**no light lit at all** in light mode (found 2026-09-11, by the
+`RingedColorEncoder` review).
 
 ## Glow
 
