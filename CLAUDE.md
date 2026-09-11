@@ -112,7 +112,10 @@ the named component before introducing a one-off equivalent.
   A thick, full-height bar opens sideways; its counter-clockwise vertical title
   stays at the top. The stable trigger retains keyboard focus, uses the shared
   momentary feedback and short-lived accordion persistence, and leaves portrait
-  menus expanded. Reuse it for horizontal dashboard sections.
+  menus expanded. Reuse it for horizontal dashboard sections. Its `attached`
+  prop joins the selected zone's controls to the right of the list as one
+  unit in landscape; `useWideDashboard` is the layout test. See
+  `specs/landscape-layout.md`.
 - `CameraEventReport`, `CameraAnalysisConfig`, and `VehicleReferenceEditor` —
   the Outside-camera activity review, visual polygon editor, and photo-region
   vehicle reference editor. These use the shared `ModalOverlay`; scene and

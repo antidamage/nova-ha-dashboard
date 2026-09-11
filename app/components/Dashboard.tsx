@@ -20,6 +20,7 @@ import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
 import { useDashboardState } from "./dashboard/state";
 import { Warnings } from "./dashboard/Warnings";
 import { buildZoneTree, ZonesPanel } from "./dashboard/ZonesPanel";
+import { useWideDashboard } from "./dashboard/HorizontalAccordion";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useDashboardCommands } from "./dashboard/useDashboardCommands";
@@ -28,6 +29,7 @@ import { useHousePartyClockSync } from "./dashboard/useHousePartyClockSync";
 import { useDashboardSelection } from "./dashboard/useDashboardSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
+import { isHorizontalDashboard } from "./dashboard/useClickDragScroll";
 import { FluidBackground } from "./FluidBackground";
 import { WallpaperBackground } from "./WallpaperBackground";
 import { useExperienceFeature } from "./dashboard/experienceModeSetting";
@@ -84,6 +86,7 @@ export function Dashboard() {
   const showBackground = useExperienceFeature("background");
   useRadarPreload();
   useScrollRestore(data !== null);
+  const wide = useWideDashboard();
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("nova-sun-change", { detail: data?.sun ?? null }));
   }, [data?.sun]);
@@ -105,10 +108,45 @@ export function Dashboard() {
     setToast,
   });
 
+  // Portrait renders the controls in their own stage below the zone list; the
+  // horizontal layout joins them to the accordion entry that owns the selected
+  // zone (specs/landscape-layout.md). Only one copy is ever mounted.
+  const controlStage = (
+    <div className="control-stage grid gap-5">
+      <TasksPanel showPanel={tasksZoneSelected} />
+
+      {tasksZoneSelected ? null : selectedZone ? (
+        <ZoneControls
+          zone={selectedZone}
+          bedroomHeater={bedroomHeater}
+          bedroomTemperature={bedroomTemperature}
+          climateControl={data?.climateControl}
+          desktopSleepBusy={desktopSleepBusy}
+          desktopWakeBusy={desktopWakeBusy}
+          loungeEnvironment={loungeEnvironment}
+          sun={data?.sun}
+          onDesktopSleep={applyDesktopSleep}
+          onDesktopWake={applyDesktopWake}
+          onEntityActions={applyEntityActions}
+          onNotice={setToast}
+          onZoneAction={applyZoneAction}
+          preferences={data?.preferences}
+          router={data?.router}
+          spectrumCursor={data?.spectrumCursors?.[selectedZone.id]}
+          weather={data?.weather}
+        />
+      ) : (
+        <div className="min-h-96 border border-neutral-700 bg-neutral-950/70 p-8 text-neutral-400">
+          Loading zone controls
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Tooltip.Provider delayDuration={250}>
       <main className="min-h-screen bg-neutral-950 text-neutral-100">
-        <div className="dashboard-shell min-h-screen px-4 py-5 sm:px-6">
+        <div className="dashboard-shell dashboard-home min-h-screen px-4 py-5 sm:px-6">
           {/* Devices with the background feature off skip the WebGL background
               entirely; the shell's own static themed grid background remains. */}
           {showBackground ? (
@@ -171,9 +209,10 @@ export function Dashboard() {
             heater={{ onNotice: setToast, preferences: data?.preferences?.bedroomHeater }}
           >
           <div className="dashboard-layout grid gap-5">
-            <ClockPanel />
-
-            <ReminderIconBar />
+            <div className="dashboard-overview">
+              <ClockPanel />
+              <ReminderIconBar />
+            </div>
 
             <QuickAccessCard
               bedroomHeater={bedroomHeater}
@@ -196,42 +235,23 @@ export function Dashboard() {
               selectedZone={selectedZone}
               selectedZoneId={selectedZoneId}
               zones={zoneTree}
-              onSelectZone={selectZone}
+              controls={wide ? controlStage : null}
+              onSelectZone={(zoneId) => {
+                selectZone(zoneId);
+                if (isHorizontalDashboard()) {
+                  requestAnimationFrame(() => {
+                    document.querySelector(".dashboard-home .control-stage")?.scrollIntoView({
+                      block: "nearest", inline: "nearest", behavior: "instant",
+                    });
+                  });
+                }
+              }}
             />
 
-            <div className="control-stage grid gap-5">
-              <TasksPanel showPanel={tasksZoneSelected} />
-
-              {tasksZoneSelected ? null : selectedZone ? (
-                <ZoneControls
-                  zone={selectedZone}
-                  bedroomHeater={bedroomHeater}
-                  bedroomTemperature={bedroomTemperature}
-                  climateControl={data?.climateControl}
-                  desktopSleepBusy={desktopSleepBusy}
-                  desktopWakeBusy={desktopWakeBusy}
-                  loungeEnvironment={loungeEnvironment}
-                  sun={data?.sun}
-                  onDesktopSleep={applyDesktopSleep}
-                  onDesktopWake={applyDesktopWake}
-                  onEntityActions={applyEntityActions}
-                  onNotice={setToast}
-                  onZoneAction={applyZoneAction}
-                  preferences={data?.preferences}
-                  router={data?.router}
-                  spectrumCursor={data?.spectrumCursors?.[selectedZone.id]}
-                  weather={data?.weather}
-                />
-              ) : (
-                <div className="min-h-96 border border-neutral-700 bg-neutral-950/70 p-8 text-neutral-400">
-                  Loading zone controls
-                </div>
-              )}
-            </div>
+            {wide ? null : controlStage}
+            <VoiceTranscriptPanel />
           </div>
           </ClimateCommandsProvider>
-
-          <VoiceTranscriptPanel />
 
           {toast ? (
             <div className="fixed bottom-5 right-5 max-w-sm border border-cyan-300/60 bg-neutral-950 px-4 py-3 text-sm font-black uppercase text-cyan-100 shadow-2xl">

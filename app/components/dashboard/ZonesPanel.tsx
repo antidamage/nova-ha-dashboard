@@ -1,8 +1,10 @@
 "use client";
 
 import { Zap } from "lucide-react";
+import type { ReactNode } from "react";
 import type { DashboardState, DashboardZone } from "../../../lib/types";
 import { ZoneButton } from "./ZoneButton";
+import { HorizontalAccordion } from "./HorizontalAccordion";
 import {
   classNames,
   isClimateZone,
@@ -46,25 +48,38 @@ export function ZonesPanel({
   selectedZone,
   selectedZoneId,
   zones,
+  controls,
   onSelectZone,
 }: {
   data: DashboardState | null;
   selectedZone: DashboardZone | null;
   selectedZoneId: string;
   zones: ReturnType<typeof buildZoneTree>;
+  // The selected zone's controls, joined to the accordion entry that owns the
+  // zone. Passed only in the horizontal layout; portrait renders them below.
+  controls?: ReactNode;
   onSelectZone: (zoneId: string) => void;
 }) {
   const tasksZoneSelected = selectedZoneId === TASKS_ZONE_ID;
   const powerZoneSelected = selectedZoneId === POWER_ZONE_ID;
   const worldZoneSelected = selectedZoneId === WORLD_ZONE_ID;
+  const activeId = selectedZone?.id ?? selectedZoneId;
+  const homeOwnsSelection =
+    activeId === zones.inside?.id || zones.indoor.some((zone) => zone.id === activeId);
 
   return (
     <aside className="zones-panel border border-neutral-700 bg-neutral-950/70 p-4">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="zones-panel-heading mb-4 flex items-center justify-between">
         <h2 className="text-xl font-black uppercase text-neutral-100">Zones</h2>
         <Zap className="h-5 w-5 text-yellow-300" />
       </div>
-      <div className="grid gap-3">
+      <div className="zone-selector-groups grid gap-3">
+        <HorizontalAccordion
+          title="Home"
+          persistKey="dashboard-zones-home"
+          attached={homeOwnsSelection ? controls : null}
+          attachKey={activeId}
+        >
         {zones.inside ? (
           <div className={classNames("zone-tree", zones.indoor.length > 0 && "zone-parent-widget")}>
             <ZoneButton
@@ -101,6 +116,13 @@ export function ZonesPanel({
           ))
         )}
 
+        </HorizontalAccordion>
+        <HorizontalAccordion
+          title="Systems"
+          persistKey="dashboard-zones-systems"
+          attached={homeOwnsSelection ? null : controls}
+          attachKey={activeId}
+        >
         {zones.climate ? (
           <ZoneButton
             zone={zones.climate}
@@ -150,6 +172,7 @@ export function ZonesPanel({
           className="zone-button-tasks"
           hideCounts
         />
+        </HorizontalAccordion>
       </div>
     </aside>
   );

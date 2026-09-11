@@ -3746,14 +3746,15 @@ button.config-breadcrumb-crumb:focus-visible {
 .climate-switch-row {
   position: relative;
   display: grid;
-  min-height: 64px;
-  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  min-height: 56px;
+  grid-template-columns: minmax(0, auto) 80px minmax(0, auto);
+  justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   border-color: var(--cyber-border-dim) !important;
   background: rgb(var(--cyber-line-rgb) / 0.045);
   overflow: hidden;
-  padding: 10px 12px;
+  padding: 6px 12px;
 }
 
 .climate-switch-row > * {
@@ -3782,9 +3783,9 @@ button.config-breadcrumb-crumb:focus-visible {
 .cyber-switch {
   position: relative;
   display: block;
-  width: 72px;
-  min-width: 72px;
-  height: 34px;
+  width: 80px;
+  min-width: 80px;
+  height: 44px;
   border: 1px solid rgb(var(--cyber-highlight-rgb) / 0.58);
   background: rgb(var(--cyber-line-rgb) / 0.1);
   outline: none;
@@ -3800,10 +3801,10 @@ button.config-breadcrumb-crumb:focus-visible {
 
 .cyber-switch-thumb {
   position: absolute;
-  inset-block: 4px;
+  inset-block: 5px;
   left: 4px;
   display: flex;
-  width: 26px;
+  width: 32px;
   align-items: center;
   justify-content: center;
   background: var(--cyber-highlight);
@@ -3812,9 +3813,54 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 .cyber-switch-checked .cyber-switch-thumb {
-  left: calc(100% - 30px);
+  left: calc(100% - 36px);
   background: var(--cyber-highlight);
   color: var(--cyber-title-on-highlight);
+}
+
+.zone-panel {
+  container: zone-panel / inline-size;
+}
+
+.zone-lighting-controls {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  gap: 24px;
+  padding-block: 8px;
+}
+
+.zone-panel .zone-stats {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.zone-party-control {
+  width: 100%;
+  max-width: 320px;
+}
+
+.zone-party-control > header {
+  margin-bottom: 12px;
+}
+
+.zone-party-control .climate-switch-row {
+  border: 0;
+  background: transparent;
+  padding-inline: 0;
+}
+
+@container zone-panel (min-width: 580px) {
+  .zone-lighting-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .zone-panel-header {
+    flex-direction: row !important;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
 }
 
 .dashboard-shell .momentary-feedback {
@@ -5560,7 +5606,7 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 @media (min-width: 768px) and (max-width: 1125px),
-  (min-width: 768px) and (orientation: portrait) {
+  (min-width: 768px) and (max-aspect-ratio: 1/1) {
   .dashboard-shell {
     padding: 28px !important;
   }
@@ -5622,130 +5668,386 @@ button.config-breadcrumb-crumb:focus-visible {
   ) !important;
 }
 
-@media (min-width: 1126px) and (orientation: landscape) {
-  .dashboard-shell .top-banner {
-    margin-left: var(--dashboard-wide-main-x) !important;
-    max-width: calc(100vw - var(--dashboard-wide-main-x) - 144px);
-    min-height: 52px;
+/* One DOM order in both orientations. Square belongs to the vertical layout. */
+.dashboard-overview {
+  display: contents;
+}
+
+.dashboard-layout > .voice-transcript-panel {
+  margin-top: 0;
+}
+
+/* The multimeter's horizontal accordion, adapted to the dashboard's controls.
+   In portrait these wrappers disappear and leave the familiar zone grid. */
+.horizontal-accordion,
+.horizontal-accordion-content {
+  display: contents;
+}
+
+.horizontal-accordion-trigger,
+.horizontal-accordion-content[hidden] {
+  display: none;
+}
+
+@media (aspect-ratio > 1) {
+  body:has(.dashboard-home) {
+    padding-top: 0;
   }
 
-  .dashboard-shell .top-banner > div {
-    margin-top: 0 !important;
+  /* ==== LEFT SIDEBAR (specs/landscape-layout.md) ===========================
+     Portrait's top bar turned sideways. Everything is a continuous function of
+     --nova-header-fade (0..1), which NovaAvatar sets from scrollX / 400px in
+     this layout: the sidebar narrows 184px -> 88px, the orb (200px canvas)
+     scales 0.8 -> 0.32 (160px -> 64px) via --nova-avatar-scale (1 -> 0.4),
+     the shadow and mini time/date fade in, Reload/Config fade out. */
+  body:has(.dashboard-home) {
+    --dashboard-sidebar-width: calc(184px - 96px * var(--nova-header-fade, 0));
+    --dashboard-sidebar-orb-top: 64px;
+    --dashboard-sidebar-orb-bottom: calc(64px + 160px - 96px * var(--nova-header-fade, 0));
   }
 
-  /* Three rows. Quick Access takes the middle one, full width: one line does
-     not fit the 300px sidebar, and a full-width row is the only placement that
-     is both above the zone menu and above every panel below it
-     (specs/quick-access-card.md).
-
-     The reminder bar used to span rows 1-2 (with the control stage spanning
-     2-3) so that the orb space reserved above it could not set the clock row's
-     height and leave a tall empty band under the clock. Quick Access now ends
-     that row instead, and the bar's `align-self: end` still pins it to the
-     card below — measured at 1920x1080 and 1180x820, the gaps above and below
-     the card are the layout's normal ~20px.
-
-     Every area here is one rectangle: a four-row version splitting `control`
-     across non-adjacent rows is invalid and drops the whole declaration. This
-     is the ONLY grid-template-areas for this breakpoint — do not add a second
-     block overriding it. */
-  .dashboard-layout {
-    align-items: start;
-    grid-template-areas:
-      "reminders clock"
-      "quick quick"
-      "zones control";
-    grid-template-columns: 300px minmax(0, 1fr) !important;
+  body:has(.dashboard-home) .nova-avatar-host:not(.nova-avatar-speaking) {
+    top: var(--dashboard-sidebar-orb-top);
+    left: calc(var(--dashboard-sidebar-width) / 2 + env(safe-area-inset-left, 0px));
+    transform: translateX(-50%) scale(calc(var(--nova-avatar-scale, 1) * 0.8));
+    transform-origin: top center;
   }
 
-  .quick-access {
-    grid-area: quick;
+  /* The speaking migration measures from wherever the orb rests; keep its
+     start point in the sidebar too. */
+  body:has(.dashboard-home) .nova-avatar-host.nova-avatar-speaking {
+    top: var(--dashboard-sidebar-orb-top);
+    left: calc(var(--dashboard-sidebar-width) / 2 + env(safe-area-inset-left, 0px));
   }
 
-  /* Landscape keeps portrait's arrangement — title row above a bordered clock
-     face holding time, date and weekdays stacked — only at a smaller type
-     scale. It stays sized to its content: the grid above gives the control
-     stage its own row so nothing needs padding out to fill a taller one. */
-  .clock-panel {
-    display: flex;
-    flex-direction: column;
-    grid-area: clock;
-    justify-self: stretch;
-    min-height: 0;
-    padding: 16px !important;
+  body:has(.dashboard-home) .header-fade-strip {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    width: calc(var(--dashboard-sidebar-width) + env(safe-area-inset-left, 0px));
+    height: auto;
+    background: linear-gradient(to right, #000 0%, transparent 100%);
   }
 
-  .clock-panel header {
-    margin-bottom: 12px !important;
+  body:has(.dashboard-home) .dashboard-config-link {
+    top: auto;
+    right: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: calc(12px + env(safe-area-inset-left, 0px));
   }
 
-  .clock-panel h2 {
-    font-size: 1.65rem !important;
+  /* Reload also carries .dashboard-config-link; out-rank the rule above. */
+  body:has(.dashboard-home) .dashboard-config-link.dashboard-reload-link {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    bottom: auto;
   }
 
-  .clock-face {
-    flex: 1 1 auto;
-    gap: 4px;
-    min-height: 0;
-    min-width: 0;
-    padding: 16px !important;
+  /* Mini time/date stack under the orb's bottom edge as it shrinks, centred
+     in the sidebar. */
+  body:has(.dashboard-home) .header-mini-clock,
+  body:has(.dashboard-home) .header-mini-date {
+    left: env(safe-area-inset-left, 0px);
+    right: auto;
+    width: var(--dashboard-sidebar-width);
+    text-align: center;
     white-space: nowrap;
   }
 
-  .clock-time {
-    font-size: calc(clamp(2.5rem, 5vw, 4.25rem) * var(--cyber-clock-scale, 1));
-    line-height: 1;
+  body:has(.dashboard-home) .header-mini-clock {
+    top: calc(var(--dashboard-sidebar-orb-bottom) + 12px);
+    font-size: 0.8rem;
   }
 
-  .clock-date {
-    font-size: calc(clamp(1.5rem, 2.6vw, 2.2rem) * var(--cyber-clock-scale, 1));
-    margin-top: 6px !important;
+  body:has(.dashboard-home) .header-mini-date {
+    top: calc(var(--dashboard-sidebar-orb-bottom) + 12px + 1.1rem);
+    font-size: 0.6rem;
   }
 
-  .clock-weekdays {
-    font-size: calc(clamp(0.75rem, 1.1vw, 1rem) * var(--cyber-clock-scale, 1));
-    margin-top: 4px !important;
+  .dashboard-home {
+    --dashboard-column-height: min(600px, calc(100dvh - 160px - env(safe-area-inset-bottom, 0px)));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: max-content;
+    min-width: 100%;
+    min-height: 100dvh;
+    /* Left padding clears the resting 184px sidebar plus a gap. */
+    padding: 48px 40px 48px calc(184px + 24px + env(safe-area-inset-left, 0px)) !important;
+    overflow: clip;
   }
 
-  .control-stage {
-    grid-area: control;
-    min-width: 0;
+  .dashboard-home .top-banner {
+    position: fixed !important;
+    bottom: 8px;
+    left: 40px;
+    max-width: calc(100vw - 80px);
   }
 
-  .zones-panel {
-    grid-area: zones;
-  }
-
-  /* The bar lives in the sidebar column here, not across the shell: centred
-     under the status orb (which this breakpoint also moves to the sidebar's
-     centre line, see --dashboard-wide-sidebar-center-x) and sitting directly
-     on top of the zones menu.
-
-     It spans the first two grid rows and `align-self: end` pins it to the
-     bottom of that span, so it always touches the menu below. The margin-top
-     reserves the orb's nominal disc above the bar.
-     It is deliberately NOT --nova-avatar-render-size: that box is the canvas,
-     most of which is transparent, and reserving it would open a visible gap.
-     The tiles wrap inside the 300px column rather than overflowing it — a full
-     roster is two short rows, which is the point. */
-  .reminder-icon-bar {
-    --reminder-tile-size: 2.7rem;
-    grid-area: reminders;
-    align-self: end;
-    justify-self: stretch;
-    flex-wrap: wrap;
-    margin-top: calc(var(--nova-avatar-size) + var(--nova-avatar-margin));
-    max-width: 100%;
-  }
-
-  .zone-panel-header {
+  .dashboard-home .dashboard-layout {
+    display: flex;
     align-items: flex-start;
-    flex-direction: row !important;
-    justify-content: space-between;
+    gap: 28px;
+    width: max-content;
   }
+
+  .dashboard-home .dashboard-overview {
+    display: grid;
+    grid-template-rows: minmax(min-content, 1fr) auto;
+    gap: 20px;
+    width: 400px;
+    flex: none;
+    border: 1px solid var(--cyber-border-dim);
+    background: var(--cyber-panel);
+    padding-bottom: 20px;
+  }
+
+  .dashboard-home .dashboard-layout > * {
+    flex-shrink: 0;
+    height: var(--dashboard-column-height);
+    max-height: var(--dashboard-column-height);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-home .dashboard-layout > *::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-home .clock-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 20px !important;
+    min-height: 0;
+    order: 0;
+    border: 0;
+    background: transparent !important;
+    clip-path: none;
+  }
+
+  .dashboard-home .clock-panel header {
+    margin-bottom: 20px !important;
+  }
+
+  .dashboard-home .clock-face {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    padding: 24px 8px !important;
+  }
+
+  .dashboard-home .clock-time {
+    font-size: calc(2.7rem * var(--cyber-clock-scale, 1));
+    white-space: nowrap;
+  }
+
+  .dashboard-home .clock-date {
+    font-size: calc(1.5rem * var(--cyber-clock-scale, 1));
+  }
+
+  .dashboard-home .clock-weekdays {
+    font-size: calc(0.8rem * var(--cyber-clock-scale, 1));
+  }
+
+  .dashboard-home .reminder-icon-bar {
+    --reminder-tile-size: 2.3rem;
+    margin: 0;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-home .quick-access {
+    width: 520px;
+    /* Leave the raised kicker inside the scrollable column's paint bounds. */
+    margin-top: 0;
+    padding-top: 28px;
+  }
+
+  .dashboard-home .quick-access .quick-access-kicker {
+    top: 8px;
+    transform: none;
+  }
+
+  .dashboard-home .quick-access-row {
+    display: grid;
+    grid-auto-rows: minmax(84px, 1fr);
+    height: 100%;
+  }
+
+  .dashboard-home .zones-panel {
+    width: auto;
+    padding: 0 !important;
+    border: 0;
+    background: transparent !important;
+    clip-path: none;
+  }
+
+  .dashboard-home .zones-panel-heading {
+    display: none;
+  }
+
+  .dashboard-home .zone-selector-groups {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+  }
+
+  .dashboard-home .horizontal-accordion {
+    display: flex;
+    height: 100%;
+    flex: none;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 96px;
+    width: 96px;
+    height: 100%;
+    padding: clamp(12px, 2.5vh, 24px) 16px;
+    border: 1px solid var(--cyber-border-dim);
+    background: var(--cyber-panel) !important;
+    color: var(--cyber-title-on-bg);
+    cursor: pointer;
+    clip-path: none;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:hover,
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    border-color: var(--cyber-highlight);
+    background: color-mix(in srgb, var(--cyber-highlight) 12%, var(--cyber-panel)) !important;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    outline: 2px solid var(--cyber-highlight);
+    outline-offset: -4px;
+  }
+
+  .dashboard-home .horizontal-accordion-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-family: var(--cyber-display);
+    font-size: clamp(1rem, 3.4vh, 1.9rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-home .horizontal-accordion-indicator {
+    display: grid;
+    place-items: center;
+    width: clamp(24px, 4.5vh, 40px);
+    height: clamp(24px, 4.5vh, 40px);
+    flex-shrink: 0;
+    border: 1px solid var(--cyber-border-dim);
+  }
+
+  .dashboard-home .horizontal-accordion[data-open="true"] .horizontal-accordion-trigger {
+    border-color: var(--cyber-highlight);
+    border-right-color: var(--cyber-border-dim);
+  }
+
+  .dashboard-home .horizontal-accordion-content:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(68px, 1fr);
+    gap: 10px;
+    width: 300px;
+    height: 100%;
+    padding: 20px;
+    border: 1px solid var(--cyber-border-dim);
+    border-left: 0;
+    background: var(--cyber-panel);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-home .horizontal-accordion-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-tree,
+  .dashboard-home .horizontal-accordion .zone-children {
+    display: contents;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-button {
+    order: 0;
+    min-height: 68px !important;
+    padding: 12px !important;
+    aspect-ratio: auto;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-title-bar {
+    font-size: 1rem !important;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    font-size: 0.65rem !important;
+    margin-top: 0 !important;
+    line-height: 1.2;
+  }
+
+  /* Selected zone's controls, joined to the right of the owning entry's list:
+     shared border, no gap, one bordered unit. */
+  .dashboard-home .horizontal-accordion-attached {
+    flex: none;
+    height: 100%;
+    border: 1px solid var(--cyber-border-dim);
+    border-left: 0;
+    background: var(--cyber-panel);
+  }
+
+  .dashboard-home .control-stage {
+    display: block;
+    width: min(760px, calc(100vw - 80px));
+    min-width: 520px;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: none;
+    /* Clear the shrunk sidebar when scrolled into view. */
+    scroll-margin-inline-start: 112px;
+    scroll-margin-inline-end: 40px;
+  }
+
+  .dashboard-home .control-stage::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-home .voice-transcript-panel {
+    display: flex;
+    flex-direction: column;
+    width: 560px;
+    margin-top: 0;
+  }
+
+  .dashboard-home .zone-panel {
+    min-height: 100% !important;
+  }
+
+  .dashboard-home .voice-transcript-panel > div:nth-child(2),
+  .dashboard-home .voice-transcript-screen {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-home .voice-transcript-log {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+
 }
 
-@media (max-width: 1125px), (orientation: portrait) {
+@media (min-width: 0px) {
   .zones-panel > .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
@@ -5821,7 +6123,7 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 @media (min-width: 768px) and (max-width: 1125px),
-  (min-width: 768px) and (orientation: portrait) {
+  (min-width: 768px) and (max-aspect-ratio: 1/1) {
   .zone-children {
     --zone-child-tile-max: 96px;
   }

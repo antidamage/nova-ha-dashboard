@@ -15,7 +15,9 @@ import { useEffect } from "react";
 // Controls that own their own press-drag — form fields, sliders, the maplibre
 // map's pan — are skipped, as are inner scroll regions and anything tagged
 // `data-nova-no-drag-scroll`. Everything else (cards, buttons, empty space) is
-// draggable to pan.
+// draggable to pan. In the horizontal dashboard a drag inside a vertically
+// scrolling column moves both at once: sideways travel pans the page, vertical
+// travel scrolls that column.
 
 const DRAG_THRESHOLD_PX = 5;
 
@@ -27,7 +29,7 @@ const DRAG_THRESHOLD_PX = 5;
  * the click-vs-drag threshold lets them stay clickable while still being
  * draggable to scroll.
  */
-export function startsInNonDraggable(target: EventTarget | null): boolean {
+export function startsInNonDraggable(target: EventTarget | null, axis: "x" | "y" = "y"): boolean {
   let node = target instanceof Element ? target : null;
 
   while (node && node !== document.body && node !== document.documentElement) {
@@ -52,10 +54,10 @@ export function startsInNonDraggable(target: EventTarget | null): boolean {
 
     // Inner scrollable regions keep their own wheel/drag behaviour.
     const style = window.getComputedStyle(node);
-    const overflowY = style.overflowY;
+    const overflowY = axis === "x" ? style.overflowX : style.overflowY;
     if (
       (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
-      node.scrollHeight > node.clientHeight + 1
+      (axis === "x" ? node.scrollWidth > node.clientWidth + 1 : node.scrollHeight > node.clientHeight + 1)
     ) {
       return true;
     }
@@ -66,6 +68,33 @@ export function startsInNonDraggable(target: EventTarget | null): boolean {
   return false;
 }
 
+/**
+ * Nearest ancestor of the target that scrolls vertically and has overflow to
+ * scroll through, or null. In the horizontal dashboard a drag that starts in one
+ * of these columns pans the page sideways and the column vertically together.
+ */
+export function findVerticalScroller(target: EventTarget | null): HTMLElement | null {
+  let node = target instanceof Element ? target : null;
+  while (node && node !== document.body && node !== document.documentElement) {
+    if (node instanceof HTMLElement) {
+      const overflowY = window.getComputedStyle(node).overflowY;
+      if (
+        (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+        node.scrollHeight > node.clientHeight + 1
+      ) {
+        return node;
+      }
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+export function isHorizontalDashboard(): boolean {
+  return typeof window.matchMedia === "function" &&
+    window.matchMedia("(aspect-ratio > 1)").matches && !!document.querySelector(".dashboard-home");
+}
+
 export function useClickDragScroll(): void {
   useEffect(() => {
     let pending = false; // mouse is down but movement hasn't crossed the threshold
@@ -74,6 +103,9 @@ export function useClickDragScroll(): void {
     let startX = 0;
     let startY = 0;
     let lastY = 0;
+    let lastX = 0;
+    let horizontal = false;
+    let panel: HTMLElement | null = null; // column scrolled vertically by a horizontal-mode drag
 
     const beginDrag = () => {
       dragging = true;
@@ -85,6 +117,7 @@ export function useClickDragScroll(): void {
     const stopTracking = () => {
       pending = false;
       dragging = false;
+      panel = null;
       document.documentElement.style.cursor = "";
       document.documentElement.style.userSelect = "";
       window.removeEventListener("mousemove", onMouseMove);
@@ -103,13 +136,17 @@ export function useClickDragScroll(): void {
           return;
         }
         beginDrag();
-        lastY = event.clientY;
       }
 
       const dy = event.clientY - lastY;
+      const dx = event.clientX - lastX;
       lastY = event.clientY;
+      lastX = event.clientX;
       // Explicit instant scroll: the drag is a direct 1:1 input, never eased.
-      window.scrollBy({ top: -dy, left: 0, behavior: "auto" });
+      window.scrollBy({ top: horizontal ? 0 : -dy, left: horizontal ? -dx : 0, behavior: "instant" });
+      if (panel) {
+        panel.scrollTop -= dy;
+      }
       event.preventDefault();
     };
 
@@ -130,14 +167,17 @@ export function useClickDragScroll(): void {
       if (event.button !== 0 || event.ctrlKey) {
         return;
       }
-      if (startsInNonDraggable(event.target)) {
+      horizontal = isHorizontalDashboard();
+      if (startsInNonDraggable(event.target, horizontal ? "x" : "y")) {
         return;
       }
+      panel = horizontal ? findVerticalScroller(event.target) : null;
       pending = true;
       dragging = false;
       startX = event.clientX;
       startY = event.clientY;
       lastY = event.clientY;
+      lastX = event.clientX;
       window.addEventListener("mousemove", onMouseMove, { passive: false });
       window.addEventListener("mouseup", onMouseUp);
     };
@@ -162,11 +202,22 @@ export function useClickDragScroll(): void {
       stopTracking();
     };
 
+    const onWheel = (event: WheelEvent) => {
+      if (!isHorizontalDashboard() || event.ctrlKey || event.defaultPrevented ||
+          startsInNonDraggable(event.target) || startsInNonDraggable(event.target, "x")) return;
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerWidth : 1;
+      window.scrollBy({ left: delta * unit, behavior: "instant" });
+      event.preventDefault();
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("mousedown", onMouseDown);
     window.addEventListener("click", onClickCapture, { capture: true });
     window.addEventListener("dragstart", onDragStart);
     window.addEventListener("blur", onWindowBlur);
     return () => {
+      window.removeEventListener("wheel", onWheel);
       window.removeEventListener("mousedown", onMouseDown);
       window.removeEventListener("click", onClickCapture, { capture: true });
       window.removeEventListener("dragstart", onDragStart);

@@ -19,6 +19,7 @@ import {
 import { sampleVoiceSpeechEnvelope, useVoiceSpeechPhase } from "./dashboard/voiceSpeech";
 import { markInput as markVoiceInput, useVoiceMode } from "./dashboard/voiceMode";
 import { arePageUpdatesPaused } from "./dashboard/pageUpdatePause";
+import { isHorizontalDashboard } from "./dashboard/useClickDragScroll";
 import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
 import { useOrbInfo } from "./orb-info/useOrbInfo";
@@ -58,6 +59,10 @@ const LOAD_EASE = 1.0; // ease toward server-reported load
 const SPEECH_RESOLUTION_BOOST = 2;
 // The return migration must outlast the CSS transition (globals.css).
 const SPEECH_RETURN_FALLBACK_MS = 600;
+// Horizontal dashboard sidebar: the orb shrinks to 40% over the first 400px of
+// sideways scroll (specs/landscape-layout.md).
+const SIDEBAR_SCROLL_DISTANCE = 400;
+const SIDEBAR_SCALE_MIN = 0.4;
 
 /** How large the speaking orb should be relative to the viewport. */
 function speechScaleFor(viewportWidth: number, viewportHeight: number, size: number) {
@@ -380,9 +385,14 @@ function NovaAvatarVisual({
     const distance = Math.max(1, scrollScaleDistance);
     const minScale = Math.max(0, Math.min(1, scrollScaleMin));
     const onScroll = () => {
-      const y = typeof window !== "undefined" ? window.scrollY || 0 : 0;
-      const t = Math.min(1, Math.max(0, y / distance));
-      const scale = 1 + (minScale - 1) * t;
+      // The horizontal dashboard turns the top bar into a left sidebar driven
+      // by sideways scroll (specs/landscape-layout.md): same progress value,
+      // its own distance and floor. CSS maps the scale onto the sidebar's
+      // 160px -> 64px orb.
+      const horizontal = isHorizontalDashboard();
+      const offset = horizontal ? window.scrollX || 0 : window.scrollY || 0;
+      const t = Math.min(1, Math.max(0, offset / (horizontal ? SIDEBAR_SCROLL_DISTANCE : distance)));
+      const scale = 1 + ((horizontal ? SIDEBAR_SCALE_MIN : minScale) - 1) * t;
       host.style.setProperty("--nova-avatar-scale", scale.toFixed(4));
       // Same scroll-derived progress drives the header fade strip, the mini
       // clock/date, and the reload/config buttons (globals.css) — one
@@ -393,8 +403,10 @@ function NovaAvatarVisual({
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       root.style.removeProperty("--nova-header-fade");
       root.classList.remove("nova-header-controls-disabled");
     };
