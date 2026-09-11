@@ -1740,9 +1740,21 @@ async def stream_frame(
     if not FRAMES.complete(held):
         if FRAMES.exhausted(held):
             raise Refusal(422, "frame_limit", goodFrames=len(held.good))
-        analysis = ClipAnalysis([decode_image(await read_bounded(request, image))])
-        FRAMES.record(held, [detection for _, detection in analysis.detections], analysis.rejections)
-        reason = analysis.rejections[0] if analysis.rejections else None
+        payload = await read_bounded(request, image)
+        try:
+            analysis = ClipAnalysis([decode_image(payload)])
+        except HTTPException as error:
+            # A still nobody can use is a still to skip, not an end to the
+            # attempt: `multiple_faces` (someone walked behind) and an
+            # undecodable frame both raise rather than landing in `rejections`,
+            # and a client that stopped on either would give up on a capture
+            # that the next frame would have satisfied.
+            detail = error.detail if isinstance(error.detail, dict) else {}
+            reason = str(detail.get("reason", "clip_undecodable"))
+            FRAMES.record(held, [], [reason])
+        else:
+            FRAMES.record(held, [detection for _, detection in analysis.detections], analysis.rejections)
+            reason = analysis.rejections[0] if analysis.rejections else None
     else:
         reason = None
     return {
