@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { SecretSetupStatus } from "../../lib/config-schema";
-import type { DashboardConfig } from "../../lib/config-schema";
 import type { AppleTvSwipeSettings } from "../../lib/appletv-swipe";
 import type { AgentPreferences, VoicePreferences, WatchfacePreferences } from "../../lib/types";
 import type { SunThemeStatus, ThemeStorageValue } from "./accentColor";
@@ -39,7 +38,6 @@ const AgentConfig = dynamic(() => import("./AgentConfig").then((module) => modul
 const AgentNameConfig = dynamic(() => import("./AgentNameConfig").then((module) => module.AgentNameConfig));
 const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((module) => module.AppleTvSwipeConfig));
 const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
-const DashboardClimateConfig = dynamic(() => import("./DashboardClimateConfig").then((module) => module.DashboardClimateConfig));
 const StatusOrbInfoConfig = dynamic(() => import("./StatusOrbInfoConfig").then((module) => module.StatusOrbInfoConfig));
 const HistoryPanel = dynamic(() => import("./HistoryPanel").then((module) => module.HistoryPanel));
 const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
@@ -259,7 +257,6 @@ function ToolbarButton({
 
 export function ConfigWorkspace({
   initialAgentSettings,
-  initialAircon,
   initialAutoUpdate,
   initialSwipe,
   initialSun,
@@ -268,7 +265,6 @@ export function ConfigWorkspace({
   initialWatchface,
 }: {
   initialAgentSettings?: AgentPreferences | null;
-  initialAircon?: DashboardConfig["dashboard"]["aircon"];
   initialAutoUpdate?: boolean;
   initialSwipe?: AppleTvSwipeSettings | null;
   initialSun?: SunThemeStatus | null;
@@ -649,7 +645,6 @@ export function ConfigWorkspace({
                 </ConfigAccordion>
                 <RemindersConfig />
                 <StatusOrbInfoConfig initialSettings={initialWatchface} />
-                <DashboardClimateConfig initialSettings={initialAircon} />
                 <AppleTvSwipeConfig initialSettings={initialSwipe} />
                 <PhonoscopeConfig />
               </>

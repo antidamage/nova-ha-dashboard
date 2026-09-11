@@ -247,23 +247,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function BorderToggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <CheckboxRow
-      checked={checked}
-      label="Custom Borders"
-      detail={checked ? "Colour and opacity override active" : "Using current line behaviour"}
-      onChange={onChange}
-    />
-  );
-}
-
 function ThemeSelectionControl({
   accentColor,
   highlightColor,
@@ -1550,10 +1533,6 @@ export function AccentConfig({
     updateSlotColor(slot, clip.value);
   };
 
-  const updateBorder = (border: ThemeBorderValue, options: { persist?: boolean } = {}) => {
-    setTheme({ ...theme, border }, options);
-  };
-
   const updateMapWater = (mapWater: ThemeMapLayerValue, options: { persist?: boolean } = {}) => {
     setTheme({ ...theme, mapWater }, options);
   };
@@ -1693,12 +1672,6 @@ export function AccentConfig({
         onPasteColor={() => pasteColorIntoSlot(choice.slot)}
         pasteColorDisabled={!clipboard.color}
       >
-        {choice.slot === "border" ? (
-          <BorderToggle
-            checked={theme.border.enabled}
-            onChange={(enabled) => updateBorder({ ...theme.border, enabled })}
-          />
-        ) : null}
         {isWater ? (
           <WaterToggle
             checked={theme.mapWater.enabled}
