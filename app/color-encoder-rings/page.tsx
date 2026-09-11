@@ -1,22 +1,22 @@
 "use client";
 
 /**
- * Demo of RingedColorEncoder (specs/color-encoder-rings.md, "Demo page").
+ * Demo of ColorEncoder (specs/color-encoder.md, "Demo page").
  * Every dial is live with local state only; nothing leaves the page.
  */
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
-  RingedColorEncoder,
-  RINGED_ENCODER_CHANNELS,
-  RINGED_ENCODER_CHANNELS_WITH_ALPHA,
-  type RingedColorEncoderChannel,
-} from "../components/RingedColorEncoder";
+  ColorEncoder,
+  COLOR_ENCODER_CHANNELS,
+  COLOR_ENCODER_CHANNELS_WITH_ALPHA,
+  type ColorEncoderChannel,
+} from "../components/ColorEncoder";
 import type { Hsva } from "../components/colorEncoderModel";
 
 const RING_NAMES = ["Opacity", "Size", "Glow", "Speed", "Softness"];
 
 type DemoDialProps = {
-  channels?: RingedColorEncoderChannel[];
+  channels?: ColorEncoderChannel[];
   disabled?: boolean;
   id: string;
   label: string;
@@ -24,13 +24,13 @@ type DemoDialProps = {
   size: number;
 };
 
-function DemoDial({ channels = RINGED_ENCODER_CHANNELS, disabled, id, label, rings, size }: DemoDialProps) {
+function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, label, rings, size }: DemoDialProps) {
   const [colour, setColour] = useState<Hsva>({ h: 200, s: 70, v: 85, a: 80 });
   const [values, setValues] = useState<number[]>(() => RING_NAMES.map((_, index) => 20 + index * 15));
 
   return (
     <figure style={styles.figure} data-demo-dial={id}>
-      <RingedColorEncoder
+      <ColorEncoder
         channels={channels}
         disabled={disabled}
         label={label}
@@ -71,7 +71,7 @@ function Section({ children, light, title }: { children: ReactNode; light?: bool
 export default function ColorEncoderRingsDemo() {
   return (
     <main style={styles.page}>
-      <h1 style={styles.title}>RingedColorEncoder</h1>
+      <h1 style={styles.title}>ColorEncoder</h1>
 
       <Section title="Ring count, 200px">
         {[0, 1, 2, 3, 4, 5].map((rings) => (
@@ -91,7 +91,7 @@ export default function ColorEncoderRingsDemo() {
       </Section>
 
       <Section title="States">
-        <DemoDial id="alpha" channels={RINGED_ENCODER_CHANNELS_WITH_ALPHA} label="Accent" rings={2} size={200} />
+        <DemoDial id="alpha" channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} label="Accent" rings={2} size={200} />
         <DemoDial id="disabled" disabled label="Lights" rings={3} size={200} />
       </Section>
     </main>

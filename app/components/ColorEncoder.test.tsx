@@ -14,27 +14,54 @@ import {
   type Hsva,
 } from "./colorEncoderModel";
 
+/** The 200px dial's box: --ce-outer is 1.244 knob diameters. */
+const DIAL_BOX = 248.8;
+const CENTRE = DIAL_BOX / 2;
+/** Where the test grabs the knob: well outside the dead centre. */
+const GRIP = CENTRE * 0.8;
+
 beforeAll(() => {
   // jsdom does not implement pointer capture; the dial calls it on press.
   if (!HTMLElement.prototype.setPointerCapture) {
     HTMLElement.prototype.setPointerCapture = () => undefined;
   }
+  // It lays nothing out either, and an angular drag needs the dial's box. Only
+  // the dial gets one: the knob label's fitting probe measures itself and must
+  // keep reading zero, so that everything "fits" here as it did before.
+  const real = HTMLElement.prototype.getBoundingClientRect;
+  HTMLElement.prototype.getBoundingClientRect = function boxed(this: HTMLElement) {
+    if (!this.classList?.contains("color-encoder-dial")) return real.call(this);
+    return { x: 0, y: 0, left: 0, top: 0, right: DIAL_BOX, bottom: DIAL_BOX, width: DIAL_BOX, height: DIAL_BOX, toJSON: () => ({}) } as DOMRect;
+  };
 });
 
 afterEach(() => {
   cleanup();
 });
 
-function drag(dial: HTMLElement, moves: Array<[number, number]>, modifiers: { shiftKey?: boolean } = {}) {
-  let x = 100;
-  let y = 100;
-  fireEvent.pointerDown(dial, { buttons: 1, clientX: x, clientY: y, pointerId: 1 });
-  for (const [dx, dy] of moves) {
-    x += dx;
-    y += dy;
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: x, clientY: y, pointerId: 1, ...modifiers });
+/** A point on the knob at `angle`, clockwise degrees from 12 o'clock. */
+function at(angle: number) {
+  const radians = (angle * Math.PI) / 180;
+  return { clientX: CENTRE + GRIP * Math.sin(radians), clientY: CENTRE - GRIP * Math.cos(radians) };
+}
+
+/**
+ * Turns the knob by `degrees`, the way a hand does: press, sweep round the
+ * centre, release. Long turns are broken into steps under a half-turn, since a
+ * single sample past 180° is ambiguous — as it is for a real pointer.
+ */
+function turn(dial: HTMLElement, degrees: number, modifiers: { shiftKey?: boolean } = {}, from = 0) {
+  const steps = Math.max(1, Math.ceil(Math.abs(degrees) / 90));
+  fireEvent.pointerDown(dial, { buttons: 1, ...at(from), pointerId: 1 });
+  for (let step = 1; step <= steps; step += 1) {
+    fireEvent.pointerMove(dial, { buttons: 1, ...at(from + (degrees * step) / steps), pointerId: 1, ...modifiers });
   }
-  fireEvent.pointerUp(dial, { clientX: x, clientY: y, pointerId: 1 });
+  fireEvent.pointerUp(dial, { ...at(from + degrees), pointerId: 1 });
+}
+
+/** Degrees of turn that move a 0–100 channel by `percent`. */
+function degreesFor(percent: number) {
+  return percent * 2.7;
 }
 
 /** A parent that stores what the dial sends, as every real caller does. */
@@ -110,41 +137,56 @@ describe("ColorEncoder", () => {
     expect(container.querySelectorAll(".color-encoder-led")).toHaveLength(4);
   });
 
-  it("turns up for right and up, down for left and down", () => {
+  it("turns clockwise up and anticlockwise down, from wherever it was grabbed", () => {
     const onChange = vi.fn();
     render(<ColorEncoder activeChannel="brightness" value={start} onChange={onChange} />);
     const dial = screen.getByRole("slider");
 
-    drag(dial, [[30, 0]]);
+    turn(dial, degreesFor(10));
     expect(onChange.mock.lastCall?.[0].v).toBeCloseTo(60, 5);
-    drag(dial, [[0, -30]]);
-    expect(onChange.mock.lastCall?.[0].v).toBeGreaterThan(50);
-    drag(dial, [[-30, 0]]);
-    expect(onChange.mock.lastCall?.[0].v).toBeLessThan(60.001);
+    turn(dial, -degreesFor(10));
+    expect(onChange.mock.lastCall?.[0].v).toBeCloseTo(40, 5);
+    // Grabbed at 4 o'clock instead of 12: the same sweep, the same move. The
+    // knob never jumps to meet the hand.
+    turn(dial, degreesFor(10), {}, 120);
+    expect(onChange.mock.lastCall?.[0].v).toBeCloseTo(60, 5);
   });
 
   it("wraps hue forever and stops brightness at its ends", () => {
     const onHue = vi.fn();
     const { unmount } = render(<ColorEncoder value={{ ...start, h: 350 }} onChange={onHue} />);
-    drag(screen.getByRole("slider"), [[60, 0]]);
+    turn(screen.getByRole("slider"), 30);
     expect(onHue.mock.lastCall?.[0].h).toBeCloseTo(20, 5);
     unmount();
 
     const onLevel = vi.fn();
     render(<ColorEncoder activeChannel="brightness" value={{ ...start, v: 95 }} onChange={onLevel} />);
-    drag(screen.getByRole("slider"), [[300, 0]]);
+    turn(screen.getByRole("slider"), degreesFor(40));
     expect(onLevel.mock.lastCall?.[0].v).toBe(100);
+  });
+
+  it("ignores samples in the dead centre", () => {
+    const onChange = vi.fn();
+    render(<ColorEncoder activeChannel="brightness" value={start} onChange={onChange} />);
+    const dial = screen.getByRole("slider");
+    // A press and a sweep a couple of pixels from the middle: the angle there
+    // is noise, so nothing moves.
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: CENTRE + 1, clientY: CENTRE, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: CENTRE, clientY: CENTRE + 1, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, clientX: CENTRE - 1, clientY: CENTRE, pointerId: 1 });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.pointerUp(dial, { clientX: CENTRE - 1, clientY: CENTRE, pointerId: 1 });
   });
 
   it("is eight times finer with Shift held", () => {
     const coarse = vi.fn();
     const { unmount } = render(<ColorEncoder value={start} onChange={coarse} />);
-    drag(screen.getByRole("slider"), [[80, 0]]);
+    turn(screen.getByRole("slider"), 80);
     unmount();
 
     const fine = vi.fn();
     render(<ColorEncoder value={start} onChange={fine} />);
-    drag(screen.getByRole("slider"), [[80, 0]], { shiftKey: true });
+    turn(screen.getByRole("slider"), 80, { shiftKey: true });
 
     const coarseDelta = coarse.mock.lastCall?.[0].h - start.h;
     const fineDelta = fine.mock.lastCall?.[0].h - start.h;
@@ -169,8 +211,8 @@ describe("ColorEncoder", () => {
     }
     const onValue = vi.fn();
     render(<RoundingParent onValue={onValue} />);
-    drag(screen.getByRole("slider"), Array.from({ length: 48 }, () => [1, 0] as [number, number]), { shiftKey: true });
-    // 48px × (1/3 ÷ 8) %/px = 2%.
+    // 43.2° of fine turn is 2%: 43.2 × (100/270) ÷ 8.
+    turn(screen.getByRole("slider"), 43.2, { shiftKey: true });
     expect(onValue.mock.lastCall?.[0].v).toBe(52);
   });
 
@@ -182,17 +224,17 @@ describe("ColorEncoder", () => {
 
     render(<ColorEncoder value={start} onChange={vi.fn()} />);
     const dial = screen.getByRole("slider");
-    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerDown(dial, { buttons: 1, ...at(0), pointerId: 1 });
     expect(click).toHaveBeenCalledTimes(1);
 
     // A long turn, fast and then slow: no clicks at any rate.
     for (let step = 1; step <= 40; step += 1) {
       clock += step <= 20 ? 16 : 600;
-      fireEvent.pointerMove(dial, { buttons: 1, clientX: step * 20, clientY: 0, pointerId: 1 });
+      fireEvent.pointerMove(dial, { buttons: 1, ...at(step * 8), pointerId: 1 });
     }
     expect(click).toHaveBeenCalledTimes(1);
 
-    fireEvent.pointerUp(dial, { clientX: 800, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(dial, { ...at(320), pointerId: 1 });
     expect(click).toHaveBeenCalledTimes(2);
     now.mockRestore();
     click.mockRestore();
@@ -234,18 +276,17 @@ describe("ColorEncoder", () => {
     render(<Dial />);
     const dial = screen.getByRole("slider");
 
-    // Brightness is at its top; pushing further moves nothing.
-    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: 90, clientY: 0, pointerId: 1 });
-    fireEvent.pointerUp(dial, { clientX: 90, clientY: 0, pointerId: 1 });
+    // Brightness is at its top; turning further moves nothing.
+    turn(dial, 40);
     expect(click).toHaveBeenCalledTimes(1);
 
-    // Out and back to where it started: still one click, the press.
+    // Down off the stop and back onto it: it ends where it started, so the
+    // release is silent — only the press clicked.
     click.mockClear();
-    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: -30, clientY: 0, pointerId: 1 });
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-    fireEvent.pointerUp(dial, { clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerDown(dial, { buttons: 1, ...at(0), pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, ...at(-20), pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, ...at(40), pointerId: 1 });
+    fireEvent.pointerUp(dial, { ...at(40), pointerId: 1 });
     expect(click).toHaveBeenCalledTimes(1);
 
     click.mockRestore();
@@ -267,18 +308,18 @@ describe("ColorEncoder", () => {
       <ColorEncoder activeChannel="brightness" value={{ ...start, v: 90 }} onChange={onChange} />,
     );
     const dial = screen.getByRole("slider");
-    fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: 30, clientY: 0, pointerId: 1 });
+    fireEvent.pointerDown(dial, { buttons: 1, ...at(0), pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, ...at(degreesFor(30)), pointerId: 1 });
     expect(onChange.mock.lastCall?.[0].v).toBeCloseTo(100, 5);
 
     // Mid-drag echo of a much lower brightness: ignored.
     rerender(<ColorEncoder activeChannel="brightness" value={{ ...start, v: 12 }} onChange={onChange} />);
-    fireEvent.pointerMove(dial, { buttons: 1, clientX: 60, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(dial, { buttons: 1, ...at(degreesFor(40)), pointerId: 1 });
     expect(onChange.mock.lastCall?.[0].v).toBe(100);
     expect(dial.getAttribute("aria-valuenow")).toBe("100");
 
     // Once the gesture is over, a genuine outside change is taken.
-    fireEvent.pointerUp(dial, { clientX: 60, clientY: 0, pointerId: 1 });
+    fireEvent.pointerUp(dial, { ...at(degreesFor(40)), pointerId: 1 });
     rerender(<ColorEncoder activeChannel="brightness" value={{ ...start, v: 12 }} onChange={onChange} />);
     expect(dial.getAttribute("aria-valuenow")).toBe("12");
   });
@@ -290,8 +331,8 @@ describe("ColorEncoder", () => {
     const dial = screen.getByRole("slider");
     tap(dial);
     expect(onCommit).not.toHaveBeenCalled();
-    drag(dial, [[10, 0], [10, 0], [10, 0]]);
-    expect(onChange).toHaveBeenCalledTimes(3);
+    turn(dial, 12);
+    expect(onChange).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
@@ -341,14 +382,14 @@ describe("ColorEncoder", () => {
   it("stops the index when a clamped channel hits its end, and moves again on reversal", () => {
     const { container } = render(<Controlled activeChannel="saturation" initial={{ ...start, s: 95 }} />);
     const dial = screen.getByRole("slider");
-    drag(dial, [[300, 0]]);
+    turn(dial, degreesFor(20));
     expect(dial.getAttribute("aria-valuenow")).toBe("100");
     expect(angleOf(container)).toBe("135.00deg");
-    // Pushing further past the end turns nothing.
-    drag(dial, [[200, 0]]);
+    // Turning further past the end moves nothing.
+    turn(dial, degreesFor(20));
     expect(angleOf(container)).toBe("135.00deg");
     // Reversing moves value and index at once — no wind-back through the overshoot.
-    drag(dial, [[-30, 0]]);
+    turn(dial, -degreesFor(10));
     expect(dial.getAttribute("aria-valuenow")).toBe("90");
     expect(angleOf(container)).toBe("108.00deg");
   });
@@ -358,7 +399,7 @@ describe("ColorEncoder", () => {
       const { container, unmount } = render(
         <Controlled channels={COLOR_ENCODER_CHANNELS_WITH_ALPHA} activeChannel={channel} initial={{ ...start, v: 3, a: 3 }} />,
       );
-      drag(screen.getByRole("slider"), [[-300, 0]]);
+      turn(screen.getByRole("slider"), -degreesFor(20));
       expect(screen.getByRole("slider").getAttribute("aria-valuenow")).toBe("0");
       expect(angleOf(container)).toBe("-135.00deg");
       unmount();
@@ -367,7 +408,7 @@ describe("ColorEncoder", () => {
 
   it("turns forever on hue, continuous across 360", () => {
     const { container } = render(<Controlled initial={start} />);
-    drag(screen.getByRole("slider"), [[1000, 0]]);
+    turn(screen.getByRole("slider"), 500);
     // +500° of hue from 200°: the index has gone round, not snapped back to 340°.
     expect(angleOf(container)).toBe("700.00deg");
     expect(screen.getByRole("slider").getAttribute("aria-valuenow")).toBe("340");
@@ -442,7 +483,8 @@ describe("ColorEncoder", () => {
     const { container } = render(<ColorEncoder value={start} onChange={onChange} />);
     const dial = screen.getByRole("slider");
     fireEvent.keyDown(dial, { key: "ArrowRight" });
-    expect(onChange.mock.lastCall?.[0].h).toBeCloseTo(204, 5);
+    // One arrow is 5.4° of turn, which on hue is 5.4°.
+    expect(onChange.mock.lastCall?.[0].h).toBeCloseTo(205.4, 5);
     fireEvent.keyDown(dial, { key: "Enter" });
     expect(litChannel(container)).toBe("brightness");
   });

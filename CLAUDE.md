@@ -64,26 +64,26 @@ the named component before introducing a one-off equivalent.
   config workspace.
 - `ColorEncoder` — `app/components/ColorEncoder.tsx`. Nova's rotary colour
   control and the surface's **only** colour picker: tap cycles hue /
-  brightness / saturation (plus opacity when `channels` includes it), drag
-  right or up turns it up. The active channel is named under the lights
-  (`HUE`/`BRIGHT`/`SAT`/`OPAC`); `defaultChannel` picks which light is lit on
-  load — lighting opens on brightness, pickers on hue. Scaled by one `size` prop, 50–200px. Use
+  brightness / saturation (plus alpha when `channels` includes it), and it
+  **turns like a real knob** — a drag applies the angle swept about the centre,
+  relative to where it was grabbed. The index line shows the active channel's
+  value (0–100 sweeps 7:30 → 12 → 4:30; hue reads as degrees). The channel is
+  named under the lights (`HUE`/`BRIGHT`/`SAT`/`ALPHA`) and the dial's own
+  label sits **on the knob face** above them — no label above the dial.
+  `defaultChannel` picks which light is lit on load: lighting opens on
+  brightness, pickers on hue. Scaled by one `size` prop, 50–200px.
+  Pass `rings` for up to five arc sliders round the colour ring (270° tracks,
+  thumbs that bend with the track, curved labels in the bottom gap, absolute —
+  they jump to the press); geometry maths is in `colorEncoderGeometry.ts` and
+  the demo is at `/color-encoder-rings`. Use a ring instead of stacking a
+  slider under the dial. `RingedColorEncoder`, the copy the rings were built
+  in, was merged back here on 2026-09-11 and is gone. Use
   `ColorEncoderPanel` (`app/components/ConfigControls.tsx`) over a stored
   `ThemeColorValue` in config; `ZoneColorEncoder` in `dashboard/ZoneControls.tsx`
   is the lighting-card wrapper. HSVA maths and the lossless `ThemeColorValue`
   adapters are in `app/components/colorEncoderModel.ts`. See
   `specs/color-encoder.md`. The old `ColorSpectrum`, `ColorIntensitySlider` and
   `ConfigColorPicker` are gone — do not reintroduce a spectrum pad.
-- `RingedColorEncoder` — `app/components/RingedColorEncoder.tsx`. A copy of
-  `ColorEncoder` (not a wrapper; its `.ringed-encoder*` CSS is copied too, so
-  the two evolve independently) that carries up to five slider rings: 270°
-  arcs round the colour ring, thumbs that bend with the track, labels curved
-  through the bottom gap. Its label sits on the knob above the lights, and it
-  clicks on press and on a release that changed something — never mid-drag.
-  Geometry maths is in `ringedColorEncoderGeometry.ts`; demo at
-  `/color-encoder-rings`. See `specs/color-encoder-rings.md`. Use it where a
-  colour slot carries its own sliders instead of stacking separate sliders
-  under a `ColorEncoder`.
 - `ColorWidget` — `app/components/ConfigControls.tsx`. This is one colour slot
   on the config page: an inline cell holding a `ColorEncoder` and any
   slot-specific extras, plus the copy/paste colour actions. It is deliberately
@@ -107,6 +107,12 @@ the named component before introducing a one-off equivalent.
   control-card wrapper (kicker, title, state pill, "Entity missing" body),
   formerly private to `ClimateControls`. Every card passes a stable `cardId`
   because module slots target cards by it.
+- `HorizontalAccordion` — `app/components/dashboard/HorizontalAccordion.tsx`.
+  Adapted from the multimeter's `HAccordion` for the landscape zone selector.
+  A thick, full-height bar opens sideways; its counter-clockwise vertical title
+  stays at the top. The stable trigger retains keyboard focus, uses the shared
+  momentary feedback and short-lived accordion persistence, and leaves portrait
+  menus expanded. Reuse it for horizontal dashboard sections.
 - `CameraEventReport`, `CameraAnalysisConfig`, and `VehicleReferenceEditor` —
   the Outside-camera activity review, visual polygon editor, and photo-region
   vehicle reference editor. These use the shared `ModalOverlay`; scene and

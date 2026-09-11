@@ -16,10 +16,8 @@ import { gotoDashboard } from "./helpers";
 const SHOTS = process.env.COLOR_ENCODER_SHOTS;
 /** Per-channel tolerance for the sampled ring pixel: hue is read back rounded. */
 const RING_TOLERANCE = 5;
-/** px of drag per 10% of brightness or saturation (1/3 %/px). */
-const STEP_PX = 30;
-/** px of drag per 30° of hue (0.5°/px). */
-const HUE_STEP_PX = 60;
+/** Degrees of turn per 30° of hue: the knob and hue move together. */
+const HUE_STEP_DEG = 30;
 
 type Command = { action: string; brightnessPct?: number; rgb?: [number, number, number] };
 
@@ -47,15 +45,31 @@ async function lastCommand(page: Page) {
   });
 }
 
-async function turn(page: Page, dial: Locator, px: number) {
+/**
+ * Turns the knob by `degrees`, the way a hand does: press on the knob, sweep
+ * about its centre, release. Steps stay under a half-turn, since a single
+ * sample past 180° is ambiguous.
+ */
+async function turn(page: Page, dial: Locator, degrees: number) {
   const box = await dial.boundingBox();
   if (!box) throw new Error("dial has no box");
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await page.mouse.move(x, y);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const grip = (box.width / 2) * 0.7;
+  const at = (angle: number): [number, number] => {
+    const radians = (angle * Math.PI) / 180;
+    return [cx + grip * Math.sin(radians), cy - grip * Math.cos(radians)];
+  };
+  await page.mouse.move(...at(0));
   await page.mouse.down();
-  await page.mouse.move(x + px, y, { steps: Math.max(3, Math.round(Math.abs(px) / 10)) });
+  const steps = Math.max(3, Math.ceil(Math.abs(degrees) / 30));
+  for (let step = 1; step <= steps; step += 1) await page.mouse.move(...at((degrees * step) / steps));
   await page.mouse.up();
+}
+
+/** Degrees of turn that move a 0–100 channel by `percent`. */
+function degreesFor(percent: number) {
+  return percent * 2.7;
 }
 
 async function angle(root: Locator) {
@@ -83,7 +97,9 @@ async function sampleRing(page: Page, root: Locator): Promise<[number, number, n
   const ring = await root.locator(".color-encoder-ring").boundingBox();
   if (!ring) throw new Error("ring has no box");
   const style = await page.addStyleTag({
-    content: `.color-encoder-ring-shade,.color-encoder-inner-bevel,.color-encoder-outer-bevel,.color-encoder-glow,.lighting-tint-overlay{visibility:hidden!important}`,
+    // The demo tooltip follows the pointer, which rests on the dial after a
+    // turn, and it covered the sample point at 3 o'clock.
+    content: `.color-encoder-ring-shade,.color-encoder-inner-bevel,.color-encoder-outer-bevel,.color-encoder-glow,.lighting-tint-overlay,.demo-tooltip{visibility:hidden!important}`,
   });
   const radius = (ring.width / 2) * ((0.833 + 1) / 2);
   const x = Math.round(ring.x + ring.width / 2 + radius) - 1;
@@ -173,7 +189,7 @@ async function sweep(page: Page, run: string) {
 
   const step = async (channel: "saturation" | "brightness", target: number, h: number) => {
     const sent = await commandCount(page);
-    await turn(page, dial, (target - (channel === "saturation" ? s : v)) / 10 * STEP_PX);
+  await turn(page, dial, degreesFor(target - (channel === "saturation" ? s : v)));
     if (channel === "saturation") s = target;
     else v = target;
     await expect(dial).toHaveAttribute("aria-valuenow", String(target));
@@ -202,7 +218,7 @@ async function sweep(page: Page, run: string) {
   const hueStart = await angle(root);
   for (let index = 1; index <= 12; index += 1) {
     const sent = await commandCount(page);
-    await turn(page, dial, HUE_STEP_PX);
+    await turn(page, dial, HUE_STEP_DEG);
     h = (h + 30) % 360;
     await expect(dial).toHaveAttribute("aria-valuenow", String(Math.round(h) % 360));
     await expect.poll(() => commandCount(page)).toBeGreaterThan(sent);

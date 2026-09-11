@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import * as haptics from "./haptics";
-import { RingedColorEncoder, type RingedColorEncoderRing } from "./RingedColorEncoder";
+import { ColorEncoder, type ColorEncoderRing } from "./ColorEncoder";
 import type { Hsva } from "./colorEncoderModel";
 import {
   ARC_END,
@@ -18,14 +18,35 @@ import {
   ringGeometry,
   thumbAngle,
   valueAt,
-} from "./ringedColorEncoderGeometry";
+} from "./colorEncoderGeometry";
+
+/** The 200px dial's box: --ce-outer is 1.244 knob diameters. */
+const DIAL_BOX = 248.8;
+const DIAL_CENTRE = DIAL_BOX / 2;
 
 beforeAll(() => {
   // jsdom implements pointer capture on neither HTML nor SVG elements.
   if (!Element.prototype.setPointerCapture) {
     Element.prototype.setPointerCapture = () => undefined;
   }
+  // The knob turns by the angle swept about its centre, so it needs a box.
+  // Everything else keeps jsdom's zero box, which is what lets the ring tests
+  // place a pointer by angle and radius about the origin.
+  const real = HTMLElement.prototype.getBoundingClientRect;
+  HTMLElement.prototype.getBoundingClientRect = function boxed(this: HTMLElement) {
+    if (!this.classList?.contains("color-encoder-dial")) return real.call(this);
+    return { x: 0, y: 0, left: 0, top: 0, right: DIAL_BOX, bottom: DIAL_BOX, width: DIAL_BOX, height: DIAL_BOX, toJSON: () => ({}) } as DOMRect;
+  };
 });
+
+/** A point on the knob at `angle`, clockwise degrees from 12 o'clock. */
+function onKnob(angle: number) {
+  const radians = (angle * Math.PI) / 180;
+  return {
+    clientX: DIAL_CENTRE + DIAL_CENTRE * 0.8 * Math.sin(radians),
+    clientY: DIAL_CENTRE - DIAL_CENTRE * 0.8 * Math.cos(radians),
+  };
+}
 
 afterEach(() => {
   cleanup();
@@ -51,7 +72,7 @@ function Controlled({ rings = 1, initial = [50, 50, 50, 50, 50], size = 200, spy
   spy?: { change?: (index: number, value: number) => void; commit?: (index: number, value: number) => void };
 }) {
   const [values, setValues] = useState(initial);
-  const defs: RingedColorEncoderRing[] = Array.from({ length: rings }, (_, index) => ({
+  const defs: ColorEncoderRing[] = Array.from({ length: rings }, (_, index) => ({
     id: `r${index}`,
     label: `Ring ${index}`,
     value: values[index] ?? 0,
@@ -61,11 +82,11 @@ function Controlled({ rings = 1, initial = [50, 50, 50, 50, 50], size = 200, spy
     },
     onCommit: (value) => spy?.commit?.(index, value),
   }));
-  return <RingedColorEncoder label="Lights" size={size} value={start} onChange={vi.fn()} rings={defs} />;
+  return <ColorEncoder label="Lights" size={size} value={start} onChange={vi.fn()} rings={defs} />;
 }
 
 function svgOf(container: HTMLElement) {
-  const svg = container.querySelector("svg.ringed-encoder-rings");
+  const svg = container.querySelector("svg.color-encoder-rings");
   if (!svg) throw new Error("no rings drawn");
   return svg as SVGSVGElement;
 }
@@ -165,20 +186,20 @@ describe("dragging through the gap", () => {
   });
 });
 
-describe("RingedColorEncoder", () => {
+describe("ColorEncoder", () => {
   it("puts the label on the knob, above the lights", () => {
-    const { container } = render(<RingedColorEncoder label="Lights" value={start} onChange={vi.fn()} />);
-    const label = container.querySelector(".ringed-encoder-label");
-    expect(label?.parentElement?.classList.contains("ringed-encoder-dial")).toBe(true);
+    const { container } = render(<ColorEncoder label="Lights" value={start} onChange={vi.fn()} />);
+    const label = container.querySelector(".color-encoder-label");
+    expect(label?.parentElement?.classList.contains("color-encoder-dial")).toBe(true);
     const children = Array.from(label!.parentElement!.children);
-    expect(children.indexOf(label!)).toBeLessThan(children.indexOf(container.querySelector(".ringed-encoder-leds")!));
+    expect(children.indexOf(label!)).toBeLessThan(children.indexOf(container.querySelector(".color-encoder-leds")!));
     expect(screen.getByRole("slider", { name: "Lights" })).toBeTruthy();
   });
 
   it("draws one slider per ring, up to five, and warns past that", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const rings = Array.from({ length: 6 }, (_, index) => ({ id: `r${index}`, label: `R${index}`, value: 0, onChange: vi.fn() }));
-    render(<RingedColorEncoder value={start} onChange={vi.fn()} rings={rings} />);
+    render(<ColorEncoder value={start} onChange={vi.fn()} rings={rings} />);
     expect(screen.getAllByRole("slider")).toHaveLength(1 + RING_LIMIT);
     expect(warn).toHaveBeenCalled();
   });
@@ -243,7 +264,7 @@ describe("RingedColorEncoder", () => {
   it("takes no input on a disabled ring", () => {
     const change = vi.fn();
     const rings = [{ id: "a", label: "A", value: 20, disabled: true, onChange: change }];
-    const { container } = render(<RingedColorEncoder value={start} onChange={vi.fn()} rings={rings} />);
+    const { container } = render(<ColorEncoder value={start} onChange={vi.fn()} rings={rings} />);
     fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(ringGeometry(200, 1).radii[0], 0) });
     fireEvent.keyDown(screen.getByRole("slider", { name: "A" }), { key: "ArrowRight" });
     expect(change).not.toHaveBeenCalled();
@@ -261,34 +282,35 @@ describe("RingedColorEncoder", () => {
       const advance = clock();
       function Dial() {
         const [value, setValue] = useState(start);
-        return <RingedColorEncoder label="Lights" defaultChannel="brightness" value={value} onChange={setValue} />;
+        return <ColorEncoder label="Lights" defaultChannel="brightness" value={value} onChange={setValue} />;
       }
       render(<Dial />);
       const dial = screen.getByRole("slider", { name: "Lights" });
 
-      fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
+      fireEvent.pointerDown(dial, { buttons: 1, ...onKnob(0), pointerId: 1 });
       expect(click).toHaveBeenCalledTimes(1);
       for (let step = 1; step <= 30; step += 1) {
         advance(step <= 15 ? 16 : 600);
-        fireEvent.pointerMove(dial, { buttons: 1, clientX: step * 10, clientY: 0, pointerId: 1 });
+        fireEvent.pointerMove(dial, { buttons: 1, ...onKnob(step * 8), pointerId: 1 });
       }
       expect(click).toHaveBeenCalledTimes(1);
-      fireEvent.pointerUp(dial, { clientX: 300, clientY: 0, pointerId: 1 });
+      // 240° of turn takes brightness from 50 past its top, so it ends pinned.
+      fireEvent.pointerUp(dial, { ...onKnob(240), pointerId: 1 });
       expect(click).toHaveBeenCalledTimes(2);
 
       // Brightness is now at its top; pushing further changes nothing.
       click.mockClear();
-      fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-      fireEvent.pointerMove(dial, { buttons: 1, clientX: 60, clientY: 0, pointerId: 1 });
-      fireEvent.pointerUp(dial, { clientX: 60, clientY: 0, pointerId: 1 });
+      fireEvent.pointerDown(dial, { buttons: 1, ...onKnob(0), pointerId: 1 });
+      fireEvent.pointerMove(dial, { buttons: 1, ...onKnob(60), pointerId: 1 });
+      fireEvent.pointerUp(dial, { ...onKnob(60), pointerId: 1 });
       expect(click).toHaveBeenCalledTimes(1);
 
       // A drag out and back to where it started: silent release.
       click.mockClear();
-      fireEvent.pointerDown(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-      fireEvent.pointerMove(dial, { buttons: 1, clientX: -30, clientY: 0, pointerId: 1 });
-      fireEvent.pointerMove(dial, { buttons: 1, clientX: 0, clientY: 0, pointerId: 1 });
-      fireEvent.pointerUp(dial, { clientX: 0, clientY: 0, pointerId: 1 });
+      fireEvent.pointerDown(dial, { buttons: 1, ...onKnob(0), pointerId: 1 });
+      fireEvent.pointerMove(dial, { buttons: 1, ...onKnob(-20), pointerId: 1 });
+      fireEvent.pointerMove(dial, { buttons: 1, ...onKnob(60), pointerId: 1 });
+      fireEvent.pointerUp(dial, { ...onKnob(60), pointerId: 1 });
       expect(click).toHaveBeenCalledTimes(1);
     });
 

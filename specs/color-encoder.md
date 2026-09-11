@@ -23,6 +23,8 @@ Files:
 |---|---|
 | `app/components/ColorEncoder.tsx` | the control |
 | `app/components/colorEncoderModel.ts` | HSVA maths + `ThemeColorValue` adapters |
+| `app/components/colorEncoderGeometry.ts` | ring geometry and pointer maths |
+| `app/color-encoder-rings/page.tsx` | the rings demo page, `/color-encoder-rings` |
 | `app/globals.css` | its styles, under `.color-encoder*` (this surface uses `globals.css`, not CSS modules) |
 
 ## Geometry — everything derives from one number
@@ -101,12 +103,24 @@ often. A colour picker opens on hue, the first channel, which is the default.
   surface's existing `TAP_MOVE_THRESHOLD_PX` (5px) from
   `app/components/sliderTapGesture.ts` — reused, not re-invented. Distance
   only: a slow, deliberate press still cycles, so `TAP_MAX_MS` does not apply.
-- **Drag** adjusts the active channel only, from wherever on the dial the
-  drag started. Right and up increase; left and down decrease; a diagonal
-  sums the two — the signed input is `dx - dy` in px.
-- **Sensitivity**: hue `0.5°/px`; brightness, saturation and opacity
-  `0.333%/px`. Holding Shift or Alt divides by 8. Either modifier alone is
-  enough; both is still just fine mode.
+- **Drag turns it like a real knob: relative, by angle.** Adeline,
+  2026-09-11. This replaces the old `dx - dy` px scheme (right/up raised,
+  left/down lowered), which is gone. A press anywhere on the knob records the
+  angle of the pointer about the knob's centre; every move applies the angle
+  swept **since the last sample** to the value. The knob never jumps to meet
+  the pointer — grabbing it at 4 o'clock and sweeping 30° clockwise turns it
+  30°, wherever the value happened to be, exactly as a real knob does. Rings
+  are the exception and jump to the press (see Rings).
+- **Sensitivity**: the index follows the hand exactly, so the value moves at
+  the rate its own index angle implies: hue `1°` of value per degree turned;
+  brightness, saturation and alpha `1/2.7` (`100 / 270°`) per degree. Holding
+  Shift or Alt divides by 8. Either modifier alone is enough; both is still
+  just fine mode. The `sensitivity` prop overrides these, in units per degree.
+- **The swept angle is unwrapped and the centre is dead.** Each sample takes
+  the shortest way from the previous angle (so dragging across 12 o'clock
+  counts as a small move, not a whole turn), and a sample closer to the centre
+  than `0.15 × the knob's radius` is ignored — near the middle a pixel of
+  movement swings the angle wildly.
 - **The index shows the active channel's value.** Adeline, 2026-09-11: the
   index line is how a vague parameter is confirmed at a glance, so the rotor's
   angle is derived from the value, not accumulated from the drag. Angles are
@@ -116,9 +130,8 @@ often. A colour picker opens on hue, the first channel, which is the default.
     below horizontal on the right (4:30); the sweep runs **over the top**, never
     through the dead zone at the bottom.
   - **Hue**: `angle = hue`, so one turn of the knob is one trip round the
-    colour wheel — red at 12, cyan at 6. The drag rate (0.5°/px) equals the
-    rotor's, so the knob follows the hand exactly, and it turns forever: the
-    angle stays continuous across 360→0 rather than spinning back.
+    colour wheel — red at 12, cyan at 6. It turns forever: the angle stays
+    continuous across 360→0 rather than spinning back.
 - **Rotation stops at a channel's limits.** Adeline, 2026-09-11. Brightness,
   saturation and alpha clamp at 0 and 100, so the index stops at 7:30 and 4:30.
   Pushing further past the end moves nothing; reversing moves the value and
@@ -131,9 +144,9 @@ often. A colour picker opens on hue, the first channel, which is the default.
   `prefers-reduced-motion`.
 - Pointer Events with `setPointerCapture`, so a drag tracks outside the
   element.
-- **Keyboard**: focusable. Right/Up and Left/Down arrows nudge the active
-  channel (8px-equivalent, 1px-equivalent with Shift). Enter/Space cycles the
-  channel.
+- **Keyboard**: focusable. Right/Up and Left/Down arrows turn the knob `5.4°`
+  — 2% of a 0–100 channel — and an eighth of that with Shift. Enter/Space
+  cycles the channel.
 - **A quick tap clicks once.** The press clicks and the channel change clicks,
   which is right for two gestures but wrong for one: if the release comes within
   `TAP_MAX_MS` (400ms) of the press, the change is silent. A deliberate
@@ -149,6 +162,125 @@ often. A colour picker opens on hue, the first channel, which is the default.
 - No numeric entry, no long-press hex field, no readout — deliberately. Exact
   colours move between slots through the existing theme clipboard
   (`app/components/themeClipboard.ts`).
+
+## Rings — the arc sliders
+
+Adeline, 2026-09-11: merged in from `RingedColorEncoder`, which was a copy of
+this control and is **deleted** — component, `.ringed-encoder*` CSS and
+`specs/color-encoder-rings.md` all fold in here. There is one dial again.
+
+A dial carries up to **5** slider rings as concentric arc tracks outside its
+colour ring, innermost first. Entries past the fifth are not rendered, with a
+`console.warn` outside production. A dial with no `rings` renders exactly as
+it did before.
+
+```ts
+type ColorEncoderRing = {
+  id: string;
+  label: string;
+  value: number;
+  min?: number;     // default 0
+  max?: number;     // default 100
+  step?: number;    // snaps the value when set
+  disabled?: boolean;
+  onChange: (value: number) => void;  // continuous, while dragging
+  onCommit?: (value: number) => void; // once per gesture
+};
+```
+
+### Geometry
+
+`S` is `size`, the knob diameter (50–200px). The dial's footprint radius is
+`R0 = 0.622 × S`.
+
+| Quantity | Value |
+|---|---|
+| Label font `F` | `clamp(10px, 0.075 × S, 14px)` — the caption rule |
+| Ring pitch `P` | `max(0.085 × S, F + 2px)` |
+| Track thickness `T` | `P × 6 / 8.5` — 6% of `S` when the pitch is proportional |
+| Gap `G` | `P − T` — 2.5% of `S` when proportional |
+| Ring `i` centreline radius | `R0 + G + T/2 + i × P` |
+| Footprint diameter, `n` rings | `2 × (R0 + n × P) + thumb overhang` |
+
+The pitch floor exists because a curved label is `F` tall and sits on its
+ring's centreline: with a proportional pitch, a 100px dial puts rings 8.5px
+apart while the label font is pinned at its 10px floor, and neighbouring
+labels would overlap. Rings keep their 6 : 2.5 track-to-gap proportion and
+grow relatively thicker below 200px.
+
+Ring geometry is computed from `size` in `app/components/colorEncoderGeometry.ts`,
+because hit-testing and the SVG paths need it as numbers. It is published on
+the root as `--ce-pitch`, `--ce-track`, `--ce-rings` and `--ce-footprint` for
+layout, but overriding those does not move the rings.
+
+### Arc, track, thumb, label
+
+- Each track runs **270°**, 7:30 over the top to 4:30 — the sweep the index
+  uses. The 90° gap at the bottom holds the labels.
+- The thumb's travel is inset by half its own angular length at each end, so
+  its ends never leave the track; the value still spans its whole range.
+- The track is a **sunken channel**, the colour ring's treatment: a dark well
+  with inset shading and a thin raised lip. In light mode the lip and shading
+  go paler while the well goes darker, as the unlit LED wells do.
+- The track is **filled from 7:30 to the thumb in white, and the fill glows in
+  the dial's current colour** (`--ce-color`), not white — Adeline, 2026-09-11.
+  A single tight bloom, `max(4px, 30% of T)`, keeping the LED's px floor so it
+  still reads at small sizes. The fill is about 60% of `T` so the well's edges
+  still show it as a channel. At `min` the fill is empty.
+- The **thumb** is a raised arc segment that bends with its track: `1.3 × T`
+  thick, `2.4 × T` long including its rounded ends — a constant length, so it
+  reads the same on every ring. Painted in the knob's tint with a light top
+  edge and a drop shadow. No theme colour.
+- Each **ring label** is curved along its own ring through the bottom gap,
+  reading left to right and upright, in font `F` with the caption's etched
+  treatment. It is **left-aligned to where its ring's track starts** (7:30),
+  not centred on 6 o'clock (Adeline, 2026-09-11), so every ring's label begins
+  on the same radius and they stack into a readable column. Name only: the thumb is the readout. A label
+  longer than the gap's arc length, less half a track of clearance at each end,
+  is cut and ends in three periods (not `…`, which reads as a dash at 10px).
+
+### Ring interaction
+
+Rings share the dial's pointer surface.
+
+- **Which ring**: by distance `d` from the centre. `d ≤ R0` is the knob.
+  Otherwise ring `i = floor((d − R0) / P)`; past the last ring, nothing.
+- **The label gap is dead**: a press in the bottom 90° does nothing.
+- **Tap the track to jump.** Unlike the knob, a ring is absolute: a press puts
+  the thumb at the press angle straight away, and the drag follows the pointer's
+  angle. A ring is a slider bent round a circle, not a knob.
+- **The gap pins, it never jumps.** Dragging into the gap pins the value at the
+  end it was nearer, and it stays pinned until the pointer returns to the arc on
+  that end's half, so a drag can never jump the value from one end to the other.
+- **Keyboard**: each ring is focusable, `role="slider"`, labelled by its own
+  label. Arrows move by `step` (or 1% of the range without one), Shift is 8×
+  finer, `onCommit` on key up.
+- **Clicks** follow the dial's rule: one on press, none while dragging, one on
+  release only if the gesture changed the value. A quick tap that jumped the
+  thumb is one gesture and clicks once.
+- No tap-to-type: rings do not open `NumericEntryPopover`.
+
+## The label sits on the knob
+
+Adeline, 2026-09-11: merged in from the ringed copy, and it applies to **every**
+dial — the zone card, Quick Access and every config slot. There is no label
+above the dial any more.
+
+- On the knob face, **above the LEDs**, mirroring the channel caption below
+  them: bottom edge at `50% − LED width − 5.5% of S`.
+- Font `clamp(10px, 7.5% of S, 14px)`, the caption's rule, with the caption's
+  etched treatment (black and white overlays, no theme colour, uppercase, 700,
+  0.16em tracking) and its light-mode colours.
+- One line; longer than 70% of the knob diameter is cut with three periods.
+- It still names the dial: `aria-labelledby` points at it.
+
+## Disabled
+
+Adeline, 2026-09-11. A disabled dial is **dark**: no LED is lit, the ring's
+glow is off, and the whole control keeps the faded treatment it has now. The
+colour ring still shows its colour — it is the readout — but nothing on the
+control is emitting. Rings are drawn at 45% opacity and take no input, applied
+once per ring and never compounded with the control's own fade.
 
 ## Theming
 
@@ -365,6 +497,30 @@ with them (`theme-display-card*`, `theme-colour-popover*`, `theme-inline-editor*
 `theme-display-swatch/copy/detail/label`), along with the session-stored
 "which widget is open" key.
 
+## The map colour slots carry their sliders as rings
+
+Adeline, 2026-09-11: the map colour controls move their extra sliders onto the
+dial's rings, as preparation for later map work. **Only the map slots in this
+change** — the voice-transcript slots keep their sliders under the dial for
+now, and get rings in a later task.
+
+| Slot | Ring |
+|---|---|
+| `map.labels` | Label Size (`mapLabelSize`) |
+| `map.buildingLow` and `map.buildingHigh` | Building Opacity (`mapBuildingOpacity`) |
+| `map.radarLow` and `map.radarHigh` | Radar Opacity (`mapRadarOpacity`) |
+
+Buildings and radar each share **one** value between two colour slots. Both
+dials of a pair carry the same ring, and turning either moves the one shared
+value (Adeline, 2026-09-11). This supersedes the earlier rule that a shared
+opacity keeps a single slider rather than appearing on two dials: that was
+written when the alternative was a second slider, and a ring is a far lighter
+thing to put on both. The slot's own alpha channel is unaffected.
+
+`ColorEncoderPanel` takes a `rings` prop and passes it through; the retired
+`MapLabelSizeControl`, `BuildingOpacityControl` and `RadarOpacityControl`
+sliders go with it.
+
 ## What it replaces
 
 Every one of these loses its old control and gains a `ColorEncoder`:
@@ -422,6 +578,15 @@ deleted, along with its exports, README row and showcase card. Adeline,
   spectrum pad, intensity slider or folded-in opacity slider left behind.
 - `npx tsc --noEmit`, `npm run test:unit`, `npm run test:e2e` clean.
 - Brightness, saturation and alpha stop the rotor at their ends; hue does not.
+- The knob turns by the angle swept from where the press landed, never jumping
+  to the pointer; rings do jump to the press.
+- Every dial's label is on its knob face, and no dial has a label above it.
+- A disabled dial shows no lit LED and no glow.
+- Rings render at 0–5, behave as specified at 56, 100 and 200px in dark and
+  light, no two labels overlap, and no label crosses a thumb at its end of
+  travel. `RingedColorEncoder`, its CSS and its spec are gone, with the demo
+  page at `/color-encoder-rings` running on `ColorEncoder`.
+- The map slots carry the rings listed above and no sliders under the dial.
 - The index points at the active channel's value per the angle rules above,
   re-points with a sweep on a channel change, and tracks 1:1 while dragging.
 - **Sweep smoke test** (Adeline, 2026-09-11), in a real browser against the

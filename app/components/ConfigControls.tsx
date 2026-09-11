@@ -3,7 +3,15 @@
 import { Check, ChevronRight, Clipboard, Copy } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { ThemeColorValue } from "./accentColor";
-import { COLOR_ENCODER_CHANNELS, COLOR_ENCODER_CHANNELS_WITH_ALPHA, ColorEncoder } from "./ColorEncoder";
+import {
+  COLOR_ENCODER_CHANNELS,
+  COLOR_ENCODER_CHANNELS_WITH_ALPHA,
+  ColorEncoder,
+  type ColorEncoderRing,
+} from "./ColorEncoder";
+
+/** Re-exported so slot renderers can type their ring definitions. */
+export type ColorEncoderRingSpec = ColorEncoderRing;
 import { hsvaFromThemeColor, themeColorFromHsva } from "./colorEncoderModel";
 import {
   consumePendingBreadcrumbSlug,
@@ -275,6 +283,7 @@ export function ColorEncoderPanel({
   onCommit,
   onPreview,
   opacity,
+  rings,
   size = 100,
   value,
 }: {
@@ -287,6 +296,12 @@ export function ColorEncoderPanel({
    * channel alpha (Adeline, 2026-09-11).
    */
   opacity?: number;
+  /**
+   * The slot's own extra sliders, as rings round the dial
+   * (specs/color-encoder.md, "The map colour slots carry their sliders as
+   * rings"). A slot with none renders exactly as before.
+   */
+  rings?: ColorEncoderRing[];
   size?: number;
   value: ThemeColorValue;
 }) {
@@ -297,8 +312,9 @@ export function ColorEncoderPanel({
         ariaLabel={`${label} colour`}
         channels={withOpacity ? COLOR_ENCODER_CHANNELS_WITH_ALPHA : COLOR_ENCODER_CHANNELS}
         demoTooltipTitle={label}
-        demoTooltip="Tap to switch channel. Drag right or up to turn it up."
+        demoTooltip="Tap to switch channel. Turn it like a knob."
         label={label}
+        rings={rings}
         size={size}
         value={hsvaFromThemeColor(value, opacity)}
         onChange={(next) => onPreview(themeColorFromHsva(next, value), Math.round(next.a))}
