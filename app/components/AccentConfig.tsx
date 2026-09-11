@@ -1610,7 +1610,7 @@ export function AccentConfig({
     if (slot === "map.buildingLow" || slot === "map.buildingHigh") {
       return [{
         id: "map-building-opacity",
-        label: "Building Opacity",
+        label: "Opacity",
         value: clamp(Math.round(Number(theme.mapBuildingOpacity)), MAP_BUILDING_OPACITY_MIN, MAP_BUILDING_OPACITY_MAX),
         min: MAP_BUILDING_OPACITY_MIN,
         max: MAP_BUILDING_OPACITY_MAX,
@@ -1622,7 +1622,7 @@ export function AccentConfig({
     if (slot === "map.radarLow" || slot === "map.radarHigh") {
       return [{
         id: "map-radar-opacity",
-        label: "Radar Opacity",
+        label: "Opacity",
         value: normalizeRadarOpacity(theme.radarOpacity ?? RADAR_OPACITY_DEFAULT),
         min: RADAR_OPACITY_MIN,
         max: RADAR_OPACITY_MAX,
