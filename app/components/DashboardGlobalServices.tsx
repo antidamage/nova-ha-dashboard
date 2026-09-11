@@ -30,11 +30,14 @@ export function DashboardGlobalServices({
 
   if (pathname === "/phonoscope-debug") return null;
 
-  // The colour-encoder rings demo (specs/color-encoder.md) is a control
-  // bench: the orb would sit over the dials and the first-run modal over the
-  // page. It keeps the haptics, since how the dials click is part of the demo.
+  // The knob demos (specs/color-encoder.md, specs/temperature-encoder.md) are
+  // control benches: the orb would sit over the dials and the first-run modal
+  // over the page — and that modal, at z 10000, covers the temperature knob's
+  // floating rings at 9000, which made the review screenshots useless. They
+  // keep the haptics, since how the dials click is part of the demo.
   // Demo-mode builds add a trailing slash.
-  if (pathname?.replace(/\/$/, "") === "/color-encoder-rings") {
+  const bench = pathname?.replace(/\/$/, "");
+  if (bench === "/color-encoder-rings" || bench === "/temperature-encoder") {
     return (
       <>
         <TouchClickGuard />
