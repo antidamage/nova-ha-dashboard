@@ -136,5 +136,17 @@ export async function waitForStableLayout(page: Page, quietMs = 500, timeoutMs =
  * — so the zone never opened.
  */
 export async function selectZone(page: Page, name: string | RegExp) {
-  await page.locator(".zones-panel").getByRole("button", { name }).first().click();
+  const panel = page.locator(".zones-panel");
+  const button = panel.getByRole("button", { name }).first();
+  // A zone inside a collapsed accordion is display:none, so the click times out
+  // waiting for a button that is present but will never be visible. Open any
+  // collapsed group first: in landscape the groups start shut, and which of
+  // them opens by default has changed more than once.
+  if (!(await button.isVisible().catch(() => false))) {
+    const shut = panel.locator('button[aria-expanded="false"]');
+    for (let index = 0; index < (await shut.count()); index += 1) {
+      await shut.nth(index).click({ trial: false }).catch(() => undefined);
+    }
+  }
+  await button.click();
 }
