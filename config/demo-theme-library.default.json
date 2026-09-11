@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "activeId": "theme_mq77kutb_7vrn4x1i",
+  "activeId": "demo-golden-brown",
   "entries": [
     {
       "id": "theme_mq77kutb_7vrn4x1i",
@@ -818,6 +818,1672 @@
                 "rgb": [
                   224,
                   205,
+                  154
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "theme_mt3s9ra0_109vxtqm",
+      "name": "Toxic",
+      "createdAt": "2026-08-22T02:53:00.888Z",
+      "updatedAt": "2026-08-31T11:18:28.137Z",
+      "themeSet": {
+        "selection": "dark",
+        "themes": {
+          "dark": {
+            "accent": {
+              "cursor": {
+                "x": 0.20942432338782288,
+                "y": 1
+              },
+              "intensity": 9,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.22160469584120174,
+                "y": 0.015151283957741478
+              },
+              "intensity": 100,
+              "rgb": [
+                171,
+                253,
+                8
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.24596526650782938,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  136,
+                  255,
+                  0
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.22038664117185083,
+                  "y": 0
+                },
+                "intensity": 56,
+                "rgb": [
+                  174,
+                  255,
+                  0
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.510989010989011,
+                  "y": 0.016414141414141128
+                },
+                "intensity": 100,
+                "rgb": [
+                  8,
+                  240,
+                  253
+                ]
+              },
+              "gymAlertThresholdHours": 46,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.23622106147319566,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  149,
+                  255,
+                  0
+                ]
+              },
+              "gymNumberOpacity": 100,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.23256689746514297,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  157,
+                  255,
+                  0
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.20089823110258342,
+                    "y": 0
+                  },
+                  "intensity": 59,
+                  "rgb": [
+                    204,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.23256689746514297,
+                    "y": 0
+                  },
+                  "intensity": 61,
+                  "rgb": [
+                    157,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.2825060353877058,
+                    "y": 0
+                  },
+                  "intensity": 66,
+                  "rgb": [
+                    81,
+                    255,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                64,
+                64,
+                69
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "halo",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 4,
+                  "chaos": 65,
+                  "weave": 100,
+                  "speed": 54,
+                  "pulse": 26,
+                  "softness": 100
+                }
+              },
+              "glass": {
+                "enabled": false,
+                "displace": 100,
+                "localStretch": -70,
+                "flipVertical": true,
+                "refractPower": 100,
+                "smoothness": 100,
+                "imageBlur": 4.5,
+                "refractionOpacity": 100,
+                "clarity": 35,
+                "gloss": 100,
+                "shadow": 98,
+                "reflection": 35,
+                "drift": 100
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.1278165191027005,
+                "y": 1
+              },
+              "intensity": 12,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 215,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.21186043272652466,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                187,
+                255,
+                0
+              ]
+            },
+            "clockFont": {
+              "id": "chakra-petch",
+              "weight": 100,
+              "sizeOffset": -47
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": 0
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": -52
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0.21546036326984327,
+                  "y": 0
+                },
+                "intensity": 47,
+                "rgb": [
+                  183,
+                  255,
+                  0
+                ]
+              },
+              "enabled": true,
+              "opacity": 15
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7555470052584329,
+                  "y": 1
+                },
+                "intensity": 10,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0.09648775375301326,
+                  "y": 0.1003570556640625
+                },
+                "intensity": 100,
+                "rgb": [
+                  244,
+                  157,
+                  37
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.11464083511460425,
+                  "y": 0.1292858123779297
+                },
+                "intensity": 39,
+                "rgb": [
+                  240,
+                  179,
+                  45
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.06807413037623543,
+                  "y": 0.20357131958007812
+                },
+                "intensity": 63,
+                "rgb": [
+                  235,
+                  137,
+                  71
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.09175212476679388,
+                  "y": 0.2892853873116629
+                },
+                "intensity": 100,
+                "rgb": [
+                  228,
+                  170,
+                  98
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.13516176860443954,
+                  "y": 0.4378569466727121
+                },
+                "intensity": 100,
+                "rgb": [
+                  224,
+                  209,
+                  144
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.13437248456169143,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.2264281681605748
+                },
+                "intensity": 78,
+                "rgb": [
+                  232,
+                  207,
+                  79
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.06018151575956207,
+                  "y": 0.2435711451939174
+                },
+                "intensity": 38,
+                "rgb": [
+                  232,
+                  138,
+                  84
+                ]
+              }
+            },
+            "mapBuildingOpacity": 66,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.22038664117185083,
+                  "y": 0
+                },
+                "intensity": 13,
+                "rgb": [
+                  174,
+                  255,
+                  0
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.20942432338782288,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  191,
+                  255,
+                  0
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.2004229031698497,
+                  "y": 1
+                },
+                "intensity": 12,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "glowIntensity": 100,
+              "glowSize": 8,
+              "scanlineOpacity": 21,
+              "scanlineScale": 100,
+              "text": {
+                "cursor": {
+                  "x": 0.21546036326984327,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  183,
+                  255,
+                  0
+                ]
+              }
+            }
+          },
+          "light": {
+            "accent": {
+              "cursor": {
+                "x": 0.20942432338782288,
+                "y": 1
+              },
+              "intensity": 9,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.22160469584120174,
+                "y": 0.015151283957741478
+              },
+              "intensity": 100,
+              "rgb": [
+                171,
+                253,
+                8
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.24596526650782938,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  136,
+                  255,
+                  0
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.22038664117185083,
+                  "y": 0
+                },
+                "intensity": 56,
+                "rgb": [
+                  174,
+                  255,
+                  0
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.28737825406510936,
+                  "y": 0
+                },
+                "intensity": 0,
+                "rgb": [
+                  72,
+                  255,
+                  0
+                ]
+              },
+              "gymAlertThresholdHours": 46,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.23622106147319566,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  149,
+                  255,
+                  0
+                ]
+              },
+              "gymNumberOpacity": 100,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.23256689746514297,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  157,
+                  255,
+                  0
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.20089823110258342,
+                    "y": 0
+                  },
+                  "intensity": 59,
+                  "rgb": [
+                    204,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.23256689746514297,
+                    "y": 0
+                  },
+                  "intensity": 61,
+                  "rgb": [
+                    157,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.2825060353877058,
+                    "y": 0
+                  },
+                  "intensity": 66,
+                  "rgb": [
+                    81,
+                    255,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                64,
+                64,
+                69
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "halo",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 8,
+                  "chaos": 100,
+                  "weave": 100,
+                  "speed": 86,
+                  "pulse": 100,
+                  "softness": 4
+                }
+              },
+              "glass": {
+                "enabled": false,
+                "displace": 100,
+                "localStretch": -70,
+                "flipVertical": true,
+                "refractPower": 100,
+                "smoothness": 100,
+                "imageBlur": 4.5,
+                "refractionOpacity": 100,
+                "clarity": 35,
+                "gloss": 100,
+                "shadow": 98,
+                "reflection": 35,
+                "drift": 100
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.1278165191027005,
+                "y": 1
+              },
+              "intensity": 12,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 215,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.21186043272652466,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                187,
+                255,
+                0
+              ]
+            },
+            "clockFont": {
+              "id": "chakra-petch",
+              "weight": 100,
+              "sizeOffset": -47
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": 0
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0.21546036326984327,
+                  "y": 0
+                },
+                "intensity": 47,
+                "rgb": [
+                  183,
+                  255,
+                  0
+                ]
+              },
+              "enabled": true,
+              "opacity": 15
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7555470052584329,
+                  "y": 1
+                },
+                "intensity": 10,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0.09648775375301326,
+                  "y": 0.1003570556640625
+                },
+                "intensity": 100,
+                "rgb": [
+                  244,
+                  157,
+                  37
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.11464083511460425,
+                  "y": 0.1292858123779297
+                },
+                "intensity": 39,
+                "rgb": [
+                  240,
+                  179,
+                  45
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.06807413037623543,
+                  "y": 0.20357131958007812
+                },
+                "intensity": 63,
+                "rgb": [
+                  235,
+                  137,
+                  71
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.09175212476679388,
+                  "y": 0.2892853873116629
+                },
+                "intensity": 100,
+                "rgb": [
+                  228,
+                  170,
+                  98
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.13516176860443954,
+                  "y": 0.4378569466727121
+                },
+                "intensity": 100,
+                "rgb": [
+                  224,
+                  209,
+                  144
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.13437248456169143,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.2264281681605748
+                },
+                "intensity": 78,
+                "rgb": [
+                  232,
+                  207,
+                  79
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.06018151575956207,
+                  "y": 0.2435711451939174
+                },
+                "intensity": 38,
+                "rgb": [
+                  232,
+                  138,
+                  84
+                ]
+              }
+            },
+            "mapBuildingOpacity": 66,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.22038664117185083,
+                  "y": 0
+                },
+                "intensity": 13,
+                "rgb": [
+                  174,
+                  255,
+                  0
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.20942432338782288,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  191,
+                  255,
+                  0
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.2004229031698497,
+                  "y": 1
+                },
+                "intensity": 12,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "glowIntensity": 100,
+              "glowSize": 8,
+              "scanlineOpacity": 21,
+              "scanlineScale": 100,
+              "text": {
+                "cursor": {
+                  "x": 0.21546036326984327,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  183,
+                  255,
+                  0
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "theme_mtiq34ek_4gtfsh5i",
+      "name": "Olive Drab",
+      "createdAt": "2026-09-01T13:48:24.716Z",
+      "updatedAt": "2026-09-02T01:22:48.998Z",
+      "themeSet": {
+        "selection": "dark",
+        "themes": {
+          "dark": {
+            "accent": {
+              "cursor": {
+                "x": 0.20942432338782288,
+                "y": 1
+              },
+              "intensity": 9,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.27197802197802196,
+                "y": 0.5669191919191918
+              },
+              "intensity": 31,
+              "rgb": [
+                192,
+                223,
+                175
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.21307854547591892,
+                  "y": 0.3024241129557292
+                },
+                "intensity": 80,
+                "rgb": [
+                  195,
+                  228,
+                  103
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.22038664117185083,
+                  "y": 0
+                },
+                "intensity": 0,
+                "rgb": [
+                  174,
+                  255,
+                  0
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.11685431747875925,
+                  "y": 0.20060591264204544
+                },
+                "intensity": 23,
+                "rgb": [
+                  235,
+                  186,
+                  71
+                ]
+              },
+              "gymAlertThresholdHours": 46,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.19237208073730058,
+                  "y": 0.44424241961854877
+                },
+                "intensity": 70,
+                "rgb": [
+                  212,
+                  224,
+                  144
+                ]
+              },
+              "gymNumberOpacity": 86,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.23743894190241646,
+                  "y": 0.3460605505741004
+                },
+                "intensity": 70,
+                "rgb": [
+                  180,
+                  226,
+                  116
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.20089823110258342,
+                    "y": 0
+                  },
+                  "intensity": 59,
+                  "rgb": [
+                    204,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.23256689746514297,
+                    "y": 0
+                  },
+                  "intensity": 61,
+                  "rgb": [
+                    157,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.2825060353877058,
+                    "y": 0
+                  },
+                  "intensity": 66,
+                  "rgb": [
+                    81,
+                    255,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                16,
+                17,
+                19
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "classic",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 4,
+                  "chaos": 65,
+                  "weave": 100,
+                  "speed": 54,
+                  "pulse": 26,
+                  "softness": 100
+                }
+              },
+              "glass": {
+                "enabled": true,
+                "displace": 100,
+                "localStretch": -70,
+                "flipVertical": true,
+                "refractPower": 100,
+                "smoothness": 100,
+                "imageBlur": 4.5,
+                "refractionOpacity": 100,
+                "clarity": 35,
+                "gloss": 100,
+                "shadow": 98,
+                "reflection": 35,
+                "drift": 100
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.23168498168498167,
+                "y": 0.4861111111111108
+              },
+              "intensity": 12,
+              "rgb": [
+                197,
+                223,
+                155
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 215,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.24267399267399267,
+                "y": 0.5063131313131312
+              },
+              "intensity": 66,
+              "rgb": [
+                194,
+                222,
+                160
+              ]
+            },
+            "clockFont": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": -11
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": 0
+            },
+            "gymFont": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": -52
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0.20146520146520144,
+                  "y": 0.5
+                },
+                "intensity": 47,
+                "rgb": [
+                  210,
+                  223,
+                  159
+                ]
+              },
+              "enabled": true,
+              "opacity": 15
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7555470052584329,
+                  "y": 1
+                },
+                "intensity": 10,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0.09648775375301326,
+                  "y": 0.1003570556640625
+                },
+                "intensity": 100,
+                "rgb": [
+                  244,
+                  157,
+                  37
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.11464083511460425,
+                  "y": 0.1292858123779297
+                },
+                "intensity": 39,
+                "rgb": [
+                  240,
+                  179,
+                  45
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.06807413037623543,
+                  "y": 0.20357131958007812
+                },
+                "intensity": 63,
+                "rgb": [
+                  235,
+                  137,
+                  71
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.09175212476679388,
+                  "y": 0.2892853873116629
+                },
+                "intensity": 100,
+                "rgb": [
+                  228,
+                  170,
+                  98
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.13516176860443954,
+                  "y": 0.4378569466727121
+                },
+                "intensity": 100,
+                "rgb": [
+                  224,
+                  209,
+                  144
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.13437248456169143,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.2264281681605748
+                },
+                "intensity": 78,
+                "rgb": [
+                  232,
+                  207,
+                  79
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.06018151575956207,
+                  "y": 0.2435711451939174
+                },
+                "intensity": 38,
+                "rgb": [
+                  232,
+                  138,
+                  84
+                ]
+              }
+            },
+            "mapBuildingOpacity": 66,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.23717948717948717,
+                  "y": 0.42297979797979784
+                },
+                "intensity": 13,
+                "rgb": [
+                  188,
+                  224,
+                  138
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.2573260073260073,
+                  "y": 0.4356060606060606
+                },
+                "intensity": 65,
+                "rgb": [
+                  181,
+                  224,
+                  144
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.2004229031698497,
+                  "y": 1
+                },
+                "intensity": 12,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "glowIntensity": 100,
+              "glowSize": 8,
+              "scanlineOpacity": 21,
+              "scanlineScale": 100,
+              "text": {
+                "cursor": {
+                  "x": 0.26007326007326004,
+                  "y": 0.47289299242424243
+                },
+                "intensity": 44,
+                "rgb": [
+                  185,
+                  224,
+                  154
+                ]
+              }
+            }
+          },
+          "light": {
+            "accent": {
+              "cursor": {
+                "x": 0.20942432338782288,
+                "y": 1
+              },
+              "intensity": 9,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.27197802197802196,
+                "y": 0.5669191919191918
+              },
+              "intensity": 31,
+              "rgb": [
+                192,
+                223,
+                175
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.21307854547591892,
+                  "y": 0.3024241129557292
+                },
+                "intensity": 80,
+                "rgb": [
+                  195,
+                  228,
+                  103
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.22038664117185083,
+                  "y": 0
+                },
+                "intensity": 0,
+                "rgb": [
+                  174,
+                  255,
+                  0
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.11685431747875925,
+                  "y": 0.20060591264204544
+                },
+                "intensity": 23,
+                "rgb": [
+                  235,
+                  186,
+                  71
+                ]
+              },
+              "gymAlertThresholdHours": 46,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.19237208073730058,
+                  "y": 0.44424241961854877
+                },
+                "intensity": 70,
+                "rgb": [
+                  212,
+                  224,
+                  144
+                ]
+              },
+              "gymNumberOpacity": 86,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.23743894190241646,
+                  "y": 0.3460605505741004
+                },
+                "intensity": 70,
+                "rgb": [
+                  180,
+                  226,
+                  116
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.20089823110258342,
+                    "y": 0
+                  },
+                  "intensity": 59,
+                  "rgb": [
+                    204,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.23256689746514297,
+                    "y": 0
+                  },
+                  "intensity": 61,
+                  "rgb": [
+                    157,
+                    255,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.2825060353877058,
+                    "y": 0
+                  },
+                  "intensity": 66,
+                  "rgb": [
+                    81,
+                    255,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                16,
+                17,
+                19
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "classic",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 4,
+                  "chaos": 65,
+                  "weave": 100,
+                  "speed": 54,
+                  "pulse": 26,
+                  "softness": 100
+                }
+              },
+              "glass": {
+                "enabled": true,
+                "displace": 100,
+                "localStretch": -70,
+                "flipVertical": true,
+                "refractPower": 100,
+                "smoothness": 100,
+                "imageBlur": 4.5,
+                "refractionOpacity": 100,
+                "clarity": 35,
+                "gloss": 100,
+                "shadow": 98,
+                "reflection": 35,
+                "drift": 100
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.23168498168498167,
+                "y": 0.4861111111111108
+              },
+              "intensity": 12,
+              "rgb": [
+                197,
+                223,
+                155
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 215,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.24267399267399267,
+                "y": 0.5063131313131312
+              },
+              "intensity": 66,
+              "rgb": [
+                194,
+                222,
+                160
+              ]
+            },
+            "clockFont": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": -11
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "chakra-petch",
+              "weight": 900,
+              "sizeOffset": 0
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0.20146520146520144,
+                  "y": 0.5
+                },
+                "intensity": 47,
+                "rgb": [
+                  210,
+                  223,
+                  159
+                ]
+              },
+              "enabled": true,
+              "opacity": 15
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7555470052584329,
+                  "y": 1
+                },
+                "intensity": 10,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0.09648775375301326,
+                  "y": 0.1003570556640625
+                },
+                "intensity": 100,
+                "rgb": [
+                  244,
+                  157,
+                  37
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.11464083511460425,
+                  "y": 0.1292858123779297
+                },
+                "intensity": 39,
+                "rgb": [
+                  240,
+                  179,
+                  45
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.06807413037623543,
+                  "y": 0.20357131958007812
+                },
+                "intensity": 63,
+                "rgb": [
+                  235,
+                  137,
+                  71
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.09175212476679388,
+                  "y": 0.2892853873116629
+                },
+                "intensity": 100,
+                "rgb": [
+                  228,
+                  170,
+                  98
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.13516176860443954,
+                  "y": 0.4378569466727121
+                },
+                "intensity": 100,
+                "rgb": [
+                  224,
+                  209,
+                  144
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.13437248456169143,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.2264281681605748
+                },
+                "intensity": 78,
+                "rgb": [
+                  232,
+                  207,
+                  79
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.06018151575956207,
+                  "y": 0.2435711451939174
+                },
+                "intensity": 38,
+                "rgb": [
+                  232,
+                  138,
+                  84
+                ]
+              }
+            },
+            "mapBuildingOpacity": 66,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.23717948717948717,
+                  "y": 0.42297979797979784
+                },
+                "intensity": 13,
+                "rgb": [
+                  188,
+                  224,
+                  138
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.2573260073260073,
+                  "y": 0.4356060606060606
+                },
+                "intensity": 65,
+                "rgb": [
+                  181,
+                  224,
+                  144
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.2004229031698497,
+                  "y": 1
+                },
+                "intensity": 12,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "glowIntensity": 100,
+              "glowSize": 8,
+              "scanlineOpacity": 21,
+              "scanlineScale": 100,
+              "text": {
+                "cursor": {
+                  "x": 0.26007326007326004,
+                  "y": 0.47289299242424243
+                },
+                "intensity": 44,
+                "rgb": [
+                  185,
+                  224,
                   154
                 ]
               }
@@ -2460,9 +4126,9 @@
       "id": "theme_mq7is7vl_1sxm1w1a",
       "name": "V's Theme",
       "createdAt": "2026-06-10T03:39:23.745Z",
-      "updatedAt": "2026-07-25T01:00:35.700Z",
+      "updatedAt": "2026-08-27T02:57:33.545Z",
       "themeSet": {
-        "selection": "dark",
+        "selection": "auto",
         "themes": {
           "dark": {
             "accent": {
@@ -2881,7 +4547,7 @@
                 "x": 0.20577451249656684,
                 "y": 1
               },
-              "intensity": 10,
+              "intensity": 64,
               "rgb": [
                 255,
                 255,
@@ -3036,14 +4702,14 @@
             },
             "background": {
               "cursor": {
-                "x": 0.6115101162684243,
-                "y": 0.1227556818181796
+                "x": 0.963992917319695,
+                "y": 0
               },
-              "intensity": 7,
+              "intensity": 18,
               "rgb": [
-                44,
-                110,
-                242
+                255,
+                0,
+                60
               ]
             },
             "backgroundEffect": {
@@ -3243,14 +4909,14 @@
               },
               "light": {
                 "cursor": {
-                  "x": 0.9670481062828244,
-                  "y": 0
+                  "x": 0.9388492771310307,
+                  "y": 0.7254543882427793
                 },
                 "intensity": 100,
                 "rgb": [
-                  255,
-                  0,
-                  55
+                  229,
+                  210,
+                  217
                 ]
               }
             },
@@ -3282,6 +4948,839 @@
                   250,
                   15,
                   97
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "theme_ms6sook5_p9q11olx",
+      "name": "Hyperpop",
+      "createdAt": "2026-07-30T00:48:13.397Z",
+      "updatedAt": "2026-07-30T11:05:36.655Z",
+      "themeSet": {
+        "selection": "light",
+        "themes": {
+          "dark": {
+            "accent": {
+              "cursor": {
+                "x": 0.9180787249674176,
+                "y": 0
+              },
+              "intensity": 70,
+              "rgb": [
+                255,
+                0,
+                128
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.8713446177061378,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.8837765583227806,
+                  "y": 0.011257763975156163
+                },
+                "intensity": 100,
+                "rgb": [
+                  254,
+                  6,
+                  184
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.8994944040507727,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  157
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.5214577177430703,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  0,
+                  225,
+                  255
+                ]
+              },
+              "gymAlertThresholdHours": 168,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.9499085408751936,
+                  "y": 0.09045031055900868
+                },
+                "intensity": 100,
+                "rgb": [
+                  245,
+                  36,
+                  102
+                ]
+              },
+              "gymNumberOpacity": 100,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.7448697572187575,
+                  "y": 0.06214278084891183
+                },
+                "intensity": 100,
+                "rgb": [
+                  124,
+                  22,
+                  248
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.960733984481378,
+                    "y": 0.02357128688267299
+                  },
+                  "intensity": 100,
+                  "rgb": [
+                    253,
+                    8,
+                    69
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.9615232685241262,
+                    "y": 0
+                  },
+                  "intensity": 100,
+                  "rgb": [
+                    255,
+                    0,
+                    64
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.04323508522727273,
+                    "y": 0
+                  },
+                  "intensity": 100,
+                  "rgb": [
+                    255,
+                    68,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                52,
+                51,
+                44
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "halo",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 6,
+                  "chaos": 31,
+                  "weave": 90,
+                  "speed": 36,
+                  "pulse": 100,
+                  "softness": 0
+                }
+              },
+              "glass": {
+                "enabled": false,
+                "displace": 85,
+                "localStretch": 0,
+                "flipVertical": false,
+                "refractPower": 50,
+                "smoothness": 30,
+                "imageBlur": 0,
+                "refractionOpacity": 100,
+                "clarity": 60,
+                "gloss": 50,
+                "shadow": 50,
+                "reflection": 55,
+                "drift": 60
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.9432221566457103,
+                "y": 0
+              },
+              "intensity": 36,
+              "rgb": [
+                255,
+                0,
+                89
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 80,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.9670481062828244,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                0,
+                55
+              ]
+            },
+            "clockFont": {
+              "id": "rajdhani",
+              "weight": 100,
+              "sizeOffset": 1
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "share-tech-mono",
+              "weight": 100,
+              "sizeOffset": 30
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 100,
+              "sizeOffset": -5
+            },
+            "transcriptFont": {
+              "id": "press-start-2p",
+              "weight": 100,
+              "sizeOffset": -12
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0,
+                  "y": 1
+                },
+                "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "enabled": true,
+              "opacity": 23
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7121152315561873,
+                  "y": 0
+                },
+                "intensity": 27,
+                "rgb": [
+                  68,
+                  0,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  0
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.6466061614134793,
+                  "y": 0
+                },
+                "intensity": 39,
+                "rgb": [
+                  0,
+                  34,
+                  255
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.9654695381973283,
+                  "y": 0
+                },
+                "intensity": 43,
+                "rgb": [
+                  255,
+                  0,
+                  55
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.95994470043863,
+                  "y": 0
+                },
+                "intensity": 81,
+                "rgb": [
+                  255,
+                  0,
+                  64
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.9488950249212335,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  81
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.9441593206647448,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  89
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.5803078072280233,
+                  "y": 0
+                },
+                "intensity": 78,
+                "rgb": [
+                  0,
+                  136,
+                  255
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.8376085340829048,
+                  "y": 0
+                },
+                "intensity": 38,
+                "rgb": [
+                  255,
+                  0,
+                  251
+                ]
+              }
+            },
+            "mapBuildingOpacity": 47,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.0956078916048704,
+                  "y": 1
+                },
+                "intensity": 13,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.5780950575848306,
+                  "y": 1
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.93745062270341,
+                  "y": 0
+                },
+                "intensity": 24,
+                "rgb": [
+                  255,
+                  0,
+                  98
+                ]
+              },
+              "glowIntensity": 47,
+              "glowSize": 3,
+              "scanlineOpacity": 37,
+              "scanlineScale": 145,
+              "text": {
+                "cursor": {
+                  "x": 0.9162234042553191,
+                  "y": 0
+                },
+                "intensity": 87,
+                "rgb": [
+                  255,
+                  0,
+                  132
+                ]
+              }
+            }
+          },
+          "light": {
+            "accent": {
+              "cursor": {
+                "x": 0.9180787249674176,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                0,
+                128
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.8885624137744453,
+                "y": 1
+              },
+              "intensity": 0,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.8837765583227806,
+                  "y": 0.011257763975156163
+                },
+                "intensity": 100,
+                "rgb": [
+                  254,
+                  6,
+                  184
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.8994944040507727,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  157
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.5214577177430703,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  0,
+                  225,
+                  255
+                ]
+              },
+              "gymAlertThresholdHours": 168,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.9499085408751936,
+                  "y": 0.09045031055900868
+                },
+                "intensity": 100,
+                "rgb": [
+                  245,
+                  36,
+                  102
+                ]
+              },
+              "gymNumberOpacity": 100,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.7448697572187575,
+                  "y": 0.06214278084891183
+                },
+                "intensity": 100,
+                "rgb": [
+                  124,
+                  22,
+                  248
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.960733984481378,
+                    "y": 0.02357128688267299
+                  },
+                  "intensity": 100,
+                  "rgb": [
+                    253,
+                    8,
+                    69
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.9615232685241262,
+                    "y": 0
+                  },
+                  "intensity": 100,
+                  "rgb": [
+                    255,
+                    0,
+                    64
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.04323508522727273,
+                    "y": 0
+                  },
+                  "intensity": 100,
+                  "rgb": [
+                    255,
+                    68,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                52,
+                51,
+                44
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "halo",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 6,
+                  "chaos": 31,
+                  "weave": 90,
+                  "speed": 36,
+                  "pulse": 100,
+                  "softness": 0
+                }
+              },
+              "glass": {
+                "enabled": false,
+                "displace": 85,
+                "localStretch": 0,
+                "flipVertical": false,
+                "refractPower": 50,
+                "smoothness": 30,
+                "imageBlur": 0,
+                "refractionOpacity": 100,
+                "clarity": 60,
+                "gloss": 50,
+                "shadow": 50,
+                "reflection": 55,
+                "drift": 60
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.9432221566457103,
+                "y": 0
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                0,
+                89
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 80,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.8754439837407783,
+                "y": 0.3375757390802557
+              },
+              "intensity": 100,
+              "rgb": [
+                226,
+                115,
+                200
+              ]
+            },
+            "clockFont": {
+              "id": "rajdhani",
+              "weight": 100,
+              "sizeOffset": -32
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,//vUxAAAJuHs+nW+AAXrRGLDPeAAAAKjIQXUcMCCAEIIemLlJmpqZWLoJjIzc0dPNPRQ5XMsbDpNA+rsPKdjCX04RGjgjGM6BQxSXzPJ/M5l0x+HwaADDwmMgjcxWESQJGKhwY6GRiIGJemBQWAgeXwTEU0dx2FyJiMEZGWQQUgVrbjx5cjLILQCJgQJNv/L6lJuMQ5LMaeNxuX3IbjdvXM5XL7kNy/KUQw/kYsbpKSkwwpMOZ0lJSczp43bqP/D/ZQ/jkP5Yrv4/kYpKSMRixuMRiWSiMRh/IxYzlbtxu3qUQw/jX3fl+UohiMSyxn+GH50+fc68bhty2ds7cuH7HNyuG3/h+3Uf+H5fT09PT09PSWMP////1UlEMP4/j+Synp5XG43G43Db/uQzhnDOHIhzlPL4xGIxGIxLLHM6kodhhiwipFiOJOVKTAwBARTCzC1LABZiyBCAECAwQQNjAkByNLM9M0NVHjCYHXAAKq4TL/KtM28o0y/k9Tg+x3MB8BwwJgfTaITwNTxhA2+8/j4luqMCIFEwNgBTWYLmNTU0Uxgw4zZNARMnMzoyMx5jAAAbMB4EkmBUML8GEwrAggwJgx3x+jBuDNMLwKciACdKXmBWBCYHgBpgogzmDKBeYLwFhhVBhmBmDoYOoLRgggbQiW1eZViYAlOtqMaUEAwCaK0KlUurJ695/69pSVifeVdUjTC0qDsqlTWtw1z9b7vt6xUlkXt16GGqWxS1Yy/t/+a7lcyvOXD9WX8szVuo/c9Gaa/Uj+FqrBvamrFvVLRSp6M7U3WsQmPUT8TD9v/WuWbc7As5GIrykvQDErdWjjNx+obqQJJ3BmYNnbMre+Vbq5YzEhZpG5U2kGU7df/////////5q4/0QynXbgr3GdKEzd9sMOQ3Qf/////////zTuxV+4xOQM5z9QJQw9LoahVqPS9HKABQToNkIywOSmSyHN6GnKdOpCVHlGp6rOxK3Uf6bl1bOW/DMVlUNTsNW72VaXRGQ3JdduUMO67//vUxByDr83u6hz9AATgPdWIxOX4l+Oq8O4boHewrxmkdqTxmJRbspf2WP9T2JtrsEurEn+cqLrCva/0MsNWFTFcRTZYFYQwYRqCmSumws1ZUj0WSZOvMwQFQxEZOVaq+kfpXdQRGJBMPWqyJCUpdK1pJ1L5YqnMg8rqHm5gkAqNOlfJggZUCDwsxQsvoYAGYYaYoCBA4OKgkUjmmIECi3TE3cUfL0jAMziEHBC9YOFAgWGAQANFiKKQgEmQKgpKYBCaYuYIOZpOZwGh8EBgYZNMlMSCTDMcLBrA4KhNdrRhkZkiRsloUEFmwcZVMFg5iAKmAsGMawNmOBBMxQEwQsxhU2FM70s0RUy6YWTmOEgAaaJONEEvzFEzTXTu2jMjQMkNKGNBFNMGN20GjyqwyQM+EMUtM0EOHSEr5plZmCZpoJqyyaZhDpvJJtBIWOnKmmUACMqPC12LW6kACRqK5420VR6GkaR4Mzx/GS8XRkojYfnq7q4PZREI0NF2N7JEIQeGhGQG3NRr/1uNISIZGSiNjfFYqdUXYfHLGtWp6Kelsahl4npemCJu5SxpwWZL5Xy3SG6SlcpW1LZJ1KVVRh7aQfIc4KeuJwxG4o9zLVhk0VUlsLvZozZnLcn3hEus2qKeh12oBgx6W6xCmftfqCwEDBpwiTFExEQX/ZY+qAYAGgVoRRjEIMUMMUOESjajE19KyrbWgu9eieRdEAhAw8VQGThkVVRpKDxiEmW8YmIX4Eexg0mcgDnyIhcbdElSoAjol+rhTlNVIZNFN5DiKAp+PG4xdkwxjAVCrgxKMSgBgywxZQmKEgS0wWDIQEpk30tEv0kESgMCBSBAWIiR0QYBL7BYMEmAh0lkMVsHJlYEK4pMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+              "volume": 30
+            },
+            "font": {
+              "id": "share-tech-mono",
+              "weight": 100,
+              "sizeOffset": 30
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0,
+                  "y": 1
+                },
+                "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "enabled": true,
+              "opacity": 23
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7121152315561873,
+                  "y": 0
+                },
+                "intensity": 27,
+                "rgb": [
+                  68,
+                  0,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  0
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.6466061614134793,
+                  "y": 0
+                },
+                "intensity": 39,
+                "rgb": [
+                  0,
+                  34,
+                  255
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.9654695381973283,
+                  "y": 0
+                },
+                "intensity": 43,
+                "rgb": [
+                  255,
+                  0,
+                  55
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.95994470043863,
+                  "y": 0
+                },
+                "intensity": 81,
+                "rgb": [
+                  255,
+                  0,
+                  64
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.9488950249212335,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  81
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.9441593206647448,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  0,
+                  89
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.5803078072280233,
+                  "y": 0
+                },
+                "intensity": 78,
+                "rgb": [
+                  0,
+                  136,
+                  255
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.8376085340829048,
+                  "y": 0
+                },
+                "intensity": 38,
+                "rgb": [
+                  255,
+                  0,
+                  251
+                ]
+              }
+            },
+            "mapBuildingOpacity": 47,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.0956078916048704,
+                  "y": 1
+                },
+                "intensity": 13,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.5780950575848306,
+                  "y": 1
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.93745062270341,
+                  "y": 0
+                },
+                "intensity": 24,
+                "rgb": [
+                  255,
+                  0,
+                  98
+                ]
+              },
+              "glowIntensity": 47,
+              "glowSize": 3,
+              "scanlineOpacity": 37,
+              "scanlineScale": 145,
+              "text": {
+                "cursor": {
+                  "x": 0.9162234042553191,
+                  "y": 0
+                },
+                "intensity": 87,
+                "rgb": [
+                  255,
+                  0,
+                  132
                 ]
               }
             }
@@ -4115,6 +6614,833 @@
                   133,
                   214,
                   224
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "demo-golden-brown",
+      "name": "Golden Brown",
+      "createdAt": "2026-06-09T22:25:44.446Z",
+      "updatedAt": "2026-07-26T23:26:36.590Z",
+      "themeSet": {
+        "selection": "dark",
+        "themes": {
+          "dark": {
+            "accent": {
+              "rgb": [
+                230,
+                172,
+                91
+              ],
+              "intensity": 60,
+              "opacity": 100,
+              "cursor": {
+                "x": 0.1,
+                "y": 0
+              }
+            },
+            "highlight": {
+              "rgb": [
+                255,
+                205,
+                125
+              ],
+              "intensity": 100,
+              "opacity": 100,
+              "cursor": {
+                "x": 0.1,
+                "y": 0
+              }
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.10890955435182519,
+                  "y": 0.041211908513849434
+                },
+                "intensity": 0,
+                "rgb": [
+                  250,
+                  168,
+                  15
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.14500990501931962,
+                  "y": 0.04888316563197544
+                },
+                "intensity": 56,
+                "rgb": [
+                  249,
+                  218,
+                  16
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.11546871724106583,
+                  "y": 0
+                },
+                "intensity": 0,
+                "rgb": [
+                  255,
+                  174,
+                  0
+                ]
+              },
+              "gymAlertThresholdHours": 46,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.09469800869467399,
+                  "y": 0.197575771447384
+                },
+                "intensity": 39,
+                "rgb": [
+                  235,
+                  164,
+                  71
+                ]
+              },
+              "gymNumberOpacity": 89,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.10890955435182519,
+                  "y": 0
+                },
+                "intensity": 0,
+                "rgb": [
+                  255,
+                  166,
+                  0
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.1282115169625482,
+                    "y": 0
+                  },
+                  "intensity": 59,
+                  "rgb": [
+                    255,
+                    196,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.14698615935919723,
+                    "y": 0
+                  },
+                  "intensity": 61,
+                  "rgb": [
+                    255,
+                    225,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.11734189192540956,
+                    "y": 0
+                  },
+                  "intensity": 66,
+                  "rgb": [
+                    255,
+                    179,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                64,
+                64,
+                69
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "halo",
+              "orbModuleSettings": {
+                "halo": {
+                  "fibers": 5,
+                  "chaos": 100,
+                  "weave": 100,
+                  "speed": 86,
+                  "pulse": 100,
+                  "softness": 4
+                }
+              },
+              "glass": {
+                "enabled": true,
+                "displace": 100,
+                "localStretch": -70,
+                "flipVertical": true,
+                "refractPower": 100,
+                "smoothness": 100,
+                "imageBlur": 4.5,
+                "refractionOpacity": 100,
+                "clarity": 35,
+                "gloss": 100,
+                "shadow": 98,
+                "reflection": 35,
+                "drift": 100
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.1264798699450181,
+                "y": 0
+              },
+              "intensity": 9,
+              "rgb": [
+                255,
+                191,
+                0
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 215,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "rgb": [
+                255,
+                213,
+                148
+              ],
+              "intensity": 100,
+              "opacity": 100,
+              "cursor": {
+                "x": 0.1,
+                "y": 0
+              }
+            },
+            "clockFont": {
+              "id": "geist",
+              "weight": 900,
+              "sizeOffset": 0
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "geist",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0.1291995687432164,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  196,
+                  0
+                ]
+              },
+              "enabled": true,
+              "opacity": 15
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7555470052584329,
+                  "y": 1
+                },
+                "intensity": 10,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0.09648775375301326,
+                  "y": 0.1003570556640625
+                },
+                "intensity": 100,
+                "rgb": [
+                  244,
+                  157,
+                  37
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.11464083511460425,
+                  "y": 0.1292858123779297
+                },
+                "intensity": 39,
+                "rgb": [
+                  240,
+                  179,
+                  45
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.06807413037623543,
+                  "y": 0.20357131958007812
+                },
+                "intensity": 63,
+                "rgb": [
+                  235,
+                  137,
+                  71
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.09175212476679388,
+                  "y": 0.2892853873116629
+                },
+                "intensity": 100,
+                "rgb": [
+                  228,
+                  170,
+                  98
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.13516176860443954,
+                  "y": 0.4378569466727121
+                },
+                "intensity": 100,
+                "rgb": [
+                  224,
+                  209,
+                  144
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.13437248456169143,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.2264281681605748
+                },
+                "intensity": 78,
+                "rgb": [
+                  232,
+                  207,
+                  79
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.06018151575956207,
+                  "y": 0.2435711451939174
+                },
+                "intensity": 38,
+                "rgb": [
+                  232,
+                  138,
+                  84
+                ]
+              }
+            },
+            "mapBuildingOpacity": 66,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.12524706006346117,
+                  "y": 0.08816964285714286
+                },
+                "intensity": 13,
+                "rgb": [
+                  244,
+                  191,
+                  31
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.09907078395416775,
+                  "y": 0.30424245198567706
+                },
+                "intensity": 79,
+                "rgb": [
+                  228,
+                  178,
+                  103
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.12327065494504236,
+                  "y": 0.3238836015973772
+                },
+                "intensity": 15,
+                "rgb": [
+                  227,
+                  196,
+                  109
+                ]
+              },
+              "glowIntensity": 45,
+              "glowSize": 8,
+              "scanlineOpacity": 21,
+              "scanlineScale": 100,
+              "text": {
+                "cursor": {
+                  "x": 0.12228260316437417,
+                  "y": 0.4738834926060268
+                },
+                "intensity": 87,
+                "rgb": [
+                  224,
+                  205,
+                  154
+                ]
+              }
+            }
+          },
+          "light": {
+            "accent": {
+              "cursor": {
+                "x": 0.14303365067944204,
+                "y": 0.2453125544956752
+              },
+              "intensity": 37,
+              "rgb": [
+                231,
+                209,
+                85
+              ]
+            },
+            "highlight": {
+              "cursor": {
+                "x": 0.07064769263986537,
+                "y": 0.42060620857007575
+              },
+              "intensity": 17,
+              "rgb": [
+                224,
+                174,
+                138
+              ]
+            },
+            "avatar": {
+              "gradientAlert": {
+                "cursor": {
+                  "x": 0.07793998332612997,
+                  "y": 0.2532144274030413
+                },
+                "intensity": 34,
+                "rgb": [
+                  231,
+                  156,
+                  90
+                ]
+              },
+              "gradientCenter": {
+                "cursor": {
+                  "x": 0.14500990501931962,
+                  "y": 0.04888316563197544
+                },
+                "intensity": 56,
+                "rgb": [
+                  249,
+                  218,
+                  16
+                ]
+              },
+              "gradientOuter": {
+                "cursor": {
+                  "x": 0.134140279982181,
+                  "y": 0
+                },
+                "intensity": 20,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "gymAlertThresholdHours": 46,
+              "gymNumberColor": {
+                "cursor": {
+                  "x": 0.06408852975062472,
+                  "y": 0.313939296838009
+                },
+                "intensity": 30,
+                "rgb": [
+                  228,
+                  154,
+                  108
+                ]
+              },
+              "gymNumberOpacity": 0,
+              "voiceGlowColor": {
+                "cursor": {
+                  "x": 0.53,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  60,
+                  220,
+                  240
+                ]
+              },
+              "lineColors": [
+                {
+                  "cursor": {
+                    "x": 0.1282115169625482,
+                    "y": 0
+                  },
+                  "intensity": 59,
+                  "rgb": [
+                    255,
+                    196,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.14698615935919723,
+                    "y": 0
+                  },
+                  "intensity": 61,
+                  "rgb": [
+                    255,
+                    225,
+                    0
+                  ]
+                },
+                {
+                  "cursor": {
+                    "x": 0.11734189192540956,
+                    "y": 0
+                  },
+                  "intensity": 66,
+                  "rgb": [
+                    255,
+                    179,
+                    0
+                  ]
+                }
+              ],
+              "lineOpacities": [
+                64,
+                64,
+                69
+              ],
+              "innerShadowOpacity": 0.25,
+              "orbModule": "halo",
+              "orbModuleSettings": {},
+              "glass": {
+                "enabled": true,
+                "displace": 52,
+                "localStretch": 3,
+                "flipVertical": true,
+                "refractPower": 51,
+                "smoothness": 100,
+                "imageBlur": 0,
+                "refractionOpacity": 100,
+                "clarity": 22,
+                "gloss": 100,
+                "shadow": 100,
+                "reflection": 64,
+                "drift": 100
+              }
+            },
+            "background": {
+              "cursor": {
+                "x": 0.13989724705012052,
+                "y": 0.3053572518484933
+              },
+              "intensity": 34,
+              "rgb": [
+                227,
+                207,
+                104
+              ]
+            },
+            "backgroundEffect": {
+              "apexGlow": 240,
+              "falloffPower": 215,
+              "hueSpread": 50,
+              "peakIntensity": 260,
+              "textureScale": 150,
+              "textureUrl": "/nova-background-texture.png",
+              "warpAmplitude": 85
+            },
+            "clockColor": {
+              "cursor": {
+                "x": 0.12202788013030647,
+                "y": 0.30424245198567706
+              },
+              "intensity": 57,
+              "rgb": [
+                228,
+                195,
+                103
+              ]
+            },
+            "clockFont": {
+              "id": "geist",
+              "weight": 900,
+              "sizeOffset": 0
+            },
+            "controlSound": {
+              "name": "soft_click.mp3",
+              "source": "data:audio/mpeg;base64,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",
+              "volume": 30
+            },
+            "font": {
+              "id": "geist",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "gymFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "transcriptFont": {
+              "id": "rajdhani",
+              "weight": 500,
+              "sizeOffset": 0
+            },
+            "border": {
+              "color": {
+                "cursor": {
+                  "x": 0.13611668510059982,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  208,
+                  0
+                ]
+              },
+              "enabled": true,
+              "opacity": 19
+            },
+            "map": {
+              "base": {
+                "cursor": {
+                  "x": 0.7555470052584329,
+                  "y": 1
+                },
+                "intensity": 10,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "water": {
+                "cursor": {
+                  "x": 0.09648775375301326,
+                  "y": 0.1003570556640625
+                },
+                "intensity": 100,
+                "rgb": [
+                  244,
+                  157,
+                  37
+                ]
+              },
+              "land": {
+                "cursor": {
+                  "x": 0.11464083511460425,
+                  "y": 0.1292858123779297
+                },
+                "intensity": 39,
+                "rgb": [
+                  240,
+                  179,
+                  45
+                ]
+              },
+              "buildingLow": {
+                "cursor": {
+                  "x": 0.06807413037623543,
+                  "y": 0.20357131958007812
+                },
+                "intensity": 63,
+                "rgb": [
+                  235,
+                  137,
+                  71
+                ]
+              },
+              "buildingHigh": {
+                "cursor": {
+                  "x": 0.09175212476679388,
+                  "y": 0.2892853873116629
+                },
+                "intensity": 100,
+                "rgb": [
+                  228,
+                  170,
+                  98
+                ]
+              },
+              "roads": {
+                "cursor": {
+                  "x": 0.13516176860443954,
+                  "y": 0.4378569466727121
+                },
+                "intensity": 100,
+                "rgb": [
+                  224,
+                  209,
+                  144
+                ]
+              },
+              "labels": {
+                "cursor": {
+                  "x": 0.13437248456169143,
+                  "y": 0
+                },
+                "intensity": 100,
+                "rgb": [
+                  255,
+                  204,
+                  0
+                ]
+              },
+              "radarLow": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.2264281681605748
+                },
+                "intensity": 78,
+                "rgb": [
+                  232,
+                  207,
+                  79
+                ]
+              },
+              "radarHigh": {
+                "cursor": {
+                  "x": 0.06018151575956207,
+                  "y": 0.2435711451939174
+                },
+                "intensity": 38,
+                "rgb": [
+                  232,
+                  138,
+                  84
+                ]
+              }
+            },
+            "mapBuildingOpacity": 66,
+            "mapLabelSize": 150,
+            "mapSatellite": true,
+            "mapWater": {
+              "enabled": true,
+              "opacity": 10
+            },
+            "radarOpacity": 87,
+            "radarPaletteMode": "custom",
+            "taskGlowIntensity": 100,
+            "titleColors": {
+              "dark": {
+                "cursor": {
+                  "x": 0.7818660545503647,
+                  "y": 0
+                },
+                "intensity": 0,
+                "rgb": [
+                  174,
+                  0,
+                  255
+                ]
+              },
+              "light": {
+                "cursor": {
+                  "x": 0.12202788013030647,
+                  "y": 0.30424245198567706
+                },
+                "intensity": 57,
+                "rgb": [
+                  228,
+                  195,
+                  103
+                ]
+              }
+            },
+            "titleTone": "auto",
+            "voiceTranscriptColors": {
+              "background": {
+                "cursor": {
+                  "x": 0.12327065494504236,
+                  "y": 0.3238836015973772
+                },
+                "intensity": 15,
+                "rgb": [
+                  227,
+                  196,
+                  109
+                ]
+              },
+              "glowIntensity": 45,
+              "glowSize": 8,
+              "scanlineOpacity": 18,
+              "scanlineScale": 100,
+              "text": {
+                "cursor": {
+                  "x": 0.12228260316437417,
+                  "y": 0.4738834926060268
+                },
+                "intensity": 87,
+                "rgb": [
+                  224,
+                  205,
+                  154
                 ]
               }
             }
