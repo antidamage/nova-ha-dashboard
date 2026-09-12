@@ -6051,8 +6051,18 @@ button.config-breadcrumb-crumb:focus-visible {
   .dashboard-home .zone-panel-header {
     flex-direction: row;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 32px;
+  }
+
+  /* The adjacent zone menu already identifies the selected panel. */
+  .dashboard-home .zone-panel-kicker,
+  .dashboard-home .zone-panel-title {
+    display: none;
+  }
+
+  .dashboard-home .zone-panel-header .zone-stats {
+    margin-top: 0;
   }
 
   .dashboard-home .zone-panel[data-lighting-zone] {
