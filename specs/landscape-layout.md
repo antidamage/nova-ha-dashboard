@@ -101,8 +101,12 @@ and **Systems** (climate, outside, world, network, power, tasks).
 Landscape zone panels must disable `container-type: inline-size`: containment
 discards their children's intrinsic widths and defeats `width: max-content`
 on every ancestor. The landscape header uses an explicit horizontal layout
-instead of the portrait container query. Climate cards have a 380px minimum;
-Outside's light, weather and camera have 320px, 520px and 560px minimums and
+instead of the portrait container query.
+The redundant "Zone Control" kicker and zone title are hidden in landscape;
+the adjacent submenu identifies the zone. Counts and lighting actions remain
+in a compact header row. Portrait retains its headings.
+Climate cards have a 380px minimum; Outside's light, weather and camera have
+320px, 520px and 560px minimums and
 can grow beyond them. Lighting zones put House Party beside the lighting body,
 with room sensors in additional columns, so fixed-height rows cannot squeeze
 the knob into the next control. Keep this treatment scoped to landscape.
