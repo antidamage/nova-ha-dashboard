@@ -1,0 +1,8 @@
+{
+  "aircon": { "matchTokens": ["c6780cad"] },
+  "bedroomHeater": {
+    "switchEntityIds": ["switch.bedroom_heater"],
+    "temperatureEntityIds": ["sensor.bedroom_temperature"],
+    "humidityEntityIds": ["sensor.bedroom_humidity"]
+  }
+}

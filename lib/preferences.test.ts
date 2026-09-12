@@ -36,13 +36,13 @@ describe("dashboard preferences", () => {
     const preferences = await readDashboardPreferences();
 
     expect(preferences.voice?.agentName).toBe("[◯_◯]");
-    expect(preferences.themeLibrary?.activeId).toBe("theme_mq77kutb_7vrn4x1i");
+    expect(preferences.themeLibrary?.activeId).toBe("demo-golden-brown");
     const library = preferences.themeLibrary as {
       activeId: string;
       entries: Array<{ id: string; name: string; themeSet: Record<string, unknown> }>;
     };
     const active = library.entries.find((entry) => entry.id === library.activeId);
-    expect(active?.name).toBe("Human Revolution");
+    expect(active?.name).toBe("Golden Brown");
     expect(preferences.theme).toEqual(active?.themeSet);
   });
 
