@@ -492,6 +492,17 @@ html[data-nova-lite] .nova-orb-refract-copy {
   z-index: 5;
 }
 
+/* Tech skin: the readout is engraved into the plastic dome — a dark shadow
+   cast down-right and a light catch up-left carve the letterforms, then a
+   glow in the text's own colour lights the engraving from inside. */
+[data-nova-orb-module="tech"] .nova-avatar-gym-counter {
+  text-shadow:
+    0 -0.02em 0.01em rgba(0, 0, 0, 0.75),
+    0 0.02em 0.01em rgba(255, 255, 255, 0.16),
+    0 0 0.14em currentColor,
+    0 0 0.4em currentColor;
+}
+
 html[data-nova-hide-orb-info]
   .nova-avatar-visual:not([data-nova-force-orb-info="true"])
   .nova-avatar-gym-counter {
@@ -2385,7 +2396,10 @@ a.update-banner-button {
   left: 0;
   right: 0;
   height: var(--nova-avatar-size);
-  background: linear-gradient(to bottom, #000 0%, transparent 100%);
+  /* Colour and its alpha come from the theme; the element's own opacity stays
+     the scroll's (specs/header-fade.md). Falls back to the black it always
+     was before the theme loads. */
+  background: linear-gradient(to bottom, var(--cyber-header-fade, #000) 0%, transparent 100%);
   opacity: var(--nova-header-fade, 0);
   z-index: 90;
   pointer-events: none;
@@ -5747,7 +5761,7 @@ button.config-breadcrumb-crumb:focus-visible {
     right: auto;
     width: calc(var(--dashboard-sidebar-width) + env(safe-area-inset-left, 0px));
     height: auto;
-    background: linear-gradient(to right, #000 0%, transparent 100%);
+    background: linear-gradient(to right, var(--cyber-header-fade, #000) 0%, transparent 100%);
   }
 
   body:has(.dashboard-home) .dashboard-config-link {

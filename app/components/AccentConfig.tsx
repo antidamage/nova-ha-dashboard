@@ -126,7 +126,7 @@ type ThemeConfigColorSlot = ThemeColorSlot | "background";
 type MapConfigSlot = `map.${MapThemeColorSlot}`;
 type TitleConfigSlot = "title.light" | "title.dark";
 type VoiceTranscriptConfigSlot = "voiceTranscript.background" | "voiceTranscript.text";
-type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "clockColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
+type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "headerFade" | "clockColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
 type ThemeSlotChoice = { slot: ThemeConfigSlot; label: string; detail: string };
 
 const THEME_SLOTS: ThemeSlotChoice[] = [
@@ -134,6 +134,7 @@ const THEME_SLOTS: ThemeSlotChoice[] = [
   { slot: "highlight", label: "Highlight", detail: "Selection" },
   { slot: "background", label: "Background", detail: "Surfaces" },
   { slot: "border", label: "Borders", detail: "Optional lines" },
+  { slot: "headerFade", label: "Orb Shadow", detail: "Shadow on scroll" },
 ];
 
 const MAP_THEME_SLOTS: ThemeSlotChoice[] = [
@@ -1244,6 +1245,9 @@ function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): ThemeColo
   if (slot === "border") {
     return theme.border.color;
   }
+  if (slot === "headerFade") {
+    return theme.headerFade.color;
+  }
   if (slot === "clockColor") {
     return theme.clockColor;
   }
@@ -1387,6 +1391,10 @@ export function AccentConfig({
   }, [setTheme, theme]);
 
   const updateSlotColor = (slot: ThemeConfigSlot, value: ThemeColorValue, options: { persist?: boolean } = {}) => {
+    if (slot === "headerFade") {
+      setTheme({ ...theme, headerFade: { ...theme.headerFade, color: value } }, options);
+      return;
+    }
     if (slot === "border") {
       setTheme({ ...theme, border: { ...theme.border, color: value } }, options);
       return;
@@ -1415,6 +1423,7 @@ export function AccentConfig({
   // one opacity across two colours, so they keep their own slider.
   const slotOpacity = (slot: ThemeConfigSlot) => {
     if (slot === "border") return theme.border.opacity;
+    if (slot === "headerFade") return theme.headerFade.opacity;
     if (slot === "map.water") return theme.mapWater.opacity;
     return undefined;
   };
@@ -1427,6 +1436,10 @@ export function AccentConfig({
   ) => {
     if (slot === "border") {
       setTheme({ ...theme, border: { ...theme.border, color: value, opacity } }, options);
+      return;
+    }
+    if (slot === "headerFade") {
+      setTheme({ ...theme, headerFade: { ...theme.headerFade, color: value, opacity } }, options);
       return;
     }
     if (slot === "map.water") {
@@ -1499,6 +1512,8 @@ export function AccentConfig({
     const value = themeColorForSlot(theme, slot);
     const opacity = slot === "border"
       ? theme.border.opacity
+      : slot === "headerFade"
+        ? theme.headerFade.opacity
       : slot === "map.water"
         ? theme.mapWater.opacity
         : undefined;
@@ -1507,6 +1522,17 @@ export function AccentConfig({
   const pasteColorIntoSlot = (slot: ThemeConfigSlot) => {
     const clip = clipboard.color;
     if (!clip) {
+      return;
+    }
+    if (slot === "headerFade") {
+      setTheme({
+        ...theme,
+        headerFade: {
+          ...theme.headerFade,
+          color: clip.value,
+          ...(clip.opacity !== undefined ? { opacity: clamp(Math.round(clip.opacity), 0, 100) } : {}),
+        },
+      });
       return;
     }
     if (slot === "border") {

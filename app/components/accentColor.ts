@@ -38,6 +38,12 @@ export type ThemeBorderValue = {
   opacity: number;
 };
 
+/** Same pair as the border: the header fade strip's colour and its own alpha. */
+export type ThemeHeaderFadeValue = {
+  color: ThemeColorValue;
+  opacity: number;
+};
+
 export type ThemeTitleColors = {
   dark: ThemeColorValue;
   light: ThemeColorValue;
@@ -155,6 +161,9 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   background: ThemeColorValue;
   backgroundEffect: FluidBackgroundSettings;
   border: ThemeBorderValue;
+  /** The shadow under the status orb as the page scrolls; see
+   *  specs/header-fade.md. The scroll supplies the multiplier on top. */
+  headerFade: ThemeHeaderFadeValue;
   clockColor: ThemeColorValue;
   clockFont: ThemeFontSetting;
   controlSound: ControlSoundSettings;
@@ -390,6 +399,14 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     },
     opacity: 15,
   },
+  headerFade: {
+    color: {
+      cursor: { x: 0, y: 0 },
+      intensity: 0,
+      rgb: [255, 255, 255],
+    },
+    opacity: 100,
+  },
   clockColor: {
     cursor: { x: 0.12228260316437417, y: 0.4738834926060268 },
     intensity: 87,
@@ -580,6 +597,14 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
       rgb: [255, 208, 0],
     },
     opacity: 19,
+  },
+  headerFade: {
+    color: {
+      cursor: { x: 0, y: 0 },
+      intensity: 0,
+      rgb: [255, 255, 255],
+    },
+    opacity: 100,
   },
   clockColor: {
     cursor: { x: 0.7818660545503647, y: 0 },
@@ -899,6 +924,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     ? (value?.titleTone as ThemeTitleTone)
     : DEFAULT_THEME.titleTone;
   const borderValue = value?.border;
+  const headerFadeValue = value?.headerFade;
   const mapWaterValue = value?.mapWater;
   const mapValue = value?.map as StoredMapTheme | null | undefined;
   const buildingLowValue = mapValue?.buildingLow ?? mapValue?.buildings;
@@ -935,6 +961,10 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     border: {
       color: normalizeColor(borderValue?.color, DEFAULT_THEME.border.color),
       opacity: clamp(Math.round(Number(borderValue?.opacity ?? DEFAULT_THEME.border.opacity)), 0, 100),
+    },
+    headerFade: {
+      color: normalizeColor(headerFadeValue?.color, DEFAULT_THEME.headerFade.color),
+      opacity: clamp(Math.round(Number(headerFadeValue?.opacity ?? DEFAULT_THEME.headerFade.opacity)), 0, 100),
     },
     map: {
       base: normalizeColor(mapValue?.base, DEFAULT_THEME.map.base),
@@ -1100,6 +1130,20 @@ function applyCssColor(name: "line" | "cyan", rgb: [number, number, number]) {
   root.style.setProperty("--cyber-cyan-rgb", value);
   root.style.setProperty("--cyber-highlight", `rgb(${value})`);
   root.style.setProperty("--cyber-highlight-rgb", value);
+}
+
+/**
+ * The header fade strip's colour, as one ready-made rgb() the gradients use.
+ * The theme's opacity is the alpha here, never the element's `opacity` — that
+ * belongs to the scroll, and the two would otherwise fight over one property
+ * (specs/header-fade.md).
+ */
+function applyCssHeaderFade(headerFade: ThemeHeaderFadeValue) {
+  const rgb = appliedThemeRgb(normalizeColor(headerFade.color, DEFAULT_THEME.headerFade.color));
+  const alpha = clamp(Math.round(Number(headerFade.opacity ?? DEFAULT_THEME.headerFade.opacity)), 0, 100) / 100;
+  const root = document.documentElement;
+  root.style.setProperty("--cyber-header-fade-rgb", `${rgb[0]} ${rgb[1]} ${rgb[2]}`);
+  root.style.setProperty("--cyber-header-fade", `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]} / ${alpha})`);
 }
 
 function applyCssBorder(border: ThemeBorderValue) {
@@ -1314,6 +1358,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssColor("line", accent);
   applyCssColor("cyan", highlight);
   applyCssBorder(normalized.border);
+  applyCssHeaderFade(normalized.headerFade);
   applyCssBackground(background);
   applyCssTitleColors(normalized.titleColors);
   applyCssTitleTone(normalized.titleTone, accent, highlight, background, normalized.clockColor, normalized.titleColors);
@@ -1360,6 +1405,7 @@ export function mixDeviceThemeColors(configured: DeviceTheme, target: DeviceThem
     highlight: color(configured.highlight, target.highlight),
     background: color(configured.background, target.background),
     border: { ...configured.border, color: color(configured.border.color, target.border.color) },
+    headerFade: { ...configured.headerFade, color: color(configured.headerFade.color, target.headerFade.color) },
     clockColor: color(configured.clockColor, target.clockColor),
     titleColors: {
       dark: color(configured.titleColors.dark, target.titleColors.dark),
