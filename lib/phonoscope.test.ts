@@ -7,6 +7,10 @@ import {
   compilePhonoscopeYaml,
 } from "./phonoscope";
 
+// The public dashboard checkout does not contain the private workspace's
+// sibling module catalogue. Exercise it when running the complete workspace.
+const modulesRoot = path.join(process.cwd(), "..", "nova-visualiser-modules");
+
 describe("Phonoscope module compiler", () => {
   it("uses a module's explicit visualiser-dependent palette slots", () => {
     const result = compilePhonoscopeYaml(`
@@ -29,7 +33,7 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     expect(result.module.paletteSlots.map((slot) => slot.id)).toEqual(["ambientGlow"]);
   });
 
-  it("publishes the Particle Ripples trail-length control", () => {
+  it.skipIf(!existsSync(modulesRoot))("publishes the Particle Ripples trail-length control", () => {
     const source = readFileSync(
       path.join(process.cwd(), "..", "nova-visualiser-modules", "particle-ripples", "module.yaml"),
       "utf8",
@@ -186,8 +190,7 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
     expect(unused).toEqual([]);
   });
 
-  it("keeps visualiser palette pairs as geometric gradient endpoints", () => {
-    const modulesRoot = path.join(process.cwd(), "..", "nova-visualiser-modules");
+  it.skipIf(!existsSync(modulesRoot))("keeps visualiser palette pairs as geometric gradient endpoints", () => {
     for (const entry of readdirSync(modulesRoot, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const modulePath = path.join(modulesRoot, entry.name, "module.yaml");
@@ -197,10 +200,10 @@ resources: { maxParticles: 16, maxInteractiveFieldEntities: 16, maxRenderBatches
       const result = compilePhonoscopeYaml(source);
       expect(result.ok, entry.name).toBe(true);
     }
-    expect(BUILTIN_PHONOSCOPE_MODULE_YAML).not.toMatch(/mix\s*\(\s*palette\./i);
   });
 
   it("compiles the resilient built-in module and its field", () => {
+    expect(BUILTIN_PHONOSCOPE_MODULE_YAML).not.toMatch(/mix\s*\(\s*palette\./i);
     const result = compilePhonoscopeYaml(BUILTIN_PHONOSCOPE_MODULE_YAML);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
