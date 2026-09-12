@@ -2127,8 +2127,13 @@ a.update-banner-button {
   height: 24px;
   transform: translate(-50%, -50%);
   background: var(--cyber-line);
-  /* Same height + border as the track, co-centred, so the outlines align. */
-  border: 1px solid var(--cyber-border-dim);
+  /* Same height + border as the track, co-centred, so the outlines align.
+     The border is the contrast-checked colour for text ON the accent, not the
+     dim border colour: a light theme's accent can be as pale as the track it
+     sits on, and the thumb vanished into it entirely (Adeline, 2026-09-12 —
+     "invisible until dragged, then they vanish into the white track again").
+     Whatever the accent is, this edge reads against it. */
+  border: 1px solid var(--cyber-title-on-line);
   pointer-events: none;
 }
 
@@ -2184,7 +2189,7 @@ a.update-banner-button {
 
 .rect-range-thumb:focus-visible {
   background: var(--cyber-highlight);
-  border-color: var(--cyber-highlight);
+  border-color: var(--cyber-title-on-highlight);
   box-shadow: 0 0 0 3px
     color-mix(in srgb, var(--cyber-highlight) 28%, transparent);
 }
@@ -2192,7 +2197,9 @@ a.update-banner-button {
 .rect-slider.rect-slider-active .rect-slider-thumb,
 .rect-slider:focus-visible .rect-slider-thumb {
   background: var(--cyber-highlight);
-  border-color: var(--cyber-highlight);
+  /* Same reasoning as the resting thumb: the edge must read against the fill,
+     and a pale highlight is as invisible as a pale accent. */
+  border-color: var(--cyber-title-on-highlight);
 }
 
 .rect-slider-disabled {
@@ -5795,6 +5802,11 @@ button.config-breadcrumb-crumb:focus-visible {
     width: var(--dashboard-sidebar-width);
     text-align: center;
     white-space: nowrap;
+    /* Under the orb this is sidebar text, not the clock readout, so it takes
+       the contrast-checked light/dark text fill rather than the theme's clock
+       colour — which is chosen against the clock panel and can be unreadable
+       here (Adeline, 2026-09-12). The clock font still carries. */
+    color: var(--cyber-title-on-bg) !important;
   }
 
   body:has(.dashboard-home) .header-mini-clock {
@@ -6132,6 +6144,10 @@ button.config-breadcrumb-crumb:focus-visible {
     grid-auto-columns: minmax(280px, max-content);
     grid-template-rows: minmax(min-content, 1fr);
     align-items: center;
+    /* Centred in the panel rather than packed to its left edge: the dial and
+       its presets are the content, and a wide panel left them hanging off one
+       side (Adeline, 2026-09-12). */
+    justify-content: center;
     gap: 24px;
   }
 
@@ -6931,6 +6947,16 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 
 .rotary-encoder > * {
   grid-area: 1 / 1;
+}
+
+/* The two skins each name their own face colour. The dark one used to inherit
+   the page's `--background`, which was invisible while every theme was dark —
+   and wrong the moment a light theme asked for dark knobs: the knob painted
+   itself the light page and stayed light (Adeline, 2026-09-12, "Psionyk 1978"
+   light mode). The light skin was already a fixed colour; now both are, so a
+   knob's skin is the skin it was set to whatever the page behind it is. */
+.rotary-encoder[data-mode="dark"] {
+  --re-tint: #191b20;
 }
 
 /* Light mode. The dark treatment is the design; this is its counterpart, not an

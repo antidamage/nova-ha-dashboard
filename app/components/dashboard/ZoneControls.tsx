@@ -16,7 +16,6 @@ import { ColorEncoder, type ColorEncoderChannel } from "../ColorEncoder";
 import { hsvToRgb, rgbToHsv, type Hsva } from "../colorEncoderModel";
 import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "./EnvironmentPanels";
 import { IconButton } from "./IconButton";
-import { StatChip } from "./ZoneButton";
 import { selectPrimaryZonePanel } from "./panel-registry";
 import { ModuleSlot } from "../modules/ModuleSlot";
 import {
@@ -237,7 +236,6 @@ export function ZoneControls({
   );
   const hasLightDevices = lightEntities.length > 0;
   const hasActiveLights = lightEntities.some(dashboardEntityIsOn);
-  const statDomains = countDomainsForZone(zone);
   const rememberSpectrum = useCallback(
     (value: SpectrumValue) => {
       spectrumByZone.current[zone.id] = value;
@@ -266,12 +264,10 @@ export function ZoneControls({
       <header className="zone-panel-header flex flex-col gap-4">
         <div className="min-w-0">
           <p className="zone-panel-kicker text-sm font-black uppercase text-cyan-300">Zone Control</p>
+          {/* No device-count chips (Adeline, 2026-09-12): how many lights,
+              switches or climate devices a zone holds is not something she
+              ever wants to read. */}
           <h1 className="zone-panel-title mt-1 text-4xl font-black uppercase text-neutral-50 sm:text-5xl">{zone.name}</h1>
-          <div className="zone-stats mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {statDomains.map((domain) => (
-              <StatChip key={domain} domain={domain} count={zone.counts[domain]} />
-            ))}
-          </div>
         </div>
       </header>
 

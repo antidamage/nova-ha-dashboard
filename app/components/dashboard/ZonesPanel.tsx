@@ -94,7 +94,6 @@ export function ZonesPanel({
               zone={zones.inside}
               selected={homeSelectedId === zones.inside.id}
               onClick={() => onSelectZone(zones.inside!.id)}
-              hideCounts={zones.indoor.length > 0}
             />
 
             {zones.indoor.length ? (
@@ -146,7 +145,6 @@ export function ZonesPanel({
             zone={zones.outside}
             selected={systemsSelectedId === zones.outside.id}
             onClick={() => onSelectZone(zones.outside!.id)}
-            domains={["light"]}
           />
         ) : null}
 
@@ -154,7 +152,6 @@ export function ZonesPanel({
           zone={zones.world}
           selected={worldZoneSelected}
           onClick={() => onSelectZone(WORLD_ZONE_ID)}
-          hideCounts
         />
 
         {zones.network ? (
@@ -171,7 +168,6 @@ export function ZonesPanel({
             zone={zones.power}
             selected={powerZoneSelected}
             onClick={() => onSelectZone(POWER_ZONE_ID)}
-            hideCounts
           />
         ) : null}
 
@@ -180,7 +176,6 @@ export function ZonesPanel({
           selected={tasksZoneSelected}
           onClick={() => onSelectZone(TASKS_ZONE_ID)}
           className="zone-button-tasks"
-          hideCounts
         />
         </HorizontalAccordion>
       </div>

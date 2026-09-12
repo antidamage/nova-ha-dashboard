@@ -334,7 +334,7 @@ export function SliderControlPanel({
   ariaValueText,
   color,
   dotOpacity,
-  fill = true,
+  fill,
   intensity,
   label,
   markers,
@@ -354,8 +354,16 @@ export function SliderControlPanel({
   ariaValueText: string;
   color: [number, number, number];
   dotOpacity?: number;
-  /** Tinted accent back-fill up to the thumb. Config sliders are magnitudes, so
-   *  this defaults on; pass `false` for stepped/choice controls. */
+  /**
+   * Tinted accent back-fill up to the thumb. Left unset it follows the control:
+   * on for a magnitude, off for a choice. A slider is a choice when **every**
+   * one of its stops is named — `markers.length` equals the number of steps —
+   * which is how the theme, knob-skin, title-tone and radar-palette pickers are
+   * built. Filling one of those read as "more of something" when the stops are
+   * only different things (Adeline, 2026-09-12). A magnitude with a couple of
+   * landmark markers (Reminder Glow, Volume) keeps its fill. Pass the prop to
+   * override either way.
+   */
   fill?: boolean;
   intensity?: number;
   label: string;
@@ -381,6 +389,10 @@ export function SliderControlPanel({
   value: number;
   valueText: ReactNode;
 }) {
+  const stops = step > 0 ? Math.round((max - min) / step) + 1 : 0;
+  const isChoice = markers !== undefined && stops > 0 && markers.length === stops;
+  const showFill = fill ?? !isChoice;
+
   // Config contract: onPreview is local UI state only; onCommit is the single
   // persistence boundary fired by DotLineControl on pointer/key release. Keeping
   // both required makes save-on-drag wiring a compile-time error at every use.
@@ -401,7 +413,7 @@ export function SliderControlPanel({
             demoTooltipTitle={label}
             demoTooltip="Drag to adjust this setting, or tap it to type a value."
             dotOpacity={dotOpacity}
-            fill={fill}
+            fill={showFill}
             intensity={intensity}
             markers={markers}
             numericEntryLabel={label}

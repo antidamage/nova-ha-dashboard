@@ -1,28 +1,8 @@
 "use client";
 
-import { Fan, Gauge, Lightbulb, PlugZap, Thermometer, ToggleLeft } from "lucide-react";
-import type { DashboardZone, HaDomain, RouterStatus } from "../../../lib/types";
-import { classNames, countDomainsForZone, isClimateZone, isNetworkZone, isPowerZone, isWorldZone, routerStatusLabel } from "./shared";
-
-const domainIcons: Record<HaDomain, React.ComponentType<{ className?: string }>> = {
-  light: Lightbulb,
-  switch: ToggleLeft,
-  climate: Thermometer,
-  fan: Fan,
-  cover: Gauge,
-  humidifier: Gauge,
-  sensor: Thermometer,
-};
-
-const domainAccent: Record<HaDomain, string> = {
-  light: "text-yellow-300 border-yellow-300/40 bg-yellow-300/10",
-  switch: "text-cyan-300 border-cyan-300/40 bg-cyan-300/10",
-  climate: "text-fuchsia-300 border-fuchsia-300/40 bg-fuchsia-300/10",
-  fan: "text-emerald-300 border-emerald-300/40 bg-emerald-300/10",
-  cover: "text-orange-300 border-orange-300/40 bg-orange-300/10",
-  humidifier: "text-sky-300 border-sky-300/10 bg-sky-300/10",
-  sensor: "text-cyan-300 border-cyan-300/40 bg-cyan-300/10",
-};
+import { PlugZap } from "lucide-react";
+import type { DashboardZone, RouterStatus } from "../../../lib/types";
+import { classNames, isClimateZone, isNetworkZone, isPowerZone, isWorldZone, routerStatusLabel } from "./shared";
 
 function zoneTooltip(zone: DashboardZone, nested: boolean) {
   if (isClimateZone(zone)) {
@@ -47,30 +27,11 @@ function zoneTooltip(zone: DashboardZone, nested: boolean) {
   };
 }
 
-export function StatChip({ domain, count }: { domain: HaDomain; count: number }) {
-  const Icon = domainIcons[domain];
-
-  return (
-    <div
-      className={classNames(
-        "flex h-11 min-w-0 items-center gap-2 border px-3 text-sm font-semibold uppercase",
-        domainAccent[domain],
-      )}
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      <span className="truncate">{domain.replace("_", " ")}</span>
-      <span className="ml-auto tabular-nums">{count}</span>
-    </div>
-  );
-}
-
 export function ZoneButton({
   zone,
   selected,
   onClick,
   nested = false,
-  hideCounts = false,
-  domains,
   routerStatus,
   className,
 }: {
@@ -78,12 +39,9 @@ export function ZoneButton({
   selected: boolean;
   onClick: () => void;
   nested?: boolean;
-  hideCounts?: boolean;
-  domains?: HaDomain[];
   routerStatus?: RouterStatus;
   className?: string;
 }) {
-  const countDomains = domains ?? countDomainsForZone(zone);
   const networkStatus = isNetworkZone(zone) ? routerStatusLabel(routerStatus) : null;
   const powerZone = isPowerZone(zone);
   const tooltip = zoneTooltip(zone, nested);
@@ -119,18 +77,7 @@ export function ZoneButton({
           <PlugZap className="h-4 w-4" />
           <span>Live kWh</span>
         </span>
-      ) : hideCounts || countDomains.length === 0 ? null : (
-        <span
-          className="zone-counts mt-3 grid gap-2 text-xs font-semibold text-neutral-400"
-          style={{ gridTemplateColumns: `repeat(${countDomains.length}, minmax(0, 1fr))` }}
-        >
-          {countDomains.map((domain) => (
-            <span key={domain}>
-              {zone.counts[domain]} {domain === "light" ? "lights" : domain === "switch" ? "switches" : domain}
-            </span>
-          ))}
-        </span>
-      )}
+      ) : null}
     </button>
   );
 }
