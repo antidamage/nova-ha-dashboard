@@ -7,7 +7,7 @@
  * of lights across the knob says which channel it is turning, and tapping
  * cycles them. The sunken ring around the dial carries the resulting colour and
  * is the control's *only* colour readout — no hex, no RGB, no number anywhere
- * on it. The label sits on the knob face above the lights.
+ * on it. The label curves around the outside of the knob, along the top.
  *
  * The base carries the layers, the relative-angle drag, the clicks, the rings
  * and the light/dark treatment. What lives here is HSVA: which channel the knob
@@ -205,7 +205,7 @@ export function ColorEncoder({
         demoTooltip={demoTooltip}
         demoTooltipTitle={demoTooltipTitle}
         disabled={disabled}
-        faceTop={label}
+        title={label}
         faceBottom={CHANNEL_CAPTION[channel][dialSize < CAPTION_SHORT_BELOW_PX ? 1 : 0]}
         glow={glow}
         knobSkin={knobSkin}
