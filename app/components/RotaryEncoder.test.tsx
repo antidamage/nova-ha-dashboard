@@ -500,3 +500,78 @@ describe("knob skin", () => {
     expect(modeOf(container)).toBe("dark");
   });
 });
+
+describe("hidden rings", () => {
+  const RINGS: RotaryEncoderRing[] = [
+    { id: "mode", label: "Mode", value: 1, min: 0, max: 2, step: 1, onChange: () => undefined },
+    { id: "fan", label: "Fan", value: 1, min: 0, max: 3, step: 1, onChange: () => undefined },
+    { id: "timer", label: "Timer", value: 30, min: 0, max: 120, step: 15, onChange: () => undefined },
+  ];
+
+  function ringsOf(container: HTMLElement) {
+    return [...svgOf(container).querySelectorAll(".rotary-encoder-ring-slider")] as SVGGElement[];
+  }
+
+  /** One deliberate tap on the dial, which unlocks it and shows the rings. */
+  function open() {
+    let time = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => time);
+    const dial = screen.getByRole("slider");
+    fireEvent.pointerDown(dial, { buttons: 1, clientX: 40, clientY: 40, pointerId: 1 });
+    time += 120;
+    fireEvent.pointerUp(dial, { clientX: 40, clientY: 40, pointerId: 1 });
+  }
+
+  it("keeps a hidden ring in the stack so the rest do not change radius", () => {
+    const { container, rerender } = render(<Dial rings={RINGS} tuckAfterMs={5000} />);
+    act(() => open());
+    const before = ringsOf(container).map((ring) => ring.dataset.ringId);
+    rerender(<Dial rings={RINGS.map((ring) => (ring.id === "timer" ? ring : { ...ring, hidden: true }))} tuckAfterMs={5000} />);
+    expect(ringsOf(container).map((ring) => ring.dataset.ringId)).toEqual(before);
+  });
+
+  it("tucks a hidden ring away and takes it out of reach", async () => {
+    const { container } = render(
+      <Dial rings={RINGS.map((ring) => (ring.id === "fan" ? { ...ring, hidden: true } : ring))} tuckAfterMs={5000} />,
+    );
+    act(() => open());
+    // Two frames for the open transition's start state, or every ring still
+    // reads as tucked (`entering`).
+    await act(async () => { await new Promise((done) => setTimeout(done, 60)); });
+    const fan = ringsOf(container).find((ring) => ring.dataset.ringId === "fan")!;
+    const timer = ringsOf(container).find((ring) => ring.dataset.ringId === "timer")!;
+    expect(fan.dataset.hidden).toBe("true");
+    expect(fan.style.opacity).toBe("0");
+    expect(fan.style.transform.startsWith("scale(")).toBe(true);
+    expect(fan.style.pointerEvents).toBe("none");
+    expect(fan.getAttribute("tabindex")).toBe("-1");
+    expect(fan.getAttribute("aria-hidden")).toBe("true");
+    // Its neighbour is untouched.
+    expect(timer.dataset.hidden).toBeUndefined();
+    expect(timer.style.opacity).toBe("1");
+  });
+
+  it("takes no keyboard input while hidden", () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <Dial rings={[{ ...RINGS[0], hidden: true, onChange }]} tuckAfterMs={5000} />,
+    );
+    act(() => open());
+    fireEvent.keyDown(ringsOf(container)[0], { key: "ArrowRight" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("drops the blocker when every ring is folded away", () => {
+    const { container } = render(<Dial rings={RINGS.map((ring) => ({ ...ring, hidden: true }))} tuckAfterMs={5000} />);
+    act(() => open());
+    expect(svgOf(container).querySelector("[data-testid='rotary-encoder-blocker']")).toBeNull();
+  });
+
+  it("keeps the blocker while one ring is still on show", () => {
+    const { container } = render(
+      <Dial rings={RINGS.map((ring) => (ring.id === "timer" ? ring : { ...ring, hidden: true }))} tuckAfterMs={5000} />,
+    );
+    act(() => open());
+    expect(svgOf(container).querySelector("[data-testid='rotary-encoder-blocker']")).not.toBeNull();
+  });
+});

@@ -58,9 +58,13 @@ export function DemoTemperatureDial({
     return () => window.clearInterval(timer);
   }, [minutes]);
 
+  // Same ring visibility as the wired knobs: Manual shows everything, Auto only
+  // the timer, Off nothing (specs/temperature-encoder.md).
+  const manual = mode === "manual";
   const timerRing: RotaryEncoderRing = {
     id: "timer",
     label: "Timer",
+    hidden: mode === "off",
     value: minutes,
     min: 0,
     max: TIMER_MAX_MINUTES,
@@ -83,6 +87,7 @@ export function DemoTemperatureDial({
         max: 2,
         step: 1,
         fill: mode === "off" ? null : MODE_COLOURS[modeIndex],
+        hidden: !manual,
         onChange: setModeIndex,
       },
       {
@@ -94,6 +99,7 @@ export function DemoTemperatureDial({
         step: 1,
         valueText: fanStepText(FAN_STEPS[fanIndex]),
         valueTextWidest: FAN_VALUE_WIDEST,
+        hidden: !manual,
         onChange: setFanIndex,
       },
       {
@@ -104,6 +110,7 @@ export function DemoTemperatureDial({
         min: 0,
         max: 1,
         fill: MODE_COOL_COLOUR,
+        hidden: !manual,
         onChange: setFresh,
       },
       timerRing,

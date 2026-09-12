@@ -138,6 +138,44 @@ describe("normalizeOrbLayer", () => {
     expect(layer.colors).toEqual([{ theme: "line1" }, { theme: "line2" }, { theme: "line3" }]);
   });
 
+  it("takes a ring's linear gradient and inset shadow, and drops empty ones", () => {
+    const plain = normalizeOrbLayer({ type: "ring", radius: 0.9, width: 0.1, color: { hex: "#000000" } });
+    expect(plain).not.toHaveProperty("gradient");
+    expect(plain).not.toHaveProperty("innerShadow");
+
+    const shaded = normalizeOrbLayer({
+      type: "ring",
+      radius: 0.884,
+      width: 0.161,
+      color: { hex: "#000000", alpha: 0 },
+      gradient: {
+        angle: 160,
+        stops: [
+          { at: 0, color: { hex: "#000000", alpha: 0.42 } },
+          { at: 1, color: { hex: "#ffffff", alpha: 0.18 } },
+        ],
+      },
+      innerShadow: { blur: 0.0805, color: { hex: "#000000", alpha: 0.55 } },
+    });
+    expect(shaded).toMatchObject({
+      gradient: { angle: 160 },
+      innerShadow: { blur: 0.0805 },
+    });
+    expect((shaded as { gradient: { stops: unknown[] } }).gradient.stops).toHaveLength(2);
+
+    // A gradient with no stops, and a shadow with no blur, paint nothing.
+    const empty = normalizeOrbLayer({
+      type: "ring",
+      radius: 0.9,
+      width: 0.1,
+      color: { hex: "#000000" },
+      gradient: { angle: 160, stops: [] },
+      innerShadow: { blur: 0, color: { hex: "#000000" } },
+    });
+    expect(empty).not.toHaveProperty("gradient");
+    expect(empty).not.toHaveProperty("innerShadow");
+  });
+
   it("keeps disc gradient circles only when supplied", () => {
     const plain = normalizeOrbLayer({ type: "disc", stops: [{ at: 0, color: { hex: "#000000" } }] });
     expect(plain).not.toBeNull();
