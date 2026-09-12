@@ -341,9 +341,13 @@ export function ZoneControls({
               loungeEnvironment,
               bedroomHeater,
               climateControl,
+              sun,
+              spectrumCursor,
+              knobSkin,
               onDesktopSleep,
               onDesktopWake,
               onEntityActions,
+              onZoneAction,
               onNotice,
             })
           ) : (

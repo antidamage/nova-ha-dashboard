@@ -4069,6 +4069,15 @@ button.config-breadcrumb-crumb:focus-visible {
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
+/* The knob with its On/Off pair under it, the Quick Access shape
+   (specs/outside-card.md). */
+.outside-light-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
 /* ===== Outside camera / DVR player ===== */
 .outside-camera-panel {
   grid-column: 1 / -1;
@@ -6050,9 +6059,15 @@ button.config-breadcrumb-crumb:focus-visible {
     background: var(--cyber-panel);
   }
 
+  /* As wide as the card needs (Adeline, 2026-09-12). The old
+     min(760px, 100vw - 80px) cap made a wide card — Outside, with its light,
+     weather and camera in a row — wrap and scroll vertically instead.
+     Landscape already scrolls sideways between columns, so width costs
+     nothing; height is the budget that matters. */
   .dashboard-home .control-stage {
     display: block;
-    width: min(760px, calc(100vw - 80px));
+    width: max-content;
+    max-width: none;
     min-width: 520px;
     height: 100%;
     overflow-y: auto;
@@ -6060,6 +6075,30 @@ button.config-breadcrumb-crumb:focus-visible {
     /* Clear the shrunk sidebar when scrolled into view. */
     scroll-margin-inline-start: 148px;
     scroll-margin-inline-end: 40px;
+  }
+
+  /* Outside flows across: light, weather, camera, in that order, each column
+     as wide as it needs (specs/outside-card.md). The camera no longer spans a
+     row underneath, which is what made the card taller than its column. */
+  .dashboard-home .outside-control-grid {
+    grid-template-columns: auto auto auto;
+    align-items: stretch;
+    height: 100%;
+  }
+
+  /* The feed takes its size from the column's height. It is 16:9 off a full
+     width otherwise, which is exactly what forced the vertical scroll. */
+  .dashboard-home .outside-camera-panel {
+    grid-column: auto;
+    width: auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-home .outside-camera-panel .camera-stage {
+    flex: 1;
+    width: auto;
+    min-height: 0;
   }
 
   .dashboard-home .control-stage::-webkit-scrollbar {
@@ -6087,11 +6126,33 @@ button.config-breadcrumb-crumb:focus-visible {
     margin-top: 0;
   }
 
+  /* As an accordion the panel stops being the bordered box — the accordion's
+     content is, exactly as it is for Home and Systems. Its content is a column
+     of transcript, not a grid of zone buttons, so the zone sizing comes off. */
+  .dashboard-home .voice-transcript-panel:has(.horizontal-accordion) {
+    width: auto;
+    border: 0;
+    background: transparent;
+  }
+
+  .dashboard-home .horizontal-accordion[data-group="transcript"] .horizontal-accordion-content:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-auto-rows: auto;
+    width: 560px;
+    gap: 0;
+    padding: 0;
+  }
+
   .dashboard-home .zone-panel {
     min-height: 100% !important;
   }
 
-  .dashboard-home .voice-transcript-panel > div:nth-child(2),
+  /* The body carries a class of its own: this used to select
+     `> div:nth-child(2)`, which stopped meaning the body the moment the panel
+     gained an accordion around it (specs/landscape-layout.md). */
+  .dashboard-home .voice-transcript-body,
   .dashboard-home .voice-transcript-screen {
     flex: 1;
     min-height: 0;

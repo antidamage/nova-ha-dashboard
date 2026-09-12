@@ -1,19 +1,34 @@
 "use client";
 
-import { Power } from "lucide-react";
-import type { DashboardZone, WeatherStatus } from "../../../lib/types";
-import type { EntityActionInput } from "../../../lib/aircon-control";
-import { LabeledSwitch } from "./ClimateControls";
+/**
+ * The Outside card: the outside light, the weather and the camera
+ * (specs/outside-card.md). In landscape the three flow left to right in that
+ * order and the card fits its column without scrolling.
+ */
+import { PowerOff, Sun as SunIcon } from "lucide-react";
+import type { DashboardZone, SpectrumCursor, SunStatus, WeatherStatus } from "../../../lib/types";
+import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { WeatherPanel } from "./WeatherPanel";
 import { CameraPanel } from "./CameraPanel";
 import { useExperienceFeature } from "./experienceModeSetting";
+import { classNames, dashboardEntityIsOn } from "./shared";
+import { useZoneLighting, type ZoneActionHandler } from "./useZoneLighting";
+import { ZoneColorEncoder } from "./ZoneControls";
+
+const OUTSIDE_ENCODER_SIZE = 100;
 
 export function OutsideControls({
-  onEntityActions,
+  knobSkin,
+  onZoneAction,
+  spectrumCursor,
+  sun,
   weather,
   zone,
 }: {
-  onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
+  knobSkin?: "auto" | "dark" | "light";
+  onZoneAction?: ZoneActionHandler;
+  spectrumCursor?: SpectrumCursor;
+  sun?: SunStatus | null;
   weather: WeatherStatus | null;
   zone: DashboardZone;
 }) {
@@ -22,25 +37,16 @@ export function OutsideControls({
   const showCamera = useExperienceFeature("camera");
   const outsideLight =
     zone.entities.find((entity) => entity.domain === "light") ?? zone.entities.find((entity) => entity.isIllumination);
-  const isOn = outsideLight ? outsideLight.state === "on" : false;
   const unavailable = outsideLight ? ["unknown", "unavailable"].includes(outsideLight.state) : true;
+  const isOn = outsideLight ? dashboardEntityIsOn(outsideLight) : false;
 
-  const setPower = () => {
-    if (!outsideLight) {
-      return;
-    }
-
-    void onEntityActions(
-      [
-        {
-          entityId: outsideLight.entity_id,
-          domain: outsideLight.domain,
-          service: isOn ? "turn_off" : "turn_on",
-        },
-      ],
-      `Outside light ${isOn ? "off" : "on"}`,
-    );
-  };
+  const noZoneAction: ZoneActionHandler = async () => undefined;
+  const lighting = useZoneLighting({
+    spectrumCursor,
+    sun,
+    zone,
+    onZoneAction: onZoneAction ?? noZoneAction,
+  });
 
   return (
     <div className="outside-control-grid grid gap-5">
@@ -55,15 +61,48 @@ export function OutsideControls({
           </div>
         </header>
 
-        <LabeledSwitch
-          checked={isOn}
-          disabled={unavailable}
-          icon={<Power className="h-4 w-4" />}
-          label="Outside light power"
-          leftLabel="Off"
-          rightLabel="On"
-          onChange={setPower}
-        />
+        <div className="outside-light-controls">
+          <ZoneColorEncoder
+            brightness={lighting.brightness}
+            colorEnabled={isOn}
+            disabled={unavailable || !lighting.hasLightDevices}
+            knobSkin={knobSkin}
+            label=""
+            size={OUTSIDE_ENCODER_SIZE}
+            spectrum={lighting.spectrum}
+            zoneId={zone.id}
+            onBrightnessChange={lighting.setLocalBrightness}
+            onBrightnessCommit={(value) => void lighting.commitBrightness(value)}
+            onColorCommit={(rgb, brightnessPct, cursor) => void lighting.commitColor(rgb, brightnessPct, cursor)}
+            onSpectrumChange={lighting.rememberSpectrum}
+          />
+          {/* On is always full white, however the knob was left
+              (specs/outside-card.md). The knob still turns afterwards. */}
+          <div className="quick-button-pair">
+            <MomentaryFeedbackButton
+              type="button"
+              aria-label="Outside light on, full white"
+              aria-pressed={isOn}
+              className={classNames("quick-button border", isOn && "quick-button-active")}
+              disabled={unavailable || !lighting.hasLightDevices}
+              onClick={() => void lighting.applyPreset("white")}
+            >
+              <SunIcon className="h-4 w-4" aria-hidden="true" />
+              <span>On</span>
+            </MomentaryFeedbackButton>
+            <MomentaryFeedbackButton
+              type="button"
+              aria-label="Outside light off"
+              aria-pressed={!isOn}
+              className={classNames("quick-button border", !isOn && "quick-button-active")}
+              disabled={unavailable || !lighting.hasLightDevices}
+              onClick={() => void lighting.turnOff()}
+            >
+              <PowerOff className="h-4 w-4" aria-hidden="true" />
+              <span>Off</span>
+            </MomentaryFeedbackButton>
+          </div>
+        </div>
       </section>
 
       <WeatherPanel weather={weather} />
