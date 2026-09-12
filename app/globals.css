@@ -6912,7 +6912,15 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   transform: translate(-50%, -50%) rotate(var(--re-angle));
   /* The index shows the value: a channel change or an outside value re-points
      it with a quick sweep; under the hand it tracks 1:1. */
-  transition: transform 250ms ease-out;
+  transition: transform 250ms ease-out, opacity 300ms ease;
+}
+
+/* Locked, the knob face goes blank: the whole turning layer — index mark and
+   hairline texture — fades out, and fades back in as it unlocks. The lights
+   and the readings stay, so the temperature is still legible at a glance
+   (Adeline, 2026-09-12). */
+.rotary-encoder[data-locked="true"] .rotary-encoder-rotor {
+  opacity: 0;
 }
 
 .rotary-encoder-dial[data-pressed="true"] > .rotary-encoder-rotor {
@@ -6944,13 +6952,6 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34));
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.3);
   transform: translateX(-50%);
-  transition: opacity 300ms ease;
-}
-
-/* Locked, the dial gives up nothing about the value: the index goes blank and
-   fades back in as it unlocks (Adeline, 2026-09-12). */
-.rotary-encoder[data-locked="true"] .rotary-encoder-index {
-  opacity: 0;
 }
 
 /* Fixed specular above the rotor, so the texture passes under the light. */

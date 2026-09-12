@@ -300,6 +300,17 @@ export function RotaryEncoder({
   }
   const current = valueRef.current;
 
+  /**
+   * The value rounded to the caller's step. The dial accumulates a turn
+   * unrounded so small movements still add up across a detent, but everything
+   * outside this component — the reading on the face, the index, and the value
+   * the caller is handed — sees the stepped value, and only when it actually
+   * changes. Without this a 0.5 step still read out in hundredths mid-drag,
+   * because the rounding only happened on release (Adeline, 2026-09-12).
+   */
+  const snapped = (item: number) => (range.step ? Math.round(item / range.step) * range.step : item);
+  const detented = snapped(current);
+
   // ── Tuck-away ─────────────────────────────────────────────────────────────
 
   const tuckable = typeof tuckAfterMs === "number";
@@ -337,10 +348,19 @@ export function RotaryEncoder({
     return () => window.clearTimeout(timer);
   }, [collapseMs, locked, tuckable]);
 
+  // Two frames, not one: a single rAF callback still runs before the browser
+  // has painted the tucked style, so the two style values coalesce and nothing
+  // animates. The second frame guarantees the start state was painted.
   useEffect(() => {
     if (!entering) return;
-    const frame = window.requestAnimationFrame(() => setEntering(false));
-    return () => window.cancelAnimationFrame(frame);
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => setEntering(false));
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+    };
   }, [entering]);
 
   // Locks itself after a quiet spell. A pointer held down is not quiet.
@@ -379,7 +399,7 @@ export function RotaryEncoder({
 
   const angleRef = useRef<{ angle: number; led: string; turns: number } | null>(null);
   const spinRef = useRef(0);
-  const target = indexAngle(current);
+  const target = indexAngle(detented);
   const previous = angleRef.current;
   let angle = target;
   if (previous && previous.led === led && range.wrap && spinRef.current !== 0) {
@@ -443,15 +463,18 @@ export function RotaryEncoder({
     // Pinned at an end, a bounded value moves nothing — so the index, which
     // shows the value, stops too.
     if (!range.wrap && next === from) return;
+    const before = snapped(from);
     valueRef.current = next;
     if (range.wrap) spinRef.current += applied * (360 / (span || 360));
     // Re-render for the new ring and index even if the caller ignores the value.
     rerender((count) => count + 1);
     noteInput();
-    onChange(next);
+    // A stepped dial only speaks when it crosses a detent; an unstepped one
+    // reports every sample, as it always did.
+    const after = snapped(next);
+    if (range.step && after === before) return;
+    onChange(after);
   };
-
-  const snapped = (item: number) => (range.step ? Math.round(item / range.step) * range.step : item);
 
   const pointerHandlers = disabled
     ? {}
@@ -1049,7 +1072,7 @@ export function RotaryEncoder({
         aria-disabled={disabled}
         aria-valuemin={range.min}
         aria-valuemax={range.max}
-        aria-valuenow={Math.round(current * 100) / 100}
+        aria-valuenow={Math.round(detented * 100) / 100}
         aria-valuetext={ariaValueText}
         data-led={led}
         data-pressed={pressed ? "true" : undefined}

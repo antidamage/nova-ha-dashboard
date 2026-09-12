@@ -107,6 +107,33 @@ describe("the value's domain", () => {
     expect(dial.getAttribute("aria-valuemax")).toBe("30");
   });
 
+  it("reports a stepped value in whole steps all the way through a drag", () => {
+    // Not only on release: the reading on the knob's face comes from what the
+    // caller is handed mid-drag, so an unrounded value there showed a 0.5 step
+    // counting in hundredths (Adeline, 2026-09-12).
+    const onChange = vi.fn();
+    render(<RotaryEncoder leds={THREE} range={{ min: 16, max: 30, step: 0.5 }} value={22} onChange={onChange} />);
+    const dial = screen.getByRole("slider");
+    // Around the dial's own centre, unlike `at`, which the rings' zero box uses.
+    const onDial = (angle: number) => {
+      const radians = (angle * Math.PI) / 180;
+      return { clientX: CENTRE + 90 * Math.sin(radians), clientY: CENTRE - 90 * Math.cos(radians) };
+    };
+    fireEvent.pointerDown(dial, { buttons: 1, ...onDial(0), pointerId: 1 });
+    for (let step = 1; step <= 12; step += 1) {
+      fireEvent.pointerMove(dial, { buttons: 1, ...onDial(step * 5), pointerId: 1 });
+    }
+    fireEvent.pointerUp(dial, { ...onDial(60), pointerId: 1 });
+
+    // More than one distinct value, so this is really watching the drag and not
+    // just the single rounded value the release commits.
+    const reported = onChange.mock.calls.map(([value]) => value as number);
+    expect(new Set(reported).size).toBeGreaterThan(1);
+    for (const value of reported) {
+      expect(Math.round(value * 2) / 2).toBeCloseTo(value, 10);
+    }
+  });
+
   it("turns a wrapped value forever", () => {
     const onChange = vi.fn();
     render(<RotaryEncoder leds={THREE} range={{ min: 0, max: 360, wrap: true }} value={350} onChange={onChange} />);

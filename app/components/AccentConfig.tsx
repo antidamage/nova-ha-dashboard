@@ -338,10 +338,10 @@ function KnobSkinControl({
   return (
     <SliderControlPanel
       activeColor={highlightColor}
-      ariaLabel="Colour knob controls"
+      ariaLabel="Knob theme"
       ariaValueText={activeLabel}
       color={accentColor}
-      label="Colour Knob Controls"
+      label="Knob Theme"
       max={KNOB_SKIN_MODES.length - 1}
       min={0}
       step={1}
