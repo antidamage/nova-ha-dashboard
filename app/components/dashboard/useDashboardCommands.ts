@@ -184,7 +184,6 @@ export function useDashboardCommands({
           setData(payload);
         }
 
-        setToast(`${zone.name}: ${action}`);
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
           return;
@@ -211,6 +210,9 @@ export function useDashboardCommands({
   );
 
   const applyEntityActions = useCallback(
+    // `toastMessage` no longer shows on success — the confirmation box is gone
+    // (Adeline, 2026-09-12) — but it stays in the signature as the action's
+    // name for callers and for any future reporting.
     async (actions: EntityActionInput[], toastMessage: string, _options?: ApplyEntityActionsOptions) => {
       if (!actions.length) {
         return;
@@ -277,7 +279,6 @@ export function useDashboardCommands({
           );
         }
 
-        setToast(toastMessage);
       } catch (err) {
         if (sequence === entityActionSequence.current) {
           setToast(err instanceof Error ? err.message : "Entity action failed");
@@ -307,7 +308,6 @@ export function useDashboardCommands({
           throw new Error(body.error ?? "Desktop sleep action failed");
         }
 
-        setToast(`${computer.name}: sleep`);
       } catch (err) {
         setToast(err instanceof Error ? err.message : "Desktop sleep action failed");
       } finally {
@@ -336,7 +336,6 @@ export function useDashboardCommands({
           throw new Error(body.error ?? "Desktop wake action failed");
         }
 
-        setToast(`${computer.name}: wake`);
       } catch (err) {
         setToast(err instanceof Error ? err.message : "Desktop wake action failed");
       } finally {

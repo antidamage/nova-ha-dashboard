@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Cat, Check, CheckSquare2, Clock3, Dog, Eye, ListChecks, Loader2, PersonStanding, Square, Star, Trash2, Video } from "lucide-react";
+import { AlertTriangle, Check, CheckSquare2, Clock3, Eye, ListChecks, Loader2, Square, Star, Trash2, Video } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModalOverlay } from "../ModalOverlay";
 import { classNames } from "./shared";
@@ -53,13 +53,6 @@ function statusLabel(status: CameraEvent["status"]) {
   return "Analysed";
 }
 
-function SubjectIcon({ event }: { event: CameraEvent }) {
-  if (event.labels.includes("dog")) return <Dog className="h-4 w-4" aria-hidden="true" />;
-  if (event.labels.includes("cat")) return <Cat className="h-4 w-4" aria-hidden="true" />;
-  if (event.labels.includes("person")) return <PersonStanding className="h-4 w-4" aria-hidden="true" />;
-  return <Eye className="h-4 w-4" aria-hidden="true" />;
-}
-
 async function readEvents(cameraId: string, limit: number) {
   const response = await fetch(`/api/camera/${cameraId}/events?limit=${limit}`, { cache: "no-store" });
   if (!response.ok) throw new Error("Camera analysis is unavailable");
@@ -106,7 +99,6 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
     return true;
   }), [events, filter]);
   const selected = events.find((event) => event.id === selectedId) ?? visible[0] ?? null;
-  const recent = events.slice(0, 5);
   const importantCount = events.filter((event) => event.priority !== "routine" && !event.reviewed).length;
 
   const patchEvent = useCallback(async (eventId: string, patch: Partial<Pick<CameraEvent, "reviewed" | "starred">>) => {
@@ -168,30 +160,20 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
 
   return (
     <div className="camera-event-report">
+      {/* A bar and nothing else (Adeline, 2026-09-12): the preview list that
+          used to sit under it is gone, and tapping opens the modal as it
+          always did. The policy warning rides the bar so it is not lost with
+          the box. */}
       <button type="button" className="camera-event-report-header" onClick={() => { setOpen(true); void refresh(true); }}>
         <span className="camera-event-report-heading"><Eye className="h-4 w-4" aria-hidden="true" /> Recent activity</span>
-        <span className={classNames("camera-event-report-health", status && !status.ok && "is-error")}>
-          {importantCount ? `${importantCount} important` : status?.queueDepth ? `${status.queueDepth} queued` : "View events"}
+        <span className={classNames("camera-event-report-health", status && !status.ok && "is-error", status?.policyConfigured === false && "is-error")}>
+          {status?.policyConfigured === false
+            ? <><AlertTriangle className="h-4 w-4" aria-hidden="true" /> Policy unavailable</>
+            : loading
+              ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading…</>
+              : importantCount ? `${importantCount} important` : status?.queueDepth ? `${status.queueDepth} queued` : "View events"}
         </span>
       </button>
-      {status?.policyConfigured === false ? <p className="camera-event-empty"><AlertTriangle className="h-4 w-4" /> Private camera policy unavailable; candidates are being retained for review.</p> : null}
-      {loading ? (
-        <p className="camera-event-empty"><Loader2 className="h-4 w-4 animate-spin" /> Loading activity…</p>
-      ) : message && events.length === 0 ? (
-        <p className="camera-event-empty">{message}</p>
-      ) : recent.length === 0 ? (
-        <p className="camera-event-empty">No daytime activity recorded yet.</p>
-      ) : (
-        <div className="camera-event-mini-list">
-          {recent.map((event) => (
-            <button key={event.id} type="button" className={classNames("camera-event-mini-row", `is-${event.priority}`, !event.reviewed && "is-unreviewed")} onClick={() => { setSelectedId(event.id); setOpen(true); void refresh(true); }}>
-              <SubjectIcon event={event} />
-              <span className="camera-event-mini-copy"><strong>{event.title}</strong><small>{when(event.startedAt)} · {event.zones.join(", ")}</small></span>
-              <span className="camera-event-mini-status">{statusLabel(event.status)}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       <ModalOverlay open={open} onClose={() => setOpen(false)} ariaLabelledBy="camera-events-title" className="camera-events-modal">
         <header className="camera-events-modal-header">
@@ -210,6 +192,7 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete {selectedForDelete.size || "selected"}
           </button>
         </div>
+        {message ? <p className="camera-event-empty" role="status">{message}</p> : null}
         <div className="camera-events-workspace">
           <aside className="camera-events-list" aria-label="Camera events">
             {visible.map((event) => (
