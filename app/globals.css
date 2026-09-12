@@ -3840,6 +3840,53 @@ button.config-breadcrumb-crumb:focus-visible {
   padding-block: 8px;
 }
 
+.zone-lighting-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  max-width: 420px;
+  padding: 5px;
+  gap: 5px;
+  border: 1px solid var(--cyber-border-dim);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--cyber-panel) 88%, var(--cyber-border-dim));
+}
+
+.dashboard-shell .zone-lighting-presets button {
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  height: 68px;
+  padding: 10px 4px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  clip-path: none;
+  background: transparent !important;
+  color: var(--cyber-title-on-bg) !important;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-shell .zone-lighting-presets button:hover:not(:disabled),
+.dashboard-shell .zone-lighting-presets button:focus-visible {
+  background: color-mix(in srgb, var(--cyber-highlight) 14%, var(--cyber-panel)) !important;
+  border-color: var(--cyber-highlight);
+}
+
+.dashboard-shell .zone-lighting-presets button:focus-visible {
+  outline: 2px solid var(--cyber-highlight);
+  outline-offset: -2px;
+}
+
+.dashboard-shell .zone-lighting-presets button:disabled {
+  opacity: 0.4;
+}
+
+.zone-lighting-presets svg {
+  width: 21px;
+  height: 21px;
+}
+
 .zone-panel .zone-stats {
   display: flex;
   flex-wrap: wrap;
@@ -6067,7 +6114,7 @@ button.config-breadcrumb-crumb:focus-visible {
 
   .dashboard-home .zone-panel[data-lighting-zone] {
     display: grid;
-    grid-template-columns: minmax(320px, max-content) minmax(280px, max-content);
+    grid-template-columns: minmax(420px, max-content);
     grid-template-rows: auto minmax(min-content, 1fr);
     gap: 24px;
   }
@@ -6088,13 +6135,8 @@ button.config-breadcrumb-crumb:focus-visible {
     gap: 24px;
   }
 
-  .dashboard-home .zone-panel[data-lighting-zone] > .zone-party-control {
-    align-self: stretch;
-    margin-top: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 24px;
+  .dashboard-home .zone-panel[data-lighting-zone] .zone-lighting-controls {
+    min-width: 420px;
   }
 
   /* The zone panel is a flex column with a header above its controls, so the
