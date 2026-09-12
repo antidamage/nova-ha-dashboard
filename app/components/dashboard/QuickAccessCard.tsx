@@ -50,16 +50,18 @@ import { useZoneLighting, type ZoneActionHandler } from "./useZoneLighting";
 import { ZoneColorEncoder } from "./ZoneControls";
 
 /**
- * Half again the old 56px (Adeline, 2026-09-12): with the segment's written
- * title gone the dial is the whole segment, so it gets the room the title had.
- */
-const QUICK_ENCODER_SIZE = 84;
-/**
  * A third bigger than the knob's 100px floor (Adeline, 2026-09-12): at the
  * floor the climate segments read as small beside the rest of the line, and the
  * dial is the one thing on the card you actually turn.
  */
 const QUICK_TEMPERATURE_SIZE = 133;
+/**
+ * The lighting dial matches the climate dials (Adeline, 2026-09-12): in
+ * portrait the three sit in one evenly-spread row and a smaller one there
+ * looked like a mistake. 56px at first, then 84 once the segment's written
+ * title went, now the climate size.
+ */
+const QUICK_ENCODER_SIZE = QUICK_TEMPERATURE_SIZE;
 
 function QuickSegment({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
   return (

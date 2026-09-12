@@ -7687,6 +7687,67 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   gap: 8px;
 }
 
+/* Portrait: the Home dial and the two climate dials are one row of three,
+   evenly spread across the width with nothing between them (Adeline,
+   2026-09-12). The lighting segment gives up its tile border here so the three
+   read as one row rather than a box beside two bare knobs — the same reasoning
+   that took the border off the climate knobs. Weather keeps the next line to
+   itself. */
+.quick-access-row {
+  column-gap: 0;
+}
+
+.quick-segment-lights {
+  flex: 1 1 0;
+  border-color: transparent;
+  background: none;
+  padding-inline: 0;
+}
+
+.quick-climate-row {
+  /* Two dials to the lighting segment's one, so all three come out equal. */
+  flex: 2 1 0;
+  column-gap: 0;
+  justify-content: space-evenly;
+}
+
+.quick-climate {
+  flex: 1 1 0;
+}
+
+@container (min-width: 920px) {
+  /* Wide enough for the segments to take their own rows again: the lighting
+     tile is a tile once more and the climate dials pack together. */
+  .quick-access-row {
+    column-gap: 8px;
+  }
+
+  .quick-segment-lights {
+    flex: 1 1 calc(50% - 4px);
+    border-color: var(--cyber-border-dim);
+    background: rgb(var(--cyber-line-rgb) / 0.045);
+    padding-inline: 8px;
+  }
+
+  .quick-climate-row {
+    flex: 1 1 auto;
+    column-gap: 18px;
+    justify-content: center;
+  }
+
+  .quick-climate {
+    flex: 0 1 auto;
+  }
+}
+
+@container (min-width: 1480px) {
+  /* Wide enough for one unwrapped line: every segment sizes to its content
+     again, as `.quick-segment` does above. */
+  .quick-segment-lights {
+    flex: 1 1 auto;
+  }
+}
+
 .quick-segment-lead {
   display: flex;
   align-items: center;

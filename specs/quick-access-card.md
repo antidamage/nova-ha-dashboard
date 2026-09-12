@@ -51,6 +51,18 @@ request was executed directly).
   × 1.244). A tile only grows past that when its controls wrap on a phone — and
   the lighting segment now always does, since its 84px dial is 104px across and
   its presets sit beneath it (2026-09-12).
+- **Portrait puts the three dials on one even line (Adeline, 2026-09-12).**
+  The Home lighting dial and the two climate dials share the first line, evenly
+  spread across the width with **no gap between them** (`column-gap: 0` on
+  `.quick-access-row` and `.quick-climate-row`; `.quick-segment-lights` takes
+  `flex: 1 1 0` against the climate row's `flex: 2 1 0`, two dials to one, so
+  all three come out equal thirds). Weather keeps the next line to itself.
+  The lighting segment gives up its tile border and background here so the
+  three read as one row rather than a box beside two bare knobs — the same
+  reasoning that took the border off the climate knobs. At the 920px container
+  width and above the old arrangement returns: the lighting tile is a tile
+  again, the climate dials pack together, and the 8px gap comes back.
+
 - **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
   A 133px knob's dial is about 165px across — twice as tall as a tile's row —
   so a boxed one spilled past its own border and overlapped the tile below in
@@ -104,8 +116,10 @@ outside lighting through `homeAssistant.everythingExcludedEntityIds`
 - **Stacked and icon-only (Adeline, 2026-09-12, later the same day).** The
   lighting segment is the one segment that reads top-to-bottom rather than
   left-to-right: the dial is centred, and the two preset buttons sit centred
-  beneath it (`.quick-segment-lights`). The dial is **84px**, half again the
-  original 56px — with the title gone it takes the room the title had. The presets are the icon
+  beneath it (`.quick-segment-lights`). The dial is **the same size as the
+  climate dials** — `QUICK_ENCODER_SIZE = QUICK_TEMPERATURE_SIZE`, 133px — so
+  the three read as one set. It went 56 → 84 (once the title went) → 133
+  (Adeline, 2026-09-12, when the three were put on one line). The presets are the icon
   alone — no written label — on a square 44px button (`quick-button-icon`,
   `QuickButton`'s `iconOnly`). The label is not lost, only unwritten: it is
   still the button's `aria-label`, and Candlelight's stays adaptive, so
