@@ -35,7 +35,10 @@ its optional `knobSkin` prop straight through and must not default it
 ## Size
 
 `size` is the knob diameter, **100–200px** (the lighting knob keeps 50–200).
-200px on the full climate cards, 100px in Quick Access.
+200px on the full climate cards, 133px in Quick Access — a third over the
+100px floor (Adeline, 2026-09-12, later the same day: at the floor the climate
+segments read as small beside the rest of the line, and the dial is the one
+thing on that card you actually turn).
 
 ## The knob sets the target, and only the target
 

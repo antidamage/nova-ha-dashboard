@@ -38,7 +38,6 @@ import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { AirconKnob, HeaterKnob } from "./ClimateKnobs";
 import { useClimateCardTitles, type EntityActionsHandler } from "./climateCommands";
 import { adaptiveCandlelightLabel } from "./lighting";
-import { lightsOnLabel } from "./quickAccessModel";
 import {
   classNames,
   climateDevicesForZone,
@@ -50,9 +49,17 @@ import {
 import { useZoneLighting, type ZoneActionHandler } from "./useZoneLighting";
 import { ZoneColorEncoder } from "./ZoneControls";
 
-const QUICK_ENCODER_SIZE = 56;
-/** The temperature knob's floor: it is unusable smaller (Adeline, 2026-09-12). */
-const QUICK_TEMPERATURE_SIZE = 100;
+/**
+ * Half again the old 56px (Adeline, 2026-09-12): with the segment's written
+ * title gone the dial is the whole segment, so it gets the room the title had.
+ */
+const QUICK_ENCODER_SIZE = 84;
+/**
+ * A third bigger than the knob's 100px floor (Adeline, 2026-09-12): at the
+ * floor the climate segments read as small beside the rest of the line, and the
+ * dial is the one thing on the card you actually turn.
+ */
+const QUICK_TEMPERATURE_SIZE = 133;
 
 function QuickSegment({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
   return (
@@ -91,6 +98,7 @@ function QuickButton({
   active,
   disabled,
   icon: Icon,
+  iconOnly = false,
   label,
   onClick,
   pressed,
@@ -98,6 +106,12 @@ function QuickButton({
   active?: boolean;
   disabled?: boolean;
   icon: LucideIcon;
+  /**
+   * Drops the written label and squares the button up, the icon carrying it
+   * alone. `label` still goes to `aria-label`, so nothing is lost to assistive
+   * tech — only to the eye (Adeline, 2026-09-12, the lighting presets).
+   */
+  iconOnly?: boolean;
   label: string;
   onClick: () => void;
   /** Set for toggle-like choices (Auto/Off) so assistive tech reads the selection. */
@@ -108,12 +122,16 @@ function QuickButton({
       type="button"
       aria-label={label}
       aria-pressed={pressed}
-      className={classNames("quick-button border", active && "quick-button-active")}
+      className={classNames(
+        "quick-button border",
+        iconOnly && "quick-button-icon",
+        active && "quick-button-active",
+      )}
       disabled={disabled}
       onClick={onClick}
     >
-      <Icon className="h-4 w-4" aria-hidden="true" />
-      <span>{label}</span>
+      <Icon className={iconOnly ? "h-5 w-5" : "h-4 w-4"} aria-hidden="true" />
+      {iconOnly ? null : <span>{label}</span>}
     </MomentaryFeedbackButton>
   );
 }
@@ -146,6 +164,9 @@ export function QuickLightsSegment({
 
   return (
     <QuickSegment className="quick-segment-lights" label={`${zone.name} lights`}>
+      {/* No written title or lights-on count (Adeline, 2026-09-12): the dial
+          and the two preset icons are the whole segment. The zone's name is
+          still the group's aria-label, so nothing is lost to assistive tech. */}
       <div className="quick-segment-lead">
         <ZoneColorEncoder
           brightness={lighting.brightness}
@@ -162,18 +183,19 @@ export function QuickLightsSegment({
           onColorCommit={(rgb, brightnessPct, cursor) => void lighting.commitColor(rgb, brightnessPct, cursor)}
           onSpectrumChange={lighting.rememberSpectrum}
         />
-        <SegmentTitle title={zone.name} state={lightsOnLabel(zone)} />
       </div>
       <div className="quick-button-pair">
         <QuickButton
           disabled={!lighting.hasLightDevices}
           icon={Flame}
+          iconOnly
           label={presetLabel}
           onClick={() => void lighting.applyPreset("candlelight")}
         />
         <QuickButton
           disabled={!lighting.hasLightDevices && zone.counts.switch === 0}
           icon={PowerOff}
+          iconOnly
           label="Off"
           onClick={() => void lighting.turnOff()}
         />
@@ -278,23 +300,27 @@ export function QuickWeatherSegment({ weather }: { weather: WeatherStatus | null
         <Icon className="quick-weather-icon" aria-hidden="true" />
         <SegmentTitle title="Outside" state={weather ? weatherLabel(weather.condition) : "Unavailable"} />
       </div>
-      <div className="quick-current">
-        <span className="quick-stepper-caption">Temp</span>
-        <span className="quick-current-number">
-          {formatWeatherNumber(weather?.temperature ?? null, 1)}
-          {weather?.temperature == null ? null : <span className="quick-access-degree">&deg;</span>}
-        </span>
-      </div>
-      <div className="quick-current">
-        <span className="quick-stepper-caption">Feels</span>
-        <span className="quick-current-number">
-          {formatWeatherNumber(weather?.feelsLike ?? null, 1)}
-          {weather?.feelsLike == null ? null : <span className="quick-access-degree">&deg;</span>}
-        </span>
-      </div>
-      <div className="quick-current">
-        <span className="quick-stepper-caption">UV</span>
-        <span className="quick-current-number">{formatWeatherNumber(weather?.uvIndex ?? null, 1)}</span>
+      {/* The three readings stay one row of their own, so the stacked segment
+          puts them together beneath the icon rather than one per line. */}
+      <div className="quick-weather-readings">
+        <div className="quick-current">
+          <span className="quick-stepper-caption">Temp</span>
+          <span className="quick-current-number">
+            {formatWeatherNumber(weather?.temperature ?? null, 1)}
+            {weather?.temperature == null ? null : <span className="quick-access-degree">&deg;</span>}
+          </span>
+        </div>
+        <div className="quick-current">
+          <span className="quick-stepper-caption">Feels</span>
+          <span className="quick-current-number">
+            {formatWeatherNumber(weather?.feelsLike ?? null, 1)}
+            {weather?.feelsLike == null ? null : <span className="quick-access-degree">&deg;</span>}
+          </span>
+        </div>
+        <div className="quick-current">
+          <span className="quick-stepper-caption">UV</span>
+          <span className="quick-current-number">{formatWeatherNumber(weather?.uvIndex ?? null, 1)}</span>
+        </div>
       </div>
     </QuickSegment>
   );

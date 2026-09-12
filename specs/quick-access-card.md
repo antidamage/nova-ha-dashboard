@@ -47,12 +47,14 @@ request was executed directly).
   - **<920px** (portrait, phone): one tile per row; a tile's own controls
     may wrap to a second line inside it.
   Never a horizontal scrollbar, never a segment cut in half.
-- Tile height is 84px, set by the colour encoder footprint (56px dial ×
-  1.244). A tile only grows past that when its controls wrap on a phone.
+- Tile height is 84px, set by the original colour encoder footprint (56px dial
+  × 1.244). A tile only grows past that when its controls wrap on a phone — and
+  the lighting segment now always does, since its 84px dial is 104px across and
+  its presets sit beneath it (2026-09-12).
 - **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
-  A 100px knob's dial is about 124px across — half again as tall as a tile's
-  row — so a boxed one spilled past its own border and overlapped the tile
-  below in the landscape grid, tucked or not. Both knobs sit inline in one
+  A 133px knob's dial is about 165px across — twice as tall as a tile's row —
+  so a boxed one spilled past its own border and overlapped the tile below in
+  the landscape grid, tucked or not. Both knobs sit inline in one
   `quick-climate-row`, each under its own label, with no border or background
   of their own. Same arrangement in landscape and portrait. Their rings float
   over the page and take no layout space.
@@ -93,13 +95,28 @@ outside lighting through `homeAssistant.everythingExcludedEntityIds`
   card does (`spectrumFromZone`, `spectrumCursors.everything`, the
   `useRemoteSetting` hold), so a change from the zone card, voice, or HA shows
   up here and vice versa.
-- Segment label: the Home zone's name ("Home"), with the lights-on count
-  beneath it ("3 on" / "Off") *(decided)*.
+- ~~Segment label: the Home zone's name ("Home"), with the lights-on count
+  beneath it ("3 on" / "Off")~~ **Gone 2026-09-12 (Adeline): no written title
+  and no count.** The dial and the two preset icons are the whole segment; the
+  zone's name is still the group's `aria-label`, so the segment is still named
+  for assistive tech. `lightsOnLabel` stays in `quickAccessModel.ts`, tested
+  but now unused by this card.
+- **Stacked and icon-only (Adeline, 2026-09-12, later the same day).** The
+  lighting segment is the one segment that reads top-to-bottom rather than
+  left-to-right: the dial is centred, and the two preset buttons sit centred
+  beneath it (`.quick-segment-lights`). The dial is **84px**, half again the
+  original 56px — with the title gone it takes the room the title had. The presets are the icon
+  alone — no written label — on a square 44px button (`quick-button-icon`,
+  `QuickButton`'s `iconOnly`). The label is not lost, only unwritten: it is
+  still the button's `aria-label`, and Candlelight's stays adaptive, so
+  assistive tech reads "Daylight" or "Candlelight" as before.
 
 ## Climate segments (Lounge, Bedroom)
 
 **Superseded 2026-09-12 (Adeline):** each climate segment is now the **title
-above a 100px `TemperatureEncoder`**, with the same rings as the full card
+above a 133px `TemperatureEncoder`** (100px at first; raised a third later the
+same day, because at the floor the knobs read as small beside the rest of the
+line), with the same rings as the full card
 floating over the page (`specs/temperature-encoder.md`). It carries no tile
 border or background — see the layout rules above. The current
 temperature, the state word, the − / + stepper and the Auto / Off buttons
@@ -167,6 +184,11 @@ From `DashboardState.weather`:
 - **Temperature** (1 dp) and **Feels like** (1 dp), both in degrees.
 - **UV** — the current `uvIndex` (1 dp).
 - Weather unavailable: the segment still shows, with `--` values.
+- **Stacked and centred (Adeline, 2026-09-12, later the same day).** Like the
+  lighting segment, the Outside segment reads top-to-bottom: the condition icon
+  and its title centred, and the three readings centred beneath them in one row
+  of their own (`.quick-weather-readings`, so a column layout does not put each
+  reading on its own line).
 
 ## Reuse
 
