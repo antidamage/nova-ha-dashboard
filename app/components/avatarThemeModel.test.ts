@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALERT_PULSE_RATE_DEFAULT,
   DEFAULT_NOVA_AVATAR_THEME,
   DEFAULT_NOVA_GLASS_SETTINGS,
   normalizeNovaAvatarTheme,
+  alertPulseScale,
   normalizeNovaGlassSettings,
 } from "./avatarThemeModel";
 
@@ -86,5 +88,33 @@ describe("normalizeNovaAvatarTheme glass block", () => {
     });
     expect(normalized.glass.enabled).toBe(false);
     expect(normalized.glass.displace).toBe(10);
+  });
+});
+
+describe("alert pulse rate", () => {
+  it("leaves a module's own period alone at the default", () => {
+    expect(normalizeNovaAvatarTheme({}).alertPulseRate).toBe(ALERT_PULSE_RATE_DEFAULT);
+    expect(alertPulseScale(ALERT_PULSE_RATE_DEFAULT)).toBe(1);
+  });
+
+  it("runs from a quarter of the period to four times it", () => {
+    expect(alertPulseScale(0)).toBeCloseTo(0.25);
+    expect(alertPulseScale(25)).toBeCloseTo(0.5);
+    expect(alertPulseScale(75)).toBeCloseTo(2);
+    expect(alertPulseScale(100)).toBeCloseTo(4);
+  });
+
+  it("is monotonic: a higher rate is always a slower pulse", () => {
+    for (let rate = 1; rate <= 100; rate += 1) {
+      expect(alertPulseScale(rate)).toBeGreaterThan(alertPulseScale(rate - 1));
+    }
+  });
+
+  it("clamps a stored value out of range and falls back on rubbish", () => {
+    expect(normalizeNovaAvatarTheme({ alertPulseRate: 250 }).alertPulseRate).toBe(100);
+    expect(normalizeNovaAvatarTheme({ alertPulseRate: -40 }).alertPulseRate).toBe(0);
+    expect(normalizeNovaAvatarTheme({ alertPulseRate: "quick" }).alertPulseRate).toBe(ALERT_PULSE_RATE_DEFAULT);
+    // An unusable rate leaves the module's declared period alone.
+    expect(alertPulseScale(Number.NaN)).toBe(1);
   });
 });
