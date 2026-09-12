@@ -399,19 +399,69 @@ Rings share the dial's pointer surface.
   thumb is one gesture and clicks once.
 - No tap-to-type: rings do not open `NumericEntryPopover`.
 
-## The label sits on the knob
+## The title arcs over the knob
 
-Adeline, 2026-09-11: merged in from the ringed copy, and it applies to **every**
-dial — the zone card, Quick Access and every config slot. There is no label
-above the dial any more.
+Adeline, 2026-09-11: the name applies to **every** dial — the zone card, Quick
+Access and every config slot — and there is no label above the dial any more.
 
-- On the knob face, **above the LEDs**, mirroring the channel caption below
-  them: bottom edge at `50% − LED width − 5.5% of S`.
-- Font `clamp(10px, 7.5% of S, 14px)`, the caption's rule, with the caption's
-  etched treatment (black and white overlays, no theme colour, uppercase, 700,
-  0.16em tracking) and its light-mode colours.
-- One line; longer than 70% of the knob diameter is cut with three periods.
-- It still names the dial: `aria-labelledby` points at it.
+Adeline, 2026-09-12 (plan `eventual-twirling-koala`): it is no longer printed on
+the knob face either. It curves around the **outside** of the knob, along the top,
+outside the colour ring and bevel and **underneath** the slider rings, centred on
+12 o'clock.
+
+### The band
+
+A title claims a band of its own between the dial's footprint and the innermost
+slider ring, and the rings all move outward by it. A dial with no title keeps the
+geometry it had.
+
+| Quantity | Value |
+|---|---|
+| Title font `Ft` | `clamp(10px, 0.075 × S, 14px)` — the caption rule, unchanged from the face title |
+| Clearance `C` | `0.02 × S`, above and below the text |
+| Band height `B` | `Ft + 2C` |
+| Centreline radius | `R0 + C + Ft/2` |
+| Ring `i` centreline radius | `R0 + B + G + T/2 + i × P` |
+
+`B` is `0` when there is no title, so every number above collapses back to the
+ring geometry in "Geometry". The arc's own SVG is `2 × (R0 + B)` square and sits
+in the control's grid cell like the dial; it is **not** part of the rings' SVG,
+which is portalled to the body and tucks away. The title neither moves nor
+collapses with the rings.
+
+### The path
+
+A clockwise arc from −135° to +135° — the same 270° sweep the tracks use.
+Travelling clockwise over the top puts the text's "up" away from the centre, so
+it reads upright. The text is `text-anchor: middle` at `startOffset="50%"`, so it
+is centred on 12 o'clock and grows evenly both ways.
+
+### Type and overflow
+
+Adeline, 2026-09-12: keep the face title's look. Font as above, weight 700,
+`0.16em` tracking, one line, **mixed case** (the ring labels uppercase themselves;
+the title does not), and **flat** — the no-embossing rule on knobs still holds.
+
+It does not shrink. A long title runs wider around the sides, as far as the arc
+goes; room is the arc's length less `2 × Ft` of clearance, and only past that is
+it cut with three periods, by the same measure-and-cut loop the ring labels use.
+
+It still names the dial: `aria-labelledby` points at the arc's `<text>`.
+
+### Text outside the knob follows the page, not the skin
+
+Adeline, 2026-09-12: a light knob on a dark page drew dark ring labels on a dark
+background and they disappeared. Every piece of text the control draws **outside**
+its own body — the curved ring labels in the bottom gap, and the title arc — is
+filled with `--cyber-text-dim`, the page's light/dark secondary-text token. The
+knob's skin (`data-mode`) governs only what is painted on the knob itself.
+
+### What carries it
+
+`RotaryEncoder` takes `title`; `ColorEncoder` forwards its `label` to it;
+`TemperatureEncoder` takes a `title` for the room name. `faceTop` survives as a
+face-printed readout only — the temperature knob's target degrees
+(specs/temperature-encoder.md).
 
 ## Disabled
 

@@ -17,6 +17,7 @@ import {
   ringAt,
   ringGeometry,
   thumbAngle,
+  titleRoom,
   valueAt,
 } from "./rotaryEncoderGeometry";
 
@@ -100,6 +101,29 @@ describe("ring geometry", () => {
     expect(geometry.dialRadius).toBeCloseTo(124.4);
     expect(geometry.radii[0]).toBeCloseTo(124.4 + 5 + 6);
     geometry.radii.slice(1).forEach((radius, index) => expect(radius - geometry.radii[index]).toBeCloseTo(17));
+  });
+
+  it("gives a title its own band and pushes every ring out by it", () => {
+    const plain = ringGeometry(200, 5);
+    const titled = ringGeometry(200, 5, true);
+    // The caption plus 2% of the diameter of clearance each side.
+    expect(titled.titleBand).toBeCloseTo(14 + 2 * 4);
+    expect(titled.titleRadius).toBeCloseTo(124.4 + 4 + 7);
+    titled.radii.forEach((radius, index) => expect(radius - plain.radii[index]).toBeCloseTo(titled.titleBand));
+    expect(titled.footprint - plain.footprint).toBeCloseTo(2 * titled.titleBand);
+    expect(titled.titleFootprint).toBeCloseTo(2 * (124.4 + titled.titleBand));
+  });
+
+  it("leaves the geometry alone when there is no title", () => {
+    const plain = ringGeometry(200, 3);
+    expect(plain.titleBand).toBe(0);
+    expect(plain.titleFootprint).toBeCloseTo(2 * plain.dialRadius);
+  });
+
+  it("gives the title the whole 270 degrees, less a font size at each end", () => {
+    const geometry = ringGeometry(200, 0, true);
+    const arc = geometry.titleRadius * ((270 * Math.PI) / 180);
+    expect(titleRoom(geometry)).toBeCloseTo(arc - 2 * 14);
   });
 
   it("floors the pitch at the label font plus 2px, keeping the track share", () => {
@@ -187,12 +211,11 @@ describe("dragging through the gap", () => {
 });
 
 describe("ColorEncoder", () => {
-  it("puts the label on the knob, above the lights", () => {
+  it("curves the label around the outside of the knob, not on its face", () => {
     const { container } = render(<ColorEncoder label="Lights" value={start} onChange={vi.fn()} />);
-    const label = container.querySelector(".rotary-encoder-label");
-    expect(label?.parentElement?.classList.contains("rotary-encoder-dial")).toBe(true);
-    const children = Array.from(label!.parentElement!.children);
-    expect(children.indexOf(label!)).toBeLessThan(children.indexOf(container.querySelector(".rotary-encoder-leds")!));
+    const title = container.querySelector(".rotary-encoder-title-arc .rotary-encoder-title");
+    expect(title?.textContent).toBe("Lights");
+    expect(container.querySelector(".rotary-encoder-dial .rotary-encoder-label")).toBeNull();
     expect(screen.getByRole("slider", { name: "Lights" })).toBeTruthy();
   });
 
@@ -207,7 +230,7 @@ describe("ColorEncoder", () => {
   it("jumps the thumb to a tap on the track", () => {
     const change = vi.fn();
     const { container } = render(<Controlled spy={{ change }} initial={[10]} />);
-    const radius = ringGeometry(200, 1).radii[0];
+    const radius = ringGeometry(200, 1, true).radii[0];
     fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(radius, 0) });
     expect(change).toHaveBeenCalledTimes(1);
     expect(change.mock.lastCall?.[1]).toBeCloseTo(50, 5);
@@ -217,7 +240,7 @@ describe("ColorEncoder", () => {
   it("ignores a press in the label gap", () => {
     const change = vi.fn();
     const { container } = render(<Controlled spy={{ change }} />);
-    const radius = ringGeometry(200, 1).radii[0];
+    const radius = ringGeometry(200, 1, true).radii[0];
     fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(radius, 180) });
     expect(change).not.toHaveBeenCalled();
   });
@@ -226,7 +249,7 @@ describe("ColorEncoder", () => {
     const change = vi.fn();
     const commit = vi.fn();
     const { container } = render(<Controlled rings={3} spy={{ change, commit }} />);
-    const geometry = ringGeometry(200, 3);
+    const geometry = ringGeometry(200, 3, true);
     const radius = geometry.radii[2];
     const svg = svgOf(container);
     fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 0) });
@@ -241,7 +264,7 @@ describe("ColorEncoder", () => {
   it("holds at the end when a drag runs on into the gap", () => {
     const commit = vi.fn();
     const { container } = render(<Controlled spy={{ commit }} initial={[80]} />);
-    const radius = ringGeometry(200, 1).radii[0];
+    const radius = ringGeometry(200, 1, true).radii[0];
     const svg = svgOf(container);
     fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 100) });
     for (const angle of [130, 160, -170, -140, -100]) fireEvent.pointerMove(svg, { buttons: 1, pointerId: 1, ...at(radius, angle) });
@@ -265,7 +288,7 @@ describe("ColorEncoder", () => {
     const change = vi.fn();
     const rings = [{ id: "a", label: "A", value: 20, disabled: true, onChange: change }];
     const { container } = render(<ColorEncoder value={start} onChange={vi.fn()} rings={rings} />);
-    fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(ringGeometry(200, 1).radii[0], 0) });
+    fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(ringGeometry(200, 1, true).radii[0], 0) });
     fireEvent.keyDown(screen.getByRole("slider", { name: "A" }), { key: "ArrowRight" });
     expect(change).not.toHaveBeenCalled();
   });
@@ -318,7 +341,7 @@ describe("ColorEncoder", () => {
       const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
       const advance = clock();
       const { container } = render(<Controlled initial={[50]} />);
-      const radius = ringGeometry(200, 1).radii[0];
+      const radius = ringGeometry(200, 1, true).radii[0];
       const svg = svgOf(container);
 
       fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 0) });
@@ -337,7 +360,7 @@ describe("ColorEncoder", () => {
       const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
       const advance = clock();
       const { container } = render(<Controlled initial={[100]} />);
-      const radius = ringGeometry(200, 1).radii[0];
+      const radius = ringGeometry(200, 1, true).radii[0];
       const svg = svgOf(container);
       fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 134) });
       advance(500);
@@ -350,7 +373,7 @@ describe("ColorEncoder", () => {
       const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
       const advance = clock();
       const { container } = render(<Controlled initial={[10]} />);
-      const radius = ringGeometry(200, 1).radii[0];
+      const radius = ringGeometry(200, 1, true).radii[0];
       fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(radius, 0) });
       advance(80);
       fireEvent.pointerUp(svgOf(container), { pointerId: 1, ...at(radius, 0) });

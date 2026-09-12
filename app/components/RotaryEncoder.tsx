@@ -41,6 +41,7 @@ import {
   THUMB_LENGTH,
   THUMB_THICKNESS,
   arcPath,
+  captionFont,
   dragStep,
   fractionOf,
   gapLength,
@@ -51,6 +52,8 @@ import {
   ringEndFor,
   ringGeometry,
   thumbAngle,
+  titlePath,
+  titleRoom,
   valueAt,
   type RingDrag,
 } from "./rotaryEncoderGeometry";
@@ -153,7 +156,19 @@ export type RotaryEncoderProps = {
   activeLed?: string;
   defaultLed?: string;
   onActiveLedChange?: (id: string) => void;
-  /** Text on the knob above the lights. Cut with "..." to fit. */
+  /**
+   * The dial's name, curved around the outside of the knob along the top
+   * (specs/color-encoder.md, "The title arcs over the knob"). It claims a band
+   * between the knob and the innermost slider ring, and names the dial.
+   */
+  title?: string;
+  /** Extra classes for the title arc's text. */
+  titleClassName?: string;
+  /**
+   * Text printed on the knob face above the lights, cut with "..." to fit. A
+   * readout, not a name — the temperature knob's target degrees. The name goes
+   * on `title`.
+   */
   faceTop?: string;
   /** Text on the knob below the lights. */
   faceBottom?: string;
@@ -256,6 +271,8 @@ export function RotaryEncoder({
   activeLed,
   defaultLed,
   onActiveLedChange,
+  title,
+  titleClassName,
   faceTop,
   faceBottom,
   faceTopClassName,
@@ -637,7 +654,7 @@ export function RotaryEncoder({
     console.warn(`RotaryEncoder: ${rings.length} rings given, only the first ${RING_LIMIT} are drawn.`);
   }
   const shown = useMemo(() => rings.slice(0, RING_LIMIT), [rings]);
-  const geometry = ringGeometry(dialSize, shown.length);
+  const geometry = ringGeometry(dialSize, shown.length, Boolean(title));
   const centre = geometry.footprint / 2;
   const track = geometry.track;
 
@@ -882,6 +899,74 @@ export function RotaryEncoder({
     probe.remove();
     setFaceTopFitted(next);
   }, [faceTop, faceTopClassName, dialSize]);
+
+  // ── The title arc ──────────────────────────────────────────────────
+
+  // The name curves over the top of the knob, outside the colour ring and under
+  // the sliders (specs/color-encoder.md, "The title arcs over the knob"). It is
+  // its own SVG in the control's grid cell, not part of the rings' — those are
+  // portalled to the body and tuck away, and the title does neither.
+  const titleFont = captionFont(dialSize);
+  const titleSvgRef = useRef<SVGSVGElement | null>(null);
+  const [titleFitted, setTitleFitted] = useState(title ?? "");
+  useLayoutEffect(() => {
+    const svg = titleSvgRef.current;
+    if (!title || !svg) {
+      setTitleFitted(title ?? "");
+      return;
+    }
+    // Measured on a throwaway <text> carrying the title's own class and size,
+    // the way the ring labels are, and never on the node React owns.
+    const probe = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    probe.setAttribute("class", ["rotary-encoder-title", titleClassName].filter(Boolean).join(" "));
+    probe.setAttribute("font-size", String(titleFont));
+    probe.setAttribute("visibility", "hidden");
+    svg.appendChild(probe);
+    const room = titleRoom(geometry);
+    const fits = (text: string) => {
+      probe.textContent = text;
+      // jsdom lays nothing out; there, everything fits.
+      return typeof probe.getComputedTextLength !== "function" || probe.getComputedTextLength() <= room;
+    };
+    let next = title;
+    if (!fits(title)) {
+      next = ELLIPSIS;
+      for (let keep = title.length - 1; keep > 0; keep -= 1) {
+        const cut = `${title.slice(0, keep).trimEnd()}${ELLIPSIS}`;
+        if (fits(cut)) {
+          next = cut;
+          break;
+        }
+      }
+    }
+    probe.remove();
+    setTitleFitted(next);
+    // geometry derives from dialSize and the ring count alone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, titleClassName, titleFont, dialSize, shown.length]);
+
+  const titleCentre = geometry.titleFootprint / 2;
+  const titleArc = title ? (
+    <svg
+      ref={titleSvgRef}
+      className="rotary-encoder-title-arc"
+      width={geometry.titleFootprint}
+      height={geometry.titleFootprint}
+      viewBox={`0 0 ${geometry.titleFootprint} ${geometry.titleFootprint}`}
+    >
+      <defs>
+        <path id={`${ringIdBase}-title`} d={titlePath(titleCentre, titleCentre, geometry.titleRadius)} />
+      </defs>
+      {/* Flat, like every other piece of knob text (Adeline, 2026-09-12), and
+          filled from the page's text token rather than the knob's skin — it sits
+          over the page, not over the knob. */}
+      <text className={["rotary-encoder-title", titleClassName].filter(Boolean).join(" ")} fontSize={titleFont} id={labelId}>
+        <textPath href={`#${ringIdBase}-title`} startOffset="50%">
+          {titleFitted}
+        </textPath>
+      </text>
+    </svg>
+  ) : null;
 
   // ── The floating ring layer ───────────────────────────────────────────────
 
@@ -1132,12 +1217,13 @@ export function RotaryEncoder({
       } as CSSProperties}
     >
       {ringLayer}
+      {titleArc}
       <div
         ref={dialRef}
         className="rotary-encoder-dial"
         role="slider"
-        aria-label={ariaLabel ?? (faceTop ? undefined : "Dial")}
-        aria-labelledby={ariaLabel || !faceTop ? undefined : labelId}
+        aria-label={ariaLabel ?? (title ? undefined : "Dial")}
+        aria-labelledby={ariaLabel || !title ? undefined : labelId}
         aria-disabled={disabled}
         aria-valuemin={range.min}
         aria-valuemax={range.max}
@@ -1164,8 +1250,7 @@ export function RotaryEncoder({
         {faceTop ? (
           <span
             className={["rotary-encoder-label", faceTopClassName].filter(Boolean).join(" ")}
-            id={labelId}
-            aria-label={faceTop}
+            aria-hidden
           >
             {faceTopFitted}
           </span>

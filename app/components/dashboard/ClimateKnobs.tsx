@@ -211,6 +211,7 @@ export function AirconKnob({
       rings={rings}
       size={size}
       target={aircon.airconSettings.temperature ?? null}
+      title={title}
     />
   );
 }
@@ -280,6 +281,7 @@ export function HeaterKnob({
       rings={rings}
       size={size}
       target={heater.displayedTarget ?? null}
+      title={title}
     />
   );
 }

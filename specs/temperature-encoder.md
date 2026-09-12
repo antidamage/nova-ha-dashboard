@@ -99,8 +99,10 @@ longer change what the knob does.
 - Both etched like the dial's caption (black and white overlays, no theme
   colour), formatted by `formatTemperature` with a `°`. The room temperature
   reads `--` when there is no reading.
-- Beyond the LED names above, there is no other label on the knob; the card
-  title names it.
+- Beyond the LED names above, there is no other text on the knob face. The room
+  name curves around the **outside** of the knob as a title arc
+  (specs/color-encoder.md, "The title arcs over the knob"); the target degrees
+  keep the face. Adeline, 2026-09-12, plan `eventual-twirling-koala`.
 
 ## Colour ring
 
@@ -236,12 +238,16 @@ nothing drawn it would only swallow taps on whatever the empty annulus covers.
 ## Where it is used
 
 - **Full cards** — `AirConditionerControl` and `BedroomHeaterControl` in
-  `ClimateControls.tsx`: `ControlCard` plus one 200px knob, nothing else. The
+  `ClimateControls.tsx`: one 200px knob and nothing else — the card's header,
+  kicker and title both, is gone, because the knob's title arc names it
+  (Adeline, 2026-09-12). The card with no entity to show keeps its header:
+  there is no knob there to carry the name. The
   stepper, the power and mode buttons, the timer row, the fan slider, the
   Fresh Air switch and the heater's humidity line are gone (Adeline). The
   `ModuleSlot` extension points stay *(decided)*. The legacy
   `PanelHeaterControl` is unchanged.
-- **Quick Access** — the title plus a 100px knob. See
+- **Quick Access** — a 100px knob alone; the written title above it is gone,
+  replaced by the knob's own title arc (Adeline, 2026-09-12). See
   `specs/quick-access-card.md`.
 
 ## Done means

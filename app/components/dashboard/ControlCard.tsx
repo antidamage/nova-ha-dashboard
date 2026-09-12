@@ -19,8 +19,14 @@ export type ControlCardProps = {
   cardId: string;
   children?: ReactNode;
   entity?: DashboardEntity;
-  kicker: string;
-  title: string;
+  /**
+   * The header's two lines. Both optional: the climate cards dropped theirs when
+   * the knob grew a title arc that names the room (Adeline, 2026-09-12,
+   * specs/temperature-encoder.md). The state pill and the header's module slot
+   * stay either way — they are not naming, and modules target them.
+   */
+  kicker?: string;
+  title?: string;
 };
 
 export function ControlCard({ cardId, children, entity, kicker, title }: ControlCardProps) {
@@ -28,11 +34,13 @@ export function ControlCard({ cardId, children, entity, kicker, title }: Control
 
   return (
     <section className="climate-card border border-neutral-700 bg-neutral-950/70 p-5" data-card-id={cardId}>
-      <header className="mb-5 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-black uppercase text-cyan-300">{kicker}</p>
-          <h2 className="mt-1 truncate text-3xl font-black uppercase text-neutral-50">{title}</h2>
-        </div>
+      <header className={classNames("mb-5 flex items-start gap-4", kicker || title ? "justify-between" : "justify-end")}>
+        {kicker || title ? (
+          <div className="min-w-0">
+            {kicker ? <p className="text-sm font-black uppercase text-cyan-300">{kicker}</p> : null}
+            {title ? <h2 className="mt-1 truncate text-3xl font-black uppercase text-neutral-50">{title}</h2> : null}
+          </div>
+        ) : null}
         <div className="flex items-center gap-2">
           <ModuleSlot id="card.header.actions" context={{ cardId, entity }} />
           <div

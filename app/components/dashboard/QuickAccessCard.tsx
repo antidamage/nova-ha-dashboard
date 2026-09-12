@@ -72,16 +72,18 @@ function QuickSegment({ children, className, label }: { children: ReactNode; cla
 }
 
 /**
- * A climate knob and its name, and no tile around it. The knob's dial is 124px
- * across where a tile's row is 84px, so boxing one made it overflow its own
- * border and collide with the tile below in the landscape grid. The two climate
- * knobs sit inline in `quick-climate-row` instead, each under its own label
- * (Adeline, 2026-09-12).
+ * A climate knob, and no tile around it. The knob's dial is 124px across where a
+ * tile's row is 84px, so boxing one made it overflow its own border and collide
+ * with the tile below in the landscape grid. The two climate knobs sit inline in
+ * `quick-climate-row` instead (Adeline, 2026-09-12).
+ *
+ * The written name above each knob is gone: the knob carries its own title arc
+ * now (Adeline, 2026-09-12, specs/color-encoder.md). The group's aria-label
+ * still names it for assistive tech.
  */
-function QuickClimate({ children, label, title }: { children: ReactNode; label: string; title: string }) {
+function QuickClimate({ children, label }: { children: ReactNode; label: string }) {
   return (
     <div className="quick-climate quick-segment-climate" role="group" aria-label={label}>
-      <span className="quick-segment-title">{title}</span>
       {children}
     </div>
   );
@@ -232,7 +234,7 @@ export function QuickAirconSegment({
   onEntityActions: EntityActionsHandler;
 }) {
   return (
-    <QuickClimate label={`${title} air conditioner`} title={title}>
+    <QuickClimate label={`${title} air conditioner`}>
       <AirconKnob
         climateControl={climateControl?.lounge}
         entity={entity}
@@ -261,7 +263,7 @@ export function QuickHeaterSegment({
   onNotice?: (message: string) => void;
 }) {
   return (
-    <QuickClimate label={`${title} heater`} title={title}>
+    <QuickClimate label={`${title} heater`}>
       <HeaterKnob
         humidity={devices.humidity}
         preferences={preferences}

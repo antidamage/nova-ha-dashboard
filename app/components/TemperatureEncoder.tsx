@@ -50,6 +50,11 @@ export type TemperatureEncoderProps = {
   step?: number;
   /** Heating, cooling or fanning right now: the ring glows only then. */
   running?: boolean;
+  /**
+   * The room's name, curved around the outside of the knob
+   * (specs/temperature-encoder.md, "Face"). The target degrees keep the face.
+   */
+  title?: string;
   rings?: RotaryEncoderRing[];
   size?: number;
   onTargetChange: (target: number) => void;
@@ -75,6 +80,7 @@ export function TemperatureEncoder({
   maxTarget,
   step = TEMPERATURE_STEP_C,
   running = false,
+  title,
   rings,
   size = TEMPERATURE_ENCODER_MAX_SIZE,
   onTargetChange,
@@ -98,6 +104,7 @@ export function TemperatureEncoder({
       color={temperatureColour(target)}
       ringPaint={paint}
       disabled={disabled}
+      title={title}
       faceTop={degrees(target)}
       faceTopClassName="temperature-encoder-target"
       faceBottom={degrees(room)}

@@ -31,6 +31,17 @@ export const THUMB_LENGTH = 2.4;
 /** Clearance between a ring's label and its value, in label font sizes. */
 export const LABEL_VALUE_CLEARANCE = 1.5;
 
+/**
+ * Clearance above and below the title arc, as a fraction of the knob diameter
+ * (specs/color-encoder.md, "The title arcs over the knob"). The band the title
+ * claims is the caption font plus one of these each side, and the slider rings
+ * all move out by it.
+ */
+const TITLE_CLEARANCE_SHARE = 0.02;
+
+/** Clearance at each end of the title arc, in title font sizes. */
+export const TITLE_END_CLEARANCE = 1;
+
 export type RingGeometry = {
   /** Knob diameter. */
   size: number;
@@ -43,6 +54,12 @@ export type RingGeometry = {
   pitch: number;
   track: number;
   gap: number;
+  /** Height of the title's band, or 0 when the dial has no title. */
+  titleBand: number;
+  /** Centreline radius of the title arc; meaningless when `titleBand` is 0. */
+  titleRadius: number;
+  /** Width and height of the title arc's own SVG. */
+  titleFootprint: number;
   /** Centreline radius of each ring, innermost first. */
   radii: number[];
   /** Half the thumb's angular length on each ring, in degrees. */
@@ -76,10 +93,16 @@ export function ringLabelFont(size: number, count: number, pitch: number) {
   return clamp(pitch - 6, 10, caption);
 }
 
-export function ringGeometry(size: number, count: number): RingGeometry {
+export function ringGeometry(size: number, count: number, titled = false): RingGeometry {
   const rings = clamp(Math.floor(count), 0, RING_LIMIT);
   const dialRadius = size * 0.622;
   const caption = captionFont(size);
+  // The title's band sits between the dial and the innermost ring, and pushes
+  // every ring out by its full height. A dial with no title keeps the geometry
+  // it had, so `titleBand` is the one number the two cases differ by.
+  const titleClearance = size * TITLE_CLEARANCE_SHARE;
+  const titleBand = titled ? caption + 2 * titleClearance : 0;
+  const titleRadius = dialRadius + titleClearance + caption / 2;
   // A curved label is a caption tall and sits on its ring's centreline, so the
   // pitch may never drop under it — at 100px a proportional pitch is 8.5px
   // against a 10px font. The track keeps its 6 : 2.5 share of the pitch. The
@@ -89,7 +112,7 @@ export function ringGeometry(size: number, count: number): RingGeometry {
   const font = ringLabelFont(size, rings, pitch);
   const track = (pitch * TRACK_SHARE) / (TRACK_SHARE + GAP_SHARE);
   const gap = pitch - track;
-  const radii = Array.from({ length: rings }, (_, index) => dialRadius + gap + track / 2 + index * pitch);
+  const radii = Array.from({ length: rings }, (_, index) => dialRadius + titleBand + gap + track / 2 + index * pitch);
   const thumbHalfAngle = radii.map((radius) => ((THUMB_LENGTH * track) / 2 / radius) * (180 / Math.PI));
   const overhang = rings > 0 ? ((THUMB_THICKNESS - 1) * track) / 2 : 0;
   return {
@@ -100,9 +123,12 @@ export function ringGeometry(size: number, count: number): RingGeometry {
     pitch,
     track,
     gap,
+    titleBand,
+    titleRadius,
+    titleFootprint: 2 * (dialRadius + titleBand),
     radii,
     thumbHalfAngle,
-    footprint: 2 * (dialRadius + rings * pitch + overhang),
+    footprint: 2 * (dialRadius + titleBand + rings * pitch + overhang),
   };
 }
 
@@ -176,6 +202,26 @@ export function labelPath(cx: number, cy: number, radius: number, end: number = 
   const to = polar(cx, cy, radius, end);
   const large = gapSpan(end) > 180 ? 1 : 0;
   return `M ${from.x.toFixed(3)} ${from.y.toFixed(3)} A ${radius.toFixed(3)} ${radius.toFixed(3)} 0 ${large} 0 ${to.x.toFixed(3)} ${to.y.toFixed(3)}`;
+}
+
+/**
+ * SVG path for the title arc: 7:30 clockwise over the top to 4:30, the same
+ * 270° sweep the tracks use. Travelling that way over the top points the
+ * text's "up" away from the centre, so it reads upright; the text is centred on
+ * 12 o'clock with `text-anchor: middle` at `startOffset="50%"`.
+ */
+export function titlePath(cx: number, cy: number, radius: number) {
+  return arcPath(cx, cy, radius, ARC_START, ARC_END);
+}
+
+/**
+ * Room for the title: the arc's length, less a font size of clearance at each
+ * end. The title does not shrink to fit (Adeline, 2026-09-12) — it runs wider
+ * around the sides and is cut with an ellipsis only past this.
+ */
+export function titleRoom(geometry: RingGeometry) {
+  const length = geometry.titleRadius * ((ARC_SPAN * Math.PI) / 180);
+  return Math.max(0, length - 2 * TITLE_END_CLEARANCE * captionFont(geometry.size));
 }
 
 /** Degrees of gap at the bottom for a ring ending at `end`. */

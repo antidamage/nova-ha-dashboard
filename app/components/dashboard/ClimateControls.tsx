@@ -416,8 +416,11 @@ function BedroomHeaterControl({
     return <ControlCard cardId="bedroom-heater" kicker="Heating Unit" title={title} />;
   }
 
+  // No card header: the knob's title arc names the room (Adeline, 2026-09-12,
+  // specs/temperature-encoder.md). The card above, with no entity to show, keeps
+  // its header — there is no knob there to carry the name.
   return (
-    <ControlCard cardId="bedroom-heater" entity={switchEntity} kicker="Heating Unit" title={title}>
+    <ControlCard cardId="bedroom-heater" entity={switchEntity}>
       <div className="climate-knob-body">
         <HeaterKnob
           humidity={humidity}
@@ -505,8 +508,9 @@ function AirConditionerControl({
     return <ControlCard cardId="aircon" kicker="Air Control" title={title} />;
   }
 
+  // No card header — see BedroomHeaterControl above.
   return (
-    <ControlCard cardId="aircon" entity={entity} kicker="Air Control" title={title}>
+    <ControlCard cardId="aircon" entity={entity}>
       <div className="climate-knob-body">
         <AirconKnob
           climateControl={controlState}
