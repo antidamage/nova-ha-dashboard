@@ -1,7 +1,7 @@
 "use client";
 
-import { Flame, PartyPopper, Power, PowerOff, Sun } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Flame, Power, PowerOff, Sun } from "lucide-react";
+import { useCallback, useMemo, useRef } from "react";
 import type {
   DashboardPreferences,
   ClimateControlState,
@@ -14,7 +14,6 @@ import type {
 import type { EntityActionInput } from "../../../lib/aircon-control";
 import { ColorEncoder, type ColorEncoderChannel } from "../ColorEncoder";
 import { hsvToRgb, rgbToHsv, type Hsva } from "../colorEncoderModel";
-import { LabeledSwitch } from "./ClimateControls";
 import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "./EnvironmentPanels";
 import { IconButton } from "./IconButton";
 import { StatChip } from "./ZoneButton";
@@ -239,32 +238,6 @@ export function ZoneControls({
   const hasLightDevices = lightEntities.length > 0;
   const hasActiveLights = lightEntities.some(dashboardEntityIsOn);
   const statDomains = countDomainsForZone(zone);
-  const persistedHouseParty = preferences?.lighting?.housePartyZones?.[zone.id]?.enabled ?? false;
-  const [housePartyEnabled, setHousePartyEnabled] = useState(persistedHouseParty);
-  const [housePartyBusy, setHousePartyBusy] = useState(false);
-
-  useEffect(() => {
-    setHousePartyEnabled(persistedHouseParty);
-  }, [persistedHouseParty, zone.id]);
-
-  const toggleHouseParty = useCallback(async () => {
-    const enabled = !housePartyEnabled;
-    setHousePartyEnabled(enabled);
-    setHousePartyBusy(true);
-    try {
-      const response = await fetch(`/api/phonoscope/house-party/zones/${encodeURIComponent(zone.id)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
-      });
-      if (!response.ok) throw new Error("House Party setting failed");
-    } catch {
-      setHousePartyEnabled(!enabled);
-    } finally {
-      setHousePartyBusy(false);
-    }
-  }, [housePartyEnabled, zone.id]);
-
   const rememberSpectrum = useCallback(
     (value: SpectrumValue) => {
       spectrumByZone.current[zone.id] = value;
@@ -300,32 +273,6 @@ export function ZoneControls({
             ))}
           </div>
         </div>
-        {lightingZone ? (
-          <div className="zone-actions grid grid-cols-4 gap-3">
-            <IconButton label={`On: ${adaptivePresetLabel}`} disabled={!hasLightDevices} variant="yellow" onClick={() => applyPresetAction("on")}>
-              <Power className="h-7 w-7" />
-            </IconButton>
-            <IconButton
-              label={adaptivePresetLabel}
-              disabled={!hasLightDevices}
-              variant="yellow"
-              onClick={() => applyPresetAction("candlelight")}
-            >
-              <Flame className="h-7 w-7" />
-            </IconButton>
-            <IconButton
-              label="White"
-              disabled={!hasLightDevices}
-              variant="white"
-              onClick={() => applyPresetAction("white")}
-            >
-              <Sun className="h-7 w-7" />
-            </IconButton>
-            <IconButton label="Off" disabled={!hasLightDevices && zone.counts.switch === 0} variant="pink" onClick={() => onZoneAction("off")}>
-              <PowerOff className="h-7 w-7" />
-            </IconButton>
-          </div>
-        ) : null}
       </header>
 
       <div className="mt-8 grid gap-5">
@@ -366,6 +313,30 @@ export function ZoneControls({
                   onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
                   onSpectrumChange={rememberSpectrum}
                 />
+                <div className="zone-lighting-presets" role="group" aria-label="Lighting presets">
+                  <IconButton label={`On: ${adaptivePresetLabel}`} disabled={!hasLightDevices} variant="yellow" onClick={() => applyPresetAction("on")}>
+                    <Power aria-hidden="true" /><span>On</span>
+                  </IconButton>
+                  <IconButton
+                    label={adaptivePresetLabel}
+                    disabled={!hasLightDevices}
+                    variant="yellow"
+                    onClick={() => applyPresetAction("candlelight")}
+                  >
+                    <Flame aria-hidden="true" /><span>Adaptive</span>
+                  </IconButton>
+                  <IconButton
+                    label="White"
+                    disabled={!hasLightDevices}
+                    variant="white"
+                    onClick={() => applyPresetAction("white")}
+                  >
+                    <Sun aria-hidden="true" /><span>White</span>
+                  </IconButton>
+                  <IconButton label="Off" disabled={!hasLightDevices && zone.counts.switch === 0} variant="pink" onClick={() => onZoneAction("off")}>
+                    <PowerOff aria-hidden="true" /><span>Off</span>
+                  </IconButton>
+                </div>
               </div>
               {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
             </>
@@ -373,27 +344,6 @@ export function ZoneControls({
         </div>
         <ModuleSlot id="zone.controls.after" context={{ zone }} />
       </div>
-
-      {/* House Party spans the panel and is always its last row, pushed to
-          the bottom of the panel however short the controls above are. */}
-      {lightingZone ? (
-        <section className="zone-party-control mt-auto border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
-          <header className="mb-4 flex items-center gap-3">
-            <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
-            <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
-          </header>
-
-          <LabeledSwitch
-            checked={housePartyEnabled}
-            disabled={housePartyBusy || !hasLightDevices}
-            icon={<PartyPopper className="h-4 w-4" />}
-            label="House Party"
-            leftLabel="Off"
-            rightLabel="On"
-            onChange={() => void toggleHouseParty()}
-          />
-        </section>
-      ) : null}
     </section>
   );
 }
