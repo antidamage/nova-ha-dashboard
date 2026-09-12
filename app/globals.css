@@ -7131,7 +7131,14 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 
 
 /* ── Slider rings ───────────────────────────────────────────────────────── */
+/* In front of the dial, not behind it. A dial that does not tuck draws its
+   rings in the same grid cell, and the dial came later in the DOM and so took
+   every press that landed near the innermost ring. The rings' own clip stops
+   at the knob, so raising them here costs the knob nothing (Adeline,
+   2026-09-12). */
 .rotary-encoder-rings {
+  position: relative;
+  z-index: 2;
   overflow: visible;
   touch-action: none;
   user-select: none;

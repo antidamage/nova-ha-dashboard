@@ -357,19 +357,33 @@ space (Adeline).
 - It sits **above other dashboard content and below the knob, the lighting
   tint and modals**: z-index 9000 *(decided)*, under `.modal-overlay` (10000)
   and `.lighting-tint-overlay` (2147483647).
-- The layer is clipped to an annulus starting at the dial's rim, so the knob
-  shows through it and stays tappable, and a shrinking ring disappears
-  behind it.
+- The layer is clipped to an annulus starting at **the knob disc**, so the knob
+  shows through it and stays tappable. The clip used to start at the dial's
+  rim — outside the colour ring and bevel — which handed that whole band to the
+  knob (Adeline, 2026-09-12; see "Which ring" below).
+- A shrinking ring still disappears behind the knob's rim: that hiding moved to
+  a clip on the rings' own group, since the layer's clip no longer reaches it.
+- **The rings sit in front of the knob.** A dial that does not tuck draws its
+  rings in the same grid cell, and the dial came later in the DOM, so it took
+  every press near the innermost ring. The rings' clip keeps the knob reachable,
+  so being in front costs it nothing.
 - While unlocked, a **hidden annular blocker** covers the whole ring
   footprint and swallows pointer events, so a tap between two rings never
-  reaches a control underneath. A tap on it counts as input.
+  reaches a control underneath. A tap on it counts as input. It is drawn for
+  every dial carrying rings, not only a floating one.
 
 ### Ring interaction
 
 Rings share the dial's pointer surface.
 
-- **Which ring**: by distance `d` from the centre. `d ≤ R0` is the knob.
-  Otherwise ring `i = floor((d − R0) / P)`; past the last ring, nothing.
+- **Which ring**: by distance `d` from the centre. **Only the knob's own disc
+  is the knob** — `d ≤ size / 2`. The colour ring and the bevel around it
+  belong to the **innermost ring**, which otherwise offered a few pixels of
+  target hard against the knob's edge and lost nearly every press to it,
+  including presses dead on its thumb (Adeline, 2026-09-12). So ring 0 owns
+  everything up to `R₀ + P/2`, and beyond that ring `i = 1 + floor((d − (R₀ +
+  P/2)) / P)`, each keeping a band of one pitch centred on its own track; past
+  the last ring, nothing.
 - **The label gap is dead**: a press in the bottom 90° does nothing.
 - **Tap the track to jump.** Unlike the knob, a ring is absolute: a press puts
   the thumb at the press angle straight away, and the drag follows the pointer's

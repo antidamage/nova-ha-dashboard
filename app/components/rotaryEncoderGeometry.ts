@@ -36,6 +36,8 @@ export type RingGeometry = {
   size: number;
   /** Radius of the dial's own footprint (`--re-outer / 2`). */
   dialRadius: number;
+  /** The knob disc itself, inside the colour ring and bevel. */
+  knobRadius: number;
   /** Label font size: the channel caption's rule. */
   font: number;
   pitch: number;
@@ -93,6 +95,7 @@ export function ringGeometry(size: number, count: number): RingGeometry {
   return {
     size,
     dialRadius,
+    knobRadius: size / 2,
     font,
     pitch,
     track,
@@ -115,11 +118,20 @@ export function onArc(angle: number, end: number = ARC_END) {
 
 /**
  * The ring a press at distance `distance` from the centre lands on, or `null`
- * for the dial itself or beyond the last ring.
+ * for the knob itself or beyond the last ring.
+ *
+ * Only the knob's own disc belongs to the knob. The colour ring and the bevel
+ * around it go to the innermost ring, which otherwise offered a few pixels of
+ * target hard against the knob's edge and lost nearly every press to it —
+ * including presses dead on its thumb (Adeline, 2026-09-12). Every other ring
+ * keeps a band of one pitch centred on its own track.
  */
 export function ringAt(geometry: RingGeometry, distance: number) {
-  if (distance <= geometry.dialRadius) return null;
-  const index = Math.floor((distance - geometry.dialRadius) / geometry.pitch);
+  if (geometry.radii.length === 0) return null;
+  if (distance <= geometry.knobRadius) return null;
+  const firstOuterEdge = geometry.radii[0] + geometry.pitch / 2;
+  if (distance < firstOuterEdge) return 0;
+  const index = 1 + Math.floor((distance - firstOuterEdge) / geometry.pitch);
   return index < geometry.radii.length ? index : null;
 }
 
