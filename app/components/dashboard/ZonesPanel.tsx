@@ -84,7 +84,7 @@ export function ZonesPanel({
         <HorizontalAccordion
           title="Home"
           persistKey="dashboard-zones-home"
-          defaultOpen={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true"}
+          defaultOpen
           attached={homeControls}
           attachKey={homeSelectedId}
         >
@@ -129,6 +129,7 @@ export function ZonesPanel({
           title="Systems"
           persistKey="dashboard-zones-systems"
           group="systems"
+          defaultOpen
           attached={systemsControls}
           attachKey={systemsSelectedId}
         >

@@ -27,9 +27,11 @@ export function useWideDashboard(): boolean {
 // `attachKey` is this entry's selected zone id; when it changes while the entry
 // is closed, the entry opens. `group` names the entry for CSS.
 export function HorizontalAccordion({
-  title, persistKey, children, attached, attachKey, group, defaultOpen = false,
+  title, persistKey, children, attached, attachKey, group, defaultOpen = false, ariaLabel,
 }: {
   title: string;
+  /** Spoken name for the trigger. Defaults to the zone menus' "<title> zones". */
+  ariaLabel?: string;
   persistKey: string;
   children: ReactNode;
   attached?: ReactNode;
@@ -70,7 +72,7 @@ export function HorizontalAccordion({
         className="horizontal-accordion-trigger"
         aria-expanded={expanded}
         aria-controls={contentId}
-        aria-label={`${title} zones`}
+        aria-label={ariaLabel ?? `${title} zones`}
         onClick={() => {
           const next = !open;
           setOpen(next);

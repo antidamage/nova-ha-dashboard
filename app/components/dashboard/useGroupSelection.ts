@@ -36,6 +36,18 @@ export function useGroupSelection(
     setSelection(readStored());
   }, []);
 
+  // Nothing remembered: open on the two reached for most, the home zone and
+  // Climate (Adeline, 2026-09-12). A stored choice always wins — this only
+  // fills a group that has never been given one.
+  useEffect(() => {
+    if (!ready) return;
+    setSelection((current) => {
+      const home = current.home ?? zones.inside?.id ?? null;
+      const systems = current.systems ?? zones.climate?.id ?? null;
+      return home === current.home && systems === current.systems ? current : { home, systems };
+    });
+  }, [ready, zones]);
+
   // Route the global selection into its group once the zone tree is known.
   useEffect(() => {
     if (!ready || !selectedZoneId) return;

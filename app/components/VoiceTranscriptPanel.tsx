@@ -10,6 +10,7 @@ import {
 } from "../../lib/voice-transcript";
 import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
 import { useAgentName } from "./AgentNameContext";
+import { HorizontalAccordion, useWideDashboard } from "./dashboard/HorizontalAccordion";
 
 function mergeTranscripts(
   current: VoiceTranscriptEvent[],
@@ -29,13 +30,16 @@ function mergeTranscripts(
 export function VoiceTranscriptPanel() {
   const { agentName, transcriptTemplate } = useAgentName();
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEvent[]>([]);
-  const [open, setOpen] = useState(true);
+  // Collapsed on load (Adeline, 2026-09-12). Landscape keeps its own state in
+  // the shared accordion, so this one is portrait's.
+  const [open, setOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   // Drives the working -> failed handover for a turn that never came back.
   // Only ticks while something is actually in flight (see below), so an idle
   // dashboard never re-renders on a timer.
   const [now, setNow] = useState(() => new Date());
+  const wide = useWideDashboard();
   const bodyId = useId();
   const logRef = useRef<HTMLDivElement | null>(null);
 
@@ -127,36 +131,20 @@ export function VoiceTranscriptPanel() {
     }
   };
 
-  return (
-    <section className="voice-transcript-panel mt-5 overflow-hidden border border-cyan-300/30">
-      <div className="flex items-center justify-between gap-2 p-2">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-center gap-2 px-1 py-1 text-left text-xs font-black uppercase text-neutral-300"
-          aria-expanded={open}
-          aria-controls={bodyId}
-          onClick={() => setOpen((current) => !current)}
-        >
-          <ChevronDown
-            className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-0" : "-rotate-90"}`}
-            aria-hidden="true"
-          />
-          <span>Live transcript</span>
-          <span className="text-neutral-600">{transcripts.length}</span>
-        </button>
-        <button
-          type="button"
-          className="config-page-button px-2 py-1.5"
-          disabled={clearing || transcripts.length === 0}
-          onClick={() => void clearTranscript()}
-        >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
-          {clearing ? "Clearing..." : "Clear"}
-        </button>
-      </div>
+  const clearButton = (
+    <button
+      type="button"
+      className="config-page-button px-2 py-1.5"
+      disabled={clearing || transcripts.length === 0}
+      onClick={() => void clearTranscript()}
+    >
+      <Trash2 className="h-4 w-4" aria-hidden="true" />
+      {clearing ? "Clearing..." : "Clear"}
+    </button>
+  );
 
-      {open ? (
-        <div id={bodyId} className="grid gap-2 border-t border-cyan-300/20 p-3">
+  const body = (
+        <div id={bodyId} className="voice-transcript-body grid gap-2 border-t border-cyan-300/20 p-3">
           <div className="voice-transcript-screen">
             <div
               ref={logRef}
@@ -208,7 +196,54 @@ export function VoiceTranscriptPanel() {
           </div>
           {clearError ? <p role="alert" className="text-xs font-semibold text-red-200">{clearError}</p> : null}
         </div>
-      ) : null}
+  );
+
+  // Landscape: the same sideways accordion Home and Systems use, so the three
+  // read as one family (specs/landscape-layout.md). The vertical bar is the
+  // trigger, so the panel keeps only its count and Clear.
+  if (wide) {
+    return (
+      <section className="voice-transcript-panel mt-5 overflow-hidden">
+        <HorizontalAccordion
+          title="Transcript"
+          ariaLabel="Live transcript"
+          persistKey="dashboard-voice-transcript"
+          group="transcript"
+        >
+          <div className="voice-transcript-head flex items-center justify-between gap-2 p-2">
+            <span className="flex min-w-0 items-center gap-2 text-xs font-black uppercase text-neutral-300">
+              <span>Live transcript</span>
+              <span className="text-neutral-600">{transcripts.length}</span>
+            </span>
+            {clearButton}
+          </div>
+          {body}
+        </HorizontalAccordion>
+      </section>
+    );
+  }
+
+  return (
+    <section className="voice-transcript-panel mt-5 overflow-hidden border border-cyan-300/30">
+      <div className="flex items-center justify-between gap-2 p-2">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 px-1 py-1 text-left text-xs font-black uppercase text-neutral-300"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-0" : "-rotate-90"}`}
+            aria-hidden="true"
+          />
+          <span>Live transcript</span>
+          <span className="text-neutral-600">{transcripts.length}</span>
+        </button>
+        {clearButton}
+      </div>
+
+      {open ? body : null}
     </section>
   );
 }

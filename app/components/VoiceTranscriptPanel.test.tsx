@@ -25,6 +25,16 @@ function findTranscriptLine(pattern: RegExp) {
     element?.tagName.toLowerCase() === "p" && pattern.test(element.textContent ?? ""));
 }
 
+/**
+ * The panel is collapsed on load (Adeline, 2026-09-12), so anything that wants
+ * to read the log has to open it first.
+ */
+function renderOpen() {
+  const result = render(<VoiceTranscriptPanel />);
+  fireEvent.click(screen.getByRole("button", { name: /Live transcript/ }));
+  return result;
+}
+
 function queryTranscriptLine(pattern: RegExp) {
   return screen.queryByText((_, element) =>
     element?.tagName.toLowerCase() === "p" && pattern.test(element.textContent ?? ""));
@@ -59,7 +69,7 @@ describe("VoiceTranscriptPanel", () => {
   });
 
   it("shows decorated user and custom agent-name lines without seconds", async () => {
-    render(<VoiceTranscriptPanel />);
+    renderOpen();
 
     const userLine = await findTranscriptLine(/╰─ Turn it on$/);
     expect(userLine.textContent).toMatch(/╭─\[ Adeline ➤ .* ➤ \[EXCHANGE\] \]\n/);
@@ -120,6 +130,7 @@ describe("VoiceTranscriptPanel", () => {
         <VoiceTranscriptPanel />
       </AgentNameProvider>,
     );
+    fireEvent.click(screen.getByRole("button", { name: /Live transcript/ }));
 
     const userLine = await findTranscriptLine(/╰─ Turn it on$/);
     // The provider fetches /api/voice after mount, so the custom decoration
@@ -129,7 +140,7 @@ describe("VoiceTranscriptPanel", () => {
   });
 
   it("marks a turn as working, then resolves it in place", async () => {
-    render(<VoiceTranscriptPanel />);
+    renderOpen();
     await findTranscriptLine(/╰─ Turn it on/);
 
     // A turn arriving now has no outcome yet: it is still being processed.
@@ -167,7 +178,7 @@ describe("VoiceTranscriptPanel", () => {
   });
 
   it("shows a failed command with the failure marker", async () => {
-    render(<VoiceTranscriptPanel />);
+    renderOpen();
     await findTranscriptLine(/╰─ Turn it on/);
 
     act(() => {
@@ -189,7 +200,7 @@ describe("VoiceTranscriptPanel", () => {
   });
 
   it("leaves the agent's reply unmarked", async () => {
-    render(<VoiceTranscriptPanel />);
+    renderOpen();
 
     act(() => {
       stream.handlers["voice-transcript"]?.(new MessageEvent("voice-transcript", {
@@ -207,12 +218,18 @@ describe("VoiceTranscriptPanel", () => {
     expect(reply.querySelector(".voice-transcript-status")).toBeNull();
   });
 
-  it("collapses the log and clears the shared history", async () => {
+  it("opens and collapses the log, and clears the shared history", async () => {
     render(<VoiceTranscriptPanel />);
+
+    // Collapsed on load, so there is nothing to read until it is opened.
+    const accordion = screen.getByRole("button", { name: /Live transcript/ });
+    expect(accordion).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("log")).not.toBeInTheDocument();
+
+    fireEvent.click(accordion);
+    expect(accordion).toHaveAttribute("aria-expanded", "true");
     await findTranscriptLine(/╰─ Turn it on$/);
 
-    const accordion = screen.getByRole("button", { name: /Live transcript/ });
-    expect(accordion).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(accordion);
     expect(accordion).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("log")).not.toBeInTheDocument();

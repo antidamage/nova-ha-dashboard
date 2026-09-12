@@ -14,6 +14,23 @@ if (!("ResizeObserver" in globalThis)) {
   (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver = ResizeObserverStub;
 }
 
+// jsdom has no matchMedia, and `useWideDashboard` reads it through
+// useSyncExternalStore the moment anything using it mounts. Default to
+// portrait, matching the hook's own server snapshot; a test that wants
+// landscape stubs it over the top (see HorizontalAccordion.test.tsx).
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  window.matchMedia = ((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
+
 // Route the fire-and-forget spools at a throwaway directory.
 //
 // `emitDashboardEvent` and the kiosk witness store both default to
