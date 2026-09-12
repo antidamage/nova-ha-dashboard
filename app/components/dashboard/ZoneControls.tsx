@@ -287,7 +287,7 @@ export function ZoneControls({
   const adaptivePresetLabel = adaptiveCandlelightLabel(sun);
 
   return (
-    <section className="zone-panel relative flex min-h-[620px] flex-col border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
+    <section data-lighting-zone={lightingZone || undefined} className="zone-panel relative flex min-h-[620px] flex-col border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
       <div className="panel-corner panel-corner-left" />
       <div className="panel-corner panel-corner-right" />
       <header className="zone-panel-header flex flex-col gap-4">

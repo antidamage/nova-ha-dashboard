@@ -98,6 +98,15 @@ and **Systems** (climate, outside, world, network, power, tasks).
 - Portrait keeps the old layout and single global selection: list in the
   zones panel, controls in the control stage below.
 
+Landscape zone panels must disable `container-type: inline-size`: containment
+discards their children's intrinsic widths and defeats `width: max-content`
+on every ancestor. The landscape header uses an explicit horizontal layout
+instead of the portrait container query. Climate cards have a 380px minimum;
+Outside's light, weather and camera have 320px, 520px and 560px minimums and
+can grow beyond them. Lighting zones put House Party beside the lighting body,
+with room sensors in additional columns, so fixed-height rows cannot squeeze
+the knob into the next control. Keep this treatment scoped to landscape.
+
 ## The voice transcript
 
 - **Collapsed on load** (Adeline, 2026-09-12), and in landscape it **opens
