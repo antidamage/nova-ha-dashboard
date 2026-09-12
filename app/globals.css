@@ -4334,7 +4334,6 @@ button.config-breadcrumb-crumb:focus-visible {
   color: var(--cyber-text);
 }
 .camera-event-report-header,
-.camera-event-mini-row,
 .camera-events-list-row {
   width: 100%;
   border: 0;
@@ -4370,41 +4369,6 @@ button.config-breadcrumb-crumb:focus-visible {
 .camera-event-error {
   color: #ff8a8a;
 }
-.camera-event-mini-list {
-  display: grid;
-  border-top: 1px solid var(--cyber-border-dim);
-}
-.camera-event-mini-row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: rgba(0, 0, 0, 0.15);
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--cyber-border-dim) 65%, transparent);
-}
-.camera-event-mini-row:last-child {
-  border-bottom: 0;
-}
-.camera-event-mini-row:hover {
-  background: color-mix(in srgb, var(--cyber-cyan) 7%, transparent);
-}
-.camera-event-mini-row.is-important {
-  border-left: 3px solid #ffd56b;
-}
-.camera-event-mini-row.is-urgent {
-  border-left: 3px solid #ff5d73;
-}
-.camera-event-mini-row.is-unreviewed strong {
-  color: var(--cyber-accent-on-bg);
-}
-.camera-event-mini-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.camera-event-mini-copy strong,
 .camera-events-list-row strong {
   overflow: hidden;
   color: var(--cyber-title-on-bg);
@@ -4413,7 +4377,6 @@ button.config-breadcrumb-crumb:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.camera-event-mini-copy small,
 .camera-events-list-row small {
   overflow: hidden;
   color: var(--cyber-text-dim);
@@ -4421,12 +4384,6 @@ button.config-breadcrumb-crumb:focus-visible {
   font-size: 0.64rem;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.camera-event-mini-status {
-  color: var(--cyber-text-dim);
-  font-family: var(--cyber-mono);
-  font-size: 0.62rem;
-  text-transform: uppercase;
 }
 .camera-event-empty {
   margin: 0;
