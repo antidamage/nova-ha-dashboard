@@ -492,15 +492,16 @@ html[data-nova-lite] .nova-orb-refract-copy {
   z-index: 5;
 }
 
-/* Tech skin: the readout is engraved into the plastic dome — a dark shadow
-   cast down-right and a light catch up-left carve the letterforms, then a
-   glow in the text's own colour lights the engraving from inside. */
+/* Tech skin: the readout is pressed into the plastic dome, so the emboss is on
+   the surface AROUND it, never inside the letterforms (Adeline, 2026-09-12).
+   Every shadow here is drawn behind the text: each one is a hard edge where it
+   meets a glyph and slopes smoothly outwards from there — dark above, light
+   below, then the readout's own colour as the glow. */
 [data-nova-orb-module="tech"] .nova-avatar-gym-counter {
   text-shadow:
-    0 -0.02em 0.01em rgba(0, 0, 0, 0.75),
-    0 0.02em 0.01em rgba(255, 255, 255, 0.16),
-    0 0 0.14em currentColor,
-    0 0 0.4em currentColor;
+    0 -0.018em 0.05em rgba(0, 0, 0, 0.8),
+    0 0.018em 0.05em rgba(255, 255, 255, 0.3),
+    0 0 0.3em currentColor;
 }
 
 html[data-nova-hide-orb-info]
@@ -6823,7 +6824,6 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 .rotary-encoder[data-mode="light"] .rotary-encoder-channel,
 .rotary-encoder[data-mode="light"] .rotary-encoder-label {
   color: rgba(0, 0, 0, 0.46);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95), 0 -1px 0 rgba(0, 0, 0, 0.06);
 }
 
 /* Unlit wells go darker still on a pale knob: the lit one is white, so the
@@ -7057,14 +7057,12 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   line-height: 1;
   text-align: center;
   text-indent: 0.1em;
-  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.5);
   text-transform: uppercase;
   white-space: nowrap;
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-led-name {
   color: rgba(0, 0, 0, 0.46);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95), 0 -1px 0 rgba(0, 0, 0, 0.06);
 }
 
 /* The caption drops below the names rather than through them. */
@@ -7091,7 +7089,6 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   line-height: 1;
   text-align: center;
   text-indent: 0.16em;
-  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
 }
 
@@ -7277,9 +7274,9 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   pointer-events: none;
 }
 
+/* Flat, unembossed (Adeline, 2026-09-12). The class name stays because it is
+   how the rings' labels are addressed; the cut and lip copies are gone. */
 .rotary-encoder-etch-face { fill: rgba(255, 255, 255, 0.46); }
-.rotary-encoder-etch-cut { fill: rgba(0, 0, 0, 0.55); }
-.rotary-encoder-etch-lip { fill: rgba(0, 0, 0, 0.5); }
 
 /* Light mode, as for the colour ring and the lights: paler lip and shading,
    and a darker well so the coloured fill still reads against it. */

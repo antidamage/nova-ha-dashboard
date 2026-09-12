@@ -573,6 +573,7 @@ function NovaAvatarVisual({
       data-nova-avatar-gym-number-color={gymRgb.join(" ")}
       data-nova-avatar-gym-number-opacity={theme.gymNumberOpacity}
       data-nova-avatar-theme-ready={gymColorReady ? "true" : "false"}
+      data-nova-orb-module={orbModule.id}
       data-nova-avatar-theme-source={themeOverride === undefined ? themeSource : "override"}
       data-nova-avatar-variant={themeOverride === undefined ? activeVariant : "override"}
       data-nova-avatar-voice={voiceGlowActive ? "active" : undefined}

@@ -1010,33 +1010,25 @@ export function RotaryEncoder({
                 <path className="rotary-encoder-thumb-crown" d={thumbPath} strokeWidth={track * THUMB_THICKNESS * 0.55} />
               </g>
             )}
-            {/* Etched like the dial's caption. SVG text takes no text-shadow,
-                so the lip below and the cut above are offset copies drawn
-                under the face. */}
-            {(["lip", "cut", "face"] as const).map((layer) => (
-              <text
-                key={layer}
-                className={`rotary-encoder-ring-label rotary-encoder-etch-${layer}`}
-                fontSize={geometry.font}
-                transform={layer === "lip" ? "translate(0 1)" : layer === "cut" ? "translate(0 -1)" : undefined}
-                aria-hidden
-              >
-                {/* Left-aligned to where the ring's track starts, at 7:30, so
-                    every ring's label begins on the same radius. */}
-                <textPath href={`#${ringIdBase}-label-${index}`} startOffset={track}>
-                  {labelText}
-                </textPath>
-              </text>
-            ))}
+            {/* Flat, unembossed (Adeline, 2026-09-12): the offset copies that
+                used to etch this read as black shadows above and below it. */}
+            <text
+              className="rotary-encoder-ring-label rotary-encoder-etch-face"
+              fontSize={geometry.font}
+              aria-hidden
+            >
+              {/* Left-aligned to where the ring's track starts, at 7:30, so
+                  every ring's label begins on the same radius. */}
+              <textPath href={`#${ringIdBase}-label-${index}`} startOffset={track}>
+                {labelText}
+              </textPath>
+            </text>
             {(() => {
               const valueText = ringValueText(ring);
-              return valueText
-                ? (["lip", "cut", "face"] as const).map((layer) => (
+              return valueText ? (
                 <text
-                  key={`value-${layer}`}
-                  className={`rotary-encoder-ring-label rotary-encoder-ring-value rotary-encoder-etch-${layer}`}
+                  className="rotary-encoder-ring-label rotary-encoder-ring-value rotary-encoder-etch-face"
                   fontSize={geometry.font}
-                  transform={layer === "lip" ? "translate(0 1)" : layer === "cut" ? "translate(0 -1)" : undefined}
                   aria-hidden
                 >
                   {/* Right-aligned so it ends where the ring's track ends. */}
@@ -1044,8 +1036,7 @@ export function RotaryEncoder({
                     {valueText.toUpperCase()}
                   </textPath>
                 </text>
-              ))
-              : null;
+              ) : null;
             })()}
           </g>
         );

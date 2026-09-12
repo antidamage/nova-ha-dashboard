@@ -13,6 +13,7 @@
 // renderers cannot drift on data semantics.
 
 import {
+  orbLayerGateOpen,
   orbSettingNumber,
   resolveOrbColor,
   type OrbArcFieldLayer,
@@ -706,6 +707,9 @@ export function createOrbRenderer(module: OrbModule): OrbRenderer {
 
     module.layers.forEach((layer: OrbLayer, index: number) => {
       if (layer.enabled === false) return;
+      // Setting-bound visibility: how a module ships two treatments of one
+      // surface (the Tech skin's light/dark knob) and lets a setting choose.
+      if (!orbLayerGateOpen(layer.enabledWhen, frame.settings)) return;
 
       // Layer opacity = static opacity x pulse wave. alertOnly layers do not
       // render at all while the alert is inactive.
