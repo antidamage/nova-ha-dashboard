@@ -6,6 +6,8 @@ import type {
   ClimateControlState,
   DashboardZone,
   RouterStatus,
+  SpectrumCursor,
+  SunStatus,
   WeatherStatus,
 } from "../../../lib/types";
 import dynamic from "next/dynamic";
@@ -25,6 +27,7 @@ import { RouterPanel } from "./RouterPanel";
 import { ClimateControls } from "./ClimateControls";
 import { OutsideControls } from "./OutsideControls";
 import { useExperienceFeature } from "./experienceModeSetting";
+import type { ZoneActionHandler } from "./useZoneLighting";
 
 const MapPanel = dynamic(() => import("../MapPanel").then((module) => module.MapPanel), { ssr: false });
 
@@ -70,9 +73,16 @@ export type PrimaryPanelContext = {
   loungeEnvironment?: LoungeEnvironment | null;
   bedroomHeater?: BedroomHeaterDevices;
   climateControl?: ClimateControlState;
+  sun?: SunStatus | null;
+  spectrumCursor?: SpectrumCursor;
+  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  knobSkin?: "auto" | "dark" | "light";
   onDesktopSleep?: (computer: { id: string; name: string }) => void;
   onDesktopWake?: (computer: { id: string; name: string }) => void;
   onEntityActions: (actions: EntityActionInput[], toast: string) => Promise<void>;
+  /** Zone-level commands. Outside needs it for `useZoneLighting`, which is the
+   *  only way to say "white at 100%" — a raw entity action cannot. */
+  onZoneAction?: ZoneActionHandler;
   /** Surface a message without issuing a command — used for save failures. */
   onNotice?: (message: string) => void;
 };
@@ -126,8 +136,15 @@ export const primaryZonePanels: PrimaryZonePanel[] = [
   {
     id: "outside",
     appliesTo: isOutsideZone,
-    render: ({ zone, weather, onEntityActions }) => (
-      <OutsideControls zone={zone} weather={weather ?? null} onEntityActions={onEntityActions} />
+    render: ({ zone, weather, sun, spectrumCursor, knobSkin, onZoneAction }) => (
+      <OutsideControls
+        zone={zone}
+        weather={weather ?? null}
+        sun={sun}
+        spectrumCursor={spectrumCursor}
+        knobSkin={knobSkin}
+        onZoneAction={onZoneAction}
+      />
     ),
   },
   {
