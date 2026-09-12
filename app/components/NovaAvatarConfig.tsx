@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { resolveOrbModuleSettings, type OrbModule } from "../../lib/orb-modules";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
 import {
+  CheckboxRow,
   ColorEncoderPanel,
   ColorWidget,
   ConfigAccordion,
@@ -517,6 +518,20 @@ function NovaAvatarConfigView({
           <div className="grid gap-3">
             {activeModule.settings.map((decl) => {
               const value = moduleSettingValues[decl.id];
+              // A setting declared as a single step from 0 to 1 is a choice,
+              // not a magnitude — give it the checkbox it actually is rather
+              // than a two-position slider.
+              if (decl.min === 0 && decl.max === 1 && decl.step === 1) {
+                return (
+                  <CheckboxRow
+                    key={decl.id}
+                    checked={value >= 1}
+                    detail={decl.description}
+                    label={decl.label}
+                    onChange={(checked) => setTheme(moduleSettingTheme(decl.id, checked ? 1 : 0))}
+                  />
+                );
+              }
               return (
                 <SliderControlPanel
                   key={decl.id}
