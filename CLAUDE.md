@@ -72,7 +72,10 @@ the named component before introducing a one-off equivalent.
   `selector` (evenly spaced stops, the whole track filled in the caller's
   colour) and `toggle` (tap to flip, fading over 500ms), and each can carry a
   `valueText` drawn at the ring's end — pass `valueTextWidest` so the ring's
-  length does not change as the value does. `tuckAfterMs` makes a dial lock
+  length does not change as the value does. A ring marked `hidden` folds away
+  with the tuck animation and goes out of reach while keeping its radius — use
+  it for a ring that does not apply right now, and `disabled` for one that is
+  merely unusable. `tuckAfterMs` makes a dial lock
   itself when idle and float its rings over the page in a body portal. Geometry
   is in `rotaryEncoderGeometry.ts`. Build a new knob on this rather than
   copying `ColorEncoder`. See `specs/color-encoder.md`.

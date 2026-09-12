@@ -177,6 +177,41 @@ timing and motion.
   a backup, moved from the card into `useAirconCommands` so there is still one
   instance *(decided)*.
 
+## Only the rings the mode can act on are on show
+
+Adeline, 2026-09-12. A ring that cannot do anything in the mode the unit is in
+folds away with the tuck animation instead of sitting there inert:
+
+| Mode | Rings on show |
+|---|---|
+| **Manual** | all of them — Mode, Fan, Fresh Air, Timer |
+| **Auto** | Timer only. Auto sets the rest itself; the one thing left to say is when to stop. |
+| **Off** | none |
+
+The heater has no Manual: its single Timer ring shows in Auto and hides in Off.
+
+A hidden ring **keeps its place in the stack** and its radius. Rings do not
+shuffle inwards to close the gap — the tuck animation is a scale, so a ring
+changing radius could not animate, and the knob's rings would appear to jump
+between modes. In Auto the Timer therefore stays on the outermost track with
+empty space inside it.
+
+The mechanism is the base's: `RotaryEncoderRing.hidden` (`RotaryEncoder.tsx`).
+It is distinct from `disabled`, which leaves the ring visible and dimmed for
+something momentarily unusable — an unavailable entity dims every ring,
+including the ones on show. A hidden ring animates to the same tucked transform
+and opacity a whole-dial collapse uses, and goes out of reach with it:
+`pointer-events: none`, `tabIndex -1`, `aria-hidden`, and no pointer or
+keyboard handling. It carries `data-hidden="true"`.
+
+Hiding and showing run through the same innermost-first/outermost-last stagger
+as the tuck-away, so several rings leaving together read as one cascade rather
+than a simultaneous blink.
+
+With **every** ring hidden the ring layer draws no blocker circle — the blocker
+exists to stop a press slipping between rings to a control underneath, and with
+nothing drawn it would only swallow taps on whatever the empty annulus covers.
+
 ## Mode and ring rules
 
 - **Auto:** picking a mode or a fan speed by hand **drops to Manual**, as it

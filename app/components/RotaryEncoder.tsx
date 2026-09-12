@@ -111,6 +111,14 @@ export type RotaryEncoderRing = {
   step?: number;
   disabled?: boolean;
   /**
+   * Folds the ring away with the tuck-away animation and takes it out of reach
+   * — for a ring that does not apply in the dial's current state, rather than
+   * one that is merely unusable (`disabled`, which stays visible and dimmed).
+   * A hidden ring keeps its place in the stack, so the rings that remain do not
+   * shuffle inwards and change radius (specs/temperature-encoder.md).
+   */
+  hidden?: boolean;
+  /**
    * Drawn right-aligned at the ring's end. Omitted rings show their label only.
    * Pass a function to have the reading follow the thumb through a drag: it is
    * called with the ring's live value, so the text keeps up without the caller
@@ -642,6 +650,9 @@ export function RotaryEncoder({
   const ringValue = (ring: RotaryEncoderRing) => ringLiveRef.current[ring.id] ?? ring.value;
   const ringRange = (ring: RotaryEncoderRing) => [ring.min ?? 0, ring.max ?? 100] as const;
   const ringDisabled = (ring: RotaryEncoderRing) => disabled || Boolean(ring.disabled);
+  const ringHidden = (ring: RotaryEncoderRing) => Boolean(ring.hidden);
+  /** Nothing a pointer, the keyboard or a screen reader can get at. */
+  const ringInert = (ring: RotaryEncoderRing) => ringHidden(ring) || ringDisabled(ring);
   const ringStep = (ring: RotaryEncoderRing) => (ringKind(ring) === "selector" ? ring.step ?? 1 : ring.step);
 
   /** The reading to draw, resolved against whatever the ring is showing now. */
@@ -698,7 +709,7 @@ export function RotaryEncoder({
       const index = ringAt(geometry, distance);
       if (index === null || at < ARC_START || at > endOf(index)) return;
       const ring = shown[index];
-      if (ringDisabled(ring)) return;
+      if (ringInert(ring)) return;
       event.currentTarget.setPointerCapture?.(event.pointerId);
       noteInput();
       if (ringKind(ring) === "toggle") {
@@ -759,7 +770,7 @@ export function RotaryEncoder({
   };
 
   const ringKeyDown = (ring: RotaryEncoderRing) => (event: React.KeyboardEvent<SVGGElement>) => {
-    if (ringDisabled(ring)) return;
+    if (ringInert(ring)) return;
     const [min, max] = ringRange(ring);
     if (ringKind(ring) === "toggle") {
       if (event.key !== "Enter" && event.key !== " ") return;
@@ -791,7 +802,7 @@ export function RotaryEncoder({
     if (!event.key.startsWith("Arrow")) return;
     const final = ringValue(ring);
     delete ringLiveRef.current[ring.id];
-    if (!ringDisabled(ring)) ring.onCommit?.(final);
+    if (!ringInert(ring)) ring.onCommit?.(final);
   };
 
   // Labels are cut, and rings shortened, against measured text widths — so they
@@ -929,8 +940,10 @@ export function RotaryEncoder({
           <path key={ring.id} id={`${ringIdBase}-label-${index}`} d={labelPath(centre, centre, geometry.radii[index], endOf(index))} />
         ))}
       </defs>
-      {/* Nothing may squeeze between the rings to a control underneath. */}
-      {!locked ? (
+      {/* Nothing may squeeze between the rings to a control underneath — but
+          with every ring folded away there is nothing to protect, and the
+          blocker would swallow taps on whatever the empty annulus sits over. */}
+      {!locked && shown.some((ring) => !ringHidden(ring)) ? (
         <circle
           className="rotary-encoder-blocker"
           data-testid="rotary-encoder-blocker"
@@ -960,6 +973,7 @@ export function RotaryEncoder({
         const thumbCore = ((THUMB_LENGTH - THUMB_THICKNESS) * track) / 2 / radius * (180 / Math.PI);
         const thumbPath = arcPath(centre, centre, radius, thumbAt - thumbCore, thumbAt + thumbCore);
         const off = ringDisabled(ring);
+        const away = ringHidden(ring);
         const on = kind === "toggle" && item > (min + max) / 2;
         const wholeTrackFill = kind === "toggle" ? (on ? ring.fill ?? null : null) : kind === "selector" ? ring.fill ?? null : null;
         // Innermost hides first and appears first; the outermost is last either
@@ -969,7 +983,7 @@ export function RotaryEncoder({
         // travels well inside the rim, where the annulus clip hides it behind
         // the knob.
         const tucked = (geometry.dialRadius * 0.78) / radius;
-        const tuckedStyle = locked || entering;
+        const tuckedStyle = locked || entering || away;
         // Hiding goes innermost-first, outermost-last; unlocking is that
         // collapse in reverse, so the ring that was last to leave is first
         // to come back.
@@ -979,8 +993,9 @@ export function RotaryEncoder({
             transform: tuckedStyle ? `scale(${tucked.toFixed(3)})` : "scale(1)",
             opacity: tuckedStyle ? 0 : 1,
             transitionDelay: `${stagger * TUCK_RING_STAGGER_MS}ms`,
+            pointerEvents: away ? "none" : undefined,
           }
-          : {};
+          : { display: away ? "none" : undefined };
         return (
           <g
             key={ring.id}
@@ -989,10 +1004,12 @@ export function RotaryEncoder({
             data-ring-id={ring.id}
             data-ring-kind={kind}
             data-disabled={off ? "true" : undefined}
+            data-hidden={away ? "true" : undefined}
             style={collapse}
             role={kind === "toggle" ? "switch" : "slider"}
-            tabIndex={off ? -1 : 0}
+            tabIndex={off || away ? -1 : 0}
             aria-label={ring.label}
+            aria-hidden={away || undefined}
             aria-disabled={off}
             {...(kind === "toggle"
               ? { "aria-checked": on }

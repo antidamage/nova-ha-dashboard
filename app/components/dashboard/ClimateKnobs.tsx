@@ -115,6 +115,12 @@ export function AirconKnob({
   // In Off the thumb sits on the remembered mode and the track stays an empty
   // well, because nothing is running (Adeline, 2026-09-12).
   const activeMode = aircon.activeMode ?? (aircon.airconSettings.hvacMode as AirconMode | undefined);
+  // Only the rings that apply to the mode the unit is in are on show; the rest
+  // fold away with the tuck animation and keep their place in the stack, so the
+  // ones that remain never change radius (specs/temperature-encoder.md).
+  // Auto sets itself — the only thing left to say is when to stop; Off has
+  // nothing to set at all.
+  const manual = power === "manual";
   const modeIndex = Math.max(0, MODE_STOPS.findIndex((stop) => stop.mode === activeMode));
   const modeColour = off ? null : MODE_STOPS[modeIndex]?.colour ?? null;
   const fanIndex = Math.max(0, AIRCON_FAN_STEPS.indexOf(aircon.fanStep));
@@ -130,6 +136,7 @@ export function AirconKnob({
       max: MODE_STOPS.length - 1,
       step: 1,
       fill: modeColour,
+      hidden: !manual,
       disabled: aircon.entityUnavailable,
       onChange: () => undefined,
       onCommit: (value) => {
@@ -147,6 +154,7 @@ export function AirconKnob({
       step: 1,
       valueText: (value) => fanStepText(AIRCON_FAN_STEPS[Math.round(value)] ?? "medium"),
       valueTextWidest: FAN_VALUE_WIDEST,
+      hidden: !manual,
       disabled: aircon.entityUnavailable,
       onChange: () => undefined,
       onCommit: (value) => {
@@ -162,6 +170,7 @@ export function AirconKnob({
         min: 0,
         max: 1,
         fill: MODE_COOL_COLOUR,
+        hidden: !manual,
         disabled: aircon.entityUnavailable,
         onChange: () => undefined,
         onCommit: () => {
@@ -178,6 +187,7 @@ export function AirconKnob({
       step: TIMER_STEP_MINUTES,
       valueText: (value) => timerValueText(Math.round(value)),
       valueTextWidest: TIMER_VALUE_WIDEST,
+      hidden: off,
       disabled: aircon.entityUnavailable,
       onChange: () => undefined,
       onCommit: (value) => {
@@ -245,6 +255,8 @@ export function HeaterKnob({
       step: TIMER_STEP_MINUTES,
       valueText: (value) => timerValueText(Math.round(value)),
       valueTextWidest: TIMER_VALUE_WIDEST,
+      // Off has nothing to time (specs/temperature-encoder.md).
+      hidden: heater.displayedMode === "off",
       disabled: unavailable,
       onChange: () => undefined,
       onCommit: (value) => {

@@ -516,6 +516,17 @@ more specific selector and overrides the lit light's own fill, which left
 **no light lit at all** in light mode (found 2026-09-11, by the
 `RingedColorEncoder` review).
 
+### A ring can fold itself away
+
+Adeline, 2026-09-12, for the climate knob. `RotaryEncoderRing.hidden` folds one
+ring away using the tuck-away transform and opacity above, and takes it out of
+reach (`pointer-events: none`, `tabIndex -1`, `aria-hidden`, no pointer or
+keyboard handling); it carries `data-hidden="true"`. The ring keeps its index
+and radius, so the rings still on show never move. It is not `disabled`, which
+stays visible and dimmed. The blocker circle is dropped when every ring is
+hidden. The rule for which rings apply in which climate mode is in
+`specs/temperature-encoder.md`.
+
 ### Knob skin override
 
 Adeline, 2026-09-11. The auto-detect above is the default and stays correct

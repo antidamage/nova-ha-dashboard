@@ -238,8 +238,35 @@ export type OrbRingLayer = OrbLayerBase & {
   /** Stroke width as a fraction of the orb radius. */
   width: number;
   color: OrbColorRef;
+  /**
+   * Paints the band with a linear gradient laid across the whole orb instead
+   * of a flat colour, exactly as a CSS `linear-gradient(<angle>deg, ...)` over
+   * the element would — `angle` in CSS degrees (0 points up, clockwise), stop
+   * offsets 0..1 along the gradient line. `color` is ignored when this is set.
+   * This is what lets an orb reproduce the knob's sunken colour channel
+   * (`.rotary-encoder-ring-shade`) rather than approximating it with arcs.
+   */
+  gradient?: OrbLinearGradient;
+  /**
+   * A CSS `inset 0 0 <blur> <color>` shadow inside the band: both walls of the
+   * well, blurred inwards. `blur` is in unit space, like every other radius.
+   */
+  innerShadow?: OrbInnerShadow;
   /** Optional user-tunable distortion; absent = plain circle. */
   turbulence?: OrbRingTurbulence;
+};
+
+/** A CSS-style linear gradient across the orb's box. */
+export type OrbLinearGradient = {
+  /** CSS degrees: 0 points up the orb, 90 to its right. */
+  angle: number;
+  stops: OrbGradientStop[];
+};
+
+export type OrbInnerShadow = {
+  /** Blur radius in unit space (the CSS blur over the orb's radius). */
+  blur: number;
+  color: OrbColorRef;
 };
 
 /**
@@ -661,6 +688,26 @@ function normalizeRingTurbulence(value: unknown): OrbRingTurbulence | undefined 
   return Object.keys(turbulence).length > 0 ? turbulence : undefined;
 }
 
+/** A ring's linear-gradient paint; dropped whole when it has no stops. */
+function normalizeLinearGradient(value: unknown): OrbLinearGradient | undefined {
+  const v = recordValue(value);
+  if (!v) return undefined;
+  // normalizeStops never returns empty — it falls back to white so a malformed
+  // gradient is visible. Here that would repaint the ring, so a gradient with
+  // no stops of its own is dropped instead and the flat `color` stands.
+  if (!Array.isArray(v.stops) || v.stops.length === 0) return undefined;
+  return { angle: clampedNum(v.angle, 0, -720, 720), stops: normalizeStops(v.stops) };
+}
+
+/** A ring's inset shadow; dropped when the blur is nothing. */
+function normalizeInnerShadow(value: unknown): OrbInnerShadow | undefined {
+  const v = recordValue(value);
+  if (!v) return undefined;
+  const blur = clampedNum(v.blur, 0, 0, 2);
+  if (blur <= 0) return undefined;
+  return { blur, color: normalizeOrbColorRef(v.color) };
+}
+
 /** Normalize one setting declaration; null when it has no usable id. */
 function normalizeOrbModuleSetting(value: unknown): OrbModuleSettingDecl | null {
   const v = recordValue(value);
@@ -764,6 +811,10 @@ export function normalizeOrbLayer(value: unknown): OrbLayer | null {
       width: clampedNum(v.width, 0.02, 0.001, 2),
       color: normalizeOrbColorRef(v.color),
     };
+    const gradient = normalizeLinearGradient(v.gradient);
+    if (gradient) layer.gradient = gradient;
+    const innerShadow = normalizeInnerShadow(v.innerShadow);
+    if (innerShadow) layer.innerShadow = innerShadow;
     const turbulence = normalizeRingTurbulence(v.turbulence);
     if (turbulence) layer.turbulence = turbulence;
     return layer;
@@ -1558,7 +1609,11 @@ const CROSS_MODULE: OrbModule = {
  * The shading is deliberately softer than the knob's own (Adeline,
  * 2026-09-12): every shadow here is roughly half the strength of the CSS it
  * came from, and the dome's light is broader, because at orb size the knob's
- * contrast reads as grime rather than as a gently convex surface.
+ * contrast reads as grime rather than as a gently convex surface. The **colour
+ * channel is the exception** (Adeline, later the same day): it is the lighting
+ * colour ring exactly — `.rotary-encoder-ring-shade`'s 160deg gradient and its
+ * inset shadow, at full strength, through the `gradient` and `innerShadow`
+ * fields on a ring layer.
  *
  * The `light` setting is the knob's light/dark treatment (`knobSkin`), and it
  * carries the same design decision: light mode is a soft off-white dome with
@@ -1692,48 +1747,48 @@ const TECH_MODULE: OrbModule = {
       width: 0.161,
       color: { theme: "gradientAlert" },
     },
-    // .rotary-encoder-ring-shade: the 160deg wash that makes the band read as
-    // a channel rather than a painted stripe...
+    // .rotary-encoder-ring-shade, exactly: the 160deg wash that makes the band
+    // read as a channel rather than a painted stripe, plus its inset shadow.
+    // Adeline, 2026-09-12: this band is the one place the orb does NOT soften
+    // the knob's CSS — it is to be the lighting colour ring, the same gradient
+    // and the same inner shadow, so the two read as the same part. The arcs
+    // that used to approximate the wash, and the flat rings that stood in for
+    // the inset shadow, are gone.
     {
-      id: "channel-shade",
-      type: "arc",
+      id: "channel-shade-dark",
+      type: "ring",
+      enabledWhen: { setting: "light", max: 0.5 },
       radius: 0.884,
       width: 0.161,
-      cap: "butt",
-      from: 0.45,
-      to: 0.82,
-      stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.18 } },
-        { at: 1, color: { hex: "#000000", alpha: 0 } },
-      ],
+      color: { hex: "#000000", alpha: 0 },
+      gradient: {
+        angle: 160,
+        stops: [
+          { at: 0, color: { hex: "#000000", alpha: 0.42 } },
+          { at: 0.4, color: { hex: "#000000", alpha: 0 } },
+          { at: 1, color: { hex: "#ffffff", alpha: 0.18 } },
+        ],
+      },
+      // inset 0 0 calc(var(--re-ring) * 0.5): half the band's own width, and
+      // the band is 0.161 of the orb radius.
+      innerShadow: { blur: 0.0805, color: { hex: "#000000", alpha: 0.55 } },
     },
     {
-      id: "channel-sheen",
-      type: "arc",
+      id: "channel-shade-light",
+      type: "ring",
+      enabledWhen: { setting: "light", min: 0.5 },
       radius: 0.884,
       width: 0.161,
-      cap: "butt",
-      from: 0.95,
-      to: 1.32,
-      stops: [
-        { at: 0, color: { hex: "#ffffff", alpha: 0 } },
-        { at: 1, color: { hex: "#ffffff", alpha: 0.12 } },
-      ],
-    },
-    // ...and its inset shadow, as the two walls of the well.
-    {
-      id: "channel-wall-outer",
-      type: "ring",
-      radius: 0.955,
-      width: 0.02,
-      color: { hex: "#000000", alpha: 0.24 },
-    },
-    {
-      id: "channel-wall-inner",
-      type: "ring",
-      radius: 0.814,
-      width: 0.02,
-      color: { hex: "#000000", alpha: 0.24 },
+      color: { hex: "#000000", alpha: 0 },
+      gradient: {
+        angle: 160,
+        stops: [
+          { at: 0, color: { hex: "#000000", alpha: 0.22 } },
+          { at: 0.42, color: { hex: "#000000", alpha: 0 } },
+          { at: 1, color: { hex: "#ffffff", alpha: 0.5 } },
+        ],
+      },
+      innerShadow: { blur: 0.0805, color: { hex: "#000000", alpha: 0.28 } },
     },
     // ---- Inner bevel: the lip between channel and dome, plus the dome's own
     // shadow cast down onto the channel. ----
