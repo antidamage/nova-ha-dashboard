@@ -462,3 +462,41 @@ describe("tuck-away", () => {
     expect(container.querySelector("svg.rotary-encoder-rings")).not.toBeNull();
   });
 });
+
+describe("knob skin", () => {
+  afterEach(() => {
+    delete document.documentElement.dataset.knobSkin;
+  });
+
+  function modeOf(container: HTMLElement) {
+    return (container.querySelector(".rotary-encoder") as HTMLElement).dataset.mode;
+  }
+
+  it("follows the theme's knob-skin setting with no prop passed", () => {
+    document.documentElement.dataset.knobSkin = "light";
+    const { container } = render(<Dial />);
+    expect(modeOf(container)).toBe("light");
+  });
+
+  it("tracks the setting changing under it", async () => {
+    document.documentElement.dataset.knobSkin = "light";
+    const { container } = render(<Dial />);
+    await act(async () => {
+      document.documentElement.dataset.knobSkin = "dark";
+      await Promise.resolve();
+    });
+    expect(modeOf(container)).toBe("dark");
+  });
+
+  it("lets an explicit prop pin the skin against the setting", () => {
+    document.documentElement.dataset.knobSkin = "light";
+    const { container } = render(<Dial knobSkin="dark" />);
+    expect(modeOf(container)).toBe("dark");
+  });
+
+  it("samples the surface when the setting is auto", () => {
+    document.documentElement.dataset.knobSkin = "auto";
+    const { container } = render(<Dial />);
+    expect(modeOf(container)).toBe("dark");
+  });
+});

@@ -140,7 +140,7 @@ export function ColorEncoder({
   disabled = false,
   format = "hex",
   label,
-  knobSkin = "auto",
+  knobSkin,
   name,
   rings,
   sensitivity,
