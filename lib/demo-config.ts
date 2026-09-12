@@ -1,4 +1,5 @@
 import type { DashboardConfig, SecretSetupStatus } from "./config-schema";
+import demoDevices from "../config/demo-devices.default.json";
 
 export const DEMO_CONFIG_STORAGE_KEY = "nova.dashboard.demoConfig.v2";
 export const DEMO_THEME_STORAGE_KEY = "nova.dashboard.demoTheme.v2";
@@ -15,11 +16,11 @@ export type DemoThemeLibrary = Record<string, unknown> | null;
 /** Public fixture wiring, deliberately separate from the empty install defaults. */
 export function demoDashboardConfig(config: DashboardConfig): DashboardConfig {
   const next = structuredClone(config);
-  next.dashboard.aircon.matchTokens = ["c6780cad"];
+  next.dashboard.aircon.matchTokens = demoDevices.aircon.matchTokens;
   next.dashboard.aircon.title = "Air Conditioner";
-  next.dashboard.bedroomHeater.switchEntityIds = ["switch.bedroom_heater"];
-  next.dashboard.bedroomHeater.temperatureEntityIds = ["sensor.bedroom_temperature"];
-  next.dashboard.bedroomHeater.humidityEntityIds = ["sensor.bedroom_humidity"];
+  next.dashboard.bedroomHeater.switchEntityIds = demoDevices.bedroomHeater.switchEntityIds;
+  next.dashboard.bedroomHeater.temperatureEntityIds = demoDevices.bedroomHeater.temperatureEntityIds;
+  next.dashboard.bedroomHeater.humidityEntityIds = demoDevices.bedroomHeater.humidityEntityIds;
   next.dashboard.bedroomHeater.title = "Bedroom Heater";
   return next;
 }

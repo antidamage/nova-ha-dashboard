@@ -5670,6 +5670,24 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 /* One DOM order in both orientations. Square belongs to the vertical layout. */
+@media (aspect-ratio <= 1) {
+  .dashboard-home[data-demo="true"] .top-banner {
+    margin-top: 64px;
+  }
+
+  .dashboard-home[data-demo="true"] .dashboard-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-home[data-demo="true"] .clock-time {
+    font-size: clamp(1.8rem, 9vw, 4rem);
+  }
+
+  .dashboard-home[data-demo="true"] .clock-date {
+    font-size: clamp(1.2rem, 5.5vw, 2.4rem);
+  }
+}
+
 .dashboard-overview {
   display: contents;
 }
