@@ -56,6 +56,14 @@ export type OrbFrame = {
    * The caller must also set alertActive so alertOnly layers render.
    */
   alertPulseOverride?: number;
+  /**
+   * Multiplies every alert period this frame — the module's own
+   * `alertPulsePeriod` and any `alertOnly` layer pulse — so one theme-level
+   * slider sets the alert's cadence across whichever module is on
+   * (`alertPulseScale` in avatarThemeModel.ts). Above 1 is slower, below 1
+   * faster. Absent or non-finite leaves every period as declared.
+   */
+  alertPulseScale?: number;
   /** Monotonic time in milliseconds (performance.now()). */
   nowMs: number;
   /** Seconds since the previous frame, already clamped by the caller. */
@@ -772,10 +780,17 @@ export function createOrbRenderer(module: OrbModule): OrbRenderer {
     // alertTheme color mixing and alertOnly layer pulses. A frame-supplied
     // override (the voice agent's consonant envelope) replaces the wave so
     // speech pulses reuse the exact gym-alert colour path.
+    // The theme's alert-rate slider, applied to every alert period below. A
+    // frame that does not carry one runs at the module's declared cadence.
+    const pulseScale = typeof frame.alertPulseScale === "number"
+      && Number.isFinite(frame.alertPulseScale)
+      && frame.alertPulseScale > 0
+      ? frame.alertPulseScale
+      : 1;
     const alertPulse = frame.alertPulseOverride !== undefined
       ? Math.max(0, Math.min(1, frame.alertPulseOverride))
       : frame.alertActive
-        ? (1 - Math.cos((frame.nowMs / (module.alertPulsePeriod * 1000)) * TWO_PI)) / 2
+        ? (1 - Math.cos((frame.nowMs / (module.alertPulsePeriod * pulseScale * 1000)) * TWO_PI)) / 2
         : 0;
 
     module.layers.forEach((layer: OrbLayer, index: number) => {
@@ -793,7 +808,7 @@ export function createOrbRenderer(module: OrbModule): OrbRenderer {
         // every part of the alert animation beats to the same rhythm.
         const wave = layer.pulse.alertOnly && frame.alertPulseOverride !== undefined
           ? Math.max(0, Math.min(1, frame.alertPulseOverride))
-          : (1 - Math.cos((frame.nowMs / (layer.pulse.period * 1000)) * TWO_PI)) / 2;
+          : (1 - Math.cos((frame.nowMs / (layer.pulse.period * (layer.pulse.alertOnly ? pulseScale : 1) * 1000)) * TWO_PI)) / 2;
         opacity *= layer.pulse.min + (layer.pulse.max - layer.pulse.min) * wave;
       }
       if (opacity <= 0) return;

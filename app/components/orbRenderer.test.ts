@@ -190,3 +190,29 @@ describe("avatar theme orbModule field", () => {
     expect(normalizeNovaAvatarTheme({ orbModule: 7 }).orbModule).toBe("classic");
   });
 });
+
+describe("alert pulse rate", () => {
+  const reactor = BUILTIN_ORB_MODULES.find((module) => module.id === "reactor")!;
+
+  /** Draw calls are the observable proxy for "this layer rendered at all". */
+  function strokes(nowMs: number, alertPulseScale?: number) {
+    const ctx = createStubContext();
+    createOrbRenderer(reactor).render(ctx, frameAt(nowMs, { alertActive: true, alertPulseScale }));
+    return ctx.calls.filter((call) => call === "stroke").length;
+  }
+
+  it("stretches the alert wave, so a full period is no longer a trough", () => {
+    const fullPeriod = reactor.alertPulsePeriod * 1000;
+    // Unscaled the wave has come all the way back to zero and the alert-only
+    // ring is skipped; at half speed the same moment is its peak.
+    expect(strokes(fullPeriod, 2)).toBeGreaterThan(strokes(fullPeriod));
+  });
+
+  it("leaves the module's own cadence alone at scale 1, and for a missing or bad scale", () => {
+    const quarter = reactor.alertPulsePeriod * 250;
+    const base = strokes(quarter);
+    expect(strokes(quarter, 1)).toBe(base);
+    expect(strokes(quarter, 0)).toBe(base);
+    expect(strokes(quarter, Number.NaN)).toBe(base);
+  });
+});

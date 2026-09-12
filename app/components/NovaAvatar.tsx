@@ -3,7 +3,7 @@
 import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { appliedThemeRgb, useDeviceTheme, type SunThemeStatus, type ThemeStorageValue } from "./accentColor";
-import type { NovaAvatarTheme } from "./avatarThemeModel";
+import { alertPulseScale, type NovaAvatarTheme } from "./avatarThemeModel";
 import { resolveOrbModuleSettings } from "../../lib/orb-modules";
 import { readExperienceFeatures, useExperienceFeature, useLiteMode } from "./dashboard/experienceModeSetting";
 import {
@@ -347,8 +347,11 @@ function NovaAvatarVisual({
         // otherwise, restoring normal gym-alert behaviour).
         let alertActive = gymAlertActiveRef.current;
         let alertPulseOverride: number | undefined;
+        // The theme's alert-rate slider stretches the module's period, and
+        // speech beats to the same stretched cadence.
+        const pulseScale = alertPulseScale(themeRef.current.alertPulseRate);
         if (speechEnabledRef.current) {
-          const envelope = sampleVoiceSpeechEnvelope(now, renderer.module.alertPulsePeriod);
+          const envelope = sampleVoiceSpeechEnvelope(now, renderer.module.alertPulsePeriod * pulseScale);
           if (envelope !== null) {
             alertActive = true;
             alertPulseOverride = envelope;
@@ -362,6 +365,7 @@ function NovaAvatarVisual({
           load: currentLoadRef.current,
           alertActive,
           alertPulseOverride,
+          alertPulseScale: pulseScale,
           nowMs: now,
           dtSec: dt,
           settings: resolveOrbModuleSettings(

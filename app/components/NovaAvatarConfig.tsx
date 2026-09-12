@@ -14,6 +14,7 @@ import {
 } from "./ConfigControls";
 import {
   DEFAULT_NOVA_AVATAR_THEME,
+  alertPulseScale,
   normalizeNovaAvatarTheme,
   type NovaAvatarTheme,
 } from "./avatarThemeModel";
@@ -178,6 +179,17 @@ function OrbModuleSelect({
       ) : null}
     </div>
   );
+}
+
+/**
+ * The alert-rate reading. The period itself is the module's, and modules differ
+ * (1.0s to 1.6s), so the useful number is what the slider does to it — and the
+ * word says which way, because a multiplier alone does not read as a speed.
+ */
+function alertPulseRateText(rate: number) {
+  const scale = alertPulseScale(rate);
+  const word = scale < 0.85 ? "fast" : scale > 1.18 ? "sedate" : "as set";
+  return `${scale.toFixed(2)}x ${word}`;
 }
 
 // The numeric "Liquid glass" sliders, in display order. `enabled` is handled
@@ -553,6 +565,26 @@ function NovaAvatarConfigView({
           </div>
         </div>
       ) : null}
+
+      <div className="nova-avatar-cfg-group">
+        <h3 className="nova-avatar-cfg-group-title">Alert pulse</h3>
+        <div className="grid gap-3">
+          <SliderControlPanel
+            ariaLabel="Alert pulse rate — how fast the orb beats while an alert is up"
+            ariaValueText={alertPulseRateText(theme.alertPulseRate)}
+            color={appliedThemeRgb(theme.gradientAlert)}
+            intensity={100}
+            label="Rate"
+            max={100}
+            min={0}
+            step={1}
+            value={theme.alertPulseRate}
+            valueText={alertPulseRateText(theme.alertPulseRate)}
+            onPreview={(next) => previewTheme({ ...theme, alertPulseRate: next })}
+            onCommit={(next) => setTheme({ ...theme, alertPulseRate: next })}
+          />
+        </div>
+      </div>
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Liquid glass</h3>

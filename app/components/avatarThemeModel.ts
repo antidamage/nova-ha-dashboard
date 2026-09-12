@@ -116,7 +116,28 @@ export type NovaAvatarTheme = {
   // orb module, so it lives on the theme rather than in a module's per-module
   // settings. DOM/SVG-only; no tvOS counterpart.
   glass: NovaGlassSettings;
+  // How fast the alert pulses, over every orb module: 0-100, where 50 leaves a
+  // module's declared `alertPulsePeriod` exactly as it is, lower is faster and
+  // higher is slower and more sedate. Stored as a magnitude rather than as a
+  // period so it stays meaningful across modules whose base periods differ
+  // (1.0s to 1.6s); `alertPulseScale` turns it into the multiplier. Applies
+  // over any module, so it sits on the theme beside `glass`.
+  alertPulseRate: number;
 };
+
+/** Neither fast nor slow: the module's own period, untouched. */
+export const ALERT_PULSE_RATE_DEFAULT = 50;
+
+/**
+ * The alert period multiplier for a 0-100 rate. A halving every 25 points, so
+ * the ends are a quarter and four times the module's own period and the
+ * midpoint is exactly 1 — every module keeps its declared cadence until the
+ * slider is moved.
+ */
+export function alertPulseScale(rate: number): number {
+  if (!Number.isFinite(rate)) return 1;
+  return 2 ** ((clamp(rate, 0, 100) - ALERT_PULSE_RATE_DEFAULT) / 25);
+}
 
 // Cursor positions chosen so the spectrum's HSL math yields roughly the
 // previous default rgbs (deep purple, blacks, blue/purple/cyan lines).
@@ -159,6 +180,7 @@ export const DEFAULT_NOVA_AVATAR_THEME: NovaAvatarTheme = {
   orbModule: "classic",
   orbModuleSettings: {},
   glass: DEFAULT_NOVA_GLASS_SETTINGS,
+  alertPulseRate: ALERT_PULSE_RATE_DEFAULT,
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -296,5 +318,6 @@ export function normalizeNovaAvatarTheme(value: unknown): NovaAvatarTheme {
     orbModule: normalizeOrbModuleId(v.orbModule),
     orbModuleSettings: normalizeOrbModuleSettings(v.orbModuleSettings),
     glass: normalizeNovaGlassSettings(v.glass),
+    alertPulseRate: normalizeOpacity(v.alertPulseRate, DEFAULT_NOVA_AVATAR_THEME.alertPulseRate),
   };
 }
