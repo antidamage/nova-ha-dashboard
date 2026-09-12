@@ -1917,8 +1917,8 @@ export function AccentConfig({
               />
               <div className="theme-widget-flow">
                 {TITLE_THEME_SLOTS.map(renderWidget)}
+                {renderWidget(CLOCK_THEME_SLOT)}
               </div>
-              {renderWidget(CLOCK_THEME_SLOT)}
               <CheckboxRow
                 checked={theme.lightingTint}
                 label="Tint dashboard to match lighting"
