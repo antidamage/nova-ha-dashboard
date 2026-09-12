@@ -79,6 +79,19 @@ describe("the lights", () => {
     expect(dial.getAttribute("data-led")).toBe("two");
   });
 
+  it("names every light when asked, and stays unnamed when not", () => {
+    const leds = [{ id: "auto", label: "Auto" }, { id: "manual", label: "Manual" }, { id: "off", label: "Off" }];
+    const { container, rerender } = render(<Dial leds={leds} />);
+    // The colour knob's lights carry no names — its caption names the lit one.
+    expect(container.querySelectorAll(".rotary-encoder-led-name")).toHaveLength(0);
+
+    rerender(<Dial leds={leds} ledLabels />);
+    const names = [...container.querySelectorAll(".rotary-encoder-led-name")].map((node) => node.textContent);
+    expect(names).toEqual(["Auto", "Manual", "Off"]);
+    // Every light keeps its own name beside it, not just the lit one.
+    expect(container.querySelectorAll(".rotary-encoder-led-slot")).toHaveLength(3);
+  });
+
   it("draws five as readily as three", () => {
     const leds = Array.from({ length: 5 }, (_, index) => ({ id: `l${index}`, label: `L${index}` }));
     const { container } = render(<Dial leds={leds} />);

@@ -104,6 +104,7 @@ export function TemperatureEncoder({
       faceBottomClassName="temperature-encoder-room"
       glow={glow}
       knobSkin={knobSkin}
+      ledLabels
       leds={modes}
       activeLed={mode}
       onActiveLedChange={onModeChange}
