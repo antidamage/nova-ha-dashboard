@@ -210,6 +210,35 @@ describe("ring kinds", () => {
     expect(onCommit).toHaveBeenCalledWith(0);
   });
 
+  it("moves a function reading with the drag but still only commits on release", () => {
+    const onCommit = vi.fn();
+    const rings: RotaryEncoderRing[] = [{
+      id: "timer",
+      label: "Timer",
+      value: 0,
+      min: 0,
+      max: 100,
+      valueText: (value) => `${Math.round(value)} MIN`,
+      valueTextWidest: "100 MIN",
+      // The caller ignores the preview, as the climate rings do — the reading
+      // must still keep up, because the dial owns the live value.
+      onChange: () => undefined,
+      onCommit,
+    }];
+    const { container } = render(<Dial rings={rings} />);
+    const svg = svgOf(container);
+    const reading = () => svg.querySelector(".rotary-encoder-ring-value")?.textContent;
+
+    expect(reading()).toBe("0 MIN");
+    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 0) });
+    fireEvent.pointerMove(svg, { buttons: 1, pointerId: 1, ...at(radius, 120) });
+    expect(reading()).not.toBe("0 MIN");
+    expect(onCommit).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(svg, { pointerId: 1, ...at(radius, 120) });
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
   it("a slider still fills up to its thumb", () => {
     const rings: RotaryEncoderRing[] = [{ id: "timer", label: "Timer", value: 50, onChange: vi.fn() }];
     const { container } = render(<Dial rings={rings} />);
