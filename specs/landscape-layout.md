@@ -66,7 +66,20 @@ and **Systems** (climate, outside, world, network, power, tasks).
   (`nova.dashboard.groupZones.v1`).
 - A group with no choice yet shows its list alone.
 - When a group's selection changes while its entry is closed, the entry opens.
-  First load restores saved open/closed state and does not force it open.
+- **Both entries are open on load, with Home showing the home zone and Systems
+  showing Climate** (Adeline, 2026-09-12) — the two reached for most, which
+  otherwise took two taps each to get to.
+- **A default only applies when nothing is remembered.** A deliberate collapse,
+  or a different zone, still wins. The two layers remember for different
+  lengths of time, which is worth knowing when a default seems not to apply:
+  open/closed is `sessionStorage` under `nova-config-ui` with a five-minute
+  TTL, and the per-group zone is `localStorage` under
+  `nova.dashboard.groupZones.v1`, kept indefinitely. Clear both when testing
+  the defaults.
+- Systems being open by default means **the Tasks stage is visible by
+  default**, through the existing
+  `.zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage`
+  rule. That is a consequence of the default, not a bug.
 - After selection the page scrolls that group's controls into view (instant,
   nearest).
 - Tasks: `TasksPanel` must stay mounted at all times (it runs reminders while
@@ -75,10 +88,28 @@ and **Systems** (climate, outside, world, network, power, tasks).
   selection and hidden otherwise or when Systems is closed.
 - The list and the controls each scroll vertically on their own; the
   drag-scroll rule above applies to both.
-- Controls width: same as the old control stage, `min(760px, 100vw - 80px)`,
-  minimum 520px.
+- **Controls are as wide as their content needs** (Adeline, 2026-09-12),
+  replacing the old `min(760px, 100vw - 80px)` cap and its 520px minimum. The
+  cap forced a wide card — Outside, with its light, weather and camera in a row
+  — to wrap and scroll vertically instead. Landscape already scrolls sideways
+  between columns, so width costs nothing; **vertical scrolling inside a column
+  is the thing to avoid**, since a column is exactly
+  `--dashboard-column-height` tall.
 - Portrait keeps the old layout and single global selection: list in the
   zones panel, controls in the control stage below.
+
+## The voice transcript
+
+- **Collapsed on load** (Adeline, 2026-09-12), and in landscape it **opens
+  sideways like the zone accordions**, not downward. It is a
+  `HorizontalAccordion` in the same style, so the three read as one family.
+- Portrait keeps it as an ordinary panel that opens downward.
+- `HorizontalAccordion` named every trigger `"<title> zones"`, which is wrong
+  for a transcript; the label is the caller's to give now, and Home and Systems
+  still read as before.
+- Its landscape CSS used to select `> div:nth-child(2)`, so it broke as soon as
+  the panel gained an accordion around it. The overrides key off the
+  accordion's `data-group` instead.
 
 ## Zone control panel: House Party
 
@@ -96,6 +127,11 @@ and **Systems** (climate, outside, world, network, power, tasks).
   Scrolling back restores the rest state.
 - Home open with Bedroom selected and Systems open with Climate selected show
   both units at once; selecting Outside leaves Bedroom's controls in place.
+- On a load with nothing remembered, Home and Systems are both open, showing
+  the home zone and Climate.
+- The voice transcript is collapsed, and opens sideways.
+- Outside fits its column with no vertical scrollbar: light, weather, camera
+  across (`specs/outside-card.md`).
 - House Party is full width at the bottom of every lighting zone panel.
 - Portrait layout unchanged.
 - Unit tests pass; deployed and checked live.
