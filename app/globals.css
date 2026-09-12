@@ -492,16 +492,11 @@ html[data-nova-lite] .nova-orb-refract-copy {
   z-index: 5;
 }
 
-/* Tech skin: the readout is pressed into the plastic dome, so the emboss is on
-   the surface AROUND it, never inside the letterforms (Adeline, 2026-09-12).
-   Every shadow here is drawn behind the text: each one is a hard edge where it
-   meets a glyph and slopes smoothly outwards from there — dark above, light
-   below, then the readout's own colour as the glow. */
+/* Tech skin: flat text (Adeline, 2026-09-12). Both the emboss this rule used to
+   carry and the base readout's glow and drop shadow are off — the dome behind it
+   is soft enough to read against unaided. */
 [data-nova-orb-module="tech"] .nova-avatar-gym-counter {
-  text-shadow:
-    0 -0.018em 0.05em rgba(0, 0, 0, 0.8),
-    0 0.018em 0.05em rgba(255, 255, 255, 0.3),
-    0 0 0.3em currentColor;
+  text-shadow: none;
 }
 
 html[data-nova-hide-orb-info]
@@ -5887,7 +5882,12 @@ button.config-breadcrumb-crumb:focus-visible {
   }
 
   .dashboard-home .zones-panel {
-    width: auto;
+    /* max-content, not auto. A block box in a flex row shrink-to-fits against
+       the space available, which here is the viewport — so the panel capped at
+       ~1850px and every joined control panel inside it was squeezed down onto
+       its 520px floor however wide its card actually was. The page scrolls
+       sideways; the panel is allowed to be wider than the screen. */
+    width: max-content;
     padding: 0 !important;
     border: 0;
     background: transparent !important;
@@ -6011,6 +6011,7 @@ button.config-breadcrumb-crumb:focus-visible {
      shared border, no gap, one bordered unit. */
   .dashboard-home .horizontal-accordion-attached {
     flex: none;
+    width: max-content;
     height: 100%;
     border: 1px solid var(--cyber-border-dim);
     border-left: 0;
@@ -6035,17 +6036,89 @@ button.config-breadcrumb-crumb:focus-visible {
     scroll-margin-inline-end: 40px;
   }
 
+  /* The control stage is `width: max-content`, so every wrapper between it and
+     a card has to pass both the height DOWN and the intrinsic width UP.
+     Without this the chain's heights are indefinite, which is what broke the
+     camera (below) and collapsed the stage onto its 520px floor. */
+  .dashboard-home .control-stage > .zone-panel {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* The zone panel is a flex column with a header above its controls, so the
+     controls take what the header leaves — `height: 100%` here would be the
+     panel's full height and push the card's foot out the bottom. */
+  .dashboard-home .control-stage > .zone-panel > .mt-8 {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+
+  /* Both wrappers are grids, so the height is passed on as a row that fills
+     rather than one sized to its content. minmax(0, 1fr), not 1fr: a bare 1fr
+     has an auto minimum and would still be pushed out by tall content. */
+  .dashboard-home .control-stage > .zone-panel > .mt-8,
+  .dashboard-home .control-stage .lighting-column {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .dashboard-home .control-stage .lighting-column {
+    min-height: 0;
+    height: 100%;
+  }
+
   /* Outside flows across: light, weather, camera, in that order, each column
      as wide as it needs (specs/outside-card.md). The camera no longer spans a
-     row underneath, which is what made the card taller than its column. */
+     row underneath, which is what made the card taller than its column.
+
+     The tracks are minmax(floor, max-content), not bare `auto`. An `auto`
+     track only gets the width its content asks for, and none of these three
+     ask for much: the light and weather cards are built from full-width rows,
+     and the camera's width comes from its aspect-ratio off a height, which
+     contributes nothing at all during intrinsic sizing. All three collapsed,
+     the stage fell back to its 520px minimum, and the card came out as the
+     narrow crushed panel. The floors are what stop that; max-content still
+     lets a column grow past its floor when its content is wider. */
   .dashboard-home .outside-control-grid {
-    grid-template-columns: auto auto auto;
+    grid-template-columns:
+      minmax(280px, max-content)
+      minmax(420px, max-content)
+      minmax(420px, max-content);
+    grid-template-rows: minmax(0, 1fr);
     align-items: stretch;
     height: 100%;
   }
 
+  /* The floors above are per-card, not one number: the light needs its 200px
+     knob plus padding, and the weather card needs its three metric tiles side
+     by side. At 280px those tiles were ~85px each and every reading wrapped
+     onto three lines, which is what made the card outgrow the column. */
+  .dashboard-home .outside-control-grid > * {
+    min-height: 0;
+  }
+
+  /* Climate: one card per column, side by side, each wide enough for a 200px
+     knob and the card's own padding. `repeat(2, minmax(0, 1fr))` let both
+     tracks shrink to nothing against a stage sitting on its 520px floor, which
+     is what pushed the two knobs over each other. `auto-flow: column` also
+     means a home with only one climate device gets one column, not a half-
+     empty pair. */
+  .dashboard-home .climate-control-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(320px, max-content);
+    align-items: stretch;
+    height: 100%;
+  }
+
+  .dashboard-home .climate-control-grid .climate-card {
+    min-width: 0;
+  }
+
   /* The feed takes its size from the column's height. It is 16:9 off a full
-     width otherwise, which is exactly what forced the vertical scroll. */
+     width otherwise, which is exactly what forced the vertical scroll. The
+     420px floor above is what the track is worth before the aspect-ratio can
+     speak, since a height-driven ratio contributes no intrinsic width. */
   .dashboard-home .outside-camera-panel {
     grid-column: auto;
     width: auto;

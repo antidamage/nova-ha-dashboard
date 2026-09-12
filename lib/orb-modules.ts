@@ -1555,6 +1555,11 @@ const CROSS_MODULE: OrbModule = {
  *   colour channel 0.804 .. 0.965      (--re-ring, the sunken band)
  *   outer lip      0.965 .. 1          (--re-bevel)
  *
+ * The shading is deliberately softer than the knob's own (Adeline,
+ * 2026-09-12): every shadow here is roughly half the strength of the CSS it
+ * came from, and the dome's light is broader, because at orb size the knob's
+ * contrast reads as grime rather than as a gently convex surface.
+ *
  * The `light` setting is the knob's light/dark treatment (`knobSkin`), and it
  * carries the same design decision: light mode is a soft off-white dome with
  * its shading pulled back, not an inversion of the dark one. Paired layers are
@@ -1598,8 +1603,8 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
       stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.2 } },
-        { at: 1, color: { hex: "#000000", alpha: 0.5 } },
+        { at: 0, color: { hex: "#000000", alpha: 0.06 } },
+        { at: 1, color: { hex: "#000000", alpha: 0.22 } },
       ],
     },
     {
@@ -1607,8 +1612,8 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
       stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.04 } },
-        { at: 1, color: { hex: "#000000", alpha: 0.18 } },
+        { at: 0, color: { hex: "#000000", alpha: 0.02 } },
+        { at: 1, color: { hex: "#000000", alpha: 0.07 } },
       ],
     },
     {
@@ -1620,7 +1625,7 @@ const TECH_MODULE: OrbModule = {
       to: 0.95,
       stops: [
         { at: 0, color: { hex: "#ffffff", alpha: 0.04 } },
-        { at: 0.5, color: { hex: "#ffffff", alpha: 0.3 } },
+        { at: 0.5, color: { hex: "#ffffff", alpha: 0.2 } },
         { at: 1, color: { hex: "#ffffff", alpha: 0.04 } },
       ],
     },
@@ -1633,7 +1638,7 @@ const TECH_MODULE: OrbModule = {
       to: 0.46,
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0 } },
-        { at: 0.5, color: { hex: "#000000", alpha: 0.34 } },
+        { at: 0.5, color: { hex: "#000000", alpha: 0.14 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
       ],
     },
@@ -1644,7 +1649,7 @@ const TECH_MODULE: OrbModule = {
       type: "ring",
       radius: 0.884,
       width: 0.161,
-      color: { hex: "#000000", alpha: 0.8 },
+      color: { hex: "#000000", alpha: 0.5 },
     },
     {
       id: "status-paint",
@@ -1698,7 +1703,7 @@ const TECH_MODULE: OrbModule = {
       from: 0.45,
       to: 0.82,
       stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.42 } },
+        { at: 0, color: { hex: "#000000", alpha: 0.18 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
       ],
     },
@@ -1712,7 +1717,7 @@ const TECH_MODULE: OrbModule = {
       to: 1.32,
       stops: [
         { at: 0, color: { hex: "#ffffff", alpha: 0 } },
-        { at: 1, color: { hex: "#ffffff", alpha: 0.18 } },
+        { at: 1, color: { hex: "#ffffff", alpha: 0.12 } },
       ],
     },
     // ...and its inset shadow, as the two walls of the well.
@@ -1721,14 +1726,14 @@ const TECH_MODULE: OrbModule = {
       type: "ring",
       radius: 0.955,
       width: 0.02,
-      color: { hex: "#000000", alpha: 0.5 },
+      color: { hex: "#000000", alpha: 0.24 },
     },
     {
       id: "channel-wall-inner",
       type: "ring",
       radius: 0.814,
       width: 0.02,
-      color: { hex: "#000000", alpha: 0.5 },
+      color: { hex: "#000000", alpha: 0.24 },
     },
     // ---- Inner bevel: the lip between channel and dome, plus the dome's own
     // shadow cast down onto the channel. ----
@@ -1741,7 +1746,7 @@ const TECH_MODULE: OrbModule = {
       to: 0.47,
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0 } },
-        { at: 0.5, color: { hex: "#000000", alpha: 0.35 } },
+        { at: 0.5, color: { hex: "#000000", alpha: 0.14 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
       ],
     },
@@ -1750,7 +1755,7 @@ const TECH_MODULE: OrbModule = {
       type: "ring",
       radius: 0.81,
       width: 0.012,
-      color: { hex: "#000000", alpha: 0.5 },
+      color: { hex: "#000000", alpha: 0.22 },
     },
     // ---- Knob face (.rotary-encoder-knob): one fixed light from above-left.
     // Base dome, then the highlight and the bounce, then the edge darkening.
@@ -1785,9 +1790,9 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
       center: { x: -0.257, y: -0.386 },
-      radius: 0.55,
+      radius: 0.7,
       stops: [
-        { at: 0, color: { hex: "#ffffff", alpha: 0.2 } },
+        { at: 0, color: { hex: "#ffffff", alpha: 0.16 } },
         { at: 1, color: { hex: "#ffffff", alpha: 0 } },
       ],
     },
@@ -1796,9 +1801,9 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
       center: { x: -0.257, y: -0.386 },
-      radius: 0.55,
+      radius: 0.7,
       stops: [
-        { at: 0, color: { hex: "#ffffff", alpha: 0.75 } },
+        { at: 0, color: { hex: "#ffffff", alpha: 0.6 } },
         { at: 1, color: { hex: "#ffffff", alpha: 0 } },
       ],
     },
@@ -1807,9 +1812,9 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
       center: { x: 0.193, y: 0.611 },
-      radius: 0.55,
+      radius: 0.7,
       stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.3 } },
+        { at: 0, color: { hex: "#000000", alpha: 0.1 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
       ],
     },
@@ -1818,9 +1823,9 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
       center: { x: 0.193, y: 0.611 },
-      radius: 0.55,
+      radius: 0.7,
       stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.1 } },
+        { at: 0, color: { hex: "#000000", alpha: 0.05 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
       ],
     },
@@ -1831,11 +1836,11 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
       radius: 0.804,
-      gradientFrom: { x: 0, y: 0, radius: 0.6 },
+      gradientFrom: { x: 0, y: 0, radius: 0.45 },
       gradientTo: { x: 0, y: 0, radius: 0.804 },
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0 } },
-        { at: 1, color: { hex: "#000000", alpha: 0.35 } },
+        { at: 1, color: { hex: "#000000", alpha: 0.13 } },
       ],
     },
     {
@@ -1843,11 +1848,11 @@ const TECH_MODULE: OrbModule = {
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
       radius: 0.804,
-      gradientFrom: { x: 0, y: 0, radius: 0.6 },
+      gradientFrom: { x: 0, y: 0, radius: 0.45 },
       gradientTo: { x: 0, y: 0, radius: 0.804 },
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0 } },
-        { at: 1, color: { hex: "#000000", alpha: 0.12 } },
+        { at: 1, color: { hex: "#000000", alpha: 0.05 } },
       ],
     },
     // The dome's top lip catches the light, the way the inner bevel's inset
@@ -1861,7 +1866,7 @@ const TECH_MODULE: OrbModule = {
       to: 0.95,
       stops: [
         { at: 0, color: { hex: "#ffffff", alpha: 0 } },
-        { at: 0.5, color: { hex: "#ffffff", alpha: 0.18 } },
+        { at: 0.5, color: { hex: "#ffffff", alpha: 0.12 } },
         { at: 1, color: { hex: "#ffffff", alpha: 0 } },
       ],
     },
