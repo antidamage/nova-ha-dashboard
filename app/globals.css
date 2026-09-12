@@ -6692,6 +6692,11 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   --re-outer: calc(var(--re-size) + 2 * var(--re-ring) + 2 * var(--re-bevel));
   --re-ring-outer: calc(var(--re-size) + 2 * var(--re-ring));
   --re-led-w: max(3px, calc(var(--re-size) * 0.048));
+  /* Silkscreen under each light. Smaller than the caption — three of them have
+     to sit side by side across the face — with a floor so a 100px knob still
+     renders them. */
+  --re-led-name-size: clamp(5px, calc(var(--re-size) * 0.05), 9px);
+  --re-led-name-gap: calc(var(--re-size) * 0.03);
   --re-tint: var(--background, #050608);
   --re-led-on: #ffffff;
   --re-checker-a: #c4c5c9;
@@ -6971,6 +6976,50 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   align-items: center;
   gap: calc(var(--re-led-w) * 3);
   border-radius: 0;
+}
+
+.rotary-encoder-led-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--re-led-name-gap);
+}
+
+/* Named lights (`ledLabels`). Each name sits under its own light, so a slot is
+   as wide as its name and the lights spread to suit — the gap comes down to
+   compensate, because the names already separate them. The lights must not
+   move: the block is centred on its whole height, so it is pushed back down by
+   half of what the names added, leaving the lights exactly where they were on
+   an unnamed dial (Adeline, 2026-09-12). */
+.rotary-encoder-dial > .rotary-encoder-leds[data-labelled="true"] {
+  gap: calc(var(--re-led-w) * 1.2);
+  transform: translate(-50%, calc(-50% + (var(--re-led-name-gap) + var(--re-led-name-size)) / 2));
+}
+
+/* Etched like the caption, and for the same reason: no theme colour touches
+   the knob face, so this is black and white over whatever tint it has. */
+.rotary-encoder-led-name {
+  color: rgba(255, 255, 255, 0.46);
+  font-family: inherit;
+  font-size: var(--re-led-name-size);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0.1em;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.5);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-led-name {
+  color: rgba(0, 0, 0, 0.46);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95), 0 -1px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* The caption drops below the names rather than through them. */
+.rotary-encoder[data-led-labels="true"] .rotary-encoder-dial > .rotary-encoder-channel {
+  top: calc(50% + var(--re-led-w) + var(--re-led-name-gap) + var(--re-led-name-size) + calc(var(--re-size) * 0.03));
 }
 
 /* Names the channel the lights are showing. A channel name, not a value — the

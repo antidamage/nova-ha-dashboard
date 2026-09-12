@@ -161,6 +161,13 @@ export type RotaryEncoderProps = {
   /** The ring's glow, as a box-shadow. */
   glow?: string;
   knobSkin?: "auto" | "dark" | "light";
+  /**
+   * Names every light underneath it, silkscreen fashion, etched like the
+   * caption. For a dial whose lights are a set of modes you pick between, where
+   * the colour knob's single caption — which only ever names the lit one — is
+   * not enough (Adeline, 2026-09-12).
+   */
+  ledLabels?: boolean;
   /** Up to five slider rings, innermost first. */
   rings?: RotaryEncoderRing[];
   /** Units of value per degree turned. Defaults to the range over its sweep. */
@@ -244,6 +251,7 @@ export function RotaryEncoder({
   checker = false,
   glow,
   knobSkin = "auto",
+  ledLabels = false,
   rings = [],
   sensitivity,
   size = ENCODER_MAX_SIZE,
@@ -1071,6 +1079,7 @@ export function RotaryEncoder({
     <div
       ref={rootRef}
       data-mode={mode}
+      data-led-labels={ledLabels ? "true" : undefined}
       data-locked={tuckable ? (locked ? "true" : "false") : undefined}
       className={["rotary-encoder", variantClassName, disabled ? "rotary-encoder-disabled" : "", floating ? "rotary-encoder-floating" : "", className].filter(Boolean).join(" ")}
       style={{
@@ -1125,14 +1134,16 @@ export function RotaryEncoder({
             {faceTopFitted}
           </span>
         ) : null}
-        <span className="rotary-encoder-leds" aria-hidden>
+        <span className="rotary-encoder-leds" data-labelled={ledLabels ? "true" : undefined} aria-hidden>
           {leds.map((item) => (
-            <span
-              key={item.id}
-              className="rotary-encoder-led"
-              data-lit={item.id === led ? "true" : "false"}
-              data-channel={item.id}
-            />
+            <span key={item.id} className="rotary-encoder-led-slot">
+              <span
+                className="rotary-encoder-led"
+                data-lit={item.id === led ? "true" : "false"}
+                data-channel={item.id}
+              />
+              {ledLabels ? <span className="rotary-encoder-led-name">{item.label}</span> : null}
+            </span>
           ))}
         </span>
         {faceBottom ? (

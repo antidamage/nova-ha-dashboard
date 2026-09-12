@@ -63,17 +63,33 @@ longer change what the knob does.
   Access knob on screen together show the same LED.
 - If the aircon does not support Auto, the Auto LED is skipped in the cycle
   *(decided)*.
+- **Every LED is named underneath it** (Adeline, 2026-09-12), silkscreen
+  fashion — AUTO / MANUAL / OFF — so the modes can be read without cycling
+  through them. The colour knob's single caption, which only ever names the
+  lit channel, is not enough for a knob whose lights are a set you pick
+  between. The base does this only when asked (`ledLabels`), so the colour
+  knob keeps its caption.
+- The names are etched exactly like the caption — black and white over the
+  knob's own tint, no theme colour — and sized
+  `clamp(5px, 5% of size, 9px)`, smaller than the caption because three of
+  them sit side by side across the face.
+- A named light's slot is as wide as its name, so the lights spread to suit;
+  the gap between them drops to `1.2 × LED width` to compensate. **The lights
+  do not move**: the block is pushed back down by half of what the names added,
+  leaving them where they sit on an unnamed dial.
 
 ## Face
 
 - **Target above the LEDs**, large: `clamp(14px, 11% of size, 24px)`
   *(decided)*.
 - **Room temperature below the LEDs**, smaller: the caption rule,
-  `clamp(10px, 7.5% of size, 14px)`.
+  `clamp(10px, 7.5% of size, 14px)`. It drops below the LED names rather than
+  running through them (Adeline, 2026-09-12).
 - Both etched like the dial's caption (black and white overlays, no theme
   colour), formatted by `formatTemperature` with a `°`. The room temperature
   reads `--` when there is no reading.
-- There is no other label on the knob; the card title names it.
+- Beyond the LED names above, there is no other label on the knob; the card
+  title names it.
 
 ## Colour ring
 
