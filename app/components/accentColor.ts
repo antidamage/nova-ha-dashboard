@@ -174,6 +174,9 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   /** ColorEncoder's bevel/LED skin for this theme variant. "auto" keeps the
    *  knob's own luminance detection; see specs/color-encoder.md, "Light and dark". */
   knobSkin: KnobSkinMode;
+  /** The lit lights on every RotaryEncoder-derived knob, and their glow.
+   *  White by default; see specs/color-encoder.md, "The LED colour". */
+  ledColor: ThemeColorValue;
   /** Blend the room's light colour over the page. See specs/lighting-tint.md. */
   lightingTint: boolean;
   lightingTintStrength: number;
@@ -467,6 +470,11 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     },
   },
   knobSkin: "auto",
+  ledColor: {
+    cursor: { x: 0, y: 1 },
+    intensity: 100,
+    rgb: [255, 255, 255],
+  },
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
@@ -667,6 +675,11 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     },
   },
   knobSkin: "auto",
+  ledColor: {
+    cursor: { x: 0, y: 1 },
+    intensity: 100,
+    rgb: [255, 255, 255],
+  },
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
@@ -981,6 +994,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
       radarHigh: normalizeColor(mapValue?.radarHigh, DEFAULT_THEME.map.radarHigh),
     },
     knobSkin: normalizeKnobSkin(value?.knobSkin),
+    ledColor: normalizeColor(value?.ledColor, DEFAULT_THEME.ledColor),
     mapBuildingOpacity: normalizeMapBuildingOpacity(value?.mapBuildingOpacity),
     mapLabelSize: normalizeMapLabelSize(value?.mapLabelSize),
     mapSatellite: value?.mapSatellite !== false,
@@ -1329,6 +1343,19 @@ function applyCssTaskGlowIntensity(value: number) {
 // Last-resort overdue colour: amber, matching the shipped gradientAlert hue.
 const DEFAULT_ALERT_RGB: [number, number, number] = [250, 168, 15];
 
+/**
+ * The lit LED colour every RotaryEncoder-derived knob reads, published both as
+ * a ready-made rgb() and as raw channels, because the glow shadows need an
+ * alpha of their own (specs/color-encoder.md, "The LED colour").
+ */
+function applyCssLedColor(value: ThemeColorValue) {
+  const rgb = appliedThemeRgb(normalizeColor(value, DEFAULT_THEME.ledColor));
+  const channels = `${rgb[0]} ${rgb[1]} ${rgb[2]}`;
+  const root = document.documentElement;
+  root.style.setProperty("--nova-led-rgb", channels);
+  root.style.setProperty("--nova-led-color", `rgb(${channels})`);
+}
+
 function applyCssAlertColor(value: ThemeColorValue) {
   const applied = appliedThemeRgb(value);
   const hue = normalizeColor(value, DEFAULT_THEME.accent).rgb;
@@ -1373,6 +1400,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssRadarOpacity(normalized.radarOpacity);
   applyCssTaskGlowIntensity(normalized.taskGlowIntensity);
   applyCssAlertColor(normalized.avatar.gradientAlert);
+  applyCssLedColor(normalized.ledColor);
   setActiveControlSound(normalized.controlSound);
   applyThemeFontVars("display", normalized.font);
   applyThemeFontVars("clock", normalized.clockFont);

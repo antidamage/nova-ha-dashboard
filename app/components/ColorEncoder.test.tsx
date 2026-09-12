@@ -301,6 +301,26 @@ describe("ColorEncoder", () => {
     expect(css).not.toContain('.rotary-encoder[data-mode="light"] .rotary-encoder-led {');
   });
 
+  it("paints the lit light and its glow from the theme's LED colour", () => {
+    // The themed colour has to sit ABOVE the raster PNG in the background
+    // stack: the PNG is only there to stop Brave's auto-dark rewriting the
+    // layers over it (2026-09-12). jsdom loads no CSS, so this guards the
+    // stylesheet itself.
+    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    expect(css).toContain("--re-led-on: var(--nova-led-color, #ffffff);");
+    expect(css).toContain("--re-led-on-rgb: var(--nova-led-rgb, 255 255 255);");
+
+    // Anchored on the rule's own comment: three selectors end in the same tail.
+    const lit = css.slice(css.indexOf("/* The lit light takes its colour"));
+    const rule = lit.slice(0, lit.indexOf("}"));
+    expect(rule).toContain("background-color: var(--re-led-on, #ffffff);");
+    // Themed gradient first (topmost), PNG underneath as the auto-dark guard.
+    expect(rule.indexOf("linear-gradient(180deg, var(--re-led-on")).toBeLessThan(rule.indexOf("data:image/png"));
+    // Both glows follow the colour, and keep their px floors.
+    expect(rule).toContain("max(4px, calc(var(--re-led-w) * 1.3)) max(1px, calc(var(--re-led-w) * 0.35)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.9)");
+    expect(rule).toContain("max(9px, calc(var(--re-led-w) * 3)) max(2px, calc(var(--re-led-w) * 0.9)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.45)");
+  });
+
   it("ignores an incoming value while the drag is still in the hand", () => {
     // A zone reporting a waypoint of a fade must not yank a turn in progress.
     const onChange = vi.fn();
