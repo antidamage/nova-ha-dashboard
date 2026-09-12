@@ -1645,6 +1645,70 @@ export function AccentConfig({
         onCommit: (mapBuildingOpacity) => setTheme({ ...theme, mapBuildingOpacity }),
       }];
     }
+    if (slot === "voiceTranscript.text") {
+      const set = (glowIntensity: number, options?: { persist: boolean }) =>
+        setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowIntensity } }, options);
+      const setSize = (glowSize: number, options?: { persist: boolean }) =>
+        setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowSize } }, options);
+      return [
+        {
+          id: "transcript-glow-intensity",
+          label: "Glow Intensity",
+          value: theme.voiceTranscriptColors.glowIntensity,
+          min: VOICE_TRANSCRIPT_GLOW_INTENSITY_MIN,
+          max: VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX,
+          step: 1,
+          valueText: (value) => `${Math.round(value)}%`,
+          valueTextWidest: `${VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX}%`,
+          onChange: (value) => set(value, { persist: false }),
+          onCommit: (value) => set(value),
+        },
+        {
+          id: "transcript-glow-size",
+          label: "Glow Size",
+          value: theme.voiceTranscriptColors.glowSize,
+          min: VOICE_TRANSCRIPT_GLOW_SIZE_MIN,
+          max: VOICE_TRANSCRIPT_GLOW_SIZE_MAX,
+          step: 1,
+          valueText: (value) => `${Math.round(value)}px`,
+          valueTextWidest: `${VOICE_TRANSCRIPT_GLOW_SIZE_MAX}px`,
+          onChange: (value) => setSize(value, { persist: false }),
+          onCommit: (value) => setSize(value),
+        },
+      ];
+    }
+    if (slot === "voiceTranscript.background") {
+      const setOpacity = (scanlineOpacity: number, options?: { persist: boolean }) =>
+        setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineOpacity } }, options);
+      const setScale = (scanlineScale: number, options?: { persist: boolean }) =>
+        setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineScale } }, options);
+      return [
+        {
+          id: "transcript-scanline-opacity",
+          label: "Scanline Opacity",
+          value: theme.voiceTranscriptColors.scanlineOpacity,
+          min: VOICE_TRANSCRIPT_SCANLINE_OPACITY_MIN,
+          max: VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX,
+          step: 1,
+          valueText: (value) => `${Math.round(value)}%`,
+          valueTextWidest: `${VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX}%`,
+          onChange: (value) => setOpacity(value, { persist: false }),
+          onCommit: (value) => setOpacity(value),
+        },
+        {
+          id: "transcript-scanline-scale",
+          label: "Scanline Scale",
+          value: theme.voiceTranscriptColors.scanlineScale,
+          min: VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN,
+          max: VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX,
+          step: 5,
+          valueText: (value) => `${Math.round(value)}%`,
+          valueTextWidest: `${VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX}%`,
+          onChange: (value) => setScale(value, { persist: false }),
+          onCommit: (value) => setScale(value),
+        },
+      ];
+    }
     if (slot === "map.radarLow" || slot === "map.radarHigh") {
       return [{
         id: "map-radar-opacity",
@@ -1662,7 +1726,6 @@ export function AccentConfig({
 
   const renderWidget = (choice: ThemeSlotChoice) => {
     const value = themeColorForSlot(theme, choice.slot);
-    const rgb = choice.slot === "border" ? borderRgb : appliedThemeRgb(value);
     const isWater = choice.slot === "map.water";
     return (
       <ColorWidget
@@ -1687,70 +1750,6 @@ export function AccentConfig({
           onPreview={(nextValue, opacity) => updateSlotColorAndOpacity(choice.slot, nextValue, opacity, { persist: false })}
           onCommit={(nextValue, opacity) => updateSlotColorAndOpacity(choice.slot, nextValue, opacity)}
         />
-        {choice.slot === "voiceTranscript.text" ? (
-          <>
-            <SliderControlPanel
-              activeColor={rgb}
-              ariaLabel="Transcript text glow intensity"
-              ariaValueText={`${theme.voiceTranscriptColors.glowIntensity}%`}
-              color={rgb}
-              label="Glow Intensity"
-              max={VOICE_TRANSCRIPT_GLOW_INTENSITY_MAX}
-              min={VOICE_TRANSCRIPT_GLOW_INTENSITY_MIN}
-              step={1}
-              value={theme.voiceTranscriptColors.glowIntensity}
-              valueText={`${theme.voiceTranscriptColors.glowIntensity}%`}
-              onPreview={(glowIntensity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowIntensity } }, { persist: false })}
-              onCommit={(glowIntensity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowIntensity } })}
-            />
-            <SliderControlPanel
-              activeColor={rgb}
-              ariaLabel="Transcript text glow size"
-              ariaValueText={`${theme.voiceTranscriptColors.glowSize}px`}
-              color={rgb}
-              label="Glow Size"
-              max={VOICE_TRANSCRIPT_GLOW_SIZE_MAX}
-              min={VOICE_TRANSCRIPT_GLOW_SIZE_MIN}
-              step={1}
-              value={theme.voiceTranscriptColors.glowSize}
-              valueText={`${theme.voiceTranscriptColors.glowSize}px`}
-              onPreview={(glowSize) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowSize } }, { persist: false })}
-              onCommit={(glowSize) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, glowSize } })}
-            />
-          </>
-        ) : null}
-        {choice.slot === "voiceTranscript.background" ? (
-          <>
-            <SliderControlPanel
-              activeColor={rgb}
-              ariaLabel="Transcript scanline opacity"
-              ariaValueText={`${theme.voiceTranscriptColors.scanlineOpacity}%`}
-              color={rgb}
-              label="Scanline Opacity"
-              max={VOICE_TRANSCRIPT_SCANLINE_OPACITY_MAX}
-              min={VOICE_TRANSCRIPT_SCANLINE_OPACITY_MIN}
-              step={1}
-              value={theme.voiceTranscriptColors.scanlineOpacity}
-              valueText={`${theme.voiceTranscriptColors.scanlineOpacity}%`}
-              onPreview={(scanlineOpacity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineOpacity } }, { persist: false })}
-              onCommit={(scanlineOpacity) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineOpacity } })}
-            />
-            <SliderControlPanel
-              activeColor={rgb}
-              ariaLabel="Transcript scanline scale"
-              ariaValueText={`${theme.voiceTranscriptColors.scanlineScale}%`}
-              color={rgb}
-              label="Scanline Scale"
-              max={VOICE_TRANSCRIPT_SCANLINE_SCALE_MAX}
-              min={VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN}
-              step={5}
-              value={theme.voiceTranscriptColors.scanlineScale}
-              valueText={`${theme.voiceTranscriptColors.scanlineScale}%`}
-              onPreview={(scanlineScale) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineScale } }, { persist: false })}
-              onCommit={(scanlineScale) => setTheme({ ...theme, voiceTranscriptColors: { ...theme.voiceTranscriptColors, scanlineScale } })}
-            />
-          </>
-        ) : null}
       </ColorWidget>
     );
   };

@@ -110,8 +110,15 @@ export type RotaryEncoderRing = {
   /** Snaps the value; also the keyboard step. Selectors always step by 1. */
   step?: number;
   disabled?: boolean;
-  /** Drawn right-aligned at the ring's end. Omitted rings show their label only. */
-  valueText?: string;
+  /**
+   * Drawn right-aligned at the ring's end. Omitted rings show their label only.
+   * Pass a function to have the reading follow the thumb through a drag: it is
+   * called with the ring's live value, so the text keeps up without the caller
+   * hearing about — or sending — anything before the release. Give
+   * `valueTextWidest` alongside it, or the ring's length will jump as the
+   * reading changes.
+   */
+  valueText?: string | ((value: number) => string);
   /** The widest value this ring can ever show, so its length never jumps. */
   valueTextWidest?: string;
   /** Never shortened and never carries a value: the stops stay symmetric. */
@@ -607,6 +614,23 @@ export function RotaryEncoder({
   const ringDisabled = (ring: RotaryEncoderRing) => disabled || Boolean(ring.disabled);
   const ringStep = (ring: RotaryEncoderRing) => (ringKind(ring) === "selector" ? ring.step ?? 1 : ring.step);
 
+  /** The reading to draw, resolved against whatever the ring is showing now. */
+  const ringValueText = (ring: RotaryEncoderRing) => {
+    if (ring.symmetric) return undefined;
+    return typeof ring.valueText === "function" ? ring.valueText(ringValue(ring)) : ring.valueText;
+  };
+
+  /**
+   * What to measure the ring's length against. Never calls a `valueText`
+   * function — its answer changes every frame of a drag, and a ring that
+   * re-measured itself mid-turn would visibly breathe.
+   */
+  const ringWidestText = (ring: RotaryEncoderRing) => {
+    if (ring.symmetric) return "";
+    if (ring.valueTextWidest) return ring.valueTextWidest;
+    return typeof ring.valueText === "string" ? ring.valueText : "";
+  };
+
   const setRing = (ring: RotaryEncoderRing, next: number) => {
     const [min, max] = ringRange(ring);
     const bounded = clamp(next, Math.min(min, max), Math.max(min, max));
@@ -746,7 +770,7 @@ export function RotaryEncoder({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [fitted, setFitted] = useState<string[]>([]);
   const labelKey = shown
-    .map((ring) => `${ring.label}${ring.symmetric ? "" : ring.valueTextWidest ?? ring.valueText ?? ""}`)
+    .map((ring) => `${ring.label}${ringWidestText(ring)}`)
     .join(" ");
   useLayoutEffect(() => {
     const svg = svgRef.current;
@@ -763,7 +787,7 @@ export function RotaryEncoder({
     const nextEnds: number[] = [];
     const next = shown.map((ring, index) => {
       const full = ring.label.toUpperCase();
-      const widest = ring.symmetric ? "" : (ring.valueTextWidest ?? ring.valueText ?? "").toUpperCase();
+      const widest = ringWidestText(ring).toUpperCase();
       const end = ring.symmetric ? ARC_END : ringEndFor(geometry, index, width(full), width(widest));
       nextEnds.push(end);
       const room = labelRoom(geometry, index, end) - (widest ? width(widest) + geometry.font * 1.5 : 0);
@@ -941,7 +965,7 @@ export function RotaryEncoder({
                 "aria-valuemin": Math.min(min, max),
                 "aria-valuemax": Math.max(min, max),
                 "aria-valuenow": Math.round(item * 100) / 100,
-                "aria-valuetext": ring.valueText,
+                "aria-valuetext": ringValueText(ring),
               })}
             onKeyDown={ringKeyDown(ring)}
             onKeyUp={ringKeyUp(ring)}
@@ -992,7 +1016,7 @@ export function RotaryEncoder({
               </text>
             ))}
             {(() => {
-              const valueText = ring.symmetric ? undefined : ring.valueText;
+              const valueText = ringValueText(ring);
               return valueText
                 ? (["lip", "cut", "face"] as const).map((layer) => (
                 <text
