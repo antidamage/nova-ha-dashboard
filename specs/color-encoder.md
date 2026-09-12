@@ -527,19 +527,35 @@ saved theme sets are unaffected until the owner opts in. It has nothing to do
 with the accent colour applied to the knob face or ring — it only picks which
 bevel/LED skin (the CSS in the section above) is used.
 
-`ColorEncoder` takes this as an optional `knobSkin` prop, also defaulting to
-`"auto"`. When set to `"dark"` or `"light"` it sets `mode` directly and skips
-the `isLightSurface` sample; `"auto"` keeps today's behaviour, including the
-re-sample on `nova-accent-change`, `nova-theme-set-change` and
-`nova-sun-change`.
+**Amended 2026-09-12 (Adeline): the setting is the base class's job, not the
+caller's.** The temperature knobs shipped without the prop threaded to them and
+so ignored the setting entirely. Rather than thread it through another chain of
+components, `applyDeviceTheme` now publishes the resolved theme's value on the
+document — `document.documentElement.dataset.knobSkin`, alongside
+`data-lighting-tint` — and `RotaryEncoder` reads it. Every dial built on the
+base therefore follows the setting with no prop at all: the colour knobs, the
+temperature knobs, and anything added later.
 
-Every caller rendering the dial against a resolved theme forwards
-`theme.knobSkin` rather than leaving it unset:
+`RotaryEncoder`'s `knobSkin` prop is optional with **no default**, and resolves
+in this order:
 
-- `ColorEncoderPanel` (config colour slots) — forwards to whichever variant
-  (`editingVariant`) is being edited.
-- `ZoneColorEncoder` (lighting card, Quick Access) — forwards the live
-  resolved theme's `knobSkin` down from `Dashboard.tsx`'s `useDeviceTheme()`.
+1. The prop, when it is `"dark"` or `"light"` — pins the dial to that skin
+   regardless of the setting. Only the config preview needs this.
+2. `<html data-knob-skin>`, when it is `"dark"` or `"light"`.
+3. Otherwise (`"auto"`, or the attribute absent — a demo page outside the
+   dashboard's theme) the `isLightSurface` sample above.
+
+The re-read is wired to `nova-accent-change`, `nova-theme-set-change` and
+`nova-sun-change` as before, plus a `MutationObserver` on the attribute —
+`AccentConfig`'s live preview calls `applyDeviceTheme` without persisting, and
+so fires no theme-set event.
+
+`ColorEncoder` and `TemperatureEncoder` pass the prop straight through,
+undefined included; neither may default it to `"auto"`, which would pin the
+dial and defeat the base. The existing callers that forward `theme.knobSkin`
+(`ColorEncoderPanel` for the variant being edited, `ZoneColorEncoder` on the
+lighting card and Quick Access) are now redundant but harmless — they forward
+the same value the base would have read.
 
 The config control (`KnobSkinControl`, `AccentConfig.tsx`) sits directly under
 `ThemeVariantTabs`, inside the tab panel — so editing the dark theme's knob

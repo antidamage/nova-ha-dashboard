@@ -160,6 +160,12 @@ export type RotaryEncoderProps = {
   checker?: boolean;
   /** The ring's glow, as a box-shadow. */
   glow?: string;
+  /**
+   * Light/dark treatment for the knob. Omitted, the base follows the device
+   * theme's knob-skin setting (published on `<html data-knob-skin>` by
+   * applyDeviceTheme), which is what every knob should do; pass it only to pin
+   * a dial to one skin regardless of the setting, as the config preview does.
+   */
   knobSkin?: "auto" | "dark" | "light";
   /**
    * Names every light underneath it, silkscreen fashion, etched like the
@@ -250,7 +256,7 @@ export function RotaryEncoder({
   ringPaint,
   checker = false,
   glow,
-  knobSkin = "auto",
+  knobSkin,
   ledLabels = false,
   rings = [],
   sensitivity,
@@ -289,12 +295,28 @@ export function RotaryEncoder({
       setMode(knobSkin);
       return;
     }
-    const read = () => setMode(isLightSurface(rootRef.current) ? "light" : "dark");
+
+    // No pinned skin: follow the device theme's knob-skin setting, falling back
+    // to sampling the surface behind the knob when it is "auto" or absent (a
+    // demo page outside the dashboard's theme).
+    const read = () => {
+      const setting = knobSkin ?? document.documentElement.dataset.knobSkin;
+      if (setting === "dark" || setting === "light") {
+        setMode(setting);
+        return;
+      }
+      setMode(isLightSurface(rootRef.current) ? "light" : "dark");
+    };
     read();
     const events = ["nova-accent-change", NOVA_THEME_SET_CHANGE_EVENT, "nova-sun-change"];
     for (const event of events) window.addEventListener(event, read);
+    // applyDeviceTheme writes the setting straight onto <html>, including from
+    // the config editor's live preview, which fires no theme-set event.
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, { attributeFilter: ["data-knob-skin"] });
     return () => {
       for (const event of events) window.removeEventListener(event, read);
+      observer.disconnect();
     };
   }, [knobSkin]);
 

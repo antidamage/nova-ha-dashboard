@@ -65,7 +65,7 @@ export function TemperatureEncoder({
   ariaLabel,
   className,
   disabled = false,
-  knobSkin = "auto",
+  knobSkin,
   modes,
   mode,
   onModeChange,

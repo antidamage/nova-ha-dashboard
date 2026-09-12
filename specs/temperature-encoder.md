@@ -24,6 +24,14 @@ Files:
 | `app/temperature-encoder/page.tsx` | demo page, fake devices, commands never sent to Home Assistant |
 | `app/color-encoder-rings/page.tsx` | the existing sample page also gets a sample temperature knob, aircon-style with all four rings and fake state (Adeline, 2026-09-12: a sample knob rather than a row of sample rings) |
 
+## Light/dark skin
+
+The knob follows the theme's knob-skin setting exactly as the colour knobs do,
+because `RotaryEncoder` reads it off `<html data-knob-skin>` itself — see
+"Knob skin override" in `specs/color-encoder.md`. `TemperatureEncoder` passes
+its optional `knobSkin` prop straight through and must not default it
+(Adeline, 2026-09-12: the temperature controls were ignoring the setting).
+
 ## Size
 
 `size` is the knob diameter, **100–200px** (the lighting knob keeps 50–200).

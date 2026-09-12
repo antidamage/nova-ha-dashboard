@@ -1378,6 +1378,10 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   document.documentElement.style.setProperty("--cyber-map-radar-mode", normalized.radarPaletteMode);
   document.documentElement.style.setProperty("--cyber-map-satellite", normalized.mapSatellite ? "1" : "0");
   document.documentElement.dataset.lightingTint = normalized.lightingTint ? "on" : "off";
+  // Every RotaryEncoder-derived knob reads this as its default skin, so the
+  // setting reaches the temperature knobs and any future dial without each
+  // caller threading a knobSkin prop down to it (specs/color-encoder.md).
+  document.documentElement.dataset.knobSkin = normalized.knobSkin;
   document.documentElement.style.setProperty("--nova-lighting-tint-strength", String(normalized.lightingTintStrength));
 }
 
