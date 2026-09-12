@@ -6041,8 +6041,50 @@ button.config-breadcrumb-crumb:focus-visible {
      Without this the chain's heights are indefinite, which is what broke the
      camera (below) and collapsed the stage onto its 520px floor. */
   .dashboard-home .control-stage > .zone-panel {
+    /* Inline-size containment discards the cards' intrinsic widths. Keep it
+       for portrait container queries, but let landscape size from content. */
+    container-type: normal;
     height: 100%;
     min-height: 0;
+  }
+
+  .dashboard-home .zone-panel-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 32px;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] {
+    display: grid;
+    grid-template-columns: minmax(320px, max-content) minmax(280px, max-content);
+    grid-template-rows: auto minmax(min-content, 1fr);
+    gap: 24px;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] > .zone-panel-header {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-home .control-stage > .zone-panel[data-lighting-zone] > .mt-8 {
+    margin: 0;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] .lighting-column {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(280px, max-content);
+    grid-template-rows: minmax(min-content, 1fr);
+    align-items: center;
+    gap: 24px;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] > .zone-party-control {
+    align-self: stretch;
+    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px;
   }
 
   /* The zone panel is a flex column with a header above its controls, so the
@@ -6081,18 +6123,17 @@ button.config-breadcrumb-crumb:focus-visible {
      lets a column grow past its floor when its content is wider. */
   .dashboard-home .outside-control-grid {
     grid-template-columns:
-      minmax(280px, max-content)
-      minmax(420px, max-content)
-      minmax(420px, max-content);
+      minmax(320px, max-content)
+      minmax(520px, max-content)
+      minmax(560px, max-content);
     grid-template-rows: minmax(0, 1fr);
     align-items: stretch;
     height: 100%;
   }
 
-  /* The floors above are per-card, not one number: the light needs its 200px
-     knob plus padding, and the weather card needs its three metric tiles side
-     by side. At 280px those tiles were ~85px each and every reading wrapped
-     onto three lines, which is what made the card outgrow the column. */
+  /* Reserve breathing room for the light, the weather's title/readout and
+     three metric tiles, and the camera's playback controls. These are floors,
+     not caps: longer content can ask the page for more horizontal space. */
   .dashboard-home .outside-control-grid > * {
     min-height: 0;
   }
@@ -6106,7 +6147,7 @@ button.config-breadcrumb-crumb:focus-visible {
   .dashboard-home .climate-control-grid {
     grid-template-columns: none;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(320px, max-content);
+    grid-auto-columns: minmax(380px, max-content);
     align-items: stretch;
     height: 100%;
   }
@@ -6117,7 +6158,7 @@ button.config-breadcrumb-crumb:focus-visible {
 
   /* The feed takes its size from the column's height. It is 16:9 off a full
      width otherwise, which is exactly what forced the vertical scroll. The
-     420px floor above is what the track is worth before the aspect-ratio can
+     camera floor above is what the track is worth before the aspect-ratio can
      speak, since a height-driven ratio contributes no intrinsic width. */
   .dashboard-home .outside-camera-panel {
     grid-column: auto;
