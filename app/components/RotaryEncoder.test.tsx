@@ -8,6 +8,7 @@ import {
   ARC_MIN_SPAN,
   LABEL_VALUE_CLEARANCE,
   captionFont,
+  ringAt,
   ringEndFor,
   ringGeometry,
   ringLabelFont,
@@ -155,6 +156,28 @@ describe("the value's domain", () => {
     fireEvent.pointerMove(dial, { buttons: 1, clientX: CENTRE + 60, clientY: 40, pointerId: 1 });
     expect(onChange.mock.lastCall?.[0]).toBeGreaterThanOrEqual(0);
     expect(onChange.mock.lastCall?.[0]).toBeLessThan(360);
+  });
+});
+
+describe("what a press lands on", () => {
+  const geometry = ringGeometry(200, 3);
+
+  it("keeps the knob to its own disc and gives the colour ring to the first ring", () => {
+    // The knob disc is the knob's, and nothing more.
+    expect(ringAt(geometry, geometry.knobRadius - 1)).toBeNull();
+    // The colour ring and bevel: the knob's before, which is why a press aimed
+    // at the innermost ring — even one dead on its thumb — turned the knob.
+    expect(ringAt(geometry, geometry.knobRadius + 1)).toBe(0);
+    expect(ringAt(geometry, geometry.dialRadius + 1)).toBe(0);
+  });
+
+  it("still gives every ring its own track and claims nothing past the last", () => {
+    geometry.radii.forEach((radius, index) => {
+      expect(ringAt(geometry, radius)).toBe(index);
+    });
+    expect(ringAt(geometry, geometry.radii[2] + geometry.pitch)).toBeNull();
+    // A dial with no rings never takes a press off its knob.
+    expect(ringAt(ringGeometry(200, 0), 120)).toBeNull();
   });
 });
 

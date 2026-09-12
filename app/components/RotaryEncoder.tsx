@@ -884,6 +884,7 @@ export function RotaryEncoder({
       ref={svgRef}
       className="rotary-encoder-rings"
       data-collapsed={tuckable && locked ? "true" : undefined}
+      style={{ clipPath: annulusClip(geometry.footprint, geometry.knobRadius) }}
       width={geometry.footprint}
       height={geometry.footprint}
       viewBox={`0 0 ${geometry.footprint} ${geometry.footprint}`}
@@ -907,7 +908,7 @@ export function RotaryEncoder({
         ))}
       </defs>
       {/* Nothing may squeeze between the rings to a control underneath. */}
-      {floating && !locked ? (
+      {!locked ? (
         <circle
           className="rotary-encoder-blocker"
           data-testid="rotary-encoder-blocker"
@@ -917,6 +918,10 @@ export function RotaryEncoder({
           onPointerDown={noteInput}
         />
       ) : null}
+      {/* The rings themselves still disappear behind the knob's rim as they
+          tuck: the layer's own clip now stops at the knob so presses can reach
+          them, so the hiding is done here instead. */}
+      <g style={{ clipPath: annulusClip(geometry.footprint, geometry.dialRadius) }}>
       {shown.map((ring, index) => {
         const radius = geometry.radii[index];
         const half = geometry.thumbHalfAngle[index];
@@ -1045,6 +1050,7 @@ export function RotaryEncoder({
           </g>
         );
       })}
+      </g>
     </svg>
   );
 
@@ -1062,7 +1068,7 @@ export function RotaryEncoder({
             top: `${anchor?.y ?? 0}px`,
             width: `${geometry.footprint}px`,
             height: `${geometry.footprint}px`,
-            clipPath: annulusClip(geometry.footprint, geometry.dialRadius),
+            clipPath: annulusClip(geometry.footprint, geometry.knobRadius),
             visibility: anchor ? "visible" : "hidden",
             "--re-size": `${dialSize}px`,
             "--re-track": `${track.toFixed(2)}px`,
