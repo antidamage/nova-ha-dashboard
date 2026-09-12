@@ -62,6 +62,22 @@ function QuickSegment({ children, className, label }: { children: ReactNode; cla
   );
 }
 
+/**
+ * A climate knob and its name, and no tile around it. The knob's dial is 124px
+ * across where a tile's row is 84px, so boxing one made it overflow its own
+ * border and collide with the tile below in the landscape grid. The two climate
+ * knobs sit inline in `quick-climate-row` instead, each under its own label
+ * (Adeline, 2026-09-12).
+ */
+function QuickClimate({ children, label, title }: { children: ReactNode; label: string; title: string }) {
+  return (
+    <div className="quick-climate quick-segment-climate" role="group" aria-label={label}>
+      <span className="quick-segment-title">{title}</span>
+      {children}
+    </div>
+  );
+}
+
 function SegmentTitle({ state, title }: { state: string; title: string }) {
   return (
     <div className="quick-segment-text">
@@ -192,8 +208,7 @@ export function QuickAirconSegment({
   onEntityActions: EntityActionsHandler;
 }) {
   return (
-    <QuickSegment className="quick-segment-climate" label={`${title} air conditioner`}>
-      <span className="quick-segment-title">{title}</span>
+    <QuickClimate label={`${title} air conditioner`} title={title}>
       <AirconKnob
         climateControl={climateControl?.lounge}
         entity={entity}
@@ -205,7 +220,7 @@ export function QuickAirconSegment({
         turboSwitch={turboSwitch}
         onEntityActions={onEntityActions}
       />
-    </QuickSegment>
+    </QuickClimate>
   );
 }
 
@@ -222,8 +237,7 @@ export function QuickHeaterSegment({
   onNotice?: (message: string) => void;
 }) {
   return (
-    <QuickSegment className="quick-segment-climate" label={`${title} heater`}>
-      <span className="quick-segment-title">{title}</span>
+    <QuickClimate label={`${title} heater`} title={title}>
       <HeaterKnob
         humidity={devices.humidity}
         preferences={preferences}
@@ -233,7 +247,7 @@ export function QuickHeaterSegment({
         title={title}
         onNotice={onNotice}
       />
-    </QuickSegment>
+    </QuickClimate>
   );
 }
 
@@ -331,25 +345,29 @@ export function QuickAccessCard({
         {homeZone ? (
           <QuickLightsSegment knobSkin={knobSkin} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
         ) : null}
-        {aircon ? (
-          <QuickAirconSegment
-            climateControl={climateControl}
-            entity={aircon}
-            freshAirSwitch={freshAirSwitch}
-            preferences={preferences?.aircon}
-            quietSwitch={quietSwitch}
-            title={titles.aircon}
-            turboSwitch={turboSwitch}
-            onEntityActions={onEntityActions}
-          />
-        ) : null}
-        {bedroomHeater && heaterSwitch ? (
-          <QuickHeaterSegment
-            devices={{ ...bedroomHeater, switchEntity: heaterSwitch }}
-            preferences={preferences?.bedroomHeater}
-            title={titles.heater}
-            onNotice={onNotice}
-          />
+        {aircon || (bedroomHeater && heaterSwitch) ? (
+          <div className="quick-climate-row">
+            {aircon ? (
+              <QuickAirconSegment
+                climateControl={climateControl}
+                entity={aircon}
+                freshAirSwitch={freshAirSwitch}
+                preferences={preferences?.aircon}
+                quietSwitch={quietSwitch}
+                title={titles.aircon}
+                turboSwitch={turboSwitch}
+                onEntityActions={onEntityActions}
+              />
+            ) : null}
+            {bedroomHeater && heaterSwitch ? (
+              <QuickHeaterSegment
+                devices={{ ...bedroomHeater, switchEntity: heaterSwitch }}
+                preferences={preferences?.bedroomHeater}
+                title={titles.heater}
+                onNotice={onNotice}
+              />
+            ) : null}
+          </div>
         ) : null}
         <QuickWeatherSegment weather={weather} />
       </div>

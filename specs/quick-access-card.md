@@ -47,11 +47,18 @@ request was executed directly).
   - **<920px** (portrait, phone): one tile per row; a tile's own controls
     may wrap to a second line inside it.
   Never a horizontal scrollbar, never a segment cut in half.
-- Tile height was 84px, set by the colour encoder footprint (56px dial ×
-  1.244). Since 2026-09-12 the climate tiles carry a 100px temperature knob,
-  so the row's height is that knob's footprint, about 124px. A tile only grows
-  past that when its controls wrap on a phone. The knob's rings float over the
-  page and take no layout space.
+- Tile height is 84px, set by the colour encoder footprint (56px dial ×
+  1.244). A tile only grows past that when its controls wrap on a phone.
+- **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
+  A 100px knob's dial is about 124px across — half again as tall as a tile's
+  row — so a boxed one spilled past its own border and overlapped the tile
+  below in the landscape grid, tucked or not. Both knobs sit inline in one
+  `quick-climate-row`, each under its own label, with no border or background
+  of their own. Same arrangement in landscape and portrait. Their rings float
+  over the page and take no layout space.
+- The landscape grid sizes its rows `minmax(max(84px, min-content), 1fr)`: a
+  bare `84px` minimum replaces the automatic content-based one, which is what
+  let a taller row overflow its track in the first place.
 - A segment whose device is absent in this home is **not rendered** (same rule
   as `ClimateControls`: no empty card for a room the home does not have).
 
@@ -92,8 +99,9 @@ outside lighting through `homeAssistant.everythingExcludedEntityIds`
 ## Climate segments (Lounge, Bedroom)
 
 **Superseded 2026-09-12 (Adeline):** each climate segment is now the **title
-plus a 100px `TemperatureEncoder`**, with the same rings as the full card
-floating over the page (`specs/temperature-encoder.md`). The current
+above a 100px `TemperatureEncoder`**, with the same rings as the full card
+floating over the page (`specs/temperature-encoder.md`). It carries no tile
+border or background — see the layout rules above. The current
 temperature, the state word, the − / + stepper and the Auto / Off buttons
 below are gone; the knob shows the target, the room temperature and the mode.
 The shared-hook rules in this section still apply. The original list is kept

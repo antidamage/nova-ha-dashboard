@@ -5879,7 +5879,11 @@ button.config-breadcrumb-crumb:focus-visible {
 
   .dashboard-home .quick-access-row {
     display: grid;
-    grid-auto-rows: minmax(84px, 1fr);
+    /* An explicit 84px minimum replaces the automatic content-based one, so a
+       row whose content is taller — the climate knobs — used to overflow its
+       track and overlap the tile below. max() keeps the 84px floor for short
+       tiles while letting a taller one size to its content. */
+    grid-auto-rows: minmax(max(84px, min-content), 1fr);
     height: 100%;
   }
 
@@ -7378,11 +7382,27 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   }
 }
 
-/* A climate tile is its room's name and a 100px temperature knob (Adeline,
-   2026-09-12), so it stands as tall as that knob's footprint. Its rings float
-   over the page and take no space here. */
-.quick-segment-climate {
-  min-height: calc(100px * 1.244);
+/* The climate knobs are not tiles. A 100px knob's dial is 124px across, half
+   again as tall as a tile's row, so boxing each one made it spill past its own
+   border and collide with the tile below. They sit inline instead, each under
+   its own label, in both layouts (Adeline, 2026-09-12). Their rings float over
+   the page and take no space here. */
+.quick-climate-row {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px 18px;
+  min-width: 0;
+}
+
+.quick-climate {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .quick-segment-lead {
