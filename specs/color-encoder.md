@@ -434,19 +434,55 @@ once per ring and never compounded with the control's own fade.
   whatever tint the knob has and owes nothing to the palette. The knob's own
   colour (`--ce-tint`, the theme background) and the focus ring outside the dial
   are the only theme-derived values left on the control.
-- The **lit light is white and glows white**; the others are a glossy
-  near-black. Adeline, 2026-09-11: at 50px a light is 3px wide, and a
-  tinted one that small does not read. The bloom carries a px floor
-  (`max(4px, …)`) for the same reason — a radius derived purely from the
-  light's width vanishes with it. Nothing on the dial uses the accent or
-  highlight colour now; `--ce-led-on` remains as the override point. The lit
-  fill is declared as a **97-byte 1x8 PNG** of its white-to-`#eef2f6` ramp, with
-  the gradient kept underneath as a fallback: Chromium's "Auto Dark Mode for
-  Web Contents", which Brave exposes as a flag and Adeline runs with, rewrites
-  light background *colours* but leaves background *images* alone, so declared
-  as a gradient the lit light came out grey there.
+- The **lit light takes the theme's LED colour and glows in it** (Adeline,
+  2026-09-12; white until she picks otherwise, which was the fixed rule before
+  that date); the others are a glossy near-black. At 50px a light is 3px wide,
+  so the bloom carries a px floor (`max(4px, …)`) — a radius derived purely
+  from the light's width vanishes with it. Accent and highlight still touch
+  nothing on the dial; the LED colour is its own slot. A **97-byte 1x8 PNG**
+  of a white-to-`#eef2f6` ramp sits under the themed fill: Chromium's "Auto
+  Dark Mode for Web Contents", which Brave exposes as a flag and Adeline runs
+  with, rewrites light background *colours* but skips an element once a raster
+  background *image* is present, and declared as a gradient alone the lit light
+  came out grey there. See "The LED colour" below.
 - Focus ring follows the surface convention: highlight-coloured outline on
   `:focus-visible`.
+
+### The LED colour
+
+Adeline, 2026-09-12: the lit lights and their glow take their colour from a
+theme slot, **LED Lights**, and every knob built on `RotaryEncoder` follows it —
+colour knobs, the temperature knobs, anything later.
+
+- Stored as `ledColor` on `DeviceTheme`, a normal `ThemeColorValue`, per theme
+  variant like the other colours. It defaults to **white at full intensity** in
+  both the dark and light defaults, so nothing already saved changes appearance
+  until she picks a colour.
+- Edited in Theme Colours as one more `ColorWidget` beside Accent, Highlight,
+  Background, Borders and Orb Shadow, and it travels with the `themeColours`
+  section for copy/paste.
+- `applyDeviceTheme` publishes it on the root as `--nova-led-color` (a ready
+  `rgb()`) and `--nova-led-rgb` (raw channels — the glow needs an alpha of its
+  own). `.rotary-encoder` reads them into `--re-led-on` and `--re-led-on-rgb`,
+  both falling back to white, so a knob rendered before the theme applies is
+  still white rather than black.
+- The px floors on the glow radii stay (`max(4px, …)`, `max(9px, …)`): they
+  exist so the bloom does not vanish on a 50px dial, and a colour does not
+  change that.
+- A disabled dial still emits nothing — its rules come later and carry the
+  dial's own class, so they outrank the themed fill.
+- In light mode the inner bloom follows the colour too; the outer ring stays
+  neutral grey, because on a pale knob that ring is the contrast edge rather
+  than the light.
+
+**The PNG and a themed colour.** A colour that changes cannot be baked into the
+97-byte PNG. The lit light now declares the themed ramp as the **first
+(topmost)** background image and keeps the PNG underneath it, unseen: its only
+job is to be a raster image in the stack, which is what stops Chromium's auto
+dark mode rewriting the element's background. In practice the page-wide
+`color-scheme: dark` opt-out below is what actually holds — with it the flag
+leaves the page alone entirely — so the PNG is a second line of defence for any
+build where that opt-out is lost.
 
 ### Surviving Brave's auto dark mode
 

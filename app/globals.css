@@ -6931,7 +6931,10 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   --re-led-name-size: clamp(5px, calc(var(--re-size) * 0.05), 9px);
   --re-led-name-gap: calc(var(--re-size) * 0.03);
   --re-tint: var(--background, #050608);
-  --re-led-on: #ffffff;
+  /* The lit lights' colour, from the theme's LED Lights slot
+     (Adeline, 2026-09-12). Raw channels too, because the glow needs alpha. */
+  --re-led-on: var(--nova-led-color, #ffffff);
+  --re-led-on-rgb: var(--nova-led-rgb, 255 255 255);
   --re-checker-a: #c4c5c9;
   --re-checker-b: #7a7b80;
   --re-color: #ffffff;
@@ -7027,12 +7030,14 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
 }
 
-/* A white bloom is invisible on a pale knob, so the lit light reads by contrast
-   against its own dark well instead. */
+/* A pale bloom is invisible on a pale knob, so the lit light reads by contrast
+   against its own dark well instead. The inner bloom still follows the themed
+   LED colour; the outer ring stays neutral grey because it is the contrast
+   edge, not the light (Adeline, 2026-09-12). */
 .rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="true"] {
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.45),
-    0 0 max(3px, calc(var(--re-led-w) * 1.1)) max(1px, calc(var(--re-led-w) * 0.3)) rgba(255, 255, 255, 0.75),
+    0 0 max(3px, calc(var(--re-led-w) * 1.1)) max(1px, calc(var(--re-led-w) * 0.3)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.75),
     0 0 max(7px, calc(var(--re-led-w) * 2.4)) max(1px, calc(var(--re-led-w) * 0.6)) rgba(80, 86, 96, 0.35);
 }
 
@@ -7306,28 +7311,36 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   transition: background 160ms linear, box-shadow 160ms linear;
 }
 
-/* The lit light is white, and glows white. Adeline, 2026-09-11: at 50px the
-   light is 3px wide, and a tinted light that small does not read — white is the
-   only fill that carries at every size the dial scales to. The glow keeps a px
-   floor for the same reason: a radius derived purely from the light's width
-   disappears along with it. */
+/* The lit light takes its colour from the theme's LED Lights slot, and glows in
+   that colour (Adeline, 2026-09-12; white until she picks something else).
+   Adeline, 2026-09-11: at 50px the light is 3px wide, so the fill has to carry
+   at every size the dial scales to. The glow keeps a px floor for the same
+   reason: a radius derived purely from the light's width disappears along with
+   it. */
 .rotary-encoder-led[data-lit="true"] {
-  /* An image, not a colour. Chromium's "Auto Dark Mode for Web Contents"
-     (which Brave exposes as a flag and Adeline has enabled) rewrites light
-     background COLOURS but leaves background images alone, so a lit light
-     declared as a gradient came out grey there. This is a 97-byte 1x8 PNG of
-     the same white-to-#eef2f6 ramp, with the gradient kept underneath for any
-     engine that fails to decode it. */
-  background-color: #ffffff;
+  /* Chromium's "Auto Dark Mode for Web Contents" (which Brave exposes as a flag
+     and Adeline has enabled) rewrites an element's light background when that
+     background is colours only, and skips the element entirely once a raster
+     background image is present. A lit light declared as a plain gradient came
+     out grey there, which is why the 97-byte 1x8 PNG below exists — but a
+     themeable colour cannot be baked into a PNG.
+
+     So the PNG stays in the stack purely as the auto-dark suppressor, and the
+     themed colour is layered ON TOP of it as the first (topmost) background
+     image: an opaque ramp in --re-led-on, shaded at the bottom the same ~6% the
+     PNG's white-to-#eef2f6 ramp was. The PNG is never seen; it is only what
+     stops Brave rewriting the layers above it. background-color keeps the
+     themed colour as well for any engine that decodes neither layer. */
+  background-color: var(--re-led-on, #ffffff);
   background-image:
-    url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAICAIAAAC3eAIWAAAAKElEQVR42gXBBw4AIAgAsfv/Y41xIEPElqoi8+FxUQu2OlOMvg5tyAd4dxdNMt07oQAAAABJRU5ErkJggg=="),
-    linear-gradient(180deg, #ffffff, #eef2f6);
+    linear-gradient(180deg, var(--re-led-on, #ffffff), color-mix(in srgb, var(--re-led-on, #ffffff) 94%, #0b1016)),
+    url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAICAIAAAC3eAIWAAAAKElEQVR42gXBBw4AIAgAsfv/Y41xIEPElqoi8+FxUQu2OlOMvg5tyAd4dxdNMt07oQAAAABJRU5ErkJggg==");
   background-size: 100% 100%;
   background-repeat: no-repeat;
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.25),
-    0 0 max(4px, calc(var(--re-led-w) * 1.3)) max(1px, calc(var(--re-led-w) * 0.35)) rgba(255, 255, 255, 0.9),
-    0 0 max(9px, calc(var(--re-led-w) * 3)) max(2px, calc(var(--re-led-w) * 0.9)) rgba(255, 255, 255, 0.45);
+    0 0 max(4px, calc(var(--re-led-w) * 1.3)) max(1px, calc(var(--re-led-w) * 0.35)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.9),
+    0 0 max(9px, calc(var(--re-led-w) * 3)) max(2px, calc(var(--re-led-w) * 0.9)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.45);
 }
 
 /* A disabled dial is dark: nothing on it is emitting (Adeline, 2026-09-11).
@@ -7713,64 +7726,44 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   gap: 8px;
 }
 
-/* Portrait: the Home dial and the two climate dials are one row of three,
+/* Portrait only: the Home dial and the two climate dials are one row of three,
    evenly spread across the width with nothing between them (Adeline,
-   2026-09-12). The lighting segment gives up its tile border here so the three
-   read as one row rather than a box beside two bare knobs — the same reasoning
-   that took the border off the climate knobs. Weather keeps the next line to
-   itself. */
-.quick-access-row {
-  column-gap: 0;
-}
+   2026-09-12). Keyed on the orientation, not on a container width — the first
+   attempt used the 920px container query and never fired, because a portrait
+   screen here is wider than that: the card kept the wide arrangement, which
+   put the Home dial on the left, a gap in the middle and the climate dials on
+   the right. Landscape is untouched and keeps every rule above.
 
-.quick-segment-lights {
-  flex: 1 1 0;
-  border-color: transparent;
-  background: none;
-  padding-inline: 0;
-}
-
-.quick-climate-row {
-  /* Two dials to the lighting segment's one, so all three come out equal. */
-  flex: 2 1 0;
-  column-gap: 0;
-  justify-content: space-evenly;
-}
-
-.quick-climate {
-  flex: 1 1 0;
-}
-
-@container (min-width: 920px) {
-  /* Wide enough for the segments to take their own rows again: the lighting
-     tile is a tile once more and the climate dials pack together. */
+   The lighting segment gives up its tile border here so the three read as one
+   row rather than a box beside two bare knobs — the same reasoning that took
+   the border off the climate knobs. Weather keeps the next line to itself. */
+@media (aspect-ratio <= 1) {
   .quick-access-row {
-    column-gap: 8px;
+    column-gap: 0;
   }
 
   .quick-segment-lights {
-    flex: 1 1 calc(50% - 4px);
-    border-color: var(--cyber-border-dim);
-    background: rgb(var(--cyber-line-rgb) / 0.045);
-    padding-inline: 8px;
+    flex: 1 1 0;
+    border-color: transparent;
+    background: none;
+    padding-inline: 0;
   }
 
   .quick-climate-row {
-    flex: 1 1 auto;
-    column-gap: 18px;
-    justify-content: center;
+    /* Two dials to the lighting segment's one, so all three come out equal. */
+    flex: 2 1 0;
+    column-gap: 0;
+    justify-content: space-evenly;
   }
 
   .quick-climate {
-    flex: 0 1 auto;
+    flex: 1 1 0;
   }
-}
 
-@container (min-width: 1480px) {
-  /* Wide enough for one unwrapped line: every segment sizes to its content
-     again, as `.quick-segment` does above. */
-  .quick-segment-lights {
-    flex: 1 1 auto;
+  /* Beats the 920px container query's half-width basis, so weather never
+     climbs onto the dials' line. */
+  .quick-segment-weather {
+    flex-basis: 100%;
   }
 }
 

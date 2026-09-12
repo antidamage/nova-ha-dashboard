@@ -59,9 +59,14 @@ request was executed directly).
   all three come out equal thirds). Weather keeps the next line to itself.
   The lighting segment gives up its tile border and background here so the
   three read as one row rather than a box beside two bare knobs — the same
-  reasoning that took the border off the climate knobs. At the 920px container
-  width and above the old arrangement returns: the lighting tile is a tile
-  again, the climate dials pack together, and the 8px gap comes back.
+  reasoning that took the border off the climate knobs.
+
+  **Keyed on `@media (aspect-ratio <= 1)`, not on a container width.** The
+  first attempt hung this off the 920px container query and it never fired: a
+  portrait screen here is wider than 920px, so the card kept the wide
+  arrangement — the Home dial on the left, a gap in the middle, the climate
+  dials on the right. Orientation is what the rule is actually about.
+  Landscape keeps every rule above it, unchanged.
 
 - **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
   A 133px knob's dial is about 165px across — twice as tall as a tile's row —

@@ -173,6 +173,26 @@ describe("accentColor theme normalization", () => {
     expect(themeSet.themes.light.avatar.gymNumberOpacity).toBe(40);
   });
 
+  it("defaults the knob LED colour to white and keeps a stored one per variant", () => {
+    // White by default so no saved theme changes appearance until Adeline picks
+    // a colour (2026-09-12).
+    const defaults = normalizeThemeSet(null).themes;
+    expect(defaults.dark.ledColor).toEqual({ cursor: { x: 0, y: 1 }, intensity: 100, rgb: [255, 255, 255] });
+    expect(defaults.light.ledColor).toEqual({ cursor: { x: 0, y: 1 }, intensity: 100, rgb: [255, 255, 255] });
+
+    const themeSet = normalizeThemeSet({
+      selection: "dark",
+      themes: {
+        dark: { ledColor: { cursor: { x: 0.3, y: 0.4 }, intensity: 80, rgb: [255, 0, 128] } },
+        light: { ledColor: { rgb: [0, 128, 255] } },
+      },
+    } as unknown as ThemeStorageValue);
+
+    expect(themeSet.themes.dark.ledColor).toEqual({ cursor: { x: 0.3, y: 0.4 }, intensity: 80, rgb: [255, 0, 128] });
+    // A partial stored colour falls back to the default for the missing fields.
+    expect(themeSet.themes.light.ledColor).toEqual({ cursor: { x: 0, y: 1 }, intensity: 100, rgb: [0, 128, 255] });
+  });
+
   it("keeps voice transcript colours independent for dark and light themes", () => {
     const themeSet = normalizeThemeSet({
       selection: "dark",
