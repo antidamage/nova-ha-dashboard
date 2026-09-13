@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AgentNameProvider } from "./components/AgentNameContext";
 import { LoginProvider } from "./components/auth/LoginProvider";
@@ -22,7 +22,16 @@ import {
 import demoThemeDefault from "../config/demo-theme.default.json";
 import demoThemeLibraryDefault from "../config/demo-theme-library.default.json";
 
-const isDemoMode = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
+// viewportFit "cover" draws the page under the iOS status bar / Dynamic Island.
+// Without it Safari fills that strip with its own tint colour. Top-fixed chrome
+// already offsets itself with env(safe-area-inset-top) in globals.css.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
+const isDemoMode =process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 const demoBasePath = process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH?.trim().replace(/\/+$/, "") ?? "";
 const appleTouchIconSizes = [57, 60, 72, 76, 114, 120, 144, 152, 167, 180] as const;
 
