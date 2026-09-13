@@ -95,6 +95,24 @@ and **Systems** (climate, outside, world, network, power, tasks).
   between columns, so width costs nothing; **vertical scrolling inside a column
   is the thing to avoid**, since a column is exactly
   `--dashboard-column-height` tall.
+- **Vertical overflow** (Adeline, 2026-09-14): avoiding a vertical scroll is a
+  preference, never a reason to cut content off. A panel is never visually
+  broken.
+  - A panel that is one control (a climate knob, a zone's lighting dial) tries
+    to fit its column without scrolling — solve it with layout first.
+  - A panel with several functions or more detail (Network: router cards plus
+    Computers) may scroll vertically when it has to.
+  - Where a panel scrolls, the major controls go at the top or are centred in
+    the column, and the scroll leads to the more advanced detail.
+  - Mechanism: the zone panel's body (`.zone-panel > .mt-8`) is the vertical
+    scroller, below the panel header, and its grid rows are floored at their
+    content (`minmax(min-content, 1fr)`) so a clipped panel (`clip-path`) is
+    never squeezed shorter than what it holds. Only a card that has to take
+    its size from the column height — Outside's camera — keeps a 0 floor.
+  - Network's Computers column puts Sleep and Wake side by side, one machine
+    per row.
+  - `e2e/landscape-panel-overflow.spec.ts` checks it at 1920×1080 and
+    1366×768.
 - Portrait keeps the old layout and single global selection: list in the
   zones panel, controls in the control stage below.
 

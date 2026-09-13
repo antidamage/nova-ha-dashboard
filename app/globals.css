@@ -6164,12 +6164,25 @@ button.config-breadcrumb-crumb:focus-visible {
     height: auto;
   }
 
-  /* Both wrappers are grids, so the height is passed on as a row that fills
-     rather than one sized to its content. minmax(0, 1fr), not 1fr: a bare 1fr
-     has an auto minimum and would still be pushed out by tall content. */
+  /* Both wrappers are grids, so the height is passed on as a row that fills.
+     The row is floored at its content, not at 0: a 0 floor squeezed a taller
+     panel into the column and its clip-path cut the rest off (the Network
+     panel's Sleep/Wake buttons). Content that does not fit now scrolls inside
+     the panel, under its header (specs/landscape-layout.md, "Vertical
+     overflow"). Panels that must fit the column exactly — Outside's camera —
+     keep their own minmax(0, 1fr) further down. */
   .dashboard-home .control-stage > .zone-panel > .mt-8,
   .dashboard-home .control-stage .lighting-column {
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: minmax(min-content, 1fr);
+  }
+
+  .dashboard-home .control-stage > .zone-panel > .mt-8 {
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-home .control-stage > .zone-panel > .mt-8::-webkit-scrollbar {
+    display: none;
   }
 
   .dashboard-home .control-stage .lighting-column {
@@ -6185,7 +6198,7 @@ button.config-breadcrumb-crumb:focus-visible {
   .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) {
     display: grid;
     grid-template-columns: minmax(400px, auto) minmax(260px, auto);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(min-content, 1fr);
     column-gap: 20px;
     align-content: start;
   }
@@ -6201,8 +6214,10 @@ button.config-breadcrumb-crumb:focus-visible {
     margin-top: 0;
   }
 
+  /* Sleep and Wake side by side, one machine per row: half the height of a
+     single stacked column, and width is cheap in landscape. */
   .dashboard-home .control-stage .router-panel .system-power-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
   }
 
   /* Outside flows across: light, weather, camera, in that order, each column
