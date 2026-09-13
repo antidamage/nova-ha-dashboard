@@ -6177,6 +6177,34 @@ button.config-breadcrumb-crumb:focus-visible {
     height: 100%;
   }
 
+  /* Network: the Computers panel takes its own column beside the router cards.
+     Stacked under them it needed 206px (360px with a Wake button) of the ~118px
+     the column height leaves, and the panel's clip-path cut the Sleep button
+     through its label. Only when there is a computer to show; otherwise the
+     panel keeps its single column. */
+  .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) {
+    display: grid;
+    grid-template-columns: minmax(400px, auto) minmax(260px, auto);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 20px;
+    align-content: start;
+  }
+
+  .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) > header {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) > .router-computers {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    margin-top: 0;
+  }
+
+  .dashboard-home .control-stage .router-panel .system-power-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   /* Outside flows across: light, weather, camera, in that order, each column
      as wide as it needs (specs/outside-card.md). The camera no longer spans a
      row underneath, which is what made the card taller than its column.

@@ -137,7 +137,7 @@ export function RouterPanel({
       </div>
 
       {onDesktopSleep || onDesktopWake ? (
-        <div className="mt-4">
+        <div className="router-computers mt-4">
           <DesktopSleepPanel
             sleepBusy={desktopSleepBusy}
             wakeBusy={desktopWakeBusy}
