@@ -135,15 +135,15 @@ describe("ZoneControls", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps lounge controls ordered as lighting, the dial, then environment", () => {
+  it("keeps lounge controls ordered as the dial, its presets, then environment", () => {
     render(renderZoneControls(loungeZone()));
 
-    const lightAction = screen.getByRole("button", { name: "White" });
     const dial = screen.getByLabelText("Zone lights");
+    const lightAction = screen.getByRole("button", { name: "White" });
     const environment = screen.getByRole("heading", { name: "Environment" });
 
-    expectBefore(lightAction, dial);
-    expectBefore(dial, environment);
+    expectBefore(dial, lightAction);
+    expectBefore(lightAction, environment);
     // The dial owns brightness: there is no second brightness control.
     expect(screen.queryByLabelText("Brightness")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /sleep/i })).not.toBeInTheDocument();
