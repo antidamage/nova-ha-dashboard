@@ -7,6 +7,7 @@ import {
   TEMPERATURE_UNKNOWN,
   TIMER_VALUE_WIDEST,
   blendAngle,
+  effectiveTargetRange,
   fanStepText,
   hexToRgb,
   temperatureColour,
@@ -99,5 +100,21 @@ describe("the fan ring", () => {
     expect(fanStepText("medium high")).toBe("MED HIGH");
     expect(fanStepText("turbo")).toBe("TURBO");
     expect(FAN_VALUE_WIDEST).toBe("MED HIGH");
+  });
+});
+
+describe("effectiveTargetRange", () => {
+  const hard = { min: 16, max: 30 };
+  it("uses the hard limits with no preference", () => {
+    expect(effectiveTargetRange(hard)).toEqual(hard);
+  });
+  it("narrows to the preferred range", () => {
+    expect(effectiveTargetRange(hard, { min: 18, max: 25 })).toEqual({ min: 18, max: 25 });
+  });
+  it("keeps inside the hard limits", () => {
+    expect(effectiveTargetRange(hard, { min: 5, max: 24 })).toEqual({ min: 16, max: 24 });
+  });
+  it("falls back when the ranges do not overlap", () => {
+    expect(effectiveTargetRange(hard, { min: 5, max: 12 })).toEqual(hard);
   });
 });

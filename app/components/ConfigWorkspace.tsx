@@ -36,6 +36,7 @@ const AccentConfig = dynamic(() => import("./AccentConfig").then((module) => mod
 const AgentAdministration = dynamic(() => import("./AgentAdministration").then((module) => module.AgentAdministration));
 const AgentConfig = dynamic(() => import("./AgentConfig").then((module) => module.AgentConfig));
 const AgentNameConfig = dynamic(() => import("./AgentNameConfig").then((module) => module.AgentNameConfig));
+const ClimateConfig = dynamic(() => import("./ClimateConfig").then((module) => module.ClimateConfig));
 const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((module) => module.AppleTvSwipeConfig));
 const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
 const StatusOrbInfoConfig = dynamic(() => import("./StatusOrbInfoConfig").then((module) => module.StatusOrbInfoConfig));
@@ -645,6 +646,7 @@ export function ConfigWorkspace({
                 </ConfigAccordion>
                 <RemindersConfig />
                 <StatusOrbInfoConfig initialSettings={initialWatchface} />
+                <ClimateConfig />
                 <AppleTvSwipeConfig initialSettings={initialSwipe} />
                 <PhonoscopeConfig />
               </>

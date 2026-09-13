@@ -14,6 +14,24 @@ export const TEMPERATURE_SCALE_MAX = 26;
 export const TEMPERATURE_COLD = "#8ad8ff";
 export const TEMPERATURE_MID = "#f6efe4";
 export const TEMPERATURE_HOT = "#ff4a1c";
+export type TargetRange = { min: number; max: number };
+
+/** Bounds of the config "Knob range" slider: the widest hard range of any unit. */
+export const PREFERRED_RANGE_MIN = 5;
+export const PREFERRED_RANGE_MAX = 30;
+export const PREFERRED_RANGE_MIN_GAP = 1;
+
+/**
+ * The range a knob sweeps: the household's preferred range inside the unit's
+ * hard limits, or the hard limits when there is no preference or no overlap.
+ */
+export function effectiveTargetRange(hard: TargetRange, preferred?: TargetRange | null): TargetRange {
+  if (!preferred || !Number.isFinite(preferred.min) || !Number.isFinite(preferred.max)) return hard;
+  const min = Math.max(hard.min, preferred.min);
+  const max = Math.min(hard.max, preferred.max);
+  return min < max ? { min, max } : hard;
+}
+
 /** No reading: the ring's bottom half goes dark rather than guessing. */
 export const TEMPERATURE_UNKNOWN = "#1e2024";
 

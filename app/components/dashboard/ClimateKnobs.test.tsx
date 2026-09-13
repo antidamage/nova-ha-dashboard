@@ -123,6 +123,20 @@ describe("the air conditioner's knob", () => {
     expect(container.querySelector(".temperature-encoder-target")?.textContent).toBe("22°");
     expect(container.querySelector(".temperature-encoder-room")?.textContent).toBe("23°");
   });
+
+  it("sweeps the household range and pulls an outside target in, once", () => {
+    vi.useFakeTimers();
+    const onEntityActions = vi.fn(async () => undefined);
+    render(<AirconKnob entity={AIRCON} preferredRange={{ min: 18, max: 21 }} title="Lounge" onEntityActions={onEntityActions} />);
+    const dial = screen.getAllByRole("slider")[0];
+    expect(dial.getAttribute("aria-valuemin")).toBe("18");
+    expect(dial.getAttribute("aria-valuemax")).toBe("21");
+    act(() => vi.advanceTimersByTime(10000));
+    const sent = JSON.stringify(onEntityActions.mock.calls);
+    expect(sent).toContain("set_temperature");
+    expect(sent).toContain('"temperature":21');
+    expect(onEntityActions).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("the heater's knob", () => {

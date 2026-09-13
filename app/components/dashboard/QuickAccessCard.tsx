@@ -219,6 +219,7 @@ export function QuickAirconSegment({
   entity,
   freshAirSwitch,
   preferences,
+  preferredRange,
   quietSwitch,
   title,
   turboSwitch,
@@ -228,6 +229,7 @@ export function QuickAirconSegment({
   entity: DashboardEntity;
   freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
+  preferredRange?: { min: number; max: number };
   quietSwitch?: DashboardEntity;
   title: string;
   turboSwitch?: DashboardEntity;
@@ -240,6 +242,7 @@ export function QuickAirconSegment({
         entity={entity}
         freshAirSwitch={freshAirSwitch}
         preferences={preferences}
+        preferredRange={preferredRange}
         quietSwitch={quietSwitch}
         size={QUICK_TEMPERATURE_SIZE}
         title={title}
@@ -254,11 +257,13 @@ export function QuickAirconSegment({
 export function QuickHeaterSegment({
   devices,
   preferences,
+  preferredRange,
   title,
   onNotice,
 }: {
   devices: BedroomHeaterDevices & { switchEntity: DashboardEntity };
   preferences?: BedroomHeaterPreferences;
+  preferredRange?: { min: number; max: number };
   title: string;
   onNotice?: (message: string) => void;
 }) {
@@ -267,6 +272,7 @@ export function QuickHeaterSegment({
       <HeaterKnob
         humidity={devices.humidity}
         preferences={preferences}
+        preferredRange={preferredRange}
         size={QUICK_TEMPERATURE_SIZE}
         switchEntity={devices.switchEntity}
         temperature={devices.temperature ?? null}
@@ -339,7 +345,7 @@ export type QuickAccessCardProps = {
   homeZone?: DashboardZone | null;
   /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
   knobSkin?: "auto" | "dark" | "light";
-  preferences?: { aircon?: AirconPreferences; bedroomHeater?: BedroomHeaterPreferences };
+  preferences?: { aircon?: AirconPreferences; bedroomHeater?: BedroomHeaterPreferences; climateTargetRange?: { min: number; max: number } };
   spectrumCursor?: SpectrumCursor;
   sun?: SunStatus | null;
   weather?: WeatherStatus | null;
@@ -383,6 +389,7 @@ export function QuickAccessCard({
                 entity={aircon}
                 freshAirSwitch={freshAirSwitch}
                 preferences={preferences?.aircon}
+                preferredRange={preferences?.climateTargetRange}
                 quietSwitch={quietSwitch}
                 title={titles.aircon}
                 turboSwitch={turboSwitch}
@@ -393,6 +400,7 @@ export function QuickAccessCard({
               <QuickHeaterSegment
                 devices={{ ...bedroomHeater, switchEntity: heaterSwitch }}
                 preferences={preferences?.bedroomHeater}
+                preferredRange={preferences?.climateTargetRange}
                 title={titles.heater}
                 onNotice={onNotice}
               />
