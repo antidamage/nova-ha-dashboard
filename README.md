@@ -5,8 +5,7 @@ presenting Home Assistant as room-level zones for touch screens, kiosks and
 desktops in both portrait and landscape. It also acts as the configuration and
 API hub the other Nova components read from.
 
-**[Live demo](https://antidamage.github.io/nova-ha-dashboard/config/)** — runs in
-the browser against fixture data, no Home Assistant required.
+**[Live demo](https://antidamage.github.io/nova-ha-dashboard/)**
 
 ## Where it fits
 
