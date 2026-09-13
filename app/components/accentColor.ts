@@ -39,6 +39,12 @@ export type ThemeBorderValue = {
   opacity: number;
 };
 
+/** The stacked panels' fill and its alpha. See specs/panel-surface.md. */
+export type ThemePanelValue = {
+  color: ThemeColorValue;
+  opacity: number;
+};
+
 /** Same pair as the border: the header fade strip's colour and its own alpha. */
 export type ThemeHeaderFadeValue = {
   color: ThemeColorValue;
@@ -165,6 +171,9 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   /** The shadow under the status orb as the page scrolls; see
    *  specs/header-fade.md. The scroll supplies the multiplier on top. */
   headerFade: ThemeHeaderFadeValue;
+  /** Fill of every stacked panel (--cyber-panel / --cyber-panel-soft), with
+   *  true alpha. See specs/panel-surface.md. */
+  panel: ThemePanelValue;
   clockColor: ThemeColorValue;
   clockFont: ThemeFontSetting;
   controlSound: ControlSoundSettings;
@@ -381,6 +390,14 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     intensity: 15,
     rgb: [227, 196, 109],
   },
+  panel: {
+    color: {
+      cursor: { x: 0.12327065494504236, y: 0.3238836015973772 },
+      intensity: 13,
+      rgb: [227, 196, 109],
+    },
+    opacity: 100,
+  },
   backgroundEffect: {
     apexGlow: 110,
     falloffPower: 320,
@@ -585,6 +602,14 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     cursor: { x: 0.1351284825413904, y: 0.3667411804199219 },
     intensity: 34,
     rgb: [225, 206, 122],
+  },
+  panel: {
+    color: {
+      cursor: { x: 0.1351284825413904, y: 0.3667411804199219 },
+      intensity: 29,
+      rgb: [225, 206, 122],
+    },
+    opacity: 100,
   },
   backgroundEffect: {
     apexGlow: 240,
@@ -941,6 +966,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     : DEFAULT_THEME.titleTone;
   const borderValue = value?.border;
   const headerFadeValue = value?.headerFade;
+  const panelValue = value?.panel;
   const mapWaterValue = value?.mapWater;
   const mapValue = value?.map as StoredMapTheme | null | undefined;
   const buildingLowValue = mapValue?.buildingLow ?? mapValue?.buildings;
@@ -981,6 +1007,10 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     headerFade: {
       color: normalizeColor(headerFadeValue?.color, DEFAULT_THEME.headerFade.color),
       opacity: clamp(Math.round(Number(headerFadeValue?.opacity ?? DEFAULT_THEME.headerFade.opacity)), 0, 100),
+    },
+    panel: {
+      color: normalizeColor(panelValue?.color, panelColorSeedFromBackground(background)),
+      opacity: clamp(Math.round(Number(panelValue?.opacity ?? 100)), 0, 100),
     },
     map: {
       base: normalizeColor(mapValue?.base, DEFAULT_THEME.map.base),
@@ -1178,14 +1208,6 @@ function applyCssBorder(border: ThemeBorderValue) {
   root.style.setProperty("--cyber-border-strong", `rgb(${value} / ${Math.min(1, opacity + 0.54)})`);
 }
 
-function mixRgb(from: [number, number, number], to: [number, number, number], amount: number): [number, number, number] {
-  return [
-    clamp(Math.round(from[0] + (to[0] - from[0]) * amount), 0, 255),
-    clamp(Math.round(from[1] + (to[1] - from[1]) * amount), 0, 255),
-    clamp(Math.round(from[2] + (to[2] - from[2]) * amount), 0, 255),
-  ];
-}
-
 function rgbCss(rgb: [number, number, number]) {
   return `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]})`;
 }
@@ -1194,8 +1216,33 @@ function applyCssBackground(rgb: [number, number, number]) {
   const root = document.documentElement;
   root.style.setProperty("--background", rgbCss(rgb));
   root.style.setProperty("--cyber-bg", rgbCss(rgb));
-  root.style.setProperty("--cyber-panel", rgbCss(mixRgb(rgb, [0, 0, 0], 0.16)));
-  root.style.setProperty("--cyber-panel-soft", rgbCss(mixRgb(rgb, [255, 255, 255], 0.07)));
+}
+
+// Before the panel slot existed, panels were the background mixed 16% toward
+// black. Scaling intensity by 0.84 is the same thing, so a theme stored without
+// `panel` keeps its look. See specs/panel-surface.md, "Default".
+const PANEL_SEED_INTENSITY_RATIO = 0.84;
+
+function panelColorSeedFromBackground(background: ThemeColorValue): ThemeColorValue {
+  return {
+    cursor: { ...background.cursor },
+    intensity: clamp(Math.round(background.intensity * PANEL_SEED_INTENSITY_RATIO), 0, 100),
+    rgb: [...background.rgb] as [number, number, number],
+  };
+}
+
+function applyCssPanel(panel: ThemePanelValue) {
+  const rgb = appliedThemeRgb(panel.color);
+  const alpha = clamp(Math.round(Number(panel.opacity ?? 100)), 0, 100) / 100;
+  // Soft was background + 7% white; expressed from the panel colour it is this
+  // lift, which matches the old tone exactly at the seeded default.
+  const soft = rgb.map((part) =>
+    clamp(Math.round(part * (0.93 / PANEL_SEED_INTENSITY_RATIO) + 255 * 0.07), 0, 255),
+  ) as [number, number, number];
+  const root = document.documentElement;
+  root.style.setProperty("--cyber-panel-rgb", `${rgb[0]} ${rgb[1]} ${rgb[2]}`);
+  root.style.setProperty("--cyber-panel", `rgb(${rgb[0]} ${rgb[1]} ${rgb[2]} / ${alpha})`);
+  root.style.setProperty("--cyber-panel-soft", `rgb(${soft[0]} ${soft[1]} ${soft[2]} / ${alpha})`);
 }
 
 function applyCssVoiceTranscript(colors: ThemeVoiceTranscriptColors) {
@@ -1390,6 +1437,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssBorder(normalized.border);
   applyCssHeaderFade(normalized.headerFade);
   applyCssBackground(background);
+  applyCssPanel(normalized.panel);
   applyCssTitleColors(normalized.titleColors);
   applyCssTitleTone(normalized.titleTone, accent, highlight, background, normalized.clockColor, normalized.titleColors);
   applyCssVoiceTranscript(normalized.voiceTranscriptColors);
@@ -1441,6 +1489,7 @@ export function mixDeviceThemeColors(configured: DeviceTheme, target: DeviceThem
     background: color(configured.background, target.background),
     border: { ...configured.border, color: color(configured.border.color, target.border.color) },
     headerFade: { ...configured.headerFade, color: color(configured.headerFade.color, target.headerFade.color) },
+    panel: { ...configured.panel, color: color(configured.panel.color, target.panel.color) },
     clockColor: color(configured.clockColor, target.clockColor),
     titleColors: {
       dark: color(configured.titleColors.dark, target.titleColors.dark),

@@ -126,13 +126,14 @@ type ThemeConfigColorSlot = ThemeColorSlot | "background";
 type MapConfigSlot = `map.${MapThemeColorSlot}`;
 type TitleConfigSlot = "title.light" | "title.dark";
 type VoiceTranscriptConfigSlot = "voiceTranscript.background" | "voiceTranscript.text";
-type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "headerFade" | "clockColor" | "ledColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
+type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "panel" | "headerFade" | "clockColor" | "ledColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
 type ThemeSlotChoice = { slot: ThemeConfigSlot; label: string; detail: string };
 
 const THEME_SLOTS: ThemeSlotChoice[] = [
   { slot: "accent", label: "Accent", detail: "Linework" },
   { slot: "highlight", label: "Highlight", detail: "Selection" },
   { slot: "background", label: "Background", detail: "Surfaces" },
+  { slot: "panel", label: "Panels", detail: "Panel fill" },
   { slot: "border", label: "Borders", detail: "Optional lines" },
   { slot: "headerFade", label: "Orb Shadow", detail: "Shadow on scroll" },
   { slot: "ledColor", label: "LED Lights", detail: "Knob lights" },
@@ -1249,6 +1250,9 @@ function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): ThemeColo
   if (slot === "headerFade") {
     return theme.headerFade.color;
   }
+  if (slot === "panel") {
+    return theme.panel.color;
+  }
   if (slot === "clockColor") {
     return theme.clockColor;
   }
@@ -1399,6 +1403,10 @@ export function AccentConfig({
       setTheme({ ...theme, headerFade: { ...theme.headerFade, color: value } }, options);
       return;
     }
+    if (slot === "panel") {
+      setTheme({ ...theme, panel: { ...theme.panel, color: value } }, options);
+      return;
+    }
     if (slot === "border") {
       setTheme({ ...theme, border: { ...theme.border, color: value } }, options);
       return;
@@ -1432,6 +1440,7 @@ export function AccentConfig({
   const slotOpacity = (slot: ThemeConfigSlot) => {
     if (slot === "border") return theme.border.opacity;
     if (slot === "headerFade") return theme.headerFade.opacity;
+    if (slot === "panel") return theme.panel.opacity;
     if (slot === "map.water") return theme.mapWater.opacity;
     return undefined;
   };
@@ -1448,6 +1457,10 @@ export function AccentConfig({
     }
     if (slot === "headerFade") {
       setTheme({ ...theme, headerFade: { ...theme.headerFade, color: value, opacity } }, options);
+      return;
+    }
+    if (slot === "panel") {
+      setTheme({ ...theme, panel: { ...theme.panel, color: value, opacity } }, options);
       return;
     }
     if (slot === "map.water") {
@@ -1522,6 +1535,8 @@ export function AccentConfig({
       ? theme.border.opacity
       : slot === "headerFade"
         ? theme.headerFade.opacity
+      : slot === "panel"
+        ? theme.panel.opacity
       : slot === "map.water"
         ? theme.mapWater.opacity
         : undefined;
@@ -1537,6 +1552,17 @@ export function AccentConfig({
         ...theme,
         headerFade: {
           ...theme.headerFade,
+          color: clip.value,
+          ...(clip.opacity !== undefined ? { opacity: clamp(Math.round(clip.opacity), 0, 100) } : {}),
+        },
+      });
+      return;
+    }
+    if (slot === "panel") {
+      setTheme({
+        ...theme,
+        panel: {
+          ...theme.panel,
           color: clip.value,
           ...(clip.opacity !== undefined ? { opacity: clamp(Math.round(clip.opacity), 0, 100) } : {}),
         },
