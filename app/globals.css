@@ -7783,47 +7783,58 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   gap: 8px;
 }
 
-/* Portrait only: the Home dial and the two climate dials are one row of three,
-   evenly spread across the width with nothing between them (Adeline,
-   2026-09-12). Keyed on the orientation, not on a container width — the first
-   attempt used the 920px container query and never fired, because a portrait
-   screen here is wider than that: the card kept the wide arrangement, which
-   put the Home dial on the left, a gap in the middle and the climate dials on
-   the right. Landscape is untouched and keeps every rule above.
+/* Portrait only (Adeline, 2026-09-14): the three dials are one centred,
+   wrapping row — three across when they fit, fewer per line when they don't,
+   one per line on a phone. Keyed on the orientation, not on a container width:
+   a portrait screen here is wider than the 920px container query, which is why
+   an earlier version hung off that query and never fired.
 
-   The lighting segment gives up its tile border here so the three read as one
-   row rather than a box beside two bare knobs — the same reasoning that took
-   the border off the climate knobs. Weather keeps the next line to itself. */
+   Each dial sits in a slot as wide as the widest knob's rings
+   (`--quick-dial-slot`, set by QuickAccessCard from ringGeometry). A knob's
+   layout box is only its dial, but its floating rings reach well past it — the
+   Lounge knob's four rings are ~295px across a 165px dial at 133px — so a slot
+   sized to the dial let the rings run off the screen edge. Slots reserve the
+   reach; neighbouring slots may still overlap a ring vertically, which is fine.
+   When even one slot is wider than the card, QuickAccessCard shrinks every
+   dial together (floor 100px, the temperature knob's minimum).
+
+   The climate row dissolves (`display: contents`) so all three dials wrap as
+   siblings: as a nested flex box it sat beside the lighting dial and wrapped
+   inside itself, stacking the two climate knobs in a column to its right.
+
+   The lighting segment gives up its tile border so the three read as one row
+   rather than a box beside two bare knobs. Weather keeps the next line to
+   itself. Landscape is untouched and keeps every rule above. */
 @media (aspect-ratio <= 1) {
   .quick-access-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-evenly;
     column-gap: 0;
   }
 
-  /* Each dial keeps its drawn width (133px knob × 1.244 ≈ 166px). Without a
-     floor the zero bases squeezed three dials into a phone's ~390px and they
-     overlapped; with it the line breaks instead — Home dial alone, the two
-     climate dials on the next line (Adeline, 2026-09-14). */
-  .quick-segment-lights,
-  .quick-climate {
-    min-width: 166px;
-  }
-
-  .quick-segment-lights {
-    flex: 1 1 0;
-    border-color: transparent;
-    background: none;
-    padding-inline: 0;
+  /* The climate knobs' title arcs make their boxes taller than the dial; the
+     untitled lighting dial takes the same box (`--quick-dial-box`), so dials
+     sharing a line sit on one centre line. */
+  .quick-segment-lights .rotary-encoder {
+    height: var(--quick-dial-box, auto);
   }
 
   .quick-climate-row {
-    /* Two dials to the lighting segment's one, so all three come out equal. */
-    flex: 2 1 0;
-    column-gap: 0;
-    justify-content: space-evenly;
+    display: contents;
   }
 
+  .quick-segment-lights,
   .quick-climate {
-    flex: 1 1 0;
+    flex: 0 0 var(--quick-dial-slot, auto);
+    width: var(--quick-dial-slot, auto);
+    max-width: 100%;
+  }
+
+  .quick-segment-lights {
+    border-color: transparent;
+    background: none;
+    padding: 0;
   }
 
   /* Beats the 920px container query's half-width basis, so weather never

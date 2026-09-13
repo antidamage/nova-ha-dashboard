@@ -23,7 +23,7 @@ import {
   Wind,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import type {
   AirconPreferences,
   BedroomHeaterPreferences,
@@ -35,6 +35,8 @@ import type {
   WeatherStatus,
 } from "../../../lib/types";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { ringGeometry } from "../rotaryEncoderGeometry";
+import { TEMPERATURE_ENCODER_MIN_SIZE } from "../TemperatureEncoder";
 import { AirconKnob, HeaterKnob } from "./ClimateKnobs";
 import { useClimateCardTitles, type EntityActionsHandler } from "./climateCommands";
 import { adaptiveCandlelightLabel } from "./lighting";
@@ -62,6 +64,58 @@ const QUICK_TEMPERATURE_SIZE = 133;
  * title went, now the climate size.
  */
 const QUICK_ENCODER_SIZE = QUICK_TEMPERATURE_SIZE;
+
+/**
+ * The most rings any Quick Access knob carries: the Lounge aircon's Mode, Fan,
+ * Fresh Air and Timer (ClimateKnobs.tsx). The portrait slot is sized for this
+ * knob, titled, so every dial gets the same slot and a line of them spreads
+ * evenly.
+ */
+const QUICK_WIDEST_RINGS = 4;
+
+/** Portrait, the same test the card's portrait CSS keys on. */
+const PORTRAIT_QUERY = "(aspect-ratio <= 1)";
+
+/** Width the widest knob's rings reach at `size` — the portrait slot width. */
+export function quickDialSlot(size: number) {
+  return ringGeometry(size, QUICK_WIDEST_RINGS, true).footprint;
+}
+
+/**
+ * The largest dial size, from the usual 133px down to the temperature knob's
+ * 100px floor, whose rings still fit `width`. Below the floor the dials stay at
+ * 100px rather than stop reading as knobs (Adeline, 2026-09-14).
+ */
+export function quickDialSizeFor(width: number) {
+  for (let size = QUICK_TEMPERATURE_SIZE; size > TEMPERATURE_ENCODER_MIN_SIZE; size -= 1) {
+    if (quickDialSlot(size) <= width) return size;
+  }
+  return TEMPERATURE_ENCODER_MIN_SIZE;
+}
+
+/**
+ * Portrait shrinks all three dials together when the card is narrower than one
+ * slot, so no ring runs off the screen. Landscape keeps the fixed size: its
+ * layout does not use the slot.
+ */
+function useQuickDialSize(rowRef: RefObject<HTMLDivElement | null>) {
+  const [size, setSize] = useState(QUICK_TEMPERATURE_SIZE);
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row || typeof window === "undefined" || typeof ResizeObserver === "undefined") return;
+    const portrait = window.matchMedia(PORTRAIT_QUERY);
+    const update = () => setSize(portrait.matches ? quickDialSizeFor(row.clientWidth) : QUICK_TEMPERATURE_SIZE);
+    const observer = new ResizeObserver(update);
+    observer.observe(row);
+    portrait.addEventListener("change", update);
+    update();
+    return () => {
+      observer.disconnect();
+      portrait.removeEventListener("change", update);
+    };
+  }, [rowRef]);
+  return size;
+}
 
 function QuickSegment({ children, className, label }: { children: ReactNode; className?: string; label: string }) {
   return (
@@ -149,6 +203,7 @@ function QuickButton({
 /** The Home zone's single colour control plus Candlelight and Off. */
 export function QuickLightsSegment({
   knobSkin,
+  size = QUICK_ENCODER_SIZE,
   spectrumCursor,
   sun,
   zone,
@@ -156,6 +211,8 @@ export function QuickLightsSegment({
 }: {
   /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
   knobSkin?: "auto" | "dark" | "light";
+  /** Dial diameter; the card shrinks it to fit a narrow portrait screen. */
+  size?: number;
   spectrumCursor?: SpectrumCursor;
   sun?: SunStatus | null;
   zone: DashboardZone;
@@ -179,7 +236,7 @@ export function QuickLightsSegment({
           disabled={!lighting.hasLightDevices}
           knobSkin={knobSkin}
           label=""
-          size={QUICK_ENCODER_SIZE}
+          size={size}
           spectrum={lighting.spectrum}
           zoneId={zone.id}
           onBrightnessChange={lighting.setLocalBrightness}
@@ -221,6 +278,7 @@ export function QuickAirconSegment({
   preferences,
   preferredRange,
   quietSwitch,
+  size = QUICK_TEMPERATURE_SIZE,
   title,
   turboSwitch,
   onEntityActions,
@@ -231,6 +289,8 @@ export function QuickAirconSegment({
   preferences?: AirconPreferences;
   preferredRange?: { min: number; max: number };
   quietSwitch?: DashboardEntity;
+  /** Knob diameter; the card shrinks it to fit a narrow portrait screen. */
+  size?: number;
   title: string;
   turboSwitch?: DashboardEntity;
   onEntityActions: EntityActionsHandler;
@@ -244,7 +304,7 @@ export function QuickAirconSegment({
         preferences={preferences}
         preferredRange={preferredRange}
         quietSwitch={quietSwitch}
-        size={QUICK_TEMPERATURE_SIZE}
+        size={size}
         title={title}
         turboSwitch={turboSwitch}
         onEntityActions={onEntityActions}
@@ -258,12 +318,15 @@ export function QuickHeaterSegment({
   devices,
   preferences,
   preferredRange,
+  size = QUICK_TEMPERATURE_SIZE,
   title,
   onNotice,
 }: {
   devices: BedroomHeaterDevices & { switchEntity: DashboardEntity };
   preferences?: BedroomHeaterPreferences;
   preferredRange?: { min: number; max: number };
+  /** Knob diameter; the card shrinks it to fit a narrow portrait screen. */
+  size?: number;
   title: string;
   onNotice?: (message: string) => void;
 }) {
@@ -273,7 +336,7 @@ export function QuickHeaterSegment({
         humidity={devices.humidity}
         preferences={preferences}
         preferredRange={preferredRange}
-        size={QUICK_TEMPERATURE_SIZE}
+        size={size}
         switchEntity={devices.switchEntity}
         temperature={devices.temperature ?? null}
         title={title}
@@ -371,15 +434,22 @@ export function QuickAccessCard({
   const titles = useClimateCardTitles();
   const { aircon, freshAirSwitch, quietSwitch, turboSwitch } = climateDevicesForZone(climateZone);
   const heaterSwitch = bedroomHeater?.switchEntity;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const dialSize = useQuickDialSize(rowRef);
+  // Consumed only by the portrait CSS; see globals.css, "Portrait only".
+  const rowStyle = {
+    "--quick-dial-slot": `${quickDialSlot(dialSize).toFixed(2)}px`,
+    "--quick-dial-box": `${ringGeometry(dialSize, 0, true).titleFootprint.toFixed(2)}px`,
+  } as CSSProperties;
 
   return (
     <section className="quick-access" aria-labelledby="quick-access-title" data-card-id="quick-access">
       <h2 id="quick-access-title" className="quick-access-kicker">
         Quick Access
       </h2>
-      <div className="quick-access-row">
+      <div ref={rowRef} className="quick-access-row" style={rowStyle}>
         {homeZone ? (
-          <QuickLightsSegment knobSkin={knobSkin} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
+          <QuickLightsSegment knobSkin={knobSkin} size={dialSize} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
         ) : null}
         {aircon || (bedroomHeater && heaterSwitch) ? (
           <div className="quick-climate-row">
@@ -391,6 +461,7 @@ export function QuickAccessCard({
                 preferences={preferences?.aircon}
                 preferredRange={preferences?.climateTargetRange}
                 quietSwitch={quietSwitch}
+                size={dialSize}
                 title={titles.aircon}
                 turboSwitch={turboSwitch}
                 onEntityActions={onEntityActions}
@@ -401,6 +472,7 @@ export function QuickAccessCard({
                 devices={{ ...bedroomHeater, switchEntity: heaterSwitch }}
                 preferences={preferences?.bedroomHeater}
                 preferredRange={preferences?.climateTargetRange}
+                size={dialSize}
                 title={titles.heater}
                 onNotice={onNotice}
               />

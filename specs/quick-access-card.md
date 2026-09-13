@@ -51,29 +51,40 @@ request was executed directly).
   × 1.244). A tile only grows past that when its controls wrap on a phone — and
   the lighting segment now always does, since its 84px dial is 104px across and
   its presets sit beneath it (2026-09-12).
-- **Portrait puts the three dials on one even line (Adeline, 2026-09-12).**
-  The Home lighting dial and the two climate dials share the first line, evenly
-  spread across the width with **no gap between them** (`column-gap: 0` on
-  `.quick-access-row` and `.quick-climate-row`; `.quick-segment-lights` takes
-  `flex: 1 1 0` against the climate row's `flex: 2 1 0`, two dials to one, so
-  all three come out equal thirds). Weather keeps the next line to itself.
-  The lighting segment gives up its tile border and background here so the
-  three read as one row rather than a box beside two bare knobs — the same
-  reasoning that took the border off the climate knobs.
-
-  **Keyed on `@media (aspect-ratio <= 1)`, not on a container width.** The
-  first attempt hung this off the 920px container query and it never fired: a
-  portrait screen here is wider than 920px, so the card kept the wide
-  arrangement — the Home dial on the left, a gap in the middle, the climate
-  dials on the right. Orientation is what the rule is actually about.
-  Landscape keeps every rule above it, unchanged.
-
-  **The dials wrap when the line is too narrow (Adeline, 2026-09-14).** On an
-  iPhone the three zero-basis dials were squeezed into ~390px and overlapped.
-  In portrait `.quick-segment-lights` and each `.quick-climate` take
-  `min-width: 166px` (the drawn dial width), so a narrow card breaks the line:
-  the Home dial on its own line, the two climate dials on the next, weather
-  after. Wide portrait screens still get one even line of three.
+- **Portrait: one centred, wrapping row of dials (Adeline, 2026-09-14;
+  replaces the 2026-09-12 equal-thirds line).** Home lighting, Lounge aircon,
+  Bedroom heater, in that order. Three across, evenly spread, when they fit;
+  fewer per line when they don't; on a phone one per line, centred. Weather
+  keeps the line after the dials to itself.
+  - **Rings stay on screen.** A knob's layout box is only its dial, but its
+    floating rings reach well past it: at 133px the aircon's four rings are
+    ~295px across a ~165px dial. Every dial gets a slot as wide as the widest
+    knob's rings — `ringGeometry(size, 4, true).footprint`, passed as
+    `--quick-dial-slot` — so no ring can cross the card's edge. Equal slots
+    also make a shared line spread evenly. Rings may overlap a neighbouring
+    dial above or below; that is allowed.
+  - **Scale down, floor 100px.** When the card is narrower than one slot, all
+    three dials shrink together to the largest size whose slot fits
+    (`quickDialSizeFor`, re-measured by ResizeObserver). The floor is the
+    temperature knob's 100px minimum; landscape always stays at 133px.
+    Measured in Chromium: a 440px viewport keeps 133px; a 300px viewport
+    shrinks.
+  - **One centre line.** The climate knobs' title arcs make their boxes
+    taller than the dial, so the untitled lighting dial takes the same box
+    (`--quick-dial-box`, the title footprint) and dials sharing a line line up.
+  - **The climate row dissolves** (`display: contents`) so the three dials
+    wrap as siblings. As a nested flex box it sat beside the lighting dial and
+    wrapped inside itself, stacking the two climate knobs in a column on the
+    right — the sideways triangle seen on an iPhone Pro Max.
+  - The lighting segment gives up its tile border, background and padding so
+    the three read as one row rather than a box beside two bare knobs.
+  - **Keyed on `@media (aspect-ratio <= 1)`, not on a container width.** A
+    portrait screen here is wider than the 920px container query, so an
+    earlier version hung off that query never fired. Landscape keeps every
+    rule above it, unchanged.
+  - Checked by `e2e/quick-access-portrait.spec.ts` at 440×956, 375×812,
+    300×640 and 1080×1920: centring, one per line, equal sizes, the 100px
+    floor, and each climate knob's opened ring layer inside the viewport.
 
 - **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
   A 133px knob's dial is about 165px across — twice as tall as a tile's row —
