@@ -68,6 +68,13 @@ request was executed directly).
   dials on the right. Orientation is what the rule is actually about.
   Landscape keeps every rule above it, unchanged.
 
+  **The dials wrap when the line is too narrow (Adeline, 2026-09-14).** On an
+  iPhone the three zero-basis dials were squeezed into ~390px and overlapped.
+  In portrait `.quick-segment-lights` and each `.quick-climate` take
+  `min-width: 166px` (the drawn dial width), so a narrow card breaks the line:
+  the Home dial on its own line, the two climate dials on the next, weather
+  after. Wide portrait screens still get one even line of three.
+
 - **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
   A 133px knob's dial is about 165px across — twice as tall as a tile's row —
   so a boxed one spilled past its own border and overlapped the tile below in

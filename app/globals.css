@@ -7799,6 +7799,15 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
     column-gap: 0;
   }
 
+  /* Each dial keeps its drawn width (133px knob × 1.244 ≈ 166px). Without a
+     floor the zero bases squeezed three dials into a phone's ~390px and they
+     overlapped; with it the line breaks instead — Home dial alone, the two
+     climate dials on the next line (Adeline, 2026-09-14). */
+  .quick-segment-lights,
+  .quick-climate {
+    min-width: 166px;
+  }
+
   .quick-segment-lights {
     flex: 1 1 0;
     border-color: transparent;
