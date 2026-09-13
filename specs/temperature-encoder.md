@@ -48,7 +48,19 @@ longer change what the knob does.
 - Step **0.5°C** (Adeline).
 - Range: the aircon entity's `min_temp`/`max_temp`, falling back to 16–30°C;
   the heater's `BEDROOM_HEATER_MIN_TARGET_C`–`BEDROOM_HEATER_MAX_TARGET_C`
-  (5–30°C).
+  (5–30°C). Those are the hard limits.
+- **Preferred knob range** (Adeline, 2026-09-13; plan `elegant-booping-treasure`):
+  - One shared household preference, `preferences.climateTargetRange: { min, max }`
+    in °C, 0.5°C steps. Unset = full hard range (no behaviour change).
+  - Set in the `climate` config section with `RangeSliderControlPanel`, label
+    "Knob range", °C readouts, bounds 5–30, thumbs at least 1°C apart.
+  - Each knob sweeps the intersection of the preferred range and its own hard
+    range; if they do not overlap, the hard range.
+  - Clamp and send: a target outside the effective range is pulled to the nearest
+    edge and sent once through that knob's normal target setter. It is sent once
+    per out-of-range value, never in a loop.
+  - Done: both climate cards and the Quick Access knobs honour it, pick up config
+    changes live, tests pass.
 - The index runs 7:30 → over the top → 4:30 across the range, so the value
   moves at `range / 270°` per degree turned. The drag is relative, as on every
   dial.

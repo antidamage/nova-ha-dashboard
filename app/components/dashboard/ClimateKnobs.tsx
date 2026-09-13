@@ -9,7 +9,7 @@
  * happens in Off — exist once. The commands themselves stay in
  * `climateCommands.ts`; nothing here talks to Home Assistant directly.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   AIRCON_FAN_STEPS,
   airconAutoMeasuredTemperature,
@@ -39,7 +39,9 @@ import {
   TIMER_MAX_MINUTES,
   TIMER_STEP_MINUTES,
   TIMER_VALUE_WIDEST,
+  effectiveTargetRange,
   fanStepText,
+  type TargetRange,
   timerValueText,
 } from "../temperatureEncoderModel";
 import { useSharedAirconCommands, useSharedBedroomHeaterCommands } from "./ClimateCommandsProvider";
@@ -62,6 +64,33 @@ function targetRange(entity?: DashboardEntity) {
   };
 }
 
+/**
+ * Clamp and send: a target outside the knob's range is pulled to the nearest
+ * edge and sent once for that target and range (specs/temperature-encoder.md).
+ */
+function useClampTargetIntoRange(
+  target: number | null | undefined,
+  range: TargetRange,
+  disabled: boolean,
+  send: (next: number) => void,
+) {
+  const sentFor = useRef<string | null>(null);
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    if (disabled || typeof target !== "number" || !Number.isFinite(target)) return;
+    const clamped = Math.max(range.min, Math.min(range.max, target));
+    if (clamped === target) {
+      sentFor.current = null;
+      return;
+    }
+    const key = `::`;
+    if (sentFor.current === key) return;
+    sentFor.current = key;
+    sendRef.current(clamped);
+  }, [disabled, range.min, range.max, target]);
+}
+
 /** Running means the ring glows: heating, cooling or moving air right now. */
 function airconRunning(entity: DashboardEntity | undefined, powerOff: boolean) {
   if (!entity || powerOff) return false;
@@ -73,6 +102,7 @@ export function AirconKnob({
   entity,
   freshAirSwitch,
   preferences,
+  preferredRange,
   quietSwitch,
   size = 200,
   title,
@@ -83,6 +113,7 @@ export function AirconKnob({
   entity: DashboardEntity;
   freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
+  preferredRange?: TargetRange;
   quietSwitch?: DashboardEntity;
   size?: number;
   title: string;
@@ -99,7 +130,8 @@ export function AirconKnob({
     onEntityActions,
   });
 
-  const range = targetRange(entity);
+  const range = effectiveTargetRange(targetRange(entity), preferredRange);
+  useClampTargetIntoRange(aircon.airconSettings.temperature, range, aircon.entityUnavailable, (next) => void aircon.setTemperature(next));
   const power = aircon.displayedPowerState;
   const off = power === "off";
 
@@ -219,6 +251,7 @@ export function AirconKnob({
 export function HeaterKnob({
   humidity,
   preferences,
+  preferredRange,
   size = 200,
   switchEntity,
   temperature,
@@ -227,6 +260,7 @@ export function HeaterKnob({
 }: {
   humidity?: number | null;
   preferences?: BedroomHeaterPreferences;
+  preferredRange?: TargetRange;
   size?: number;
   switchEntity: DashboardEntity;
   temperature: number | null;
@@ -235,6 +269,8 @@ export function HeaterKnob({
 }) {
   const heater = useSharedBedroomHeaterCommands({ onNotice, preferences });
   const unavailable = ["unavailable", "unknown"].includes(switchEntity.state);
+  const range = effectiveTargetRange({ min: BEDROOM_HEATER_MIN_TARGET_C, max: BEDROOM_HEATER_MAX_TARGET_C }, preferredRange);
+  useClampTargetIntoRange(heater.displayedTarget, range, unavailable, (next) => void heater.changeTarget(next));
 
   // Two lights, not three: the heater has no Manual, which did the same thing
   // as Auto in a cold room and was retired in August 2026 (Adeline).
@@ -270,8 +306,8 @@ export function HeaterKnob({
     <TemperatureEncoder
       ariaLabel={`${title} heater${typeof humidity === "number" ? `, humidity ${Math.round(humidity)} percent` : ""}`}
       disabled={unavailable}
-      maxTarget={BEDROOM_HEATER_MAX_TARGET_C}
-      minTarget={BEDROOM_HEATER_MIN_TARGET_C}
+      maxTarget={range.max}
+      minTarget={range.min}
       mode={heater.displayedMode}
       modes={modes}
       onModeChange={(next) => heater.chooseModeAfterTaps(next as "auto" | "off")}

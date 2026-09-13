@@ -399,6 +399,7 @@ function BedroomHeaterControl({
   humidity,
   onNotice,
   preferences,
+  preferredRange,
   switchEntity,
   temperature,
   title,
@@ -407,6 +408,7 @@ function BedroomHeaterControl({
   humidity: number | null;
   onNotice?: (message: string) => void;
   preferences?: BedroomHeaterPreferences;
+  preferredRange?: { min: number; max: number };
   switchEntity?: DashboardEntity;
   temperature: number | null;
   /** Usually the room, from dashboard.bedroomHeater.title in config. */
@@ -425,6 +427,7 @@ function BedroomHeaterControl({
         <HeaterKnob
           humidity={humidity}
           preferences={preferences}
+          preferredRange={preferredRange}
           switchEntity={switchEntity}
           temperature={temperature}
           title={title}
@@ -489,6 +492,7 @@ function AirConditionerControl({
   entity,
   freshAirSwitch,
   preferences,
+  preferredRange,
   quietSwitch,
   title,
   turboSwitch,
@@ -498,6 +502,7 @@ function AirConditionerControl({
   entity?: DashboardEntity;
   freshAirSwitch?: DashboardEntity;
   preferences?: AirconPreferences;
+  preferredRange?: { min: number; max: number };
   quietSwitch?: DashboardEntity;
   /** Usually the room, from dashboard.aircon.title in config. */
   title: string;
@@ -517,6 +522,7 @@ function AirConditionerControl({
           entity={entity}
           freshAirSwitch={freshAirSwitch}
           preferences={preferences}
+          preferredRange={preferredRange}
           quietSwitch={quietSwitch}
           title={title}
           turboSwitch={turboSwitch}
@@ -589,6 +595,7 @@ export function ClimateControls({
           entity={aircon}
           freshAirSwitch={freshAirSwitch}
           preferences={preferences?.aircon}
+          preferredRange={preferences?.climateTargetRange}
           quietSwitch={quietSwitch}
           title={titles.aircon}
           turboSwitch={turboSwitch}
@@ -600,6 +607,7 @@ export function ClimateControls({
           controlState={climateControl?.bedroom}
           humidity={bedroomHeater?.humidity ?? null}
           preferences={preferences?.bedroomHeater}
+          preferredRange={preferences?.climateTargetRange}
           switchEntity={bedroomHeater?.switchEntity}
           temperature={bedroomHeater?.temperature ?? null}
           title={titles.heater}

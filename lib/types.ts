@@ -633,6 +633,12 @@ export type DashboardPreferences = {
    * See lib/climate-preferences.ts.
    */
   climate?: Record<string, { aircon?: AirconPreferences; heater?: BedroomHeaterPreferences }>;
+  /**
+   * Household-preferred sweep of every temperature knob, inside each unit's
+   * hard limits. Always written whole, so the top-level merge replacing it is
+   * correct. Unset = hard limits. See specs/temperature-encoder.md.
+   */
+  climateTargetRange?: { min: number; max: number };
   theme?: Record<string, unknown>;
   themeUpdatedAt?: string;
   themeLibrary?: Record<string, unknown>;
