@@ -396,8 +396,17 @@ try {
   var setBackground = function (rgb) {
     document.documentElement.style.setProperty("--background", rgbCss(rgb));
     document.documentElement.style.setProperty("--cyber-bg", rgbCss(rgb));
-    document.documentElement.style.setProperty("--cyber-panel", rgbCss(mix(rgb, [0, 0, 0], 0.16)));
-    document.documentElement.style.setProperty("--cyber-panel-soft", rgbCss(mix(rgb, [255, 255, 255], 0.07)));
+  };
+  // Mirrors applyCssPanel in accentColor.ts; see specs/panel-surface.md.
+  var setPanel = function (panelValue, backgroundRgb) {
+    var rgb = panelValue && panelValue.color ? applied(panelValue.color, [26, 26, 26]) : mix(backgroundRgb, [0, 0, 0], 0.16);
+    var alpha = clamp(Math.round(Number(panelValue && panelValue.opacity !== undefined ? panelValue.opacity : 100)), 0, 100) / 100;
+    var soft = rgb.map(function (part) {
+      return clamp(Math.round(part * (0.93 / 0.84) + 255 * 0.07), 0, 255);
+    });
+    document.documentElement.style.setProperty("--cyber-panel-rgb", rgb[0] + " " + rgb[1] + " " + rgb[2]);
+    document.documentElement.style.setProperty("--cyber-panel", "rgb(" + rgb[0] + " " + rgb[1] + " " + rgb[2] + " / " + alpha + ")");
+    document.documentElement.style.setProperty("--cyber-panel-soft", "rgb(" + soft[0] + " " + soft[1] + " " + soft[2] + " / " + alpha + ")");
   };
   var setTitleTone = function (tone, accentRgb, highlightRgb, backgroundRgb, clockColorValue, colors) {
     document.documentElement.style.setProperty("--cyber-title-on-line", titleColor(tone, accentRgb, false));
@@ -507,6 +516,7 @@ try {
     setRgb("cyan", highlightRgb);
     setBorder(border, accentRgb);
     setBackground(backgroundRgb);
+    setPanel(themeValue.panel, backgroundRgb);
     setTitleColors(titleColors);
     setTitleTone(titleTone, accentRgb, highlightRgb, backgroundRgb, clockColor, titleColors);
     setMap(map);
