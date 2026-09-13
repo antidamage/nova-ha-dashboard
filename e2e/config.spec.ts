@@ -42,12 +42,11 @@ test.describe("configuration workspace", () => {
     await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
   });
 
-  test("marks voice and agent controls as simulated demo data", async ({ page }) => {
+  test("shows voice controls without a demo notice", async ({ page }) => {
     await gotoConfig(page);
 
     await page.getByRole("button", { name: /Voice & People/ }).click();
-    await expect(page.getByText("Demo preview only.")).toBeVisible();
-    await expect(page.getByText(/public demo has no microphone/i)).toBeVisible();
+    await expect(page.getByText("Demo preview only.")).toHaveCount(0);
     await expect(page.getByText("Voice Infrastructure")).toBeVisible();
   });
 });

@@ -608,18 +608,6 @@ export function ConfigWorkspace({
               <p>{activeMeta?.detail}</p>
             </header>
 
-            {isDemoMode && (activeCategory === "assistant" || activeCategory === "voice-people") ? (
-              <aside
-                className="border border-amber-400/50 bg-amber-400/10 p-4 text-sm leading-relaxed text-amber-100"
-                role="status"
-              >
-                <strong className="font-black uppercase">Demo preview only.</strong>{" "}
-                Voice and agent data is simulated here so the settings and status surfaces can be
-                explored. The public demo has no microphone, speech models, household memory, training
-                service, or acting agent, so these controls do not run the voice stack.
-              </aside>
-            ) : null}
-
             {activeCategory === "assistant" ? (
               <>
                 <ConfigAccordion id="identity" title="Identity" icon={<UserRound className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl">
