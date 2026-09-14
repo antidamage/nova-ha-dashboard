@@ -1,4 +1,5 @@
 import type { Task, TaskFollows, TaskRepeat, TaskSource } from "../../../lib/types";
+import { washReminder } from "../../../lib/wash-reminder";
 
 export type TaskTab = "today" | "upcoming";
 /**
@@ -241,11 +242,13 @@ export function isTaskActive(task: Task, nowMs: number) {
 }
 
 export function isTaskReminderDue(task: Task, nowMs: number) {
+  if (washReminder(task)?.phase === "waiting") return false;
   const start = taskStartMs(task);
   return !taskHasEnd(task) && !isTaskComplete(task) && Number.isFinite(start) && start <= nowMs;
 }
 
 export function isTaskCurrent(task: Task, nowMs: number) {
+  if (washReminder(task)?.phase === "waiting") return false;
   return isTaskActive(task, nowMs) || isTaskReminderDue(task, nowMs);
 }
 
@@ -269,6 +272,7 @@ export function isTaskAlerting(task: Task, nowMs: number) {
  * skipped for non-local sources.
  */
 export function isTaskOverdue(task: Task, nowMs: number, thresholdMs: number) {
+  if (washReminder(task)?.phase === "waiting") return false;
   if (isTaskComplete(task)) {
     return false;
   }
@@ -306,6 +310,7 @@ export function taskVisibleInTab(task: Task, tab: TaskTab, nowMs: number) {
 }
 
 export function timeRange(task: Task) {
+  if (washReminder(task)?.phase === "waiting") return "Waiting for washing machine";
   const start = TASK_TIME_FORMATTER.format(new Date(task.start));
   if (!task.end) {
     return `${start} reminder`;
@@ -325,6 +330,7 @@ export function sourceLabel(source: TaskSource) {
 }
 
 export function statusForTask(task: Task, nowMs: number) {
+  if (!isTaskComplete(task) && washReminder(task)?.phase === "waiting") return "Waiting";
   if (isTaskComplete(task)) {
     return "Done";
   }

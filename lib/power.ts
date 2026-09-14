@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import { reconcileWashCompletion } from "./wash-completion";
+import { cycleId as washingCycleId } from "./washing-machine";
 import path from "path";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { callService, haRest } from "./ha";
@@ -29,6 +31,7 @@ import {
   recordWashingMachineSample,
   WASHING_MACHINE_HISTORY_DAYS,
   type WashingMachineCycle,
+  type WashingMachineOpenCycle,
   type WashingMachineState,
   type WashingMachineTotals,
 } from "./washing-machine";
@@ -138,8 +141,10 @@ export type PowerFloatingMeterSummary = {
 };
 
 export type PowerWashingMachineSummary = {
+  running?: { id: string; person: string | null; kwh: number };
   cycles: WashingMachineCycle[];
   monthKey: string;
+  open: WashingMachineOpenCycle | null;
   people: HouseholdPerson[];
   totals: WashingMachineTotals[];
   watts: number | null;
@@ -1205,6 +1210,7 @@ function recordWashingMachineTick(
   if (watts === null) {
     // Off-network. A missing reading is not a reading of zero: treating it as
     // one would close an open cycle that is still running.
+    if (persisted.open) { persisted.open.zeroSince = null; persisted.open.belowSince = null; }
     return persisted;
   }
   const next = recordWashingMachineSample(persisted, {
@@ -1213,6 +1219,7 @@ function recordWashingMachineTick(
     costPerKwh,
     elapsedHours: integrationHours,
     watts,
+    reportedAt: statesById.get(config.powerSensorEntityId)?.last_reported ?? statesById.get(config.powerSensorEntityId)?.last_updated ?? "invalid",
   });
   const cutoff = new Date(now.getTime() - WASHING_MACHINE_HISTORY_DAYS * 86_400_000).toISOString();
   return pruneWashingMachineCycles(next, cutoff);
@@ -1224,21 +1231,35 @@ function recordWashingMachineTick(
  * the server owns the order so two screens cannot disagree about what comes
  * next. See specs/power-meters.md 4.3.
  */
-export async function attributeWashingMachineCycle(cycleId: string) {
+async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   if (!powerConfig().washingMachine) {
     return null;
   }
   const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
   const state = { ...blankWashingMachineState(), ...persisted };
   const index = state.cycles.findIndex((cycle) => cycle.id === cycleId);
+  const personIds = (readDashboardConfigSync().dashboard.people ?? []).map((person) => person.id);
+  if (state.open?.startedAt && washingCycleId(state.open.startedAt) === cycleId) {
+    state.open.person = nextPerson(state.open.person ?? null, personIds);
+    await reconcileWashCompletion(state, new Map());
+    await writeJsonAtomic(WASHING_MACHINE_PATH, state);
+    return state.open;
+  }
   if (index === -1) {
     return null;
   }
-  const personIds = (readDashboardConfigSync().dashboard.people ?? []).map((person) => person.id);
   const cycle = { ...state.cycles[index], person: nextPerson(state.cycles[index].person, personIds) };
   state.cycles = [...state.cycles.slice(0, index), cycle, ...state.cycles.slice(index + 1)];
   await writeJsonAtomic(WASHING_MACHINE_PATH, state);
   return cycle;
+}
+
+/** Claim the wash currently under way; completed washes use the cycle path above. */
+export async function attributeOpenWashingMachineCycle() {
+  return serializePower(async () => {
+    const state = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
+    return state.open?.startedAt ? attributeWashingMachineCycleUnlocked(washingCycleId(state.open.startedAt)) : null;
+  });
 }
 
 function buildWashingMachineSummary(
@@ -1257,7 +1278,9 @@ function buildWashingMachineSummary(
   const cycles = state.cycles.filter((cycle) => localMonthKey(new Date(cycle.endedAt)) === monthKey);
   return {
     cycles,
+    ...(state.open?.startedAt ? { running: { id: washingCycleId(state.open.startedAt), person: state.open.person ?? null, kwh: state.open.kwh } } : {}),
     monthKey,
+    open: state.open?.startedAt ? state.open : null,
     people,
     totals: monthTotals(cycles, people.map((person) => person.id)),
     watts: state.open?.lastWatts ?? null,
@@ -1667,6 +1690,7 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
   pruneState(state, now);
   await writeJsonAtomic(POWER_STATE_PATH, state);
   if (washing) {
+    await reconcileWashCompletion(washing, statesById).catch((error) => console.warn("Wash reminder reconciliation failed", error));
     await writeJsonAtomic(WASHING_MACHINE_PATH, washing);
   }
   const summary = buildDashboard(state, readings, accountUsage, dailyUsage, accountMetadata, now, washing);
@@ -1676,9 +1700,18 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
   return summary;
 }
 
+let powerWriteQueue: Promise<unknown> = Promise.resolve();
+function serializePower<T>(work: () => Promise<T>): Promise<T> {
+  const result = powerWriteQueue.then(work);
+  powerWriteQueue = result.catch(() => undefined);
+  return result;
+}
+export function attributeWashingMachineCycle(id: string) {
+  return serializePower(() => attributeWashingMachineCycleUnlocked(id));
+}
 export async function samplePowerNow(): Promise<PowerDashboard> {
   if (!powerRuntime.samplePromise) {
-    powerRuntime.samplePromise = samplePowerUnlocked().finally(() => {
+    powerRuntime.samplePromise = serializePower(samplePowerUnlocked).finally(() => {
       powerRuntime.samplePromise = null;
     });
   }

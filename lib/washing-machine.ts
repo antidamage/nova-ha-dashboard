@@ -13,6 +13,7 @@ import type { WashingMachineConfig } from "./config-schema";
  */
 
 export type WashingMachineCycle = {
+  completion?: WashCompletion;
   costNzd: number;
   endedAt: string;
   id: string;
@@ -23,6 +24,9 @@ export type WashingMachineCycle = {
 };
 
 export type WashingMachineOpenCycle = {
+  person?: string | null;
+  zeroSince?: string | null;
+  completion?: WashCompletion;
   /** When the meter first rose above the start threshold, or null. */
   aboveSince: string | null;
   /** When the meter first fell below the end threshold, or null. */
@@ -53,7 +57,9 @@ function seconds(from: string, to: string) {
   return (new Date(to).getTime() - new Date(from).getTime()) / 1000;
 }
 
-function cycleId(startedAt: string) {
+export type WashCompletion = { at: string; person: string | null; soundFile: string; discord: boolean; recommendation?: string };
+
+export function cycleId(startedAt: string) {
   return `${startedAt.replace(/[:.]/g, "-")}`;
 }
 
@@ -72,6 +78,8 @@ export function recordWashingMachineSample(
     costPerKwh: number;
     elapsedHours: number;
     watts: number;
+    /** HA report time; repeated reads of the same cached report cannot advance the quiet timer. */
+    reportedAt?: string;
   },
 ): WashingMachineState {
   const { at, config, costPerKwh, elapsedHours, watts } = options;
@@ -95,6 +103,23 @@ export function recordWashingMachineSample(
   // accumulates; standby draw between washes is not a wash.
   if (open.startedAt && elapsedHours > 0) {
     add((open.lastWatts * elapsedHours) / 1000);
+  }
+  const gap = seconds(open.lastSampleAt, at);
+  const alert = config.completionAlert;
+  if (alert?.enabled && (gap > alert.maxSampleGapSeconds || gap < 0)) open.belowSince = null;
+  if (alert?.enabled && open.startedAt && !open.completion) {
+    const reportedAt = options.reportedAt ?? at;
+    const age = seconds(reportedAt, at);
+    const fresh = Number.isFinite(age) && age >= -5 && age <= alert.maxSampleGapSeconds;
+    if (!fresh || gap < 0 || gap > alert.maxSampleGapSeconds || elapsedHours <= 0 || watts > alert.zeroWatts) open.zeroSince = null;
+    if (fresh && watts <= alert.zeroWatts) {
+      open.zeroSince ??= reportedAt;
+      if (open.kwh >= config.minCycleKwh && seconds(open.zeroSince, reportedAt) > alert.quietSeconds) {
+        // Record even an unclaimed finish: a later claim must never backfill an alert.
+        open.completion = { at, person: open.person ?? null, soundFile: alert.soundFile,
+          discord: alert.discord && open.person === alert.personId };
+      }
+    }
   }
   open.lastSampleAt = at;
   const previousWatts = open.lastWatts;
@@ -129,7 +154,8 @@ export function recordWashingMachineSample(
         endedAt: open.belowSince,
         id: cycleId(open.startedAt),
         kwh: Math.round(open.kwh * 100000) / 100000,
-        person: null,
+        person: open.person ?? null,
+        completion: open.completion,
         startedAt: open.startedAt,
       };
       // Below the floor this was the machine's standby panel or a door-open

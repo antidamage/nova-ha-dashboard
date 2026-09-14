@@ -37,6 +37,7 @@ export const EVENT_IDS = [
   "reminder.due",
   "reminder.completed",
   "reminder.uncompleted",
+  "washing-machine.completed",
   // One per kiosk VISIT, not per action: fired when the wall panel has been
   // quiet for KIOSK_DIGEST_QUIET_SECONDS, carrying who was there and everything
   // they did. A per-action event is exactly the tap-by-tap stream this replaces.

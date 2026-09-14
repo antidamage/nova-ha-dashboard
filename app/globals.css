@@ -5568,7 +5568,8 @@ button.config-breadcrumb-crumb:focus-visible {
      kiosk, and every block here exists to be tapped. */
   min-width: 14px;
   position: absolute;
-  transform: translateX(-50%);
+  /* The 12-hour timeline supplies the left edge and duration as width. */
+  transform: none;
   transition: background 160ms ease, height 160ms ease;
   width: 14px;
 }

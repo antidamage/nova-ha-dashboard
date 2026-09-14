@@ -128,14 +128,12 @@ function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSummary }) 
 
 const GRAPH_WIDTH = 100;
 const GRAPH_HEIGHT = 40;
+const WASH_TIMELINE_MS = 12 * 60 * 60 * 1000;
 
-function daysInMonth(monthKey: string) {
-  const [year, month] = monthKey.split("-").map(Number);
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-function dayOfMonth(iso: string) {
-  return Number(iso.slice(8, 10));
+/** Recent time gets room to breathe; older time deliberately compacts left. */
+function timelineX(at: number, now: number) {
+  const age = Math.max(0, Math.min(1, (now - at) / WASH_TIMELINE_MS));
+  return 100 * (1 - Math.sqrt(age));
 }
 
 function WashingMachineCard({
@@ -152,13 +150,13 @@ function WashingMachineCard({
     setPending((current) => {
       const next = Object.fromEntries(
         Object.entries(current).filter(([id, person]) => {
-          const cycle = summary.cycles.find((candidate) => candidate.id === id);
+          const cycle = summary.running?.id === id ? summary.running : summary.cycles.find((candidate) => candidate.id === id);
           return cycle ? cycle.person !== person : false;
         }),
       );
       return Object.keys(next).length === Object.keys(current).length ? current : next;
     });
-  }, [summary.cycles]);
+  }, [summary.cycles, summary.running]);
 
   const personOf = (cycleId: string, serverPerson: string | null) =>
     cycleId in pending ? pending[cycleId] : serverPerson;
@@ -167,8 +165,20 @@ function WashingMachineCard({
     summary.people.find((candidate) => candidate.id === person)?.color ?? "var(--cyber-line, #52525b)";
 
   const cycles = summary.cycles;
-  const days = daysInMonth(summary.monthKey);
-  const peak = Math.max(0.01, ...cycles.map((cycle) => cycle.kwh));
+  const now = Date.now();
+  const timeline = [
+    ...cycles.map((cycle) => ({ ...cycle, active: false })),
+    ...(summary.open ? [{
+      active: true,
+      costNzd: summary.open.costNzd,
+      endedAt: new Date(now).toISOString(),
+      id: summary.running?.id ?? "active",
+      kwh: summary.open.kwh,
+      person: summary.open.person ?? null,
+      startedAt: summary.open.startedAt!,
+    }] : []),
+  ].filter((cycle) => new Date(cycle.endedAt).getTime() >= now - WASH_TIMELINE_MS);
+  const peak = Math.max(0.01, ...timeline.map((cycle) => cycle.kwh));
 
   // Totals are recomputed on the client so an optimistic tap moves them at
   // once; the server's own totals arrive on the next poll and agree.
@@ -196,11 +206,12 @@ function WashingMachineCard({
     const next = ids.length === 0 ? null : index === -1 ? ids[0] : index === ids.length - 1 ? null : ids[index + 1];
     setPending((state) => ({ ...state, [cycleId]: next }));
     try {
-      await fetch("/api/power/washing-machine", {
-        body: JSON.stringify({ cycleId }),
+      const response = await fetch("/api/power/washing-machine", {
+        body: JSON.stringify(cycleId === "active" ? { active: true } : { cycleId }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
+      if (!response.ok) throw new Error("Wash claim failed");
     } catch {
       setPending((state) => {
         const { [cycleId]: _dropped, ...rest } = state;
@@ -213,7 +224,7 @@ function WashingMachineCard({
     <section className="power-meter-card border border-neutral-700 bg-neutral-950/70 p-4">
       <header className="mb-3 flex items-baseline justify-between gap-3">
         <p className="text-sm font-black uppercase text-fuchsia-200">Washing Machine</p>
-        <p className="text-sm font-black tabular-nums text-neutral-100">{monthTotal}</p>
+        <p className="text-sm font-black tabular-nums text-neutral-100">{summary.open ? `${formatWatts(summary.watts)} now` : monthTotal}</p>
       </header>
 
       <div className="power-wash-graph relative border border-neutral-800 bg-neutral-900/60">
@@ -221,25 +232,28 @@ function WashingMachineCard({
           <path className="power-curve-grid" d={`M 0 10 H ${GRAPH_WIDTH} M 0 20 H ${GRAPH_WIDTH} M 0 30 H ${GRAPH_WIDTH}`} />
         </svg>
         <div className="power-wash-blocks">
-          {cycles.length === 0 ? (
-            <p className="power-wash-empty text-xs font-black uppercase text-neutral-600">No washes this month</p>
+          {timeline.length === 0 ? (
+            <p className="power-wash-empty text-xs font-black uppercase text-neutral-600">No washes in the last 12 hours</p>
           ) : null}
-          {cycles.map((cycle) => {
+          {timeline.map((cycle) => {
             const person = personOf(cycle.id, cycle.person);
             const label = summary.people.find((candidate) => candidate.id === person)?.label ?? "Unassigned";
+            const start = timelineX(new Date(cycle.startedAt).getTime(), now);
+            const end = timelineX(new Date(cycle.endedAt).getTime(), now);
             return (
               <MomentaryFeedbackButton
                 key={cycle.id}
                 type="button"
-                aria-label={`${cycle.kwh.toFixed(2)} kWh wash on day ${dayOfMonth(cycle.endedAt)}, ${label}. Tap to reassign.`}
+                aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}. Tap to claim or reassign.`}
                 className="power-wash-block"
                 onClick={() => void attribute(cycle.id, person)}
                 style={{
                   background: colorOf(person),
                   height: `${Math.max(14, (cycle.kwh / peak) * 100)}%`,
-                  left: `${((dayOfMonth(cycle.endedAt) - 0.5) / days) * 100}%`,
+                  left: `${start}%`,
+                  width: `${Math.max(14, end - start)}%`,
                 }}
-                title={`${label} / ${cycle.kwh.toFixed(2)} kWh`}
+                title={`${cycle.active ? "Active — " : ""}${label} / ${cycle.kwh.toFixed(2)} kWh`}
               />
             );
           })}
