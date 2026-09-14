@@ -1,4 +1,5 @@
 "use client";
+import { TIMER_SOUNDS } from "../../lib/orb-timer-settings";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -176,6 +177,7 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   panel: ThemePanelValue;
   clockColor: ThemeColorValue;
   clockFont: ThemeFontSetting;
+  timerSound: string;
   controlSound: ControlSoundSettings;
   desktopWallpaper: DesktopWallpaperSettings;
   font: ThemeFontSetting;
@@ -435,6 +437,7 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     rgb: [224, 205, 154],
   },
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
+  timerSound: "Chime",
   controlSound: { ...DEFAULT_CONTROL_SOUND },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
   gymFont: { ...DEFAULT_GYM_FONT_SETTING },
@@ -648,6 +651,7 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     rgb: [174, 0, 255],
   },
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
+  timerSound: "Chime",
   controlSound: { ...DEFAULT_CONTROL_SOUND },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
   gymFont: { ...DEFAULT_GYM_FONT_SETTING },
@@ -995,6 +999,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     backgroundEffect: normalizeFluidBackgroundSettings(value?.backgroundEffect),
     clockColor: normalizeColor(value?.clockColor, titleColors[titleColorSlotFor(titleTone, appliedThemeRgb(background), true)]),
     clockFont: normalizeThemeFontSetting(value?.clockFont, DEFAULT_CLOCK_FONT_ID, DEFAULT_CLOCK_FONT_SETTING.weight),
+    timerSound: TIMER_SOUNDS.includes(value?.timerSound as typeof TIMER_SOUNDS[number]) ? value!.timerSound! : "Chime",
     controlSound: normalizeControlSound(value?.controlSound),
     desktopWallpaper: normalizeDesktopWallpaperSettings(value?.desktopWallpaper),
     font: normalizeThemeFontSetting(value?.font, DEFAULT_THEME_FONT_ID, DEFAULT_DISPLAY_FONT_SETTING.weight),

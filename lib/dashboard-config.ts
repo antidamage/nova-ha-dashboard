@@ -132,6 +132,9 @@ function validationIssues(error: { issues: Array<{ code: string; message: string
 export function validateDashboardConfig(value: unknown): ConfigValidationResult {
   const result = DashboardConfigSchema.safeParse(value);
   if (result.success) {
+    const people = result.data.dashboard.people;
+    const primary = people.find((person) => person.primary) ?? people[0];
+    result.data.dashboard.people = people.map((person) => ({ ...person, primary: person === primary }));
     return { ok: true, config: result.data, errors: [] };
   }
   return { ok: false, errors: validationIssues(result.error) };

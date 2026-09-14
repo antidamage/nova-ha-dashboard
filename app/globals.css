@@ -5782,7 +5782,6 @@ button.config-breadcrumb-crumb:focus-visible {
   }
 
   .zones-panel > .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px !important;
   }
 
@@ -5858,15 +5857,162 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 /* The multimeter's horizontal accordion, adapted to the dashboard's controls.
-   In portrait these wrappers disappear and leave the familiar zone grid. */
-.horizontal-accordion,
-.horizontal-accordion-content {
-  display: contents;
-}
-
-.horizontal-accordion-trigger,
+   Landscape lays it out sideways (below, `aspect-ratio > 1`); portrait stacks
+   it as a card: bar, list, then the selected zone's controls
+   (specs/portrait-layout.md). */
 .horizontal-accordion-content[hidden] {
   display: none;
+}
+
+@media (aspect-ratio <= 1) {
+  /* The zones panel stops being a box: each group is its own bordered card.
+     It stays a real (transparent) column rather than display: contents, so it
+     still has a rect to wait on and measure. */
+  .dashboard-home .zones-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 0 !important;
+    border: 0;
+    background: transparent !important;
+    clip-path: none;
+  }
+
+  .dashboard-home .zones-panel-heading {
+    display: none;
+  }
+
+  .dashboard-home .zones-panel > .zone-selector-groups {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px !important;
+    min-width: 0;
+  }
+
+  .dashboard-home .horizontal-accordion {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* The landscape bar's border, panel colour and feedback, laid flat: title
+     on the left, chevron on the right. */
+  .dashboard-home .horizontal-accordion-trigger {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    height: 56px;
+    min-height: 56px;
+    padding: 0 12px 0 16px;
+    border: 1px solid var(--cyber-border-dim);
+    background: var(--cyber-panel) !important;
+    color: var(--cyber-title-on-bg);
+    cursor: pointer;
+    clip-path: none;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:hover,
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    border-color: var(--cyber-highlight);
+    background: color-mix(in srgb, var(--cyber-highlight) 12%, var(--cyber-panel)) !important;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    outline: 2px solid var(--cyber-highlight);
+    outline-offset: -4px;
+  }
+
+  .dashboard-home .horizontal-accordion-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--cyber-display);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-home .horizontal-accordion-indicator {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px solid var(--cyber-border-dim);
+  }
+
+  .dashboard-home .horizontal-accordion[data-open="true"] .horizontal-accordion-trigger {
+    border-color: var(--cyber-highlight);
+    border-bottom-color: var(--cyber-border-dim);
+  }
+
+  /* The list, joined under the bar. */
+  .dashboard-home .horizontal-accordion-content:not([hidden]) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--cyber-border-dim);
+    border-top: 0;
+    background: var(--cyber-panel);
+  }
+
+  /* Home: the home zone full width, its subzones as tiles beneath. */
+  .dashboard-home .horizontal-accordion .zone-tree {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  /* The selected zone's controls, joined under the list in the same card. */
+  .dashboard-home .horizontal-accordion-attached {
+    min-width: 0;
+    border: 1px solid var(--cyber-border-dim);
+    border-top: 0;
+    background: var(--cyber-panel);
+  }
+
+  .dashboard-home .horizontal-accordion-attached > .control-stage {
+    display: block;
+    min-width: 0;
+  }
+
+  /* The card is the box now; the zone panel inside it is not a second one. */
+  .dashboard-home .horizontal-accordion-attached .zone-panel {
+    min-height: 0 !important;
+    border: 0;
+    background: transparent;
+    clip-path: none;
+  }
+
+  /* TasksPanel is mounted once, after the zones panel (it runs reminders while
+     hidden). It closes the layout gap and drops its top border so it reads as
+     the Systems card's panel, and hides with that card. */
+  .dashboard-home .tasks-stage {
+    min-width: 0;
+    margin-top: -20px;
+    border: 1px solid var(--cyber-border-dim);
+    border-top: 0;
+    background: var(--cyber-panel);
+  }
+
+  .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
+    display: none;
+  }
+}
+
+@media (aspect-ratio <= 1) and (min-width: 768px) {
+  .dashboard-home .horizontal-accordion-content:not([hidden]) {
+    gap: 12px;
+  }
 }
 
 @media (aspect-ratio > 1) {
@@ -6258,7 +6404,7 @@ button.config-breadcrumb-crumb:focus-visible {
   .dashboard-home .zone-panel[data-lighting-zone] {
     display: grid;
     grid-template-columns: minmax(420px, max-content);
-    grid-template-rows: auto minmax(min-content, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 24px;
   }
 
@@ -6273,7 +6419,7 @@ button.config-breadcrumb-crumb:focus-visible {
   .dashboard-home .zone-panel[data-lighting-zone] .lighting-column {
     grid-auto-flow: column;
     grid-auto-columns: minmax(280px, max-content);
-    grid-template-rows: minmax(min-content, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     align-items: center;
     /* Centred in the panel rather than packed to its left edge: the dial and
        its presets are the content, and a wide panel left them hanging off one
@@ -6296,62 +6442,39 @@ button.config-breadcrumb-crumb:focus-visible {
   }
 
   /* Both wrappers are grids, so the height is passed on as a row that fills.
-     The row is floored at its content, not at 0: a 0 floor squeezed a taller
-     panel into the column and its clip-path cut the rest off (the Network
-     panel's Sleep/Wake buttons). Content that does not fit now scrolls inside
-     the panel, under its header (specs/landscape-layout.md, "Vertical
-     overflow"). Panels that must fit the column exactly — Outside's camera —
-     keep their own minmax(0, 1fr) further down. */
+     The rows are floored at 0: each sub-panel under them is its own scroller
+     (specs/advanced-fold.md), so a sub-panel taller than the column scrolls
+     inside itself instead of growing the stage. The body no longer scrolls. */
   .dashboard-home .control-stage > .zone-panel > .mt-8,
   .dashboard-home .control-stage .lighting-column {
-    grid-template-rows: minmax(min-content, 1fr);
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .dashboard-home .control-stage > .zone-panel > .mt-8 {
-    overflow-y: auto;
-    scrollbar-width: none;
-  }
-
-  .dashboard-home .control-stage > .zone-panel > .mt-8::-webkit-scrollbar {
-    display: none;
+    overflow: visible;
   }
 
   .dashboard-home .control-stage .lighting-column {
     min-height: 0;
-    /* Its fold must be allowed to add advanced content to the panel body's
-       single scrollable extent. A fixed height here made that content paint
-       beyond the grid item, where it was cut off instead of extending the
-       parent scroller. */
-    height: auto;
   }
 
-  /* Network: the Computers panel takes its own column beside the router cards.
-     Stacked under them it needed 206px (360px with a Wake button) of the ~118px
-     the column height leaves, and the panel's clip-path cut the Sleep button
-     through its label. Only when there is a computer to show; otherwise the
-     panel keeps its single column. */
-  .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) {
-    display: grid;
-    grid-template-columns: minmax(400px, auto) minmax(260px, auto);
-    grid-template-rows: auto minmax(min-content, 1fr);
+  /* Network: two sub-panels side by side, the router and Computers
+     (specs/advanced-fold.md). Computers only when it has a machine to show. */
+  .dashboard-home .control-stage .router-panel-grid {
+    grid-template-columns: minmax(400px, auto);
+    grid-template-rows: minmax(0, 1fr);
     column-gap: 20px;
-    align-content: start;
+    height: 100%;
+    min-height: 0;
   }
 
-  .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) > header {
-    grid-column: 1 / -1;
-  }
-
-  .dashboard-home .control-stage .router-panel:has(.desktop-power-panel) > .router-computers {
-    grid-column: 2;
-    grid-row: 2;
-    align-self: start;
-    margin-top: 0;
+  .dashboard-home .control-stage .router-panel-grid:has(.desktop-power-panel) {
+    grid-template-columns: minmax(400px, auto) minmax(260px, auto);
   }
 
   /* Sleep and Wake side by side, one machine per row: half the height of a
      single stacked column, and width is cheap in landscape. */
-  .dashboard-home .control-stage .router-panel .system-power-grid {
+  .dashboard-home .control-stage .router-computers .system-power-grid {
     grid-template-columns: repeat(2, minmax(200px, 1fr));
   }
 
@@ -6419,6 +6542,13 @@ button.config-breadcrumb-crumb:focus-visible {
     min-height: 0;
   }
 
+  /* The camera's default area is exactly the sub-panel less the divider, not
+     merely at least that, so the stage above shrinks to fit the column rather
+     than pushing the playback controls past the line. */
+  .dashboard-home .outside-camera-panel .advanced-fold-default {
+    height: var(--advanced-fold-default-min, auto);
+  }
+
   .dashboard-home .control-stage::-webkit-scrollbar {
     display: none;
   }
@@ -6431,6 +6561,36 @@ button.config-breadcrumb-crumb:focus-visible {
     border: 1px solid var(--cyber-border-dim);
     border-left: 0;
     background: var(--cyber-panel);
+    /* The stage's `height: 100%` has no definite parent height to resolve
+       against; take the column height, as the other columns do. */
+    height: var(--dashboard-column-height);
+  }
+
+  /* The Reminders fold needs a definite height to scroll and open
+     (specs/advanced-fold.md): the panel fills the stage, and the fold takes
+     the column left below the header, the edit row and the editor. */
+
+  .dashboard-home .tasks-stage > .tasks-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-home .tasks-panel > div:has(> .advanced-fold) {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .dashboard-home .tasks-panel > div:has(> .advanced-fold) > * {
+    flex-shrink: 0;
+  }
+
+  .dashboard-home .tasks-panel > div:has(> .advanced-fold) > .advanced-fold {
+    flex: 1 1 0;
+    min-height: 0;
   }
 
   .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
@@ -6487,24 +6647,7 @@ button.config-breadcrumb-crumb:focus-visible {
 }
 
 @media (min-width: 0px) {
-  .zones-panel > .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  .zone-tree {
-    grid-column: 1 / -1;
-  }
-
-  .zone-tree > .zone-button {
-    order: 0;
-  }
-
-  .zones-panel > .grid > .zone-button {
-    order: 1;
-  }
-
   .zone-children {
-    grid-column: 1 / -1;
     --zone-child-tile-max: 108px;
     grid-template-columns: repeat(
       auto-fit,
@@ -6516,7 +6659,6 @@ button.config-breadcrumb-crumb:focus-visible {
     gap: 8px !important;
     justify-content: start;
     margin-top: 8px !important;
-    order: 2;
     padding-left: 0 !important;
   }
 
@@ -8174,9 +8316,11 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   display: none;
 }
 
+/* Transitions stay off while the band is being moved; AdvancedFold sets one
+   inline for the spring-back and the break only. */
 .advanced-fold-track {
+  position: relative;
   display: flex;
-  transition: transform 160ms ease;
 }
 
 .advanced-fold-default {
@@ -8226,22 +8370,28 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
     0 1px 0 rgb(var(--cyber-line-rgb) / 0.18);
 }
 
-/* Landscape: the fold runs down the column. */
+/* Landscape: every sub-panel is its own vertical scroller. No sideways
+   overflow: the page's drag-pan and wheel-pan would take it for a sideways
+   scroller and stop panning over it. */
 .advanced-fold[data-axis="y"] {
-  /* The panel body owns scrolling. A fold is content inside that one scroller,
-     so it must grow with its advanced region instead of becoming a clipped,
-     nested scroll area. */
-  min-height: 100%;
-  overflow: visible;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .advanced-fold[data-axis="y"] .advanced-fold-track {
   flex-direction: column;
-  min-height: 100%;
 }
 
+/* The default area is the scroller's content box less the divider
+   (--advanced-fold-default-min, measured by AdvancedFold), so the line rests
+   just inside the bottom and the area never changes size when Advanced
+   opens. */
 .advanced-fold[data-axis="y"] .advanced-fold-default {
-  flex: 1 0 auto;
+  flex: 0 0 auto;
+  min-height: var(--advanced-fold-default-min, 0px);
 }
 
 .advanced-fold[data-axis="y"] .advanced-fold-divider {
@@ -8260,20 +8410,43 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   flex: 0 0 2px;
 }
 
+/* Advanced contributes no width: the sub-panel is as wide as its default view,
+   and Advanced is laid out again to fit it, as cells that wrap. */
 .advanced-fold[data-axis="y"] .advanced-fold-advanced {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  align-items: start;
   gap: 16px;
+  min-width: 0;
   padding-top: 16px;
+  contain: inline-size;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* List-shaped cells take the whole row and wrap their own items. */
+.advanced-fold[data-axis="y"] .advanced-fold-row {
+  grid-column: 1 / -1;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced .truncate,
+.advanced-fold[data-axis="y"] .advanced-fold-advanced h2 {
+  overflow-wrap: anywhere;
 }
 
 /* Portrait: the line stands on the right edge and the detail is hidden to the
-   right of it, so everything below the line in landscape is laid out as cells
-   the width of the panel. */
+   right of it. */
 .advanced-fold[data-axis="x"] {
-  container-type: inline-size;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
+}
+
+.advanced-fold[data-axis="x"]:not([data-foldless]) {
+  container-type: inline-size;
 }
 
 .advanced-fold[data-axis="x"] .advanced-fold-track {
@@ -8283,8 +8456,8 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 }
 
 .advanced-fold[data-axis="x"] .advanced-fold-default {
-  width: 100cqi;
-  flex: 0 0 100cqi;
+  width: var(--advanced-fold-default-min, 100cqi);
+  flex: 0 0 var(--advanced-fold-default-min, 100cqi);
 }
 
 .advanced-fold[data-axis="x"] .advanced-fold-divider {
@@ -8310,12 +8483,87 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   flex: 0 0 2px;
 }
 
+/* Advanced contributes no height (`contain: block-size`): the sub-panel is as
+   tall as its default view, and Advanced is stretched to exactly that height
+   by the track. Its cells sit side by side at their natural width, each capped
+   at the panel's content width (100cqi of the fold), and none taller than the
+   region; the region grows sideways instead. */
 .advanced-fold[data-axis="x"] .advanced-fold-advanced {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 100cqi;
+  display: flex;
+  flex: none;
+  flex-direction: row;
+  align-items: flex-start;
   gap: 16px;
   padding-left: 16px;
+  contain: block-size;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > * {
+  flex: none;
+  width: max-content;
+  max-width: 100cqi;
+  min-width: 0;
+  max-height: 100%;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > *::-webkit-scrollbar {
+  display: none;
+}
+
+/* List-shaped cells flow their items down, then into the next column, against
+   the region's definite height: a grid, not a wrapping flex column, so the
+   cell widens for every column it adds. The row count comes from each list's
+   own item height (--advanced-fold-row-min). Each column is capped at the
+   panel's width; a single item taller than the panel scrolls in the cell. */
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > .advanced-fold-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, minmax(var(--advanced-fold-row-min, 64px), max-content));
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+  align-content: start;
+  align-items: start;
+  column-gap: 16px;
+  row-gap: 8px;
+  height: 100%;
+  max-width: none;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-row > * {
+  min-width: 0;
+  max-width: 100cqi;
+}
+
+/* One-line items: rows as short as a line of text. */
+.advanced-fold[data-axis="x"] .power-tariff-text {
+  --advanced-fold-row-min: 16px;
+}
+
+/* Lists inside Advanced wrap their items to the sub-panel's width. */
+.advanced-fold[data-axis="y"] .weather-forecast-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced .power-metric-grid,
+.advanced-fold[data-axis="y"] .advanced-fold-advanced .power-summary-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+.advanced-fold[data-axis="y"] .zone-light-event-days {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.camera-panel .advanced-fold-default {
+  gap: 10px;
+}
+
+/* Network's Computers sub-panel is only there when it has a machine to show. */
+.router-computers:not(:has(.desktop-power-panel)) {
+  display: none;
 }
 
 /* The zone's timed light events, in its Advanced section.
@@ -8437,3 +8685,15 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   font-size: 0.68rem;
   text-transform: uppercase;
 }
+
+/* Status orb event readouts retain the existing orb and theme treatment. */
+.orb-event-readout { display:flex; flex-direction:column; align-items:center; gap:.12em; font-size:.48em; line-height:1.1; }
+.orb-event-icon { position:relative; display:grid; place-items:center; width:2em; height:2em; }
+.orb-event-icon > svg:not(.orb-countdown-ring) { width:1.3em; height:1.3em; }
+.orb-countdown-ring { position:absolute; inset:0; width:100%; height:100%; color:rgb(var(--nova-alert-rgb)); pointer-events:none; }
+
+.timer-encoder-panel { display:grid; place-items:center; min-height:240px; padding:30px; }
+.timer-encoder-face { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:48px; }
+
+.timer-encoder-face { color:rgba(255,255,255,.46); font-weight:700; }
+.rotary-encoder[data-mode="light"] .timer-encoder-face { color:rgba(0,0,0,.46); }

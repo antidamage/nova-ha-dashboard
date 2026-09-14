@@ -33,7 +33,8 @@ absent when that is off.
 - Landscape columns are as wide as their content needs (Adeline, 2026-09-12);
   the old `min(760px, 100vw - 80px)` cap is gone. Sideways scrolling between
   columns is normal in landscape; vertical scrolling inside one is not.
-- **Portrait is unchanged**: the three stack as they always have.
+- **Portrait**: the three stack, one per row, and each folds sideways to its
+  own Advanced section (`specs/portrait-layout.md`).
 - **Each of the three is its own fold** (Adeline, 2026-09-14,
   `specs/advanced-fold.md`): light, weather and camera each scroll vertically
   on their own and each carries its own Advanced line — the light's zone light

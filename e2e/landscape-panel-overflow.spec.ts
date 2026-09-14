@@ -1,10 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 import { gotoDashboard, selectZone, waitForStableLayout } from "./helpers";
 
-// Landscape control panels must never cut content off. A panel with more than
-// it can fit scrolls vertically inside its column (specs/landscape-layout.md);
-// this failed on Network, where the router panel's clip-path cut the Sleep/Wake
-// buttons once enough computers were configured.
+// Landscape control panels must never cut content off. Each sub-panel is its
+// own vertical scroller (specs/advanced-fold.md, specs/landscape-layout.md);
+// this first failed on Network, where the router panel's clip-path cut the
+// Sleep/Wake buttons once enough computers were configured.
 
 const COMPUTERS = ["Ununhexium", "Indium", "Nocturnium", "Iridium", "Lithium"].map((name, index) => ({
   id: name.toLowerCase(),
@@ -48,14 +48,42 @@ async function expectAllReachable(page: Page, selector: string) {
   }
 }
 
-/** No clipped panel inside the control stage hides content below its bottom edge. */
-async function expectNoClippedPanels(page: Page) {
-  const clipped = await page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>(".control-stage .router-panel, .control-stage .climate-card"))
-      .filter((el) => el.scrollHeight > el.clientHeight + 1)
-      .map((el) => `${el.className.split(" ")[0]} ${el.scrollHeight}>${el.clientHeight}`),
-  );
-  expect(clipped, "panels with content cut off").toEqual([]);
+/**
+ * Every sub-panel's overflow is reachable by scrolling it
+ * (specs/advanced-fold.md, "Every sub-panel scrolls on its own"). A sub-panel
+ * whose content is taller than it must be a vertical scroller, and scrolled to
+ * its end its last content must sit inside it. The zone panel body no longer
+ * scrolls: each sub-panel does.
+ */
+async function expectOverflowReachable(page: Page) {
+  const problems = await page.evaluate(async () => {
+    const found: string[] = [];
+    const body = document.querySelector<HTMLElement>(".control-stage > .zone-panel > .mt-8");
+    if (body && body.scrollHeight > body.clientHeight + 1 && getComputedStyle(body).overflowY !== "visible") {
+      found.push(`zone panel body scrolls ${body.scrollHeight}>${body.clientHeight}`);
+    }
+    const subPanels = Array.from(document.querySelectorAll<HTMLElement>(".control-stage .advanced-fold"));
+    if (!subPanels.length) found.push("no sub-panels rendered");
+    for (const panel of subPanels) {
+      const name = String(panel.className).split(" ").filter((c) => c !== "advanced-fold")[0] ?? "advanced-fold";
+      if (panel.scrollHeight <= panel.clientHeight + 1) continue;
+      if (getComputedStyle(panel).overflowY !== "auto") {
+        found.push(`${name} overflows without scrolling`);
+        continue;
+      }
+      panel.scrollTop = panel.scrollHeight;
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+      const bottom = panel.getBoundingClientRect().bottom;
+      const track = panel.querySelector(":scope > .advanced-fold-track") ?? panel;
+      const last = track.lastElementChild as HTMLElement | null;
+      if (last && last.getBoundingClientRect().bottom > bottom + 1) {
+        found.push(`${name} end unreachable ${Math.round(last.getBoundingClientRect().bottom)}>${Math.round(bottom)}`);
+      }
+      panel.scrollTop = 0;
+    }
+    return found;
+  });
+  expect(problems, "sub-panels whose overflow cannot be reached").toEqual([]);
 }
 
 for (const viewport of [
@@ -74,24 +102,23 @@ for (const viewport of [
       await waitForStableLayout(page);
       await selectZone(page, /Network/);
       await expect(page.locator(".desktop-power-panel .system-power-button")).toHaveCount(COMPUTERS.length * 2);
-      await expectNoClippedPanels(page);
-      await expectAllReachable(page, ".desktop-power-panel .system-power-button");    });
+      await expectOverflowReachable(page);
+      await expectAllReachable(page, ".desktop-power-panel .system-power-button");
+      // Router and Computers are two sub-panels side by side.
+      const [router, computers] = await Promise.all([
+        page.locator(".control-stage .router-panel").boundingBox(),
+        page.locator(".control-stage .router-computers").boundingBox(),
+      ]);
+      expect(router && computers && computers.x >= router.x + router.width - 1).toBe(true);
+    });
 
-    for (const zone of [/Climate/, /Outside/]) {
-      test(`${zone.source}: nothing clipped, no vertical scroll at 1080`, async ({ page }) => {
+    for (const zone of [/Climate/, /Outside/, /Grid/, /Lounge/]) {
+      test(`${zone.source}: each sub-panel's overflow is reachable by scrolling it`, async ({ page }) => {
         await gotoDashboard(page);
         await waitForStableLayout(page);
         await selectZone(page, zone);
         await page.waitForTimeout(1500);
-        await expectNoClippedPanels(page);
-        if (viewport.height >= 1080) {
-          // Single-purpose panels still try to fit the column (specs/landscape-layout.md).
-          const scrolls = await page.evaluate(() => {
-            const body = document.querySelector<HTMLElement>(".control-stage > .zone-panel > .mt-8");
-            return body ? body.scrollHeight > body.clientHeight + 1 : null;
-          });
-          expect(scrolls, "panel body scrolls").toBe(false);
-        }
+        await expectOverflowReachable(page);
       });
     }
   });

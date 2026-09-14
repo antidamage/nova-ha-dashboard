@@ -1,3 +1,4 @@
+import { primaryWashingConfig } from "./wash-config";
 import crypto from "crypto";
 import { reconcileWashCompletion } from "./wash-completion";
 import { cycleId as washingCycleId } from "./washing-machine";
@@ -57,7 +58,8 @@ const WASH_TRACE_DIR = path.join(POWER_DATA_DIR, "washing-machine-traces");
 const WASH_OPEN_TRACE_PATH = path.join(WASH_TRACE_DIR, "open.json");
 
 function powerConfig() {
-  return readDashboardConfigSync().power;
+  const config = readDashboardConfigSync();
+  return { ...config.power, washingMachine: primaryWashingConfig(config) };
 }
 
 type TariffPeriod = "anytime" | "peak" | "off_peak";
@@ -145,6 +147,9 @@ export type PowerFloatingMeterSummary = {
 };
 
 export type PowerWashingMachineSummary = {
+  primaryPersonId?: string;
+  typicalMinutes?: number;
+  etaAt?: string | null;
   running?: { attribution?: WashAttribution; curve?: number[]; id: string; person: string | null; kwh: number };
   /** `curve` is the wash's watts downsampled to at most 48 points (§4.6). */
   cycles: Array<WashingMachineCycle & { curve?: number[] }>;
@@ -1366,6 +1371,9 @@ function buildWashingMachineSummary(
   // month people actually live in. See specs/power-meters.md 4.4.
   const cycles = state.cycles.filter((cycle) => localMonthKey(new Date(cycle.endedAt)) === monthKey);
   return {
+    primaryPersonId: people.find((person) => person.primary)?.id,
+    typicalMinutes: config.typicalMinutes,
+    etaAt: state.open?.startedAt ? new Date(Date.parse(state.open.startedAt) + config.typicalMinutes * 60_000).toISOString() : null,
     cycles: cycles.map((cycle) => (washCurves.has(cycle.id) ? { ...cycle, curve: washCurves.get(cycle.id) } : cycle)),
     ...(state.open?.startedAt ? { running: {
       ...(state.open.attribution ? { attribution: state.open.attribution } : {}),

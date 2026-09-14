@@ -159,7 +159,7 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
   }, [cameraId, selectedForDelete, selectedId]);
 
   return (
-    <div className="camera-event-report">
+    <div className="advanced-fold-row camera-event-report">
       {/* The bar, with the latest five under it again (Adeline, 2026-09-14):
           the list is the first thing in the camera's Advanced section
           (specs/advanced-fold.md), and the bar still opens the full report.

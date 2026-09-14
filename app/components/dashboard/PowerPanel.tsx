@@ -247,7 +247,7 @@ export function PowerPanel() {
       advanced={
         data ? (
           <>
-            <div className="grid gap-2 text-xs font-black uppercase text-neutral-400">
+            <div className="advanced-fold-row power-tariff-text grid gap-2 text-xs font-black uppercase text-neutral-400">
               <span>{data.currentRate.displayName}</span>
               <span>Billing {data.billingCycle.label} / {billingWindow}</span>
               <span className="text-yellow-200">Tariff {data.currentRate.period.replace("_", " ")} / {rateLabel}</span>
@@ -259,7 +259,7 @@ export function PowerPanel() {
               {data.ratesWarning ? <span className="text-red-200">{data.ratesWarning}</span> : null}
             </div>
 
-            <div className="power-metric-grid grid gap-3">
+            <div className="advanced-fold-row power-metric-grid grid gap-3">
               <MetricCard
                 label="Billing estimate"
                 primary={forecastPrimary}
@@ -276,7 +276,7 @@ export function PowerPanel() {
               />
             </div>
 
-            <div className="power-summary-grid grid gap-2">
+            <div className="advanced-fold-row power-summary-grid grid gap-2">
               <SummaryRow
                 label="Today"
                 kwh={data.summaries.day.kwh}
@@ -311,7 +311,7 @@ export function PowerPanel() {
               />
             </div>
 
-            <div className="power-device-list border border-neutral-700 bg-neutral-950/70 p-4">
+            <div className="advanced-fold-row power-device-list border border-neutral-700 bg-neutral-950/70 p-4">
               <div className="mb-5">
                 <MomentaryFeedbackButton
                   type="button"
@@ -364,9 +364,7 @@ export function PowerPanel() {
               </div>
             </div>
           </>
-        ) : (
-          <p className="text-xs font-black uppercase text-neutral-400">Waiting for grid sample</p>
-        )
+        ) : null
       }
     >
 

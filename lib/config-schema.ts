@@ -168,6 +168,7 @@ const WashingMachineConfigSchema = z.object({
     }).default({ hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 }),
   }).optional(),
   /** Rule-based guess at one person's washes. See specs/power-meters.md §4.5. */
+  typicalMinutes: z.number().positive().max(480).default(66),
   autoAttribution: z.object({
     enabled: z.boolean().default(false),
     personId: z.string().min(1),
@@ -187,6 +188,7 @@ export type WashingMachineConfig = z.infer<typeof WashingMachineConfigSchema>;
  * attribution UI is absent rather than showing placeholder people.
  */
 const HouseholdPersonSchema = z.object({
+  primary: z.boolean().optional(),
   id: z.string().min(1),
   label: z.string().min(1),
   /** Hex colour used for this person's blocks and totals. */
@@ -476,7 +478,10 @@ export const DashboardConfigSchema = z.object({
     defaultZoneId: z.string().min(1),
     // Who lives here, for splitting shared consumption. Ships empty; the
     // attribution UI is absent rather than inventing names.
-    people: z.array(HouseholdPersonSchema).default([]),
+    people: z.array(HouseholdPersonSchema).default([]).refine(
+      (people) => people.filter((person) => person.primary).length <= 1,
+      "Only one household person can be primary",
+    ),
     specialZones: z.object({
       power: z.object({
         id: z.string().min(1),

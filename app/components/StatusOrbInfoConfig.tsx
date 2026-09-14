@@ -1,7 +1,7 @@
 "use client";
 
-import { Dumbbell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Dumbbell, GripVertical, ArrowUp, ArrowDown, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ORB_INFO_MODULES,
   ORB_MODULE_GROUP_LABELS,
@@ -10,7 +10,7 @@ import {
 import {
   normalizeOrbDisplay,
   resolveOrbDisplay,
-  resolveOrbModuleId,
+  resolveOrbEntries,
   resolveOrbParams,
 } from "../../lib/orb-info/preferences";
 import type {
@@ -20,6 +20,7 @@ import type {
   OrbInfoPreferences,
   OrbModuleParams,
   OrbRounding,
+  OrbStackEntry,
 } from "../../lib/orb-info/types";
 import {
   GYM_ALERT_THRESHOLD_DEFAULT_HOURS,
@@ -31,6 +32,10 @@ import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
 import { ConfigSelect, type ConfigSelectOption } from "./ConfigSelect";
 import { ORB_INFO_CHANGE_EVENT, useOrbInfo } from "./orb-info/useOrbInfo";
 import { useSettingCooldown } from "./useSettingCooldown";
+import { normalizeTimerIcons, type TimerIcon } from "../../lib/orb-timer-settings";
+import { ReminderIconPicker } from "./reminders/ReminderIconPicker";
+import { ReminderGlyphMark } from "./reminders/icon-registry";
+import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { SwitchRow } from "./SlideSwitch";
 
 type GymCounterSettings = {
@@ -70,16 +75,26 @@ function options<T extends string>(values: T[], labels: Partial<Record<T, string
 }
 
 export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: GymCounterSettings | null }) {
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveVersion = useRef(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<OrbInfoPreferences | undefined>(undefined);
   const [thresholdHours, setThresholdHours] = useState(() =>
     normalizeGymAlertThresholdHours(initialSettings?.gymAlertThresholdHours ?? GYM_ALERT_THRESHOLD_DEFAULT_HOURS));
   // Don't let the polls overwrite a control while (or just after) it's used.
   const { isCoolingDown, markInteraction } = useSettingCooldown();
 
-  const moduleId = resolveOrbModuleId(preferences);
+  const entries = useMemo(() => resolveOrbEntries(preferences), [preferences]);
+  const [editingIcon, setEditingIcon] = useState<string | null>(null);
+  const timerIcons = normalizeTimerIcons(preferences?.timerIcons);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const selected = selectedId === "" ? undefined : entries.find((entry) => entry.id === selectedId) ?? entries[0];
+  const moduleId = selected?.moduleId ?? "none";
+  const entryPreferences = { modules: { [moduleId]: selected ?? {} } };
   const module = orbModuleById(moduleId);
-  const display = resolveOrbDisplay(preferences, moduleId);
-  const params = resolveOrbParams(preferences, moduleId);
+  const display = resolveOrbDisplay(entryPreferences, moduleId);
+  const params = resolveOrbParams(entryPreferences, moduleId);
   // The preview runs the real modules through the real formatter, so what is
   // shown here is exactly what the orb will draw.
   const preview = useOrbInfo({
@@ -119,55 +134,48 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
     return () => window.clearInterval(id);
   }, [load]);
 
-  const save = useCallback(async (next: OrbInfoPreferences) => {
+  const save = useCallback((next: OrbInfoPreferences) => {
     markInteraction();
-    try {
+    const version = ++saveVersion.current;
+    const operation = saveQueue.current.then(async () => {
       const response = await fetch("/api/orb-info", {
-        body: JSON.stringify(next),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
+        body: JSON.stringify(next), headers: { "Content-Type": "application/json" }, method: "POST",
       });
-      if (!response.ok) {
-        throw new Error(`Status orb info update failed: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`Status orb info update failed: ${response.status}`);
       const data = await response.json() as { orbInfo?: OrbInfoPreferences };
-      setPreferences(data.orbInfo);
+      if (version === saveVersion.current) { setPreferences(data.orbInfo); setSaveError(null); }
       window.dispatchEvent(new CustomEvent(ORB_INFO_CHANGE_EVENT));
-    } catch (error) {
-      console.error("[nova-dashboard] failed to update status orb info settings", error);
-    }
+    });
+    saveQueue.current = operation.catch((error) => setSaveError(error.message));
+    return saveQueue.current;
   }, [markInteraction]);
 
-  const selectModule = useCallback((nextId: string) => {
+  const saveEntries = (next: OrbStackEntry[]) => {
     markInteraction();
-    setPreferences((current) => ({ ...current, moduleId: nextId }));
-    void save({ moduleId: nextId });
-  }, [markInteraction, save]);
-
-  const updateDisplay = useCallback((patch: Partial<OrbInfoDisplay>) => {
-    markInteraction();
-    const next = normalizeOrbDisplay({ ...display, ...patch }, module.defaultDisplay);
-    setPreferences((current) => ({
-      ...current,
-      modules: { ...(current?.modules ?? {}), [module.id]: { ...current?.modules?.[module.id], display: next } },
-    }));
-    // Only this module's entry is sent; the server merges it into the map so
-    // the other modules' saved displays survive.
-    void save({ modules: { [module.id]: { display: next } } });
-  }, [display, markInteraction, module, save]);
-
-  const updateParams = useCallback((patch: OrbModuleParams) => {
-    markInteraction();
-    const next = { ...params, ...patch };
-    setPreferences((current) => ({
-      ...current,
-      modules: {
-        ...(current?.modules ?? {}),
-        [module.id]: { ...current?.modules?.[module.id], params: next },
-      },
-    }));
-    void save({ modules: { [module.id]: { display, params: next } } });
-  }, [display, markInteraction, module, params, save]);
+    setPreferences((current) => ({ ...current, entries: next }));
+    void save({ entries: next });
+  };
+  const saveIcons = (timerIcons: TimerIcon[]) => {
+    setPreferences((current) => ({ ...current, timerIcons }));
+    void save({ timerIcons });
+  };
+  const selectModule = (nextId: string) => {
+    const id = crypto.randomUUID();
+    saveEntries([...entries, { id, moduleId: nextId, activation: "always" }]);
+    setSelectedId(id);
+  };
+  const updateEntry = (patch: Partial<OrbStackEntry>, persist = true) => {
+    if (!selected) return;
+    const next = entries.map((entry) => entry.id === selected.id ? { ...entry, ...patch } : entry);
+    if (persist) saveEntries(next);
+    else { markInteraction(); setPreferences((current) => ({ ...current, entries: next })); }
+  };
+  const updateDisplay = (patch: Partial<OrbInfoDisplay>, persist = true) => updateEntry({ display: normalizeOrbDisplay({ ...display, ...patch }, module.defaultDisplay) }, persist);
+  const updateParams = (patch: OrbModuleParams, persist = true) => updateEntry({ params: { ...params, ...patch } }, persist);
+  const moveEntry = (from: number, to: number) => {
+    if (to < 0 || to >= entries.length || from < 0 || from === to) return;
+    const next = [...entries]; next.splice(to, 0, next.splice(from, 1)[0]); saveEntries(next);
+  };
 
   const commitThresholdHours = useCallback(async (hours: number) => {
     markInteraction();
@@ -217,25 +225,10 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
   const showPercentControls = display.format === "percent";
   const usesThreshold = module.id.startsWith("gym");
 
-  return (
-    <ConfigAccordion
-      id="status-orb-info"
-      title="Status Orb Info"
-      icon={<Dumbbell className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
-      className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl"
-    >
-      <div className="panel-corner panel-corner-left" />
-      <div className="panel-corner panel-corner-right" />
-
-      <div className="grid gap-4">
-        <ConfigSelect
-          label="Readout"
-          ariaLabel="Status orb readout module"
-          options={moduleOptions}
-          value={moduleId}
-          onChange={selectModule}
-        />
-
+  const entryEditor = <div className="grid gap-4">
+        {selected && !["washing", "timer", "rain-arriving", "power-high", "update-running"].includes(selected.moduleId) && <ConfigSelect label="Activation" ariaLabel="Entry activation" value={selected.activation}
+          options={[{ value: "always", label: "Always" }, { value: "whenAlerting", label: "When alerting" }]}
+          onChange={(activation) => updateEntry({ activation })} />}
         {module.id === "none" ? null : (
           <>
             <div className="orb-info-preview" aria-live="polite">
@@ -259,7 +252,7 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
                     step={spec.step}
                     value={value}
                     valueText={`${value}`}
-                    onPreview={(next) => updateParams({ [spec.key]: next })}
+                    onPreview={(next) => updateParams({ [spec.key]: next }, false)}
                     onCommit={(next) => updateParams({ [spec.key]: next })}
                   />
                 );
@@ -335,7 +328,7 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
                   step={1}
                   value={display.decimals}
                   valueText={`${display.decimals}`}
-                  onPreview={(value) => updateDisplay({ decimals: Math.round(value) as OrbInfoDisplay["decimals"] })}
+                  onPreview={(value) => updateDisplay({ decimals: Math.round(value) as OrbInfoDisplay["decimals"] }, false)}
                   onCommit={(value) => updateDisplay({ decimals: Math.round(value) as OrbInfoDisplay["decimals"] })}
                 />
                 <ConfigSelect
@@ -409,6 +402,53 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
             ) : null}
           </>
         )}
+  </div>;
+
+  return (
+    <ConfigAccordion
+      id="status-orb-info"
+      title="Status Orb Info"
+      icon={<Dumbbell className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
+      className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl"
+    >
+      <div className="panel-corner panel-corner-left" />
+      <div className="panel-corner panel-corner-right" />
+
+      <div className="grid gap-4">
+        <p className="text-sm text-neutral-400">Highest active entry wins. An always-active entry blocks the rows below it.</p>
+        <div className="grid gap-2" aria-label="Status orb priority stack">
+          {entries.map((entry, index) => <div key={entry.id} className="grid gap-3" onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => { event.preventDefault(); moveEntry(entries.findIndex((row) => row.id === dragId), index); setDragId(null); }}>
+            <div className="flex items-center gap-2">
+            <MomentaryFeedbackButton draggable onDragStart={() => setDragId(entry.id)} aria-label={`Drag ${orbModuleById(entry.moduleId).label}`} className="config-icon-button"><GripVertical size={18} /></MomentaryFeedbackButton>
+            <MomentaryFeedbackButton onClick={() => setSelectedId(selected?.id === entry.id ? "" : entry.id)} aria-expanded={selected?.id === entry.id} className="flex-1 text-left">{orbModuleById(entry.moduleId).label}</MomentaryFeedbackButton>
+            <MomentaryFeedbackButton aria-label="Move entry up" disabled={index === 0} onClick={() => moveEntry(index, index - 1)}><ArrowUp size={18} /></MomentaryFeedbackButton>
+            <MomentaryFeedbackButton aria-label="Move entry down" disabled={index === entries.length - 1} onClick={() => moveEntry(index, index + 1)}><ArrowDown size={18} /></MomentaryFeedbackButton>
+            <MomentaryFeedbackButton aria-label="Remove entry" onClick={() => saveEntries(entries.filter((row) => row.id !== entry.id))}><X size={18} /></MomentaryFeedbackButton>
+            </div>
+            {selected?.id === entry.id && entryEditor}
+          </div>)}
+        </div>
+        {saveError && <p role="alert">{saveError}</p>}
+        <ConfigSelect
+          label="Add entry"
+          ariaLabel="Status orb readout module"
+          options={moduleOptions}
+          value=""
+          onChange={selectModule}
+        />
+
+        <div className="grid gap-2">
+          <p className="text-sm font-black uppercase">Timer types</p>
+          {timerIcons.map((icon, index) => <div key={icon.id} className="flex items-center gap-2">
+            <MomentaryFeedbackButton className="h-10 w-10" aria-label={`Choose ${icon.label} icon`} onClick={() => setEditingIcon(icon.id)}><ReminderGlyphMark glyph={icon.glyph} /></MomentaryFeedbackButton>
+            <input aria-label="Timer type name" className="cyber-date-input" defaultValue={icon.label} key={`${icon.id}-${icon.label}`} onBlur={(event) => saveIcons(timerIcons.map((item) => item.id === icon.id ? { ...item, label: event.target.value.trim() || item.label } : item))} />
+            <MomentaryFeedbackButton aria-label="Move timer type up" disabled={!index} onClick={() => { const next = [...timerIcons]; [next[index-1], next[index]] = [next[index], next[index-1]]; saveIcons(next); }}>Up</MomentaryFeedbackButton>
+            <MomentaryFeedbackButton aria-label="Remove timer type" disabled={timerIcons.length === 1} onClick={() => saveIcons(timerIcons.filter((item) => item.id !== icon.id))}>Remove</MomentaryFeedbackButton>
+            <ReminderIconPicker glyph={icon.glyph} open={editingIcon === icon.id} reminderName={icon.label} onClose={() => setEditingIcon(null)} onSelect={(glyph) => { saveIcons(timerIcons.map((item) => item.id === icon.id ? { ...item, glyph } : item)); setEditingIcon(null); }} />
+          </div>)}
+          <MomentaryFeedbackButton onClick={() => saveIcons([...timerIcons, { id: crypto.randomUUID(), label: "Timer", glyph: { kind: "phosphor", id: "timer" } }])}>Add timer type</MomentaryFeedbackButton>
+        </div>
       </div>
     </ConfigAccordion>
   );

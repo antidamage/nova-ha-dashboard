@@ -3,7 +3,7 @@
 // Adapted from nova-multimeter/app/src/panels/HAccordion.tsx: a section folds
 // into a vertical bar instead of leaving an empty column in the horizontal row.
 // Keep one trigger mounted so opening/closing does not throw keyboard focus away.
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { getAccordionOpen, setAccordionOpen } from "../configUiState";
@@ -22,8 +22,9 @@ export function useWideDashboard(): boolean {
   return useSyncExternalStore(subscribeWide, readWide, readServerWide);
 }
 
-// `attached` is this entry's selected-zone controls: rendered to the right of
-// the list as one joined unit, landscape only (specs/landscape-layout.md).
+// `attached` is this entry's selected-zone controls, joined to the list as one
+// unit: to the right of it in landscape (specs/landscape-layout.md), below it in
+// portrait (specs/portrait-layout.md).
 // `attachKey` is this entry's selected zone id; when it changes while the entry
 // is closed, the entry opens. `group` names the entry for CSS.
 export function HorizontalAccordion({
@@ -61,9 +62,13 @@ export function HorizontalAccordion({
     }
   }, [attachKey, persistKey]);
 
-  // Portrait keeps the existing uncollapsed menu. Landscape state survives a
-  // rotation and uses the dashboard's existing short-lived accordion storage.
-  const expanded = !wide || open;
+  // One open/closed state for both orientations, kept in the dashboard's
+  // short-lived accordion storage. Landscape's bar is vertical and opens
+  // sideways; portrait's is a full-width bar that opens downward.
+  const expanded = open;
+  const indicator = wide
+    ? expanded ? <ChevronLeft size={24} /> : <ChevronRight size={24} />
+    : expanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />;
   return (
     <section className="horizontal-accordion" data-open={expanded} data-group={group}>
       <MomentaryFeedbackButton
@@ -81,13 +86,13 @@ export function HorizontalAccordion({
       >
         <span className="horizontal-accordion-title">{title}</span>
         <span className="horizontal-accordion-indicator" aria-hidden="true">
-          {expanded ? <ChevronLeft size={24} /> : <ChevronRight size={24} />}
+          {indicator}
         </span>
       </MomentaryFeedbackButton>
       <div id={contentId} className="horizontal-accordion-content" hidden={!expanded} aria-labelledby={triggerId}>
         {children}
       </div>
-      {wide && expanded && attached ? <div className="horizontal-accordion-attached">{attached}</div> : null}
+      {expanded && attached ? <div className="horizontal-accordion-attached">{attached}</div> : null}
     </section>
   );
 }

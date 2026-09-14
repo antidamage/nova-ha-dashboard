@@ -1,3 +1,4 @@
+import { countdownText, timerRemaining, type OrbTimer } from "../orb-timer-model";
 import { DEFAULT_ORB_DISPLAY } from "./format";
 import {
   ORB_MODULE_OUTPUT_EMPTY,
@@ -19,6 +20,11 @@ import {
 /** The narrow slices of shared client data the catalogue reads. */
 export type OrbInfoSources = {
   now: number;
+  orbTimer?: OrbTimer | null;
+  events?: Record<string, OrbModuleOutput>;
+  washing?: { primaryPersonId?: string; etaAt?: string | null; open: { startedAt: string | null; person?: string | null; completion?: unknown } | null } | null;
+  washTasks?: Array<{ id: string; start: string; dismissedAt?: string; alertDismissedAt?: string; moduleData?: Record<string, unknown> }>;
+
   watchface: {
     gymLastResetAt: number | null;
     gymAlertThresholdHours: number | null;
@@ -101,6 +107,38 @@ function hoursUntil(iso: string | null, now: number): number | null {
 }
 
 export const ORB_INFO_MODULES: OrbModule[] = [
+  {
+    id: "washing", label: "Washing", group: "household", detail: "Primary user's wash ETA and completion",
+    baseUnit: "none", sources: ["power", "tasks", "clock"], supportedFormats: ["text"], defaultDisplay: display({ format: "text" }),
+    read: ({ washing, washTasks, now }) => {
+      const task = washTasks?.find((task) => !task.dismissedAt && !task.alertDismissedAt && (task.moduleData?.["washing-machine"] as { phase?: string })?.phase === "active");
+      if (task) return output({ status: "ok", active: true, icon: "washing-machine", text: "Done", alert: true, dismiss: { kind: "washing", id: task.id } });
+      if (washing?.open?.completion || !washing?.primaryPersonId || washing.open?.person !== washing.primaryPersonId || !washing.etaAt) return output({ active: false });
+      return output({ status: "ok", active: true, icon: "washing-machine", text: countdownText(Date.parse(washing.etaAt) - now) });
+    },
+  },
+  ...([
+    { id: "rain-arriving", label: "Rain arriving", group: "climate" as const, detail: "Rain expected soon", params: [
+      { key: "chancePct", label: "Rain chance", kind: "number" as const, min: 0, max: 100, step: 1, fallback: 50 },
+      { key: "withinMinutes", label: "Within minutes", kind: "number" as const, min: 1, max: 240, step: 1, fallback: 60 }] },
+    { id: "power-high", label: "High power draw", group: "power" as const, detail: "Sustained household draw", params: [
+      { key: "kilowatts", label: "Above kW", kind: "number" as const, min: 0.1, max: 30, step: 0.1, fallback: 3 },
+      { key: "minutes", label: "Sustained minutes", kind: "number" as const, min: 1, max: 60, step: 1, fallback: 2 }] },
+    { id: "update-running", label: "Nova update running", group: "system" as const, detail: "In-app self-update in progress" },
+  ].map((entry): OrbModule => ({ ...entry, baseUnit: "none", sources: ["orbEvents"], supportedFormats: ["text"],
+    defaultDisplay: display({ format: "text" }), read: ({ events }, params) => events?.[`${entry.id}:${JSON.stringify(params ?? {})}`] ?? output({ active: false }) }))),
+
+  {
+    id: "timer", label: "Timer", group: "household", detail: "Household countdown and completion alert",
+    baseUnit: "none", sources: ["orbTimer", "clock"], supportedFormats: ["text"],
+    defaultDisplay: display({ format: "text" }),
+    read: ({ orbTimer: timer, now }) => {
+      if (!timer || timer.dismissedAt !== null) return output({ active: false });
+      const done = timer.completedAt !== null || now >= timer.endsAt;
+      return output({ active: true, status: "ok", icon: timer.icon, text: done ? "Done" : countdownText(timerRemaining(timer, now)),
+        alert: done, ...(done ? { dismiss: { kind: "timer" as const, id: timer.id } } : { countdownFraction: timerRemaining(timer, now) / timer.durationMs }) });
+    },
+  },
   {
     id: "none",
     label: "None",

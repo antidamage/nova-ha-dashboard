@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HorizontalAccordion } from "./HorizontalAccordion";
 
-describe("landscape zone accordion", () => {
+describe("zone accordion", () => {
   let wide = true;
   let subscribers: Set<() => void>;
 
@@ -49,12 +49,29 @@ describe("landscape zone accordion", () => {
     expect(screen.getByRole("button", { name: "Systems zones" })).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("exposes the full portrait menu and restores the collapsed state on rotating back", () => {
+  it("collapses in portrait too, sharing the open/closed state across a rotation", () => {
     render(menu());
     act(() => { wide = false; subscribers.forEach((change) => change()); });
+    const trigger = screen.getByRole("button", { name: "Home zones" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "Bedroom" })).toBeNull();
+    fireEvent.click(trigger);
     expect(screen.getByRole("button", { name: "Bedroom" })).toBeVisible();
     act(() => { wide = true; subscribers.forEach((change) => change()); });
-    expect(screen.queryByRole("button", { name: "Bedroom" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Bedroom" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Home zones" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("points the chevron by orientation: left/right in landscape, down/right in portrait", () => {
+    const { container } = render(menu());
+    const icon = () => container.querySelector(".horizontal-accordion-indicator svg")?.getAttribute("class") ?? "";
+    expect(icon()).toMatch(/chevron-right/);
+    fireEvent.click(screen.getByRole("button", { name: "Home zones" }));
+    expect(icon()).toMatch(/chevron-left/);
+    act(() => { wide = false; subscribers.forEach((change) => change()); });
+    expect(icon()).toMatch(/chevron-down/);
+    fireEvent.click(screen.getByRole("button", { name: "Home zones" }));
+    expect(icon()).toMatch(/chevron-right/);
   });
 
   const joined = (attachKey: string | null, owns: boolean) => (
@@ -63,7 +80,7 @@ describe("landscape zone accordion", () => {
     </HorizontalAccordion>
   );
 
-  it("joins the selected zone's controls to the open entry, landscape only", () => {
+  it("joins the selected zone's controls to the open entry in both orientations", () => {
     const view = render(joined("bedroom", true));
     expect(screen.queryByText("Bedroom controls")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Home zones" }));
@@ -72,6 +89,11 @@ describe("landscape zone accordion", () => {
     expect(screen.queryByText("Bedroom controls")).toBeNull();
     act(() => { wide = false; subscribers.forEach((change) => change()); });
     view.rerender(joined("bedroom", true));
+    const attached = screen.getByText("Bedroom controls").parentElement!;
+    expect(attached).toHaveClass("horizontal-accordion-attached");
+    // Below the list, inside the same card.
+    expect(attached.previousElementSibling).toHaveClass("horizontal-accordion-content");
+    fireEvent.click(screen.getByRole("button", { name: "Home zones" }));
     expect(screen.queryByText("Bedroom controls")).toBeNull();
   });
 

@@ -671,7 +671,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         <CameraEventReport cameraId={cameraId} />
 
         {!DEMO_MODE ? (
-          <div className="camera-snapshots">
+          <div className="advanced-fold-row camera-snapshots">
             <button
               type="button"
               className="camera-snapshots-toggle"

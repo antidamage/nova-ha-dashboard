@@ -48,15 +48,18 @@ import {
   taskAlertSessionKey,
   taskDraft,
   taskStartMs,
-  taskVisibleInTab,
   tasksToExportText,
   timeRange,
   type AlertState,
   type TaskDraft,
   type TaskEditorSaveDraft,
   type TaskRepeatDraftKind,
-  type TaskTab,
 } from "./tasks/task-model";
+import { useOrbSettings } from "./orb-info/useOrbSettings";
+import { OrbCompletionAudio } from "./orb-info/OrbCompletionAudio";
+import { TimerEncoder } from "./TimerEncoder";
+import { AdvancedFold } from "./dashboard/AdvancedFold";
+import { TaskLists } from "./tasks/TaskLists";
 
 export { shouldClearTaskAlert, taskVisibleInTab } from "./tasks/task-model";
 
@@ -734,7 +737,6 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [nowMs, setNowMs] = useState(Date.now());
-  const [tab, setTab] = useState<TaskTab>("today");
   const [createOpen, setCreateOpen] = useState(false);
   const [createDraft, setCreateDraft] = useState<TaskDraft>(() => defaultDraft());
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -763,6 +765,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const dismissingTaskIds = useRef<Set<string>>(new Set());
   // Occurrences this screen has already chimed for, keyed `taskId:sessionKey`.
   // Purely a local fast path in front of the shared `alertChimedFor`.
+  const { hasWashing } = useOrbSettings();
   const chimedOccurrences = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -1100,18 +1103,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const alertChimedRef = useRef(false);
   const washAlertId = alertTask && washReminder(alertTask)?.phase === "active" ? alertTask.id : null;
 
-  useEffect(() => {
-    if (!washAlertId || chimedOccurrences.current.has(washAlertId)) return;
-    chimedOccurrences.current.add(washAlertId);
-    void jsonFetch<{ claimed: boolean }>("/api/power/washing-machine/chime", {
-      method: "POST", body: JSON.stringify({ taskId: washAlertId }),
-    }).then(({ claimed }) => {
-      if (claimed) {
-        const audio = new Audio(`/api/power/washing-machine/audio?taskId=${encodeURIComponent(washAlertId)}`);
-        void audio.play().catch((error) => console.info("Wash sound unavailable", error));
-      }
-    }).catch(() => { chimedOccurrences.current.delete(washAlertId); });
-  }, [washAlertId]);
+
 
   useEffect(() => {
     alertChimedRef.current = alertChimed;
@@ -1179,12 +1171,6 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     () => tasks.filter((task) => isTaskCurrent(task, nowMs)).sort((left, right) => taskStartMs(left) - taskStartMs(right))[0] ?? null,
     [nowMs, tasks],
   );
-
-  const visibleTasks = useMemo(() => {
-    return tasks
-      .filter((task) => taskVisibleInTab(task, tab, nowMs))
-      .sort((left, right) => taskStartMs(left) - taskStartMs(right));
-  }, [nowMs, tab, tasks]);
 
   // Only local reminders can anchor a follow-on: an iCloud mirror is completed
   // upstream, so nothing here would ever see the completion that moves it.
@@ -1355,11 +1341,102 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     setExpandedTaskId((current) => (current === task.id ? null : task.id));
   };
 
+  const renderTaskRow = (task: Task) => {
+    const status = statusForTask(task, nowMs);
+    const repeat =
+      repeatLabel(task.repeat) ??
+      followsLabel(task.follows, tasks.find((candidate) => candidate.id === task.follows?.taskId)?.name);
+    const selected = selectedTaskIds.has(task.id);
+    const expanded = expandedTaskId === task.id;
+    const canComplete = status !== "Done";
+
+    return (
+      <div key={task.id} className="grid gap-2">
+        <div
+          className={classNames(
+            "task-row grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-neutral-700 bg-neutral-950/70 p-3 text-left",
+            selected && "border-cyan-300/60 bg-cyan-300/10",
+          )}
+        >
+          <button className="task-row-main min-w-0 w-full text-left" type="button" onClick={() => rowClick(task)}>
+            <div className="flex min-w-0 items-center gap-3">
+              {editMode ? (
+                <span
+                  className={classNames(
+                    "inline-flex h-7 w-7 flex-none items-center justify-center border border-neutral-600",
+                    selected && "border-cyan-300 bg-cyan-300 text-neutral-950",
+                  )}
+                >
+                  {selected ? <CircleCheck className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                </span>
+              ) : null}
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <TaskSourceIcon task={task} />
+                  <p className="truncate text-lg font-black uppercase text-neutral-100">{task.name}</p>
+                </div>
+                <p className="mt-1 font-mono text-sm font-black uppercase text-neutral-500">{timeRange(task)}</p>
+                {repeat ? (
+                  <p className="mt-1 flex items-center gap-1 font-mono text-xs font-black uppercase text-cyan-200/80">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {repeat}
+                  </p>
+                ) : null}
+                {task.sourceCalendar ? (
+                  <p className="mt-1 truncate font-mono text-xs font-black uppercase text-neutral-500">
+                    {sourceLabel(task.source)} / {task.sourceCalendar}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </button>
+          <div className="grid justify-items-end gap-2">
+            <span
+              className={classNames(
+                "whitespace-nowrap border px-2 py-1 font-mono text-xs font-black uppercase",
+                statusClassName(status),
+              )}
+            >
+              {status}
+            </span>
+            {canComplete && !editMode ? (
+              <button
+                className="inline-flex min-h-9 items-center gap-2 border border-cyan-300/60 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100"
+                type="button"
+                onClick={() => void completeTask(task)}
+                disabled={busyId === task.id}
+              >
+                <Check className="h-4 w-4" />
+                Done
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {expanded && !editMode ? (
+          task.readOnly || task.source !== "local" ? (
+            <ReadOnlyTaskPanel busy={busyId === task.id} onConvert={convertTaskToLocal} task={task} />
+          ) : (
+            <TaskEditor
+              anchorOptions={anchorOptions.filter((candidate) => candidate.id !== task.id)}
+              busy={busyId === task.id}
+              initial={taskDraft(task)}
+              onCancel={() => setExpandedTaskId(null)}
+              onSave={(draft) => saveTask(task, draft)}
+              submitLabel="Save"
+            />
+          )
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <>
-      {bannersEnabled ? <CurrentTaskBar task={activeTask} /> : null}
+      <OrbCompletionAudio tasks={tasks} />
+      {bannersEnabled ? <CurrentTaskBar task={hasWashing && activeTask && washReminder(activeTask) ? null : activeTask} /> : null}
 
-      {bannersEnabled && alert ? (
+      {bannersEnabled && alert && !(hasWashing && washAlertId) ? (
         <button
           className="task-alert-overlay"
           type="button"
@@ -1431,24 +1508,8 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
               </div>
             </header>
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-grid grid-cols-2 border border-neutral-700">
-                {(["today", "upcoming"] as TaskTab[]).map((candidate) => (
-                  <button
-                    key={candidate}
-                    className={classNames(
-                      "min-h-10 px-4 py-2 text-sm font-black uppercase",
-                      tab === candidate && "bg-cyan-300/10 text-cyan-100",
-                    )}
-                    type="button"
-                    onClick={() => setTab(candidate)}
-                  >
-                    {candidate === "today" ? "Today" : "Upcoming"}
-                  </button>
-                ))}
-              </div>
-
-              {editMode ? (
+            {editMode ? (
+              <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
                 <button
                   className="inline-flex min-h-10 items-center gap-2 border border-red-400/60 bg-red-500/10 px-3 py-2 text-sm font-black text-red-100"
                   type="button"
@@ -1458,8 +1519,8 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                   <Trash2 className="h-4 w-4" />
                   Delete ({selectedCount})
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {message ? (
               <div className="mb-3 border border-cyan-300/40 bg-cyan-300/10 p-2 font-mono text-sm font-black uppercase text-cyan-100">
@@ -1479,101 +1540,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                 />
               ) : null}
 
-              {visibleTasks.length ? (
-                visibleTasks.map((task) => {
-                  const status = statusForTask(task, nowMs);
-                  const repeat =
-                    repeatLabel(task.repeat) ??
-                    followsLabel(task.follows, tasks.find((candidate) => candidate.id === task.follows?.taskId)?.name);
-                  const selected = selectedTaskIds.has(task.id);
-                  const expanded = expandedTaskId === task.id;
-                  const canComplete = status !== "Done";
-
-                  return (
-                    <div key={task.id} className="grid gap-2">
-                      <div
-                        className={classNames(
-                          "task-row grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-neutral-700 bg-neutral-950/70 p-3 text-left",
-                          selected && "border-cyan-300/60 bg-cyan-300/10",
-                        )}
-                      >
-                        <button className="task-row-main min-w-0 w-full text-left" type="button" onClick={() => rowClick(task)}>
-                          <div className="flex min-w-0 items-center gap-3">
-                            {editMode ? (
-                              <span
-                                className={classNames(
-                                  "inline-flex h-7 w-7 flex-none items-center justify-center border border-neutral-600",
-                                  selected && "border-cyan-300 bg-cyan-300 text-neutral-950",
-                                )}
-                              >
-                                {selected ? <CircleCheck className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-                              </span>
-                            ) : null}
-                            <div className="min-w-0">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <TaskSourceIcon task={task} />
-                                <p className="truncate text-lg font-black uppercase text-neutral-100">{task.name}</p>
-                              </div>
-                              <p className="mt-1 font-mono text-sm font-black uppercase text-neutral-500">{timeRange(task)}</p>
-                              {repeat ? (
-                                <p className="mt-1 flex items-center gap-1 font-mono text-xs font-black uppercase text-cyan-200/80">
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                  {repeat}
-                                </p>
-                              ) : null}
-                              {task.sourceCalendar ? (
-                                <p className="mt-1 truncate font-mono text-xs font-black uppercase text-neutral-500">
-                                  {sourceLabel(task.source)} / {task.sourceCalendar}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                        </button>
-                        <div className="grid justify-items-end gap-2">
-                          <span
-                            className={classNames(
-                              "whitespace-nowrap border px-2 py-1 font-mono text-xs font-black uppercase",
-                              statusClassName(status),
-                            )}
-                          >
-                            {status}
-                          </span>
-                          {canComplete && !editMode ? (
-                            <button
-                              className="inline-flex min-h-9 items-center gap-2 border border-cyan-300/60 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100"
-                              type="button"
-                              onClick={() => void completeTask(task)}
-                              disabled={busyId === task.id}
-                            >
-                              <Check className="h-4 w-4" />
-                              Done
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {expanded && !editMode ? (
-                        task.readOnly || task.source !== "local" ? (
-                          <ReadOnlyTaskPanel busy={busyId === task.id} onConvert={convertTaskToLocal} task={task} />
-                        ) : (
-                          <TaskEditor
-                            anchorOptions={anchorOptions.filter((candidate) => candidate.id !== task.id)}
-                            busy={busyId === task.id}
-                            initial={taskDraft(task)}
-                            onCancel={() => setExpandedTaskId(null)}
-                            onSave={(draft) => saveTask(task, draft)}
-                            submitLabel="Save"
-                          />
-                        )
-                      ) : null}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="border border-neutral-700 bg-neutral-950/70 p-4 font-mono text-sm font-black uppercase text-neutral-500">
-                  No {tab === "today" ? "reminders today" : "upcoming reminders"}
-                </div>
-              )}
+              <AdvancedFold advanced={<TaskLists nowMs={nowMs} renderRow={renderTaskRow} tasks={tasks} />}><TimerEncoder /></AdvancedFold>
             </div>
           </section>
 

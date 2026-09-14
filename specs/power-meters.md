@@ -482,3 +482,12 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 - A closed wash has a trace file whose `person` follows a later tap.
 - Blocks show their curve and auto blocks are hatched, without overflow at
   kiosk portrait and landscape.
+
+## Status orb wash entry
+
+See [status-orb-stack.md](status-orb-stack.md). Exactly one household person is
+primary; that person supplies wash attribution and typical duration (Adeline:
+66 minutes). A configured washing orb entry suppresses the temporary wash icon
+and repeats the completion chime every 30 seconds for five minutes, then stays
+silently alert until acknowledged. Without that entry, keep the temporary icon
+and play the chime once. Discord completion behaviour is unchanged.

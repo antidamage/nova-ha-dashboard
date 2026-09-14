@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { homeGroupOwns, type buildZoneTree } from "./ZonesPanel";
 
-// Horizontal dashboard: Home and Systems each keep their own selected zone, so
-// picking Climate never closes Bedroom's controls (specs/landscape-layout.md).
-// Within a group the choice is exclusive. The global selection (portrait, the
-// stored zone, the voice agent) still flows in: whatever it becomes is written
-// to the group that owns it, leaving the other group alone.
+// Both orientations: Home and Systems each keep their own selected zone, so
+// picking Climate never closes Bedroom's controls (specs/landscape-layout.md,
+// specs/portrait-layout.md). Within a group the choice is exclusive. The global
+// selection (the stored zone, the voice agent) still flows in: whatever it
+// becomes is written to the group that owns it, leaving the other group alone.
 
 const STORAGE_KEY = "nova.dashboard.groupZones.v1";
 

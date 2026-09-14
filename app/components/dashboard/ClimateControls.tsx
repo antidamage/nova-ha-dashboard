@@ -249,7 +249,7 @@ function PanelHeaterControl({
   }, [entity, offTimerEndsAtMs, onEntityActions, timerNow]);
 
   if (!entity) {
-    return <ControlCard cardId="panel-heater" kicker="Heating Unit" title="Panel Heater" />;
+    return <ControlCard subPanel cardId="panel-heater" kicker="Heating Unit" title="Panel Heater" />;
   }
 
   const isOn = isClimateEntityOn(entity);
@@ -304,7 +304,7 @@ function PanelHeaterControl({
   };
 
   return (
-    <ControlCard cardId="panel-heater" entity={entity} kicker="Heating Unit" title="Panel Heater">
+    <ControlCard subPanel cardId="panel-heater" entity={entity} kicker="Heating Unit" title="Panel Heater">
       <div className="grid gap-4">
         <TemperatureStepper disabled={!isOn} entity={entity} label="Temperature" step={1} onChange={setTemperature} />
 
@@ -383,14 +383,14 @@ function BedroomHeaterControl({
   title: string;
 }) {
   if (!switchEntity) {
-    return <ControlCard cardId="bedroom-heater" kicker="Heating Unit" title={title} />;
+    return <ControlCard subPanel cardId="bedroom-heater" kicker="Heating Unit" title={title} />;
   }
 
   // No card header: the knob's title arc names the room (Adeline, 2026-09-12,
   // specs/temperature-encoder.md). The card above, with no entity to show, keeps
   // its header — there is no knob there to carry the name.
   return (
-    <ControlCard cardId="bedroom-heater" entity={switchEntity}>
+    <ControlCard subPanel cardId="bedroom-heater" entity={switchEntity}>
       <div className="climate-knob-body">
         <HeaterKnob
           humidity={humidity}
@@ -478,12 +478,12 @@ function AirConditionerControl({
   onEntityActions: EntityActionsHandler;
 }) {
   if (!entity) {
-    return <ControlCard cardId="aircon" kicker="Air Control" title={title} />;
+    return <ControlCard subPanel cardId="aircon" kicker="Air Control" title={title} />;
   }
 
   // No card header — see BedroomHeaterControl above.
   return (
-    <ControlCard cardId="aircon" entity={entity}>
+    <ControlCard subPanel cardId="aircon" entity={entity}>
       <div className="climate-knob-body">
         <AirconKnob
           climateControl={controlState}

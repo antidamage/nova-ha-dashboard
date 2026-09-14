@@ -76,6 +76,11 @@ export function startsInNonDraggable(target: EventTarget | null, axis: "x" | "y"
 export function findVerticalScroller(target: EventTarget | null): HTMLElement | null {
   let node = target instanceof Element ? target : null;
   while (node && node !== document.body && node !== document.documentElement) {
+    // A sub-panel with an Advanced fold drives its own offset from the mouse
+    // (specs/advanced-fold.md); scrolling it here as well would move it twice.
+    if (node.matches(".advanced-fold:not([data-foldless])")) {
+      return null;
+    }
     if (node instanceof HTMLElement) {
       const overflowY = window.getComputedStyle(node).overflowY;
       if (

@@ -51,6 +51,9 @@ export async function register() {
     console.error("[nova-modules] failed to start", error);
   }
 
+  const { startOrbTimer } = await import("@/lib/orb-timer");
+  startOrbTimer();
+
   // Browser voice-satellite bridge (mTLS relay to Iridium). No-op until a
   // dashboard server certificate is configured, so it stays inert on HTTP.
   try {

@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { orbModuleById, type OrbInfoSources } from "../../../lib/orb-info/catalogue";
 import { formatOrbValue, msUntilDisplayChange } from "../../../lib/orb-info/format";
-import { resolveOrbDisplay, resolveOrbModuleId, resolveOrbParams } from "../../../lib/orb-info/preferences";
+import { resolveOrbDisplay, resolveOrbEntries, resolveOrbParams } from "../../../lib/orb-info/preferences";
 import type {
   OrbInfoDisplay,
   OrbInfoPreferences,
   OrbModuleParams,
   OrbSourceId,
 } from "../../../lib/orb-info/types";
+import { useOrbTimer } from "./useOrbTimer";
+import { resolveActiveEntry } from "../../../lib/orb-info/stack";
 import type { DashboardState, Task } from "../../../lib/types";
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
 
@@ -136,26 +138,29 @@ export function useOrbInfo({
 }: UseOrbInfoOptions) {
   const [preferences, setPreferences] = useState<OrbInfoPreferences | undefined>(undefined);
   const [watchface, setWatchface] = useState<WatchfaceSource>(null);
+  const [washing, setWashing] = useState<OrbInfoSources["washing"]>(null);
+  const [events, setEvents] = useState<OrbInfoSources["events"]>({});
   const [power, setPower] = useState<PowerSource>(null);
   const [dashboard, setDashboard] = useState<DashboardSource>(null);
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [novaLoad, setNovaLoad] = useState<NovaLoadSample | null>(null);
   const [tick, setTick] = useState(() => Date.now());
 
-  const moduleId = moduleIdOverride ?? resolveOrbModuleId(preferences);
-  const module = orbModuleById(moduleId);
-  const display = displayOverride ?? resolveOrbDisplay(preferences, module.id);
-  const params = paramsOverride ?? resolveOrbParams(preferences, module.id);
-
+  const entries = useMemo(() => moduleIdOverride !== undefined
+    ? [{ id: "preview", moduleId: moduleIdOverride, activation: "always" as const,
+        display: displayOverride, params: paramsOverride }]
+    : resolveOrbEntries(preferences), [preferences, moduleIdOverride, displayOverride, paramsOverride]);
+  const neededSources = useMemo(() => new Set(entries.flatMap((entry) => orbModuleById(entry.moduleId).sources)), [entries]);
   const needs = useCallback(
-    (source: OrbSourceId) => enabled && module.sources.includes(source),
-    [enabled, module],
+    (source: OrbSourceId) => enabled && neededSources.has(source),
+    [enabled, neededSources],
   );
   const needsWatchface = needs("watchface");
   const needsPower = needs("power");
   const needsDashboard = needs("dashboardState");
   const needsNovaLoad = needs("novaLoad");
   const needsTasks = needs("tasks");
+  const { timer: orbTimer, now: timerNow, command: timerCommand } = useOrbTimer(needs("orbTimer"));
 
   // ---- Which module is selected, and how it is displayed -------------------
   useEffect(() => {
@@ -249,11 +254,13 @@ export function useOrbInfo({
           return;
         }
         const data = await response.json() as {
+          washingMachine?: OrbInfoSources["washing"];
           currentWatts?: number;
           currentCostPerHourNzd?: number;
           generatedAt?: string;
         };
         if (!alive) return;
+        setWashing(data.washingMachine);
         setPower({
           currentWatts: numberOrNull(data.currentWatts),
           currentCostPerHourNzd: numberOrNull(data.currentCostPerHourNzd),
@@ -347,23 +354,56 @@ export function useOrbInfo({
     };
   }, [needsTasks]);
 
+  const needsEvents = needs("orbEvents");
+  const entriesKey = JSON.stringify(entries);
+  useEffect(() => {
+    if (!needsEvents) return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/orb-info/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entries }) });
+        if (response.ok) { const data = await response.json(); if (alive) setEvents(data.outputs); }
+      } catch { /* next poll recovers */ }
+    };
+    void load(); const timer = setInterval(load, 5000);
+    return () => { alive = false; clearInterval(timer); };
+  // The serialized entry list avoids polling resets from equivalent preferences.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsEvents, entriesKey]);
+  useEffect(() => {
+    if (!enabled || !neededSources.has("clock")) return;
+    const timer = setInterval(() => setTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [enabled, neededSources]);
+
   const sources = useMemo<OrbInfoSources>(() => ({
-    now: tick,
+    now: needs("orbTimer") ? timerNow : tick,
+    orbTimer, washing, washTasks: tasks ?? [], events,
     watchface: needsWatchface ? watchface : null,
     novaLoad: needsNovaLoad ? novaLoad : null,
     power: needsPower ? power : null,
     dashboardState: needsDashboard ? dashboard : null,
     tasks: needsTasks && tasks ? tasksSourceFrom(tasks, tick) : null,
   }), [
-    tick, needsWatchface, watchface, needsNovaLoad, novaLoad, needsPower, power,
+    washing, events, orbTimer, timerNow, needs, tick, needsWatchface, watchface, needsNovaLoad, novaLoad, needsPower, power,
     needsDashboard, dashboard, needsTasks, tasks,
   ]);
 
-  const outputValue = module.read(sources, params);
+  const outputs = Object.fromEntries(entries.map((entry) => [entry.id,
+    orbModuleById(entry.moduleId).read(sources, entry.params)]));
+  const selected = resolveActiveEntry(entries, outputs);
+  const module = orbModuleById(selected?.entry.moduleId ?? "none");
+  const entryPreferences = { modules: { [module.id]: selected?.entry ?? {} } };
+  const display = resolveOrbDisplay(entryPreferences, module.id);
+  const params = resolveOrbParams(entryPreferences, module.id);
+  const outputValue = selected?.output ?? module.read(sources, params);
   const result = formatOrbValue(outputValue, display, { label: module.label });
 
-  // ---- Wake exactly when the rendered text would change ---------------------
-  const nextChangeMs = enabled ? msUntilDisplayChange(outputValue, display, tick) : null;
+  // Hidden rows must also wake: an alert threshold can promote them to first place.
+  const changes = entries.map((entry) => msUntilDisplayChange(outputs[entry.id],
+    resolveOrbDisplay({ modules: { [entry.moduleId]: entry } }, entry.moduleId), tick))
+    .filter((value): value is number => value !== null);
+  const nextChangeMs = enabled && changes.length ? Math.min(...changes) : null;
   useEffect(() => {
     if (nextChangeMs === null) return;
     const id = window.setTimeout(() => setTick(Date.now()), nextChangeMs);
@@ -391,6 +431,11 @@ export function useOrbInfo({
   }, [needsNovaLoad]);
 
   return {
+    dismiss: outputValue.dismiss ? async () => {
+      const target = outputValue.dismiss!;
+      if (target.kind === "timer") await timerCommand({ command: "dismiss", id: target.id });
+      else await fetch(`/api/tasks/${encodeURIComponent(target.id)}/dismiss`, { method: "POST" });
+    } : undefined,
     module,
     display,
     params,

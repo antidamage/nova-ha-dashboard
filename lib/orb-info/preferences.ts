@@ -8,6 +8,7 @@ import type {
   OrbModuleParams,
   OrbPercentBasis,
   OrbRounding,
+  OrbStackEntry,
 } from "./types";
 
 const FORMATS: OrbInfoFormat[] = ["number", "duration", "percent", "clock", "temperature", "text"];
@@ -135,5 +136,28 @@ export function normalizedOrbInfoPreferences(value: OrbInfoPreferences | undefin
       ...(module.params?.length ? { params: normalizeOrbParams(entry.params, module) } : {}),
     };
   }
-  return { ...value, moduleId, modules };
+  return { ...value, moduleId, modules, entries: resolveOrbEntries(value) };
+}
+
+/** Migrate a legacy selection without losing its display or parameter edits. */
+export function resolveOrbEntries(value: OrbInfoPreferences | undefined): OrbStackEntry[] {
+  const legacyId = resolveOrbModuleId(value);
+  const raw = value?.entries ?? [{
+    id: `legacy-${legacyId}`, moduleId: legacyId, activation: "always" as const,
+    ...value?.modules?.[legacyId],
+  }];
+  const seen = new Set<string>();
+  return raw.slice(0, 32).flatMap((entry, index) => {
+    if (!entry || !ORB_INFO_MODULES_BY_ID[entry.moduleId]) return [];
+    const module = orbModuleById(entry.moduleId);
+    let id = typeof entry.id === "string" && entry.id ? entry.id.slice(0, 100) : `entry-${index}`;
+    while (seen.has(id)) id += `-${index}`;
+    seen.add(id);
+    return [{
+      id, moduleId: module.id,
+      activation: entry.activation === "whenAlerting" ? "whenAlerting" as const : "always" as const,
+      display: resolveOrbDisplay({ modules: { [module.id]: entry } }, module.id),
+      params: normalizeOrbParams(entry.params, module),
+    }];
+  });
 }

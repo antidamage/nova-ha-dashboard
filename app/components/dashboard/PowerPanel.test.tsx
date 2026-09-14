@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PowerDashboard } from "../../../lib/power";
 import { PowerPanel } from "./PowerPanel";
+import { openAdvancedFold } from "./advancedFoldTesting";
 
 const data = {
   accountRateGraph: [{ cPerKwh: 30, label: "May 2026" }],
@@ -50,17 +51,6 @@ vi.mock("../AgentNameContext", () => ({
   useAgentName: () => ({ agentName: "Nova" }),
 }));
 
-/**
- * Pull past the Advanced line, the way a drag does
- * (specs/advanced-fold.md). The detail below it is not mounted until then.
- */
-function openAdvancedFold(container: HTMLElement) {
-  const fold = container.querySelector(".advanced-fold") as HTMLElement;
-  // Diagonal, so the same helper works whichever axis the layout gives it.
-  fireEvent.pointerDown(fold, { pointerType: "mouse", button: 0, clientX: 200, clientY: 200 });
-  fireEvent.pointerMove(fold, { pointerType: "mouse", clientX: 120, clientY: 120 });
-  fireEvent.pointerUp(fold);
-}
 
 describe("PowerPanel inferred base loads", () => {
   it("starts collapsed and reveals the refreshed billing-cycle estimate on request", () => {

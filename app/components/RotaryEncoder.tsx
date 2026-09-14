@@ -132,6 +132,7 @@ export type RotaryEncoderRing = {
   valueText?: string | ((value: number) => string);
   /** The widest value this ring can ever show, so its length never jumps. */
   valueTextWidest?: string;
+  onValueTap?: (anchor: HTMLElement) => void;
   /** Never shortened and never carries a value: the stops stay symmetric. */
   symmetric?: boolean;
   /** `selector` and `toggle`: the whole track's fill, or null for an empty well. */
@@ -1153,7 +1154,14 @@ export function RotaryEncoder({
                 <text
                   className="rotary-encoder-ring-label rotary-encoder-ring-value rotary-encoder-etch-face"
                   fontSize={geometry.font}
-                  aria-hidden
+                  aria-hidden={ring.onValueTap ? undefined : true}
+                  role={ring.onValueTap ? "button" : undefined}
+                  tabIndex={ring.onValueTap ? 0 : undefined}
+                  aria-label={ring.onValueTap ? `Enter ${ring.label}` : undefined}
+                  style={ring.onValueTap ? { pointerEvents: "auto", cursor: "pointer" } : undefined}
+                  onPointerDown={ring.onValueTap ? (event) => event.stopPropagation() : undefined}
+                  onClick={ring.onValueTap ? (event) => { event.stopPropagation(); const anchor = event.currentTarget.ownerSVGElement?.parentElement; if (anchor) ring.onValueTap?.(anchor); } : undefined}
+                  onKeyDown={ring.onValueTap ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); const anchor = event.currentTarget.ownerSVGElement?.parentElement; if (anchor) ring.onValueTap?.(anchor); } } : undefined}
                 >
                   {/* Right-aligned so it ends where the ring's track ends. */}
                   <textPath href={`#${ringIdBase}-label-${index}`} startOffset={Math.max(0, gapLength(geometry, index, end) - track)}>

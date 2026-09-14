@@ -1239,3 +1239,7 @@ export function subscribeTaskEvents() {
     },
   });
 }
+
+export function publishOrbTimer(timer: import("./orb-timer-model").OrbTimer | null) {
+  broadcast(sseEvent("orb-timer", JSON.stringify({ timer })));
+}
