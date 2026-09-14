@@ -104,6 +104,11 @@ and **Systems** (climate, outside, world, network, power, tasks).
     Computers) may scroll vertically when it has to.
   - Where a panel scrolls, the major controls go at the top or are centred in
     the column, and the scroll leads to the more advanced detail.
+  - **That scroll is now the Advanced fold** (Adeline, 2026-09-14):
+    what a panel shows by default, the sunken "Advanced" line at the bottom of
+    that view, and the resist-then-snap drag that reaches past it are
+    `specs/advanced-fold.md`. It also says which content each panel puts below
+    the line, and covers portrait, where the line is vertical on the right.
   - Mechanism: the zone panel's body (`.zone-panel > .mt-8`) is the vertical
     scroller, below the panel header, and its grid rows are floored at their
     content (`minmax(min-content, 1fr)`) so a clipped panel (`clip-path`) is
@@ -144,11 +149,16 @@ the knob into the next control. Keep this treatment scoped to landscape.
 
 ## Zone control panel: House Party
 
-- House Party spans the full width of its zone panel and is always the panel's
-  last row, pinned to the bottom of the panel however short the controls above
-  it are (the panel is a flex column; House Party carries `margin-top: auto`).
+- House Party **lives in the zone's Advanced section** (Adeline, 2026-09-14,
+  `specs/advanced-fold.md`), with the room's readouts and the zone's light
+  events. It was removed from the panel entirely by a concurrent session's WIP
+  commit (`e45f11f`, 2026-09-12) while its backend stayed live; this puts it
+  back.
+- It spans the width of the Advanced region and uses the slide switch
+  (`specs/slide-switch.md`).
 - Lighting zones only, as before. Portrait and landscape alike.
-- The colour dial it used to share a row with now has that row to itself.
+- The default view above the line is the colour dial, centred, with the preset
+  buttons in a row along the bottom.
 
 ## Done means
 
@@ -163,6 +173,6 @@ the knob into the next control. Keep this treatment scoped to landscape.
 - The voice transcript is collapsed, and opens sideways.
 - Outside fits its column with no vertical scrollbar: light, weather, camera
   across (`specs/outside-card.md`).
-- House Party is full width at the bottom of every lighting zone panel.
+- House Party is in the Advanced section of every lighting zone panel.
 - Portrait layout unchanged.
 - Unit tests pass; deployed and checked live.

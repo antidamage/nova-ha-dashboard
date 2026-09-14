@@ -28,7 +28,6 @@ import {
 } from "../../../lib/phonoscope-effects";
 import { ConfigSelect } from "../ConfigSelect";
 import {
-  CheckboxRow,
   ConfigAccordion,
   EnvelopeSliderControlPanel,
   RangeSliderControlPanel,
@@ -44,6 +43,7 @@ import {
   type ResolvedEffectGroup,
 } from "./effectCatalogue";
 import { CopyActions, PasteIntoButton } from "./ClipboardControls";
+import { SwitchRow } from "../SlideSwitch";
 
 /**
  * How several lanes setting the same value resolve against each other.
@@ -214,7 +214,7 @@ function TransitionControl({
           if (companion.id === PHONOSCOPE_CENTRE_TRANSITION_RETURN_EFFECT
             || companion.id === PHONOSCOPE_BG_TRANSITION_RETURN_EFFECT) {
             return (
-              <CheckboxRow
+              <SwitchRow
                 key={companion.id}
                 checked={value >= 0.5}
                 detail={labels?.description}
@@ -509,7 +509,7 @@ export function EffectEntry({
           // is a state rather than something a driver sweeps.
           name,
           "range",
-            <CheckboxRow
+            <SwitchRow
               checked={range[0] >= 0.5}
               detail={effect.description}
               label={name}

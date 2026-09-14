@@ -3,6 +3,7 @@ import {
   applyAdaptiveCandlelightTransitions,
   applyLightingIntensityThresholds,
   applyPinnedLightPresets,
+  applyZoneLightEvents,
   buildDashboardState,
   subscribeHaStateChanges,
   warmWeatherCache,
@@ -1015,6 +1016,7 @@ async function scanAdaptiveLighting() {
       ["adaptive-candlelight", applyAdaptiveCandlelightTransitions],
       ["intensity-threshold", applyLightingIntensityThresholds],
       ["pinned-preset", applyPinnedLightPresets],
+      ["light-event", applyZoneLightEvents],
     ];
     for (const [event, run] of automations) {
       const state = await run();

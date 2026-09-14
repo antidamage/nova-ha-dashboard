@@ -8,6 +8,8 @@
 import { PowerOff, Sun as SunIcon } from "lucide-react";
 import type { DashboardZone, SpectrumCursor, SunStatus, WeatherStatus } from "../../../lib/types";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { AdvancedFold } from "./AdvancedFold";
+import { ZoneLightEvents } from "./ZoneLightEvents";
 import { WeatherPanel } from "./WeatherPanel";
 import { CameraPanel } from "./CameraPanel";
 import { useExperienceFeature } from "./experienceModeSetting";
@@ -50,7 +52,10 @@ export function OutsideControls({
 
   return (
     <div className="outside-control-grid grid gap-5">
-      <section className="outside-light-card border border-neutral-700 bg-neutral-950/70 p-5">
+      <AdvancedFold
+        className="outside-light-card border border-neutral-700 bg-neutral-950/70 p-5"
+        advanced={<ZoneLightEvents lights={zone.entities.filter((entity) => entity.domain === "light")} zone={zone} />}
+      >
         <header className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-black uppercase text-cyan-300">Exterior Circuit</p>
@@ -103,7 +108,7 @@ export function OutsideControls({
             </MomentaryFeedbackButton>
           </div>
         </div>
-      </section>
+      </AdvancedFold>
 
       <WeatherPanel weather={weather} />
 

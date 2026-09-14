@@ -34,6 +34,12 @@ absent when that is off.
   the old `min(760px, 100vw - 80px)` cap is gone. Sideways scrolling between
   columns is normal in landscape; vertical scrolling inside one is not.
 - **Portrait is unchanged**: the three stack as they always have.
+- **Each of the three is its own fold** (Adeline, 2026-09-14,
+  `specs/advanced-fold.md`): light, weather and camera each scroll vertically
+  on their own and each carries its own Advanced line — the light's zone light
+  events, the weather's daily forecast, and the camera's recent events and
+  Saved Captures. The card still grows sideways; "Outside must not scroll
+  vertically" now means the card, not the three areas inside it.
 
 ## The light
 

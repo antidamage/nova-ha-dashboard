@@ -160,10 +160,10 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
 
   return (
     <div className="camera-event-report">
-      {/* A bar and nothing else (Adeline, 2026-09-12): the preview list that
-          used to sit under it is gone, and tapping opens the modal as it
-          always did. The policy warning rides the bar so it is not lost with
-          the box. */}
+      {/* The bar, with the latest five under it again (Adeline, 2026-09-14):
+          the list is the first thing in the camera's Advanced section
+          (specs/advanced-fold.md), and the bar still opens the full report.
+          The policy warning rides the bar. */}
       <button type="button" className="camera-event-report-header" onClick={() => { setOpen(true); void refresh(true); }}>
         <span className="camera-event-report-heading"><Eye className="h-4 w-4" aria-hidden="true" /> Recent activity</span>
         <span className={classNames("camera-event-report-health", status && !status.ok && "is-error", status?.policyConfigured === false && "is-error")}>
@@ -174,6 +174,26 @@ export function CameraEventReport({ cameraId }: { cameraId: string }) {
               : importantCount ? `${importantCount} important` : status?.queueDepth ? `${status.queueDepth} queued` : "View events"}
         </span>
       </button>
+
+      <div className="camera-event-preview-list">
+        {events.slice(0, 5).map((event) => (
+          <button
+            key={event.id}
+            type="button"
+            className={classNames("camera-event-preview-row", `is-${event.priority}`, !event.reviewed && "is-unreviewed")}
+            onClick={() => { setSelectedId(event.id); setOpen(true); void refresh(true); }}
+          >
+            {event.thumbnailUrl
+              ? <img src={event.thumbnailUrl} alt="" />
+              : <span className="camera-event-no-thumb"><Video className="h-5 w-5" aria-hidden="true" /></span>}
+            <span className="camera-event-preview-text">
+              <strong>{event.title}</strong>
+              <small>{when(event.startedAt)}</small>
+            </span>
+          </button>
+        ))}
+        {!loading && !events.length ? <p className="camera-event-preview-empty">Nothing recorded yet.</p> : null}
+      </div>
 
       <ModalOverlay open={open} onClose={() => setOpen(false)} ariaLabelledBy="camera-events-title" className="camera-events-modal">
         <header className="camera-events-modal-header">

@@ -4,7 +4,7 @@ import { Download, Loader2, RefreshCw, RotateCcw, Search } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfigAccordion } from "./ConfigControls";
 import { classNames } from "./dashboard/shared";
-import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
+import { SwitchRow } from "./SlideSwitch";
 import { useSettingCooldown } from "./useSettingCooldown";
 
 type UpdateStatus = {
@@ -279,35 +279,18 @@ export function UpdateConfig({ initialAutoUpdate }: { initialAutoUpdate?: boolea
           </button>
         </div>
 
-        <div className="climate-switch-row border">
-          <span className="climate-switch-label">Auto-update</span>
-          <MomentaryFeedbackButton
-            type="button"
-            className={classNames("cyber-switch", autoUpdate && "cyber-switch-checked")}
-            role="switch"
-            aria-checked={autoUpdate}
-            aria-label="Install updates automatically"
-            onClick={() => void toggleAutoUpdate()}
-          >
-            <span className="cyber-switch-thumb" />
-          </MomentaryFeedbackButton>
-          <span className="climate-switch-label">{autoUpdate ? "On" : "Off"}</span>
-        </div>
+        <SwitchRow
+          checked={autoUpdate}
+          label="Auto-update"
+          detail="Install updates automatically"
+          onChange={() => void toggleAutoUpdate()}
+        />
 
-        <div className="climate-switch-row border">
-          <span className="climate-switch-label">Show updates on home page</span>
-          <MomentaryFeedbackButton
-            type="button"
-            className={classNames("cyber-switch", showUpdatesOnHome && "cyber-switch-checked")}
-            role="switch"
-            aria-checked={showUpdatesOnHome}
-            aria-label="Show updates on home page"
-            onClick={() => void toggleShowUpdatesOnHome()}
-          >
-            <span className="cyber-switch-thumb" />
-          </MomentaryFeedbackButton>
-          <span className="climate-switch-label">{showUpdatesOnHome ? "On" : "Off"}</span>
-        </div>
+        <SwitchRow
+          checked={showUpdatesOnHome}
+          label="Show updates on home page"
+          onChange={() => void toggleShowUpdatesOnHome()}
+        />
 
         {message ? <p className="text-sm font-semibold text-neutral-300">{message}</p> : null}
       </div>

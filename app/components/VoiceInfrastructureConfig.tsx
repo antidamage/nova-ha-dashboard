@@ -25,12 +25,13 @@ import {
 } from "../../lib/voice-settings";
 import type { VoicePreferences } from "../../lib/types";
 import CompanionStatusCard from "./CompanionStatusCard";
-import { CheckboxRow, ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
 import { ConfigSelect, type ConfigSelectOption } from "./ConfigSelect";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { VoiceServerStatus } from "./VoiceServerStatus";
 import { useAgentName } from "./AgentNameContext";
 import { useSettingCooldown } from "./useSettingCooldown";
+import { SlideSwitch, SwitchRow } from "./SlideSwitch";
 
 type VoiceRoomOption = { id: string; name: string };
 
@@ -234,22 +235,12 @@ function SatellitePanel() {
                   ))}
                 </select>
               </label>
-              <MomentaryFeedbackButton
-                type="button"
-                role="switch"
-                aria-checked={row.voiceEnabled}
-                aria-label={`Turn satellite voice ${row.voiceEnabled ? "off" : "on"} for ${row.name}`}
-                className={`config-page-button ${row.voiceEnabled ? "" : "opacity-70"}`}
+              <SlideSwitch
+                checked={row.voiceEnabled}
                 disabled={togglingVoice !== null}
-                onClick={() => void setVoiceEnabled(row, !row.voiceEnabled)}
-              >
-                {row.voiceEnabled ? (
-                  <Power className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <PowerOff className="h-4 w-4" aria-hidden="true" />
-                )}
-                {row.voiceEnabled ? "Voice on" : "Voice off"}
-              </MomentaryFeedbackButton>
+                label={`Turn satellite voice ${row.voiceEnabled ? "off" : "on"} for ${row.name}`}
+                onChange={() => void setVoiceEnabled(row, !row.voiceEnabled)}
+              />
               <MomentaryFeedbackButton
                 type="button"
                 className="config-page-button"
@@ -815,35 +806,17 @@ function VoiceKillswitch({ initialSettings }: { initialSettings?: VoicePreferenc
   return (
     <div className="mb-4 grid gap-2">
       <p className="text-xs font-black uppercase text-neutral-400">System voice</p>
-      <MomentaryFeedbackButton
-        type="button"
-        role="switch"
-        aria-checked={enabled}
+      <SwitchRow
+        checked={enabled}
         disabled={saving}
-        className={`cyber-checkbox-row border p-4 text-left ${
-          enabled ? "cyber-checkbox-row-active" : ""
-        } ${saving ? "opacity-70" : ""}`}
-        onClick={() => void toggle()}
-      >
-        <span
-          className={`cyber-checkbox ${enabled ? "cyber-checkbox-checked" : ""}`}
-          aria-hidden="true"
-        >
-          {enabled
-            ? <Power className="h-6 w-6" strokeWidth={3} />
-            : <PowerOff className="h-6 w-6" strokeWidth={3} />}
-        </span>
-        <span className="grid min-w-0 gap-1">
-          <span className="theme-display-label zone-title-bar">
-            {enabled ? "Voice enabled" : "Voice OFF"}
-          </span>
-          <span className="theme-display-detail">
-            {enabled
-              ? "Master switch for the whole system. Turn off to disable voice everywhere and close the current conversation."
-              : "Voice is disabled for the entire system — no microphone is processed anywhere. Turn on to resume."}
-          </span>
-        </span>
-      </MomentaryFeedbackButton>
+        label={enabled ? "Voice enabled" : "Voice OFF"}
+        detail={
+          enabled
+            ? "Master switch for the whole system. Turn off to disable voice everywhere and close the current conversation."
+            : "Voice is disabled for the entire system — no microphone is processed anywhere. Turn on to resume."
+        }
+        onChange={() => void toggle()}
+      />
       {message ? (
         <p
           role="status"
@@ -1014,37 +987,16 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       <p className="text-xs font-black uppercase text-neutral-400">Capture, Conversation &amp; Playback</p>
 
       <div className="grid gap-1.5">
-        <MomentaryFeedbackButton
-          type="button"
-          role="switch"
-          aria-checked={settings.speakerRecognitionEnabled}
-          className={`cyber-checkbox-row border p-4 text-left ${
-            settings.speakerRecognitionEnabled ? "cyber-checkbox-row-active" : ""
-          }`}
-          onClick={() => void commit(
-            "speakerRecognitionEnabled",
-            !settings.speakerRecognitionEnabled,
-          )}
-        >
-          <span
-            className={`cyber-checkbox ${
-              settings.speakerRecognitionEnabled ? "cyber-checkbox-checked" : ""
-            }`}
-            aria-hidden="true"
-          >
-            {settings.speakerRecognitionEnabled
-              ? <Check className="h-6 w-6" strokeWidth={3} />
-              : null}
-          </span>
-          <span className="grid min-w-0 gap-1">
-            <span className="theme-display-label zone-title-bar">Speaker personalization</span>
-            <span className="theme-display-detail">
-              {settings.speakerRecognitionEnabled
-                ? "On: learn local voice templates from addressed turns and personalize recognized speakers"
-                : "Off: do not extract, learn, or match household voice templates"}
-            </span>
-          </span>
-        </MomentaryFeedbackButton>
+        <SwitchRow
+          checked={settings.speakerRecognitionEnabled}
+          label="Speaker personalization"
+          detail={
+            settings.speakerRecognitionEnabled
+              ? "On: learn local voice templates from addressed turns and personalize recognized speakers"
+              : "Off: do not extract, learn, or match household voice templates"
+          }
+          onChange={(checked) => void commit("speakerRecognitionEnabled", checked)}
+        />
         <p className="px-1 text-xs leading-snug text-neutral-500">
           Enrollment is local and transparent. Nova stores voice embeddings, never enrollment audio;
           unnamed templates expire after 30 days.
@@ -1052,68 +1004,29 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
       </div>
 
       <div className="grid gap-1.5">
-        <MomentaryFeedbackButton
-          type="button"
-          role="switch"
-          aria-checked={settings.voiceTrainingEnabled}
-          className={`cyber-checkbox-row border p-4 text-left ${
-            settings.voiceTrainingEnabled ? "cyber-checkbox-row-active" : ""
-          }`}
-          onClick={() => void commit("voiceTrainingEnabled", !settings.voiceTrainingEnabled)}
-        >
-          <span
-            className={`cyber-checkbox ${
-              settings.voiceTrainingEnabled ? "cyber-checkbox-checked" : ""
-            }`}
-            aria-hidden="true"
-          >
-            {settings.voiceTrainingEnabled
-              ? <Check className="h-6 w-6" strokeWidth={3} />
-              : null}
-          </span>
-          <span className="grid min-w-0 gap-1">
-            <span className="theme-display-label zone-title-bar">Voice training</span>
-            <span className="theme-display-detail">
-              {settings.voiceTrainingEnabled
-                ? "On: unknown voices may wake and command, and every turn refines recognition"
-                : "Off: only recognized household voices are heard"}
-            </span>
-          </span>
-        </MomentaryFeedbackButton>
+        <SwitchRow
+          checked={settings.voiceTrainingEnabled}
+          label="Voice training"
+          detail={
+            settings.voiceTrainingEnabled
+              ? "On: unknown voices may wake and command, and every turn refines recognition"
+              : "Off: only recognized household voices are heard"
+          }
+          onChange={(checked) => void commit("voiceTrainingEnabled", checked)}
+        />
       </div>
 
       <div className="grid gap-1.5">
-        <MomentaryFeedbackButton
-          type="button"
-          role="switch"
-          aria-checked={settings.satelliteNoiseGateEnabled}
-          className={`cyber-checkbox-row border p-4 text-left ${
-            settings.satelliteNoiseGateEnabled ? "cyber-checkbox-row-active" : ""
-          }`}
-          onClick={() => void commit(
-            "satelliteNoiseGateEnabled",
-            !settings.satelliteNoiseGateEnabled,
-          )}
-        >
-          <span
-            className={`cyber-checkbox ${
-              settings.satelliteNoiseGateEnabled ? "cyber-checkbox-checked" : ""
-            }`}
-            aria-hidden="true"
-          >
-            {settings.satelliteNoiseGateEnabled
-              ? <Check className="h-6 w-6" strokeWidth={3} />
-              : null}
-          </span>
-          <span className="grid min-w-0 gap-1">
-            <span className="theme-display-label zone-title-bar">Satellite noise gate</span>
-            <span className="theme-display-detail">
-              {settings.satelliteNoiseGateEnabled
-                ? "On: satellites send probable speech with protected pre-roll and silence tail"
-                : "Off for testing: satellites transmit every captured 20 ms audio frame"}
-            </span>
-          </span>
-        </MomentaryFeedbackButton>
+        <SwitchRow
+          checked={settings.satelliteNoiseGateEnabled}
+          label="Satellite noise gate"
+          detail={
+            settings.satelliteNoiseGateEnabled
+              ? "On: satellites send probable speech with protected pre-roll and silence tail"
+              : "Off for testing: satellites transmit every captured 20 ms audio frame"
+          }
+          onChange={(checked) => void commit("satelliteNoiseGateEnabled", checked)}
+        />
         <p className="px-1 text-xs leading-snug text-neutral-500">
           Runs locally on each native satellite before network transmission. Turn it off to bypass
           the noise/activity step completely while comparing capture and transcription behavior.
@@ -1122,32 +1035,16 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
 
       <div className="grid gap-1.5">
         <p className="mt-2 text-xs font-black uppercase text-neutral-400">Web access</p>
-        <MomentaryFeedbackButton
-          type="button"
-          role="switch"
-          aria-checked={settings.webAccessEnabled}
-          className={`cyber-checkbox-row border p-4 text-left ${
-            settings.webAccessEnabled ? "cyber-checkbox-row-active" : ""
-          }`}
-          onClick={() => void commit("webAccessEnabled", !settings.webAccessEnabled)}
-        >
-          <span
-            className={`cyber-checkbox ${
-              settings.webAccessEnabled ? "cyber-checkbox-checked" : ""
-            }`}
-            aria-hidden="true"
-          >
-            {settings.webAccessEnabled ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
-          </span>
-          <span className="grid min-w-0 gap-1">
-            <span className="theme-display-label zone-title-bar">Look things up online</span>
-            <span className="theme-display-detail">
-              {settings.webAccessEnabled
-                ? `On: when a request needs current or external facts, ${agentName} rewrites it into a query and answers from the web`
-                : `Off: ${agentName} answers only from on-device knowledge and household state`}
-            </span>
-          </span>
-        </MomentaryFeedbackButton>
+        <SwitchRow
+          checked={settings.webAccessEnabled}
+          label="Look things up online"
+          detail={
+            settings.webAccessEnabled
+              ? `On: when a request needs current or external facts, ${agentName} rewrites it into a query and answers from the web`
+              : `Off: ${agentName} answers only from on-device knowledge and household state`
+          }
+          onChange={(checked) => void commit("webAccessEnabled", checked)}
+        />
         <p className="px-1 text-xs leading-snug text-neutral-500">
           The only feature that sends anything off your local network: just the rewritten search
           query (never audio, {agentName}&apos;s personality, or household state), and only on a
@@ -1231,7 +1128,7 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
         {/* Both fall back to the voice server's live state rather than to a
             fixed default, so a box is never shown ticked for a deployment
             where the setting is actually off. */}
-        <CheckboxRow
+        <SwitchRow
           checked={settings.companionEnabled ?? effectiveSwitches.enabled}
           detail="Turning this off restores the voice server's previous behaviour exactly."
           label="Use the companion device"
@@ -1239,7 +1136,7 @@ function VoicePipelineSettings({ initialSettings }: { initialSettings?: VoicePre
             void commit("companionEnabled", companionEnabled).then(loadEffectiveRoutes);
           }}
         />
-        <CheckboxRow
+        <SwitchRow
           checked={settings.companionForceLocal ?? effectiveSwitches.forceLocal}
           detail="Keeps every pass here without disconnecting the device. Applies straight away."
           label="Force everything to the voice server"

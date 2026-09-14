@@ -77,7 +77,6 @@ import {
 } from "./accentColor";
 import { type NovaAvatarTheme } from "./avatarThemeModel";
 import {
-  CheckboxRow,
   ColorEncoderPanel,
   ColorWidget,
   type ColorEncoderRingSpec,
@@ -121,6 +120,7 @@ import { useThemeLibrary } from "./themeLibrary";
 import { copyColorToClipboard, copySectionToClipboard, useThemeClipboard } from "./themeClipboard";
 import { extractSection, mergeSection, type ThemeSectionKind } from "./themeSections";
 import { useAgentName } from "./AgentNameContext";
+import { SwitchRow } from "./SlideSwitch";
 
 type ThemeConfigColorSlot = ThemeColorSlot | "background";
 type MapConfigSlot = `map.${MapThemeColorSlot}`;
@@ -369,7 +369,7 @@ function WaterToggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <CheckboxRow
+    <SwitchRow
       checked={checked}
       label="Water Fill"
       detail={checked ? "Harbour fill is visible on the map" : "Water layer is hidden on the map"}
@@ -1826,13 +1826,13 @@ export function AccentConfig({
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">This Device</h2>
             <VoiceInputDeviceGroup agentName={agentName} />
-            <CheckboxRow
+            <SwitchRow
               checked={autoFullscreen}
               label="Auto Fullscreen"
               detail={autoFullscreen ? `This device keeps ${agentName} fullscreen` : "This device opens without requesting fullscreen"}
               onChange={setAutoFullscreen}
             />
-            <CheckboxRow
+            <SwitchRow
               checked={experienceFeatures.statusOrb}
               label="Show Status Orb"
               detail={
@@ -1842,7 +1842,7 @@ export function AccentConfig({
               }
               onChange={(checked) => setExperienceFeature("statusOrb", checked)}
             />
-            <CheckboxRow
+            <SwitchRow
               checked={statusOrbInfoVisible}
               label="Show Status Orb Info"
               detail={
@@ -1852,7 +1852,7 @@ export function AccentConfig({
               }
               onChange={setStatusOrbInfoVisible}
             />
-            <CheckboxRow
+            <SwitchRow
               checked={experienceFeatures.background}
               label="Show Background"
               detail={
@@ -1862,7 +1862,7 @@ export function AccentConfig({
               }
               onChange={(checked) => setExperienceFeature("background", checked)}
             />
-            <CheckboxRow
+            <SwitchRow
               checked={experienceFeatures.camera}
               label="Show Camera"
               detail={
@@ -1872,7 +1872,7 @@ export function AccentConfig({
               }
               onChange={(checked) => setExperienceFeature("camera", checked)}
             />
-            <CheckboxRow
+            <SwitchRow
               checked={experienceFeatures.worldMap}
               label="Show World Map"
               detail={
@@ -1886,7 +1886,7 @@ export function AccentConfig({
           </div>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
-            <CheckboxRow
+            <SwitchRow
               checked={followVisualizerWhenActive}
               label="Follow visualiser when active"
               detail={
@@ -1978,7 +1978,7 @@ export function AccentConfig({
                 {TITLE_THEME_SLOTS.map(renderWidget)}
                 {renderWidget(CLOCK_THEME_SLOT)}
               </div>
-              <CheckboxRow
+              <SwitchRow
                 checked={theme.lightingTint}
                 label="Tint dashboard to match lighting"
                 detail={
@@ -2078,7 +2078,7 @@ export function AccentConfig({
             className="config-sub-accordion"
             actions={sectionActions("background", "background")}
           >
-            <CheckboxRow
+            <SwitchRow
               checked={theme.desktopWallpaper.useAsDashboardBackground}
               label="Use Wallpaper as Background"
               detail={
@@ -2117,7 +2117,7 @@ export function AccentConfig({
             actions={sectionActions("map", "map")}
           >
             <div className="grid gap-3">
-              <CheckboxRow
+              <SwitchRow
                 checked={theme.mapSatellite}
                 label="Satellite Ground"
                 detail={theme.mapSatellite ? "Tinted satellite imagery covers the map ground plane" : "Map ground uses the flat base and land use colours"}

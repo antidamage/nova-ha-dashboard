@@ -3559,6 +3559,23 @@ button.config-breadcrumb-crumb:focus-visible {
   background: rgb(var(--cyber-cyan-rgb) / 0.11) !important;
 }
 
+/* A config row that is one setting: the slide switch at the trailing edge.
+   See specs/slide-switch.md. */
+.cyber-switch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
+  color: var(--cyber-title-on-bg) !important;
+}
+
+.cyber-switch-row-active {
+  border-color: var(--cyber-cyan) !important;
+  background: rgb(var(--cyber-cyan-rgb) / 0.11) !important;
+}
+
 .cyber-checkbox {
   display: flex;
   width: 32px;
@@ -3764,7 +3781,7 @@ button.config-breadcrumb-crumb:focus-visible {
   position: relative;
   display: grid;
   min-height: 56px;
-  grid-template-columns: minmax(0, auto) 80px minmax(0, auto);
+  grid-template-columns: minmax(0, auto) 72px minmax(0, auto);
   justify-content: center;
   align-items: center;
   gap: 14px;
@@ -3797,15 +3814,25 @@ button.config-breadcrumb-crumb:focus-visible {
   white-space: nowrap;
 }
 
+/* The slide switch: one toggle for the whole surface. See
+   specs/slide-switch.md. Labels sit outside the track and never change
+   colour; the track fill and the thumb's position carry the state. */
 .cyber-switch {
   position: relative;
   display: block;
-  width: 80px;
-  min-width: 80px;
-  height: 44px;
-  border: 1px solid rgb(var(--cyber-highlight-rgb) / 0.58);
-  background: rgb(var(--cyber-line-rgb) / 0.1);
+  width: 72px;
+  min-width: 72px;
+  height: 40px;
+  border: 1px solid var(--cyber-border-dim);
+  border-radius: 999px;
+  background: rgb(var(--cyber-line-rgb) / 0.12);
   outline: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.cyber-switch-checked {
+  border-color: rgb(var(--cyber-highlight-rgb) / 0.75);
+  background: var(--cyber-highlight);
 }
 
 .cyber-switch:disabled {
@@ -3814,25 +3841,28 @@ button.config-breadcrumb-crumb:focus-visible {
 
 .cyber-switch:focus-visible {
   border-color: var(--cyber-highlight);
+  box-shadow: 0 0 0 2px rgb(var(--cyber-highlight-rgb) / 0.35);
 }
 
 .cyber-switch-thumb {
   position: absolute;
-  inset-block: 5px;
+  inset-block: 4px;
   left: 4px;
   display: flex;
-  width: 32px;
+  width: 30px;
   align-items: center;
   justify-content: center;
-  background: var(--cyber-highlight);
-  color: var(--cyber-title-on-highlight);
-  transition: left 140ms ease;
+  border-radius: 999px;
+  background: var(--cyber-title-on-bg);
+  color: var(--cyber-panel);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  transition: left 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
 .cyber-switch-checked .cyber-switch-thumb {
-  left: calc(100% - 36px);
-  background: var(--cyber-highlight);
-  color: var(--cyber-title-on-highlight);
+  left: calc(100% - 34px);
+  background: var(--cyber-title-on-highlight);
+  color: var(--cyber-highlight);
 }
 
 .zone-panel {
@@ -8025,4 +8055,278 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 
 html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   opacity: calc(var(--nova-lighting-tint-strength, 30) / 100);
+}
+
+/* The Advanced fold: a panel's default view, the sunken line at the bottom of
+   it, and the detail past it. specs/advanced-fold.md */
+.advanced-fold {
+  position: relative;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+.advanced-fold::-webkit-scrollbar {
+  display: none;
+}
+
+.advanced-fold-track {
+  display: flex;
+  transition: transform 160ms ease;
+}
+
+.advanced-fold-default {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.advanced-fold-divider {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.advanced-fold-divider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* A solid, flattened triangle: wider than it is tall. */
+.advanced-fold-divider-arrow {
+  width: 0;
+  height: 0;
+  border-top: 5px solid var(--cyber-muted);
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+}
+
+/* The line itself is sunken, not a border: the same inset bevel the rotary
+   encoder's ring uses. */
+.advanced-fold-divider-line {
+  flex: 1 1 auto;
+  background: rgb(0 0 0 / 0.35);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.65),
+    0 1px 0 rgb(var(--cyber-line-rgb) / 0.18);
+}
+
+/* Landscape: the fold runs down the column. */
+.advanced-fold[data-axis="y"] {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-track {
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-default {
+  flex: 1 0 auto;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-divider {
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: 10px;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-divider-label {
+  align-self: center;
+  padding-bottom: 5px;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-divider-line {
+  height: 2px;
+  flex: 0 0 2px;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced {
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+}
+
+/* Portrait: the line stands on the right edge and the detail is hidden to the
+   right of it, so everything below the line in landscape is laid out as cells
+   the width of the panel. */
+.advanced-fold[data-axis="x"] {
+  container-type: inline-size;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-track {
+  flex-direction: row;
+  align-items: stretch;
+  min-width: 100%;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-default {
+  width: 100cqi;
+  flex: 0 0 100cqi;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider {
+  flex-direction: row-reverse;
+  padding-left: 10px;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider-label {
+  writing-mode: vertical-rl;
+  align-self: center;
+  padding-left: 5px;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider-arrow {
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 5px solid var(--cyber-muted);
+  border-right: 0;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider-line {
+  width: 2px;
+  flex: 0 0 2px;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-advanced {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100cqi;
+  gap: 16px;
+  padding-left: 16px;
+}
+
+/* The zone's timed light events, in its Advanced section.
+   specs/zone-light-events.md */
+.zone-light-events {
+  display: grid;
+  gap: 12px;
+}
+
+.zone-light-events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zone-light-events-title,
+.zone-light-events-subtitle {
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.zone-light-event {
+  display: grid;
+  gap: 12px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  padding: 12px;
+}
+
+.zone-light-event-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone-light-event-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.zone-light-event-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.zone-light-event-switch-ons {
+  display: grid;
+  gap: 8px;
+}
+
+.zone-light-event-switch-on {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+/* The latest five camera events, back under the bar and first in the camera's
+   Advanced section (specs/advanced-fold.md). */
+.camera-event-preview-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.camera-event-preview-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  padding: 6px;
+  text-align: left;
+}
+
+.camera-event-preview-row.is-unreviewed {
+  border-color: rgb(var(--cyber-highlight-rgb) / 0.55);
+}
+
+.camera-event-preview-row img,
+.camera-event-preview-row .camera-event-no-thumb {
+  display: flex;
+  width: 56px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  object-fit: cover;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.camera-event-preview-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.camera-event-preview-text strong {
+  overflow: hidden;
+  color: var(--cyber-title-on-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camera-event-preview-text small,
+.camera-event-preview-empty {
+  color: var(--cyber-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
 }

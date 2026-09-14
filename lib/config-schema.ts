@@ -44,6 +44,36 @@ const LightingEntityPresetSchema = z.object({
   }),
   colorTemperatureOverrideKelvin: LightColorTemperatureOverrideSchema.optional(),
 });
+/**
+ * One timed light event for a zone: a time of day, the days it may fire on,
+ * and the colour and level it sets. Brightness 0 means off.
+ * See specs/zone-light-events.md.
+ */
+const ZoneLightEventTimeSchema = z.union([
+  z.object({ kind: z.literal("clock"), hhmm: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) }),
+  z.object({
+    kind: z.literal("sun"),
+    event: z.enum(["sunrise", "sunset"]),
+    offsetMinutes: z.number().int().min(-720).max(720).default(0),
+  }),
+]);
+const ZoneLightEventSchema = z.object({
+  id: z.string().min(1),
+  zoneId: z.string().min(1),
+  name: z.string().min(1).optional(),
+  enabled: z.boolean().default(true),
+  at: ZoneLightEventTimeSchema,
+  // Weekdays it may fire on, 0 = Sunday. Empty means every day.
+  days: z.array(z.number().int().min(0).max(6)).default([]),
+  value: z.object({
+    hue: z.number().int().min(0).max(359),
+    saturation: z.number().int().min(0).max(100),
+    brightnessPct: z.number().int().min(0).max(100),
+  }),
+});
+export type ZoneLightEvent = z.infer<typeof ZoneLightEventSchema>;
+export type ZoneLightEventTime = z.infer<typeof ZoneLightEventTimeSchema>;
+
 const PowerDeviceRatingSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -68,6 +98,75 @@ const PowerDeviceRatingSchema = z.object({
   notes: z.string().min(1).optional(),
 });
 export type PowerDeviceRating = z.infer<typeof PowerDeviceRatingSchema>;
+
+/**
+ * A metering plug that must never be left switched off. See
+ * specs/power-meters.md §1 — the guard restores `off` immediately and says
+ * nothing to anyone about it.
+ */
+const AlwaysOnMeterSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  /** Every switch entity this plug has been known by, most current first. */
+  switchEntityIds: z.array(entityIdSchema).min(1),
+});
+export type AlwaysOnMeter = z.infer<typeof AlwaysOnMeterSchema>;
+
+/**
+ * One group the floating meter can be moved onto. `seedWatts` is the guess
+ * used until the group has been measured for `minLearnedHours`;
+ * `suppressesBaseLoads` names the modelled base loads this group replaces, so
+ * the grid total does not count the same fridge twice.
+ */
+const FloatingMeterCategorySchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  icon: z.enum(["computers", "entertainment", "kitchen", "laundry", "other"]),
+  seedWatts: z.number().nonnegative(),
+  suppressesBaseLoads: z
+    .array(z.enum(["fridges", "water_heater", "desktop_pc", "nova_aio"]))
+    .default([]),
+  /** Human-readable membership, shown in the panel. Never an entity id. */
+  members: z.array(z.string().min(1)).default([]),
+});
+export type FloatingMeterCategory = z.infer<typeof FloatingMeterCategorySchema>;
+
+const FloatingMeterConfigSchema = z.object({
+  powerSensorEntityId: entityIdSchema,
+  entityIds: z.array(entityIdSchema).min(1),
+  /** Hours of measurement before a group's own profile outranks its seed. */
+  minLearnedHours: z.number().positive().default(24),
+  categories: z.array(FloatingMeterCategorySchema).min(1),
+});
+export type FloatingMeterConfig = z.infer<typeof FloatingMeterConfigSchema>;
+
+/**
+ * Cycle detection for a washing machine on a metering plug. Every threshold is
+ * config so a different machine is a config edit. See specs/power-meters.md §4.
+ */
+const WashingMachineConfigSchema = z.object({
+  powerSensorEntityId: entityIdSchema,
+  entityIds: z.array(entityIdSchema).min(1),
+  startWatts: z.number().nonnegative().default(15),
+  startSustainedSeconds: z.number().positive().default(120),
+  endWatts: z.number().nonnegative().default(5),
+  endQuietSeconds: z.number().positive().default(300),
+  minCycleKwh: z.number().nonnegative().default(0.05),
+});
+export type WashingMachineConfig = z.infer<typeof WashingMachineConfigSchema>;
+
+/**
+ * A person in this household, for attributing shared consumption. Personal
+ * data: ships empty and lives in the household package. With none configured,
+ * attribution UI is absent rather than showing placeholder people.
+ */
+const HouseholdPersonSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  /** Hex colour used for this person's blocks and totals. */
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+export type HouseholdPerson = z.infer<typeof HouseholdPersonSchema>;
 
 /**
  * One climate device this home has, and where it lives.
@@ -349,6 +448,9 @@ export const DashboardConfigSchema = z.object({
   }),
   dashboard: z.object({
     defaultZoneId: z.string().min(1),
+    // Who lives here, for splitting shared consumption. Ships empty; the
+    // attribution UI is absent rather than inventing names.
+    people: z.array(HouseholdPersonSchema).default([]),
     specialZones: z.object({
       power: z.object({
         id: z.string().min(1),
@@ -362,6 +464,12 @@ export const DashboardConfigSchema = z.object({
     lighting: z.object({
       intensityThresholds: z.array(LightingIntensityThresholdSchema).default([]),
       entityPresets: z.array(LightingEntityPresetSchema).default([]),
+      // Timed colour/brightness events for a zone, fired by the host poller.
+      // See specs/zone-light-events.md.
+      zoneEvents: z.array(ZoneLightEventSchema).default([]),
+      // Lights an event may switch on. Anything not listed keeps its state and
+      // the event's value is staged for its next switch-on instead.
+      eventSwitchOnEntityIds: z.array(entityIdSchema).default([]),
     }),
     aircon: z.object({
       offTimerIncrementMinutes: z.number().int().min(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN).max(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX),
@@ -619,6 +727,19 @@ export const DashboardConfigSchema = z.object({
     // than in lib/power.ts so that renaming or retiring a Home Assistant
     // device is a config edit, not a source change.
     deviceRatings: z.array(PowerDeviceRatingSchema).default([]),
+    // Meters that must never be left switched off. A guard restores any of
+    // these the moment it reads `off` (lib/power-meter-guard.ts). Deliberately
+    // an explicit list rather than a flag on a rating: this is a standing
+    // override, and it is only ever correct for a device whose whole purpose
+    // is to keep measuring. See specs/power-meters.md §1.
+    alwaysOnMeters: z.array(AlwaysOnMeterSchema).default([]),
+    // A single metering plug that moves between groups of devices, measuring
+    // one at a time and learning what each group draws. Absent by default —
+    // most homes do not have one. See specs/power-meters.md §3.
+    floatingMeter: FloatingMeterConfigSchema.optional(),
+    // A metering plug on a washing machine, with cycle detection so a wash can
+    // be attributed to a person. See specs/power-meters.md §4.
+    washingMachine: WashingMachineConfigSchema.optional(),
     modeledBaseLoads: z.object({
       desktopActiveStartHour: z.number().min(0).max(24),
       desktopActiveEndHour: z.number().min(0).max(24),

@@ -27,10 +27,11 @@ import {
   GYM_ALERT_THRESHOLD_MIN_HOURS,
   normalizeGymAlertThresholdHours,
 } from "../../lib/watchface-preferences";
-import { CheckboxRow, ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
 import { ConfigSelect, type ConfigSelectOption } from "./ConfigSelect";
 import { ORB_INFO_CHANGE_EVENT, useOrbInfo } from "./orb-info/useOrbInfo";
 import { useSettingCooldown } from "./useSettingCooldown";
+import { SwitchRow } from "./SlideSwitch";
 
 type GymCounterSettings = {
   gymAlertThresholdHours?: number;
@@ -344,12 +345,12 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
                   value={display.rounding}
                   onChange={(rounding) => updateDisplay({ rounding })}
                 />
-                <CheckboxRow
+                <SwitchRow
                   checked={display.showUnit}
                   label="Show Unit"
                   onChange={(showUnit) => updateDisplay({ showUnit })}
                 />
-                <CheckboxRow
+                <SwitchRow
                   checked={display.signed}
                   label="Show Sign"
                   onChange={(signed) => updateDisplay({ signed })}
@@ -359,12 +360,12 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
 
             {showPercentControls ? (
               <>
-                <CheckboxRow
+                <SwitchRow
                   checked={display.percentClamp}
                   label="Cap At 100%"
                   onChange={(percentClamp) => updateDisplay({ percentClamp })}
                 />
-                <CheckboxRow
+                <SwitchRow
                   checked={display.percentInvert}
                   label="Count Down"
                   onChange={(percentInvert) => updateDisplay({ percentInvert })}
@@ -374,12 +375,12 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
 
             {display.format === "clock" ? (
               <>
-                <CheckboxRow
+                <SwitchRow
                   checked={display.clock12Hour}
                   label="12 Hour"
                   onChange={(clock12Hour) => updateDisplay({ clock12Hour })}
                 />
-                <CheckboxRow
+                <SwitchRow
                   checked={display.clockSeconds}
                   label="Show Seconds"
                   onChange={(clockSeconds) => updateDisplay({ clockSeconds })}

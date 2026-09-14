@@ -6,7 +6,6 @@ import { createPortal } from "react-dom";
 import { resolveOrbModuleSettings, type OrbModule } from "../../lib/orb-modules";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
 import {
-  CheckboxRow,
   ColorEncoderPanel,
   ColorWidget,
   ConfigAccordion,
@@ -24,6 +23,7 @@ import { buildOrbPalette, useOrbModule, useOrbModules } from "./orbModules";
 import { createOrbRenderer } from "./orbRenderer";
 import { useAgentName } from "./AgentNameContext";
 import { useSelectMenu } from "./useSelectMenu";
+import { SwitchRow } from "./SlideSwitch";
 
 type AvatarSlot =
   | "gradientAlert"
@@ -535,7 +535,7 @@ function NovaAvatarConfigView({
               // than a two-position slider.
               if (decl.min === 0 && decl.max === 1 && decl.step === 1) {
                 return (
-                  <CheckboxRow
+                  <SwitchRow
                     key={decl.id}
                     checked={value >= 1}
                     detail={decl.description}
@@ -589,29 +589,16 @@ function NovaAvatarConfigView({
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Liquid glass</h3>
         <div className="grid gap-1.5">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={theme.glass.enabled}
-            aria-label={`Turn the liquid glass overlay ${theme.glass.enabled ? "off" : "on"}`}
-            className={`cyber-checkbox-row border p-4 text-left ${theme.glass.enabled ? "cyber-checkbox-row-active" : ""}`}
-            onClick={() => setTheme({ ...theme, glass: { ...theme.glass, enabled: !theme.glass.enabled } })}
-          >
-            <span
-              className={`cyber-checkbox ${theme.glass.enabled ? "cyber-checkbox-checked" : ""}`}
-              aria-hidden="true"
-            >
-              {theme.glass.enabled ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
-            </span>
-            <span className="grid min-w-0 gap-1">
-              <span className="theme-display-label zone-title-bar">Glass overlay</span>
-              <span className="theme-display-detail">
-                {theme.glass.enabled
-                  ? "On: refraction, silver-room reflection, gloss and cast shadow"
-                  : "Off: flat orb, no glass treatment"}
-              </span>
-            </span>
-          </button>
+          <SwitchRow
+            checked={theme.glass.enabled}
+            label="Glass overlay"
+            detail={
+              theme.glass.enabled
+                ? "On: refraction, silver-room reflection, gloss and cast shadow"
+                : "Off: flat orb, no glass treatment"
+            }
+            onChange={(enabled) => setTheme({ ...theme, glass: { ...theme.glass, enabled } })}
+          />
         </div>
         {theme.glass.enabled ? (
           <div className="grid gap-3">
@@ -636,25 +623,12 @@ function NovaAvatarConfigView({
                 />
               );
             })}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={theme.glass.flipVertical}
-              aria-label="Flip the refracted image vertically"
-              className={`cyber-checkbox-row border p-4 text-left ${theme.glass.flipVertical ? "cyber-checkbox-row-active" : ""}`}
-              onClick={() => setTheme({ ...theme, glass: { ...theme.glass, flipVertical: !theme.glass.flipVertical } })}
-            >
-              <span
-                className={`cyber-checkbox ${theme.glass.flipVertical ? "cyber-checkbox-checked" : ""}`}
-                aria-hidden="true"
-              >
-                {theme.glass.flipVertical ? <Check className="h-6 w-6" strokeWidth={3} /> : null}
-              </span>
-              <span className="grid min-w-0 gap-1">
-                <span className="theme-display-label zone-title-bar">Flip vertically</span>
-                <span className="theme-display-detail">Reverse the vertical refraction direction for a glass-ball effect</span>
-              </span>
-            </button>
+            <SwitchRow
+              checked={theme.glass.flipVertical}
+              label="Flip vertically"
+              detail="Reverse the vertical refraction direction for a glass-ball effect"
+              onChange={(flipVertical) => setTheme({ ...theme, glass: { ...theme.glass, flipVertical } })}
+            />
           </div>
         ) : null}
       </div>

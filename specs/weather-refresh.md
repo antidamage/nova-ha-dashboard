@@ -115,6 +115,12 @@ requests than the integration's default (about one an hour), not fewer.
   returns that last good status instead of nulls. It is lost on a dashboard
   restart; before the first success the old behaviour applies (condition from
   entity state, missing values null).
+- **Every forecast day is kept** (Adeline, 2026-09-14, plan
+  `we-have-a-concept-unified-lamport`). `get_forecasts` returns a daily list
+  and the module used to keep only entry `[0]` for today's min/max. The whole
+  list is carried on `WeatherStatus` now, so the Outside weather panel can show
+  the coming days below its Advanced line (`specs/advanced-fold.md`). The
+  caching, interval and failure rules above are unchanged.
 - **Warnings stay.** A failure still adds a line to `state.warnings`
   (`Weather forecast unavailable: …` or `Weather entity unavailable.`). There
   is no visual stale marker on the card.
