@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { parseTaskCsv, type ParseTaskCsvResult } from "../../lib/parse-task-csv";
 import type { Task } from "../../lib/types";
+import { washReminder } from "../../lib/wash-reminder";
 import { useReminderBannerSetting } from "./dashboard/reminderBannerSetting";
 import { loadSharedClientConfig, readCachedClientConfig } from "./sharedConfigCache";
 import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
@@ -1097,13 +1098,27 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const alertAnnoy = alertTask ? isTaskAnnoyer(alertTask) : false;
   const alertChimed = alertTask ? hasTaskAlertChimed(alertTask) : false;
   const alertChimedRef = useRef(false);
+  const washAlertId = alertTask && washReminder(alertTask)?.phase === "active" ? alertTask.id : null;
+
+  useEffect(() => {
+    if (!washAlertId || chimedOccurrences.current.has(washAlertId)) return;
+    chimedOccurrences.current.add(washAlertId);
+    void jsonFetch<{ claimed: boolean }>("/api/power/washing-machine/chime", {
+      method: "POST", body: JSON.stringify({ taskId: washAlertId }),
+    }).then(({ claimed }) => {
+      if (claimed) {
+        const audio = new Audio(`/api/power/washing-machine/audio?taskId=${encodeURIComponent(washAlertId)}`);
+        void audio.play().catch((error) => console.info("Wash sound unavailable", error));
+      }
+    }).catch(() => { chimedOccurrences.current.delete(washAlertId); });
+  }, [washAlertId]);
 
   useEffect(() => {
     alertChimedRef.current = alertChimed;
   }, [alertChimed]);
 
   useEffect(() => {
-    if (!alertOccurrence || !alertTaskId || !taskAudioExists) {
+    if (washAlertId || !alertOccurrence || !alertTaskId || !taskAudioExists) {
       return;
     }
 
@@ -1126,7 +1141,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     return () => {
       clearAudioCadence();
     };
-  }, [alertAnnoy, alertOccurrence, alertTaskId, clearAudioCadence, startAudioCadence, taskAudioExists]);
+  }, [alertAnnoy, alertOccurrence, alertTaskId, clearAudioCadence, startAudioCadence, taskAudioExists, washAlertId]);
 
   // Capture-phase swallow so the tap that silences the alarm cannot also hit a
   // light button underneath. With banners disabled there IS no overlay to tap,

@@ -307,6 +307,30 @@ republishing.
 
 ## Done means
 
+### Claimed-wash completion alerts
+
+An optional `power.washingMachine.completionAlert` household setting names the eligible
+person, MP3 file, zero-power threshold, quiet duration, report freshness limit, Discord
+delivery and drying thresholds. There are no config-page controls. Audio is stored in
+`data/household-audio` (or `NOVA_HOUSEHOLD_AUDIO_DIR`) and served by the washing-machine
+audio route; deployment preserves it.
+
+Claiming the live graph's wash creates a session-linked temporary reminder. It waits
+silently until a confirmed wash exceeding `minCycleKwh` has fresh zero-power reports
+spanning strictly more than the configured quiet duration. Missing reports and sampling
+gaps reset that timer. Completion ownership is captured at the edge, so historical
+attribution cannot create alerts. Acknowledging removes the temporary icon; the task
+record retains acknowledgement to prevent replay. Active and historical claim writes
+share the power sampler's write queue.
+
+The completion activates the icon, plays its entire custom sound once across web
+screens, and emits `washing-machine.completed`. The Discord module queues one combined
+completion/drying message, deduplicated by wash ID and original completion time. Its
+generic reminder echo is disabled. The hourly HA forecast is assessed against the
+household's rain/daylight thresholds; missing coverage yields an explicit No with an
+unknown-forecast reason. Forecast results are captured once, not recomputed on retries.
+
+
 - Switching either meter off in Home Assistant restores it within 60 seconds,
   and nothing about it reaches the dashboard, a toast, or Discord.
 - `unavailable` provokes no service call.

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { attributeWashingMachineCycle, samplePowerNow } from "../../../../lib/power";
+import { attributeOpenWashingMachineCycle, attributeWashingMachineCycle, samplePowerNow } from "../../../../lib/power";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,12 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { cycleId?: unknown };
+    const body = (await request.json()) as { active?: unknown; cycleId?: unknown };
+    if (body.active === true) {
+      const cycle = await attributeOpenWashingMachineCycle();
+      if (!cycle) return NextResponse.json({ error: "No active wash" }, { status: 404 });
+      return NextResponse.json(await samplePowerNow(), { headers: { "Cache-Control": "no-store" } });
+    }
     const cycleId = typeof body.cycleId === "string" ? body.cycleId : null;
     if (!cycleId) {
       return NextResponse.json({ error: "cycleId is required" }, { status: 400 });

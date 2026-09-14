@@ -152,6 +152,21 @@ const WashingMachineConfigSchema = z.object({
   endWatts: z.number().nonnegative().default(5),
   endQuietSeconds: z.number().positive().default(300),
   minCycleKwh: z.number().nonnegative().default(0.05),
+  completionAlert: z.object({
+    enabled: z.boolean().default(false),
+    personId: z.string().min(1),
+    soundFile: z.string().regex(/^[a-zA-Z0-9_-]+\.mp3$/),
+    zeroWatts: z.number().nonnegative().default(0),
+    quietSeconds: z.number().positive().default(60),
+    maxSampleGapSeconds: z.number().positive().default(90),
+    discord: z.boolean().default(false),
+    drying: z.object({
+      hours: z.number().int().min(1).max(12).default(4),
+      daylightHours: z.number().nonnegative().default(3),
+      maxRainMm: z.number().nonnegative().default(0.1),
+      maxRainChancePct: z.number().min(0).max(100).default(30),
+    }).default({ hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 }),
+  }).optional(),
 });
 export type WashingMachineConfig = z.infer<typeof WashingMachineConfigSchema>;
 

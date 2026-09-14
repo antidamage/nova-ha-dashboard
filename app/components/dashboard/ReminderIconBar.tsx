@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Task } from "../../../lib/types";
+import { washReminder } from "../../../lib/wash-reminder";
 import {
   FALLBACK_REMINDER_GLYPH,
   normalizeGlyph,
@@ -207,6 +208,7 @@ export function ReminderIconBar() {
     // Group live reminders by the same normalised name the roster is keyed on.
     const byKey = new Map<string, Task[]>();
     for (const task of tasks) {
+      if (washReminder(task)) continue;
       const key = normalizeReminderKey(task.name ?? "");
       if (!key) {
         continue;
@@ -259,6 +261,12 @@ export function ReminderIconBar() {
           order: entry.order,
         } satisfies Tile;
       })
+      .concat(tasks.filter((task) => washReminder(task) && !task.dismissedAt && !task.alertDismissedAt).map((task): Tile => ({
+        key: task.id, displayName: task.name, glyph: { kind: "phosphor", id: "washing-machine" },
+        state: washReminder(task)?.phase === "active" ? "due" : "idle",
+        taskId: washReminder(task)?.phase === "active" ? task.id : null,
+        undoUntil: null, nextDueMs: taskStartMs(task), order: -1,
+      })))
       .sort(compareReminderTiles)
       .slice(0, settings.maxTiles);
   }, [nowMs, recentCompletions, roster, settings.maxTiles, settings.overduePulseAfterMs, tasks]);

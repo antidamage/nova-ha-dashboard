@@ -32,6 +32,30 @@ describe("task notification dismissal", () => {
     await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })));
   });
 
+  it("creates one wash reminder, arbitrates chimes and preserves acknowledgement", async () => {
+    const store = await isolatedTaskStore();
+    const wash = { sessionId: "session", phase: "waiting" as const, soundFile: "done.mp3" };
+    const at = new Date().toISOString();
+    await store.syncWashReminder("wash-session", "Washing machine", at, wash);
+    await store.syncWashReminder("wash-session", "Washing machine", at, wash);
+    expect(await store.readTasks()).toHaveLength(1);
+    expect(await store.claimWashChime("wash-session")).toBe(false);
+    await store.syncWashReminder("wash-session", "Washing machine", at, { ...wash, phase: "active" });
+    expect(await Promise.all([store.claimWashChime("wash-session"), store.claimWashChime("wash-session")])).toEqual([true, false]);
+    await store.completeTask("wash-session");
+    await store.syncWashReminder("wash-session", "Washing machine", at, { ...wash, phase: "active" });
+    expect((await store.readTasks())[0].dismissedAt).toBeTruthy();
+    expect(await store.claimWashChime("wash-session")).toBe(false);
+  });
+
+  it("removes a waiting wash when unclaimed", async () => {
+    const store = await isolatedTaskStore();
+    const at = new Date().toISOString();
+    await store.syncWashReminder("wash-session", "Washing machine", at, { sessionId: "session", phase: "waiting", soundFile: "done.mp3" });
+    await store.syncWashReminder("wash-session", "", at, null);
+    expect(await store.readTasks()).toHaveLength(0);
+  });
+
   it("silences the alert without completing the task", async () => {
     const store = await isolatedTaskStore();
     await store.writeTasks([task()]);

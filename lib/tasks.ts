@@ -5,6 +5,7 @@ import { assignReminderIcons, reconcileReminderIcons } from "./reminder-icon-hoo
 import { emitModuleEvent } from "./modules/runtime/hooks";
 import { parseTaskCsv } from "./parse-task-csv";
 import type { Task, TaskFollows, TaskRepeat, TaskSource } from "./types";
+import { washReminder, type WashReminder } from "./wash-reminder";
 
 export { parseTaskCsv };
 export type { ParseTaskCsvError, ParseTaskCsvResult } from "./parse-task-csv";
@@ -526,13 +527,15 @@ function validatedParsedTask(task: Task): Task {
 async function mutateTasks<T>(mutator: (tasks: Task[]) => { tasks: Task[]; result: T }): Promise<T> {
   let nextTasks: Task[] = [];
   let result: T;
+  let changed = true;
 
   const run = writeQueue.then(async () => {
     const current = await readTaskFile();
     const mutation = mutator(current);
     nextTasks = sortTasks(mutation.tasks);
     result = mutation.result;
-    await writeTaskFile(nextTasks);
+    changed = JSON.stringify(current) !== JSON.stringify(nextTasks);
+    if (changed) await writeTaskFile(nextTasks);
   });
   writeQueue = run.then(
     () => undefined,
@@ -540,7 +543,7 @@ async function mutateTasks<T>(mutator: (tasks: Task[]) => { tasks: Task[]; resul
   );
 
   await run;
-  publishTasks(nextTasks);
+  if (changed) publishTasks(nextTasks);
   return result!;
 }
 
@@ -571,6 +574,31 @@ export async function readTasks(): Promise<Task[]> {
   }
 
   return nextTasks;
+}
+
+/** Reconcile a device-owned reminder without reopening acknowledged occurrences. */
+export async function syncWashReminder(id: string, name: string, start: string, wash: WashReminder | null) {
+  return mutateTasks((tasks) => {
+    const existing = tasks.find((task) => task.id === id);
+    if (!wash) return { tasks: tasks.filter((task) => task.id !== id || washReminder(task)?.phase === "active"), result: null };
+    if (existing?.dismissedAt || existing?.alertDismissedAt) return { tasks, result: existing };
+    const task: Task = {
+      ...(existing ?? { id, createdAt: new Date().toISOString(), source: "local" as const }),
+      name, start, annoy: false,
+      moduleData: { "washing-machine": wash, "discord-bot": { onDue: false, onComplete: false } },
+    };
+    return { tasks: [...tasks.filter((candidate) => candidate.id !== id), task], result: task };
+  });
+}
+
+export async function claimWashChime(id: string): Promise<boolean> {
+  return mutateTasks((tasks) => {
+    const task = tasks.find((candidate) => candidate.id === id);
+    if (!task || washReminder(task)?.phase !== "active" || task.dismissedAt || task.alertDismissedAt || task.alertChimedFor === alertSessionKey(task)) {
+      return { tasks, result: false };
+    }
+    return { tasks: tasks.map((candidate) => candidate.id === id ? { ...candidate, alertChimedFor: alertSessionKey(task) } : candidate), result: true };
+  });
 }
 
 export async function writeTasks(tasks: Task[]): Promise<void> {

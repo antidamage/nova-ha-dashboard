@@ -863,6 +863,7 @@ function startHaStateChangeSubscription() {
 }
 
 function isTaskAlerting(task: Task, now: number) {
+  if ((task.moduleData?.["washing-machine"] as { phase?: string } | undefined)?.phase === "waiting") return false;
   if (task.dismissedAt) {
     return false;
   }
