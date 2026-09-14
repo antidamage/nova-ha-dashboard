@@ -561,7 +561,6 @@ export function ConfigWorkspace({
         <ConfigPreviewBackground />
         <ReloadButton />
         <div className={`config-layout mx-auto grid max-w-5xl gap-4 ${activeCategory ? "" : "config-layout-categories-closed"}`}>
-        {isDemoMode ? <p className="text-xs text-neutral-400">Interactive demo. Settings stay in this browser; hardware, voice generation and external services are previews. Reset demo restores the sample household.</p> : null}
         <UpdateBanner context="config" />
         <nav className="config-top-actions" aria-label="Configuration actions">
           <ConfigPageActions onBack={handleBack} />

@@ -225,9 +225,6 @@ export function QuickLightsSegment({
 
   return (
     <QuickSegment className="quick-segment-lights" label={`${zone.name} lights`}>
-      {/* No written title or lights-on count (Adeline, 2026-09-12): the dial
-          and the two preset icons are the whole segment. The zone's name is
-          still the group's aria-label, so nothing is lost to assistive tech. */}
       <div className="quick-segment-lead">
         <ZoneColorEncoder
           brightness={lighting.brightness}
@@ -235,7 +232,7 @@ export function QuickLightsSegment({
           colorEnabled={hasActiveLights}
           disabled={!lighting.hasLightDevices}
           knobSkin={knobSkin}
-          label=""
+          label="All lights"
           size={size}
           spectrum={lighting.spectrum}
           zoneId={zone.id}
@@ -443,10 +440,7 @@ export function QuickAccessCard({
   } as CSSProperties;
 
   return (
-    <section className="quick-access" aria-labelledby="quick-access-title" data-card-id="quick-access">
-      <h2 id="quick-access-title" className="quick-access-kicker">
-        Quick Access
-      </h2>
+    <section className="quick-access" aria-label="Quick Access" data-card-id="quick-access">
       <div ref={rowRef} className="quick-access-row" style={rowStyle}>
         {homeZone ? (
           <QuickLightsSegment knobSkin={knobSkin} size={dialSize} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
