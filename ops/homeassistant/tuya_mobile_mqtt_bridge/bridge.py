@@ -95,12 +95,54 @@ HEATER_SWITCH_TARGETS = {
         "suggested_area": "Bedroom",
     },
 }
+# Energy-monitoring smart sockets. Published as a switch plus the three live
+# electrical sensors the "cz" socket profile reports. See
+# nova-ha-dashboard/specs/power-meters.md.
+#
+# dps mapping for the "cz" socket, confirmed 2026-09-14 against the already
+# working Cupboard (SH-P02) whose HA sensors read 205 mA / 26.5 W / 239.9 V
+# while its dps read 18=206, 19=256, 20=2408:
+#   dp1  = power switch (bool)
+#   dp18 = current, mA
+#   dp19 = active power, x10 W
+#   dp20 = voltage, x10 V
+#
+# dp17 ("add_ele", cumulative energy) is deliberately NOT published. Tuya does
+# not publish a schema for these sockets, the unit differs between firmwares,
+# and the counter resets without warning. Nova integrates kWh from the power
+# sensor itself (lib/power.ts), so a mis-scaled cumulative counter would only
+# be a second, wrong answer.
+#
+# These two sockets are the meters Nova must never leave switched off; the
+# guard that enforces that lives in the dashboard (lib/power-meter-guard.ts),
+# not here. The bridge's job is only to make them commandable.
+ENERGY_PLUG_TARGETS = {
+    "Washing machine": {
+        "name": "Washing Machine",
+        "slug": "washing_machine",
+        "dp": "1",
+        "current_dp": "18",
+        "power_dp": "19",
+        "voltage_dp": "20",
+        "suggested_area": "Kitchen",
+    },
+    "Floating meter": {
+        "name": "Floating Meter",
+        "slug": "floating_meter",
+        "dp": "1",
+        "current_dp": "18",
+        "power_dp": "19",
+        "voltage_dp": "20",
+        "suggested_area": "Lounge",
+    },
+}
 TARGET_NAMES = (
     LIGHT_TARGET_NAMES
     + list(SENSOR_TARGETS)
     + CLIMATE_TARGET_NAMES
     + list(PLUG_LIGHT_TARGETS)
     + list(HEATER_SWITCH_TARGETS)
+    + list(ENERGY_PLUG_TARGETS)
 )
 MQTT_HOST = os.getenv("MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
@@ -327,7 +369,52 @@ class HeaterSwitchTarget:
         return f"{BASE_TOPIC}/{self.slug}/attributes"
 
 
-TuyaTarget = LightTarget | SensorTarget | ClimateTarget | PlugLightTarget | HeaterSwitchTarget
+@dataclass
+class EnergyPlugTarget:
+    name: str
+    dev_id: str
+    dps: dict[str, Any]
+    dp_key: str
+    current_dp: str
+    power_dp: str
+    voltage_dp: str
+    device_name: str | None = None
+    suggested_area: str | None = None
+    online: bool = True
+    slug_name: str | None = None
+
+    @property
+    def slug(self) -> str:
+        return self.slug_name or self.name.lower().replace(" ", "_")
+
+    @property
+    def state_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/state"
+
+    @property
+    def command_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/set"
+
+    @property
+    def power_state_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/power/state"
+
+    @property
+    def current_state_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/current/state"
+
+    @property
+    def voltage_state_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/voltage/state"
+
+    @property
+    def availability_topic(self) -> str:
+        return f"{BASE_TOPIC}/{self.slug}/availability"
+
+
+TuyaTarget = (
+    LightTarget | SensorTarget | ClimateTarget | PlugLightTarget | HeaterSwitchTarget | EnergyPlugTarget
+)
 
 
 def tuya_device_online(dev: dict[str, Any]) -> bool:
@@ -459,6 +546,22 @@ class TuyaMobileApi:
                         slug_name=spec["slug"],
                     )
                     targets[target.slug] = target
+                elif name in ENERGY_PLUG_TARGETS:
+                    spec = ENERGY_PLUG_TARGETS[name]
+                    target = EnergyPlugTarget(
+                        name=spec["name"],
+                        dev_id=dev["devId"],
+                        dps=dict(dev.get("dps") or {}),
+                        dp_key=spec["dp"],
+                        current_dp=spec["current_dp"],
+                        power_dp=spec["power_dp"],
+                        voltage_dp=spec["voltage_dp"],
+                        device_name=name,
+                        suggested_area=spec.get("suggested_area"),
+                        online=tuya_device_online(dev),
+                        slug_name=spec["slug"],
+                    )
+                    targets[target.slug] = target
                 elif name in PLUG_LIGHT_TARGETS:
                     spec = PLUG_LIGHT_TARGETS[name]
                     target = PlugLightTarget(
@@ -583,7 +686,9 @@ class Bridge:
         self.api.login()
         self.targets = self.api.list_targets()
         found = {
-            target.device_name if isinstance(target, PlugLightTarget) and target.device_name else target.name
+            target.device_name
+            if isinstance(target, (PlugLightTarget, EnergyPlugTarget)) and target.device_name
+            else target.name
             for target in self.targets.values()
         }
         missing = sorted(set(TARGET_NAMES) - found)
@@ -629,7 +734,7 @@ class Bridge:
                 client.subscribe(target.command_topic)
                 client.subscribe(target.brightness_command_topic)
                 client.subscribe(target.rgb_command_topic)
-            elif isinstance(target, (PlugLightTarget, HeaterSwitchTarget)):
+            elif isinstance(target, (PlugLightTarget, HeaterSwitchTarget, EnergyPlugTarget)):
                 client.subscribe(target.command_topic)
             elif isinstance(target, ClimateTarget):
                 client.subscribe(target.power_command_topic)
@@ -677,7 +782,16 @@ class Bridge:
             ),
             None,
         )
-        target = light or climate or plug or heater
+        meter = next(
+            (
+                t
+                for t in self.targets.values()
+                if isinstance(t, EnergyPlugTarget)
+                if msg.topic == t.command_topic
+            ),
+            None,
+        )
+        target = light or climate or plug or heater or meter
         if not target:
             return
         try:
@@ -716,7 +830,7 @@ class Bridge:
                         update = {"20": True, "21": "colour", "24": colour}
                         self.api.publish_dps(target.dev_id, update)
                         target.dps.update(update)
-                elif isinstance(target, PlugLightTarget):
+                elif isinstance(target, (PlugLightTarget, EnergyPlugTarget)):
                     state = payload.upper() == "ON"
                     self.api.publish_dps(target.dev_id, {target.dp_key: state})
                     target.dps[target.dp_key] = state
@@ -772,6 +886,9 @@ class Bridge:
         if isinstance(target, HeaterSwitchTarget):
             self.publish_heater_switch_discovery(target)
             return
+        if isinstance(target, EnergyPlugTarget):
+            self.publish_energy_plug_discovery(target)
+            return
 
         config = {
             "name": target.name,
@@ -826,6 +943,62 @@ class Bridge:
         }
         topic = f"{DISCOVERY_PREFIX}/light/tuya_mobile_{target.slug}/config"
         self.mqtt.publish(topic, json.dumps(config, separators=(",", ":")), retain=True)
+
+    def publish_energy_plug_discovery(self, target: EnergyPlugTarget) -> None:
+        # An energy-monitoring socket: one switch plus power, current and
+        # voltage. `name: None` on the switch makes the entity take the device
+        # name rather than doubling it, as for the heater switch.
+        device = {
+            "identifiers": [f"tuya_mobile_{target.dev_id}"],
+            "name": target.name,
+            "manufacturer": "Tuya",
+            "model": "Mobile cloud bridge",
+            **({"suggested_area": target.suggested_area} if target.suggested_area else {}),
+        }
+        common = {
+            "availability_topic": target.availability_topic,
+            "payload_available": "online",
+            "payload_not_available": "offline",
+            "device": device,
+            "origin": {"name": "Nova Tuya mobile bridge", "sw": "1.0"},
+        }
+        switch_config = {
+            **common,
+            "name": None,
+            "unique_id": f"nova_tuya_mobile_{target.slug}",
+            "default_entity_id": f"switch.tuya_mobile_{target.slug}",
+            "command_topic": target.command_topic,
+            "state_topic": target.state_topic,
+            "payload_on": "ON",
+            "payload_off": "OFF",
+            "device_class": "outlet",
+        }
+        self.mqtt.publish(
+            f"{DISCOVERY_PREFIX}/switch/tuya_mobile_{target.slug}/config",
+            json.dumps(switch_config, separators=(",", ":")),
+            retain=True,
+        )
+        sensors = [
+            ("power", target.power_state_topic, "Power", "power", "W"),
+            ("current", target.current_state_topic, "Current", "current", "mA"),
+            ("voltage", target.voltage_state_topic, "Voltage", "voltage", "V"),
+        ]
+        for suffix, state_topic, name, device_class, unit in sensors:
+            config = {
+                **common,
+                "name": name,
+                "unique_id": f"nova_tuya_mobile_{target.slug}_{suffix}",
+                "default_entity_id": f"sensor.tuya_mobile_{target.slug}_{suffix}",
+                "state_topic": state_topic,
+                "device_class": device_class,
+                "state_class": "measurement",
+                "unit_of_measurement": unit,
+            }
+            self.mqtt.publish(
+                f"{DISCOVERY_PREFIX}/sensor/tuya_mobile_{target.slug}_{suffix}/config",
+                json.dumps(config, separators=(",", ":")),
+                retain=True,
+            )
 
     def publish_heater_switch_discovery(self, target: HeaterSwitchTarget) -> None:
         # A heating appliance with no setpoint: one switch plus the two onboard
@@ -1005,6 +1178,9 @@ class Bridge:
         if isinstance(target, HeaterSwitchTarget):
             self.publish_heater_switch_state(target)
             return
+        if isinstance(target, EnergyPlugTarget):
+            self.publish_energy_plug_state(target)
+            return
         if isinstance(target, PlugLightTarget):
             is_on = bool(target.dps.get(target.dp_key))
             self.mqtt.publish(
@@ -1038,6 +1214,23 @@ class Bridge:
             (target.temperature_state_topic, self.scaled_number(target.dps.get("1"), 10)),
             (target.humidity_state_topic, self.scaled_number(target.dps.get("2"))),
             (target.battery_state_topic, self.scaled_number(target.dps.get("4"))),
+        ]
+        for topic, value in values:
+            if value is not None:
+                self.mqtt.publish(topic, value, retain=True)
+
+    def publish_energy_plug_state(self, target: EnergyPlugTarget) -> None:
+        self.mqtt.publish(
+            target.availability_topic, "online" if target.online else "offline", retain=True
+        )
+        if not target.online:
+            return
+        is_on = bool(target.dps.get(target.dp_key))
+        self.mqtt.publish(target.state_topic, "ON" if is_on else "OFF", retain=True)
+        values = [
+            (target.power_state_topic, self.scaled_number(target.dps.get(target.power_dp), 10)),
+            (target.current_state_topic, self.scaled_number(target.dps.get(target.current_dp))),
+            (target.voltage_state_topic, self.scaled_number(target.dps.get(target.voltage_dp), 10)),
         ]
         for topic, value in values:
             if value is not None:

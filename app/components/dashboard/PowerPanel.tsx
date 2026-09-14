@@ -29,6 +29,7 @@ import { classNames } from "./shared";
 import { usePowerDashboard } from "./usePowerDashboard";
 import { useAgentName } from "../AgentNameContext";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { PowerMeters } from "./PowerMeters";
 
 function CurveChart({
   points,
@@ -385,6 +386,15 @@ export function PowerPanel() {
       {data ? <div className="power-metric-grid grid gap-3">
         <MetricCard label="Daily estimate" primary={dailyPrimary} secondary={dailySecondary} icon={PlugZap} />
       </div> : null}
+
+      {/* The metering plugs, in the main part of the panel. specs/power-meters.md section 5. */}
+      {data ? (
+        <PowerMeters
+          displayMode={displayMode}
+          floatingMeter={data.floatingMeter}
+          washingMachine={data.washingMachine}
+        />
+      ) : null}
 
       {data ? <div className="mt-5 grid gap-4">
         <div>

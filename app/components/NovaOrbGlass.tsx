@@ -66,14 +66,22 @@ export function glassRefractionOpacity(glass: NovaGlassSettings) {
  * Deliberately NOT a `filter: drop-shadow` on an ancestor: a filter on any
  * ancestor of the glass makes it a "backdrop root" and silently kills the
  * backdrop-filter refraction (verified in Chromium). box-shadow is safe. The
- * inset pair paints a faint bright rim so the glass edge reads as a lip.
+ * inset pair paints a faint bright rim so the glass edge reads as a lip. The
+ * cast itself uses overlapping near, mid, and far shadows. Their increasing
+ * blur and decreasing weights make a logarithmic-style release: depth stays
+ * under the orb while the last visible tail eases away instead of ending at a
+ * single blur's edge.
  */
 export function glassBoxShadow(glass: NovaGlassSettings) {
   const y = pctTo(glass.shadow, 2, 16).toFixed(1);
-  const blur = pctTo(glass.shadow, 8, 40).toFixed(1);
-  const alpha = pctTo(glass.shadow, 0.18, 0.6).toFixed(3);
+  const blur = pctTo(glass.shadow, 8, 40);
+  const alpha = pctTo(glass.shadow, 0.18, 0.6);
+  const castShadow = (blurScale: number, alphaScale: number) =>
+    `0 ${y}px ${(blur * blurScale).toFixed(1)}px rgba(0, 0, 0, ${(alpha * alphaScale).toFixed(3)})`;
   return (
-    `0 ${y}px ${blur}px rgba(0, 0, 0, ${alpha}),` +
+    `${castShadow(0.38, 0.56)},` +
+    `${castShadow(0.8, 0.31)},` +
+    `${castShadow(1.55, 0.13)},` +
     " inset 0 1px 1px rgba(255, 255, 255, 0.3)," +
     " inset 0 0 0 1px rgba(255, 255, 255, 0.12)"
   );

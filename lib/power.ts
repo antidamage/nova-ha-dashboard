@@ -4,8 +4,34 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
-import type { PowerAccountUsagePoint, PowerDeviceRating, PowerTariff } from "./config-schema";
+import type {
+  HouseholdPerson,
+  PowerAccountUsagePoint,
+  PowerDeviceRating,
+  PowerTariff,
+} from "./config-schema";
 import { calibratePowershopEstimates, type PowershopEstimateCalibration } from "./power-estimation";
+import {
+  blankFloatingMeterState,
+  floatingMeterReadings,
+  FLOATING_METER_HISTORY_DAYS,
+  pruneFloatingMeterState,
+  recordFloatingSample,
+  suppressedBaseLoadIds,
+  type FloatingMeterCategoryReading,
+  type FloatingMeterState,
+} from "./power-floating-meter";
+import {
+  blankWashingMachineState,
+  monthTotals,
+  nextPerson,
+  pruneWashingMachineCycles,
+  recordWashingMachineSample,
+  WASHING_MACHINE_HISTORY_DAYS,
+  type WashingMachineCycle,
+  type WashingMachineState,
+  type WashingMachineTotals,
+} from "./washing-machine";
 import { mergePowershopAccountUsage } from "./powershop-account-usage";
 import {
   readAllPowershopUsage,
@@ -21,6 +47,7 @@ import {
 const POWER_DATA_DIR = process.env.NOVA_DASHBOARD_POWER_DATA ?? path.join(process.cwd(), "data", "power");
 const POWER_STATE_PATH = path.join(POWER_DATA_DIR, "state.json");
 const POWER_ACCOUNT_USAGE_PATH = path.join(POWER_DATA_DIR, "account-usage.json");
+const WASHING_MACHINE_PATH = path.join(POWER_DATA_DIR, "washing-machine.json");
 
 function powerConfig() {
   return readDashboardConfigSync().power;
@@ -99,8 +126,29 @@ export type PowerBaseLoadSummary = {
   usageCostPerDayNzd: number;
 };
 
+/**
+ * The floating meter's groups and the washing machine's month, as the panel
+ * needs them. Both are absent when the household has configured no such meter,
+ * so a generic install renders neither. See specs/power-meters.md.
+ */
+export type PowerFloatingMeterSummary = {
+  activeCategoryId: string | null;
+  categories: FloatingMeterCategoryReading[];
+  watts: number | null;
+};
+
+export type PowerWashingMachineSummary = {
+  cycles: WashingMachineCycle[];
+  monthKey: string;
+  people: HouseholdPerson[];
+  totals: WashingMachineTotals[];
+  watts: number | null;
+};
+
 export type PowerDashboard = {
   baseLoad: PowerBaseLoadSummary;
+  floatingMeter?: PowerFloatingMeterSummary;
+  washingMachine?: PowerWashingMachineSummary;
   billingCycle: {
     day: number;
     days: number;
@@ -165,6 +213,11 @@ type RateCheck = {
 type PowerState = {
   daily: Record<string, PowerBucket>;
   devices: Record<string, PersistedDeviceState>;
+  /**
+   * Where the floating meter is and what each of its groups has been measured
+   * drawing. Optional: it only exists once a household configures one.
+   */
+  floatingMeter?: FloatingMeterState;
   hourly: Record<string, PowerBucket>;
   lastRateCheck?: RateCheck;
   lastSampleAt: string | null;
@@ -229,6 +282,7 @@ function blankState(): PowerState {
   return {
     daily: {},
     devices: {},
+    floatingMeter: blankFloatingMeterState(),
     hourly: {},
     lastSampleAt: null,
     rateHistory: [],
@@ -731,20 +785,30 @@ function modeledBaseYear(keys: ReturnType<typeof currentKeys>) {
   return { elapsedCostNzd, elapsedKwh, fullCostNzd, fullKwh };
 }
 
-function modeledCurrentBaseLoad(now: Date, rate: ReturnType<typeof currentRate>, keys: ReturnType<typeof currentKeys>): PowerBaseLoadSummary {
+/**
+ * The modelled always-on loads.
+ *
+ * `suppressed` names the loads a floating-meter category now stands in for. A
+ * category contributes whether it is measured or modelled, so withholding its
+ * overlapping model in both states is what keeps the grid total from jumping
+ * when the meter moves. See specs/power-meters.md §3.4.
+ */
+function modeledCurrentBaseLoad(
+  now: Date,
+  rate: ReturnType<typeof currentRate>,
+  keys: ReturnType<typeof currentKeys>,
+  suppressed: Set<string> = new Set(),
+): PowerBaseLoadSummary {
   const modeled = powerConfig().modeledBaseLoads;
   const parts = localParts(now);
   const hourOfDay = parts.hour + parts.minute / 60 + parts.second / 3600;
   const monthIndex = Math.max(0, Math.min(11, parts.month - 1));
   const daily = modeledDailyBaseKwh(parts.year, monthIndex);
   const fixedCostPerDayNzd = rate.dailyCents / 100;
-  const usageCostPerDayNzd = daily.totalKwh * (rate.cPerKwh / 100);
   const fridgeElapsed = daily.fridgeKwh * keys.dayFraction;
   const waterHeaterElapsed = daily.waterHeaterKwh * keys.dayFraction;
   const computerElapsed = desktopKwhElapsed(hourOfDay);
   const novaElapsed = daily.novaKwh * keys.dayFraction;
-  const elapsedKwh = fridgeElapsed + waterHeaterElapsed + computerElapsed + novaElapsed;
-  const elapsedCostNzd = elapsedKwh * (rate.cPerKwh / 100) + fixedCostPerDayNzd * keys.dayFraction;
   const fridgeWatts = (daily.fridgeKwh * 1000) / 24;
   const waterHeaterWatts = (daily.waterHeaterKwh * 1000) / 24;
   const computerWatts = desktopCurrentWatts(hourOfDay);
@@ -792,15 +856,25 @@ function modeledCurrentBaseLoad(now: Date, rate: ReturnType<typeof currentRate>,
     },
   ];
 
+  // Every total is recomputed from the surviving loads rather than from the
+  // full model, so a suppressed load leaves no trace in the daily figure, the
+  // elapsed figure, or the current watts.
+  const kept = devices.filter((device) => !suppressed.has(device.id));
+  const keptKwhPerDay = kept.reduce((sum, device) => sum + device.kwhPerDay, 0);
+  const keptElapsedKwh = kept.reduce((sum, device) => sum + device.elapsedKwh, 0);
+  const keptWatts = kept.reduce((sum, device) => sum + device.currentWatts, 0);
+  const keptUsageCostPerDayNzd = keptKwhPerDay * (rate.cPerKwh / 100);
+  const keptElapsedCostNzd = keptElapsedKwh * (rate.cPerKwh / 100) + fixedCostPerDayNzd * keys.dayFraction;
+
   return {
-    costPerDayNzd: round(usageCostPerDayNzd + fixedCostPerDayNzd, 2),
-    currentWatts: round(fridgeWatts + waterHeaterWatts + computerWatts + modeled.novaAioAverageWatts, 1),
-    devices,
-    elapsedCostNzd: round(elapsedCostNzd, 2),
-    elapsedKwh: round(elapsedKwh, 3),
+    costPerDayNzd: round(keptUsageCostPerDayNzd + fixedCostPerDayNzd, 2),
+    currentWatts: round(keptWatts, 1),
+    devices: kept,
+    elapsedCostNzd: round(keptElapsedCostNzd, 2),
+    elapsedKwh: round(keptElapsedKwh, 3),
     fixedCostPerDayNzd: round(fixedCostPerDayNzd, 2),
-    kwhPerDay: round(daily.totalKwh, 3),
-    usageCostPerDayNzd: round(usageCostPerDayNzd, 2),
+    kwhPerDay: round(keptKwhPerDay, 3),
+    usageCostPerDayNzd: round(keptUsageCostPerDayNzd, 2),
   };
 }
 
@@ -946,6 +1020,13 @@ function pruneState(state: PowerState, now: Date) {
   }
 
   state.rateHistory = state.rateHistory.slice(-760);
+
+  if (state.floatingMeter) {
+    pruneFloatingMeterState(
+      state.floatingMeter,
+      dateKeyFromParts(localParts(new Date(now.getTime() - FLOATING_METER_HISTORY_DAYS * 86_400_000))),
+    );
+  }
 }
 
 async function fetchHash(url: string) {
@@ -1006,6 +1087,183 @@ async function refreshPowerRatesIfDue(state: PowerState, now: Date, rate: Return
   }
 }
 
+/**
+ * The metering plugs. Both features are optional and self-contained: each
+ * helper no-ops when the household has configured no such meter, so a generic
+ * install carries the code without the behaviour.
+ *
+ * See specs/power-meters.md.
+ */
+
+function localMonthKey(date: Date) {
+  const parts = localParts(date);
+  return `${parts.year.toString().padStart(4, "0")}-${parts.month.toString().padStart(2, "0")}`;
+}
+
+function floatingMeterWatts(statesById: Map<string, HaState>) {
+  const config = powerConfig().floatingMeter;
+  return config ? numericState(statesById, config.powerSensorEntityId) : null;
+}
+
+/** Which group the meter is on. Unset falls back to the first configured one. */
+function activeFloatingCategoryId(state: FloatingMeterState | undefined) {
+  const config = powerConfig().floatingMeter;
+  if (!config) {
+    return null;
+  }
+  const stored = state?.activeCategoryId;
+  const known = config.categories.some((category) => category.id === stored);
+  return known ? stored! : config.categories[0].id;
+}
+
+function recordFloatingMeterSample(
+  persisted: FloatingMeterState | undefined,
+  statesById: Map<string, HaState>,
+  keys: ReturnType<typeof currentKeys>,
+  now: Date,
+  integrationHours: number,
+): FloatingMeterState | undefined {
+  const config = powerConfig().floatingMeter;
+  if (!config) {
+    return persisted;
+  }
+  const state: FloatingMeterState = { ...blankFloatingMeterState(), ...persisted };
+  const categoryId = activeFloatingCategoryId(state)!;
+  if (state.activeCategoryId !== categoryId) {
+    state.activeCategoryId = categoryId;
+    state.activeSince ??= now.toISOString();
+  }
+  const watts = numericState(statesById, config.powerSensorEntityId);
+  if (watts === null) {
+    // The plug is off-network. Recording a zero would teach the model that the
+    // group draws nothing, which is the one thing we know it does not mean.
+    return state;
+  }
+  recordFloatingSample(state, categoryId, watts, integrationHours * 3600, keys.hourKey, now.toISOString());
+  return state;
+}
+
+/**
+ * Move the floating meter onto another group. The outgoing segment is already
+ * folded into its category's history by every sample that has run since it was
+ * selected, so this only has to re-point the meter and restamp `activeSince`.
+ */
+export async function setFloatingMeterCategory(categoryId: string) {
+  const config = powerConfig().floatingMeter;
+  if (!config || !config.categories.some((category) => category.id === categoryId)) {
+    return null;
+  }
+  const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
+  const state = { ...blankState(), ...persisted };
+  state.floatingMeter = { ...blankFloatingMeterState(), ...state.floatingMeter };
+  state.floatingMeter.activeCategoryId = categoryId;
+  state.floatingMeter.activeSince = new Date().toISOString();
+  await writeJsonAtomic(POWER_STATE_PATH, state);
+  return categoryId;
+}
+
+function buildFloatingMeterSummary(
+  state: FloatingMeterState | undefined,
+  now: Date,
+): PowerFloatingMeterSummary | undefined {
+  const config = powerConfig().floatingMeter;
+  if (!config) {
+    return undefined;
+  }
+  const resolved: FloatingMeterState = {
+    ...blankFloatingMeterState(),
+    ...state,
+    activeCategoryId: activeFloatingCategoryId(state),
+  };
+  const parts = localParts(now);
+  const activeWatts = resolved.activeCategoryId
+    ? resolved.categories[resolved.activeCategoryId]?.lastWatts ?? null
+    : null;
+  return {
+    activeCategoryId: resolved.activeCategoryId,
+    categories: floatingMeterReadings(config, resolved, {
+      activeWatts,
+      hourOfDay: parts.hour.toString().padStart(2, "0"),
+      today: dateKeyFromParts(parts),
+    }),
+    watts: activeWatts,
+  };
+}
+
+function recordWashingMachineTick(
+  persisted: WashingMachineState,
+  statesById: Map<string, HaState>,
+  now: Date,
+  integrationHours: number,
+  costPerKwh: number,
+): WashingMachineState | null {
+  const config = powerConfig().washingMachine;
+  if (!config) {
+    return null;
+  }
+  const watts = numericState(statesById, config.powerSensorEntityId);
+  if (watts === null) {
+    // Off-network. A missing reading is not a reading of zero: treating it as
+    // one would close an open cycle that is still running.
+    return persisted;
+  }
+  const next = recordWashingMachineSample(persisted, {
+    at: now.toISOString(),
+    config,
+    costPerKwh,
+    elapsedHours: integrationHours,
+    watts,
+  });
+  const cutoff = new Date(now.getTime() - WASHING_MACHINE_HISTORY_DAYS * 86_400_000).toISOString();
+  return pruneWashingMachineCycles(next, cutoff);
+}
+
+/**
+ * Attribute one wash to a person, or cycle it onward. Unassigned -> each
+ * configured person in order -> unassigned. The caller sends the cycle id only;
+ * the server owns the order so two screens cannot disagree about what comes
+ * next. See specs/power-meters.md 4.3.
+ */
+export async function attributeWashingMachineCycle(cycleId: string) {
+  if (!powerConfig().washingMachine) {
+    return null;
+  }
+  const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
+  const state = { ...blankWashingMachineState(), ...persisted };
+  const index = state.cycles.findIndex((cycle) => cycle.id === cycleId);
+  if (index === -1) {
+    return null;
+  }
+  const personIds = (readDashboardConfigSync().dashboard.people ?? []).map((person) => person.id);
+  const cycle = { ...state.cycles[index], person: nextPerson(state.cycles[index].person, personIds) };
+  state.cycles = [...state.cycles.slice(0, index), cycle, ...state.cycles.slice(index + 1)];
+  await writeJsonAtomic(WASHING_MACHINE_PATH, state);
+  return cycle;
+}
+
+function buildWashingMachineSummary(
+  state: WashingMachineState | null,
+  now: Date,
+): PowerWashingMachineSummary | undefined {
+  const config = powerConfig().washingMachine;
+  if (!config || !state) {
+    return undefined;
+  }
+  const people = readDashboardConfigSync().dashboard.people ?? [];
+  const monthKey = localMonthKey(now);
+  // Calendar month, in this household's own timezone -- NOT the retailer's
+  // billing cycle the rest of the panel uses. A shared cost is split by the
+  // month people actually live in. See specs/power-meters.md 4.4.
+  const cycles = state.cycles.filter((cycle) => localMonthKey(new Date(cycle.endedAt)) === monthKey);
+  return {
+    cycles,
+    monthKey,
+    people,
+    totals: monthTotals(cycles, people.map((person) => person.id)),
+    watts: state.open?.lastWatts ?? null,
+  };
+}
+
 function buildDashboard(
   state: PowerState,
   readings: PowerDeviceReading[],
@@ -1013,12 +1271,20 @@ function buildDashboard(
   dailyUsage: PowershopDailyUsageRecord[],
   accountMetadata: PowershopAccountMetadata | null,
   now: Date,
+  washing: WashingMachineState | null = null,
 ): PowerDashboard {
   const keys = currentKeys(now, accountMetadata?.billing);
   const rate = currentRate(now);
   const day = state.daily[keys.today] ?? { costNzd: 0, kwh: 0 };
   const ytd = sumBuckets(state, keys.yearStart, keys.today);
-  const baseLoad = modeledCurrentBaseLoad(now, rate, keys);
+  const floatingMeter = buildFloatingMeterSummary(state.floatingMeter, now);
+  const washingMachine = buildWashingMachineSummary(washing, now);
+  const baseLoad = modeledCurrentBaseLoad(
+    now,
+    rate,
+    keys,
+    suppressedBaseLoadIds(floatingMeter?.categories ?? []),
+  );
   const monitoredWatts = readings.reduce((sum, reading) => sum + reading.watts, 0);
   const fallbackCurrentWatts = monitoredWatts + baseLoad.currentWatts;
   const totalKwh = Object.values(state.devices).reduce((sum, device) => sum + device.kwhTotal, 0);
@@ -1052,6 +1318,8 @@ function buildDashboard(
 
   return {
     baseLoad,
+    ...(floatingMeter ? { floatingMeter } : {}),
+    ...(washingMachine ? { washingMachine } : {}),
     billingCycle: {
       day: Math.min(keys.billingDays, Math.floor(keys.billingElapsedDays) + 1),
       days: keys.billingDays,
@@ -1118,7 +1386,7 @@ function sensorDevice(rating?: PowerDeviceRating) {
 }
 
 async function publishDiscovery(ratings: PowerDeviceRating[]) {
-  const configs = ratings.flatMap((rating) => {
+  const configs: Array<{ topic: string; payload: Record<string, unknown> }> = ratings.flatMap((rating) => {
     const id = slug(rating.id);
     const stateTopic = `nova/power/${id}/state`;
     const device = sensorDevice(rating);
@@ -1170,6 +1438,73 @@ async function publishDiscovery(ratings: PowerDeviceRating[]) {
     ];
   });
 
+  // The metering plugs' derived figures (specs/power-meters.md §6). The plugs'
+  // own power/current/voltage sensors come from their integration and are not
+  // republished here; these are the numbers only Nova knows.
+  const power = powerConfig();
+  const device = sensorDevice();
+  if (power.washingMachine) {
+    const people = readDashboardConfigSync().dashboard.people ?? [];
+    const rows = [
+      { key: "total", label: "Washing Machine month" },
+      ...people.map((person) => ({ key: person.id, label: `Washing Machine month ${person.label}` })),
+      { key: "unassigned", label: "Washing Machine month unassigned" },
+    ];
+    for (const row of rows) {
+      const id = `washing_machine_month${row.key === "total" ? "" : `_${slug(row.key)}`}`;
+      configs.push({
+        topic: `homeassistant/sensor/nova_power_${id}_kwh/config`,
+        payload: {
+          device,
+          device_class: "energy",
+          json_attributes_topic: "nova/power/washing_machine/state",
+          name: row.label,
+          object_id: `nova_power_${id}_kwh`,
+          // Calendar-month totals fall to zero on the 1st, so `total` rather
+          // than `total_increasing`: a reset is a new month, not a meter swap.
+          state_class: "total",
+          state_topic: "nova/power/washing_machine/state",
+          unique_id: `nova_power_${id}_kwh`,
+          unit_of_measurement: "kWh",
+          value_template: `{{ value_json.kwh['${row.key}'] | default(0) }}`,
+        },
+      });
+    }
+  }
+  if (power.floatingMeter) {
+    configs.push({
+      topic: "homeassistant/sensor/nova_power_floating_meter_category/config",
+      payload: {
+        device,
+        entity_category: "diagnostic",
+        json_attributes_topic: "nova/power/floating_meter/state",
+        name: "Floating Meter category",
+        object_id: "nova_power_floating_meter_category",
+        state_topic: "nova/power/floating_meter/state",
+        unique_id: "nova_power_floating_meter_category",
+        value_template: "{{ value_json.category }}",
+      },
+    });
+    for (const category of power.floatingMeter.categories) {
+      const id = `floating_${slug(category.id)}`;
+      configs.push({
+        topic: `homeassistant/sensor/nova_power_${id}_estimated_power/config`,
+        payload: {
+          device,
+          device_class: "power",
+          json_attributes_topic: "nova/power/floating_meter/state",
+          name: `${category.label} estimated power`,
+          object_id: `nova_power_${id}_estimated_power`,
+          state_class: "measurement",
+          state_topic: "nova/power/floating_meter/state",
+          unique_id: `nova_power_${id}_estimated_power`,
+          unit_of_measurement: "W",
+          value_template: `{{ value_json.categories['${category.id}'] | default(0) }}`,
+        },
+      });
+    }
+  }
+
   configs.push({
     topic: "homeassistant/sensor/nova_power_home_estimated_power/config",
     payload: {
@@ -1207,6 +1542,40 @@ async function publishPowerState(summary: PowerDashboard, ratings: PowerDeviceRa
       });
     }),
   );
+  if (summary.washingMachine) {
+    const kwh: Record<string, number> = {
+      total: round(summary.washingMachine.totals.reduce((sum, row) => sum + row.kwh, 0), 4),
+    };
+    const cost: Record<string, number> = {};
+    for (const row of summary.washingMachine.totals) {
+      const key = row.person ?? "unassigned";
+      kwh[key] = round(row.kwh, 4);
+      cost[key] = round(row.costNzd, 4);
+    }
+    await publishMqtt("nova/power/washing_machine/state", {
+      cost_nzd: cost,
+      cycles: summary.washingMachine.cycles.length,
+      kwh,
+      month: summary.washingMachine.monthKey,
+      watts: summary.washingMachine.watts,
+    });
+  }
+  if (summary.floatingMeter) {
+    const categories: Record<string, number> = {};
+    const confidence: Record<string, string> = {};
+    for (const category of summary.floatingMeter.categories) {
+      categories[category.id] = category.watts;
+      confidence[category.id] = category.confidence;
+    }
+    const active = summary.floatingMeter.categories.find((category) => category.active);
+    await publishMqtt("nova/power/floating_meter/state", {
+      categories,
+      category: active?.label ?? "unknown",
+      category_id: summary.floatingMeter.activeCategoryId,
+      confidence,
+      watts: summary.floatingMeter.watts,
+    });
+  }
   await publishMqtt("nova/power/home/state", {
     cost_per_hour_nzd: summary.currentCostPerHourNzd,
     kwh_total: summary.totals.kwh,
@@ -1231,8 +1600,9 @@ async function maybePublishToHa(summary: PowerDashboard, ratings: PowerDeviceRat
 
 async function samplePowerUnlocked(): Promise<PowerDashboard> {
   const now = new Date();
-  const [persisted, ratings, dailyUsage, accountMetadata, states] = await Promise.all([
+  const [persisted, persistedWashing, ratings, dailyUsage, accountMetadata, states] = await Promise.all([
     readJson<PowerState>(POWER_STATE_PATH, blankState()),
+    readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState()),
     readRatings(),
     readAllPowershopUsage(),
     readPowershopAccountMetadata(),
@@ -1279,11 +1649,27 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
     }
   }
 
+  // The metering plugs (specs/power-meters.md). Both are optional: a household
+  // that has configured neither never touches either store.
+  const integrationHours =
+    elapsedHours > 0 && elapsedHours <= powerConfig().timing.maxIntegrationHours ? elapsedHours : 0;
+  state.floatingMeter = recordFloatingMeterSample(state.floatingMeter, statesById, keys, now, integrationHours);
+  const washing = recordWashingMachineTick(
+    { ...blankWashingMachineState(), ...persistedWashing },
+    statesById,
+    now,
+    integrationHours,
+    rate.cPerKwh / 100,
+  );
+
   state.lastSampleAt = now.toISOString();
   await refreshPowerRatesIfDue(state, now, rate);
   pruneState(state, now);
   await writeJsonAtomic(POWER_STATE_PATH, state);
-  const summary = buildDashboard(state, readings, accountUsage, dailyUsage, accountMetadata, now);
+  if (washing) {
+    await writeJsonAtomic(WASHING_MACHINE_PATH, washing);
+  }
+  const summary = buildDashboard(state, readings, accountUsage, dailyUsage, accountMetadata, now, washing);
   void maybePublishToHa(summary, ratings).catch((error) => {
     console.warn("[nova-dashboard] failed to publish power sensors", error);
   });
