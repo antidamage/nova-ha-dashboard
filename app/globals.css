@@ -5574,6 +5574,24 @@ button.config-breadcrumb-crumb:focus-visible {
   width: 14px;
 }
 
+/* The wash's own watts, drawn across its block (specs/power-meters.md §5.2). */
+.power-wash-curve {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.power-wash-curve polyline {
+  fill: none;
+  stroke: rgb(10 10 10 / 0.75);
+  stroke-linejoin: round;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
 .power-wash-block:focus-visible {
   outline: 2px solid var(--cyber-highlight);
   outline-offset: 2px;

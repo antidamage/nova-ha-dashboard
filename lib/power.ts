@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { reconcileWashCompletion } from "./wash-completion";
 import { cycleId as washingCycleId } from "./washing-machine";
 import path from "path";
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "fs/promises";
 import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
@@ -25,11 +25,13 @@ import {
 } from "./power-floating-meter";
 import {
   blankWashingMachineState,
+  downsampleTrace,
   monthTotals,
   nextPerson,
   pruneWashingMachineCycles,
   recordWashingMachineSample,
   WASHING_MACHINE_HISTORY_DAYS,
+  type WashAttribution,
   type WashingMachineCycle,
   type WashingMachineOpenCycle,
   type WashingMachineState,
@@ -51,6 +53,8 @@ const POWER_DATA_DIR = process.env.NOVA_DASHBOARD_POWER_DATA ?? path.join(proces
 const POWER_STATE_PATH = path.join(POWER_DATA_DIR, "state.json");
 const POWER_ACCOUNT_USAGE_PATH = path.join(POWER_DATA_DIR, "account-usage.json");
 const WASHING_MACHINE_PATH = path.join(POWER_DATA_DIR, "washing-machine.json");
+const WASH_TRACE_DIR = path.join(POWER_DATA_DIR, "washing-machine-traces");
+const WASH_OPEN_TRACE_PATH = path.join(WASH_TRACE_DIR, "open.json");
 
 function powerConfig() {
   return readDashboardConfigSync().power;
@@ -141,8 +145,9 @@ export type PowerFloatingMeterSummary = {
 };
 
 export type PowerWashingMachineSummary = {
-  running?: { id: string; person: string | null; kwh: number };
-  cycles: WashingMachineCycle[];
+  running?: { attribution?: WashAttribution; curve?: number[]; id: string; person: string | null; kwh: number };
+  /** `curve` is the wash's watts downsampled to at most 48 points (§4.6). */
+  cycles: Array<WashingMachineCycle & { curve?: number[] }>;
   monthKey: string;
   open: WashingMachineOpenCycle | null;
   people: HouseholdPerson[];
@@ -1239,8 +1244,12 @@ async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   const state = { ...blankWashingMachineState(), ...persisted };
   const index = state.cycles.findIndex((cycle) => cycle.id === cycleId);
   const personIds = (readDashboardConfigSync().dashboard.people ?? []).map((person) => person.id);
+  // A tap is a manual claim, including a tap back to unassigned: pattern
+  // attribution never overrides it (§4.5).
+  const attribution: WashAttribution = { at: new Date().toISOString(), source: "manual" };
   if (state.open?.startedAt && washingCycleId(state.open.startedAt) === cycleId) {
     state.open.person = nextPerson(state.open.person ?? null, personIds);
+    state.open.attribution = attribution;
     await reconcileWashCompletion(state, new Map());
     await writeJsonAtomic(WASHING_MACHINE_PATH, state);
     return state.open;
@@ -1248,10 +1257,90 @@ async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   if (index === -1) {
     return null;
   }
-  const cycle = { ...state.cycles[index], person: nextPerson(state.cycles[index].person, personIds) };
+  const cycle = { ...state.cycles[index], attribution, person: nextPerson(state.cycles[index].person, personIds) };
   state.cycles = [...state.cycles.slice(0, index), cycle, ...state.cycles.slice(index + 1)];
   await writeJsonAtomic(WASHING_MACHINE_PATH, state);
+  // The curve is logged against whoever the wash now belongs to.
+  const tracePath = path.join(WASH_TRACE_DIR, `${cycle.id}.json`);
+  const trace = await readJson<WashTraceFile | null>(tracePath, null);
+  if (trace) await writeJsonAtomic(tracePath, { ...trace, attribution, person: cycle.person });
   return cycle;
+}
+
+/** One closed wash's full power curve, on disk for per-person profiling (§4.6). */
+type WashTraceFile = {
+  attribution?: WashAttribution;
+  cycleId: string;
+  endedAt: string;
+  kwh: number;
+  person: string | null;
+  /** [seconds since startedAt, watts] */
+  points: Array<[number, number]>;
+  startedAt: string;
+};
+
+/** The open wash's samples as [epoch seconds, watts], keyed by its start. */
+type OpenWashTrace = { anchor: string | null; points: Array<[number, number]> };
+
+const washCurves = new Map<string, number[]>();
+let runningWashCurve: number[] | undefined;
+
+/**
+ * Append this tick's reading to the open wash's trace, and file the trace for
+ * any wash that closed on this tick. Traces are recorded for every wash so a
+ * later tap still has a curve.
+ */
+async function recordWashTrace(
+  knownCycleIds: Set<string>,
+  washing: WashingMachineState,
+  watts: number | null,
+  now: Date,
+) {
+  const open = await readJson<OpenWashTrace>(WASH_OPEN_TRACE_PATH, { anchor: null, points: [] });
+  const closed = washing.cycles.filter((cycle) => !knownCycleIds.has(cycle.id));
+  for (const cycle of closed) {
+    const start = Date.parse(cycle.startedAt) / 1000;
+    const end = Date.parse(cycle.endedAt) / 1000;
+    const points = open.anchor === cycle.startedAt
+      ? open.points.filter(([at]) => at <= end).map(([at, value]): [number, number] => [Math.round(at - start), value])
+      : [];
+    const file: WashTraceFile = {
+      ...(cycle.attribution ? { attribution: cycle.attribution } : {}),
+      cycleId: cycle.id, endedAt: cycle.endedAt, kwh: cycle.kwh, person: cycle.person, points, startedAt: cycle.startedAt,
+    };
+    await writeJsonAtomic(path.join(WASH_TRACE_DIR, `${cycle.id}.json`), file);
+    washCurves.set(cycle.id, downsampleTrace(points));
+  }
+  if (closed.length > 0) {
+    // Traces live and die with their cycles (400 days).
+    const keep = new Set(washing.cycles.map((cycle) => `${cycle.id}.json`));
+    for (const name of await readdir(WASH_TRACE_DIR).catch(() => [] as string[])) {
+      if (name.endsWith(".json") && name !== "open.json" && !keep.has(name)) {
+        await unlink(path.join(WASH_TRACE_DIR, name)).catch(() => undefined);
+      }
+    }
+  }
+
+  const anchor = washing.open?.startedAt ?? washing.open?.aboveSince ?? null;
+  if (!anchor) {
+    runningWashCurve = undefined;
+    if (open.anchor || open.points.length > 0) await writeJsonAtomic(WASH_OPEN_TRACE_PATH, { anchor: null, points: [] });
+    return;
+  }
+  const points = open.anchor === anchor ? open.points : [];
+  if (watts !== null) points.push([Math.round(now.getTime() / 1000), Math.round(watts * 10) / 10]);
+  await writeJsonAtomic(WASH_OPEN_TRACE_PATH, { anchor, points });
+  runningWashCurve = downsampleTrace(points);
+}
+
+/** Load curves for the washes the 12-hour graph can show; the rest stay on disk. */
+async function loadRecentWashCurves(washing: WashingMachineState, now: Date) {
+  const since = now.getTime() - 12 * 3_600_000;
+  for (const cycle of washing.cycles) {
+    if (washCurves.has(cycle.id) || Date.parse(cycle.endedAt) < since) continue;
+    const trace = await readJson<WashTraceFile | null>(path.join(WASH_TRACE_DIR, `${cycle.id}.json`), null);
+    washCurves.set(cycle.id, downsampleTrace(trace?.points ?? []));
+  }
 }
 
 /** Claim the wash currently under way; completed washes use the cycle path above. */
@@ -1277,8 +1366,12 @@ function buildWashingMachineSummary(
   // month people actually live in. See specs/power-meters.md 4.4.
   const cycles = state.cycles.filter((cycle) => localMonthKey(new Date(cycle.endedAt)) === monthKey);
   return {
-    cycles,
-    ...(state.open?.startedAt ? { running: { id: washingCycleId(state.open.startedAt), person: state.open.person ?? null, kwh: state.open.kwh } } : {}),
+    cycles: cycles.map((cycle) => (washCurves.has(cycle.id) ? { ...cycle, curve: washCurves.get(cycle.id) } : cycle)),
+    ...(state.open?.startedAt ? { running: {
+      ...(state.open.attribution ? { attribution: state.open.attribution } : {}),
+      ...(runningWashCurve ? { curve: runningWashCurve } : {}),
+      id: washingCycleId(state.open.startedAt), person: state.open.person ?? null, kwh: state.open.kwh,
+    } } : {}),
     monthKey,
     open: state.open?.startedAt ? state.open : null,
     people,
@@ -1677,6 +1770,7 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
   const integrationHours =
     elapsedHours > 0 && elapsedHours <= powerConfig().timing.maxIntegrationHours ? elapsedHours : 0;
   state.floatingMeter = recordFloatingMeterSample(state.floatingMeter, statesById, keys, now, integrationHours);
+  const knownWashIds = new Set((persistedWashing.cycles ?? []).map((cycle) => cycle.id));
   const washing = recordWashingMachineTick(
     { ...blankWashingMachineState(), ...persistedWashing },
     statesById,
@@ -1692,6 +1786,10 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
   if (washing) {
     await reconcileWashCompletion(washing, statesById).catch((error) => console.warn("Wash reminder reconciliation failed", error));
     await writeJsonAtomic(WASHING_MACHINE_PATH, washing);
+    const sensor = powerConfig().washingMachine?.powerSensorEntityId;
+    await recordWashTrace(knownWashIds, washing, sensor ? numericState(statesById, sensor) : null, now)
+      .then(() => loadRecentWashCurves(washing, now))
+      .catch((error) => console.warn("Wash trace recording failed", error));
   }
   const summary = buildDashboard(state, readings, accountUsage, dailyUsage, accountMetadata, now, washing);
   void maybePublishToHa(summary, ratings).catch((error) => {
