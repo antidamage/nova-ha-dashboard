@@ -50,7 +50,7 @@ describe("glassCssBackdropFilter (WebKit/iOS fallback)", () => {
 });
 
 describe("glassBoxShadow", () => {
-  it("layers the cast into a smooth near-to-far taper", () => {
+  it("layers the cast into a rapid falloff that levels out", () => {
     const casts = [...glassBoxShadow(DEFAULT_NOVA_GLASS_SETTINGS).matchAll(
       /0 [\d.]+px ([\d.]+)px rgba\(0, 0, 0, ([\d.]+)\)/g,
     )];
@@ -62,6 +62,8 @@ describe("glassBoxShadow", () => {
     expect(blurs[1]).toBeLessThan(blurs[2]);
     expect(alphas[0]).toBeGreaterThan(alphas[1]);
     expect(alphas[1]).toBeGreaterThan(alphas[2]);
+    // Each step keeps a larger share than the last: steep first, then flat.
+    expect(alphas[2] / alphas[1]).toBeGreaterThan(alphas[1] / alphas[0]);
   });
 });
 
