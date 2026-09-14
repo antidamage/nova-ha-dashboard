@@ -166,6 +166,19 @@ describe("ZoneControls", () => {
     expect(screen.queryByRole("button", { name: /sleep/i })).not.toBeInTheDocument();
   });
 
+  it("keeps House Party as an inline label beside its labelled switch", () => {
+    const { container } = render(renderZoneControls(loungeZone()));
+
+    openAdvancedFold(container);
+
+    expect(screen.queryByRole("heading", { name: "House Party" })).not.toBeInTheDocument();
+    expect(screen.getByText("House Party")).toHaveClass("zone-party-control-label");
+    const toggle = screen.getByRole("switch", { name: "House Party" });
+    const switchRow = toggle.closest(".climate-switch-row") as HTMLElement;
+    expect(switchRow).toHaveTextContent("Off");
+    expect(switchRow).toHaveTextContent("On");
+  });
+
   it("shows managed desktop sleep buttons in the network zone", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

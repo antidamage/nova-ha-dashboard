@@ -1215,6 +1215,26 @@ MQTT/Home Assistant publishing:
 - Discovery and state publish intervals are configurable.
 - Messages use retain.
 
+Metering plugs (`specs/power-meters.md`):
+
+- `power.alwaysOnMeters` names plugs that must never be left switched off.
+  `lib/power-meter-guard.ts` polls every 60 seconds and restores any that
+  read `off`. `unavailable` is not `off` and provokes no call. Nothing about
+  it is ever surfaced to the user.
+- `power.floatingMeter` is one plug that moves between groups of devices,
+  measuring one at a time. A group it is not on is estimated from its own
+  measured history: an hour-of-day profile weighted by the recency and
+  day-similarity scheme in `lib/power-estimation.ts`, falling back to a flat
+  learned mean and then to a configured seed. Each group withholds the
+  modelled base loads it stands in for, so the grid total does not jump when
+  the meter moves.
+- `power.washingMachine` detects wash cycles from the plug's power trace and
+  stores them in `data/power/washing-machine.json`. A cycle can be attributed
+  to a person from `dashboard.people`; totals are per calendar month.
+- Both surfaces render in the main part of the Grid panel
+  (`app/components/dashboard/PowerMeters.tsx`), and Nova publishes the derived
+  figures back to Home Assistant over the same MQTT discovery path.
+
 Power UI:
 
 - The Grid zone renders `PowerPanel`.

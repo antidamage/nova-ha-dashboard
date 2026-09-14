@@ -74,7 +74,7 @@ function isWeekend(dateKey: string) {
   return day === 0 || day === 6;
 }
 
-function similarityWeight(historyDate: string, targetDate: string) {
+export function similarityWeight(historyDate: string, targetDate: string) {
   if (weekday(historyDate) === weekday(targetDate)) {
     return 2.5;
   }
@@ -84,7 +84,7 @@ function similarityWeight(historyDate: string, targetDate: string) {
   return 1;
 }
 
-function recencyWeight(historyDate: string, targetDate: string, today: string) {
+export function recencyWeight(historyDate: string, targetDate: string, today: string) {
   const ageDays = Math.max(1, daysBetween(historyDate, today));
   return 2 ** (-ageDays / POWERSHOP_ESTIMATE_HALF_LIFE_DAYS) * similarityWeight(historyDate, targetDate);
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   concentricLayerRadius,
   concentricLayerScale,
+  glassBoxShadow,
   glassCssBackdropFilter,
   imageTransformDisplacement,
 } from "./NovaOrbGlass";
@@ -45,6 +46,22 @@ describe("glassCssBackdropFilter (WebKit/iOS fallback)", () => {
     const soft = Number(glassCssBackdropFilter(withGlass({ imageBlur: 0 })).match(/blur\(([\d.]+)px\)/)![1]);
     const frosted = Number(glassCssBackdropFilter(withGlass({ imageBlur: 10 })).match(/blur\(([\d.]+)px\)/)![1]);
     expect(frosted).toBeGreaterThan(soft);
+  });
+});
+
+describe("glassBoxShadow", () => {
+  it("layers the cast into a smooth near-to-far taper", () => {
+    const casts = [...glassBoxShadow(DEFAULT_NOVA_GLASS_SETTINGS).matchAll(
+      /0 [\d.]+px ([\d.]+)px rgba\(0, 0, 0, ([\d.]+)\)/g,
+    )];
+
+    expect(casts).toHaveLength(3);
+    const blurs = casts.map((cast) => Number(cast[1]));
+    const alphas = casts.map((cast) => Number(cast[2]));
+    expect(blurs[0]).toBeLessThan(blurs[1]);
+    expect(blurs[1]).toBeLessThan(blurs[2]);
+    expect(alphas[0]).toBeGreaterThan(alphas[1]);
+    expect(alphas[1]).toBeGreaterThan(alphas[2]);
   });
 });
 

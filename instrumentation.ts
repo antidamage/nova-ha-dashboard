@@ -28,6 +28,16 @@ export async function register() {
     console.error("[climate-control] failed to start", error);
   }
 
+  // Metering plugs that must never be left switched off (specs/power-meters.md
+  // §1). A minute-poll restore, silent by design; it no-ops when the household
+  // has configured no such meters.
+  try {
+    const { startPowerMeterGuard } = await import("@/lib/power-meter-guard");
+    startPowerMeterGuard();
+  } catch (error) {
+    console.error("[power-meter-guard] failed to start", error);
+  }
+
   // Installable modules (specs/module-system.md). Default modules are fetched
   // first so a fresh install arrives complete, then every enabled module's
   // server half is loaded. A module that throws is disabled with its error

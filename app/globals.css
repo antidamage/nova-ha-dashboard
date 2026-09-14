@@ -3940,8 +3940,24 @@ button.config-breadcrumb-crumb:focus-visible {
   margin-bottom: 20px;
 }
 
-.zone-party-control > header {
-  margin-bottom: 12px;
+.zone-party-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.zone-party-control-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .zone-party-control .climate-switch-row {
@@ -5492,6 +5508,7 @@ button.config-breadcrumb-crumb:focus-visible {
 .power-metric-card,
 .power-curve-card,
 .power-device-list,
+.power-meter-card,
 .power-summary-row {
   clip-path: polygon(
     0 0,
@@ -5501,6 +5518,71 @@ button.config-breadcrumb-crumb:focus-visible {
     12px 100%,
     0 calc(100% - 12px)
   );
+}
+
+
+/* The metering plugs in the Grid panel's main part. specs/power-meters.md. */
+.power-meter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .power-meter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.power-meter-row.is-live {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyber-highlight) 40%, transparent);
+}
+
+/* The month of washes. Blocks are absolutely placed on a day axis, so the
+   container owns the height and the SVG behind it only draws the grid. */
+.power-wash-graph {
+  height: 84px;
+  position: relative;
+}
+
+.power-wash-svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.power-wash-blocks {
+  inset: 6px 8px;
+  position: absolute;
+}
+
+.power-wash-empty {
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.power-wash-block {
+  border: 1px solid rgb(0 0 0 / 0.45);
+  bottom: 0;
+  /* A touch target first and a bar second: a thin bar cannot be tapped on a
+     kiosk, and every block here exists to be tapped. */
+  min-width: 14px;
+  position: absolute;
+  transform: translateX(-50%);
+  transition: background 160ms ease, height 160ms ease;
+  width: 14px;
+}
+
+.power-wash-block:focus-visible {
+  outline: 2px solid var(--cyber-highlight);
+  outline-offset: 2px;
+}
+
+.power-wash-swatch {
+  border: 1px solid rgb(0 0 0 / 0.45);
+  display: inline-block;
+  height: 10px;
+  width: 10px;
 }
 
 .power-curve {
@@ -6217,7 +6299,11 @@ button.config-breadcrumb-crumb:focus-visible {
 
   .dashboard-home .control-stage .lighting-column {
     min-height: 0;
-    height: 100%;
+    /* Its fold must be allowed to add advanced content to the panel body's
+       single scrollable extent. A fixed height here made that content paint
+       beyond the grid item, where it was cut off instead of extending the
+       parent scroller. */
+    height: auto;
   }
 
   /* Network: the Computers panel takes its own column beside the router cards.
@@ -8123,9 +8209,11 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 
 /* Landscape: the fold runs down the column. */
 .advanced-fold[data-axis="y"] {
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  /* The panel body owns scrolling. A fold is content inside that one scroller,
+     so it must grow with its advanced region instead of becoming a clipped,
+     nested scroll area. */
+  min-height: 100%;
+  overflow: visible;
 }
 
 .advanced-fold[data-axis="y"] .advanced-fold-track {
