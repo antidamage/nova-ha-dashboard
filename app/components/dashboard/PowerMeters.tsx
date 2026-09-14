@@ -170,6 +170,8 @@ function WashingMachineCard({
     ...cycles.map((cycle) => ({ ...cycle, active: false })),
     ...(summary.open ? [{
       active: true,
+      attribution: summary.running?.attribution ?? summary.open.attribution,
+      curve: summary.running?.curve,
       costNzd: summary.open.costNzd,
       endedAt: new Date(now).toISOString(),
       id: summary.running?.id ?? "active",
@@ -240,21 +242,37 @@ function WashingMachineCard({
             const label = summary.people.find((candidate) => candidate.id === person)?.label ?? "Unassigned";
             const start = timelineX(new Date(cycle.startedAt).getTime(), now);
             const end = timelineX(new Date(cycle.endedAt).getTime(), now);
+            // A pattern guess is hatched until someone taps it (§5.2).
+            const guessed = person !== null && !(cycle.id in pending) && cycle.attribution?.source === "auto";
+            const color = colorOf(person);
+            const curve = cycle.curve ?? [];
+            const curvePeak = Math.max(1, ...curve);
             return (
               <MomentaryFeedbackButton
                 key={cycle.id}
                 type="button"
-                aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}. Tap to claim or reassign.`}
-                className="power-wash-block"
+                aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${guessed ? " (guessed)" : ""}. Tap to claim or reassign.`}
+                className={classNames("power-wash-block", guessed && "is-guessed")}
                 onClick={() => void attribute(cycle.id, person)}
                 style={{
-                  background: colorOf(person),
+                  background: guessed ? `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px), rgb(10 10 10 / 0.35)` : color,
+                  borderColor: guessed ? color : undefined,
                   height: `${Math.max(14, (cycle.kwh / peak) * 100)}%`,
                   left: `${start}%`,
                   width: `${Math.max(14, end - start)}%`,
                 }}
-                title={`${cycle.active ? "Active — " : ""}${label} / ${cycle.kwh.toFixed(2)} kWh`}
-              />
+                title={`${cycle.active ? "Active — " : ""}${label}${guessed ? " (guessed)" : ""} / ${cycle.kwh.toFixed(2)} kWh`}
+              >
+                {curve.length > 1 ? (
+                  <svg className="power-wash-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <polyline
+                      points={curve
+                        .map((watts, index) => `${(index / (curve.length - 1)) * 100},${100 - (watts / curvePeak) * 92}`)
+                        .join(" ")}
+                    />
+                  </svg>
+                ) : null}
+              </MomentaryFeedbackButton>
             );
           })}
         </div>

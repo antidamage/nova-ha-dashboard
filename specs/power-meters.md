@@ -1,7 +1,9 @@
 # Metered power: Washing Machine and Floating Meter
 
 Adeline, 2026-09-14. Plan codename `we-now-how-two-lazy-lemur`. Task log
-`20260914T042058Z-5db7a382`.
+`20260914T042058Z-5db7a382`. §4.5 pattern attribution and §4.6 power traces:
+plan codename `we-want-to-try-shimmering-sutton`, task log
+`20260914T094859Z-f28f5fd9`, same day.
 
 Two energy-monitoring smart plugs joined the LAN. They are the first real
 measurements the power estimate has ever had — until now every watt in the Grid
@@ -254,11 +256,117 @@ People come from household config, never product source —
 - With no people configured, the attribution UI is absent and only the monthly
   total renders. The product stays generic.
 
+A tap records `attribution: { source: "manual", at }` on the cycle. Pattern
+attribution (§4.5) never changes a cycle whose source is `manual`.
+
 ### 4.4 The month
 
 **Calendar month**, `Pacific/Auckland` — 1st to end of month. Not the Powershop
 billing cycle the rest of the panel uses. A shared cost is split by the month
 people actually live in.
+
+### 4.5 Pattern attribution
+
+Adeline's description of the household's habits, as rules. This is a first
+version; a re-review around **2026-10-05** will use the traces in §4.6 to build
+better per-person profiles.
+
+- Adeline usually runs a standard wash: about an hour, up to 1.5 hours, most
+  often 1:06.
+- Tonya often runs shorter washes (18–45 min), sometimes followed by a spin.
+- A standard wash when Adeline has not washed in 5–6 days is very likely hers.
+- A standard wash straight after hers is usually also hers. A gap of more than
+  an hour, or a shorter cycle straight after, usually means someone else.
+- A spin straight after one of her washes is hers.
+- When unsure, leave the wash Unassigned.
+
+Config, household data only (`nova-household/dashboard-config.json`):
+
+```jsonc
+"washingMachine": {
+  "autoAttribution": {
+    "enabled": true,
+    "personId": "addie",
+    "standardMinMinutes": 55,
+    "standardMaxMinutes": 95,
+    "minDaysSinceLast": 5,
+    "consecutiveMaxGapMinutes": 60,
+    "spinMaxMinutes": 15,
+    "spinMaxGapMinutes": 30
+  }
+}
+```
+
+Absent or `enabled: false` means no automatic attribution.
+
+**Terms.** Duration is `endedAt − startedAt`. A *person wash* is any stored
+cycle whose `person` is `personId`, manual or auto. The *preceding cycle* is the
+stored cycle with the latest `endedAt` at or before this cycle's `startedAt`.
+
+**Rules**, first match wins. The only possible result is `personId`:
+
+| Rule | Condition |
+|---|---|
+| `day-gap` | duration within `[standardMin, standardMax]` minutes AND the latest person wash ended ≥ `minDaysSinceLast` days before this start |
+| `consecutive` | duration within the standard band AND the preceding cycle is a person wash AND this starts ≤ `consecutiveMaxGapMinutes` after it ended |
+| `spin` | duration ≤ `spinMaxMinutes` AND the preceding cycle is a person wash AND this starts ≤ `spinMaxGapMinutes` after it ended |
+
+Bounds are inclusive. No match → **Unassigned**. The rules never assign anyone
+else: a short cycle or a long gap after a person wash is "probably not her", not
+"certainly Tonya", so it stays Unassigned.
+
+With no person wash on record, `day-gap` fires only when the store's oldest
+cycle started ≥ `minDaysSinceLast` days before this one. Missing history is not
+evidence that she has not washed.
+
+**When the rules run.**
+
+1. **At the completion edge** — the moment §"Claimed-wash completion alerts"
+   decides the wash is done, before its `completion` record is captured. If the
+   open cycle has no person, the rules run with duration = `zeroSince −
+   startedAt`. A match sets `person` and `attribution: { source: "auto", rule,
+   at }` first, so the completion is captured as hers and the existing alert
+   fires in full: sound, reminder icon, Discord and the drying recommendation.
+   This is how an unclaimed wash of hers still plays the sound.
+2. **At close** — with the final `endedAt`. A cycle with no attribution is
+   evaluated (covers a disabled alert or a completion that never fired). A cycle
+   whose attribution is `auto` is re-evaluated; if no rule holds any more it
+   reverts to Unassigned and its `attribution` is removed. An alert that has
+   already fired is not retracted.
+3. **Never** on a cycle whose attribution is `manual`, and never retroactively:
+   cycles stored before this shipped are not re-evaluated.
+
+A spin attributed to her alerts like any of her washes.
+
+### 4.6 Power traces
+
+Every wash keeps its own power curve, so the re-review has real shapes to learn
+from rather than totals.
+
+- Each sample tick while a cycle is open appends `[offsetSeconds, watts]`
+  (offset from `startedAt`, whole seconds; watts to one decimal) to
+  `data/power/washing-machine-traces/open.json`, a sidecar so the main store is
+  not rewritten with a growing array each tick. Samples taken while the rise
+  was being confirmed are kept from `aboveSince`, so the curve starts at the
+  rise. The sidecar carries the open cycle's `startedAt`; one that does not
+  match the open cycle is discarded.
+- At close, the trace is written to
+  `data/power/washing-machine-traces/<cycleId>.json`:
+
+  ```jsonc
+  { "cycleId": "…", "person": "addie", "attribution": { "source": "auto", "rule": "day-gap", "at": "…" },
+    "startedAt": "…", "endedAt": "…", "kwh": 0.62, "points": [[0, 212.4], [30, 380.0]] }
+  ```
+
+  A cycle discarded under `minCycleKwh` writes no trace.
+- Every attribution change — tap or rule — rewrites the trace file's `person`
+  and `attribution`, so the curve is always logged against the current person.
+- Trace files are pruned with their cycles (400 days).
+- Traces are recorded for every wash, assigned or not, so a later tap still has
+  a curve.
+- The dashboard payload carries each cycle's curve downsampled to at most **48
+  points** (`curve: number[]`, watts evenly spaced across the cycle), and the
+  same for the running wash. The full trace stays on disk.
 
 ## 5. UI
 
@@ -288,6 +396,11 @@ Styles go in `app/globals.css` beside the existing `.power-*` rules.
   the assigned person's colour (neutral when unassigned). Blocks are buttons,
   with a minimum touch width.
 - Under the graph, the sub-totals: Addie, Tonya, Unassigned.
+- Each block draws its own watts curve (§4.6) inside it, across the block's
+  width, scaled to that wash's own peak. SVG line, no chart library.
+- An **auto-attributed** block (§4.5) has the person's colour as a **hatched**
+  fill; a manual block is solid; Unassigned stays neutral. A tap cycles the
+  person as before and makes the attribution manual.
 
 ## 6. Published back to Home Assistant
 
@@ -351,3 +464,18 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 - Both surfaces render without overflow at kiosk portrait and landscape.
 - `npx vitest run` passes, including new tests for the guard decision, the
   fallback ladder, and the cycle-detection boundaries.
+
+### Pattern attribution and traces
+
+- Rule boundaries are tested: 54/55 and 95/96 min standard band; 4.9/5 days;
+  60/61 min consecutive gap; 15/16 min spin; 30/31 min spin gap.
+- A manual claim is never changed by a rule.
+- An unclaimed ~66-minute wash 6 days after her last wash captures its
+  completion as hers (alert fires) and closes as auto `day-gap`.
+- A 12-minute spin straight after it also alerts and closes as auto `spin`.
+- A 30-minute cycle straight after her wash stays Unassigned.
+- With under 5 days of history and no wash of hers, a standard wash stays
+  Unassigned.
+- A closed wash has a trace file whose `person` follows a later tap.
+- Blocks show their curve and auto blocks are hatched, without overflow at
+  kiosk portrait and landscape.

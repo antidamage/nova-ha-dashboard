@@ -167,6 +167,17 @@ const WashingMachineConfigSchema = z.object({
       maxRainChancePct: z.number().min(0).max(100).default(30),
     }).default({ hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 }),
   }).optional(),
+  /** Rule-based guess at one person's washes. See specs/power-meters.md §4.5. */
+  autoAttribution: z.object({
+    enabled: z.boolean().default(false),
+    personId: z.string().min(1),
+    standardMinMinutes: z.number().positive().default(55),
+    standardMaxMinutes: z.number().positive().default(95),
+    minDaysSinceLast: z.number().positive().default(5),
+    consecutiveMaxGapMinutes: z.number().nonnegative().default(60),
+    spinMaxMinutes: z.number().positive().default(15),
+    spinMaxGapMinutes: z.number().nonnegative().default(30),
+  }).optional(),
 });
 export type WashingMachineConfig = z.infer<typeof WashingMachineConfigSchema>;
 
