@@ -53,7 +53,17 @@ export async function reconcileWashCompletion(state: WashingMachineState, states
         } catch { /* The completion still reaches Discord with an explicit unknown forecast. */ }
       }
     }
-    emitModuleEvent({ id: "washing-machine.completed", at: finish.at, source: "server", task: { id },
-      reason: `Your washing is done. ${finish.recommendation}` });
+    // This is the linked reminder becoming due. Use the existing generic
+    // notification path so the installed Discord module needs no device hook.
+    // The stored reminder keeps its normal echo disabled; this enriched event
+    // supplies the complete message and the stable occurrence key for deduplication.
+    emitModuleEvent({
+      id: "reminder.due", at: finish.at, source: "server",
+      task: {
+        id,
+        name: `Your washing is done. ${finish.recommendation}`,
+        moduleData: { "discord-bot": { onDue: true, onComplete: false } },
+      },
+    });
   }
 }

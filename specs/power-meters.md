@@ -437,7 +437,10 @@ record retains acknowledgement to prevent replay. Active and historical claim wr
 share the power sampler's write queue.
 
 The completion activates the icon, plays its entire custom sound once across web
-screens, and emits `washing-machine.completed`. The Discord module queues one combined
+screens, and emits the existing `reminder.due` event with the completion text and
+`discord-bot.onDue` enabled on that event. No device-specific Discord hook or module
+update is needed. The stored reminder's ordinary echo stays disabled so only the
+enriched completion notification is announced. The Discord module queues one combined
 completion/drying message, deduplicated by wash ID and original completion time. Its
 generic reminder echo is disabled. The hourly HA forecast is assessed against the
 household's rain/daylight thresholds; missing coverage yields an explicit No with an
