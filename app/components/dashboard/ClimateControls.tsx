@@ -157,41 +157,9 @@ function TemperatureStepper({
   );
 }
 
-export function LabeledSwitch({
-  checked,
-  disabled,
-  icon,
-  label,
-  leftLabel,
-  onChange,
-  rightLabel,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  icon?: ReactNode;
-  label: string;
-  leftLabel: string;
-  onChange: () => void;
-  rightLabel: string;
-}) {
-  return (
-    <div className={classNames("climate-switch-row border", disabled && "climate-switch-row-disabled")}>
-      <span className="climate-switch-label">{leftLabel}</span>
-      <MomentaryFeedbackButton
-        type="button"
-        className={classNames("cyber-switch", checked && "cyber-switch-checked")}
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        disabled={disabled}
-        onClick={onChange}
-      >
-        <span className="cyber-switch-thumb">{icon}</span>
-      </MomentaryFeedbackButton>
-      <span className="climate-switch-label">{rightLabel}</span>
-    </div>
-  );
-}
+// The switch that used to live here is `LabeledSlideSwitch` in
+// `app/components/SlideSwitch.tsx` — the surface's only toggle now
+// (specs/slide-switch.md).
 
 function PanelHeaterControl({
   entity,

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Check } from "lucide-react";
+import { Bot } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AGENT_SETTINGS_RANGES,
@@ -9,6 +9,7 @@ import {
 } from "../../lib/agent-settings";
 import type { AgentPreferences } from "../../lib/types";
 import { ConfigAccordion, SliderControlPanel } from "./ConfigControls";
+import { SwitchRow } from "./SlideSwitch";
 import { useSettingCooldown } from "./useSettingCooldown";
 
 type AgentSettingKey = Exclude<keyof AgentSettings, "updatedAt">;
@@ -114,29 +115,14 @@ export function AgentConfig({ initialSettings }: { initialSettings?: AgentPrefer
         global and are not saved with a voice or personality.
       </p>
 
-      <button
-        type="button"
-        role="switch"
-        aria-checked={settings.ralphLoopEnabled}
-        className={`cyber-checkbox-row mb-4 w-full border p-4 text-left ${
-          settings.ralphLoopEnabled ? "cyber-checkbox-row-active" : ""
-        }`}
-        onClick={() => void commit("ralphLoopEnabled", !settings.ralphLoopEnabled)}
-      >
-        <span
-          className={`cyber-checkbox ${settings.ralphLoopEnabled ? "cyber-checkbox-checked" : ""}`}
-          aria-hidden="true"
-        >
-          {settings.ralphLoopEnabled ? <Check className="h-5 w-5" strokeWidth={3.5} /> : null}
-        </span>
-        <span className="grid min-w-0 gap-1">
-          <span className="theme-display-label zone-title-bar">Ralph Wiggum loop</span>
-          <span className="theme-display-detail">
-            After one device command, keep checking authoritative state until it is verified or a
-            bound below is reached. The command itself is never sent twice.
-          </span>
-        </span>
-      </button>
+      <div className="mb-4">
+        <SwitchRow
+          checked={settings.ralphLoopEnabled}
+          label="Ralph Wiggum loop"
+          detail="After one device command, keep checking authoritative state until it is verified or a bound below is reached. The command itself is never sent twice."
+          onChange={(checked) => void commit("ralphLoopEnabled", checked)}
+        />
+      </div>
 
       <div className={`grid gap-4 ${settings.ralphLoopEnabled ? "" : "opacity-50"}`}>
         <div className="grid gap-1.5">
@@ -220,36 +206,12 @@ export function AgentConfig({ initialSettings }: { initialSettings?: AgentPrefer
           </p>
         </div>
 
-        <button
-          type="button"
-          role="switch"
-          aria-checked={settings.ralphLoopLlmVerifyEnabled}
-          className={`cyber-checkbox-row w-full border p-4 text-left ${
-            settings.ralphLoopLlmVerifyEnabled ? "cyber-checkbox-row-active" : ""
-          }`}
-          onClick={() =>
-            void commit("ralphLoopLlmVerifyEnabled", !settings.ralphLoopLlmVerifyEnabled)
-          }
-        >
-          <span
-            className={`cyber-checkbox ${
-              settings.ralphLoopLlmVerifyEnabled ? "cyber-checkbox-checked" : ""
-            }`}
-            aria-hidden="true"
-          >
-            {settings.ralphLoopLlmVerifyEnabled ? (
-              <Check className="h-5 w-5" strokeWidth={3.5} />
-            ) : null}
-          </span>
-          <span className="grid min-w-0 gap-1">
-            <span className="theme-display-label zone-title-bar">LLM confirmation</span>
-            <span className="theme-display-detail">
-              When the quick state check has not yet succeeded, ask a small JSON-only model
-              pass whether the observed state already satisfies the request (never spoken).
-              Off falls back to the original state-only checks.
-            </span>
-          </span>
-        </button>
+        <SwitchRow
+          checked={settings.ralphLoopLlmVerifyEnabled}
+          label="LLM confirmation"
+          detail="When the quick state check has not yet succeeded, ask a small JSON-only model pass whether the observed state already satisfies the request (never spoken). Off falls back to the original state-only checks."
+          onChange={(checked) => void commit("ralphLoopLlmVerifyEnabled", checked)}
+        />
 
         <div
           className={`grid gap-1.5 ${settings.ralphLoopLlmVerifyEnabled ? "" : "opacity-50"}`}

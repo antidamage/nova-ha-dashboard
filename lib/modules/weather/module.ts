@@ -13,7 +13,9 @@ const WEATHER_CACHE_GRACE_MS = 5 * 1000;
 const UNAVAILABLE_STATES = new Set(["unavailable", "unknown"]);
 
 type WeatherForecastEntry = Record<string, unknown>;
-type WeatherForecastResult = { value: WeatherForecastEntry | null; error: Error | null };
+// The whole daily list is kept, not just today: the Outside weather panel
+// shows the coming days below its Advanced line (specs/advanced-fold.md).
+type WeatherForecastResult = { value: WeatherForecastEntry | null; days: WeatherForecastEntry[]; error: Error | null };
 
 let weatherForecastCache: ({ at: number; entityId: string } & WeatherForecastResult) | null = null;
 let weatherForecastRequest: Promise<WeatherForecastResult> | null = null;
@@ -81,12 +83,13 @@ async function dailyWeatherForecast(entityId: string, cacheMs: number): Promise<
       service_response?: Record<string, { forecast?: WeatherForecastEntry[] }>;
     }>("weather", "get_forecasts", { entity_id: entityId, type: "daily" })
       .then(
-        (response): WeatherForecastResult => ({
-          value: response.service_response?.[entityId]?.forecast?.[0] ?? null,
-          error: null,
-        }),
+        (response): WeatherForecastResult => {
+          const days = response.service_response?.[entityId]?.forecast ?? [];
+          return { value: days[0] ?? null, days, error: null };
+        },
         (error): WeatherForecastResult => ({
           value: null,
+          days: [],
           error: error instanceof Error ? error : new Error(String(error)),
         }),
       )
@@ -143,6 +146,7 @@ export async function buildWeatherStatus(
   }
 
   let forecast: WeatherForecastEntry | null = null;
+  let forecastDays: WeatherForecastEntry[] = [];
   if (!down) {
     const result = await dailyWeatherForecast(entityId, weatherRefreshIntervalMs(config) + WEATHER_CACHE_GRACE_MS);
     if (result.error) {
@@ -152,16 +156,21 @@ export async function buildWeatherStatus(
       }
     }
     forecast = result.value;
+    forecastDays = result.days;
   }
 
-  const status = weatherStatusFrom(weatherState, forecast);
+  const status = weatherStatusFrom(weatherState, forecast, forecastDays);
   if (!down && forecast) {
     lastGoodWeather = status;
   }
   return status;
 }
 
-function weatherStatusFrom(weatherState: HaState, forecast: WeatherForecastEntry | null): WeatherStatus {
+function weatherStatusFrom(
+  weatherState: HaState,
+  forecast: WeatherForecastEntry | null,
+  forecastDays: WeatherForecastEntry[] = [],
+): WeatherStatus {
   const attrs = weatherState.attributes ?? {};
   const windUnit = String(attrs.wind_speed_unit ?? "km/h");
   const precipitation = numberOrNull(forecast?.precipitation);
@@ -187,6 +196,17 @@ function weatherStatusFrom(weatherState: HaState, forecast: WeatherForecastEntry
     uvIndex: roundOne(uvIndex),
     maxUvIndex: roundOne(maxUvIndex),
     feelsLike: apparentTemperature(temperature, humidity, windSpeed, windUnit),
+    forecast: forecastDays.map((day) => ({
+      datetime: typeof day.datetime === "string" ? day.datetime : null,
+      condition: typeof day.condition === "string" ? day.condition : null,
+      high: roundOne(numberOrNull(day.temperature)),
+      low: roundOne(numberOrNull(day.templow)),
+      rainChancePct: estimateRainChance(
+        String(day.condition ?? "unknown"),
+        numberOrNull(day.precipitation),
+      ),
+      precipitation: roundOne(numberOrNull(day.precipitation)),
+    })),
   };
 }
 

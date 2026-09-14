@@ -1,7 +1,7 @@
 "use client";
 
-import { Flame, Power, PowerOff, Sun } from "lucide-react";
-import { useCallback, useMemo, useRef } from "react";
+import { Flame, PartyPopper, Power, PowerOff, Sun } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DashboardPreferences,
   ClimateControlState,
@@ -15,7 +15,10 @@ import type { EntityActionInput } from "../../../lib/aircon-control";
 import { ColorEncoder, type ColorEncoderChannel } from "../ColorEncoder";
 import { hsvToRgb, rgbToHsv, type Hsva } from "../colorEncoderModel";
 import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "./EnvironmentPanels";
+import { AdvancedFold } from "./AdvancedFold";
 import { IconButton } from "./IconButton";
+import { LabeledSlideSwitch } from "../SlideSwitch";
+import { ZoneLightEvents } from "./ZoneLightEvents";
 import { selectPrimaryZonePanel } from "./panel-registry";
 import { ModuleSlot } from "../modules/ModuleSlot";
 import {
@@ -39,6 +42,37 @@ import {
   type SpectrumValue,
 } from "./lighting";
 import { useRemoteSetting } from "./useRemoteSetting";
+
+/**
+ * House Party for one zone: the visualiser may animate this zone's lights.
+ * Lives in the zone's Advanced section (specs/advanced-fold.md); the master
+ * switch stays on the Visualiser config page.
+ */
+function HousePartyControl({
+  disabled,
+  enabled,
+  onToggle,
+}: {
+  disabled: boolean;
+  enabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <section className="zone-party-control border border-fuchsia-400/30 bg-fuchsia-950/20 p-4">
+      <header className="mb-4 flex items-center gap-3">
+        <PartyPopper className="h-6 w-6 text-fuchsia-300" aria-hidden="true" />
+        <h2 className="font-black uppercase text-fuchsia-100">House Party</h2>
+      </header>
+      <LabeledSlideSwitch
+        checked={enabled}
+        disabled={disabled}
+        icon={<PartyPopper className="h-4 w-4" />}
+        label="House Party"
+        onChange={onToggle}
+      />
+    </section>
+  );
+}
 
 /**
  * Whether a zone's reported brightness has reached what was set. The zone value
@@ -236,6 +270,33 @@ export function ZoneControls({
   );
   const hasLightDevices = lightEntities.length > 0;
   const hasActiveLights = lightEntities.some(dashboardEntityIsOn);
+  // House Party, back in the zone panel after a concurrent session's WIP
+  // commit dropped it while its backend stayed live (specs/landscape-layout.md).
+  const persistedHouseParty = preferences?.lighting?.housePartyZones?.[zone.id]?.enabled ?? false;
+  const [housePartyEnabled, setHousePartyEnabled] = useState(persistedHouseParty);
+  const [housePartyBusy, setHousePartyBusy] = useState(false);
+
+  useEffect(() => {
+    setHousePartyEnabled(persistedHouseParty);
+  }, [persistedHouseParty, zone.id]);
+
+  const toggleHouseParty = useCallback(async () => {
+    const enabled = !housePartyEnabled;
+    setHousePartyEnabled(enabled);
+    setHousePartyBusy(true);
+    try {
+      const response = await fetch(`/api/phonoscope/house-party/zones/${encodeURIComponent(zone.id)}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      if (!response.ok) throw new Error("House Party setting failed");
+    } catch {
+      setHousePartyEnabled(!enabled);
+    } finally {
+      setHousePartyBusy(false);
+    }
+  }, [housePartyEnabled, zone.id]);
   const rememberSpectrum = useCallback(
     (value: SpectrumValue) => {
       spectrumByZone.current[zone.id] = value;
@@ -294,8 +355,20 @@ export function ZoneControls({
               onNotice,
             })
           ) : (
-            <>
-              {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
+            <AdvancedFold
+              advanced={
+                <>
+                  {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
+                  {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
+                  <HousePartyControl
+                    disabled={!hasLightDevices}
+                    enabled={housePartyEnabled}
+                    onToggle={toggleHouseParty}
+                  />
+                  <ZoneLightEvents lights={lightEntities} zone={zone} />
+                </>
+              }
+            >
               <div className="zone-lighting-controls">
                 <ZoneColorEncoder
                   brightness={brightness}
@@ -334,8 +407,7 @@ export function ZoneControls({
                   </IconButton>
                 </div>
               </div>
-              {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
-            </>
+            </AdvancedFold>
           )}
         </div>
         <ModuleSlot id="zone.controls.after" context={{ zone }} />

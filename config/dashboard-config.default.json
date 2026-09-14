@@ -63,7 +63,9 @@
     },
     "lighting": {
       "intensityThresholds": [],
-      "entityPresets": []
+      "entityPresets": [],
+      "zoneEvents": [],
+      "eventSwitchOnEntityIds": []
     },
     "aircon": {
       "offTimerIncrementMinutes": 10,

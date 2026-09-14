@@ -9,6 +9,7 @@ import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
 import { cameraUrl, cameraHostBase, normalizeVideoHost } from "./dashboard/cameraHost";
 import { CameraAnalysisConfig } from "./CameraAnalysisConfig";
 import { useAgentName } from "./AgentNameContext";
+import { SlideSwitch } from "./SlideSwitch";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
@@ -379,24 +380,12 @@ export function CameraConfig() {
           <div className="grid gap-2 border border-cyan-300/20 bg-neutral-900/70 p-3">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-black uppercase text-cyan-200">Camera ingestion</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={ingestionEnabled}
-                aria-label="Camera ingestion"
+              <SlideSwitch
+                checked={ingestionEnabled}
                 disabled={DEMO_MODE || ingestionBusy}
-                onClick={() => void toggleIngestion()}
-                className={`relative inline-flex h-7 w-12 items-center rounded-full border transition-colors ${
-                  ingestionEnabled ? "border-emerald-300/60 bg-emerald-500/30" : "border-neutral-600 bg-neutral-800"
-                } ${ingestionBusy ? "opacity-60" : ""}`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`inline-block h-5 w-5 transform rounded-full bg-neutral-100 transition-transform ${
-                    ingestionEnabled ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
+                label="Camera ingestion"
+                onChange={() => void toggleIngestion()}
+              />
             </div>
             <span className="text-xs text-neutral-400">
               {ingestionEnabled

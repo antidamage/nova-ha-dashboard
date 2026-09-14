@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RouterStatus } from "../../../lib/types";
 import { classNames, clamp } from "./shared";
+import { AdvancedFold } from "./AdvancedFold";
 import { DesktopSleepPanel } from "./DesktopSleepPanel";
 import { arePageUpdatesPaused } from "./pageUpdatePause";
 
@@ -79,7 +80,23 @@ export function RouterPanel({
   const gaugeDeg = (downloadPct / 100) * 180;
 
   return (
-    <section className="router-panel border border-neutral-700 bg-neutral-950/70 p-5">
+    <AdvancedFold
+      className="router-panel border border-neutral-700 bg-neutral-950/70 p-5"
+      advanced={
+        <div className="router-status-card router-wan-card border border-neutral-700 bg-neutral-950/70 p-5">
+          <p className="text-sm font-black uppercase text-cyan-300">WAN Status</p>
+          <div className="mt-2 flex items-center gap-3">
+            <span
+              className={classNames(
+                "h-4 w-4 border",
+                router.wanConnected ? "border-emerald-300 bg-emerald-300" : "border-red-400 bg-red-400",
+              )}
+            />
+            <p className="text-2xl font-black uppercase text-neutral-50">{router.wanState}</p>
+          </div>
+        </div>
+      }
+    >
       <header className="mb-4 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-black uppercase text-cyan-300">Network Interface</p>
@@ -122,18 +139,6 @@ export function RouterPanel({
           </div>
         </div>
 
-        <div className="router-status-card router-wan-card border border-neutral-700 bg-neutral-950/70 p-5">
-          <p className="text-sm font-black uppercase text-cyan-300">WAN Status</p>
-          <div className="mt-2 flex items-center gap-3">
-            <span
-              className={classNames(
-                "h-4 w-4 border",
-                router.wanConnected ? "border-emerald-300 bg-emerald-300" : "border-red-400 bg-red-400",
-              )}
-            />
-            <p className="text-2xl font-black uppercase text-neutral-50">{router.wanState}</p>
-          </div>
-        </div>
       </div>
 
       {onDesktopSleep || onDesktopWake ? (
@@ -146,6 +151,6 @@ export function RouterPanel({
           />
         </div>
       ) : null}
-    </section>
+    </AdvancedFold>
   );
 }

@@ -20,11 +20,12 @@ import {
   normalizeGlyph,
   type ReminderGlyph,
 } from "../../lib/reminder-glyph";
-import { CheckboxRow, ConfigAccordion } from "./ConfigControls";
+import { ConfigAccordion } from "./ConfigControls";
 import { useReminderBannerSetting } from "./dashboard/reminderBannerSetting";
 import type { ReminderOutlineShape } from "./dashboard/reminderBarSettings";
 import { ReminderGlyphMark, reminderGlyphLabel } from "./reminders/icon-registry";
 import { ReminderIconPicker } from "./reminders/ReminderIconPicker";
+import { SlideSwitch, SwitchRow } from "./SlideSwitch";
 
 type RosterEntry = {
   key: string;
@@ -236,7 +237,7 @@ export function RemindersConfig() {
       <div className="panel-corner panel-corner-right" />
 
       <div className="grid gap-4">
-        <CheckboxRow
+        <SwitchRow
           checked={bannersEnabled}
           label="Reminder Banners"
           detail={
@@ -330,19 +331,11 @@ export function RemindersConfig() {
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={entry.showInBar}
-                    className={`min-h-9 border px-3 text-xs font-black uppercase ${
-                      entry.showInBar
-                        ? "border-cyan-300/60 bg-cyan-300/10 text-cyan-100"
-                        : "border-neutral-700 text-neutral-500"
-                    }`}
-                    onClick={() => void patchEntry(entry.key, { showInBar: !entry.showInBar })}
-                  >
-                    {entry.showInBar ? "In bar" : "Hidden"}
-                  </button>
+                  <SlideSwitch
+                    checked={entry.showInBar}
+                    label={`Show ${entry.displayName} in the reminder bar`}
+                    onChange={() => void patchEntry(entry.key, { showInBar: !entry.showInBar })}
+                  />
                 </li>
               ))}
             </ul>
