@@ -85,7 +85,6 @@ export function ClockPanel() {
     <section className="clock-panel border border-neutral-700 bg-neutral-950/70 p-5">
       <header className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-black uppercase text-cyan-300">System Time</p>
           <h2 className="mt-1 text-3xl font-black uppercase text-neutral-50">{agentName}</h2>
         </div>
         <div className="border border-cyan-300/50 px-3 py-2 text-xs font-black uppercase text-cyan-200">
