@@ -22,6 +22,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Task } from "../../../lib/types";
+import { useOrbSettings } from "../orb-info/useOrbSettings";
+import { useOrbTimer } from "../orb-info/useOrbTimer";
 import { washReminder } from "../../../lib/wash-reminder";
 import {
   FALLBACK_REMINDER_GLYPH,
@@ -105,6 +107,8 @@ function parseRoster(raw: string): RosterEntry[] {
 }
 
 export function ReminderIconBar() {
+  const { hasWashing, hasTimer } = useOrbSettings();
+  const { timer, command: timerCommand } = useOrbTimer();
   const runModuleIntercepts = useModuleIntercepts();
   const settings = useReminderBarSettings();
   const [roster, setRoster] = useState<RosterEntry[]>([]);
@@ -261,15 +265,21 @@ export function ReminderIconBar() {
           order: entry.order,
         } satisfies Tile;
       })
-      .concat(tasks.filter((task) => washReminder(task) && !task.dismissedAt && !task.alertDismissedAt).map((task): Tile => ({
+      .concat(tasks.filter((task) => !hasWashing && washReminder(task) && !task.dismissedAt && !task.alertDismissedAt).map((task): Tile => ({
         key: task.id, displayName: task.name, glyph: { kind: "phosphor", id: "washing-machine" },
         state: washReminder(task)?.phase === "active" ? "due" : "idle",
         taskId: washReminder(task)?.phase === "active" ? task.id : null,
         undoUntil: null, nextDueMs: taskStartMs(task), order: -1,
       })))
+      .concat(!hasTimer && timer && timer.dismissedAt === null ? [{
+        key: `timer-${timer.id}`, displayName: `${timer.label} timer`,
+        glyph: timer.icon.startsWith("text:") ? { kind: "text" as const, value: timer.icon.slice(5) } : { kind: "phosphor" as const, id: timer.icon },
+        state: timer.completedAt !== null ? "due" as const : "idle" as const,
+        taskId: timer.completedAt !== null ? `timer-${timer.id}` : null, undoUntil: null, nextDueMs: timer.endsAt, order: -1,
+      }] : [])
       .sort(compareReminderTiles)
       .slice(0, settings.maxTiles);
-  }, [nowMs, recentCompletions, roster, settings.maxTiles, settings.overduePulseAfterMs, tasks]);
+  }, [hasWashing, hasTimer, timer, nowMs, recentCompletions, roster, settings.maxTiles, settings.overduePulseAfterMs, tasks]);
 
   const markBusy = useCallback((key: string, busy: boolean) => {
     setBusyKeys((current) => {
@@ -285,6 +295,7 @@ export function ReminderIconBar() {
 
   const completeTile = useCallback(
     async (tile: Tile) => {
+      if (tile.taskId?.startsWith("timer-")) { await timerCommand({ command: "dismiss", id: tile.taskId.slice(6) }); return; }
       if (!tile.taskId) {
         return;
       }

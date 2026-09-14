@@ -11,6 +11,9 @@
 // at a glance from across a room, and bold is the heaviest outline weight
 // before Phosphor switches to solid fills.
 
+import { TimerIcon } from "@phosphor-icons/react/dist/csr/Timer";
+import { UmbrellaIcon } from "@phosphor-icons/react/dist/csr/Umbrella";
+import { SpinnerIcon } from "@phosphor-icons/react/dist/csr/Spinner";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { AirplaneIcon } from "@phosphor-icons/react/dist/csr/Airplane";
 import { AlarmIcon } from "@phosphor-icons/react/dist/csr/Alarm";
@@ -88,6 +91,7 @@ import {
 } from "../../../lib/reminder-glyph";
 
 const ICON_COMPONENTS: Record<string, PhosphorIcon> = {
+  timer: TimerIcon, umbrella: UmbrellaIcon, spinner: SpinnerIcon,
   airplane: AirplaneIcon,
   alarm: AlarmIcon,
   baby: BabyIcon,

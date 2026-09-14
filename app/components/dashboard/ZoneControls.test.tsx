@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DashboardEntity, DashboardZone, RouterStatus } from "../../../lib/types";
 import { REMOTE_SETTING_MIN_HOLD_MS, REMOTE_SETTING_SETTLE_MS } from "./useRemoteSetting";
 import { ZoneControls } from "./ZoneControls";
+import { openAdvancedFold } from "./advancedFoldTesting";
 
 type Hsva = { h: number; s: number; v: number; a: number };
 type EncoderChannel = "hue" | "brightness" | "saturation" | "opacity";
@@ -125,17 +126,6 @@ function expectBefore(left: HTMLElement, right: HTMLElement) {
   expect(Boolean(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
 }
 
-/**
- * Pull past the Advanced line, the way a drag does
- * (specs/advanced-fold.md). The detail below it is not mounted until then.
- */
-function openAdvancedFold(container: HTMLElement) {
-  const fold = container.querySelector(".advanced-fold") as HTMLElement;
-  // Diagonal, so the same helper works whichever axis the layout gives it.
-  fireEvent.pointerDown(fold, { pointerType: "mouse", button: 0, clientX: 200, clientY: 200 });
-  fireEvent.pointerMove(fold, { pointerType: "mouse", clientX: 120, clientY: 120 });
-  fireEvent.pointerUp(fold);
-}
 
 describe("ZoneControls", () => {
   beforeEach(() => {

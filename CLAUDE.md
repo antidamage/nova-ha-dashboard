@@ -136,14 +136,16 @@ the named component before introducing a one-off equivalent.
   formerly private to `ClimateControls`. Every card passes a stable `cardId`
   because module slots target cards by it.
 - `HorizontalAccordion` — `app/components/dashboard/HorizontalAccordion.tsx`.
-  Adapted from the multimeter's `HAccordion` for the landscape zone selector.
-  A thick, full-height bar opens sideways; its counter-clockwise vertical title
-  stays at the top. The stable trigger retains keyboard focus, uses the shared
-  momentary feedback and short-lived accordion persistence, and leaves portrait
-  menus expanded. Reuse it for horizontal dashboard sections. Its `attached`
-  prop joins the selected zone's controls to the right of the list as one
-  unit in landscape; `useWideDashboard` is the layout test. See
-  `specs/landscape-layout.md`.
+  Adapted from the multimeter's `HAccordion` for the zone selector, in both
+  orientations. Landscape: a thick, full-height bar opens sideways; its
+  counter-clockwise vertical title stays at the top. Portrait: a full-width
+  ~56px bar, title left, chevron right (down open, right closed), opening
+  downward. Both collapse and share one open/closed state. The stable trigger
+  retains keyboard focus and uses the shared momentary feedback and
+  short-lived accordion persistence. Its `attached` prop joins the selected
+  zone's controls to the list as one unit: to the right in landscape, below it
+  in portrait; `useWideDashboard` is the layout test. See
+  `specs/landscape-layout.md` and `specs/portrait-layout.md`.
 - `CameraEventReport`, `CameraAnalysisConfig`, and `VehicleReferenceEditor` —
   the Outside-camera activity review, visual polygon editor, and photo-region
   vehicle reference editor. These use the shared `ModalOverlay`; scene and
@@ -199,3 +201,5 @@ the named component before introducing a one-off equivalent.
   `app/components/VoicePersonalityLibraryControl.tsx`. These are the established
   save/load/rename/delete library interactions for themes and voice
   personalities.
+
+- `TimerEncoder` - `app/components/TimerEncoder.tsx`. Household timer on `RotaryEncoder`, icon detents, logarithmic duration ring, numeric value entry, shared countdown, and five-second tuck/commit. See `specs/status-orb-stack.md`.

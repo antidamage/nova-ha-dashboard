@@ -1,4 +1,6 @@
 "use client";
+import { ConfigSelect } from "./ConfigSelect";
+import { TIMER_SOUNDS } from "../../lib/orb-timer-settings";
 
 import { ArrowLeftRight, Bell, Check, CircleDot, Clipboard, Copy, Download, Image as ImageIcon, Map as MapIcon, Music, Palette, Play, SlidersHorizontal, Trash2, Type, Upload, UploadCloud, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
@@ -2167,6 +2169,9 @@ export function AccentConfig({
             className="config-sub-accordion"
             actions={sectionActions("sound", "sound")}
           >
+            <ConfigSelect label="Timer sound" ariaLabel="Timer completion sound" value={theme.timerSound}
+              options={TIMER_SOUNDS.map((name) => ({ value: name, label: name }))}
+              onChange={(timerSound) => setTheme({ ...theme, timerSound })} />
             <ControlSoundConfig
               color={highlightRgb}
               value={theme.controlSound}

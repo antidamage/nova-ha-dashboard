@@ -41,6 +41,10 @@ export const REMINDER_ICON_GROUP_LABELS: Record<ReminderIconGroup, string> = {
 };
 
 export const REMINDER_ICON_CATALOG: ReminderIconCatalogEntry[] = [
+  { id: "timer", label: "Timer", group: "life", keywords: ["countdown", "timer"] },
+  { id: "umbrella", label: "Umbrella", group: "life", keywords: ["rain", "umbrella"] },
+  { id: "spinner", label: "Updating", group: "life", keywords: ["update"] },
+
   // --- health -------------------------------------------------------------
   { id: "pill", label: "Pill", group: "health", keywords: ["pill", "meds", "medication", "medicine", "tablet", "estrogen", "oestrogen", "hrt", "hormone", "vitamin", "supplement"] },
   { id: "syringe", label: "Syringe", group: "health", keywords: ["injection", "inject", "syringe", "jab", "vaccine", "booster", "insulin"] },

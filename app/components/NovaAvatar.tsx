@@ -22,6 +22,7 @@ import { arePageUpdatesPaused } from "./dashboard/pageUpdatePause";
 import { isHorizontalDashboard } from "./dashboard/useClickDragScroll";
 import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
+import { OrbEventReadout } from "./orb-info/OrbEventReadout";
 import { useOrbInfo } from "./orb-info/useOrbInfo";
 import type { OrbInfoDisplay } from "../../lib/orb-info/types";
 import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
@@ -584,7 +585,9 @@ function NovaAvatarVisual({
       data-nova-force-orb-info={forceVisible ? "true" : undefined}
       role="group"
       style={hostStyle}
-      onClick={orbTappable ? voice.toggleTap : undefined}
+      onClick={orbInfo.dismiss ? () => void orbInfo.dismiss?.().catch(console.error) : orbTappable ? voice.toggleTap : undefined}
+      tabIndex={orbInfo.dismiss ? 0 : undefined}
+      onKeyDown={orbInfo.dismiss ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void orbInfo.dismiss?.().catch(console.error); } } : undefined}
     >
       <div
         className={`nova-avatar-voice-glow${voiceGlowActive ? " is-visible" : ""}`}
@@ -628,7 +631,7 @@ function NovaAvatarVisual({
           data-nova-orb-info-module={orbInfo.module.id}
           suppressHydrationWarning
         >
-          {orbInfo.text}
+          {orbInfo.output.icon ? <OrbEventReadout icon={orbInfo.output.icon} fraction={orbInfo.output.countdownFraction} text={orbInfo.text} /> : orbInfo.text}
         </div>
       ) : null}
     </div>

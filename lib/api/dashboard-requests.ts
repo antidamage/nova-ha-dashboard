@@ -1,3 +1,4 @@
+import { normalizeTimerIcons } from "../orb-timer-settings";
 import { z } from "zod";
 import { normalizeGymAlertThresholdHours, normalizeWatchfaceIdleTimeoutMs } from "../watchface-preferences";
 import { ORB_INFO_MODULES_BY_ID } from "../orb-info/catalogue";
@@ -236,6 +237,32 @@ export function parseOrbInfoUpdateRequest(value: unknown): OrbInfoPreferences {
   const body = requestRecord(value);
   const next: OrbInfoPreferences = {};
 
+  if (body.timerIcons !== undefined) next.timerIcons = normalizeTimerIcons(body.timerIcons);
+
+  if (body.entries !== undefined) {
+    if (!Array.isArray(body.entries) || body.entries.length > 32) {
+      throw new Error("Status orb entries must be a list of at most 32 rows");
+    }
+    const ids = new Set<string>();
+    next.entries = body.entries.map((value) => {
+      const row = requestRecord(value);
+      if (typeof row.id !== "string" || !row.id || row.id.length > 100 || ids.has(row.id)) {
+        throw new Error("Status orb entry IDs must be unique non-empty strings");
+      }
+      ids.add(row.id);
+      const module = typeof row.moduleId === "string" ? ORB_INFO_MODULES_BY_ID[row.moduleId] : undefined;
+      if (!module) throw new Error("Unknown status orb entry module");
+      if (row.activation !== "always" && row.activation !== "whenAlerting") {
+        throw new Error("Invalid status orb activation");
+      }
+      return {
+        id: row.id, moduleId: module.id, activation: row.activation,
+        display: normalizeOrbDisplay(row.display, module.defaultDisplay),
+        params: normalizeOrbParams(row.params, module),
+      };
+    });
+  }
+
   if (body.moduleId !== undefined) {
     if (typeof body.moduleId !== "string" || !ORB_INFO_MODULES_BY_ID[body.moduleId]) {
       throw new Error(`Unknown status orb module: ${String(body.moduleId)}`);
@@ -262,7 +289,7 @@ export function parseOrbInfoUpdateRequest(value: unknown): OrbInfoPreferences {
     next.modules = modules;
   }
 
-  if (next.moduleId === undefined && next.modules === undefined) {
+  if (next.moduleId === undefined && next.modules === undefined && next.entries === undefined && next.timerIcons === undefined) {
     throw new Error("No status orb info settings provided");
   }
 

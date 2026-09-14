@@ -1,3 +1,5 @@
+import { readDashboardPreferences } from "./preferences";
+import { resolveOrbEntries } from "./orb-info/preferences";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { publishTaskDismiss, publishTasks } from "./dashboard-events";
@@ -592,12 +594,17 @@ export async function syncWashReminder(id: string, name: string, start: string, 
 }
 
 export async function claimWashChime(id: string): Promise<boolean> {
+  const preferences = await readDashboardPreferences();
+  const repeat = resolveOrbEntries(preferences.orbInfo).some((entry) => entry.moduleId === "washing");
   return mutateTasks((tasks) => {
     const task = tasks.find((candidate) => candidate.id === id);
-    if (!task || washReminder(task)?.phase !== "active" || task.dismissedAt || task.alertDismissedAt || task.alertChimedFor === alertSessionKey(task)) {
-      return { tasks, result: false };
-    }
-    return { tasks: tasks.map((candidate) => candidate.id === id ? { ...candidate, alertChimedFor: alertSessionKey(task) } : candidate), result: true };
+    if (!task || washReminder(task)?.phase !== "active" || task.dismissedAt || task.alertDismissedAt) return { tasks, result: false };
+    const session = alertSessionKey(task);
+    const elapsed = Date.now() - Date.parse(task.start);
+    const slot = Math.floor(elapsed / 30_000);
+    const claim = repeat ? `${session}:orb:${slot}` : session;
+    if (elapsed < 0 || (repeat && elapsed >= 300_000) || task.alertChimedFor === claim || (!repeat && task.alertChimedFor?.startsWith(session))) return { tasks, result: false };
+    return { tasks: tasks.map((candidate) => candidate.id === id ? { ...candidate, alertChimedFor: claim } : candidate), result: true };
   });
 }
 

@@ -20,6 +20,7 @@ const CONFIG: WashingMachineConfig = {
   startSustainedSeconds: 120,
   endWatts: 5,
   endQuietSeconds: 300,
+  typicalMinutes: 66,
   minCycleKwh: 0.05,
 };
 

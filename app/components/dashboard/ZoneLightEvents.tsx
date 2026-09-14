@@ -97,7 +97,7 @@ export function ZoneLightEvents({ lights, zone }: { lights: DashboardEntity[]; z
 
   if (!payload) {
     return (
-      <section className="zone-light-events">
+      <section className="advanced-fold-row zone-light-events">
         <h2 className="zone-light-events-title">Light events</h2>
         <p className="theme-display-detail">{error ?? "Loading…"}</p>
       </section>
@@ -105,7 +105,7 @@ export function ZoneLightEvents({ lights, zone }: { lights: DashboardEntity[]; z
   }
 
   return (
-    <section className="zone-light-events">
+    <section className="advanced-fold-row zone-light-events">
       <header className="zone-light-events-header">
         <h2 className="zone-light-events-title">Light events</h2>
         <IconButton

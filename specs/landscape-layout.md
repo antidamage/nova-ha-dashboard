@@ -5,7 +5,7 @@ Produced by: claude-code session_01BWgQ56, task 20260911T074843Z-11075c82
 landscape accordion work (tasks 20260911T025552Z-566ec253 onwards).
 
 Applies when `(aspect-ratio > 1)` matches and the page is the dashboard home
-(`isHorizontalDashboard()`). Portrait is unchanged by everything below.
+(`isHorizontalDashboard()`). Portrait is `specs/portrait-layout.md`.
 
 ## Page model
 
@@ -109,21 +109,27 @@ and **Systems** (climate, outside, world, network, power, tasks).
     that view, and the resist-then-snap drag that reaches past it are
     `specs/advanced-fold.md`. It also says which content each panel puts below
     the line, and covers portrait, where the line is vertical on the right.
-  - Mechanism: the zone panel's body (`.zone-panel > .mt-8`) is the vertical
-    scroller, below the panel header, and its grid rows are floored at their
-    content (`minmax(min-content, 1fr)`) so a clipped panel (`clip-path`) is
-    never squeezed shorter than what it holds. Only a card that has to take
-    its size from the column height — Outside's camera — keeps a 0 floor.
-  - Network's Computers column puts Sleep and Wake side by side, one machine
-    per row.
+  - Mechanism (revised 2026-09-14, plan
+    `we-ve-separated-the-landscape-s-ancient-parnas`): **each sub-panel is its
+    own vertical scroller** (`specs/advanced-fold.md`, "Every sub-panel scrolls
+    on its own"). The zone panel's body (`.zone-panel > .mt-8`) no longer
+    scrolls; the rows from the control stage down are `minmax(0, 1fr)` so every
+    sub-panel gets a definite height, and a panel is never cut off because the
+    sub-panel scrolls. This replaces the earlier `minmax(min-content, 1fr)`
+    floors, which let one scroll extent cover several sub-panels.
+  - Network is two sub-panels side by side, neither with an Advanced section:
+    the router (name, WAN state, gauge, throughput, WAN status card) and
+    Computers, which puts Sleep and Wake side by side, one machine per row.
   - `e2e/landscape-panel-overflow.spec.ts` checks it at 1920×1080 and
     1366×768.
-- Portrait keeps the old layout and single global selection: list in the
-  zones panel, controls in the control stage below.
+- Portrait has its own spec, `specs/portrait-layout.md` (2026-09-14): per-group
+  selection there too, each group's controls under its own list.
 
 Landscape zone panels must disable `container-type: inline-size`: containment
 discards their children's intrinsic widths and defeats `width: max-content`
-on every ancestor. The landscape header uses an explicit horizontal layout
+on every ancestor. The one deliberate exception is the Advanced region
+(`contain: inline-size`), whose width must *not* reach the sub-panel
+(`specs/advanced-fold.md`, "Size lock"). The landscape header uses an explicit horizontal layout
 instead of the portrait container query.
 The redundant "Zone Control" kicker and zone title are hidden in landscape;
 the adjacent submenu identifies the zone. Counts and lighting actions remain
@@ -174,5 +180,5 @@ the knob into the next control. Keep this treatment scoped to landscape.
 - Outside fits its column with no vertical scrollbar: light, weather, camera
   across (`specs/outside-card.md`).
 - House Party is in the Advanced section of every lighting zone panel.
-- Portrait layout unchanged.
+- Portrait: see `specs/portrait-layout.md`.
 - Unit tests pass; deployed and checked live.

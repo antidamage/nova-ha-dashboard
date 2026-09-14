@@ -87,6 +87,11 @@ export type OrbInfoDisplay = {
  * genuinely no reading" from "the reading failed".
  */
 export type OrbModuleOutput = {
+  /** Event entries participate only while active; scalar modules omit this. */
+  active?: boolean;
+  icon?: string;
+  countdownFraction?: number;
+  dismiss?: { kind: "timer" | "washing"; id: string };
   /** Canonical magnitude in `baseUnit`, or null when there is no reading. */
   value: number | null;
   /** Pre-rendered words for `text`-format modules (HA health, WAN state). */
@@ -129,7 +134,7 @@ export type OrbModuleGroup =
  * sources its selected module declares, so selecting `none` (or the clock)
  * starts no polling at all.
  */
-export type OrbSourceId = "watchface" | "novaLoad" | "power" | "dashboardState" | "clock" | "tasks";
+export type OrbSourceId = "watchface" | "novaLoad" | "power" | "dashboardState" | "clock" | "tasks" | "orbTimer" | "orbEvents";
 
 /**
  * A module parameter. "Zone temperature" is meaningless without knowing WHICH
@@ -166,7 +171,16 @@ export type OrbModulePreference = {
 };
 
 export type OrbInfoPreferences = {
+  timerIcons?: import("../orb-timer-settings").TimerIcon[];
+  entries?: OrbStackEntry[];
   moduleId?: string;
   modules?: Record<string, OrbModulePreference>;
   updatedAt?: string;
+};
+
+/** First active row wins. IDs keep duplicate modules independently editable. */
+export type OrbStackEntry = OrbModulePreference & {
+  id: string;
+  moduleId: string;
+  activation: "always" | "whenAlerting";
 };

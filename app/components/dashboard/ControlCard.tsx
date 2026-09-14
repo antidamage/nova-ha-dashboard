@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { DashboardEntity } from "../../../lib/types";
 import { ModuleSlot } from "../modules/ModuleSlot";
+import { AdvancedFold } from "./AdvancedFold";
 import { classNames } from "./shared";
 
 /**
@@ -27,13 +28,18 @@ export type ControlCardProps = {
    */
   kicker?: string;
   title?: string;
+  /**
+   * The card is a sub-panel of its own: an independent scroller with no
+   * Advanced section (specs/advanced-fold.md). The climate cards set it.
+   */
+  subPanel?: boolean;
 };
 
-export function ControlCard({ cardId, children, entity, kicker, title }: ControlCardProps) {
+export function ControlCard({ cardId, children, entity, kicker, subPanel = false, title }: ControlCardProps) {
   const unavailable = entity ? ["unknown", "unavailable"].includes(entity.state) : true;
 
-  return (
-    <section className="climate-card border border-neutral-700 bg-neutral-950/70 p-5" data-card-id={cardId}>
+  const body = (
+    <>
       <header className={classNames("mb-5 flex items-start gap-4", kicker || title ? "justify-between" : "justify-end")}>
         {kicker || title ? (
           <div className="min-w-0">
@@ -57,6 +63,17 @@ export function ControlCard({ cardId, children, entity, kicker, title }: Control
       {entity ? children : <p className="text-sm font-black uppercase text-neutral-400">Entity missing</p>}
       <ModuleSlot id="card.body.after" context={{ cardId, entity }} />
       <ModuleSlot id="card.footer" context={{ cardId, entity }} />
+    </>
+  );
+  const cardClass = "climate-card border border-neutral-700 bg-neutral-950/70 p-5";
+
+  return subPanel ? (
+    <AdvancedFold as="section" className={cardClass} data-card-id={cardId}>
+      {body}
+    </AdvancedFold>
+  ) : (
+    <section className={cardClass} data-card-id={cardId}>
+      {body}
     </section>
   );
 }

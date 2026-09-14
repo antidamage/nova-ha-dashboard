@@ -1,3 +1,4 @@
+import { primaryWashingConfig } from "./wash-config";
 import { callServiceWithResponse } from "./ha/client";
 import { readDashboardConfigSync } from "./dashboard-config";
 import type { HaState } from "./types";
@@ -9,7 +10,7 @@ import { emitModuleEvent } from "./modules/runtime/hooks";
 
 export async function reconcileWashCompletion(state: WashingMachineState, states: Map<string, HaState>) {
   const config = readDashboardConfigSync();
-  const alert = config.power.washingMachine?.completionAlert;
+  const alert = primaryWashingConfig(config)?.completionAlert;
   const open = state.open;
   // A short, discarded cycle or a disabled configuration must not strand a waiting icon.
   for (const task of await readTasks()) {

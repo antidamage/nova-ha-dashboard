@@ -62,11 +62,11 @@ export function WeatherPanel({ weather }: { weather: WeatherStatus | null }) {
 
 function WeatherForecastList({ days }: { days: WeatherForecastDay[] }) {
   if (!days.length) {
-    return <p className="text-xs font-black uppercase text-neutral-400">No forecast days from Home Assistant</p>;
+    return <p className="advanced-fold-row text-xs font-black uppercase text-neutral-400">No forecast days from Home Assistant</p>;
   }
 
   return (
-    <div className="weather-forecast-list grid gap-2">
+    <div className="advanced-fold-row weather-forecast-list grid gap-2">
       {days.map((day, index) => (
         <div key={day.datetime ?? index} className="weather-forecast-day border border-neutral-700 bg-neutral-950/70 p-3">
           <p className="text-xs font-black uppercase text-neutral-400">{forecastDayLabel(day.datetime)}</p>

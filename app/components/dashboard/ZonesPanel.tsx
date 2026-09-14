@@ -49,8 +49,9 @@ export function homeGroupOwns(zones: ReturnType<typeof buildZoneTree>, zoneId: s
 }
 
 // Each group (Home, Systems) has its own selected zone, so choosing a zone in
-// one never deselects or collapses the other (specs/landscape-layout.md).
-// Portrait passes the one global selection as both.
+// one never deselects or collapses the other, in both orientations
+// (specs/landscape-layout.md, specs/portrait-layout.md). Each tab bar names its
+// card, so the combined "Zones" heading is hidden in both (globals.css).
 export function ZonesPanel({
   data,
   homeSelectedId,
@@ -64,8 +65,8 @@ export function ZonesPanel({
   homeSelectedId: string | null;
   systemsSelectedId: string | null;
   zones: ReturnType<typeof buildZoneTree>;
-  // Each group's selected-zone controls, joined to its accordion entry.
-  // Passed only in the horizontal layout; portrait renders them below.
+  // Each group's selected-zone controls, joined to its accordion entry: to the
+  // right of its list in landscape, below it in portrait.
   homeControls?: ReactNode;
   systemsControls?: ReactNode;
   onSelectZone: (zoneId: string) => void;
@@ -84,6 +85,7 @@ export function ZonesPanel({
         <HorizontalAccordion
           title="Home"
           persistKey="dashboard-zones-home"
+          group="home"
           defaultOpen
           attached={homeControls}
           attachKey={homeSelectedId}

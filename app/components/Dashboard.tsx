@@ -22,7 +22,6 @@ import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
 import { useDashboardState } from "./dashboard/state";
 import { Warnings } from "./dashboard/Warnings";
 import { buildZoneTree, ZonesPanel } from "./dashboard/ZonesPanel";
-import { useWideDashboard } from "./dashboard/HorizontalAccordion";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useDashboardCommands } from "./dashboard/useDashboardCommands";
@@ -72,7 +71,7 @@ export function Dashboard() {
 
   const { data, error, eventClientId, pausePolling, refresh, setData } = useDashboardState();
   const [toast, setToast] = useState<string | null>(null);
-  const { selectedZone, selectedZoneId, selectZone, tasksZoneSelected } = useDashboardSelection(data);
+  const { selectedZone, selectedZoneId, selectZone } = useDashboardSelection(data);
   const zoneTree = useMemo(() => buildZoneTree(data), [data]);
   const loungeEnvironment = useMemo(() => findLoungeEnvironment(data), [data]);
   const bedroomHeaterConfig = useBedroomHeaterConfig();
@@ -89,7 +88,6 @@ export function Dashboard() {
   const showBackground = useExperienceFeature("background");
   useRadarPreload();
   useScrollRestore(data !== null);
-  const wide = useWideDashboard();
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("nova-sun-change", { detail: data?.sun ?? null }));
   }, [data?.sun]);
@@ -114,6 +112,7 @@ export function Dashboard() {
 
   const zoneControlsFor = (zone: DashboardZone) => (
     <ZoneControls
+      key={zone.id}
       zone={zone}
       bedroomHeater={bedroomHeater}
       bedroomTemperature={bedroomTemperature}
@@ -135,24 +134,9 @@ export function Dashboard() {
     />
   );
 
-  // Portrait: one control stage below the zone list, holding the always-mounted
-  // TasksPanel (it runs reminders even while hidden).
-  const portraitStage = (
-    <div className="control-stage grid gap-5">
-      <TasksPanel showPanel={tasksZoneSelected} />
-
-      {tasksZoneSelected ? null : selectedZone ? (
-        zoneControlsFor(selectedZone)
-      ) : (
-        <div className="min-h-96 border border-neutral-700 bg-neutral-950/70 p-8 text-neutral-400">
-          Loading zone controls
-        </div>
-      )}
-    </div>
-  );
-
-  // Landscape: each accordion group has its own selected zone and joins its
-  // controls to its entry (specs/landscape-layout.md).
+  // Each accordion group has its own selected zone and joins its controls to
+  // its entry, in both orientations (specs/landscape-layout.md,
+  // specs/portrait-layout.md).
   const groupStage = (zoneId: string | null, group: string) => {
     const zone = zoneForSelection(data, zoneId);
     return zone ? (
@@ -250,11 +234,11 @@ export function Dashboard() {
 
             <ZonesPanel
               data={data}
-              homeSelectedId={wide ? homeId : selectedZone?.id ?? selectedZoneId}
-              systemsSelectedId={wide ? systemsId : selectedZone?.id ?? selectedZoneId}
+              homeSelectedId={homeId}
+              systemsSelectedId={systemsId}
               zones={zoneTree}
-              homeControls={wide ? groupStage(homeId, "home") : null}
-              systemsControls={wide ? groupStage(systemsId, "systems") : null}
+              homeControls={groupStage(homeId, "home")}
+              systemsControls={groupStage(systemsId, "systems")}
               onSelectZone={(zoneId) => {
                 selectZone(zoneId);
                 if (isHorizontalDashboard()) {
@@ -267,15 +251,12 @@ export function Dashboard() {
               }}
             />
 
-            {wide ? (
-              // Kept mounted in one place so reminders keep running; shown as
-              // the Systems entry's joined panel when Tasks is its selection.
-              <div className="control-stage tasks-stage" data-group="systems" hidden={systemsId !== TASKS_ZONE_ID}>
-                <TasksPanel showPanel={systemsId === TASKS_ZONE_ID} />
-              </div>
-            ) : (
-              portraitStage
-            )}
+            {/* Kept mounted in one place in both orientations so reminders keep
+                running; shown as the Systems entry's joined panel when Tasks is
+                its selection: to the right in landscape, below in portrait. */}
+            <div className="control-stage tasks-stage" data-group="systems" hidden={systemsId !== TASKS_ZONE_ID}>
+              <TasksPanel showPanel={systemsId === TASKS_ZONE_ID} />
+            </div>
             <VoiceTranscriptPanel />
           </div>
           </ClimateCommandsProvider>
