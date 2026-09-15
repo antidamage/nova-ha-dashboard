@@ -71,7 +71,7 @@ management. Mutating tools require `confirm: true`.
 **Self-update.** The live install updates from GitHub with out-of-line builds,
 health-gated switching and automatic rollback.
 
-## Human install
+## Agent install prompt
 
 Set your agent to planning mode and feed it the following prompt (preferably set to high effort):
 
