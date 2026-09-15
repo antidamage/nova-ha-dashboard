@@ -104,7 +104,7 @@ You are an expert developer.
 - Gauntlet: fan out sub-agents to complete tasks. Spawn further sub-agents to adversarially review work done. A task is finished when it can pass review.
 ```
 
-Implement the plan in a lower-end model with low effort and then review the installation steps and results with a better model and higher effort. If you're stopped by usage limits, it's safe to wait and tell it to continue once the limits reset. It may take up to ten sessions to fully install on a Plus subscription, up to a week, but different models achieve better results. Sol Medium or Opus Medium are recommended, but Terra and Sonnet should also work just fine with a post-review. A better model will get more done in a single usage session.
+Implement the plan in your model and effort level of choice and then review the installation steps and results with a better model and higher effort. If you're stopped by usage limits, it's safe to wait and tell it to continue once the limits reset. It may take up to ten sessions to fully install on a Plus subscription, up to a week, but different models achieve better results. Sol Medium or Opus Medium are recommended, but Terra and Sonnet should also work just fine with a post-review. A better model will get more done in a single usage session.
 
 ## Install
 
