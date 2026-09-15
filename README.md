@@ -13,7 +13,7 @@ I am an out-of-work developer. If you would like to accelerate work on this proj
 
 ## Roadmap
 
-The project is nearly at MVP, but more work remains to be done on installation via agent, MCP for management via agent, and generally better alignment with open-source practices in terms of commit flow, PRs, releases, security reviews, etc. These latter tasks from installation onwards will be the final stages of the project required to each MVP, and are the key elements for making it easy and cheap for agents to install.
+The project is nearly at MVP, but more work remains to be done on installation via agent, MCP for management via agent, and generally better alignment with open-source practices in terms of commit flow, PRs, releases, security reviews, etc. These latter tasks from installation onwards will be the final stages of the project required to reach MVP, and are the key elements for making it easy and cheap for agents to install.
 
 Beyond MVP I hope to take on user requests and PRs in order to continue developing its capabilities, features and presentation.
 
