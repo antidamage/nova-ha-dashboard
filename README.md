@@ -4,7 +4,7 @@ Nova is a control surface for managing your household; from lights and climate, 
 
 Nova is open-source and is intended to be extensible by agent, by anyone.
 
-A core focus of this project is presentation. While Home Assistant provides the smart-home transport layer, Nova gives you a way to shape that control into something you want to use every day.
+A core focus of this project is presentation. While Home Assistant provides the smart-home transport layer, Nova gives you a way to shape that experience into something that you'll want to use every day.
 
 **[Live demo](https://antidamage.github.io/nova-ha-dashboard/)**
 
