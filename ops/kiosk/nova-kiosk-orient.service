@@ -1,0 +1,14 @@
+[Unit]
+Description=Nova kiosk display rotation from the built-in camera
+# A USER unit: kscreen-doctor needs the Wayland session, and the seat ACL is
+# what lets the login user open the webcam. See specs/kiosk-display-rotation.md.
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/nova-ha-dashboard/ops/kiosk/nova-kiosk-orient.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

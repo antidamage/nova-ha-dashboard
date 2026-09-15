@@ -50,18 +50,44 @@ export function rotationForLabel(label: string, rules: CameraRotationRule[]): nu
   return rule ? ((rule.degrees % 360) + 360) % 360 : 0;
 }
 
+/**
+ * Rules the kiosk's orientation daemon writes into this browser over CDP.
+ *
+ * The kiosk's built-in camera turns with the panel, so its correction follows
+ * the measured panel orientation rather than the config. Only the kiosk ever
+ * has this key; see specs/kiosk-display-rotation.md.
+ */
+export const KIOSK_ROTATION_KEY = "nova.kiosk.cameraRotations";
+export const KIOSK_ROTATION_EVENT = "nova:kiosk-camera-rotation";
+
+export function readKioskRules(): CameraRotationRule[] {
+  try {
+    const raw = window.localStorage.getItem(KIOSK_ROTATION_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? (parsed as CameraRotationRule[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function useCameraRotation(label: string | undefined): number {
   const [rules, setRules] = useState<CameraRotationRule[] | null>(cachedRules);
+  const [kioskRules, setKioskRules] = useState<CameraRotationRule[]>([]);
   useEffect(() => {
     let live = true;
     void loadRules().then((next) => {
       if (live) setRules(next);
     });
+    const refresh = () => setKioskRules(readKioskRules());
+    refresh();
+    window.addEventListener(KIOSK_ROTATION_EVENT, refresh);
     return () => {
       live = false;
+      window.removeEventListener(KIOSK_ROTATION_EVENT, refresh);
     };
   }, []);
-  return rotationForLabel(label ?? "", rules ?? []);
+  // Kiosk rules first: the first matching rule wins.
+  return rotationForLabel(label ?? "", [...kioskRules, ...(rules ?? [])]);
 }
 
 /**
