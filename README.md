@@ -108,7 +108,11 @@ This prompt makes efforts to work in a privacy- and security-first manner, but i
 
 Some portions of the network topology and user interviews will take place during planning, and some during execution. Tell your agent to go intervention-free at your own risk, but I don't recommend it. Your resulting installation plan will be unique to you, keep it safe.
 
-Implement the plan in your model and effort level of choice and then review the installation steps and results with a better model and higher effort. If you're stopped by usage limits, it's safe to wait and tell it to continue once the limits reset. It may take up to ten sessions to fully install on a Plus subscription, up to a week, but different models achieve better results. Sol Medium or Opus Medium are recommended, but Terra and Sonnet should also work just fine with a post-review. A better model will get more done in a single usage session.
+Implement the plan in your model and effort level of choice and then review the installation steps and results with a better model and higher effort. If you're stopped by usage limits, it's safe to wait and tell it to continue once the limits reset.
+
+It may take up to ten sessions to fully install on a Plus subscription, up to a week, but different models achieve better results. Sol Medium or Opus Medium are recommended, but Terra and Sonnet should also work just fine with a post-review. A better model will get more done in a single usage session.
+
+Running at least two simultaneous Claude Plus subscriptions using [Claude-Swap](https://github.com/realiti4/claude-swap) running in auto-switch mode is highly recommended for faster completion of both installs and modifications. Codex tends to exhaust itself more quickly and ultimately seems to take longer to achieve the same result, but Astra output is often rock-solid and worth the longer wait.
 
 ## Install
 
