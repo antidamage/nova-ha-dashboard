@@ -112,7 +112,7 @@ Implement the plan in your model and effort level of choice and then review the 
 
 It may take up to ten sessions to fully install on a Plus subscription, up to a week, but different models achieve better results. Sol Medium or Opus Medium are recommended, but Terra and Sonnet should also work just fine with a post-review. A better model will get more done in a single usage session.
 
-Running at least two simultaneous Claude Plus subscriptions using [Claude-Swap](https://github.com/realiti4/claude-swap) running in auto-switch mode is highly recommended for faster completion of both installs and modifications. Codex tends to exhaust itself more quickly and ultimately seems to take longer to achieve the same result, but Astra output is often rock-solid and worth the longer wait.
+Running at least two simultaneous Claude Plus subscriptions using [Claude-Swap](https://github.com/realiti4/claude-swap) running in auto-switch mode via Opus-medium is highly recommended for faster completion of both installs and modifications. Codex tends to exhaust itself more quickly and ultimately seems to take longer to achieve the same result, but Astra-medium output is often rock-solid and worth the longer wait.
 
 ## Install
 
