@@ -30,7 +30,7 @@ This project is not yet secure. Use it at your own risk, and most definitely hid
 
 We're not set up for PRs yet, and the code in in flux as it is 100% written by agents. A key stake is that outside contributions aren't meaninglessly backed out by a clumsy agent action. The project will be adopting a more recognised workflow in the future to support this, and at that time contributions will be welcomed and encouraged.
 
-## Where it fits
+## Sibling repositories
 
 | Component | Interface |
 |---|---|
