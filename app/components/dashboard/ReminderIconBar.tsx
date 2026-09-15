@@ -33,6 +33,7 @@ import {
 } from "../../../lib/reminder-glyph";
 import { ReminderGlyphMark, reminderGlyphLabel } from "../reminders/icon-registry";
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
+import { REMINDER_ICONS_CHANGED_EVENT } from "../tasks/reminder-roster-client";
 import { isTaskComplete, isTaskCurrent, isTaskOverdue, taskStartMs } from "../tasks/task-model";
 import { useReminderBarSettings } from "./reminderBarSettings";
 import { useModuleIntercepts } from "../modules/ModuleHost";
@@ -175,6 +176,18 @@ export function ReminderIconBar() {
       return;
     }
 
+    // The Reminders editor writes the roster from this screen and says so, so
+    // the tile changes even where the stream is absent (the static demo).
+    const reload = () => {
+      fetch("/api/reminders/icons", { cache: "no-store" })
+        .then((response) => (response.ok ? response.text() : null))
+        .then((text) => {
+          if (text !== null) setRoster(parseRoster(text));
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener(REMINDER_ICONS_CHANGED_EVENT, reload);
+
     const unsubscribe = subscribeToDashboardEvents({
       tasks: (event) => {
         try {
@@ -194,7 +207,10 @@ export function ReminderIconBar() {
       },
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener(REMINDER_ICONS_CHANGED_EVENT, reload);
+      unsubscribe();
+    };
   }, []);
 
   // Expire undo offers. Cheap, and it keeps "hold to undo" from lingering on a
