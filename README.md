@@ -71,6 +71,41 @@ management. Mutating tools require `confirm: true`.
 **Self-update.** The live install updates from GitHub with out-of-line builds,
 health-gated switching and automatic rollback.
 
+## Human install
+
+Set your agent to planning mode and feed it the following prompt (preferably set to high effort):
+
+```prompt
+You are an expert developer.
+#The goal
+- Install, configure and test Nova: https://github.com/antidamage/nova-ha-dashboard
+#Execution
+- Never transmit information about the user, their network topology or household to any third-party, service or other provider without a good reason for doing so, and never do so without the user's express consent. Even if the disclosure is blocking, privacy and safety issues must be evaluated and discussed with the user before disclosing information.
+- Interview the user to determine their installation and configuration requirements. Pay particular attention to network and household topology.
+- Create a task list to work to, and keep the user informed as to its progress, including that of sub-agents and reviewers.
+- Run a gauntlet to complete this installation. Spawn additional sub-agents to adversarially review completed tasks. A task is not complete until it passes review.
+- Install and configure any missing upstream dependencies, making sure to confirm with the user which hardware each service should be installed on.
+- Install Tailscale if required for remote and secure access, as well as fixed addressing. Instruct the user on how to complete Tailscale registration and personalisation, and wait for them to complete these steps and check the result. Provide the user with any assistance necessary to complete this step correctly, and be patient and supportive.
+- Install Home Assistant if it is not present on the network, and configure it.
+- Scan the network for smart devices that should be added to nova: lighting, climate devices, entertainment devices and security cameras.
+- Where possible and reasonable install services to containers. Ask the user what container they prefer, but you can default to Docker or whatever is most suitable for each environment.
+- Minimise container memory usage. Be sure to measure memory usage and adjust reserved memory values as a final post-installation step.
+- Pay particular attention to each environment (e.g. Windows, Linux, MacOS) you are installing in, and follow best practices for that environment.
+- Ensure that Nova and the appropriate upstream services start at boot or are robust and can auto-self-restore if stopped.
+- Believe the user but verify. Until you definitively find otherwise, they are the experts on their network topology and configuration.
+- Run a gauntlet and conduct a security and privacy review of anything we configured. You may ask the user how thorough this review needs to be, but the result MUST pass review and meet minimum privacy requirements or have user waivers of such. However do not excessively modify the user's network topology, the scope of this task is limited to installation and configuration of Nova and its upstream services.
+- Bring Nova and all services online and pause to allow for user evaluation. Direct them to the correct addresses and summarise what features were installed and should go through acceptance.
+- Briefly summarise installation steps and topology in a report, but pay particular attention to recording any security or privacy waivers given, then save it to the user's downloads folder and inform the user of its location and advise them to review it.
+#Completion
+- Your work is done when Nova is fully installed, all execution steps have been completed, Nova has passed smoke-testing and has passed user-acceptance.
+- All smart-home devices found on the network must be connected via Home Assistant, configured and represented in Nova's front-end.
+- User acceptance is the ultimate goal, be sure to welcome additional runs of this prompt to further improve the user experience while using Nova.
+# Definitions
+- Gauntlet: fan out sub-agents to complete tasks. Spawn further sub-agents to adversarially review work done. A task is finished when it can pass review.
+```
+
+Implement the plan in a lower-end model with low effort and then review the installation steps and results with a better model and higher effort.
+
 ## Install
 
 Requires Node.js and a reachable Home Assistant instance.
