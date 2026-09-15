@@ -7,6 +7,10 @@ API hub the other Nova components read from.
 
 **[Live demo](https://antidamage.github.io/nova-ha-dashboard/)**
 
+## Support this project
+
+I am an out-of-work developer. If you would like to accelerate work on this project, please consider a regular or on-off donation to support it, by sending us funds via Paypal to paypal@skull.co.nz. A one-off or monthly contribution of $20USD is ideal, but any amount helps!
+
 ## Where it fits
 
 | Component | Interface |
