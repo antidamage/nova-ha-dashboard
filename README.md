@@ -1,9 +1,10 @@
 # Nova HA Dashboard
 
-The control surface for Nova. A Next.js app served on the local network,
-presenting Home Assistant as room-level zones for touch screens, kiosks and
-desktops in both portrait and landscape. It also acts as the configuration and
-API hub the other Nova components read from.
+Nova is a control surface for managing your household; from lights and climate, to personal reminders, entertainment and security.
+
+Nova is open-source and is intended to be extensible by agent, by anyone.
+
+A core focus of this project is presentation. While Home Assistant provides the smart-home transport layer, Nova gives you a way to shape that control into something you want to use every day.
 
 **[Live demo](https://antidamage.github.io/nova-ha-dashboard/)**
 
@@ -13,7 +14,7 @@ I am an out-of-work developer. If you would like to accelerate work on this proj
 
 ## Roadmap
 
-The project is nearly at MVP, but more work remains to be done on installation via agent, MCP for management via agent, and generally better alignment with open-source practices in terms of commit flow, PRs, releases, security reviews, etc. These latter tasks from installation onwards will be the final stages of the project required to reach MVP, and are the key elements for making it easy and cheap for agents to install.
+The project is nearly at MVP, but more work remains to be done on installation and extensibility via agent, MCP for management via agent, and generally better alignment with open-source practices in terms of commit flow, PRs, releases, security reviews, etc. These latter tasks from installation onwards will be the final stages of the project required to reach MVP, and are the key elements for making it easy and cheap for agents to install.
 
 Beyond MVP I hope to take on user requests and PRs in order to continue developing its capabilities, features and presentation.
 
