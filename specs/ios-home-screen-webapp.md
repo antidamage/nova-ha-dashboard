@@ -46,14 +46,48 @@ not the standalone web app, because iOS still owns the strip.
 
 `app/globals.css`:
 
-- `.dashboard-shell { padding-top: calc(20px + env(safe-area-inset-top, 0px)) !important }`
-  — 20px is the `py-5` the shell carries from Tailwind, so the inset is added
-  rather than replacing the normal spacing. Covers both the home shell and
-  `.config-shell`. The landscape rule later in the file sets the whole
-  `padding` shorthand with `!important` and wins there, which is correct:
-  landscape reports a zero top inset on iPhone.
-- Fixed top chrome (config links, mini clock, header strip) already offsets
-  itself with `env(safe-area-inset-top)`.
+- `--nova-status-bar-clearance` on `:root` is the single source for "how far
+  down the page has to start". It is `env(safe-area-inset-top, 0px)` by
+  default, and every top consumer reads the token rather than the raw inset:
+  the shell's trailing padding rule, the config links, the mini clock/date, the
+  config breadcrumb, and the sticky header strip.
+- `.dashboard-shell { padding-top: calc(1.25rem + var(--nova-status-bar-clearance)) !important }`
+  sits in the trailing safe-area rule, after every breakpoint block — the 640px
+  and tablet blocks set the whole `padding` shorthand with `!important` and
+  would reset anything placed earlier. 1.25rem matches the `py-5` the shell
+  carries from Tailwind, so the clearance adds to normal spacing rather than
+  replacing it.
+
+### The Dynamic Island floor
+
+Adeline, 2026-09-16, after the status bar went translucent: the page still had
+to come down "by an amount equal to the height of the dynamic island, plus
+padding". In the standalone web app iOS reports a **zero** top safe-area inset
+even though the island overlaps the page — `black-translucent` tells WebKit the
+page owns that strip, so there is nothing for it to declare as inset. The
+padding was therefore adding zero.
+
+So the token is floored on phone-sized standalone launches:
+
+```css
+@media (max-width: 640px) {
+  html[data-nova-ios-standalone="true"] {
+    --nova-status-bar-clearance: max(env(safe-area-inset-top, 0px), 59px);
+  }
+}
+```
+
+- 59px is the top inset of a Dynamic Island device — the island plus its
+  margin, not the 37px island alone.
+- `max()` means a correctly reported inset still wins, so this cannot
+  double-count or under-shoot on a different device.
+- `[data-nova-ios-standalone]` is set on `<html>` before first paint by the head
+  bootstrap in `app/layout.tsx`, from `navigator.standalone` — the iOS-only
+  "launched from the Home Screen" signal. A `(display-mode: standalone)` copy of
+  the rule covers any engine that reports the mode but not the property.
+- Width-gated to 640px so an iPad standalone install (no island, inset reported
+  correctly) and Safari-with-chrome are untouched.
+- Both rules live at the end of the file so no later block redefines the token.
 
 ## Verifying
 

@@ -8,6 +8,15 @@
   /* Always dark to the browser, whichever theme is selected, so Chromium's
      auto dark mode never repaints the page (see the meta in app/layout.tsx). */
   color-scheme: dark;
+  /* How far down the page has to start to clear the iOS status bar / Dynamic
+     Island. Normally just the reported inset — zero on desktop, the kiosk and
+     Safari with its own chrome. In the standalone home-screen web app iOS can
+     report a 0 top inset even though the island is still overlapping the page
+     (the `black-translucent` status bar style tells WebKit the page owns that
+     strip), so the phone-sized standalone rules below floor it at the 59px
+     inset a Dynamic Island device actually has. `max()` means a correctly
+     reported inset still wins. specs/ios-home-screen-webapp.md. */
+  --nova-status-bar-clearance: env(safe-area-inset-top, 0px);
   --background: #1a1a1a;
   --foreground: #333333;
   --cyber-bg: #1a1a1a;
@@ -2387,7 +2396,7 @@ a.update-banner-button {
 .dashboard-config-link {
   position: fixed !important;
   right: calc(16px + env(safe-area-inset-right, 0px));
-  top: calc(16px + env(safe-area-inset-top, 0px));
+  top: calc(16px + var(--nova-status-bar-clearance));
   z-index: 80;
   white-space: nowrap;
 }
@@ -2416,7 +2425,7 @@ a.update-banner-button {
 @media (max-aspect-ratio: 1 / 1) and (max-width: 419px) {
   .dashboard-theme-override-link {
     left: calc(16px + env(safe-area-inset-left, 0px));
-    top: calc(16px + 52px + env(safe-area-inset-top, 0px));
+    top: calc(16px + 52px + var(--nova-status-bar-clearance));
   }
 }
 
@@ -2450,7 +2459,7 @@ a.update-banner-button {
 .header-mini-clock,
 .header-mini-date {
   position: fixed !important;
-  top: calc(10px + env(safe-area-inset-top, 0px));
+  top: calc(10px + var(--nova-status-bar-clearance));
   font-family: var(--cyber-clock);
   font-weight: var(--cyber-clock-weight, 900);
   font-size: 1.56rem;
@@ -2490,7 +2499,7 @@ html.nova-header-controls-disabled .dashboard-reload-link {
    readout: crumbs are plain buttons, see ConfigBreadcrumb.tsx. */
 .config-breadcrumb {
   position: fixed !important;
-  top: calc(16px + env(safe-area-inset-top, 0px));
+  top: calc(16px + var(--nova-status-bar-clearance));
   left: 50%;
   transform: translateX(-50%);
   z-index: 80;
@@ -2571,7 +2580,7 @@ button.config-breadcrumb-crumb:focus-visible {
   margin-inline: calc(50% - 50vw);
   cursor: grab;
   position: sticky;
-  top: calc(8px + env(safe-area-inset-top, 0px));
+  top: calc(8px + var(--nova-status-bar-clearance));
   z-index: 70;
   display: grid;
   grid-auto-columns: minmax(190px, 1fr);
@@ -5878,7 +5887,7 @@ button.config-breadcrumb-crumb:focus-visible {
      shorthand with `!important` and would reset it. Zero everywhere else —
      desktop, kiosk and Safari-with-chrome all report a 0 top inset.
      specs/ios-home-screen-webapp.md. */
-  padding-top: calc(1.25rem + env(safe-area-inset-top, 0px)) !important;
+  padding-top: calc(1.25rem + var(--nova-status-bar-clearance)) !important;
 }
 
 /* One DOM order in both orientations. Square belongs to the vertical layout. */
@@ -9017,4 +9026,23 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
     var(--cyber-panel);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--cyber-border-dim);
+}
+
+/* The Dynamic Island floor for --nova-status-bar-clearance. Phone-sized only:
+   an iPad standalone install has no island and reports its own inset
+   correctly, and Safari with chrome is not standalone at all.
+   `[data-nova-ios-standalone]` is set by the head bootstrap in app/layout.tsx
+   from `navigator.standalone`, which is the iOS-only signal for "launched from
+   the Home Screen"; the display-mode query is the same rule for any engine that
+   reports the mode but not that property. specs/ios-home-screen-webapp.md. */
+@media (max-width: 640px) {
+  html[data-nova-ios-standalone="true"] {
+    --nova-status-bar-clearance: max(env(safe-area-inset-top, 0px), 59px);
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 640px) {
+  :root {
+    --nova-status-bar-clearance: max(env(safe-area-inset-top, 0px), 59px);
+  }
 }

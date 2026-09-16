@@ -250,6 +250,15 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
 try {
+  // Launched from the iOS Home Screen? navigator.standalone is the iOS-only
+  // signal for it, and is the input to the --nova-status-bar-clearance floor in
+  // globals.css: in that mode iOS can report a 0 top safe-area inset while the
+  // Dynamic Island still overlaps the page. Set before first paint so the page
+  // never renders once at the wrong offset (specs/ios-home-screen-webapp.md).
+  if (window.navigator.standalone === true) {
+    document.documentElement.setAttribute("data-nova-ios-standalone", "true");
+  }
+
   document.addEventListener("contextmenu", function (event) {
     event.preventDefault();
   });
