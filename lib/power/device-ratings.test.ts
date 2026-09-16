@@ -1,8 +1,8 @@
 import { existsSync } from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { readDefaultDashboardConfig } from "./dashboard-config";
-import type { PowerDeviceRating } from "./config-schema";
+import { readDefaultDashboardConfig } from "../dashboard-config";
+import type { PowerDeviceRating } from "../config-schema";
 
 /**
  * Device ratings are config, not code, and not product data.
