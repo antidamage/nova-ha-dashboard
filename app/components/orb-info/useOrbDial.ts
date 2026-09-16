@@ -61,6 +61,14 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Op
 
   useEffect(() => { if (!enabled) dispatch({ type: "close" }); }, [enabled]);
 
+  // Re-lock sound: every close after an open, however it happened (idle
+  // timeout, outside tap, focus loss, page hidden, Escape).
+  const wasOpenRef = useRef(state.open);
+  useEffect(() => {
+    if (wasOpenRef.current && !state.open) playUxSound("lockDial");
+    wasOpenRef.current = state.open;
+  }, [state.open]);
+
   const angleOf = (event: PointerEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return pointerAngle(event.clientX - (rect.left + rect.width / 2), event.clientY - (rect.top + rect.height / 2));

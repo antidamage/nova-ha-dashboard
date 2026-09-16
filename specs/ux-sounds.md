@@ -91,7 +91,7 @@ Deleting an entry that is still assigned to an action leaves the assignment
 dangling; a dangling id resolves to **that action's default**, not to silence,
 so a deleted clip never quietly kills an action.
 
-## The twelve actions
+## The thirteen actions
 
 `DeviceTheme.uxSounds` maps each action to a **sound id**, the sentinel
 `"reminder-audio"` (the server-stored reminder MP3, uploaded under Reminders),
@@ -100,6 +100,7 @@ or `null`.
 | Action | Fires when |
 |---|---|
 | `unlockDial` | A `RotaryEncoder` unlocks (tap of 60–400 ms, under 5 px travel), or the status orb dial unlocks. Once per unlock, never on re-lock. |
+| `lockDial` | A `RotaryEncoder` re-locks after being unlocked (idle `tuckAfterMs` timeout, or a tap outside it), or the status orb dial closes after being open (idle timeout, outside tap, focus loss, page hidden, Escape). Once per re-lock, never on the initial locked state at mount. |
 | `dialClick` | One per detent crossed — a `RotaryEncoder` LED cycle step, a ring value step, and each orb-dial step through the stack. |
 | `foldBreak` | `AdvancedFold` crosses the rubber-band hurdle and opens. Not on a dead break, where there is nothing to open onto. |
 | `foldHeal` | `AdvancedFold` closes back to the boundary — by drag, inertia, wheel or manual scroll. Not on the unconditional close at mount or axis flip. |
@@ -119,6 +120,8 @@ Exactly one action fires per gesture. The more specific one wins:
 - A zone or menu button fires `sectionChange` only; `buttonPress` is suppressed.
 - A dial detent fires `dialClick` only; the unlock tap that preceded it fired
   `unlockDial` and nothing else.
+- A re-lock fires `lockDial` only, however it was triggered (idle timeout,
+  outside tap, focus loss).
 - A fold break or heal driven by a gesture fires only the fold action.
 
 Elements declare themselves with a `data-ux-sound="<action>"` attribute. The
@@ -222,7 +225,7 @@ the **library** in a `ConfigAccordion` of its own which is **collapsed by
 default**. The clips are a store to dip into when adding one; the assignments
 are the part that gets tuned.
 
-**Sound assignments** — twelve rows in the order of the action table above, each
+**Sound assignments** — thirteen rows in the order of the action table above, each
 a label, a `ConfigSelect` and a **Play** button that previews what that row is
 currently set to (disabled on `None`). Every list reads `None`, then
 `Reminder audio (uploaded)`, then the library entries in the same order the
@@ -243,7 +246,7 @@ library and section copy/paste exactly as colours do. It joins `controlSound` in
 variants carries the assignments with it.
 
 `normalizeTheme` passes `uxSounds` through a `normalizeUxSounds` that fills any
-missing action with its default and drops any key that is not one of the twelve.
+missing action with its default and drops any key that is not one of the thirteen.
 A theme saved before this change therefore reads back with a complete default map,
 which is the migration — there is no separate migration step.
 
@@ -253,7 +256,7 @@ it.
 
 ## Done means
 
-- The six clicks are selectable on every one of the twelve actions.
+- The six clicks are selectable on every one of the thirteen actions.
 - A completed timer chimes on the screen that claims it.
 - One press of a Play button plays the clip; there is no second press.
 - A household that had uploaded a control sound still hears it on every action

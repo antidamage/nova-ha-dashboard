@@ -433,12 +433,17 @@ export function RotaryEncoder({
     };
   }, [entering]);
 
+  const relock = useCallback(() => {
+    setLocked(true);
+    selectionHaptic("lockDial");
+  }, []);
+
   // Locks itself after a quiet spell. A pointer held down is not quiet.
   useEffect(() => {
     if (!tuckable || locked || pressed) return;
-    const timer = window.setTimeout(() => setLocked(true), tuckAfterMs);
+    const timer = window.setTimeout(relock, tuckAfterMs);
     return () => window.clearTimeout(timer);
-  }, [lastInput, locked, pressed, tuckAfterMs, tuckable]);
+  }, [lastInput, locked, pressed, relock, tuckAfterMs, tuckable]);
 
   // A tap anywhere else locks it at once, and still reaches what it landed on.
   const ringLayerRef = useRef<HTMLDivElement | null>(null);
@@ -448,11 +453,11 @@ export function RotaryEncoder({
       const target = event.target as Node | null;
       if (!target) return;
       if (rootRef.current?.contains(target) || ringLayerRef.current?.contains(target)) return;
-      setLocked(true);
+      relock();
     };
     document.addEventListener("pointerdown", onDown, true);
     return () => document.removeEventListener("pointerdown", onDown, true);
-  }, [locked, tuckable]);
+  }, [locked, relock, tuckable]);
 
   const unlock = () => {
     setLocked(false);
