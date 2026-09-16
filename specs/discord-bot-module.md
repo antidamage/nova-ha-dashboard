@@ -262,7 +262,7 @@ Before anything reaches the LLM:
 The module's own route `POST /api/modules/discord-bot/inbound`
 (`module-system.md` §8) forwards to the voice host. The relay lives on the
 dashboard, not in the module's Discord process, so the voice-host URL and mTLS
-identity stay where they already are (`lib/voice-host-settings.ts:118`) rather
+identity stay where they already are (`lib/voice-host-settings/endpoints.ts` and `store.ts`) rather
 than being duplicated into module config.
 
 **Every inbound utterance is sent with `dry_run: true`.**

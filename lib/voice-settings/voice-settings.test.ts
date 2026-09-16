@@ -6,7 +6,7 @@ import {
   parseVoiceSettingsUpdate,
   voicePersonalitySignature,
   voicePersonalitySubset,
-} from "./voice-settings";
+} from "../voice-settings";
 
 describe("voice settings", () => {
   it("provides a complete structured default", () => {
