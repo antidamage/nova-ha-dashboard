@@ -209,9 +209,21 @@
               "sizeOffset": 0
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "geist",
@@ -254,6 +266,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.1264798699450181,
+                  "y": 0
+                },
+                "intensity": 8,
+                "rgb": [
+                  255,
+                  191,
+                  0
                 ]
               },
               "opacity": 100
@@ -369,6 +396,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -629,9 +668,21 @@
               "sizeOffset": 0
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "geist",
@@ -674,6 +725,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.13989724705012052,
+                  "y": 0.3053572518484933
+                },
+                "intensity": 29,
+                "rgb": [
+                  227,
+                  207,
+                  104
                 ]
               },
               "opacity": 100
@@ -789,6 +855,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -1069,9 +1147,21 @@
               "sizeOffset": -47
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "chakra-petch",
@@ -1110,6 +1200,21 @@
                   "y": 0
                 },
                 "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.1278165191027005,
+                  "y": 1
+                },
+                "intensity": 10,
                 "rgb": [
                   255,
                   255,
@@ -1229,6 +1334,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -1498,9 +1615,21 @@
               "sizeOffset": -47
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "chakra-petch",
@@ -1539,6 +1668,21 @@
                   "y": 0
                 },
                 "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.1278165191027005,
+                  "y": 1
+                },
+                "intensity": 10,
                 "rgb": [
                   255,
                   255,
@@ -1658,6 +1802,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -1735,7 +1891,7 @@
       "id": "theme_mtiq34ek_4gtfsh5i",
       "name": "Olive Drab",
       "createdAt": "2026-09-01T13:48:24.716Z",
-      "updatedAt": "2026-09-12T03:57:01.398Z",
+      "updatedAt": "2026-09-14T03:59:10.053Z",
       "themeSet": {
         "selection": "dark",
         "themes": {
@@ -1938,9 +2094,21 @@
               "sizeOffset": -11
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "chakra-petch",
@@ -1983,6 +2151,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.23168498168498167,
+                  "y": 0.4861111111111108
+                },
+                "intensity": 10,
+                "rgb": [
+                  197,
+                  223,
+                  155
                 ]
               },
               "opacity": 100
@@ -2098,6 +2281,18 @@
               }
             },
             "knobSkin": "dark",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 64,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -2367,9 +2562,21 @@
               "sizeOffset": -11
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "chakra-petch",
@@ -2412,6 +2619,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.23168498168498167,
+                  "y": 0.4861111111111108
+                },
+                "intensity": 10,
+                "rgb": [
+                  197,
+                  223,
+                  155
                 ]
               },
               "opacity": 100
@@ -2527,6 +2749,18 @@
               }
             },
             "knobSkin": "dark",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 64,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -2810,9 +3044,21 @@
               "sizeOffset": -11
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "chakra-petch",
@@ -2851,6 +3097,21 @@
                   "y": 0
                 },
                 "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.704806893001211,
+                  "y": 1
+                },
+                "intensity": 6,
                 "rgb": [
                   255,
                   255,
@@ -2970,6 +3231,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 64,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -3239,9 +3512,21 @@
               "sizeOffset": -11
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "chakra-petch",
@@ -3287,6 +3572,21 @@
                 ]
               },
               "opacity": 34
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0,
+                  "y": 1
+                },
+                "intensity": 84,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "opacity": 100
             },
             "map": {
               "base": {
@@ -3399,6 +3699,18 @@
               }
             },
             "knobSkin": "dark",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 64,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -3476,7 +3788,7 @@
       "id": "theme_mty6gak1_klzps6sv",
       "name": "Psionyk 1977",
       "createdAt": "2026-09-12T09:23:05.713Z",
-      "updatedAt": "2026-09-13T01:54:08.664Z",
+      "updatedAt": "2026-09-16T07:13:15.425Z",
       "themeSet": {
         "selection": "auto",
         "themes": {
@@ -3548,7 +3860,7 @@
                   "x": 0.5013927576601671,
                   "y": 0.996078431372549
                 },
-                "intensity": 78,
+                "intensity": 47,
                 "rgb": [
                   254,
                   255,
@@ -3572,44 +3884,44 @@
                 {
                   "cursor": {
                     "x": 1,
-                    "y": 0.00017195502451217148
+                    "y": 0.017778987596059892
                   },
-                  "intensity": 88,
+                  "intensity": 94,
                   "rgb": [
                     255,
-                    0,
-                    3
+                    5,
+                    6
                   ]
                 },
                 {
                   "cursor": {
-                    "x": 0.9349436579386547,
+                    "x": 0.9740953106400878,
                     "y": 0
                   },
-                  "intensity": 96,
+                  "intensity": 100,
                   "rgb": [
                     255,
                     0,
-                    104
+                    44
                   ]
                 },
                 {
                   "cursor": {
-                    "x": 0.03729246423591756,
+                    "x": 0.10463294032790628,
                     "y": 0
                   },
                   "intensity": 87,
                   "rgb": [
                     255,
-                    57,
+                    160,
                     0
                   ]
                 }
               ],
               "lineOpacities": [
-                28,
-                18,
-                35
+                54,
+                70,
+                64
               ],
               "innerShadowOpacity": 0.25,
               "orbModule": "tech",
@@ -3682,9 +3994,21 @@
               "sizeOffset": -11
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
-              "volume": 30
+              "volume": 60
+            },
+            "uxSounds": {
+              "unlockDial": "light-mechanical-click",
+              "dialClick": "soft-click",
+              "foldBreak": "medium-mechanical-click",
+              "foldHeal": "soft-mechanical-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "chime-magical",
+              "reminderConfirm": "chime-soft-boop",
+              "timerSet": "chime-soft-boop",
+              "lightsOn": "chime-retro-boop",
+              "lightsOff": "chime-motion-tracker"
             },
             "font": {
               "id": "chakra-petch",
@@ -3719,10 +4043,10 @@
             "headerFade": {
               "color": {
                 "cursor": {
-                  "x": 0,
-                  "y": 0
+                  "x": 0.704806893001211,
+                  "y": 1
                 },
-                "intensity": 0,
+                "intensity": 7,
                 "rgb": [
                   255,
                   255,
@@ -3734,17 +4058,17 @@
             "panel": {
               "color": {
                 "cursor": {
-                  "x": 0,
-                  "y": 0.9999480210304733
+                  "x": 0.704806893001211,
+                  "y": 1
                 },
-                "intensity": 10,
+                "intensity": 6,
                 "rgb": [
                   255,
                   255,
                   255
                 ]
               },
-              "opacity": 62
+              "opacity": 100
             },
             "map": {
               "base": {
@@ -3859,14 +4183,14 @@
             "knobSkin": "light",
             "ledColor": {
               "cursor": {
-                "x": 0.0626837427389242,
-                "y": 0
+                "x": 0.05851414852468458,
+                "y": 0.2529057834686047
               },
               "intensity": 100,
               "rgb": [
                 255,
-                96,
-                0
+                131,
+                64
               ]
             },
             "mapBuildingOpacity": 64,
@@ -3954,7 +4278,7 @@
             },
             "highlight": {
               "cursor": {
-                "x": 0.004523407941230699,
+                "x": 0.0016846785628091376,
                 "y": 1
               },
               "intensity": 77,
@@ -3979,7 +4303,7 @@
               },
               "gradientCenter": {
                 "cursor": {
-                  "x": 0.5701643320760753,
+                  "x": 0.8277500071592249,
                   "y": 1
                 },
                 "intensity": 100,
@@ -3991,7 +4315,7 @@
               },
               "gradientOuter": {
                 "cursor": {
-                  "x": 0.46057714441781045,
+                  "x": 0.5210062116337137,
                   "y": 1
                 },
                 "intensity": 100,
@@ -4007,7 +4331,7 @@
                   "x": 0.5013927576601671,
                   "y": 0.996078431372549
                 },
-                "intensity": 78,
+                "intensity": 69,
                 "rgb": [
                   254,
                   255,
@@ -4101,10 +4425,10 @@
             },
             "background": {
               "cursor": {
-                "x": 0,
+                "x": 0.006358866453807678,
                 "y": 1
               },
-              "intensity": 95,
+              "intensity": 91,
               "rgb": [
                 255,
                 255,
@@ -4138,9 +4462,21 @@
               "sizeOffset": -11
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
-              "volume": 30
+              "volume": 60
+            },
+            "uxSounds": {
+              "unlockDial": "light-mechanical-click",
+              "dialClick": "soft-click",
+              "foldBreak": "medium-mechanical-click",
+              "foldHeal": "soft-mechanical-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "chime-magical",
+              "reminderConfirm": "chime-soft-boop",
+              "timerSet": "chime-soft-boop",
+              "lightsOn": "chime-retro-boop",
+              "lightsOff": "chime-motion-tracker"
             },
             "font": {
               "id": "chakra-petch",
@@ -4160,7 +4496,7 @@
             "border": {
               "color": {
                 "cursor": {
-                  "x": 0,
+                  "x": 0.9975611393237812,
                   "y": 1
                 },
                 "intensity": 100,
@@ -4175,10 +4511,10 @@
             "headerFade": {
               "color": {
                 "cursor": {
-                  "x": 0.17562885688599872,
-                  "y": 0.9993773332231441
+                  "x": 0.006358866453807678,
+                  "y": 1
                 },
-                "intensity": 100,
+                "intensity": 91,
                 "rgb": [
                   255,
                   255,
@@ -4191,7 +4527,7 @@
               "color": {
                 "cursor": {
                   "x": 0,
-                  "y": 0.9981527446210634
+                  "y": 1
                 },
                 "intensity": 100,
                 "rgb": [
@@ -4200,7 +4536,7 @@
                   255
                 ]
               },
-              "opacity": 65
+              "opacity": 100
             },
             "map": {
               "base": {
@@ -4315,14 +4651,14 @@
             "knobSkin": "dark",
             "ledColor": {
               "cursor": {
-                "x": 0.45639597171630597,
-                "y": 0.650515837069379
+                "x": 0.4179721911071997,
+                "y": 0.3696991903866641
               },
               "intensity": 100,
               "rgb": [
-                166,
+                94,
                 255,
-                231
+                175
               ]
             },
             "mapBuildingOpacity": 64,
@@ -4596,9 +4932,21 @@
               "sizeOffset": 0
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "geist",
@@ -4641,6 +4989,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.2393618969147669,
+                  "y": 0
+                },
+                "intensity": 8,
+                "rgb": [
+                  145,
+                  255,
+                  0
                 ]
               },
               "opacity": 100
@@ -4756,6 +5119,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -5016,9 +5391,21 @@
               "sizeOffset": -15
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "geist",
@@ -5061,6 +5448,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.19905703561292673,
+                  "y": 0.39221590909090764
+                },
+                "intensity": 29,
+                "rgb": [
+                  208,
+                  225,
+                  132
                 ]
               },
               "opacity": 100
@@ -5176,6 +5578,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -5447,9 +5861,21 @@
               "sizeOffset": 0
             },
             "controlSound": {
-              "name": null,
-              "source": null,
               "volume": 60
+            },
+            "uxSounds": {
+              "unlockDial": "medium-mechanical-click",
+              "dialClick": "medium-mechanical-click",
+              "foldBreak": "medium-mechanical-click",
+              "foldHeal": "medium-mechanical-click",
+              "sectionChange": "medium-mechanical-click",
+              "buttonPress": "medium-mechanical-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "medium-mechanical-click",
+              "timerSet": "medium-mechanical-click",
+              "lightsOn": "medium-mechanical-click",
+              "lightsOff": "medium-mechanical-click"
             },
             "font": {
               "id": "geist",
@@ -5488,6 +5914,21 @@
                   "y": 0
                 },
                 "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.19150133671028569,
+                  "y": 1
+                },
+                "intensity": 12,
                 "rgb": [
                   255,
                   255,
@@ -5607,6 +6048,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -5867,9 +6320,21 @@
               "sizeOffset": 0
             },
             "controlSound": {
-              "name": null,
-              "source": null,
               "volume": 60
+            },
+            "uxSounds": {
+              "unlockDial": "medium-mechanical-click",
+              "dialClick": "medium-mechanical-click",
+              "foldBreak": "medium-mechanical-click",
+              "foldHeal": "medium-mechanical-click",
+              "sectionChange": "medium-mechanical-click",
+              "buttonPress": "medium-mechanical-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "medium-mechanical-click",
+              "timerSet": "medium-mechanical-click",
+              "lightsOn": "medium-mechanical-click",
+              "lightsOff": "medium-mechanical-click"
             },
             "font": {
               "id": "geist",
@@ -5908,6 +6373,21 @@
                   "y": 0
                 },
                 "intensity": 0,
+                "rgb": [
+                  255,
+                  255,
+                  255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.19150133671028569,
+                  "y": 1
+                },
+                "intensity": 76,
                 "rgb": [
                   255,
                   255,
@@ -6027,6 +6507,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 66,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -6307,9 +6799,21 @@
               "sizeOffset": 1
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "share-tech-mono",
@@ -6352,6 +6856,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.6115101162684243,
+                  "y": 0.1227556818181796
+                },
+                "intensity": 6,
+                "rgb": [
+                  44,
+                  110,
+                  242
                 ]
               },
               "opacity": 100
@@ -6467,6 +6986,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 47,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -6736,9 +7267,21 @@
               "sizeOffset": -32
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "share-tech-mono",
@@ -6781,6 +7324,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.963992917319695,
+                  "y": 0
+                },
+                "intensity": 15,
+                "rgb": [
+                  255,
+                  0,
+                  60
                 ]
               },
               "opacity": 100
@@ -6896,6 +7454,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 47,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -7176,9 +7746,21 @@
               "sizeOffset": 1
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "share-tech-mono",
@@ -7221,6 +7803,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.9432221566457103,
+                  "y": 0
+                },
+                "intensity": 30,
+                "rgb": [
+                  255,
+                  0,
+                  89
                 ]
               },
               "opacity": 100
@@ -7336,6 +7933,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 47,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -7605,9 +8214,21 @@
               "sizeOffset": -32
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,//vUxAAAJuHs+nW+AAXrRGLDPeAAAAKjIQXUcMCCAEIIemLlJmpqZWLoJjIzc0dPNPRQ5XMsbDpNA+rsPKdjCX04RGjgjGM6BQxSXzPJ/M5l0x+HwaADDwmMgjcxWESQJGKhwY6GRiIGJemBQWAgeXwTEU0dx2FyJiMEZGWQQUgVrbjx5cjLILQCJgQJNv/L6lJuMQ5LMaeNxuX3IbjdvXM5XL7kNy/KUQw/kYsbpKSkwwpMOZ0lJSczp43bqP/D/ZQ/jkP5Yrv4/kYpKSMRixuMRiWSiMRh/IxYzlbtxu3qUQw/jX3fl+UohiMSyxn+GH50+fc68bhty2ds7cuH7HNyuG3/h+3Uf+H5fT09PT09PSWMP////1UlEMP4/j+Synp5XG43G43Db/uQzhnDOHIhzlPL4xGIxGIxLLHM6kodhhiwipFiOJOVKTAwBARTCzC1LABZiyBCAECAwQQNjAkByNLM9M0NVHjCYHXAAKq4TL/KtM28o0y/k9Tg+x3MB8BwwJgfTaITwNTxhA2+8/j4luqMCIFEwNgBTWYLmNTU0Uxgw4zZNARMnMzoyMx5jAAAbMB4EkmBUML8GEwrAggwJgx3x+jBuDNMLwKciACdKXmBWBCYHgBpgogzmDKBeYLwFhhVBhmBmDoYOoLRgggbQiW1eZViYAlOtqMaUEAwCaK0KlUurJ695/69pSVifeVdUjTC0qDsqlTWtw1z9b7vt6xUlkXt16GGqWxS1Yy/t/+a7lcyvOXD9WX8szVuo/c9Gaa/Uj+FqrBvamrFvVLRSp6M7U3WsQmPUT8TD9v/WuWbc7As5GIrykvQDErdWjjNx+obqQJJ3BmYNnbMre+Vbq5YzEhZpG5U2kGU7df/////////5q4/0QynXbgr3GdKEzd9sMOQ3Qf/////////zTuxV+4xOQM5z9QJQw9LoahVqPS9HKABQToNkIywOSmSyHN6GnKdOpCVHlGp6rOxK3Uf6bl1bOW/DMVlUNTsNW72VaXRGQ3JdduUMO67//vUxByDr83u6hz9AATgPdWIxOX4l+Oq8O4boHewrxmkdqTxmJRbspf2WP9T2JtrsEurEn+cqLrCva/0MsNWFTFcRTZYFYQwYRqCmSumws1ZUj0WSZOvMwQFQxEZOVaq+kfpXdQRGJBMPWqyJCUpdK1pJ1L5YqnMg8rqHm5gkAqNOlfJggZUCDwsxQsvoYAGYYaYoCBA4OKgkUjmmIECi3TE3cUfL0jAMziEHBC9YOFAgWGAQANFiKKQgEmQKgpKYBCaYuYIOZpOZwGh8EBgYZNMlMSCTDMcLBrA4KhNdrRhkZkiRsloUEFmwcZVMFg5iAKmAsGMawNmOBBMxQEwQsxhU2FM70s0RUy6YWTmOEgAaaJONEEvzFEzTXTu2jMjQMkNKGNBFNMGN20GjyqwyQM+EMUtM0EOHSEr5plZmCZpoJqyyaZhDpvJJtBIWOnKmmUACMqPC12LW6kACRqK5420VR6GkaR4Mzx/GS8XRkojYfnq7q4PZREI0NF2N7JEIQeGhGQG3NRr/1uNISIZGSiNjfFYqdUXYfHLGtWp6Kelsahl4npemCJu5SxpwWZL5Xy3SG6SlcpW1LZJ1KVVRh7aQfIc4KeuJwxG4o9zLVhk0VUlsLvZozZnLcn3hEus2qKeh12oBgx6W6xCmftfqCwEDBpwiTFExEQX/ZY+qAYAGgVoRRjEIMUMMUOESjajE19KyrbWgu9eieRdEAhAw8VQGThkVVRpKDxiEmW8YmIX4Eexg0mcgDnyIhcbdElSoAjol+rhTlNVIZNFN5DiKAp+PG4xdkwxjAVCrgxKMSgBgywxZQmKEgS0wWDIQEpk30tEv0kESgMCBSBAWIiR0QYBL7BYMEmAh0lkMVsHJlYEK4pMQU1FMy4xMDCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "share-tech-mono",
@@ -7650,6 +8271,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.9432221566457103,
+                  "y": 0
+                },
+                "intensity": 84,
+                "rgb": [
+                  255,
+                  0,
+                  89
                 ]
               },
               "opacity": 100
@@ -7765,6 +8401,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 47,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -8045,9 +8693,21 @@
               "sizeOffset": -32
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "schibsted-grotesk",
@@ -8090,6 +8750,21 @@
                   255,
                   255,
                   255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.7257447443136354,
+                  "y": 0.30878795276988635
+                },
+                "intensity": 21,
+                "rgb": [
+                  147,
+                  104,
+                  227
                 ]
               },
               "opacity": 100
@@ -8205,6 +8880,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 47,
             "mapLabelSize": 150,
             "mapSatellite": true,
@@ -8474,9 +9161,21 @@
               "sizeOffset": -32
             },
             "controlSound": {
-              "name": "soft_click.mp3",
-              "source": "data:audio/mpeg;base64,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",
               "volume": 30
+            },
+            "uxSounds": {
+              "unlockDial": "soft-click",
+              "dialClick": "soft-click",
+              "foldBreak": "soft-click",
+              "foldHeal": "soft-click",
+              "sectionChange": "soft-click",
+              "buttonPress": "soft-click",
+              "timerAlert": "chime-classic",
+              "reminderAlert": "reminder-audio",
+              "reminderConfirm": "soft-click",
+              "timerSet": "soft-click",
+              "lightsOn": "soft-click",
+              "lightsOff": "soft-click"
             },
             "font": {
               "id": "schibsted-grotesk",
@@ -8518,6 +9217,21 @@
                 "rgb": [
                   255,
                   255,
+                  255
+                ]
+              },
+              "opacity": 100
+            },
+            "panel": {
+              "color": {
+                "cursor": {
+                  "x": 0.5322707173993221,
+                  "y": 0
+                },
+                "intensity": 73,
+                "rgb": [
+                  0,
+                  208,
                   255
                 ]
               },
@@ -8634,6 +9348,18 @@
               }
             },
             "knobSkin": "auto",
+            "ledColor": {
+              "cursor": {
+                "x": 0,
+                "y": 1
+              },
+              "intensity": 100,
+              "rgb": [
+                255,
+                255,
+                255
+              ]
+            },
             "mapBuildingOpacity": 47,
             "mapLabelSize": 150,
             "mapSatellite": true,

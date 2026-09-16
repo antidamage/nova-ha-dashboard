@@ -71,7 +71,7 @@
               "x": 0.5013927576601671,
               "y": 0.996078431372549
             },
-            "intensity": 78,
+            "intensity": 47,
             "rgb": [
               254,
               255,
@@ -95,44 +95,44 @@
             {
               "cursor": {
                 "x": 1,
-                "y": 0.00017195502451217148
+                "y": 0.017778987596059892
               },
-              "intensity": 88,
+              "intensity": 94,
               "rgb": [
                 255,
-                0,
-                3
+                5,
+                6
               ]
             },
             {
               "cursor": {
-                "x": 0.9349436579386547,
+                "x": 0.9740953106400878,
                 "y": 0
               },
-              "intensity": 96,
+              "intensity": 100,
               "rgb": [
                 255,
                 0,
-                104
+                44
               ]
             },
             {
               "cursor": {
-                "x": 0.03729246423591756,
+                "x": 0.10463294032790628,
                 "y": 0
               },
               "intensity": 87,
               "rgb": [
                 255,
-                57,
+                160,
                 0
               ]
             }
           ],
           "lineOpacities": [
-            28,
-            18,
-            35
+            54,
+            70,
+            64
           ],
           "innerShadowOpacity": 0.25,
           "orbModule": "tech",
@@ -205,9 +205,21 @@
           "sizeOffset": -11
         },
         "controlSound": {
-          "name": "soft_click.mp3",
-          "source": "data:audio/mpeg;base64,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",
-          "volume": 30
+          "volume": 60
+        },
+        "uxSounds": {
+          "unlockDial": "light-mechanical-click",
+          "dialClick": "soft-click",
+          "foldBreak": "medium-mechanical-click",
+          "foldHeal": "light-mechanical-click",
+          "sectionChange": "soft-click",
+          "buttonPress": "soft-click",
+          "timerAlert": "chime-classic",
+          "reminderAlert": "chime-magical",
+          "reminderConfirm": "chime-motion-tracker",
+          "timerSet": "chime-soft-boop",
+          "lightsOn": "chime-retro-boop",
+          "lightsOff": "chime-motion-tracker"
         },
         "font": {
           "id": "chakra-petch",
@@ -242,10 +254,10 @@
         "headerFade": {
           "color": {
             "cursor": {
-              "x": 0,
-              "y": 0
+              "x": 0.704806893001211,
+              "y": 1
             },
-            "intensity": 0,
+            "intensity": 7,
             "rgb": [
               255,
               255,
@@ -257,17 +269,17 @@
         "panel": {
           "color": {
             "cursor": {
-              "x": 0,
-              "y": 0.9999480210304733
+              "x": 0.704806893001211,
+              "y": 1
             },
-            "intensity": 10,
+            "intensity": 6,
             "rgb": [
               255,
               255,
               255
             ]
           },
-          "opacity": 62
+          "opacity": 100
         },
         "map": {
           "base": {
@@ -382,14 +394,14 @@
         "knobSkin": "light",
         "ledColor": {
           "cursor": {
-            "x": 0.0626837427389242,
-            "y": 0
+            "x": 0.05851414852468458,
+            "y": 0.2529057834686047
           },
           "intensity": 100,
           "rgb": [
             255,
-            96,
-            0
+            131,
+            64
           ]
         },
         "mapBuildingOpacity": 64,
@@ -477,7 +489,7 @@
         },
         "highlight": {
           "cursor": {
-            "x": 0.004523407941230699,
+            "x": 0.0016846785628091376,
             "y": 1
           },
           "intensity": 77,
@@ -502,7 +514,7 @@
           },
           "gradientCenter": {
             "cursor": {
-              "x": 0.5701643320760753,
+              "x": 0.8277500071592249,
               "y": 1
             },
             "intensity": 100,
@@ -514,7 +526,7 @@
           },
           "gradientOuter": {
             "cursor": {
-              "x": 0.46057714441781045,
+              "x": 0.5210062116337137,
               "y": 1
             },
             "intensity": 100,
@@ -530,7 +542,7 @@
               "x": 0.5013927576601671,
               "y": 0.996078431372549
             },
-            "intensity": 78,
+            "intensity": 69,
             "rgb": [
               254,
               255,
@@ -624,10 +636,10 @@
         },
         "background": {
           "cursor": {
-            "x": 0,
+            "x": 0.006358866453807678,
             "y": 1
           },
-          "intensity": 95,
+          "intensity": 91,
           "rgb": [
             255,
             255,
@@ -661,9 +673,21 @@
           "sizeOffset": -11
         },
         "controlSound": {
-          "name": "soft_click.mp3",
-          "source": "data:audio/mpeg;base64,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",
-          "volume": 30
+          "volume": 60
+        },
+        "uxSounds": {
+          "unlockDial": "light-mechanical-click",
+          "dialClick": "soft-click",
+          "foldBreak": "medium-mechanical-click",
+          "foldHeal": "soft-mechanical-click",
+          "sectionChange": "soft-click",
+          "buttonPress": "soft-click",
+          "timerAlert": "chime-classic",
+          "reminderAlert": "chime-magical",
+          "reminderConfirm": "chime-soft-boop",
+          "timerSet": "chime-soft-boop",
+          "lightsOn": "chime-retro-boop",
+          "lightsOff": "chime-motion-tracker"
         },
         "font": {
           "id": "chakra-petch",
@@ -683,7 +707,7 @@
         "border": {
           "color": {
             "cursor": {
-              "x": 0,
+              "x": 0.9975611393237812,
               "y": 1
             },
             "intensity": 100,
@@ -698,10 +722,10 @@
         "headerFade": {
           "color": {
             "cursor": {
-              "x": 0.17562885688599872,
-              "y": 0.9993773332231441
+              "x": 0.006358866453807678,
+              "y": 1
             },
-            "intensity": 100,
+            "intensity": 91,
             "rgb": [
               255,
               255,
@@ -714,7 +738,7 @@
           "color": {
             "cursor": {
               "x": 0,
-              "y": 0.9981527446210634
+              "y": 1
             },
             "intensity": 100,
             "rgb": [
@@ -723,7 +747,7 @@
               255
             ]
           },
-          "opacity": 65
+          "opacity": 100
         },
         "map": {
           "base": {
@@ -838,14 +862,14 @@
         "knobSkin": "dark",
         "ledColor": {
           "cursor": {
-            "x": 0.45639597171630597,
-            "y": 0.650515837069379
+            "x": 0.4179721911071997,
+            "y": 0.3696991903866641
           },
           "intensity": 100,
           "rgb": [
-            166,
+            94,
             255,
-            231
+            175
           ]
         },
         "mapBuildingOpacity": 64,
@@ -931,5 +955,5 @@
       "nudgePx": 10
     }
   },
-  "updatedAt": "2026-09-13T01:54:08.664Z"
+  "updatedAt": "2026-09-16T08:27:58.990Z"
 }

@@ -58,6 +58,7 @@ export function TimerEncoder() {
     >
       <div className="timer-encoder-face"><OrbEventReadout icon={icon}
         fraction={locked && active && !done ? timerRemaining(active, now) / active.durationMs : undefined}
+        remainingMs={locked && active && !done ? timerRemaining(active, now) : undefined}
         text={locked && active ? done ? "Done" : countdownText(timerRemaining(active, now)) : minutes ? countdownText(minutes * 60_000) : "Off"} /></div>
     </RotaryEncoder>
     {numeric.element}{error && <p role="alert">{error}</p>}

@@ -4,9 +4,12 @@ import { ReminderGlyphMark } from "../reminders/icon-registry";
 export function OrbEventIcon({ icon }: { icon: string }) {
   return <ReminderGlyphMark glyph={icon.startsWith("text:") ? { kind: "text", value: icon.slice(5) } : { kind: "phosphor", id: icon }} />;
 }
-export function CountdownRing({ fraction }: { fraction: number }) {
+/** Last ten seconds of a countdown pulse the ring out and back in, once a second. */
+export const COUNTDOWN_RING_PULSE_MS = 10_000;
+export function CountdownRing({ fraction, remainingMs }: { fraction: number; remainingMs?: number }) {
   const remaining = Math.max(0, Math.min(1, fraction));
-  return <svg className="orb-countdown-ring" viewBox="0 0 100 100" aria-hidden="true">
+  const pulsing = remainingMs !== undefined && remainingMs > 0 && remainingMs <= COUNTDOWN_RING_PULSE_MS;
+  return <svg className={`orb-countdown-ring${pulsing ? " orb-countdown-ring-pulsing" : ""}`} viewBox="0 0 100 100" aria-hidden="true">
     <circle cx="50" cy="50" r="46" pathLength="1" fill="none" stroke="currentColor" strokeWidth="4"
       strokeDasharray={`${remaining} 1`} transform="rotate(-90 50 50)" />
   </svg>;
@@ -15,14 +18,16 @@ export function CountdownRing({ fraction }: { fraction: number }) {
 export function orbTextFit(text: string): number {
   return Math.max(0.45, Math.min(1, 4.5 / Math.max(1, [...text].length)));
 }
-export function OrbEventReadout({ icon, fraction, text }: { icon: string; fraction?: number; text: string }) {
+export function OrbEventReadout({ icon, fraction, remainingMs, text }: { icon: string; fraction?: number; remainingMs?: number; text: string }) {
   return <span className="orb-event-readout"><span className="orb-event-icon">
-    <OrbEventIcon icon={icon} />{fraction !== undefined && <CountdownRing fraction={fraction} />}
+    <OrbEventIcon icon={icon} />{fraction !== undefined && <CountdownRing fraction={fraction} remainingMs={remainingMs} />}
   </span><span className="orb-event-text" style={{ "--orb-text-fit": orbTextFit(text) } as CSSProperties}>{text}</span></span>;
 }
-type ReadoutItem = { entry: { id: string }; output: { icon?: string; countdownFraction?: number }; text: string };
+type ReadoutItem = { entry: { id: string }; output: { icon?: string; countdownFraction?: number; remainingMs?: number }; text: string };
 function ReadoutBody({ item }: { item: ReadoutItem }) {
-  return item.output.icon ? <OrbEventReadout icon={item.output.icon} fraction={item.output.countdownFraction} text={item.text} /> : <>{item.text}</>;
+  return item.output.icon
+    ? <OrbEventReadout icon={item.output.icon} fraction={item.output.countdownFraction} remainingMs={item.output.remainingMs} text={item.text} />
+    : <>{item.text}</>;
 }
 /**
  * The stack readout: the item on show, sliding in the turn direction (about
