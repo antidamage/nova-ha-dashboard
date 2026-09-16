@@ -58,6 +58,17 @@ import {
 import { useOrbSettings } from "./orb-info/useOrbSettings";
 import { OrbCompletionAudio } from "./orb-info/OrbCompletionAudio";
 import { TimerEncoder } from "./TimerEncoder";
+import type { ReminderGlyph } from "../../lib/reminder-glyph";
+import { ReminderGlyphMark, reminderGlyphLabel } from "./reminders/icon-registry";
+import { ReminderIconPicker } from "./reminders/ReminderIconPicker";
+import { TasksAdvanced } from "./tasks/TasksAdvanced";
+import {
+  glyphWriteForSave,
+  loadRosterGlyphs,
+  rosterGlyphFor,
+  writeReminderGlyph,
+  type RosterGlyphs,
+} from "./tasks/reminder-roster-client";
 import { AdvancedFold } from "./dashboard/AdvancedFold";
 import { TaskLists } from "./tasks/TaskLists";
 
@@ -186,6 +197,7 @@ function TaskEditor({
   initial,
   onCancel,
   onSave,
+  rosterGlyphs,
   submitLabel,
 }: {
   /** Reminders this one may be scheduled from — local ones, never itself. */
@@ -193,11 +205,18 @@ function TaskEditor({
   busy: boolean;
   initial: TaskDraft;
   onCancel: () => void;
-  onSave: (draft: TaskEditorSaveDraft) => Promise<void>;
+  /** `glyph` is the icon picked in this editor, or null when none was. */
+  onSave: (draft: TaskEditorSaveDraft, glyph: ReminderGlyph | null) => Promise<void>;
+  /** The reminder roster's glyphs, keyed by normalised name. */
+  rosterGlyphs: RosterGlyphs;
   submitLabel: string;
 }) {
   const [draft, setDraft] = useState<TaskDraft>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [chosenGlyph, setChosenGlyph] = useState<ReminderGlyph | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Until one is picked, the icon shown is the roster's for the name as it stood.
+  const glyph = chosenGlyph ?? rosterGlyphFor(rosterGlyphs, initial.name);
 
   useEffect(() => {
     setDraft(initial);
@@ -265,7 +284,7 @@ function TaskEditor({
       follows: draftFollows(draft),
       annoy: draft.annoy,
       moduleData: draft.moduleData,
-    });
+    }, chosenGlyph);
   };
 
   return (
@@ -278,6 +297,28 @@ function TaskEditor({
           onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
         />
       </label>
+      <div className="grid gap-1 text-xs font-black uppercase text-neutral-400">
+        <span id="task-editor-icon-label">Icon</span>
+        <button
+          aria-describedby="task-editor-icon-label"
+          aria-label={`Icon: ${reminderGlyphLabel(glyph)}`}
+          className="task-editor-icon inline-flex h-11 w-11 items-center justify-center border border-neutral-700 text-neutral-100"
+          type="button"
+          onClick={() => setPickerOpen(true)}
+        >
+          <ReminderGlyphMark glyph={glyph} />
+        </button>
+        <ReminderIconPicker
+          glyph={glyph}
+          open={pickerOpen}
+          reminderName={draft.name.trim() || "new reminder"}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(next) => {
+            setChosenGlyph(next);
+            setPickerOpen(false);
+          }}
+        />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">
           Start
@@ -432,7 +473,7 @@ function TaskEditor({
         }}
       />
       {error ? <p className="text-sm font-black uppercase text-red-400">{error}</p> : null}
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="task-editor-actions flex flex-wrap justify-end gap-2">
         <button
           className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-4 py-2 text-sm font-black"
           type="button"
@@ -740,6 +781,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [createDraft, setCreateDraft] = useState<TaskDraft>(() => defaultDraft());
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [rosterGlyphs, setRosterGlyphs] = useState<RosterGlyphs>(() => new Map());
   const [editMode, setEditMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(() => new Set());
   const [importOpen, setImportOpen] = useState(false);
@@ -762,6 +804,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioStopTimer = useRef<number | null>(null);
   const audioRepeatTimer = useRef<number | null>(null);
+  const taskPushRevision = useRef(0);
   const dismissingTaskIds = useRef<Set<string>>(new Set());
   // Occurrences this screen has already chimed for, keyed `taskId:sessionKey`.
   // Purely a local fast path in front of the shared `alertChimedFor`.
@@ -791,9 +834,13 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       }
 
       loading = true;
+      const revision = taskPushRevision.current;
       try {
         const payload = await jsonFetch<{ tasks: Task[] }>("/api/tasks?command=list", { cache: "no-store" });
-        if (alive) {
+        // A push (tasks list or a dismissal) that landed while this fetch was in
+        // flight is newer; a stale list would re-raise a dismissed alert and
+        // restart its sound on this screen only.
+        if (alive && revision === taskPushRevision.current) {
           setTasks(payload.tasks);
           setTasksLoaded(true);
         }
@@ -1000,6 +1047,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     const unsubscribe = subscribeToDashboardEvents({
       tasks: (event) => {
         try {
+          taskPushRevision.current += 1;
           const payload = JSON.parse(event.data) as { tasks?: Task[] } | Task[];
           setTasks(Array.isArray(payload) ? payload : (payload.tasks ?? []));
           setTasksLoaded(true);
@@ -1021,7 +1069,10 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
         try {
           const payload = JSON.parse(event.data) as { taskId?: string };
           if (payload.taskId) {
-            void dismissAlert({ post: false, taskId: payload.taskId, updateTask: false });
+            taskPushRevision.current += 1;
+            // updateTask: the local list must carry the acknowledgement too, or
+            // the orb, the chime and the alert effect re-raise it from stale data.
+            void dismissAlert({ post: false, taskId: payload.taskId, updateTask: true });
           }
         } catch (error) {
           setMessage(error instanceof Error ? error.message : "Failed to read reminder dismissal");
@@ -1184,13 +1235,39 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
   const selectedCount = selectedTaskIds.size;
 
-  const saveNewTask = async (draft: TaskEditorSaveDraft) => {
+  const editorOpen = createOpen || expandedTaskId !== null;
+  useEffect(() => {
+    if (!editorOpen) return;
+    let alive = true;
+    loadRosterGlyphs()
+      .then((glyphs) => {
+        if (alive) setRosterGlyphs(glyphs);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [editorOpen]);
+
+  const writeGlyph = async (write: ReturnType<typeof glyphWriteForSave>) => {
+    if (!write) return;
+    try {
+      await writeReminderGlyph(write);
+      setRosterGlyphs((current) => new Map(current).set(write.key, write.glyph));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to save reminder icon");
+    }
+  };
+
+  const saveNewTask = async (draft: TaskEditorSaveDraft, glyph: ReminderGlyph | null) => {
     setBusyId("create");
     try {
-      await jsonFetch<Task>("/api/tasks?command=add", {
+      const created = await jsonFetch<Task>("/api/tasks?command=add", {
         method: "POST",
         body: JSON.stringify(draft),
       });
+      // Written after the create, keyed by the name the reminder was saved under.
+      await writeGlyph(glyphWriteForSave({ chosen: glyph, glyphs: rosterGlyphs, name: created?.name ?? draft.name }));
       setCreateOpen(false);
       setCreateDraft(defaultDraft());
       setMessage("Reminder added");
@@ -1201,13 +1278,15 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     }
   };
 
-  const saveTask = async (task: Task, draft: TaskEditorSaveDraft) => {
+  const saveTask = async (task: Task, draft: TaskEditorSaveDraft, glyph: ReminderGlyph | null) => {
     setBusyId(task.id);
     try {
       await jsonFetch<Task>(`/api/tasks/${encodeURIComponent(task.id)}`, {
         method: "PATCH",
         body: JSON.stringify(draft),
       });
+      // A rename carries the glyph to the new key.
+      await writeGlyph(glyphWriteForSave({ chosen: glyph, glyphs: rosterGlyphs, name: draft.name, previousName: task.name }));
       setExpandedTaskId(null);
       setMessage("Reminder saved");
     } catch (error) {
@@ -1347,7 +1426,6 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       repeatLabel(task.repeat) ??
       followsLabel(task.follows, tasks.find((candidate) => candidate.id === task.follows?.taskId)?.name);
     const selected = selectedTaskIds.has(task.id);
-    const expanded = expandedTaskId === task.id;
     const canComplete = status !== "Done";
 
     return (
@@ -1413,23 +1491,43 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
           </div>
         </div>
 
-        {expanded && !editMode ? (
-          task.readOnly || task.source !== "local" ? (
-            <ReadOnlyTaskPanel busy={busyId === task.id} onConvert={convertTaskToLocal} task={task} />
-          ) : (
-            <TaskEditor
-              anchorOptions={anchorOptions.filter((candidate) => candidate.id !== task.id)}
-              busy={busyId === task.id}
-              initial={taskDraft(task)}
-              onCancel={() => setExpandedTaskId(null)}
-              onSave={(draft) => saveTask(task, draft)}
-              submitLabel="Save"
-            />
-          )
-        ) : null}
       </div>
     );
   };
+
+  const closeEditor = () => {
+    setCreateOpen(false);
+    setExpandedTaskId(null);
+  };
+
+  const expandedTask = editMode || createOpen ? null : (tasks.find((task) => task.id === expandedTaskId) ?? null);
+  // One editor at a time, shown in place of the lists.
+  const editorView = createOpen && !editMode ? (
+    <TaskEditor
+      anchorOptions={anchorOptions}
+      busy={busyId === "create"}
+      initial={createDraft}
+      onCancel={closeEditor}
+      onSave={saveNewTask}
+      rosterGlyphs={rosterGlyphs}
+      submitLabel="Create"
+    />
+  ) : expandedTask ? (
+    expandedTask.readOnly || expandedTask.source !== "local" ? (
+      <ReadOnlyTaskPanel busy={busyId === expandedTask.id} onConvert={convertTaskToLocal} task={expandedTask} />
+    ) : (
+      <TaskEditor
+        key={expandedTask.id}
+        anchorOptions={anchorOptions.filter((candidate) => candidate.id !== expandedTask.id)}
+        busy={busyId === expandedTask.id}
+        initial={taskDraft(expandedTask)}
+        onCancel={closeEditor}
+        onSave={(draft, glyph) => saveTask(expandedTask, draft, glyph)}
+        rosterGlyphs={rosterGlyphs}
+        submitLabel="Save"
+      />
+    )
+  ) : null;
 
   return (
     <>
@@ -1459,88 +1557,93 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                 <p className="text-sm font-black uppercase text-cyan-300">Schedule</p>
                 <h2 className="mt-1 text-2xl font-black uppercase text-neutral-50">Reminders</h2>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
-                  type="button"
-                  onClick={() => {
-                    setCreateOpen((current) => {
-                      const next = !current;
-                      if (next) {
-                        setCreateDraft(defaultDraft());
-                      }
-                      return next;
-                    });
-                    setExpandedTaskId(null);
-                    setEditMode(false);
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add
-                </button>
-                <button
-                  className={classNames(
-                    "inline-flex min-h-11 items-center gap-2 border px-3 py-2 text-sm font-black",
-                    editMode ? "border-cyan-300/60 bg-cyan-300/10 text-cyan-100" : "border-neutral-700",
-                  )}
-                  type="button"
-                  onClick={toggleEditMode}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </button>
-                <button
-                  className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
-                  type="button"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload className="h-4 w-4" />
-                  Import
-                </button>
-                <button
-                  className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
-                  type="button"
-                  onClick={() => setExportOpen(true)}
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </button>
-              </div>
             </header>
 
-            {editMode ? (
-              <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
-                <button
-                  className="inline-flex min-h-10 items-center gap-2 border border-red-400/60 bg-red-500/10 px-3 py-2 text-sm font-black text-red-100"
-                  type="button"
-                  onClick={() => void deleteSelected()}
-                  disabled={!selectedCount || busyId === "delete"}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete ({selectedCount})
-                </button>
-              </div>
-            ) : null}
-
-            {message ? (
-              <div className="mb-3 border border-cyan-300/40 bg-cyan-300/10 p-2 font-mono text-sm font-black uppercase text-cyan-100">
-                {message}
-              </div>
-            ) : null}
-
             <div className="grid gap-3">
-              {createOpen ? (
-                <TaskEditor
-                  anchorOptions={anchorOptions}
-                  busy={busyId === "create"}
-                  initial={createDraft}
-                  onCancel={() => setCreateOpen(false)}
-                  onSave={saveNewTask}
-                  submitLabel="Create"
-                />
-              ) : null}
+              {/* Only the timer above the line; everything else past it (specs/tasks-panel.md). */}
+              <AdvancedFold
+                advanced={
+                  <TasksAdvanced
+                    editor={editorView}
+                    onBack={closeEditor}
+                    lists={
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                            type="button"
+                            onClick={() => {
+                              setCreateOpen((current) => {
+                                const next = !current;
+                                if (next) {
+                                  setCreateDraft(defaultDraft());
+                                }
+                                return next;
+                              });
+                              setExpandedTaskId(null);
+                              setEditMode(false);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add
+                          </button>
+                          <button
+                            className={classNames(
+                              "inline-flex min-h-11 items-center gap-2 border px-3 py-2 text-sm font-black",
+                              editMode ? "border-cyan-300/60 bg-cyan-300/10 text-cyan-100" : "border-neutral-700",
+                            )}
+                            type="button"
+                            onClick={toggleEditMode}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </button>
+                          <button
+                            className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                            type="button"
+                            onClick={() => setImportOpen(true)}
+                          >
+                            <Upload className="h-4 w-4" />
+                            Import
+                          </button>
+                          <button
+                            className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                            type="button"
+                            onClick={() => setExportOpen(true)}
+                          >
+                            <Download className="h-4 w-4" />
+                            Export
+                          </button>
+                        </div>
 
-              <AdvancedFold advanced={<TaskLists nowMs={nowMs} renderRow={renderTaskRow} tasks={tasks} />}><TimerEncoder /></AdvancedFold>
+                        {editMode ? (
+                          <div className="flex flex-wrap items-center justify-end gap-3">
+                            <button
+                              className="inline-flex min-h-10 items-center gap-2 border border-red-400/60 bg-red-500/10 px-3 py-2 text-sm font-black text-red-100"
+                              type="button"
+                              onClick={() => void deleteSelected()}
+                              disabled={!selectedCount || busyId === "delete"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete ({selectedCount})
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {message ? (
+                          <div className="border border-cyan-300/40 bg-cyan-300/10 p-2 font-mono text-sm font-black uppercase text-cyan-100">
+                            {message}
+                          </div>
+                        ) : null}
+
+                        <TaskLists nowMs={nowMs} renderRow={renderTaskRow} tasks={tasks} />
+                      </>
+                    }
+                  />
+                }
+              >
+                <TimerEncoder />
+              </AdvancedFold>
             </div>
           </section>
 

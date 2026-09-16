@@ -98,6 +98,7 @@ async function noSidewaysOverflow(page: Page) {
 
 for (const viewport of [
   { width: 430, height: 932 },
+  { width: 768, height: 1024 },
   { width: 820, height: 1180 },
 ]) {
   test.describe(`portrait ${viewport.width}x${viewport.height}`, () => {
@@ -212,7 +213,7 @@ for (const viewport of [
           expect(closed.divider.left + closed.divider.width, `${selector} divider inside right edge`)
             .toBeLessThanOrEqual(closed.rect.left + closed.rect.width + 0.5);
 
-          await pull(page, fold, 120);
+          await pull(page, fold, 200);
           await fold.evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
           await page.waitForTimeout(200);
           const opened = await geometry(fold);
@@ -237,7 +238,7 @@ for (const viewport of [
       const held = await geometry(fold);
       expect(held.open).toBe("false");
       expect(held.offset).toBeLessThanOrEqual(1);
-      await pull(page, fold, 100);
+      await pull(page, fold, 180);
       expect((await geometry(fold)).open).toBe("true");
     });
 

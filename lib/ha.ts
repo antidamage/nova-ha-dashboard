@@ -35,6 +35,7 @@ import {
   type StagedLightValue,
 } from "./light-event-state";
 import { hsvToRgb } from "../app/components/colorEncoderModel";
+import { adaptiveRuleEnabled, migrateLightingRules, projectLightingRules, ruleTrigger, type ZoneLightRule } from "./zone-light-rules";
 import { SupersededLightingCommandError } from "./lighting-command-coordinator";
 import {
   brightnessPctFromAttribute,
@@ -1101,6 +1102,11 @@ export async function applyAdaptiveCandlelightTransitions(housePartyBypass = fal
     if (!preference.enabled || preference.lastSunState === sunState) {
       continue;
     }
+    // Whether the zone takes part at all is its adaptive rule; the preference
+    // only says it is currently following (specs/zone-light-events.md).
+    if (!adaptiveRuleEnabled(dashboard.lighting, zoneId)) {
+      continue;
+    }
 
     const zone = zonesById.get(zoneId);
     if (!zone) {
@@ -1282,7 +1288,8 @@ export async function applyZoneLightEvents(housePartyBypass = false) {
   }
 
   const config = readDashboardConfigSync();
-  const events = config.dashboard.lighting.zoneEvents ?? [];
+  const projected = projectLightingRules(config.dashboard.lighting);
+  const events = projected.zoneEvents ?? [];
   if (!events.length) {
     return null;
   }
@@ -1290,7 +1297,7 @@ export async function applyZoneLightEvents(housePartyBypass = false) {
   const now = new Date();
   const persisted = await readLightEventState();
   const dashboard = await buildDashboardState();
-  const switchOnIds = new Set(config.dashboard.lighting.eventSwitchOnEntityIds ?? []);
+  const switchOnIds = new Set(projected.eventSwitchOnEntityIds ?? []);
 
   const tasks: Promise<unknown>[] = [];
   const staged: Record<string, StagedLightValue> = {};
@@ -1369,6 +1376,76 @@ export async function applyZoneLightEvents(housePartyBypass = false) {
   }
 
   return tasks.length ? buildDashboardState() : null;
+}
+
+let zoneRuleMigrationFailed = false;
+
+/**
+ * Write the old per-automation keys back as rules, once. Runs on the host,
+ * which is the only place that knows the zones a rule belongs to.
+ */
+export async function ensureZoneLightRulesMigrated(dashboard?: DashboardState) {
+  const config = readDashboardConfigSync();
+  const lighting = config.dashboard.lighting;
+  const pending = (lighting.zoneEvents?.length ?? 0) > 0
+    || (lighting.intensityThresholds?.length ?? 0) > 0
+    || (lighting.entityPresets ?? []).some((preset) => preset.pinned);
+  const state = dashboard ?? (pending || !zoneRuleMigrationFailed ? await buildDashboardState() : null);
+  if (!state) return false;
+  const result = migrateLightingRules(lighting, state.zones);
+  if (!result.changed) return false;
+  const { patchDashboardConfig } = await import("./dashboard-config");
+  const written = await patchDashboardConfig({ dashboard: { lighting: result.lighting } });
+  if (!written.ok) {
+    if (!zoneRuleMigrationFailed) {
+      console.error("[nova-dashboard] zone light rule migration failed", { errors: written.errors });
+    }
+    zoneRuleMigrationFailed = true;
+    return false;
+  }
+  zoneRuleMigrationFailed = false;
+  return true;
+}
+
+/**
+ * The one host pass for every lighting rule kind (specs/zone-light-events.md).
+ * Each kind keeps its own House Party deferral, once-per-occurrence and
+ * lateness handling; the result names which kinds changed something.
+ */
+export async function runZoneLightRules(): Promise<Array<[string, DashboardState]>> {
+  try {
+    await ensureZoneLightRulesMigrated();
+  } catch (error) {
+    console.error("[nova-dashboard] zone light rule migration failed", { error });
+  }
+  const kinds: Array<[string, () => Promise<DashboardState | null | undefined>]> = [
+    ["adaptive-candlelight", applyAdaptiveCandlelightTransitions],
+    ["intensity-threshold", applyLightingIntensityThresholds],
+    ["pinned-preset", applyPinnedLightPresets],
+    ["light-event", applyZoneLightEvents],
+  ];
+  const changed: Array<[string, DashboardState]> = [];
+  for (const [event, run] of kinds) {
+    const state = await run();
+    if (state) changed.push([event, state]);
+  }
+  return changed;
+}
+
+/** Apply one rule now, as its preset button does. */
+export async function triggerZoneLightRule(rule: ZoneLightRule) {
+  const trigger = ruleTrigger(rule);
+  if (trigger.kind === "host") {
+    return trigger.automation === "threshold"
+      ? applyLightingIntensityThresholds()
+      : applyPinnedLightPresets();
+  }
+  return setZoneAction({
+    zoneId: rule.zoneId,
+    action: trigger.action,
+    brightnessPct: trigger.brightnessPct,
+    rgb: trigger.rgb,
+  });
 }
 
 export async function setEntityAction(input: {

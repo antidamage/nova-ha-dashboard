@@ -31,6 +31,13 @@ async function publish(timer: OrbTimer | null) {
   const { publishOrbTimer } = await import("./dashboard-events");
   publishOrbTimer(timer);
 }
+/**
+ * Clock tolerance for a timer dismissal. Screens compute "Done" from their own
+ * clock; one running up to 5 s ahead of the server would otherwise have its tap
+ * refused (the timer not yet complete server-side) and the alert would stay on
+ * every screen. A tap within 5 s of the end completes the timer at `endsAt`.
+ */
+const DISMISS_CLOCK_SKEW_MS = 5_000;
 export function readOrbTimer() { return serial(async () => (await read()).timer); }
 export function setOrbTimer(durationMs: number, icon: string, label: string) {
   return serial(async () => {
@@ -49,7 +56,9 @@ export function dismissOrbTimer(id: string) {
   return serial(async () => {
     const state = await read();
     if (state.timer?.id === id && state.timer.dismissedAt === null) {
-      state.timer = completeTimer(state.timer, Date.now());
+      // A screen whose clock runs a little ahead shows "Done" before the server
+      // does; accept that tap instead of silently ignoring it.
+      state.timer = completeTimer(state.timer, Date.now() + DISMISS_CLOCK_SKEW_MS);
       if (state.timer!.completedAt === null) return state.timer;
       await notifyCompletion(state);
       state.timer!.dismissedAt = Date.now();

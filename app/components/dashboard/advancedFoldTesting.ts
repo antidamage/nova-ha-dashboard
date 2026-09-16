@@ -1,5 +1,5 @@
 import { fireEvent } from "@testing-library/react";
-import { ADVANCED_FOLD_BREAK_PX } from "./advancedFoldBand";
+import { ADVANCED_FOLD_DRAG_BREAK_PX } from "./advancedFoldBand";
 
 /**
  * jsdom has no layout, so a fold's scroll geometry is faked: `closed` px of
@@ -36,7 +36,7 @@ export function fakeFoldGeometry(
 export function openAdvancedFold(container: HTMLElement, fold?: HTMLElement) {
   const node = fold ?? (container.querySelector(".advanced-fold:not([data-foldless])") as HTMLElement);
   fakeFoldGeometry(node);
-  const travel = ADVANCED_FOLD_BREAK_PX + 20;
+  const travel = ADVANCED_FOLD_DRAG_BREAK_PX + 20;
   fireEvent.mouseDown(node, { button: 0, clientX: 200, clientY: 200 });
   fireEvent.mouseMove(window, { clientX: 200 - travel, clientY: 200 - travel });
   fireEvent.mouseUp(window);

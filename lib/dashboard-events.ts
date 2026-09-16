@@ -1,10 +1,7 @@
 import { readDashboardBuildId } from "./build-id";
 import {
-  applyAdaptiveCandlelightTransitions,
-  applyLightingIntensityThresholds,
-  applyPinnedLightPresets,
-  applyZoneLightEvents,
   buildDashboardState,
+  runZoneLightRules,
   subscribeHaStateChanges,
   warmWeatherCache,
 } from "./ha";
@@ -1013,18 +1010,10 @@ async function scanAdaptiveLighting() {
   try {
     // Each automation returns a state only when it actually changed something,
     // so emit the periodic event exactly on a real action (not every 60s tick).
-    const automations: Array<[string, () => Promise<DashboardState | null | undefined>]> = [
-      ["adaptive-candlelight", applyAdaptiveCandlelightTransitions],
-      ["intensity-threshold", applyLightingIntensityThresholds],
-      ["pinned-preset", applyPinnedLightPresets],
-      ["light-event", applyZoneLightEvents],
-    ];
-    for (const [event, run] of automations) {
-      const state = await run();
-      if (state) {
-        void emitDashboardEvent({ service: "lighting", event, source: "periodic" });
-        publishDashboardState(state, { force: true });
-      }
+    // Every lighting rule kind runs in one host pass (runZoneLightRules).
+    for (const [event, state] of await runZoneLightRules()) {
+      void emitDashboardEvent({ service: "lighting", event, source: "periodic" });
+      publishDashboardState(state, { force: true });
     }
   } catch (error) {
     publishDashboardError(error instanceof Error ? error.message : "Failed to run lighting automation");

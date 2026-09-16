@@ -20,6 +20,7 @@ import {
   bedroomTemperatureStateIsFresh,
 } from "./bedroom-heater-control";
 import { readDashboardConfig, readDashboardConfigSync } from "./dashboard-config";
+import { airconDrySupport, firstState, freshSensorValue, planDryEmulationTick } from "./aircon-dry";
 import {
   airconInstances,
   heaterInstances,
@@ -66,7 +67,7 @@ const AIRCON_START_WINDOW_MS = 60 * 60_000;
  * control loop could never drive a third device.
  */
 type RoomId = string;
-type Direction = "heat" | "cool" | "fan_only";
+type Direction = "heat" | "cool" | "dry" | "fan_only";
 
 type PersistedRoom = {
   owner: "nova" | "external";
@@ -83,6 +84,12 @@ type PersistedRoom = {
   /** Change detector and latch for a Manual target the owner moved. */
   manualTargetTemperature: number | null;
   manualUserRequestAt: number | null;
+  /** Emulated Dry (specs/aircon-auto-control.md): owner request not yet served. */
+  dryUserRequestAt: number | null;
+  /** Emulation itself switched the unit off, so it may start it again. */
+  dryOffByEmulation: boolean;
+  /** Emulation changed the setpoint; restore the owner's target on leaving Dry. */
+  drySetpointChanged: boolean;
 };
 
 type PersistedState = {
@@ -108,6 +115,9 @@ function defaultRoom(): PersistedRoom {
     manualDirection: null,
     manualTargetTemperature: null,
     manualUserRequestAt: null,
+    dryUserRequestAt: null,
+    dryOffByEmulation: false,
+    drySetpointChanged: false,
   };
 }
 
@@ -258,6 +268,47 @@ function airconEntityFor(states: HaState[], unit: AirconInstance) {
     return states.find((state) => state.entity_id === unit.entityId);
   }
   return dashboardAirconEntity(states, unit.matchTokens) as HaState | undefined;
+}
+
+/** Both room sensors configured: Dry can be emulated on a unit without it. */
+function airconRoomHasDrySensors(unit: AirconInstance) {
+  return (unit.humidityEntityIds ?? []).some((id) => id.trim()) && (unit.temperatureEntityIds ?? []).some((id) => id.trim());
+}
+
+function airconSupportedModes(aircon: DashboardEntity | undefined) {
+  const modes = aircon?.attributes?.hvac_modes;
+  return Array.isArray(modes) ? modes.map(String) : [];
+}
+
+function emulatesDry(unit: AirconInstance, aircon: HaState | DashboardEntity | undefined) {
+  return airconDrySupport(airconSupportedModes(aircon as DashboardEntity | undefined), airconRoomHasDrySensors(unit)) === "emulated";
+}
+
+/** Owner asked for Dry on a unit Nova emulates it for. */
+async function requestEmulatedDry(unit: AirconInstance, now: number) {
+  const room = roomState(unit.id);
+  room.manualDirection = "dry";
+  room.dryUserRequestAt = now;
+  room.dryOffByEmulation = false;
+  airconThermostatFor(unit.id).resetForUserRequest();
+  await mergeDashboardPreferences(airconPreferencesPatch(unit.id, { autoMode: false, hvacMode: "dry" }));
+}
+
+/**
+ * Leaving emulated Dry, however it happens: forget its bookkeeping and put back
+ * the owner's target, which emulation replaced with room minus one.
+ */
+async function leaveEmulatedDry(unit: AirconInstance, entityId: string | undefined, preferences?: DashboardPreferences) {
+  const room = roomState(unit.id);
+  const restore = room.drySetpointChanged;
+  room.dryUserRequestAt = null;
+  room.dryOffByEmulation = false;
+  room.drySetpointChanged = false;
+  if (!restore || !entityId) return;
+  const target = airconPreferencesFor(preferences ?? await readDashboardPreferences(), unit.id)?.temperature;
+  if (typeof target === "number" && Number.isFinite(target)) {
+    await executeActions(unit, [{ entityId, domain: "climate", service: "set_temperature", data: { temperature: target } }], true);
+  }
 }
 
 function heaterEntityFor(states: HaState[], instance: HeaterInstance) {
@@ -436,7 +487,9 @@ async function stopAndCancel(instance: ClimateInstance, entityId: string, reason
   roomState(room).settlingFromTemperature = null;
   if (instance.kind === "aircon") {
     airconThermostatFor(room).resetForUserRequest();
+    roomState(room).manualDirection = null;
     await executeActions(instance, [{ entityId, domain: "climate", service: "turn_off" }]);
+    await leaveEmulatedDry(instance, entityId);
     await mergeDashboardPreferences(airconPreferencesPatch(room, { autoMode: false, offTimerEndsAt: null }));
   } else {
     heaterThermostatFor(room).resetForUserRequest();
@@ -507,7 +560,7 @@ async function driveAircon(
     : "off";
   const direction = mode === "manual" && room.manualDirection
     ? room.manualDirection
-    : aircon && ["heat", "cool", "fan_only"].includes(aircon.state)
+    : aircon && ["heat", "cool", "dry", "fan_only"].includes(aircon.state)
     ? (aircon.state as Direction)
     : (prefs?.hvacMode as Direction | undefined) ?? null;
   const external = room.owner === "external";
@@ -538,6 +591,48 @@ async function driveAircon(
       } else {
         await executeActions(unit, plan.actions);
         if (plan.reason === "reached-target") room.lastStopReason = "target-reached";
+      }
+    } else if (
+      mode === "manual" &&
+      direction === "dry" &&
+      emulatesDry(unit, aircon)
+    ) {
+      // specs/aircon-auto-control.md, "Dry emulation".
+      const minTemperature = Number(aircon.attributes.min_temp);
+      const decision = planDryEmulationTick({
+        humidityPct: freshSensorValue(firstState(states, unit.humidityEntityIds), now),
+        roomTemperatureC: freshSensorValue(firstState(states, unit.temperatureEntityIds), now),
+        targetHumidityPct: unit.dryTargetHumidityPct ?? 55,
+        entityState: aircon.state,
+        supportedModes: airconSupportedModes(aircon),
+        fanModes: Array.isArray(aircon.attributes.fan_modes) ? aircon.attributes.fan_modes.map(String) : [],
+        minTemperatureC: Number.isFinite(minTemperature) ? minTemperature : 16,
+        now,
+        lastTransitionAt: room.lastTransitionAt,
+        minDwellMs: AIRCON_MIN_OFF_MS,
+        mayStartFromOff: typeof room.dryUserRequestAt === "number" || room.dryOffByEmulation,
+      });
+      if (decision.kind !== "hold") {
+        room.dryUserRequestAt = null;
+        room.dryOffByEmulation = decision.kind === "off";
+      }
+      if (decision.kind === "cool") {
+        room.lastTransitionAt = now;
+        room.recentStartsAt.push(now);
+        room.drySetpointChanged = true;
+        await executeActions(unit, [
+          { entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: "cool" } },
+          { entityId: aircon.entity_id, domain: "climate", service: "set_temperature", data: { temperature: decision.setpointC } },
+          ...(decision.fanMode
+            ? [{ entityId: aircon.entity_id, domain: "climate" as const, service: "set_fan_mode", data: { fan_mode: decision.fanMode } }]
+            : []),
+        ]);
+      } else if (decision.kind === "fan_only" || decision.kind === "off") {
+        if (aircon.state === "cool") room.lastTransitionAt = now;
+        room.lastStopReason = "target-reached";
+        await executeActions(unit, [decision.kind === "off"
+          ? { entityId: aircon.entity_id, domain: "climate", service: "turn_off" }
+          : { entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: "fan_only" } }]);
       }
     } else if (mode === "manual" && (direction === "heat" || direction === "cool")) {
       const target = prefs?.temperature ?? Number(aircon.attributes.temperature);
@@ -753,6 +848,7 @@ async function tick() {
           : prefs?.autoMode && rawTemperature === null ? "grace"
           : aircon && isClimateEntityOn(aircon) ? "driving" : prefs?.autoMode || mode === "manual" ? "resting" : "off",
         direction,
+        dryEmulatable: emulatesDry(unit, aircon),
         sensorAvailable: rawTemperature !== null,
         sensorReportedAt: stateReportTime(aircon),
         sensorGraceEndsAt: prefs?.autoMode && rawTemperature === null && typeof pendingAt === "number"
@@ -874,10 +970,15 @@ export async function handleLegacyClimateAction(action: {
 
   const state = roomState(room);
   if (isAircon) {
+    const leavingDry = state.manualDirection === "dry" && (
+      action.service === "turn_off" ||
+      action.remember?.aircon?.autoMode === true ||
+      (action.service === "set_hvac_mode" && action.data?.hvac_mode !== "dry")
+    );
     if (action.remember?.aircon?.autoMode === true) state.manualDirection = null;
     if (action.service === "set_hvac_mode" && action.remember?.aircon?.autoMode === false) {
       const direction = action.data?.hvac_mode;
-      if (direction === "heat" || direction === "cool" || direction === "fan_only") {
+      if (direction === "heat" || direction === "cool" || direction === "dry" || direction === "fan_only") {
         state.manualDirection = direction;
       }
     }
@@ -887,8 +988,13 @@ export async function handleLegacyClimateAction(action: {
         state.manualDirection = direction;
       }
     }
-    if (action.service === "turn_off" && action.remember?.aircon?.autoMode === false) {
+    // Every turn_off ends Manual, whoever sent it: a remembered direction
+    // would otherwise let the loop start the unit again.
+    if (action.service === "turn_off") {
       state.manualDirection = null;
+    }
+    if (leavingDry && instance.kind === "aircon") {
+      await leaveEmulatedDry(instance, aircon?.entity_id);
     }
   } else if (action.service === "turn_on") {
     // Energise the switch, but leave the stored mode alone. This branch is
@@ -905,6 +1011,21 @@ export async function handleLegacyClimateAction(action: {
   if (action.remember) await mergeDashboardPreferences(action.remember);
   if (action.service === "turn_off") {
     state.lastStopReason = "dashboard-off";
+  }
+  if (
+    instance.kind === "aircon" &&
+    action.service === "set_hvac_mode" &&
+    action.data?.hvac_mode === "dry" &&
+    emulatesDry(instance, aircon)
+  ) {
+    // The unit has no dry mode; the loop emulates it (specs/aircon-auto-control.md).
+    // Voice, automations and MCP send this without `remember`, so the request is
+    // recorded here rather than left to the caller.
+    if (!reclaims) await claimClimateControl(room);
+    await requestEmulatedDry(instance, Date.now());
+    await persistSoon();
+    void tick();
+    return true;
   }
   await executeActions(instance, [{
     entityId: action.entityId,
@@ -941,12 +1062,17 @@ export async function applyClimateControlIntent(intent: ClimateControlIntent) {
     };
     await mergeDashboardPreferences(airconPreferencesPatch(instance.id, update));
     const state = roomState(instance.id);
+    const emulatedDry = intent.direction === "dry" && intent.mode !== "off" && intent.mode !== "auto" && emulatesDry(instance, aircon);
+    const leavingDry = state.manualDirection === "dry" && !emulatedDry &&
+      (intent.mode === "off" || intent.mode === "auto" || (intent.direction !== undefined && intent.direction !== "dry"));
     if (intent.mode === "off" || intent.mode === "auto") state.manualDirection = null;
     if (intent.mode === "manual" && intent.direction) state.manualDirection = intent.direction;
     if (aircon && intent.mode === "off") {
       await executeActions(instance, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
     }
-    if (aircon && intent.mode === "manual" && intent.direction) await executeActions(instance, [{
+    if (leavingDry) await leaveEmulatedDry(instance, aircon?.entity_id);
+    if (emulatedDry) await requestEmulatedDry(instance, Date.now());
+    else if (aircon && intent.mode === "manual" && intent.direction) await executeActions(instance, [{
       entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: intent.direction },
     }]);
   } else {

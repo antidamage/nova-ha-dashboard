@@ -73,6 +73,8 @@ export function recordFloatingSample(
   elapsedSeconds: number,
   hourKey: string,
   at: string,
+  /** Measured energy for the interval from a kWh counter, replacing watts x time. */
+  energyWattSeconds?: number,
 ) {
   const category = (state.categories[categoryId] ??= blankCategoryState());
   category.lastWatts = watts;
@@ -81,10 +83,13 @@ export function recordFloatingSample(
     return;
   }
   const bucket = (category.hourly[hourKey] ??= { seconds: 0, wattSeconds: 0 });
+  const wattSeconds = energyWattSeconds !== undefined && Number.isFinite(energyWattSeconds) && energyWattSeconds >= 0
+    ? energyWattSeconds
+    : watts * elapsedSeconds;
   bucket.seconds += elapsedSeconds;
-  bucket.wattSeconds += watts * elapsedSeconds;
+  bucket.wattSeconds += wattSeconds;
   category.measuredSeconds += elapsedSeconds;
-  category.kwhTotal += (watts * elapsedSeconds) / 3_600_000;
+  category.kwhTotal += wattSeconds / 3_600_000;
 }
 
 export function pruneFloatingMeterState(state: FloatingMeterState, cutoffDateKey: string) {

@@ -73,6 +73,46 @@ const ZoneLightEventSchema = z.object({
 });
 export type ZoneLightEvent = z.infer<typeof ZoneLightEventSchema>;
 export type ZoneLightEventTime = z.infer<typeof ZoneLightEventTimeSchema>;
+const ZoneLightRuleValueSchema = z.object({
+  hue: z.number().int().min(0).max(359),
+  saturation: z.number().int().min(0).max(100),
+  brightnessPct: z.number().int().min(0).max(100),
+});
+const ZoneLightRuleBase = {
+  id: z.string().min(1),
+  zoneId: z.string().min(1),
+  name: z.string().min(1).optional(),
+  enabled: z.boolean().default(true),
+  // Shown as a button in the zone's default view, with a reminder glyph.
+  preset: z.object({
+    show: z.boolean().default(false),
+    icon: z.union([
+      z.object({ kind: z.literal("phosphor"), id: z.string().min(1) }),
+      z.object({ kind: z.literal("text"), value: z.string().min(1).max(2) }),
+    ]).optional(),
+    order: z.number().int().default(0),
+  }).optional(),
+};
+/** Every lighting automation for a zone. See specs/zone-light-events.md, round 2. */
+const ZoneLightRuleSchema = z.discriminatedUnion("kind", [
+  z.object({
+    ...ZoneLightRuleBase,
+    kind: z.literal("event"),
+    at: ZoneLightEventTimeSchema,
+    days: z.array(z.number().int().min(0).max(6)).default([]),
+    value: ZoneLightRuleValueSchema,
+  }),
+  z.object({ ...ZoneLightRuleBase, kind: z.literal("adaptive") }),
+  z.object({
+    ...ZoneLightRuleBase,
+    kind: z.literal("threshold"),
+    thresholdPct: z.number().int().min(0).max(100),
+    entityIds: z.array(entityIdSchema).min(1),
+  }),
+  z.object({ ...ZoneLightRuleBase, kind: z.literal("pinned"), entityIds: z.array(entityIdSchema).min(1) }),
+  // On and Off are never stored, so a stored preset has no builtin.
+  z.object({ ...ZoneLightRuleBase, kind: z.literal("preset"), value: ZoneLightRuleValueSchema }),
+]);
 
 const PowerDeviceRatingSchema = z.object({
   id: z.string().min(1),
@@ -133,6 +173,17 @@ export type FloatingMeterCategory = z.infer<typeof FloatingMeterCategorySchema>;
 
 const FloatingMeterConfigSchema = z.object({
   powerSensorEntityId: entityIdSchema,
+  /**
+   * Read when `powerSensorEntityId` is unavailable — a cloud twin behind a
+   * local sensor (specs/power-meters.md §7.2).
+   */
+  fallbackPowerSensorEntityId: entityIdSchema.optional(),
+  /**
+   * A cumulative kWh counter on the same plug (total_increasing, never a
+   * per-interval increment). When set, energy comes from the
+   * counter's delta and power only drives detection (§7.3).
+   */
+  energySensorEntityId: entityIdSchema.optional(),
   entityIds: z.array(entityIdSchema).min(1),
   /** Hours of measurement before a group's own profile outranks its seed. */
   minLearnedHours: z.number().positive().default(24),
@@ -146,6 +197,17 @@ export type FloatingMeterConfig = z.infer<typeof FloatingMeterConfigSchema>;
  */
 const WashingMachineConfigSchema = z.object({
   powerSensorEntityId: entityIdSchema,
+  /**
+   * Read when `powerSensorEntityId` is unavailable — a cloud twin behind a
+   * local sensor (specs/power-meters.md §7.2).
+   */
+  fallbackPowerSensorEntityId: entityIdSchema.optional(),
+  /**
+   * A cumulative kWh counter on the same plug (total_increasing, never a
+   * per-interval increment). When set, energy comes from the
+   * counter's delta and power only drives detection (§7.3).
+   */
+  energySensorEntityId: entityIdSchema.optional(),
   entityIds: z.array(entityIdSchema).min(1),
   startWatts: z.number().nonnegative().default(15),
   startSustainedSeconds: z.number().positive().default(120),
@@ -223,6 +285,15 @@ const ClimateAirconInstanceSchema = ClimateInstanceBaseSchema.extend({
    * unit named after its manufacturer or nothing at all.
    */
   matchTokens: stringListSchema,
+  /**
+   * The room's own sensors, most trusted first. A unit without a native `dry`
+   * mode is offered Dry only when both are set; Nova then emulates it toward
+   * `dryTargetHumidityPct` (specs/aircon-auto-control.md, "Dry emulation").
+   */
+  temperatureEntityIds: z.array(z.string().min(1)).optional(),
+  humidityEntityIds: z.array(z.string().min(1)).optional(),
+  /** Default 55 (AIRCON_DRY_TARGET_HUMIDITY_DEFAULT_PCT in lib/aircon-dry.ts). */
+  dryTargetHumidityPct: z.number().min(20).max(90).optional(),
 });
 export type ClimateAirconInstanceConfig = z.infer<typeof ClimateAirconInstanceSchema>;
 
@@ -501,6 +572,10 @@ export const DashboardConfigSchema = z.object({
       // Lights an event may switch on. Anything not listed keeps its state and
       // the event's value is staged for its next switch-on instead.
       eventSwitchOnEntityIds: z.array(entityIdSchema).default([]),
+      // Every lighting automation as a rule. The keys above are the old
+      // per-automation homes, migrated into this on the host and then empty.
+      zoneRules: z.array(ZoneLightRuleSchema).default([]),
+      zoneRulesSeededZoneIds: z.array(z.string().min(1)).default([]),
     }),
     aircon: z.object({
       offTimerIncrementMinutes: z.number().int().min(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN).max(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX),
@@ -740,6 +815,8 @@ export const DashboardConfigSchema = z.object({
       discoveryIntervalMs: millisecondsSchema,
       rateCheckIntervalMs: millisecondsSchema,
       maxIntegrationHours: z.number().positive(),
+      /** The metering plugs' own tick (specs/power-meters.md §7.3). */
+      meterSampleIntervalMs: millisecondsSchema.default(10000),
     }),
     // Where this home buys electricity. Every field is optional because a
     // dashboard with no retailer configured is a supported state: the power
@@ -771,6 +848,12 @@ export const DashboardConfigSchema = z.object({
     // A metering plug on a washing machine, with cycle detection so a wash can
     // be attributed to a person. See specs/power-meters.md §4.
     washingMachine: WashingMachineConfigSchema.optional(),
+    // Ask Home Assistant to refresh these entities on an interval, for plugs
+    // whose integration only reports on change (specs/power-meters.md §7.2).
+    meterPolling: z.object({
+      intervalMs: millisecondsSchema.min(1000),
+      refreshEntityIds: z.array(entityIdSchema).min(1),
+    }).optional(),
     modeledBaseLoads: z.object({
       desktopActiveStartHour: z.number().min(0).max(24),
       desktopActiveEndHour: z.number().min(0).max(24),

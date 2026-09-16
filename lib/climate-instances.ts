@@ -49,6 +49,9 @@ export function airconInstances(config: DashboardConfig): AirconInstance[] {
       id: LEGACY_AIRCON_INSTANCE_ID,
       title: config.dashboard.aircon.title,
       matchTokens: config.dashboard.aircon.matchTokens,
+      temperatureEntityIds: [],
+      humidityEntityIds: [],
+      dryTargetHumidityPct: 55,
     },
   ];
 }

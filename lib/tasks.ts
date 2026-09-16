@@ -593,7 +593,18 @@ export async function syncWashReminder(id: string, name: string, start: string, 
   });
 }
 
-export async function claimWashChime(id: string): Promise<boolean> {
+// Claims run strictly in call order. The preferences read used to happen before
+// the claim joined the task write queue, so two concurrent claims could enter
+// that queue in either order and the later caller could win the chime.
+let washChimeClaimQueue: Promise<unknown> = Promise.resolve();
+
+export function claimWashChime(id: string): Promise<boolean> {
+  const run = washChimeClaimQueue.then(() => claimWashChimeInOrder(id));
+  washChimeClaimQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function claimWashChimeInOrder(id: string): Promise<boolean> {
   const preferences = await readDashboardPreferences();
   const repeat = resolveOrbEntries(preferences.orbInfo).some((entry) => entry.moduleId === "washing");
   return mutateTasks((tasks) => {

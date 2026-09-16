@@ -37,7 +37,7 @@ export async function readOrbEvents(entries: OrbStackEntry[]): Promise<Record<st
     if (entry.moduleId === "rain-arriving") {
       const rain = memory.forecast.filter((hour) => Number(hour.precipitation_probability) >= Number(params.chancePct))
         .map((hour) => Date.parse(String(hour.datetime))).filter((at) => at >= now && at <= now + Number(params.withinMinutes) * 60_000).sort((a, b) => a - b)[0];
-      if (rain !== undefined) value = { ...value, active: true, status: "ok", icon: "umbrella", text: `${Math.ceil((rain - now) / 60_000)} min` };
+      if (rain !== undefined) value = { ...value, active: true, status: "ok", icon: "umbrella", text: `${Math.ceil((rain - now) / 60_000)} min`, remainingMs: Math.max(0, rain - now) };
     } else if (entry.moduleId === "power-high" && power) {
       const duration = Number(params.minutes) * 60_000;
       const threshold = Number(params.kilowatts) * 1000;

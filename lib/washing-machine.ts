@@ -47,6 +47,8 @@ export type WashingMachineOpenCycle = {
   lastWatts: number;
   /** Set once the rise has been sustained long enough to count as a wash. */
   startedAt: string | null;
+  /** Counter energy drawn while the rise was being confirmed (§7.3). */
+  preStartKwh?: number;
 };
 
 export type WashingMachineState = {
@@ -89,6 +91,11 @@ export function recordWashingMachineSample(
     watts: number;
     /** HA report time; repeated reads of the same cached report cannot advance the quiet timer. */
     reportedAt?: string;
+    /**
+     * Energy since the previous sample from a kWh counter. When given it
+     * replaces the held-power integral; power then only drives detection.
+     */
+    energyKwh?: number;
   },
 ): WashingMachineState {
   const { at, config, costPerKwh, elapsedHours, watts } = options;
@@ -110,8 +117,15 @@ export function recordWashingMachineSample(
   // Integrate the PREVIOUS reading over the interval it actually stood for,
   // as the rest of the power integrator does. Only a running cycle
   // accumulates; standby draw between washes is not a wash.
-  if (open.startedAt && elapsedHours > 0) {
+  const counterKwh = options.energyKwh !== undefined && Number.isFinite(options.energyKwh) && options.energyKwh >= 0
+    ? options.energyKwh
+    : undefined;
+  if (open.startedAt && counterKwh !== undefined) {
+    add(counterKwh);
+  } else if (open.startedAt && elapsedHours > 0) {
     add((open.lastWatts * elapsedHours) / 1000);
+  } else if (!open.startedAt && counterKwh !== undefined && open.aboveSince) {
+    open.preStartKwh = (open.preStartKwh ?? 0) + counterKwh;
   }
   const gap = seconds(open.lastSampleAt, at);
   const alert = config.completionAlert;
@@ -153,7 +167,13 @@ export function recordWashingMachineSample(
       // is the energy it drew over them, credited here at the rate it has been
       // running at since.
       open.startedAt = open.aboveSince;
-      add((previousWatts * seconds(open.aboveSince, at)) / 3_600_000);
+      if (counterKwh !== undefined) {
+        // This tick's delta was already folded into preStartKwh above.
+        add(open.preStartKwh ?? 0);
+      } else {
+        add((previousWatts * seconds(open.aboveSince, at)) / 3_600_000);
+      }
+      delete open.preStartKwh;
     }
     return { ...state, open };
   }

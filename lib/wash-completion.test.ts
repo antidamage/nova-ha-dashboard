@@ -5,7 +5,7 @@ import { dryingRecommendation } from "./wash-drying";
 
 const at = Date.parse("2026-09-14T00:00:00Z");
 const drying = { hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 };
-const config: WashingMachineConfig = { powerSensorEntityId: "sensor.test", entityIds: ["switch.test"], startWatts: 15, startSustainedSeconds: 120, endWatts: 5, endQuietSeconds: 300, minCycleKwh: 0.05,
+const config: WashingMachineConfig = { powerSensorEntityId: "sensor.test", entityIds: ["switch.test"], startWatts: 15, startSustainedSeconds: 120, endWatts: 5, endQuietSeconds: 300, minCycleKwh: 0.05, typicalMinutes: 66,
   completionAlert: { enabled: true, personId: "owner", soundFile: "done.mp3", quietSeconds: 60, zeroWatts: 0, maxSampleGapSeconds: 90, discord: true, drying } };
 function running(person: string | null = "owner", kwh = 0.2): WashingMachineState {
   return { version: 1, cycles: [], open: { person, kwh, costNzd: 0.1, startedAt: new Date(at - 600000).toISOString(), aboveSince: null, belowSince: null, lastSampleAt: new Date(at - 30000).toISOString(), lastWatts: 200 } };

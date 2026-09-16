@@ -80,6 +80,21 @@ describe("the air conditioner's knob", () => {
     expect(document.querySelectorAll(".rotary-encoder-led")).toHaveLength(3);
   });
 
+  it("labels the mode ring and adds Dry only where the unit has it or is in it", () => {
+    const modeRing = () => document.querySelector("[data-ring-id='mode']");
+    const { unmount } = render(<AirconKnob entity={AIRCON} title="Lounge" onEntityActions={vi.fn()} />);
+    tapDial();
+    expect(modeRing()?.getAttribute("aria-valuemax")).toBe("2");
+    expect(document.querySelector(".rotary-encoder-ring-value")?.textContent).toBe("COOL");
+    unmount();
+
+    const drying = { ...AIRCON, state: "dry" } as DashboardEntity;
+    render(<AirconKnob entity={drying} title="Lounge" onEntityActions={vi.fn()} />);
+    tapDial();
+    expect(modeRing()?.getAttribute("aria-valuemax")).toBe("3");
+    expect(modeRing()?.getAttribute("aria-valuetext")).toBe("DRY");
+  });
+
   it("leaves the fresh-air ring out of a home without that switch", () => {
     render(<AirconKnob entity={AIRCON} title="Lounge" onEntityActions={vi.fn()} />);
     tapDial();

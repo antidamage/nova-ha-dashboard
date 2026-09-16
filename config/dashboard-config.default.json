@@ -243,7 +243,8 @@
       "haPublishIntervalMs": 60000,
       "discoveryIntervalMs": 86400000,
       "rateCheckIntervalMs": 86400000,
-      "maxIntegrationHours": 2
+      "maxIntegrationHours": 2,
+      "meterSampleIntervalMs": 10000
     },
     "rates": {},
     "deviceRatings": [],

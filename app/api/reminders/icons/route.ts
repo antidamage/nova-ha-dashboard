@@ -32,6 +32,7 @@ export async function PATCH(request: Request) {
       glyph?: unknown;
       showInBar?: unknown;
       order?: unknown;
+      displayName?: unknown;
     };
 
     if (Array.isArray(body.keys)) {
@@ -47,6 +48,7 @@ export async function PATCH(request: Request) {
       glyph: body.glyph,
       showInBar: body.showInBar,
       order: body.order,
+      displayName: body.displayName,
     });
 
     return NextResponse.json({ entry });

@@ -586,11 +586,26 @@ html[data-nova-hide-orb-info]
   background: var(--cyber-panel);
 }
 
+.voice-transcript-body {
+  min-height: 0;
+  flex: 1;
+}
+
+.voice-transcript-log {
+  flex: 1;
+  min-height: 0;
+}
+
 /* The CRT "screen": bezel frame around the log plus a curved-glass gloss
    overlay. The gloss lives on the non-scrolling wrapper so it stays put while
    the log content scrolls beneath it. */
 .voice-transcript-screen {
   position: relative;
+  /* The screen fills the space its card gives it; the log scrolls inside. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
   border: 3px solid rgb(0 0 0 / 0.55);
   border-radius: 10px;
   box-shadow:
@@ -653,8 +668,9 @@ html[data-nova-hide-orb-info]
   font-family: var(--cyber-transcript, var(--cyber-display));
   font-weight: var(--cyber-transcript-weight, 500);
   font-size: calc(0.875rem * var(--cyber-transcript-scale, 1));
-  max-height: 20lh;
-  min-height: 10lh;
+  /* No minimum or maximum height (specs/portrait-layout.md round 2): the log
+     takes whatever height its card gives it and scrolls inside itself. */
+  min-height: 0;
   /* Still scrollable; a visible scrollbar track breaks the CRT-glass illusion. */
   scrollbar-width: none;
 }
@@ -2376,13 +2392,32 @@ a.update-banner-button {
   white-space: nowrap;
 }
 
-/* Reload button: same box as the Config link, flipped to the top-left edge and
-   squared off since it is icon-only. */
+/* Header buttons (specs/theme-override.md): icon-only squares. Portrait puts
+   Reload then theme override at the top left and the cog at the top right,
+   clear of the centred orb. Every one carries .dashboard-config-link for the
+   box; the modifiers move it to the left edge, theme one 44px + 8px step in. */
+.dashboard-config-link {
+  min-width: 44px;
+  padding: 0;
+}
+
 .dashboard-reload-link {
   right: auto;
   left: calc(16px + env(safe-area-inset-left, 0px));
-  min-width: 44px;
-  padding: 0;
+}
+
+.dashboard-theme-override-link {
+  right: auto;
+  left: calc(16px + 52px + env(safe-area-inset-left, 0px));
+}
+
+/* Below ~420px wide a second button beside Reload would reach the centred
+   200px orb's resting box, so the theme button drops under Reload instead. */
+@media (max-aspect-ratio: 1 / 1) and (max-width: 419px) {
+  .dashboard-theme-override-link {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    top: calc(16px + 52px + env(safe-area-inset-top, 0px));
+  }
 }
 
 /* ==== HEADER FADE STRIP ====================================================
@@ -5570,8 +5605,14 @@ button.config-breadcrumb-crumb:focus-visible {
   position: absolute;
   /* The 12-hour timeline supplies the left edge and duration as width. */
   transform: none;
-  transition: background 160ms ease, height 160ms ease;
+  /* No background transition: a tap shows the new person at once (§7.6). */
+  transition: height 160ms ease;
   width: 14px;
+}
+
+/* A tap leaves no focus box; keyboard focus still shows via :focus-visible. */
+.power-wash-block:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* The wash's own watts, drawn across its block (specs/power-meters.md §5.2). */
@@ -6064,10 +6105,19 @@ button.config-breadcrumb-crumb:focus-visible {
     left: calc(12px + env(safe-area-inset-left, 0px));
   }
 
-  /* Reload also carries .dashboard-config-link; out-rank the rule above. */
+  /* Reload and theme override also carry .dashboard-config-link; out-rank the
+     rule above. The three sit in one row at the sidebar bottom: Reload, theme,
+     cog (specs/theme-override.md). */
   body:has(.dashboard-home) .dashboard-config-link.dashboard-reload-link {
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    bottom: auto;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+  }
+
+  body:has(.dashboard-home) .dashboard-config-link.dashboard-theme-override-link {
+    left: calc(12px + 52px + env(safe-area-inset-left, 0px));
+  }
+
+  body:has(.dashboard-home) .dashboard-config-link:not(.dashboard-reload-link):not(.dashboard-theme-override-link) {
+    left: calc(12px + 104px + env(safe-area-inset-left, 0px));
   }
 
   /* Mini time/date stack under the orb's bottom edge as it shrinks, centred
@@ -6591,6 +6641,15 @@ button.config-breadcrumb-crumb:focus-visible {
   .dashboard-home .tasks-panel > div:has(> .advanced-fold) > .advanced-fold {
     flex: 1 1 0;
     min-height: 0;
+  }
+
+  /* The one exception to "Advanced adds no width": the Reminders sub-panel is
+     twice its previous width (564px, sized by its old header row), so the
+     lists and editor have room (specs/tasks-panel.md, "Width"). */
+  .dashboard-home .tasks-stage {
+    width: 1128px;
+    max-width: none;
+    min-width: 1128px;
   }
 
   .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
@@ -7910,8 +7969,20 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
   pointer-events: none;
 }
 
+/* The layer's clip reaches well past the rings so their outer labels are never
+   cut off; the SVG's own box therefore must not take pointers, or its square
+   corners would swallow taps meant for neighbouring controls. Only what is
+   painted (tracks, thumbs, labels) and the round blocker answer. */
 .rotary-encoder-ring-layer .rotary-encoder-rings {
-  pointer-events: auto;
+  pointer-events: none;
+}
+
+.rotary-encoder-ring-layer .rotary-encoder-rings > * {
+  pointer-events: visiblePainted;
+}
+
+.rotary-encoder-ring-layer .rotary-encoder-rings .rotary-encoder-blocker {
+  pointer-events: all;
 }
 
 /* Swallows a tap that lands between two rings, so it never reaches a control
@@ -8312,6 +8383,12 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   scrollbar-width: none;
 }
 
+/* A mouse drag the fold is driving selects no text. */
+.advanced-fold.advanced-fold-dragging,
+.advanced-fold.advanced-fold-dragging * {
+  user-select: none;
+}
+
 .advanced-fold::-webkit-scrollbar {
   display: none;
 }
@@ -8341,7 +8418,7 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--cyber-muted);
+  color: var(--cyber-highlight);
   font-family: var(--cyber-mono);
   font-size: 0.7rem;
   font-weight: 700;
@@ -8355,16 +8432,16 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 .advanced-fold-divider-arrow {
   width: 0;
   height: 0;
-  border-top: 5px solid var(--cyber-muted);
+  border-top: 5px solid var(--cyber-highlight);
   border-right: 5px solid transparent;
   border-left: 5px solid transparent;
 }
 
 /* The line itself is sunken, not a border: the same inset bevel the rotary
-   encoder's ring uses. */
+   encoder's ring uses, in the theme accent. */
 .advanced-fold-divider-line {
   flex: 1 1 auto;
-  background: rgb(0 0 0 / 0.35);
+  background: var(--cyber-highlight);
   box-shadow:
     inset 0 1px 2px rgb(0 0 0 / 0.65),
     0 1px 0 rgb(var(--cyber-line-rgb) / 0.18);
@@ -8474,7 +8551,7 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 .advanced-fold[data-axis="x"] .advanced-fold-divider-arrow {
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-left: 5px solid var(--cyber-muted);
+  border-left: 5px solid var(--cyber-highlight);
   border-right: 0;
 }
 
@@ -8541,6 +8618,83 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 /* One-line items: rows as short as a line of text. */
 .advanced-fold[data-axis="x"] .power-tariff-text {
   --advanced-fold-row-min: 16px;
+}
+
+/* Landscape keeps the flat stack of Advanced cells it always had. */
+.advanced-fold[data-axis="y"] .zone-advanced-stack,
+.advanced-fold[data-axis="y"] .zone-advanced-rest {
+  display: contents;
+}
+
+/* Portrait: House Party takes a full-width row of its own across the Advanced
+   cell, and the rest of Advanced flows beneath it in the height that is left
+   (specs/portrait-layout.md round 2). */
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > .zone-advanced-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  width: max-content;
+  max-width: none;
+  overflow: hidden;
+}
+
+.advanced-fold[data-axis="x"] .zone-advanced-stack > .zone-party-control {
+  flex: none;
+  width: 100%;
+}
+
+.advanced-fold[data-axis="x"] .zone-advanced-rest {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.advanced-fold[data-axis="x"] .zone-advanced-rest > * {
+  max-height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+/* Every list cell in a portrait Advanced flows its rows into extra columns
+   against the definite height instead of making the sub-panel taller
+   (specs/advanced-fold.md, "Portrait: lists flow into columns"). */
+.advanced-fold[data-axis="x"] .zone-light-events {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, minmax(var(--advanced-fold-row-min, 64px), max-content));
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+  align-content: start;
+  column-gap: 16px;
+  row-gap: 12px;
+  height: 100%;
+  max-width: none;
+  overflow-y: hidden;
+}
+
+.advanced-fold[data-axis="x"] .zone-light-events > * {
+  max-width: 100cqi;
+  min-width: 0;
+}
+
+.advanced-fold[data-axis="x"] .zone-light-event-switch-ons {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, minmax(28px, max-content));
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+  align-content: start;
+  column-gap: 16px;
+  row-gap: 8px;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
 }
 
 /* Lists inside Advanced wrap their items to the sub-panel's width. */
@@ -8630,6 +8784,44 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   gap: 12px;
 }
 
+/* Labels in the zone's lighting section take the contrast-checked text token
+   for the surface they sit on, never the config page's display label, so they
+   read dark on a light panel (specs/zone-light-events.md, round 2). */
+.zone-light-events .zone-lighting-label {
+  color: var(--cyber-text);
+  font-weight: 700;
+}
+
+.zone-light-events .zone-lighting-detail {
+  color: var(--cyber-text-dim);
+  font-size: 0.8rem;
+}
+
+.zone-light-rule-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone-light-rule-head .zone-light-rule-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.zone-light-rule-icon,
+.zone-rule-glyph {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--cyber-text);
+}
+
+.zone-rule-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
 /* The latest five camera events, back under the bar and first in the camera's
    Advanced section (specs/advanced-fold.md). */
 .camera-event-preview-list {
@@ -8697,3 +8889,85 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 
 .timer-encoder-face { color:rgba(255,255,255,.46); font-weight:700; }
 .rotary-encoder[data-mode="light"] .timer-encoder-face { color:rgba(0,0,0,.46); }
+
+/* Status orb stack dial (specs/status-orb-stack.md, Round 2). */
+.orb-event-text { font-size: calc(1em * var(--orb-text-fit, 1)); white-space: nowrap; }
+.orb-stack-viewport {
+  position: relative; display: grid; place-items: center; width: 100%; height: 100%; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.orb-stack-slide { grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; }
+.orb-stack-in-next { animation: orb-stack-in-next 220ms ease-out both; }
+.orb-stack-in-prev { animation: orb-stack-in-prev 220ms ease-out both; }
+.orb-stack-out-next { animation: orb-stack-out-next 220ms ease-out both; }
+.orb-stack-out-prev { animation: orb-stack-out-prev 220ms ease-out both; }
+@keyframes orb-stack-in-next { from { transform: translateX(70%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes orb-stack-in-prev { from { transform: translateX(-70%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes orb-stack-out-next { from { transform: none; opacity: 1; } to { transform: translateX(-70%); opacity: 0; } }
+@keyframes orb-stack-out-prev { from { transform: none; opacity: 1; } to { transform: translateX(70%); opacity: 0; } }
+.orb-dial-ring { position: absolute; inset: 2%; width: 96%; height: 96%; pointer-events: none; z-index: 6; color: var(--cyber-accent, rgb(60, 220, 240)); opacity: 0; transition: opacity 180ms ease-out; }
+.orb-dial-ring.is-open { opacity: 1; }
+.orb-dial-mark { transition: transform 220ms ease-out; transform-origin: 50px 50px; }
+.nova-avatar-visual[data-orb-dial] { touch-action: none; }
+.nova-avatar-visual[data-orb-dial]:focus-visible { outline: 2px solid var(--cyber-accent, rgb(60, 220, 240)); outline-offset: 4px; border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .orb-stack-in-next, .orb-stack-in-prev, .orb-stack-out-next, .orb-stack-out-prev { animation: none; }
+  .orb-stack-out-next, .orb-stack-out-prev { display: none; }
+  .orb-dial-ring, .orb-dial-mark { transition: none; }
+}
+
+/* Reminders Advanced region (specs/tasks-panel.md, Round 2). One cell — the
+   lists, or the editor in their place. Landscape: it takes the whole row.
+   Portrait: it may be twice the panel's width and scrolls within the fold. */
+.tasks-panel .advanced-fold[data-axis="y"] .advanced-fold-advanced > .tasks-advanced-cell {
+  grid-column: 1 / -1;
+}
+
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-list-view {
+  width: 200cqi;
+  max-width: 200cqi;
+}
+
+/* Portrait: neither view may make the sub-panel taller. The region is sized
+   explicitly (size containment), so the track's stretch is its only height and
+   the cell scrolls inside it. */
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced {
+  contain: size;
+  width: calc(200cqi + 16px);
+}
+
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced:has(> .tasks-editor-view) {
+  width: calc(100cqi + 16px);
+}
+
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-advanced-cell {
+  height: 100%;
+}
+
+/* The editor is one panel wide, so its Save row is on screen with its back arrow. */
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-editor-view {
+  width: 100cqi;
+  max-width: 100cqi;
+}
+
+/* Save / Cancel stay reachable: pinned to the bottom of whichever scroller
+   holds the editor (the landscape fold, the portrait cell). */
+.tasks-panel .task-editor-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-inline: -0.75rem;
+  margin-bottom: -0.75rem;
+  padding: 0.5rem 0.75rem;
+  /* The theme's panel colour can be translucent, and the editor scrolls under
+     this row, so it also blurs what passes behind it. */
+  /* Stacked so a translucent panel colour still hides the rows passing under
+     it, and blurred for whatever alpha is left. */
+  background:
+    linear-gradient(var(--cyber-panel), var(--cyber-panel)),
+    linear-gradient(var(--cyber-panel), var(--cyber-panel)),
+    var(--cyber-panel);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--cyber-border-dim);
+}

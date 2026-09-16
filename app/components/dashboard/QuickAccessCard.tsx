@@ -16,9 +16,7 @@ import {
   CloudRain,
   CloudSnow,
   CloudSun,
-  Flame,
   Moon,
-  PowerOff,
   Sun,
   Wind,
   type LucideIcon,
@@ -40,6 +38,7 @@ import { TEMPERATURE_ENCODER_MIN_SIZE } from "../TemperatureEncoder";
 import { AirconKnob, HeaterKnob } from "./ClimateKnobs";
 import { useClimateCardTitles, type EntityActionsHandler } from "./climateCommands";
 import { adaptiveCandlelightLabel } from "./lighting";
+import { RuleIcon, triggerRulePreset, useZoneLightRules } from "./zoneLightRulesClient";
 import {
   classNames,
   climateDevicesForZone,
@@ -222,6 +221,7 @@ export function QuickLightsSegment({
   const lightEntities = zone.entities.filter((entity) => entity.domain === "light");
   const hasActiveLights = lightEntities.some(dashboardEntityIsOn);
   const presetLabel = adaptiveCandlelightLabel(sun);
+  const { presets: rulePresets } = useZoneLightRules(zone.id);
 
   return (
     <QuickSegment className="quick-segment-lights" label={`${zone.name} lights`}>
@@ -243,20 +243,26 @@ export function QuickLightsSegment({
         />
       </div>
       <div className="quick-button-pair">
-        <QuickButton
-          disabled={!lighting.hasLightDevices}
-          icon={Flame}
-          iconOnly
-          label={presetLabel}
-          onClick={() => void lighting.applyPreset("candlelight")}
-        />
-        <QuickButton
-          disabled={!lighting.hasLightDevices && zone.counts.switch === 0}
-          icon={PowerOff}
-          iconOnly
-          label="Off"
-          onClick={() => void lighting.turnOff()}
-        />
+        {/* The zone's rule presets, as on its card, without On: the dial is
+            already how this card turns the lights on (specs/zone-light-events.md). */}
+        {rulePresets.filter((rule) => !(rule.kind === "preset" && rule.builtin === "on")).map((rule) => {
+          const off = rule.kind === "preset" && rule.builtin === "off";
+          return (
+            <QuickButton
+              key={rule.id}
+              disabled={off ? !lighting.hasLightDevices && zone.counts.switch === 0 : !lighting.hasLightDevices}
+              icon={((props: { className?: string }) => <RuleIcon rule={rule} className={props.className} />) as unknown as LucideIcon}
+              iconOnly
+              label={rule.kind === "adaptive" ? presetLabel : rule.name ?? "Preset"}
+              onClick={() => void triggerRulePreset(rule, {
+                applyPreset: lighting.applyPreset,
+                setLocalBrightness: lighting.setLocalBrightness,
+                rememberSpectrum: lighting.rememberSpectrum,
+                onZoneAction,
+              })}
+            />
+          );
+        })}
       </div>
     </QuickSegment>
   );

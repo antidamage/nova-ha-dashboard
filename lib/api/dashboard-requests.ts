@@ -252,11 +252,14 @@ export function parseOrbInfoUpdateRequest(value: unknown): OrbInfoPreferences {
       ids.add(row.id);
       const module = typeof row.moduleId === "string" ? ORB_INFO_MODULES_BY_ID[row.moduleId] : undefined;
       if (!module) throw new Error("Unknown status orb entry module");
-      if (row.activation !== "always" && row.activation !== "whenAlerting") {
+      if (row.activation !== undefined && row.activation !== "always" && row.activation !== "whenAlerting") {
         throw new Error("Invalid status orb activation");
       }
+      if (row.enabled !== undefined && typeof row.enabled !== "boolean") throw new Error("Invalid status orb enabled flag");
       return {
-        id: row.id, moduleId: module.id, activation: row.activation,
+        id: row.id, moduleId: module.id,
+        enabled: row.enabled !== false,
+        ...(row.showOnlyWhenAlerting === true || row.activation === "whenAlerting" ? { showOnlyWhenAlerting: true } : {}),
         display: normalizeOrbDisplay(row.display, module.defaultDisplay),
         params: normalizeOrbParams(row.params, module),
       };

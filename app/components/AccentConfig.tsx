@@ -1294,6 +1294,7 @@ export function AccentConfig({
 
   const {
     activeVariant,
+    globalVariant,
     setThemeScope,
     setThemeSelection,
     setThemeSet,
@@ -1352,7 +1353,9 @@ export function AccentConfig({
 
   const library = useThemeLibrary();
   const clipboard = useThemeClipboard();
-  const [editingVariant, setEditingVariant] = useState<ThemeVariant>(activeVariant);
+  // Open on the global selection's variant; a per-device override is not
+  // what this editor edits (specs/theme-override.md).
+  const [editingVariant, setEditingVariant] = useState<ThemeVariant>(globalVariant);
   const theme = themeSet.themes[editingVariant];
   const previewBackground = useConfigPreviewBackground();
   const setPreviewTheme = previewBackground?.setPreviewTheme;

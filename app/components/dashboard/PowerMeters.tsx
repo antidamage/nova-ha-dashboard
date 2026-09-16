@@ -9,7 +9,6 @@ import type {
 } from "../../../lib/power";
 import type { FloatingMeterCategoryReading } from "../../../lib/power-floating-meter";
 import { ConfigSelect } from "../ConfigSelect";
-import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { formatKwh, formatMoney, type PowerDisplayMode } from "./power-format";
 import { classNames } from "./shared";
 
@@ -248,7 +247,9 @@ function WashingMachineCard({
             const curve = cycle.curve ?? [];
             const curvePeak = Math.max(1, ...curve);
             return (
-              <MomentaryFeedbackButton
+              // A plain button: the shared press flash painted a cyan box over the
+              // block and hid the new person colour for half a second (§7.6).
+              <button
                 key={cycle.id}
                 type="button"
                 aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${guessed ? " (guessed)" : ""}. Tap to claim or reassign.`}
@@ -272,7 +273,7 @@ function WashingMachineCard({
                     />
                   </svg>
                 ) : null}
-              </MomentaryFeedbackButton>
+              </button>
             );
           })}
         </div>

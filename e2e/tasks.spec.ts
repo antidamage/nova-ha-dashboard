@@ -1,5 +1,32 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { gotoDashboard, neutralizeTaskAlerts, selectZone } from "./helpers";
+
+/**
+ * The reminder lists live past the panel's Advanced line now
+ * (specs/tasks-panel.md, Round 2), so a test that wants a row opens the fold
+ * with the same drag a finger would.
+ */
+async function openReminderLists(page: Page): Promise<Locator> {
+  const fold = page.locator(".tasks-panel .advanced-fold:not([data-foldless])");
+  await expect(fold).toBeVisible({ timeout: 30_000 });
+  const axis = await fold.getAttribute("data-axis");
+  await fold.evaluate((el, vertical) => {
+    el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+    if (vertical) el.scrollTop = el.scrollHeight;
+    else el.scrollLeft = el.scrollWidth;
+  }, axis === "y");
+  await expect.poll(() => fold.evaluate((el) => el.style.touchAction !== "")).toBe(true);
+  const divider = await fold.locator(":scope > .advanced-fold-track > .advanced-fold-divider").boundingBox();
+  if (!divider) throw new Error("divider not rendered");
+  const x = divider.x + divider.width / 2;
+  const y = divider.y + divider.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(axis === "y" ? x : x - 200, axis === "y" ? y - 200 : y, { steps: 14 });
+  await page.mouse.up();
+  await expect(fold).toHaveAttribute("data-open", "true");
+  return fold.locator(".advanced-fold-advanced");
+}
 
 test.describe("tasks and reminders", () => {
   test.beforeEach(async ({ page }) => {
@@ -14,7 +41,8 @@ test.describe("tasks and reminders", () => {
     await neutralizeTaskAlerts(page);
     await selectZone(page, /Reminders/);
     await expect(page.getByRole("heading", { name: "Reminders" })).toBeVisible();
-    await expect(page.locator(".task-row-main").first()).toBeVisible();
+    const advanced = await openReminderLists(page);
+    await expect(advanced.locator(".task-row-main").first()).toBeVisible();
   });
 
   test("dismisses the task alert notification", async ({ page }) => {
@@ -30,11 +58,13 @@ test.describe("tasks and reminders", () => {
   test("expands a local task into its editor", async ({ page }) => {
     await neutralizeTaskAlerts(page);
     await selectZone(page, /Reminders/);
-    // The local demo task expands into an inline editor; clicking again collapses.
-    const row = page.locator(".task-row-main", { hasText: "Water the balcony plants" });
-    await row.click();
-    await expect(page.locator(".task-inline-editor")).toBeVisible();
-    await row.click();
-    await expect(page.locator(".task-inline-editor")).toHaveCount(0);
+    // A local task opens its editor in place of the lists; Back returns to them.
+    const advanced = await openReminderLists(page);
+    await advanced.locator(".task-row-main", { hasText: "Water the balcony plants" }).click();
+    await expect(advanced.locator(".task-inline-editor")).toBeVisible();
+    await expect(advanced.locator("[data-task-list]")).toHaveCount(0);
+    await advanced.getByRole("button", { name: "Back" }).click();
+    await expect(advanced.locator(".task-inline-editor")).toHaveCount(0);
+    await expect(advanced.locator('[data-task-list="today"]')).toHaveCount(1);
   });
 });
