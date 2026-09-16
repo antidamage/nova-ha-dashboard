@@ -90,6 +90,7 @@ None of it was ever meant to apply to a person.
 | 3 °C reversal threshold (`AIRCON_AUTO_DIRECTION_CHANGE_DEGREES`) | applies | **bypassed** |
 | 30-minute direction hold (`AIRCON_AUTO_MODE_HOLD_MS`) | applies | **bypassed** |
 | 1 °C same-direction resume (`AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES`) | applies | any non-zero error acts |
+| minimum move to register a direction (`airconUserModeIntent`) | n/a — the sensor path reads error, not intent | **none**; any target across the reading counts (§3.3) |
 | stop at target | immediate | immediate |
 
 A **user-driven transition** is exactly two things: a target the owner moved,
@@ -125,7 +126,8 @@ deliberate "stop managing this", not a pause.
 
 If the unit is running heat and the owner drops the target below the reading,
 Nova issues a single `set_hvac_mode: cool`. No intervening `turn_off`, no
-30-minute direction hold, no 3 °C threshold.
+30-minute direction hold, no 3 °C threshold, and **no minimum move** — any
+target on the other side of the reading counts, by however little.
 
 *Why:* Adeline, 2026-09-05 — "if I do this then it was intentional, go straight
 into the other mode."
@@ -137,12 +139,21 @@ is safe because the reversal that caused the 2026-08-09 incident was
 and 30-minute hold. The Gree's firmware compressor protection is unaffected by
 what Nova sends.
 
-<!-- SPEC.md §15 said breaking the 30-minute direction hold is decided in the
-UI, not the planner (pressing Heat/Cool, or moving the setpoint more than 1
-degree past the current reading), see docs/aircon-auto.md. This file's
-mechanism instead has the planner itself perform the reversal, driven by the
-userRequestAt latch (§4), with no stated 1-degree threshold. Kept this file's
-version, which is newer. Verify. -->
+`airconUserModeIntent` carried a one-degree margin until 2026-09-16, meant to
+tell a comfort nudge from a reversal request. It could not: the setpoint does
+not carry that distinction, and guessing wrong left the unit heating a room the
+owner had just said was too hot.
+
+*Why it went:* Adeline, 2026-09-16 — "if it's too hot it needs to cool
+immediately, and vice versa. if the user makes a mistake they can fix it." An
+unwanted flip costs one press to undo; an ignored request is a room that stays
+wrong and a control that looks broken.
+
+What keeps Auto from oscillating is not a margin here but the `reopened` gate:
+this branch is reachable only for a target the owner moved or a fresh press of
+Auto, never for sensor drift. The sensor-driven path keeps the full 3 °C error
+and 30-minute hold (§3.1), and a target exactly equal to the reading still asks
+for no direction at all.
 
 ### 3.4 The card gains no new text
 

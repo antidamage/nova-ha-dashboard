@@ -432,22 +432,23 @@ function desiredModeForDelta(delta: number): ActiveAirconMode {
 }
 
 /**
- * How far past the room reading a user-chosen target has to land before it counts
- * as asking for the other direction.
- */
-export const AIRCON_INTENT_MARGIN_DEGREES = 1;
-
-/**
- * The direction a target the USER just set implies — or undefined when it does
- * not clearly imply one.
+ * The direction a target the USER just set implies — cool below the room
+ * reading, heat above it, and undefined only when the two are equal.
  *
- * This is what may break the 30-minute direction hold, and the distinction it
- * draws is the whole point: nudging the target a degree while the room sits near
- * it is a comfort tweak and means nothing about direction, whereas dropping the
- * target well below the room is unambiguously "cool the room". Only the latter
- * is honoured. It must only ever be called from a user gesture handler, never
- * from the loop — a target that merely drifted relative to the reading is not a
- * request.
+ * This is what may break the 30-minute direction hold. **There is deliberately
+ * no margin.** Adeline, 2026-09-16: "if it's too hot it needs to cool
+ * immediately, and vice versa. if the user makes a mistake they can fix it."
+ * A deadband here would swallow a small deliberate move and leave the unit
+ * heating a room the owner just said was too hot, which is the failure they
+ * actually notice; an unwanted flip is one press to undo. This replaces an
+ * earlier one-degree margin that tried to tell a comfort nudge from a reversal
+ * request and could not.
+ *
+ * It must only ever be called from a user gesture handler, never from the loop
+ * — a target that merely drifted relative to the reading is not a request, and
+ * without that restriction the absent margin would let Auto oscillate. The
+ * sensor-driven path keeps the full 3 °C error and 30-minute hold, and those
+ * are what stop Auto cycling on its own.
  */
 export function airconUserModeIntent(
   targetTemperature: number,
@@ -456,10 +457,10 @@ export function airconUserModeIntent(
   if (measuredTemperature === null || !Number.isFinite(targetTemperature)) {
     return undefined;
   }
-  if (targetTemperature < measuredTemperature - AIRCON_INTENT_MARGIN_DEGREES) {
+  if (targetTemperature < measuredTemperature) {
     return "cool";
   }
-  if (targetTemperature > measuredTemperature + AIRCON_INTENT_MARGIN_DEGREES) {
+  if (targetTemperature > measuredTemperature) {
     return "heat";
   }
   return undefined;
@@ -868,8 +869,14 @@ export function planAirconAutoTick({
   // the other mode." This branch was dead for a while — the rule used to be that
   // reversals always stop first — but the reversal that rule was written against
   // was the SENSOR's (2026-08-09), and autonomous reversals still carry the full
-  // 3 C threshold and 30-minute hold below. airconUserModeIntent's one-degree
-  // margin is what separates "cool the room" from a comfort nudge near target.
+  // 3 C threshold and 30-minute hold below.
+  //
+  // Any target across the reading counts, however small the move: the one-degree
+  // margin that used to gate this was removed 2026-09-16. Telling a comfort
+  // nudge from a reversal request is not something the setpoint can answer, and
+  // guessing wrong left the unit heating a room the owner had just said was too
+  // hot. `reopened` is the real guard here — it is only true for a target the
+  // owner moved or a fresh press of Auto, never for sensor drift.
   const changedTargetMode: ActiveAirconMode | null = reopened
     ? airconUserModeIntent(targetTemperature, currentTemperature) ?? null
     : null;

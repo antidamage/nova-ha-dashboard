@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  AIRCON_INTENT_MARGIN_DEGREES,
   AIRCON_SENSOR_SETTLE_MS,
   AIRCON_USER_REQUEST_MAX_AGE_MS,
   AirconAutoThermostat,
@@ -951,13 +950,20 @@ test("a setpoint past the room reading reads as asking for the other direction",
   assert.equal(airconUserModeIntent(27, 24), "heat");
 });
 
-test("a setpoint that only nudges the target reads as no direction at all", () => {
-  // This is the distinction the whole rule turns on: a degree either side of the
-  // room is a comfort tweak, not a request to reverse a heat pump.
-  assert.equal(airconUserModeIntent(23, 24), undefined);
-  assert.equal(airconUserModeIntent(25, 24), undefined);
-  assert.equal(airconUserModeIntent(24 - AIRCON_INTENT_MARGIN_DEGREES, 24), undefined);
-  assert.equal(airconUserModeIntent(24 + AIRCON_INTENT_MARGIN_DEGREES, 24), undefined);
+test("any setpoint across the room reading counts, however small the move", () => {
+  // There is no deadband, by decision (Adeline, 2026-09-16): "if it's too hot it
+  // needs to cool immediately, and vice versa. if the user makes a mistake they
+  // can fix it." A one-degree margin used to swallow these four.
+  assert.equal(airconUserModeIntent(23, 24), "cool");
+  assert.equal(airconUserModeIntent(25, 24), "heat");
+  assert.equal(airconUserModeIntent(23.5, 24), "cool");
+  assert.equal(airconUserModeIntent(24.5, 24), "heat");
+});
+
+test("a setpoint exactly on the room reading asks for no direction", () => {
+  // The only case with no answer. Equality is not a request either way, so the
+  // planner falls through to its ordinary resting behaviour.
+  assert.equal(airconUserModeIntent(24, 24), undefined);
 });
 
 test("intent needs a reading to be measured against", () => {
