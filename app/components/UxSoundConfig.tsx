@@ -1,6 +1,6 @@
 "use client";
 
-// The two Sound blocks on the config page: which clip each of the twelve UX
+// The two Sound blocks on the config page: which clip each of the thirteen UX
 // actions plays, and the library of clips those assignments point at. See
 // specs/ux-sounds.md.
 

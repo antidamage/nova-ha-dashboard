@@ -1,4 +1,4 @@
-// The twelve UX sound actions and their per-theme assignment map.
+// The thirteen UX sound actions and their per-theme assignment map.
 //
 // An assignment is a library sound id, the sentinel REMINDER_AUDIO_SOUND (the
 // server-stored reminder MP3, configured under Reminders), or null for
@@ -27,6 +27,7 @@ export const DEFAULT_CHIME_SOUND = "chime-classic";
 /** Assignment order, which is also the order of the config rows. */
 export const UX_SOUND_ACTIONS = [
   "unlockDial",
+  "lockDial",
   "dialClick",
   "foldBreak",
   "foldHeal",
@@ -47,6 +48,7 @@ export type UxSoundAssignments = Record<UxSoundAction, string | null>;
 
 export const UX_SOUND_ACTION_LABELS: Record<UxSoundAction, string> = {
   unlockDial: "Unlock dial",
+  lockDial: "Lock dial",
   dialClick: "Dial click",
   foldBreak: "Advanced fold break",
   foldHeal: "Advanced fold heal",
@@ -65,6 +67,7 @@ export const UX_SOUND_ACTION_LABELS: Record<UxSoundAction, string> = {
 // uploaded reminder MP3 (specs/ux-sounds.md, "Defaults").
 export const DEFAULT_UX_SOUNDS: UxSoundAssignments = {
   unlockDial: DEFAULT_CLICK_SOUND,
+  lockDial: DEFAULT_CLICK_SOUND,
   dialClick: DEFAULT_CLICK_SOUND,
   foldBreak: DEFAULT_CLICK_SOUND,
   foldHeal: DEFAULT_CLICK_SOUND,
@@ -97,7 +100,7 @@ export function migrateLegacySoundId(assigned: string): string {
 
 /**
  * Fill every action with its default and drop anything that is not one of the
- * twelve. A theme saved before this feature reads back as a complete default
+ * thirteen. A theme saved before this feature reads back as a complete default
  * map, which is the whole of the migration.
  */
 export function normalizeUxSounds(value: unknown): UxSoundAssignments {
