@@ -776,7 +776,7 @@ a solo.
 
 The evaluator is shared code in all three implementations
 (`nova-visualiser/src/core/parameter_drivers.cpp`,
-`nova-ha-dashboard/lib/phonoscope-drivers.ts`,
+`nova-ha-dashboard/lib/phonoscope-drivers/` (facade `lib/phonoscope-drivers.ts`),
 `nova-appletv-dashboard/.../PhonoscopeDrivers.swift`) and is covered by the
 `parameter-drivers` conformance case.
 

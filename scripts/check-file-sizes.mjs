@@ -27,7 +27,7 @@ const SOURCE_EXT = new Set([".ts", ".tsx", ".css", ".py", ".mjs", ".js"]);
 /** Kept in step with PERMANENT_TEST_FILES in lib/architecture.test.ts. */
 const PERMANENT = new Set([
   "lib/aircon-control.test.ts",
-  "lib/phonoscope-drivers.test.ts",
+  "lib/phonoscope-drivers/phonoscope-drivers.test.ts",
   "lib/architecture.test.ts",
 ]);
 

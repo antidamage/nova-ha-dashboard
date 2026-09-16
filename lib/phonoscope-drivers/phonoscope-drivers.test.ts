@@ -10,18 +10,18 @@ import {
   stablePhonoscopeSeed,
   type PhonoscopeEffectDeclaration,
   type PhonoscopeSignalFrame,
-} from "./phonoscope-drivers";
+} from "../phonoscope-drivers";
 import {
   isPhonoscopeOverrideOnlyEffect,
   phonoscopeTransitionRamp,
   PHONOSCOPE_CENTRE_TRANSITION_EFFECT,
-} from "./phonoscope-drivers";
+} from "../phonoscope-drivers";
 import type {
   PhonoscopeCombineMode,
   PhonoscopeDriverLane,
   PhonoscopeEffectBinding,
   PhonoscopeSettingsGroup,
-} from "./types";
+} from "../types";
 
 const GLOW: PhonoscopeEffectDeclaration = {
   id: "glow", min: 0, max: 10, step: 0.1, default: 0,

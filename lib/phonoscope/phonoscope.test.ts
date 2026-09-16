@@ -5,7 +5,7 @@ import {
   BUILTIN_PHONOSCOPE_MODULE_YAML,
   compilePhonoscopeExpression,
   compilePhonoscopeYaml,
-} from "./phonoscope";
+} from "../phonoscope";
 
 // The public dashboard checkout does not contain the private workspace's
 // sibling module catalogue. Exercise it when running the complete workspace.
