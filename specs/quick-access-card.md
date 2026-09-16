@@ -123,7 +123,7 @@ outside lighting through `homeAssistant.everythingExcludedEntityIds`
   (`dashboard.lighting.entityPresets`: pinned lights, per-entity brightness
   targets, colour-temperature overrides) and the night-time colour and
   brightness rules (`sun.sun` below horizon → candlelight at the evening
-  brightness) are applied server-side by `setZoneAction` in `lib/ha.ts`. The
+  brightness) are applied server-side by `setZoneAction` in `lib/ha/lighting/zone-action.ts`. The
   card sends the same actions the zone card sends, so those rules apply
   unchanged.
 - The encoder's displayed value follows the Home zone the same way the zone

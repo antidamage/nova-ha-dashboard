@@ -9,7 +9,7 @@ The dashboard has four registry patterns already — server capability modules
 (`lib/modules/registry.ts`), the client panel registry
 (`app/components/dashboard/panel-registry.tsx`), hot-dropped orb-module JSON
 (`lib/orb-modules-disk.ts`), and versioned phonoscope modules
-(`lib/phonoscope-store.ts`). Every one of them is **declarative data only**.
+(`lib/phonoscope-store/`). Every one of them is **declarative data only**.
 None can execute code that was not compiled into the bundle.
 
 So extending a control's behaviour — putting a confirmation step in front of a
@@ -37,7 +37,7 @@ Consequences that follow from that and are **not** optional:
 - A module that throws during load is disabled and its error recorded. It never
   takes the dashboard down.
 - Nothing in this system may weaken the HA service allow-list in
-  `lib/ha.ts:1231-1246`. Modules act *through* `setEntityAction`, never around
+  `lib/ha/entity-actions.ts`. Modules act *through* `setEntityAction`, never around
   it.
 
 ---
@@ -503,7 +503,7 @@ downloaded package: they are installation state, not package content.
 
 ### Install limits
 
-Modelled on `installPhonoscopePackage` (`lib/phonoscope-store.ts:1017`):
+Modelled on `installPhonoscopePackage` (`lib/phonoscope-store/store.ts`):
 
 | limit | value |
 |---|---|
