@@ -1,0 +1,525 @@
+import { z } from "zod";
+import {
+  AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX,
+  AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN,
+} from "../aircon-config";
+import { NovaAvatarConfigSchema } from "./appearance";
+import { DoorbellConfigSchema } from "./doorbell";
+import { LightingEntityPresetSchema, LightingIntensityThresholdSchema, ZoneLightEventSchema, ZoneLightRuleSchema } from "./lighting";
+import {
+  AlwaysOnMeterSchema,
+  FloatingMeterConfigSchema,
+  HouseholdPersonSchema,
+  PowerAccountUsagePointSchema,
+  PowerDeviceRatingSchema,
+  PowerTariffSchema,
+  WashingMachineConfigSchema,
+} from "./power";
+import {
+  dayOfMonthSchema,
+  DASHBOARD_CONFIG_SCHEMA_VERSION,
+  entityIdSchema,
+  HaDomainSchema,
+  millisecondsSchema,
+  stringListSchema,
+  urlTemplateSchema,
+} from "./primitives";
+
+/**
+ * One climate device this home has, and where it lives.
+ *
+ * The dashboard used to model exactly one air conditioner and one heater, with
+ * the rooms they happened to be in written into the components. These arrays
+ * make it zero-to-N of each: a home declares what it has, and anything it does
+ * not declare simply is not rendered or driven.
+ *
+ * `id` keys this instance's control state and remembered settings, so it must
+ * be stable once chosen. `zoneId` is the Home Assistant area the device serves
+ * — it is what lets a copy of the control appear in that zone's own panel.
+ */
+const ClimateInstanceBaseSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  zoneId: z.string().min(1).optional(),
+});
+
+const ClimateAirconInstanceSchema = ClimateInstanceBaseSchema.extend({
+  /** Bind explicitly when the home has several climate entities. */
+  entityId: entityIdSchema.optional(),
+  /**
+   * Words identifying this unit, checked against the entity id and friendly
+   * name alongside the generic ones in lib/aircon-control.ts. Only needed for a
+   * unit named after its manufacturer or nothing at all.
+   */
+  matchTokens: stringListSchema,
+  /**
+   * The room's own sensors, most trusted first. A unit without a native `dry`
+   * mode is offered Dry only when both are set; Nova then emulates it toward
+   * `dryTargetHumidityPct` (specs/aircon-auto-control.md, "Dry emulation").
+   */
+  temperatureEntityIds: z.array(z.string().min(1)).optional(),
+  humidityEntityIds: z.array(z.string().min(1)).optional(),
+  /** Default 55 (AIRCON_DRY_TARGET_HUMIDITY_DEFAULT_PCT in lib/aircon-dry.ts). */
+  dryTargetHumidityPct: z.number().min(20).max(90).optional(),
+});
+export type ClimateAirconInstanceConfig = z.infer<typeof ClimateAirconInstanceSchema>;
+
+const ClimateHeaterInstanceSchema = ClimateInstanceBaseSchema.extend({
+  /** Most-preferred first, so a LAN twin can lead its cloud counterpart. */
+  switchEntityIds: stringListSchema,
+  /**
+   * The ONLY temperature sources permitted to drive or display this heater,
+   * most trusted first. Ordering is a safety property, not a preference — see
+   * the note on the legacy `bedroomHeater` block below.
+   */
+  temperatureEntityIds: stringListSchema,
+  humidityEntityIds: stringListSchema,
+});
+export type ClimateHeaterInstanceConfig = z.infer<typeof ClimateHeaterInstanceSchema>;
+
+export const DashboardConfigSchema = z.object({
+  schemaVersion: z.literal(DASHBOARD_CONFIG_SCHEMA_VERSION),
+  homeAssistant: z.object({
+    controlDomains: z.array(HaDomainSchema).min(1),
+    illuminationNamePattern: z.string().min(1),
+    supportSwitchPattern: z.string().min(1),
+    everythingExcludedEntityIds: stringListSchema,
+    climateAreaNames: stringListSchema,
+    networkZoneId: z.string().min(1),
+    weatherEntityId: entityIdSchema,
+    sunEntityId: entityIdSchema,
+    loungeSensorEntityIds: stringListSchema,
+    /**
+     * Last-resort environment sensors for a zone, tried only after Home
+     * Assistant's own area temperature/humidity binding and the zone's own
+     * sensors. Prefer fixing the area binding in HA; this exists for rooms
+     * whose reading comes from somewhere HA cannot express, such as a template
+     * sensor exposing a climate unit's internal thermistor.
+     *
+     * Replaces a pair of hard-coded lists that only ever applied to one room in
+     * one house.
+     */
+    zoneEnvironmentFallbacks: z
+      .array(
+        z.object({
+          /** Zone id, or the zone's lower-cased name. */
+          zoneId: z.string().min(1),
+          temperatureEntityIds: stringListSchema,
+          humidityEntityIds: stringListSchema,
+        }),
+      )
+      .default([]),
+    router: z.object({
+      name: z.string().min(1),
+      wanStatusEntityId: entityIdSchema,
+      externalIpEntityId: entityIdSchema,
+      downloadSpeedEntityId: entityIdSchema,
+      uploadSpeedEntityId: entityIdSchema,
+      /**
+       * Other ids the same router has published, most preferred first. A
+       * firmware update that renames the throughput sensors is absorbed by
+       * listing the new id here rather than by editing code.
+       */
+      fallbackDownloadSpeedEntityIds: stringListSchema,
+      fallbackUploadSpeedEntityIds: stringListSchema,
+    }),
+    novaAssistSatelliteEntityId: entityIdSchema,
+    // Entity-driven classification overrides. Home Assistant metadata
+    // (device_class, area assignment, area sensor bindings, labels) is the
+    // primary signal; the lists below are HA labels to honour plus explicit
+    // entity-id escape hatches for when that metadata is missing or wrong.
+    // Empty everywhere == pure HA-driven classification.
+    classification: z
+      .object({
+        illuminationLabels: z.array(z.string().min(1)).default(["nova_illumination"]),
+        hiddenLabels: z.array(z.string().min(1)).default(["nova_hidden"]),
+        environmentLabels: z.array(z.string().min(1)).default(["nova_environment"]),
+        forceIlluminationEntityIds: stringListSchema,
+        forceHiddenEntityIds: stringListSchema,
+        environmentSensorEntityIds: stringListSchema,
+        environmentSensorExcludeEntityIds: stringListSchema,
+      })
+      .default({
+        illuminationLabels: ["nova_illumination"],
+        hiddenLabels: ["nova_hidden"],
+        environmentLabels: ["nova_environment"],
+        forceIlluminationEntityIds: [],
+        forceHiddenEntityIds: [],
+        environmentSensorEntityIds: [],
+        environmentSensorExcludeEntityIds: [],
+      }),
+    /**
+     * Device-identifier prefixes that mark a cloud twin of a device also
+     * reachable locally. A device with both is shown once — the local entity
+     * while it is alive, the twin otherwise — and commands to a twin skip
+     * options the cloud bridge does not accept.
+     *
+     * Was the literal `tuya_mobile_` in two places, which tied the product to
+     * one bridge this household happens to run.
+     */
+    cloudTwinIdentifierPrefixes: stringListSchema,
+  }),
+  dashboard: z.object({
+    defaultZoneId: z.string().min(1),
+    // Who lives here, for splitting shared consumption. Ships empty; the
+    // attribution UI is absent rather than inventing names.
+    people: z.array(HouseholdPersonSchema).default([]).refine(
+      (people) => people.filter((person) => person.primary).length <= 1,
+      "Only one household person can be primary",
+    ),
+    specialZones: z.object({
+      power: z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+      }),
+      tasks: z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+      }),
+    }),
+    lighting: z.object({
+      intensityThresholds: z.array(LightingIntensityThresholdSchema).default([]),
+      entityPresets: z.array(LightingEntityPresetSchema).default([]),
+      // Timed colour/brightness events for a zone, fired by the host poller.
+      // See specs/zone-light-events.md.
+      zoneEvents: z.array(ZoneLightEventSchema).default([]),
+      // Lights an event may switch on. Anything not listed keeps its state and
+      // the event's value is staged for its next switch-on instead.
+      eventSwitchOnEntityIds: z.array(entityIdSchema).default([]),
+      // Every lighting automation as a rule. The keys above are the old
+      // per-automation homes, migrated into this on the host and then empty.
+      zoneRules: z.array(ZoneLightRuleSchema).default([]),
+      zoneRulesSeededZoneIds: z.array(z.string().min(1)).default([]),
+    }),
+    aircon: z.object({
+      offTimerIncrementMinutes: z.number().int().min(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN).max(AIRCON_OFF_TIMER_INCREMENT_MINUTES_MAX),
+      /**
+       * Extra words identifying this home's air conditioner, checked against
+       * the entity id and friendly name alongside the generic ones in
+       * lib/aircon-control.ts. Only needed for a unit named after its
+       * manufacturer or nothing at all.
+       */
+      matchTokens: stringListSchema,
+      /**
+       * What to call this unit on its card — usually the room it is in. The
+       * component used to say "Lounge", which is one house's floor plan
+       * compiled into the product.
+       */
+      title: z.string().min(1).default("Climate"),
+    }),
+    // The bedroom heater is a bare switch with onboard climate sensors; Nova
+    // owns the thermostat loop (lib/bedroom-heater-control.ts). Entity ids are
+    // listed most-preferred first so a LAN twin can be put ahead of the cloud
+    // one later without touching code. Empty lists == no card.
+    //
+    // temperatureEntityIds deliberately leads with the standalone room puck
+    // rather than the switch's own sensor, and that ordering is the whole
+    // calibration story — do not "tidy" it back.
+    //
+    // The switch's onboard sensor cannot measure the room. Measured against a
+    // co-located reference over 11 hours on 2026-08-08, while the room moved
+    // 4.8 C it moved 0.84 C — a gain of about 0.27 with a ~30 minute lag, so
+    // its error against the truth ranged from +0.7 to +4.8 C depending only on
+    // where the room happened to be. No offset or curve fixes that; a signal
+    // that cannot see the room heating cannot close a thermostat loop. (The
+    // device also exposes a second, livelier temperature register that the
+    // Tuya app displays, but it reads the switch body: it sat 7.8 C above an
+    // unheated room while carrying 2 kW. Neither register is the air.)
+    //
+    // Order matters for safety, not just preference. The onboard sensor is kept
+    // as a LAST resort because it reads HIGH, so falling back to it makes the
+    // thermostat under-heat rather than cook a room nobody is measuring.
+    // Dropping it entirely would be worse, not safer: with no temperature at
+    // all the planner takes no action, which leaves a running 2 kW element on
+    // until the schedule's auto-off edge.
+    //
+    // The key is still `bedroomHeater` for compatibility with deployed configs;
+    // `title` is what the card actually shows, so the room name is this
+    // installation's to choose rather than the product's to assume.
+    bedroomHeater: z
+      .object({
+        switchEntityIds: stringListSchema,
+        temperatureEntityIds: stringListSchema,
+        humidityEntityIds: stringListSchema,
+        title: z.string().min(1).default("Heater"),
+      })
+      .default({
+        switchEntityIds: [],
+        temperatureEntityIds: [],
+        humidityEntityIds: [],
+        title: "Heater",
+      }),
+    /**
+     * Every climate device this home has. Empty means the two legacy blocks
+     * above (`aircon`, `bedroomHeater`) are used instead, which is how an
+     * existing deployment keeps working without editing anything.
+     *
+     * Declaring instances here is what allows more than one of each.
+     */
+    climate: z
+      .object({
+        airconUnits: z.array(ClimateAirconInstanceSchema).default([]),
+        heaters: z.array(ClimateHeaterInstanceSchema).default([]),
+      })
+      .default({ airconUnits: [], heaters: [] }),
+    // The original panel heater died in August 2026 and was replaced by the
+    // bedroom heater above. Its card is retained but hidden; set this true to
+    // bring it back if an equivalent unit is installed.
+    legacyPanelHeaterCardEnabled: z.boolean().default(false),
+    camera: z.object({
+      outside: z.object({
+        // Pre-configured video host: where the Outside camera stream is served
+        // FROM. Capture + hardware-encode live on the camera host; the
+        // dashboard host is a pure consumer that embeds the stream directly
+        // from this base URL (e.g. "http://camera-host.local:8080"). Empty =
+        // fall back to the dashboard's own same-origin /api/camera routes.
+        videoHostUrl: z.string().default(""),
+        // Master switch for the Outside camera. When false, NO ffmpeg ingestion
+        // runs at all — neither the real capture nor the synthetic test-pattern
+        // fallback — so the camera stops competing for CPU on a contended box.
+        // Defaults on so existing configs (and the shipped contract) keep the DVR.
+        // NOTE: with a videoHostUrl set, ingestion + processing are owned by the
+        // remote service (its /settings API); these nova fields remain only for
+        // the same-origin fallback path and are ignored once the host is remote.
+        ingestionEnabled: z.boolean().default(true),
+        processing: z.object({
+          brightness: z.number().min(-1).max(1),
+          contrast: z.number().min(0).max(2),
+          sharpness: z.number().min(0).max(5),
+        }),
+      }),
+    }),
+    // The wall panel. Addresses only — this is how a control mutation is
+    // recognised as having come from the shared kiosk rather than from a phone
+    // on the tailnet, which is what lets it be attributed to whoever the face
+    // witness saw standing there. See specs/kiosk-attribution.md.
+    //
+    // Values live in nova-household, never here: this repo is public and
+    // lib/no-household-data.test.ts is a build-breaking tripwire for addresses
+    // in dashboard source. An empty list simply means no kiosk attribution,
+    // which is the correct behaviour for an installation without one.
+    kiosk: z
+      .object({
+        addresses: z.array(z.string()).default([]),
+        // The cameras this installation uses, MOST PREFERRED FIRST, with how
+        // far each one is out of upright.
+        //
+        // Ordered, because the panel has more than one camera and which gets
+        // picked matters: a LifeCam sits on it facing the room, alongside a
+        // built-in webcam mounted on its side. Preference and rotation belong
+        // in one list because they are the same fact about the same device --
+        // splitting them is how a camera ends up selected but rotated by the
+        // other one's rule.
+        //
+        // Matched as a case-insensitive substring of the device label the
+        // browser reports, so a rule follows its camera between machines and
+        // leaves every other camera alone.
+        //
+        // Preview only, on the browser side: the recorded clip is left as the
+        // camera produced it and the face service rotates it upright itself.
+        cameras: z
+          .array(
+            z.object({
+              match: z.string().min(1),
+              degrees: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+            }),
+          )
+          .default([]),
+      })
+      .default({ addresses: [], cameras: [] }),
+    avatar: NovaAvatarConfigSchema,
+    // The reminder sigil bar between the clock and zones panels. Presentation
+    // and thresholds only — which reminder owns which sigil lives in its own
+    // store (lib/reminder-icons.ts) because it is keyed on reminder name and
+    // churns as reminders come and go, which is not what a config file is for.
+    reminders: z
+      .object({
+        outlineShape: z.enum(["rounded-rect", "circle", "square"]).default("rounded-rect"),
+        /** How long past its end a reminder must sit before the tile pulses. */
+        overduePulseAfterMs: millisecondsSchema.default(86_400_000),
+        /** Tile opacity when nothing is due for that reminder. */
+        inactiveOpacity: z.number().min(0).max(1).default(0.5),
+        maxTiles: z.number().int().min(1).max(16).default(10),
+        /** How long after a tap the completion can still be held-to-undone. */
+        undoWindowMs: millisecondsSchema.default(600_000),
+        /** How long the press must be held to fire the undo. */
+        undoHoldMs: millisecondsSchema.default(2_000),
+        classifier: z
+          .object({
+            enabled: z.boolean().default(true),
+            timeoutMs: millisecondsSchema.default(4_000),
+          })
+          .prefault({}),
+      })
+      .prefault({}),
+    // Installable modules (specs/module-system.md). Only the deployment-level
+    // knobs live here — which modules ship by default and what an install is
+    // allowed to be. Per-module settings are the module's own config.json,
+    // because they are the module's shape, not the dashboard's.
+    modules: z
+      .object({
+        enabled: z.boolean().default(true),
+        /**
+         * Modules the dashboard installs for itself when they are missing. A
+         * fetch failure is a warning and a retry next boot, never a boot
+         * blocker.
+         */
+        defaults: z
+          .array(
+            z.object({
+              id: z.string().regex(/^[a-z][a-z0-9-]{1,38}$/),
+              repository: z.string().url().optional(),
+              packageUrl: z.string().url(),
+              enabled: z.boolean().default(true),
+            }),
+          )
+          .default([]),
+        /** How long the boot-time default install may take before giving up. */
+        installTimeoutMs: millisecondsSchema.default(30_000),
+      })
+      .prefault({}),
+    doorbell: DoorbellConfigSchema,
+    timing: z.object({
+      entityCommandHoldMs: millisecondsSchema,
+      dashboardEventPollMs: millisecondsSchema,
+      dashboardBuildEventPollMs: millisecondsSchema,
+      dashboardEventHeartbeatMs: millisecondsSchema,
+      dashboardEventPushDebounceMs: millisecondsSchema,
+      lightCommandEventHoldMs: millisecondsSchema,
+      weatherRefreshIntervalMs: millisecondsSchema,
+      adaptiveLightingPollMs: millisecondsSchema,
+      buildReloadAfterOutageMs: millisecondsSchema,
+    }),
+  }),
+  mapWeather: z.object({
+    center: z.object({
+      lat: z.number().min(-90).max(90),
+      lng: z.number().min(-180).max(180),
+    }),
+    radar: z.object({
+      manifestUrl: urlTemplateSchema,
+      fallbackHost: z.string().url(),
+      refreshIntervalMs: millisecondsSchema,
+      sourcePollMs: millisecondsSchema,
+      preloadZoom: z.number().int().min(0).max(22),
+      preloadRadius: z.number().int().min(0).max(6),
+    }),
+    satellite: z.object({
+      tileUrlTemplate: urlTemplateSchema,
+      attributionLabel: z.string().min(1),
+      attributionUrl: z.string().url(),
+      maxZoom: z.number().int().min(0).max(22),
+    }),
+  }),
+  power: z.object({
+    /**
+     * IANA zone this home lives in. Billing periods and hourly buckets are
+     * local-time concepts, and reminder times are wall-clock times in the house,
+     * so several modules read this. No shipped default names a city: UTC is
+     * wrong for everyone equally, which is the honest placeholder.
+     */
+    timeZone: z.string().min(1),
+    billing: z.object({
+      startDay: dayOfMonthSchema,
+      endDay: dayOfMonthSchema,
+    }),
+    timing: z.object({
+      sampleIntervalMs: millisecondsSchema,
+      haPublishIntervalMs: millisecondsSchema,
+      discoveryIntervalMs: millisecondsSchema,
+      rateCheckIntervalMs: millisecondsSchema,
+      maxIntegrationHours: z.number().positive(),
+      /** The metering plugs' own tick (specs/power-meters.md §7.3). */
+      meterSampleIntervalMs: millisecondsSchema.default(10000),
+    }),
+    // Where this home buys electricity. Every field is optional because a
+    // dashboard with no retailer configured is a supported state: the power
+    // module simply reports itself inactive. There are deliberately no shipped
+    // defaults — a retailer, a plan and a set of unit rates are facts about one
+    // household in one country, and guessing them would be worse than absent.
+    rates: z.object({
+      pageUrl: z.string().url().optional(),
+      ratecardUrl: z.string().url().optional(),
+      tariff: PowerTariffSchema.optional(),
+    }),
+    // Billing history imported from the retailer's account. Personal data:
+    // ships empty and lives in the household package.
+    accountHistory: z.array(PowerAccountUsagePointSchema).default([]),
+    // The devices power estimation knows about. This lives in config rather
+    // than in lib/power.ts so that renaming or retiring a Home Assistant
+    // device is a config edit, not a source change.
+    deviceRatings: z.array(PowerDeviceRatingSchema).default([]),
+    // Meters that must never be left switched off. A guard restores any of
+    // these the moment it reads `off` (lib/power-meter-guard.ts). Deliberately
+    // an explicit list rather than a flag on a rating: this is a standing
+    // override, and it is only ever correct for a device whose whole purpose
+    // is to keep measuring. See specs/power-meters.md §1.
+    alwaysOnMeters: z.array(AlwaysOnMeterSchema).default([]),
+    // A single metering plug that moves between groups of devices, measuring
+    // one at a time and learning what each group draws. Absent by default —
+    // most homes do not have one. See specs/power-meters.md §3.
+    floatingMeter: FloatingMeterConfigSchema.optional(),
+    // A metering plug on a washing machine, with cycle detection so a wash can
+    // be attributed to a person. See specs/power-meters.md §4.
+    washingMachine: WashingMachineConfigSchema.optional(),
+    // Ask Home Assistant to refresh these entities on an interval, for plugs
+    // whose integration only reports on change (specs/power-meters.md §7.2).
+    meterPolling: z.object({
+      intervalMs: millisecondsSchema.min(1000),
+      refreshEntityIds: z.array(entityIdSchema).min(1),
+    }).optional(),
+    modeledBaseLoads: z.object({
+      desktopActiveStartHour: z.number().min(0).max(24),
+      desktopActiveEndHour: z.number().min(0).max(24),
+      desktopActiveWatts: z.number().nonnegative(),
+      desktopStandbyWatts: z.number().nonnegative(),
+      novaAioAverageWatts: z.number().nonnegative(),
+      // Climate normals for wherever this home is, used to model fridge and
+      // water-heater load. Was named for one city; the name was the giveaway.
+      monthlyOutdoorTempsC: z.array(z.number()).length(12),
+      monthWeights: z.array(z.number().positive()).length(12),
+    }),
+  }),
+  tasks: z.object({
+    iCloud: z.object({
+      caldavUrl: z.string().url(),
+      defaultSyncDays: z.number().int().min(1).max(60),
+      calendars: stringListSchema,
+      reminders: stringListSchema,
+      syncIntervalMs: millisecondsSchema,
+      defaultReminderDurationMs: millisecondsSchema,
+      authBackoffMs: millisecondsSchema,
+    }),
+    alertAudio: z.object({
+      fileName: z.string().min(1),
+      maxBytes: z.number().int().positive(),
+      alertWindowMs: millisecondsSchema,
+      repeatMs: millisecondsSchema,
+    }),
+  }),
+  theme: z.object({
+    defaultScope: z.enum(["shared", "local"]),
+    sharedThemePollMs: millisecondsSchema,
+  }),
+  mcp: z.object({
+    enabled: z.boolean(),
+    requireBearerAuth: z.boolean(),
+    allowedOrigins: stringListSchema,
+    enableMutations: z.boolean(),
+    mutatingToolsRequireConfirm: z.boolean(),
+  }),
+  update: z.object({
+    // GitHub "owner/repo" the live install tracks for self-updates.
+    repo: z.string().min(1),
+    // Branch whose HEAD counts as the latest available version.
+    branch: z.string().min(1),
+    // Default for the auto-update switch; the live toggle is stored in
+    // runtime preferences so flipping it never rewrites the whole config.
+    autoUpdate: z.boolean(),
+    // Local hour (0-23, in power.timeZone) for the once-a-day update check.
+    checkHourLocal: z.number().int().min(0).max(23),
+  }),
+});
+
+export type DashboardConfigV1 = z.infer<typeof DashboardConfigSchema>;
+export type DashboardConfig = DashboardConfigV1;
