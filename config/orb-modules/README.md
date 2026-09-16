@@ -11,8 +11,9 @@ A file whose `id` matches a built-in module (`classic`, `reactor`, `halo`,
 built-in look in place. Invalid files are skipped and reported in the API response's
 `errors` array; they never break the orb.
 
-The authoritative format documentation lives in `lib/orb-modules.ts` (types +
-normalization) and specs/status-orb-stack.md. The short version:
+The authoritative format documentation lives in `lib/orb-modules/` — the types
+in `types.ts` and `layer-types.ts`, normalisation in `layer-model.ts` and
+`module-model.ts` — and specs/status-orb-stack.md. The short version:
 
 - **Unit space** — the orb radius is `1.0`, center `(0, 0)`, +y down. Every
   length is a fraction of the orb radius.
