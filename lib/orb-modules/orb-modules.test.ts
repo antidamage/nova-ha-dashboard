@@ -14,7 +14,7 @@ import {
   type OrbArcFieldLayer,
   type OrbLineFieldLayer,
   type OrbPalette,
-} from "./orb-modules";
+} from "../orb-modules";
 
 // A simple palette where every slot is distinct, for resolution assertions.
 const PALETTE: OrbPalette = {
