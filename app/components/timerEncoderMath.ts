@@ -5,7 +5,7 @@ function timerStepMinutes(minutes: number) {
   if (minutes < 1) return 5 / 60;
   if (minutes < 5) return 10 / 60;
   if (minutes < 10) return 30 / 60;
-  if (minutes < 20) return 1;
+  if (minutes < 30) return 1;
   if (minutes < 60) return 5;
   return 10;
 }

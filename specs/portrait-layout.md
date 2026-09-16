@@ -55,7 +55,8 @@ landscape; each tab bar names its card.
 
 - Home: the home zone full width, its subzones as tiles beneath — the current
   portrait tile sizing, now inside the Home card.
-- Systems: the Systems tiles, two per row, as they are now.
+- Systems: the Systems tiles flow across the full card width, as many per
+  row as fit at a 160px minimum (Adeline, 2026-09-16; was two per row).
 - The old merged grid (`.zones-panel > .grid`, the `order` rules that
   interleaved the two groups, and the rules that made the accordion wrappers
   `display: contents` and hid the trigger) is replaced by per-card layout.

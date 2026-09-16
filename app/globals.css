@@ -2907,6 +2907,24 @@ button.config-breadcrumb-crumb:focus-visible {
   outline: none;
 }
 
+/* Reminder events as cards flowing into a wrapping grid, rather than a
+   stacked list of rows -- each card its own natural height, min 220px wide,
+   as many per row as fit. */
+.task-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.task-card {
+  min-width: 0;
+  height: 100%;
+}
+
+.task-card > .task-row {
+  height: 100%;
+}
+
 .task-row-main {
   border: 0 !important;
   background: transparent !important;
@@ -6015,9 +6033,10 @@ button.config-breadcrumb-crumb:focus-visible {
   }
 
   /* The list, joined under the bar. */
+  /* Tiles flow across the full width (Adeline, 2026-09-16), not two per row. */
   .dashboard-home .horizontal-accordion-content:not([hidden]) {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
     align-items: start;
     gap: 8px;
     min-width: 0;
@@ -6028,7 +6047,8 @@ button.config-breadcrumb-crumb:focus-visible {
   }
 
   /* Home: the home zone full width, its subzones as tiles beneath. */
-  .dashboard-home .horizontal-accordion .zone-tree {
+  .dashboard-home .horizontal-accordion .zone-tree,
+  .dashboard-home .horizontal-accordion .systems-zone-children {
     grid-column: 1 / -1;
     min-width: 0;
   }
@@ -6675,13 +6695,13 @@ body,
     min-height: 0;
   }
 
-  /* The one exception to "Advanced adds no width": the Reminders sub-panel is
-     twice its previous width (564px, sized by its old header row), so the
-     lists and editor have room (specs/tasks-panel.md, "Width"). */
+  /* Adeline, 2026-09-16: back to the panel's own width (specs/tasks-panel.md,
+     "Width") -- the Reminders sub-panel no longer doubles it, so the timer
+     above the line sits in a square panel instead of a wide one. */
   .dashboard-home .tasks-stage {
-    width: 1128px;
+    width: 564px;
     max-width: none;
-    min-width: 1128px;
+    min-width: 564px;
   }
 
   .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
@@ -8917,8 +8937,8 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 .orb-event-icon { position:relative; display:grid; place-items:center; width:2em; height:2em; }
 .orb-event-icon > svg:not(.orb-countdown-ring) { width:1.3em; height:1.3em; }
 .orb-countdown-ring { position:absolute; inset:0; width:100%; height:100%; color:rgb(var(--nova-alert-rgb)); pointer-events:none; }
-.orb-countdown-ring-pulsing { animation: orb-countdown-ring-pulse 1s ease-in-out infinite; transform-origin: 50% 50%; }
-@keyframes orb-countdown-ring-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.orb-countdown-ring-pulsing { animation: orb-countdown-ring-pulse 1s ease-in-out infinite; }
+@keyframes orb-countdown-ring-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 .timer-encoder-panel { display:grid; place-items:center; min-height:240px; padding:30px; }
 .timer-encoder-face { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:48px; }
@@ -8975,16 +8995,18 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   .orb-dial-indicator { transition: none; }
 }
 
-/* Reminders Advanced region (specs/tasks-panel.md, Round 2). One cell — the
-   lists, or the editor in their place. Landscape: it takes the whole row.
-   Portrait: it may be twice the panel's width and scrolls within the fold. */
+/* Reminders Advanced region (specs/tasks-panel.md, Round 2 / Round 3). One
+   cell — the lists, or the editor in their place. Landscape: it takes the
+   whole row and grows vertically (advanced-fold[data-axis="y"] rows above).
+   Portrait: it is the panel's own width and grows horizontally within the
+   fold (advanced-fold[data-axis="x"] above) rather than doubling it. */
 .tasks-panel .advanced-fold[data-axis="y"] .advanced-fold-advanced > .tasks-advanced-cell {
   grid-column: 1 / -1;
 }
 
 .tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-list-view {
-  width: 200cqi;
-  max-width: 200cqi;
+  width: 100cqi;
+  max-width: 100cqi;
 }
 
 /* Portrait: neither view may make the sub-panel taller. The region is sized
@@ -8992,10 +9014,6 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
    the cell scrolls inside it. */
 .tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced {
   contain: size;
-  width: calc(200cqi + 16px);
-}
-
-.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced:has(> .tasks-editor-view) {
   width: calc(100cqi + 16px);
 }
 

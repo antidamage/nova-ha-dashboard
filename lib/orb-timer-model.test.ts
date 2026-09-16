@@ -21,4 +21,10 @@ describe("household timer", () => {
     expect(countdownText(66000)).toBe("1:06");
     expect(countdownText(-7000)).toBe("+0:07");
   });
+  it("switches to hour:minutes at 60 minutes and above", () => {
+    expect(countdownText(59 * 60_000)).toBe("59:00");
+    expect(countdownText(60 * 60_000)).toBe("1:00");
+    expect(countdownText(90 * 60_000 + 30_000)).toBe("1:30");
+    expect(countdownText(125 * 60_000)).toBe("2:05");
+  });
 });

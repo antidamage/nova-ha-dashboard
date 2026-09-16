@@ -31,7 +31,7 @@ export function TaskLists({
           <section key={tab} className="grid gap-3" aria-labelledby={`tasks-list-${tab}`} data-task-list={tab}>
             <h3 id={`tasks-list-${tab}`} className="text-sm font-black uppercase text-cyan-100">{heading}</h3>
             {listTasks.length ? (
-              listTasks.map((task) => renderRow(task))
+              <div className="task-card-grid">{listTasks.map((task) => renderRow(task))}</div>
             ) : (
               <div className="border border-neutral-700 bg-neutral-950/70 p-4 font-mono text-sm font-black uppercase text-neutral-500">
                 {empty}

@@ -20,6 +20,9 @@ function zoneTooltip(zone: DashboardZone, nested: boolean) {
   if (zone.special === "tasks" || zone.id === "tasks") {
     return { title: "Reminders", text: "Open task and reminder management." };
   }
+  if (zone.special === "voice" || zone.id === "voice") {
+    return { title: "Voice", text: "Open the voice agent status and transcript." };
+  }
 
   return {
     title: zone.name,

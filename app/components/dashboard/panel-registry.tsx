@@ -18,6 +18,7 @@ import {
   isNetworkZone,
   isOutsideZone,
   isPowerZone,
+  isVoiceZone,
   isWorldZone,
   type BedroomHeaterDevices,
   type LoungeEnvironment,
@@ -26,6 +27,7 @@ import { PowerPanel } from "./PowerPanel";
 import { RouterPanel } from "./RouterPanel";
 import { ClimateControls } from "./ClimateControls";
 import { OutsideControls } from "./OutsideControls";
+import { VoicePanel } from "./VoicePanel";
 import { useExperienceFeature } from "./experienceModeSetting";
 import type { ZoneActionHandler } from "./useZoneLighting";
 
@@ -151,6 +153,11 @@ export const primaryZonePanels: PrimaryZonePanel[] = [
     id: "world",
     appliesTo: isWorldZone,
     render: () => <WorldMapPanel />,
+  },
+  {
+    id: "voice",
+    appliesTo: isVoiceZone,
+    render: () => <VoicePanel />,
   },
 ];
 

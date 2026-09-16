@@ -63,11 +63,16 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
   the task. For a new reminder it is written after the task is created, keyed by
   its name. Renaming a reminder carries its glyph to the new key.
 
-### Width
+### Width (Round 3, Adeline, 2026-09-16)
 
-- **Landscape**: the Reminders sub-panel is twice its previous width.
-- **Portrait**: the reminders Advanced cell may be up to twice the panel's width
-  and scrolls sideways within the fold.
+- **Landscape and portrait**: the Reminders sub-panel is the panel's own
+  width — not doubled. The panel holding the `TimerEncoder` above the line is
+  square: landscape (`data-axis="y"`) the Advanced region grows vertically as
+  needed below the line; portrait (`data-axis="x"`) it grows horizontally as
+  needed within the fold, same as every other `AdvancedFold` sub-panel. This
+  replaces the Round 2 "twice its previous width" rule.
+- Reminder events render as cards in a wrapping grid (`.task-card-grid`, min
+  220px per card), not stacked rows, in both the Today and Upcoming lists.
 
 ### CI
 
