@@ -8917,6 +8917,8 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 .orb-event-icon { position:relative; display:grid; place-items:center; width:2em; height:2em; }
 .orb-event-icon > svg:not(.orb-countdown-ring) { width:1.3em; height:1.3em; }
 .orb-countdown-ring { position:absolute; inset:0; width:100%; height:100%; color:rgb(var(--nova-alert-rgb)); pointer-events:none; }
+.orb-countdown-ring-pulsing { animation: orb-countdown-ring-pulse 1s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes orb-countdown-ring-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
 
 .timer-encoder-panel { display:grid; place-items:center; min-height:240px; padding:30px; }
 .timer-encoder-face { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:48px; }
