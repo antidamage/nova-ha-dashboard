@@ -4,7 +4,6 @@
  */
 
 export const ORB_DIAL_DEFOCUS_MS = 5_000;
-export const ORB_DIAL_RETURN_MS = 10_000;
 export const ORB_DIAL_SLIDE_MS = 220;
 /** Degrees of turn per entry; a long stack shares the 270-degree arc. */
 export const ORB_DIAL_MAX_DETENT_DEG = 45;
@@ -41,8 +40,13 @@ export function orbDialReducer(state: OrbDialState, action: OrbDialAction): OrbD
   switch (action.type) {
     case "open":
       return { ...state, open: true, lastTouchAt: action.now };
+    // De-focusing reverts to the preferred display order at once: the dial
+    // closes and the orb slides back to the top entry in the same breath
+    // (Adeline, 2026-09-16; this replaces the separate 10s return timer).
     case "close":
-      return state.open ? { ...state, open: false } : state;
+      return state.open || state.shownId !== null
+        ? { ...state, open: false, shownId: null, direction: -1 }
+        : state;
     case "touch":
       return { ...state, lastTouchAt: action.now };
     case "step": {
@@ -52,11 +56,9 @@ export function orbDialReducer(state: OrbDialState, action: OrbDialAction): OrbD
       return { ...state, shownId: index === 0 ? null : action.ids[index], direction: index > from ? 1 : -1, lastTouchAt: action.now };
     }
     case "tick": {
-      let next = state;
       const idle = action.now - state.lastTouchAt;
-      if (next.open && idle >= ORB_DIAL_DEFOCUS_MS) next = { ...next, open: false };
-      if (next.shownId !== null && idle >= ORB_DIAL_RETURN_MS) next = { ...next, shownId: null, direction: -1 };
-      return next;
+      if (!state.open || idle < ORB_DIAL_DEFOCUS_MS) return state;
+      return { ...state, open: false, shownId: null, direction: -1 };
     }
   }
 }
@@ -87,7 +89,5 @@ export function angleDelta(from: number, to: number): number {
 
 /** When the next timed transition is due, or null when none is pending. */
 export function orbDialNextDeadline(state: OrbDialState): number | null {
-  if (state.open) return state.lastTouchAt + ORB_DIAL_DEFOCUS_MS;
-  if (state.shownId !== null) return state.lastTouchAt + ORB_DIAL_RETURN_MS;
-  return null;
+  return state.open ? state.lastTouchAt + ORB_DIAL_DEFOCUS_MS : null;
 }

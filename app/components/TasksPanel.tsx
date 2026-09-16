@@ -17,6 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDeviceTheme } from "./accentColor";
+import { resolveUxSoundUrl } from "./dashboard/controlSound";
 import type { FormEvent } from "react";
 import { parseTaskCsv, type ParseTaskCsvResult } from "../../lib/parse-task-csv";
 import type { Task } from "../../lib/types";
@@ -802,6 +804,14 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const alertRef = useRef<AlertState | null>(null);
   const tasksRef = useRef<Task[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Which clip the reminder alert plays, per the theme's assignment. Recomputed
+  // when the assignments or the theme's own control sound change; null means
+  // the action is set to None (specs/ux-sounds.md).
+  const { theme: soundTheme } = useDeviceTheme();
+  const reminderAlertUrl = useMemo(
+    () => resolveUxSoundUrl("reminderAlert"),
+    [soundTheme.uxSounds, soundTheme.controlSound.source, soundTheme.timerSound],
+  );
   const audioStopTimer = useRef<number | null>(null);
   const audioRepeatTimer = useRef<number | null>(null);
   const taskPushRevision = useRef(0);
@@ -916,7 +926,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   }, [stopAudio]);
 
   const playAudioWindow = useCallback(() => {
-    if (!taskAudioExists) {
+    if (!taskAudioExists || !reminderAlertUrl) {
       return;
     }
 
@@ -931,7 +941,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       console.info("[nova-dashboard] task alert audio blocked or unavailable", error);
     });
     audioStopTimer.current = window.setTimeout(stopAudio, audioWindowMs);
-  }, [audioWindowMs, stopAudio, taskAudioExists]);
+  }, [audioWindowMs, reminderAlertUrl, stopAudio, taskAudioExists]);
 
   const startAudioCadence = useCallback(
     (annoy: boolean) => {
@@ -1538,6 +1548,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
         <button
           className="task-alert-overlay"
           type="button"
+          data-ux-sound="reminderConfirm"
           aria-label={`Dismiss ${alert.name} notification`}
           onClick={() => void dismissAlert({ post: true })}
         >
@@ -1547,7 +1558,9 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
         </button>
       ) : null}
 
-      {taskAudioExists ? <audio ref={audioRef} src={ALERT_AUDIO_PATH} preload="auto" /> : null}
+      {/* Source comes from the theme's `reminderAlert` assignment, which
+          defaults to the uploaded reminder MP3 (specs/ux-sounds.md). */}
+      {taskAudioExists && reminderAlertUrl ? <audio ref={audioRef} src={reminderAlertUrl} preload="auto" /> : null}
 
       {showPanel ? (
         <>

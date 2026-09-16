@@ -24,7 +24,8 @@ each climate card, Network's router and Computers, Power.
 - A sunken line across the panel's inner width (landscape) or height
   (portrait) — an inset bevel, the same treatment as `RotaryEncoder`'s sunken
   ring, not a border.
-- "ADVANCED" sits beside it: mono, uppercase, ~0.7rem, `--cyber-muted`.
+- "ADVANCED" sits beside it: mono, uppercase, ~0.7rem, in the theme accent
+  (see "The line is the accent colour" below).
 - A solid flattened triangle follows the text, pointing toward the advanced
   side, in the text's colour. A CSS triangle.
 - **The line rests against the perceptual bottom (landscape) or right edge
@@ -261,8 +262,14 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 
 ### The line is the accent colour
 
-- The divider line, the "ADVANCED" label and the triangle use the theme accent
-  (`--cyber-highlight`), keeping the sunken bevel.
+- The divider line, the "ADVANCED" label and the triangle use the theme accent,
+  keeping the sunken bevel.
+- **The accent is `--cyber-line`, not `--cyber-highlight`.** Adeline, 2026-09-16:
+  the divider was still reading as the wrong colour because this section
+  originally named `--cyber-highlight`, which `accentColor.ts` sets from the
+  theme's *highlight* field (`applyCssColor("cyan", highlight)`). The accent is
+  the one applied as `applyCssColor("line", accent)` — `--cyber-line`, with
+  `--cyber-line-rgb` for alpha compositing.
 
 ### Wheel axis
 

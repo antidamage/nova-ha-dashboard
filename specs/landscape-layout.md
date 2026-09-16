@@ -189,6 +189,24 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2.
 - **No scroll snap on selection.** Selecting a zone no longer scrolls its
   controls into view; the page stays where it is. This replaces "After
   selection the page scrolls that group's controls into view".
+- **Selection must not move the page indirectly either** (Adeline, 2026-09-16,
+  plan `piped-wondering-mountain`: "I would prefer dashboard scrolling didn't
+  snap around when I changed panel selections or tap a menu item"). Removing the
+  `scrollIntoView` was not enough. The page is one `width: max-content` flex row,
+  so remounting `.control-stage` under a new zone key — or auto-opening a
+  collapsed `HorizontalAccordion` — changes a column's width and shifts every
+  column to its right while `window.scrollX` stays numerically fixed. The same
+  offset then frames different content, which reads as a snap.
+  - Selection-driven layout changes are **scroll-compensated**: the viewport rect
+    of a stable leading-edge anchor is measured before the change and the page is
+    scrolled by the delta afterwards, in the same frame, so what was under the
+    viewport's leading edge stays there.
+  - The browser's own CSS scroll anchoring is **turned off** on the page chain
+    (`overflow-anchor: none`); left at its default it fights the compensation.
+    The repo's e2e suite already had to work around it
+    (`e2e/click-drag-scroll.spec.ts`).
+  - This holds for a zone change, a menu tap, an accordion auto-open, and an
+    Advanced fold opening.
 - **A vertical mouse wheel never scrolls the page sideways.** Only a horizontal
   wheel does. This replaces "Wheel maps to sideways travel except over a
   vertical scroller" in "Page model".

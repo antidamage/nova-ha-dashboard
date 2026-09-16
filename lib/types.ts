@@ -686,6 +686,8 @@ export type DashboardPreferences = {
   themeUpdatedAt?: string;
   themeLibrary?: Record<string, unknown>;
   themeLibraryUpdatedAt?: string;
+  /** Uploaded UX sound clips; built-ins are never stored (specs/ux-sounds.md). */
+  soundLibrary?: Record<string, unknown>;
   watchface?: WatchfacePreferences;
   /** Which status orb info module is shown, and how each one is displayed. */
   orbInfo?: OrbInfoPreferences;

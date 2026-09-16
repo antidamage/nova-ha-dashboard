@@ -6,6 +6,7 @@ import { timerSoundSlot } from "../../../lib/orb-timer-model";
 import { useDeviceTheme } from "../accentColor";
 import { useOrbSettings } from "./useOrbSettings";
 import { useOrbTimer } from "./useOrbTimer";
+import { resolveUxSoundUrl } from "../dashboard/controlSound";
 export function OrbCompletionAudio({ tasks }: { tasks: Task[] }) {
   const { timer, now } = useOrbTimer();
   const { hasTimer, hasWashing } = useOrbSettings();
@@ -30,8 +31,12 @@ export function OrbCompletionAudio({ tasks }: { tasks: Task[] }) {
       } catch { attempted.current.delete(key); }
     };
     const slot = timerSoundSlot(timer, now);
-    if (timer && slot !== null) void play(timer.id, `${timer.id}:${hasTimer ? slot : "once"}`,
-      `/sounds/timer-${theme.timerSound.toLowerCase().replaceAll(" ", "-")}.mp3`, "/api/orb-timer", { command: "chime", id: timer.id, slot });
+    // The chime is whatever the theme assigns to `timerAlert`, which defaults
+    // to its timerSound (specs/ux-sounds.md). null means None: stay silent, and
+    // do not claim the chime either, so no screen is left thinking it played.
+    const timerUrl = resolveUxSoundUrl("timerAlert");
+    if (timer && slot !== null && timerUrl) void play(timer.id, `${timer.id}:${hasTimer ? slot : "once"}`,
+      timerUrl, "/api/orb-timer", { command: "chime", id: timer.id, slot });
     for (const task of tasks) {
       if (washReminder(task)?.phase !== "active" || task.dismissedAt || task.alertDismissedAt) continue;
       const elapsed = now - Date.parse(task.start);

@@ -50,6 +50,9 @@ export function ZoneButton({
     <button
       type="button"
       onClick={onClick}
+      /* Picking a zone is a section change, not a plain button press
+         (specs/ux-sounds.md, "Precedence"). */
+      data-ux-sound="sectionChange"
       data-demo-tooltip-title={tooltip.title}
       data-demo-tooltip={tooltip.text}
       className={classNames(

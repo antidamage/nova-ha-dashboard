@@ -118,6 +118,7 @@ import { NovaAvatarConfig } from "./NovaAvatarConfig";
 import { useBuildReload } from "./useBuildReload";
 import { ThemeLibraryControl } from "./ThemeLibraryControl";
 import { DesignSelectControl } from "./DesignSelectControl";
+import { SoundLibraryConfig, UxSoundAssignmentsConfig } from "./UxSoundConfig";
 import { useThemeLibrary } from "./themeLibrary";
 import { copyColorToClipboard, copySectionToClipboard, useThemeClipboard } from "./themeClipboard";
 import { extractSection, mergeSection, type ThemeSectionKind } from "./themeSections";
@@ -2180,6 +2181,11 @@ export function AccentConfig({
               value={theme.controlSound}
               onChange={(controlSound) => setTheme({ ...theme, controlSound })}
               onPreview={(controlSound) => setTheme({ ...theme, controlSound }, { persist: false })}
+            />
+            <SoundLibraryConfig />
+            <UxSoundAssignmentsConfig
+              value={theme.uxSounds}
+              onChange={(uxSounds) => setTheme({ ...theme, uxSounds })}
             />
           </ConfigAccordion>
             </ConfigAccordion>

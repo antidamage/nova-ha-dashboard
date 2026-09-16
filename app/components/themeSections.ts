@@ -35,7 +35,7 @@ const SECTION_FIELDS: Record<ThemeSectionKind, ReadonlyArray<keyof DeviceTheme>>
   ],
   statusOrb: ["avatar"],
   reminders: ["taskGlowIntensity"],
-  sound: ["controlSound"],
+  sound: ["controlSound", "uxSounds"],
 };
 
 export type ThemeSectionPayload = Partial<DeviceTheme>;

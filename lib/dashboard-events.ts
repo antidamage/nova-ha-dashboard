@@ -455,6 +455,13 @@ function sendVoiceSpeakingSnapshot(client: DashboardEventClient) {
   sendClient(client, sseEvent("voice-speaking", JSON.stringify(replay)));
 }
 
+// A UX sound clip was uploaded, renamed or deleted. Every screen shares one
+// library, so the change has to reach the rest; the payload is a nudge and each
+// client re-reads /api/sounds, keeping one code path for interpreting it.
+export function publishSoundLibrary(reason: string) {
+  broadcast(sseEvent("sound-library", JSON.stringify({ reason, at: Date.now() })));
+}
+
 export function publishTaskAudioStatus(status: { exists: boolean; size?: number; updatedAt?: string }) {
   store.latestTaskAudioJson = JSON.stringify(status);
   broadcastTask(sseEvent("task-audio", store.latestTaskAudioJson));

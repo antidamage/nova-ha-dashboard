@@ -8,6 +8,7 @@ import { OrbEventReadout } from "./orb-info/OrbEventReadout";
 import { countdownText, timerRemaining } from "../../lib/orb-timer-model";
 import { timerIconCode } from "../../lib/orb-timer-settings";
 import { timerFractionToMinutes, timerMinutesToFraction } from "./timerEncoderMath";
+import { playUxSound } from "./dashboard/controlSound";
 export function TimerEncoder() {
   const { timer, now, command } = useOrbTimer();
   const { icons } = useOrbSettings();
@@ -26,6 +27,9 @@ export function TimerEncoder() {
     if (!dirty.current || numericOpen.current) return;
     dirty.current = false;
     const { minutes, icon } = draft.current;
+    // A drag to zero cancels, and cancellation is always silent
+    // (specs/status-orb-stack.md, specs/ux-sounds.md).
+    if (minutes > 0) playUxSound("timerSet");
     void command({ command: "set", durationMs: minutes * 60_000, icon: timerIconCode(icon.glyph), label: icon.label })
       .then(() => setError(null)).catch((error) => { dirty.current = true; setError(error.message); });
   }, [command]);

@@ -1,4 +1,5 @@
-import { playControlSound } from "./dashboard/controlSound";
+import { playUxSound } from "./dashboard/controlSound";
+import { isUxSoundAction, type UxSoundAction } from "./dashboard/uxSoundActions";
 
 const BUTTON_HAPTIC_MS = 12;
 const SLIDER_HAPTIC_MS = 9;
@@ -105,14 +106,27 @@ export function triggerHaptic(style: NovaHapticStyle) {
   return false;
 }
 
-export function buttonHaptic() {
-  playControlSound();
+export function buttonHaptic(action: UxSoundAction = "buttonPress") {
+  playUxSound(action);
   return triggerHaptic("button");
 }
 
-export function selectionHaptic() {
-  playControlSound();
+export function selectionHaptic(action: UxSoundAction = "buttonPress") {
+  playUxSound(action);
   return triggerHaptic("selection");
+}
+
+/**
+ * The action an element declares with `data-ux-sound`, read from the nearest
+ * ancestor that carries one. `data-ux-sound="none"` opts a control out of the
+ * generic click because it plays its own sound at a more precise moment
+ * (specs/ux-sounds.md, "Precedence").
+ */
+export function uxSoundActionFor(element: Element): UxSoundAction | null {
+  const declared = element.closest("[data-ux-sound]")?.getAttribute("data-ux-sound");
+  if (!declared) return "buttonPress";
+  if (declared === "none") return null;
+  return isUxSoundAction(declared) ? declared : "buttonPress";
 }
 
 /**

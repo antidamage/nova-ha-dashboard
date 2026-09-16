@@ -123,19 +123,50 @@ becomes enabled with `showOnlyWhenAlerting: true` (never `on`, only `alert`).
 
 - **Orb push-to-talk is removed.** Wake word and other voice entry points stay.
 - A single tap on the orb, when the entry on show is not alerting, opens the
-  **dial**: a thin ring with a position mark in the accent colour appears, and
-  dragging around the orb steps through the stack. Turning toward the low end
-  reaches the top entry; toward the high end, the lowest-priority entry. One
-  detent per entry.
+  **dial**, and dragging around the orb steps through the stack. Turning toward
+  the low end reaches the top entry; toward the high end, the lowest-priority
+  entry. One detent per entry.
 - Content changes **slide** between entries in the turn direction (about 220 ms,
   ease-out), clipped to the orb face with a soft opacity fade at the edges (a
   mask, no hard edge).
-- The dial **defocuses after 5 s** without touch, or when focus moves elsewhere
-  (tap outside, another control focused, page hidden).
-- **10 s after the last touch** the orb slides back to the first entry with the
-  same animation.
 - Keyboard: Enter/Space opens the dial; arrow keys step; Escape closes.
 - Apple TV shows the same ordering (display only, no dial).
+
+#### The dial is the RotaryEncoder indicator
+
+Adeline, 2026-09-16 (plan `piped-wondering-mountain`): "the tap-and-dial
+function for the status orb ... should just be the existing dial indicator and
+lines that appear when we enable a temperature dial, following the same display
+rules."
+
+- The orb no longer draws its own ring and position mark. It renders the
+  **`RotaryEncoder` indicator layer** — the sunken ring, the index line and the
+  LED lines — in the accent colour, exactly as the temperature dial does, and
+  inherits `specs/color-encoder.md`'s tuck-away rules verbatim: a tap of
+  60–400 ms with under 5 px travel unlocks; the indicator re-locks after 5 s
+  idle; a pointer-down outside locks it at once; Escape locks; Enter/Space
+  unlocks. The orb's own `ORB_DIAL_DEFOCUS_MS` timing is the same 5 s, so the
+  visible behaviour of the timeout does not change.
+- One LED line per stack entry, the lit one marking the entry on show, on the
+  same `skip` and spacing rules the temperature dial uses.
+- **De-focusing reverts to the preferred display order immediately.** The
+  separate 10-second `ORB_DIAL_RETURN_MS` linger is removed: when the dial
+  locks, the orb slides straight back to the top of the order computed by
+  `orderOrbStack`, with the same 220 ms animation.
+
+#### The dial never drags the page
+
+Adeline, 2026-09-16: "when rotating this dial, it should not drag the page
+around. page scrolling should not be possible if the first tap was in the status
+orb."
+
+- **Any press that starts anywhere on the orb blocks page panning**, whether or
+  not the dial is unlocked, and for the whole gesture.
+- The mechanism is the one `RotaryEncoder` already uses: the orb host is marked
+  non-draggable so `useClickDragScroll`'s `startsInNonDraggable` refuses to arm
+  a page pan (`role="slider"` / `data-nova-no-drag-scroll`). `touch-action:
+  none` alone is not enough — it stops native touch scrolling but leaves the
+  mouse drag-pan armed, which is why the orb dragged the page before this.
 
 ### Tapping an alert
 

@@ -101,7 +101,10 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2.
   the second column (room readouts, light events) beneath it — not two
   subdivided columns.
 - **Choosing a zone never scrolls the page.** No `scrollIntoView` or snap on
-  selection, in either orientation.
+  selection, in either orientation, and no indirect movement either: see
+  `specs/landscape-layout.md`, "Selection must not move the page indirectly",
+  for the scroll compensation and the `overflow-anchor: none` rule. Portrait's
+  page axis is `window.scrollY`; the rule is otherwise identical.
 - **The live transcript fits the space it has.** No minimum or maximum line
   height; it takes the card's available height and scrolls inside itself.
   Width unchanged.

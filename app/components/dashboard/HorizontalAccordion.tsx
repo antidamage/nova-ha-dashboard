@@ -7,6 +7,7 @@ import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { getAccordionOpen, setAccordionOpen } from "../configUiState";
+import { useScrollAnchor } from "./useScrollAnchor";
 
 const WIDE_QUERY = "(aspect-ratio > 1)";
 function subscribeWide(change: () => void) {
@@ -66,6 +67,9 @@ export function HorizontalAccordion({
   // short-lived accordion storage. Landscape's bar is vertical and opens
   // sideways; portrait's is a full-width bar that opens downward.
   const expanded = open;
+  // Opening or closing an entry resizes this column and shifts everything after
+  // it; hold the page still (specs/landscape-layout.md).
+  useScrollAnchor(`${persistKey}:${expanded}`);
   const indicator = wide
     ? expanded ? <ChevronLeft size={24} /> : <ChevronRight size={24} />
     : expanded ? <ChevronDown size={24} /> : <ChevronRight size={24} />;
@@ -75,6 +79,7 @@ export function HorizontalAccordion({
         id={triggerId}
         type="button"
         className="horizontal-accordion-trigger"
+        data-ux-sound="sectionChange"
         aria-expanded={expanded}
         aria-controls={contentId}
         aria-label={ariaLabel ?? `${title} zones`}

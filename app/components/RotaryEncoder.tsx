@@ -457,6 +457,7 @@ export function RotaryEncoder({
   const unlock = () => {
     setLocked(false);
     noteInput();
+    selectionHaptic("unlockDial");
   };
 
   // ── The index ─────────────────────────────────────────────────────────────
@@ -514,7 +515,7 @@ export function RotaryEncoder({
     if (id === led) return;
     setInternalLed(id);
     onActiveLedChange?.(id);
-    if (!silent) selectionHaptic();
+    if (!silent) selectionHaptic("dialClick");
   };
 
   const withValue = (next: number) => {
@@ -561,7 +562,7 @@ export function RotaryEncoder({
         };
         setPressed(true);
         onPressedChange?.(true);
-        if (!locked) selectionHaptic();
+        if (!locked) selectionHaptic("dialClick");
       },
       onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
         const drag = dragRef.current;
@@ -595,7 +596,6 @@ export function RotaryEncoder({
         if (locked) {
           // One deliberate tap opens it: a drag, a brush or a long hold does not.
           if (drag.travel < TAP_MOVE_THRESHOLD_PX && held >= UNLOCK_MIN_MS && held <= UNLOCK_MAX_MS) {
-            selectionHaptic();
             unlock();
           }
           return;
@@ -610,7 +610,7 @@ export function RotaryEncoder({
           valueRef.current = settled;
           onChange(settled);
         }
-        if (settled !== drag.start) selectionHaptic();
+        if (settled !== drag.start) selectionHaptic("dialClick");
         onCommit?.(settled);
       },
       onPointerCancel: () => {
@@ -740,7 +740,7 @@ export function RotaryEncoder({
       if (ringKind(ring) === "toggle") {
         // No thumb and no drag: the press is the whole gesture.
         const [min, max] = ringRange(ring);
-        selectionHaptic();
+        selectionHaptic("dialClick");
         const next = ringValue(ring) > (min + max) / 2 ? min : max;
         ring.onChange(next);
         ring.onCommit?.(next);
@@ -758,7 +758,7 @@ export function RotaryEncoder({
       };
       ringPressRef.current = press;
       ringLiveRef.current[ring.id] = ring.value;
-      selectionHaptic();
+      selectionHaptic("dialClick");
       // A tap on the track jumps the thumb there.
       applyRingAngle(press, at);
       (event.currentTarget.querySelector(`[data-ring-index="${index}"]`) as SVGElement | null)?.focus?.({ preventScroll: true });
@@ -783,7 +783,7 @@ export function RotaryEncoder({
       // tap on the dial does; a drag or a held press clicks again on release
       // if it changed the value.
       const tap = press.travel < TAP_MOVE_THRESHOLD_PX && now() - press.at < TAP_MAX_MS;
-      if (!tap && final !== press.start) selectionHaptic();
+      if (!tap && final !== press.start) selectionHaptic("dialClick");
       ring.onCommit?.(final);
     },
     onPointerCancel: () => {
