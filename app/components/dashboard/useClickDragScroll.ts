@@ -208,9 +208,12 @@ export function useClickDragScroll(): void {
     };
 
     const onWheel = (event: WheelEvent) => {
-      if (!isHorizontalDashboard() || event.ctrlKey || event.defaultPrevented ||
-          startsInNonDraggable(event.target) || startsInNonDraggable(event.target, "x")) return;
-      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      // Only a horizontal wheel (deltaX, which is how Shift+wheel arrives) pans
+      // the landscape page. A vertical wheel never does (specs/landscape-layout.md,
+      // Round 2); it is left to whatever scrolls vertically under it.
+      const delta = event.deltaX;
+      if (!delta || !isHorizontalDashboard() || event.ctrlKey || event.defaultPrevented ||
+          startsInNonDraggable(event.target, "x")) return;
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerWidth : 1;
       window.scrollBy({ left: delta * unit, behavior: "instant" });
       event.preventDefault();

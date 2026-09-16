@@ -94,7 +94,7 @@ const AIRCON_AUTO_SENSOR_GRACE_MS = 2 * 60_000;
  */
 export const AIRCON_USER_REQUEST_MAX_AGE_MS = 30 * 60_000;
 
-export const AIRCON_MODES = ["heat", "cool", "fan_only", "auto"] as const;
+export const AIRCON_MODES = ["heat", "cool", "dry", "fan_only", "auto"] as const;
 export const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
 
 export type AirconMode = (typeof AIRCON_MODES)[number];

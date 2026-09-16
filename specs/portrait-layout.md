@@ -91,3 +91,26 @@ landscape; each tab bar names its card.
 - No sideways page overflow.
 - `e2e/portrait-layout.spec.ts`, `e2e/reminder-bar.spec.ts` (portrait) and
   `HorizontalAccordion.test.tsx` cover the above.
+
+## Round 2 (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2.
+
+- **House Party has its own row** in a lighting zone's Advanced section: the
+  slide switch and its label on one line across the cell, and whatever sat in
+  the second column (room readouts, light events) beneath it — not two
+  subdivided columns.
+- **Choosing a zone never scrolls the page.** No `scrollIntoView` or snap on
+  selection, in either orientation.
+- **The live transcript fits the space it has.** No minimum or maximum line
+  height; it takes the card's available height and scrolls inside itself.
+  Width unchanged.
+- Advanced lists flow into columns rather than growing the panel
+  (`specs/advanced-fold.md`, "Portrait: lists flow into columns").
+
+### Done means (round 2)
+
+- At 768×1024 and 820×1180, opening Home's lighting Advanced leaves the Home
+  card's height unchanged.
+- House Party's switch sits alone on its row.
+- Selecting zones leaves `window.scrollY` unchanged.

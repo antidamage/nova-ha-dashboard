@@ -111,3 +111,60 @@ In the zone's Advanced section (`specs/advanced-fold.md`):
   up at the rule's colour the next time it is switched on.
 - Unit tests cover sun offsets, day filters, once-per-occurrence, staging and
   zero brightness.
+
+## Round 2: every lighting automation is a rule (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
+`20260914T101019Z-06c0031b`. Supersedes "What stays as it is".
+
+### Rule types
+
+All live in `dashboard.lighting.zoneRules` (the existing `zoneEvents` migrate
+into it), are edited in the zone's lighting section, and run in the same host
+pass (`scanAdaptiveLighting`):
+
+| `kind` | Replaces | Behaviour |
+|---|---|---|
+| `event` | `zoneEvents` | as above: fires at a clock or sun time on chosen days |
+| `adaptive` | `preferences.lighting.adaptiveCandlelightZones` | while enabled, moves the zone's lit lights to the sun-adaptive candlelight value at each sun-state crossing |
+| `threshold` | `dashboard.lighting.intensityThresholds` | keys off the zone's brightness: at or above its threshold the listed entities switch on, below it they switch off (the neon 61% rule) |
+| `pinned` | `dashboard.lighting.entityPresets` with `pinned` | whenever a listed entity is on, it is held at the rule's value (the conservatory warm white); may name individual entities within the zone |
+| `preset` | the zone's preset buttons | no schedule; exists to be triggered |
+
+Common fields: `id`, `zoneId`, `name`, `enabled`, `kind`, `value` where it
+applies, and `preset: { show, icon, order }` with `icon` a reminder glyph.
+
+- Existing config and preferences migrate on read and are written back once, so
+  behaviour is identical after the change. None of the four automations remains
+  hard-coded or in its own config key.
+- House Party deferral, once-per-occurrence and the 5-minute lateness rule apply
+  as they do today to the kinds they applied to.
+
+### Preset buttons
+
+- Any rule may be shown as a **preset button** in the zone's default view (the
+  row under the dial), with an icon chosen through `ReminderIconPicker`.
+  Pressing it applies the rule's value now (triggers it early); for `adaptive`
+  that is the current adaptive value.
+- **On** and **Off** are built-in preset rules for every lighting zone: always
+  shown, not removable, **On first, Off last**, every custom preset between them
+  in the user's order.
+- The current Adaptive and White buttons become ordinary preset rules created by
+  the migration (removable), so the row looks the same after the change.
+
+### Label colour
+
+- The "may be switched on by an event" light names, and every other label in
+  this section, take their text colour from the panel surface (the panel's
+  contrast-checked text token), not the config page's `theme-display-label`. On
+  a light panel they are dark.
+
+### Done means (round 2)
+
+- After migration the neon threshold, the conservatory pin, adaptive candlelight
+  and timed events behave exactly as before, and all four show in the zone's
+  section.
+- A custom preset rule appears as a button between On and Off with its icon, and
+  applies its value.
+- On and Off cannot be deleted.
+- Labels are dark on a light theme panel.

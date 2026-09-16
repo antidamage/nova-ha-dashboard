@@ -79,3 +79,88 @@ Verify pure stack/preferences, timer lifecycle and logarithmic-step functions;
 exercise two browser tabs, persisted configuration, sound expiry, server-only
 completion and Apple TV display. Deploy dashboard, Discord module and Apple TV
 in that order, subject to the shared deployment-chain coordination.
+
+## Round 2 (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
+`20260914T101019Z-06c0031b`. Supersedes "Highest active row wins", the
+`always` / `whenAlerting` activation, and orb push-to-talk.
+
+### Entry kinds and states
+
+- **Countdowns** are `timer`, `washing` (ETA / overrun) and `rain-arriving`
+  (minutes until rain). They are interchangeable: among running countdowns, the
+  **shortest remaining** shows first. A washing overrun (`+0:07`) counts as zero
+  remaining. A countdown's row position in config does not order it.
+- Every other entry is **non-countdown** and has a state evaluated each tick:
+  - `off`: not in the stack at all.
+  - `on`: in the stack, in the user's arranged order.
+  - `alert`: raised to the top.
+- The entry's config holds `enabled` (user switch). A disabled entry is always
+  `off`. An enabled entry is `on` unless its module says otherwise:
+  - **Gym**: `off` until 24 h since the last session (`showAfterHours`, default
+    24), `on` from then, `alert` from its configured alert threshold.
+  - Modules with an alert condition: `alert` while it holds, else `on`.
+  - Modules without one: `on`.
+- A countdown whose condition has completed (finished timer, completed wash) is
+  an alerting entry, not a countdown.
+
+### Order
+
+1. Alerting entries (finished timer, wash done, due reminder, any module in
+   `alert`); among themselves, most recent alert first.
+2. Running countdowns, shortest remaining first.
+3. `on` entries, in the user's arranged order.
+
+The first entry is what the orb shows at rest. The config page keeps the
+drag-to-arrange list; each non-countdown row gets an enabled switch; countdown
+rows are marked as countdowns and are not ordered.
+
+Legacy migration: `activation: "always"` becomes enabled; `whenAlerting`
+becomes enabled with `showOnlyWhenAlerting: true` (never `on`, only `alert`).
+
+### The dial
+
+- **Orb push-to-talk is removed.** Wake word and other voice entry points stay.
+- A single tap on the orb, when the entry on show is not alerting, opens the
+  **dial**: a thin ring with a position mark in the accent colour appears, and
+  dragging around the orb steps through the stack. Turning toward the low end
+  reaches the top entry; toward the high end, the lowest-priority entry. One
+  detent per entry.
+- Content changes **slide** between entries in the turn direction (about 220 ms,
+  ease-out), clipped to the orb face with a soft opacity fade at the edges (a
+  mask, no hard edge).
+- The dial **defocuses after 5 s** without touch, or when focus moves elsewhere
+  (tap outside, another control focused, page hidden).
+- **10 s after the last touch** the orb slides back to the first entry with the
+  same animation.
+- Keyboard: Enter/Space opens the dial; arrow keys step; Escape closes.
+- Apple TV shows the same ordering (display only, no dial).
+
+### Tapping an alert
+
+- A tap on the orb while the entry on show is **alerting** dismisses that
+  occurrence **on every screen**, with the dial open or not: a finished timer, a
+  completed wash, and **due reminders** (same effect as acknowledging the
+  reminder's tile or alert). It never opens the dial.
+- Dismissal is server-side and broadcast on the dashboard event stream; every
+  open screen drops the alert and stops its sound on the next event delivery.
+  Reported 2026-09-15: a dismissal had to be repeated on several devices. That
+  is the defect to fix.
+
+### Gym display
+
+- The gym entry shows a **weights icon** (Phosphor `Barbell`) above its value,
+  laid out like the timer entry: icon above, text below, text scaled down to fit
+  the face at the sizes the timer uses.
+
+### Done means (round 2)
+
+- Unit tests for ordering: alert beats countdown beats on; two countdowns order
+  by remaining; off never appears; gym off/on/alert at 23 h / 24 h / threshold.
+- Orb tap opens the dial; dragging steps entries; 5 s defocus; animated return
+  to the top after 10 s.
+- A tap on a finished timer, completed wash or due reminder dismisses it in two
+  open browser contexts at once.
+- Gym shows the barbell icon with fitted text.
+- Apple TV conformance cases updated for the new ordering.

@@ -491,3 +491,87 @@ primary; that person supplies wash attribution and typical duration (Adeline:
 and repeats the completion chime every 30 seconds for five minutes, then stays
 silently alert until acknowledged. Without that entry, keep the temporary icon
 and play the chime once. Discord completion behaviour is unchanged.
+
+## 7. Round 2: polling, cycle floor and data repair (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
+`20260914T101019Z-06c0031b`.
+
+### 7.1 What the plugs actually report (measured 2026-09-15)
+
+- The plugs are Arlec Grid Connect (Tuya `cz`) energy sockets, reaching HA only
+  through the cloud bridge (`sensor.tuya_mobile_*_power`). The bridge reports on
+  change: about every **45 s** while the washing machine was running, about
+  **hourly** when the floating meter's load was steady. No energy (kWh) counter
+  entity is exposed.
+- Tuya sockets measure power internally every ~2 s; the Smart Life app gets
+  ~2 s updates only while it is actively refreshing. Local polling over the LAN
+  (`tuya_local`, protocol DPs 18–20 current/power/voltage, 17 energy increment)
+  can read at any cadence.
+- The morning wash of 2026-09-15 (20:06:56Z–20:39:30Z, 11–142 W) integrated to
+  about 0.04 kWh and was **discarded** under `minCycleKwh: 0.05`.
+
+### 7.2 Polling ladder
+
+1. **Local, 10 s.** If both plugs answer on the LAN from Iridium, they are added
+   to HA's `tuya_local` with a 10 s poll of power (and the energy DP where the
+   device exposes it). Nova reads the local entities in preference to the cloud
+   twins (`powerSensorEntityId` points at the local sensor; the cloud twin stays
+   as a fallback when the local one is `unavailable`).
+2. **Cloud refresh, 30 s.** If the LAN is blocked (AP isolation), Nova calls
+   `homeassistant.update_entity` on each plug's cloud power entity every 30 s.
+   If the bridge ignores that, record it and keep the report-on-change stream.
+- Whichever applies is household config: `power.meterPolling:
+  { intervalMs, refreshEntityIds[] }`. Product code names no entity.
+
+### 7.3 The meter tick
+
+- A dedicated **10 s** meter tick (`power.timing.meterSampleIntervalMs`, default
+  10000) reads only the meter entities (washing machine and floating meter) and
+  runs cycle detection, completion, traces and floating-meter accumulation. The
+  30 s grid sample no longer does meter work. Both share the power write queue.
+- Energy between readings is the previous reading held (zero-order hold) over
+  the elapsed time, under `maxIntegrationHours`. If an energy counter entity is
+  configured (`energySensorEntityId`), cycle and category energy come from the
+  counter's delta instead, and power only drives detection.
+- Wash traces record at the tick (whole-second offsets), so detection and
+  attribution rules stay resolvable to the minute.
+
+### 7.4 Cycle floor
+
+- Household `minCycleKwh` becomes **0.02** — a cold wash draws little.
+
+### 7.5 Data repair operations (generic)
+
+Both run inside the power write queue, back up the store they change
+(`<file>.bak-<timestamp>`), and are exposed as POST routes that take their
+parameters in the body; no household value lives in code.
+
+- `POST /api/power/floating-meter/reattribute { fromCategoryId, toCategoryId,
+  until }` moves every hourly bucket (and its share of `kwhTotal` and
+  `measuredSeconds`) whose hour **starts** before `until` from one category to
+  the other, merging buckets that already exist. A partial hour moves whole: the
+  source category was not being measured after `until`, so everything in that
+  bucket belongs to the destination.
+- `POST /api/power/washing-machine/rebuild { from, to }` reads the meter's HA
+  history for that window, replays it through cycle detection with the current
+  config, and inserts any cycle not already stored (matched by overlapping time),
+  with its trace. Existing cycles and their attribution are untouched.
+
+Run once on live (2026-09-15): reattribute `computers` → `home_entertainment`
+until `2026-09-15T00:17:29Z`; rebuild `2026-09-14T00:00Z`–now; set the
+rebuilt 2026-09-14T20:06Z wash to Tonya (manual); the 05:04Z wash stays Addie.
+
+### 7.6 Tapping a wash block
+
+- No focus ring or focus box on a block after a tap; the tap cycles the person
+  and the block's colour changes immediately (optimistic). Keyboard focus is
+  still shown for keyboard users only (`:focus-visible`).
+
+### Done means (round 2)
+
+- HA history for both plugs shows ≤10 s (local) or ≤30 s (cloud) spacing.
+- A short, low-power test load is detected as a cycle with a trace.
+- Power panel shows two washes: Addie (yesterday 17:04) and Tonya (this morning
+  08:07), and Home Entertainment's history reaches back to 2026-09-14T17.
+- Reattribute and rebuild are covered by unit tests, including idempotence.

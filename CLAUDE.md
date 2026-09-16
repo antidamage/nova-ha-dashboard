@@ -164,6 +164,13 @@ the named component before introducing a one-off equivalent.
   displayed brightness/colour bound to the server plus its preset and colour
   commands. Pair it with the exported `ZoneColorEncoder`
   (`ZoneControls.tsx`, `size` 50–200) for a zone colour dial anywhere.
+- `useZoneLightRules` / `ZoneRulePresetRow` / `RuleIcon` —
+  `app/components/dashboard/zoneLightRulesClient.tsx`. The zone's lighting
+  rules (timed events, adaptive, thresholds, pinned fixtures, presets) as one
+  shared client store, the preset row under the dial (On, the shown rules in
+  order, Off) and a rule's glyph. Any surface showing lighting presets mounts
+  the row rather than hard-coding buttons; the editor is `ZoneLightEvents.tsx`.
+  See `specs/zone-light-events.md`.
 - `IconButton` — `app/components/dashboard/IconButton.tsx`. This is the
   dashboard's themed icon action used by zone lighting controls.
 - `LabeledSwitch` — `app/components/dashboard/ClimateControls.tsx`. This is the

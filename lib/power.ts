@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { reconcileWashCompletion } from "./wash-completion";
 import { cycleId as washingCycleId } from "./washing-machine";
 import path from "path";
-import { mkdir, readdir, readFile, rename, unlink, writeFile } from "fs/promises";
+import { copyFile, mkdir, readdir, readFile, rename, unlink, writeFile } from "fs/promises";
 import { callService, haRest } from "./ha";
 import type { HaState } from "./types";
 import { readDashboardConfigSync } from "./dashboard-config";
@@ -39,6 +39,7 @@ import {
   type WashingMachineTotals,
 } from "./washing-machine";
 import { mergePowershopAccountUsage } from "./powershop-account-usage";
+import { meterHistoryPoints, newRebuiltWashes, reattributeFloatingBuckets, replayWashingHistory } from "./power-repair";
 import {
   readAllPowershopUsage,
   readPowershopAccountMetadata,
@@ -236,6 +237,12 @@ type PowerState = {
   hourly: Record<string, PowerBucket>;
   lastRateCheck?: RateCheck;
   lastSampleAt: string | null;
+  /** The meter tick's own clock (specs/power-meters.md §7.3). */
+  lastMeterSampleAt?: string | null;
+  /** Last reading of each configured kWh counter, for counter-delta energy. */
+  meterCounters?: Record<string, number>;
+  /** When each stored counter reading was taken; the integration gap is measured from it. */
+  meterCounterReadAt?: Record<string, string>;
   rateHistory: Array<{ at: string; cPerKwh: number; label: string }>;
   version: 1;
 };
@@ -280,6 +287,14 @@ const globalPower = globalThis as typeof globalThis & {
     monitorStarted: boolean;
     samplePromise: Promise<PowerDashboard> | null;
     timer: ReturnType<typeof setInterval> | null;
+    meterPromise?: Promise<void> | null;
+    writeQueue?: Promise<unknown>;
+    washReconcileSignature?: string;
+    washReconciledAt?: number;
+    pollInFlight?: boolean;
+    pollLogged?: { failure: boolean; success: boolean };
+    meterTimer?: ReturnType<typeof setInterval> | null;
+    pollTimer?: ReturnType<typeof setInterval> | null;
   };
 };
 
@@ -1115,9 +1130,68 @@ function localMonthKey(date: Date) {
   return `${parts.year.toString().padStart(4, "0")}-${parts.month.toString().padStart(2, "0")}`;
 }
 
-function floatingMeterWatts(statesById: Map<string, HaState>) {
-  const config = powerConfig().floatingMeter;
-  return config ? numericState(statesById, config.powerSensorEntityId) : null;
+/**
+ * A meter's power reading: the configured sensor, or its fallback twin while
+ * that sensor is unavailable (specs/power-meters.md §7.2).
+ */
+function meterReading(
+  statesById: Map<string, HaState>,
+  config: { fallbackPowerSensorEntityId?: string; powerSensorEntityId: string },
+) {
+  for (const entityId of [config.powerSensorEntityId, config.fallbackPowerSensorEntityId]) {
+    if (!entityId) continue;
+    const watts = numericState(statesById, entityId);
+    if (watts !== null) {
+      const state = statesById.get(entityId);
+      return { entityId, reportedAt: state?.last_reported ?? state?.last_updated, watts };
+    }
+  }
+  return null;
+}
+
+function meterEntityIds(config: { energySensorEntityId?: string; fallbackPowerSensorEntityId?: string; powerSensorEntityId: string }) {
+  return [config.powerSensorEntityId, config.fallbackPowerSensorEntityId, config.energySensorEntityId].filter(
+    (entityId): entityId is string => Boolean(entityId),
+  );
+}
+
+/**
+ * Energy since the stored counter reading, from a cumulative kWh counter.
+ * Undefined — fall back to held power — when there is no counter, no stored
+ * reading, or the counter went backwards (a plug reset). Zero when the stored
+ * reading is older than maxIntegrationHours: that gap is not integrated.
+ */
+function counterDeltaKwh(
+  state: PowerState,
+  statesById: Map<string, HaState>,
+  entityId: string | undefined,
+  now: Date,
+  maxIntegrationHours: number,
+  powerLive: boolean,
+) {
+  if (!entityId) return undefined;
+  // While power is unavailable nothing is recorded, so the stored reading and
+  // its time are held. The next live tick sees the whole gap's energy when the
+  // gap since that reading is within maxIntegrationHours, and none otherwise.
+  if (!powerLive) return undefined;
+  const counters = (state.meterCounters ??= {});
+  const readAt = (state.meterCounterReadAt ??= {});
+  const reading = numericState(statesById, entityId);
+  if (reading === null) {
+    // Power is live but the counter is not: drop the baseline so the next
+    // reading starts a fresh one instead of claiming this gap.
+    delete counters[entityId];
+    delete readAt[entityId];
+    return undefined;
+  }
+  const previous = counters[entityId];
+  const previousAt = readAt[entityId] ? Date.parse(readAt[entityId]) : NaN;
+  counters[entityId] = reading;
+  readAt[entityId] = now.toISOString();
+  if (previous === undefined || !Number.isFinite(previousAt) || reading < previous) return undefined;
+  const gapHours = (now.getTime() - previousAt) / 3_600_000;
+  if (gapHours <= 0 || gapHours > maxIntegrationHours) return 0;
+  return reading - previous;
 }
 
 /** Which group the meter is on. Unset falls back to the first configured one. */
@@ -1137,6 +1211,7 @@ function recordFloatingMeterSample(
   keys: ReturnType<typeof currentKeys>,
   now: Date,
   integrationHours: number,
+  energyKwh?: number,
 ): FloatingMeterState | undefined {
   const config = powerConfig().floatingMeter;
   if (!config) {
@@ -1148,13 +1223,21 @@ function recordFloatingMeterSample(
     state.activeCategoryId = categoryId;
     state.activeSince ??= now.toISOString();
   }
-  const watts = numericState(statesById, config.powerSensorEntityId);
+  const watts = meterReading(statesById, config)?.watts ?? null;
   if (watts === null) {
     // The plug is off-network. Recording a zero would teach the model that the
     // group draws nothing, which is the one thing we know it does not mean.
     return state;
   }
-  recordFloatingSample(state, categoryId, watts, integrationHours * 3600, keys.hourKey, now.toISOString());
+  recordFloatingSample(
+    state,
+    categoryId,
+    watts,
+    integrationHours * 3600,
+    keys.hourKey,
+    now.toISOString(),
+    energyKwh === undefined ? undefined : energyKwh * 3_600_000,
+  );
   return state;
 }
 
@@ -1163,7 +1246,13 @@ function recordFloatingMeterSample(
  * folded into its category's history by every sample that has run since it was
  * selected, so this only has to re-point the meter and restamp `activeSince`.
  */
-export async function setFloatingMeterCategory(categoryId: string) {
+export function setFloatingMeterCategory(categoryId: string) {
+  // Inside the write queue: the meter tick rewrites state.json every few
+  // seconds and would otherwise overwrite the new category with a stale read.
+  return serializePower(() => setFloatingMeterCategoryUnlocked(categoryId));
+}
+
+async function setFloatingMeterCategoryUnlocked(categoryId: string) {
   const config = powerConfig().floatingMeter;
   if (!config || !config.categories.some((category) => category.id === categoryId)) {
     return null;
@@ -1211,12 +1300,14 @@ function recordWashingMachineTick(
   now: Date,
   integrationHours: number,
   costPerKwh: number,
+  energyKwh?: number,
 ): WashingMachineState | null {
   const config = powerConfig().washingMachine;
   if (!config) {
     return null;
   }
-  const watts = numericState(statesById, config.powerSensorEntityId);
+  const reading = meterReading(statesById, config);
+  const watts = reading?.watts ?? null;
   if (watts === null) {
     // Off-network. A missing reading is not a reading of zero: treating it as
     // one would close an open cycle that is still running.
@@ -1228,8 +1319,9 @@ function recordWashingMachineTick(
     config,
     costPerKwh,
     elapsedHours: integrationHours,
+    ...(energyKwh === undefined ? {} : { energyKwh }),
     watts,
-    reportedAt: statesById.get(config.powerSensorEntityId)?.last_reported ?? statesById.get(config.powerSensorEntityId)?.last_updated ?? "invalid",
+    reportedAt: reading?.reportedAt ?? "invalid",
   });
   const cutoff = new Date(now.getTime() - WASHING_MACHINE_HISTORY_DAYS * 86_400_000).toISOString();
   return pruneWashingMachineCycles(next, cutoff);
@@ -1773,31 +1865,15 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
     }
   }
 
-  // The metering plugs (specs/power-meters.md). Both are optional: a household
-  // that has configured neither never touches either store.
-  const integrationHours =
-    elapsedHours > 0 && elapsedHours <= powerConfig().timing.maxIntegrationHours ? elapsedHours : 0;
-  state.floatingMeter = recordFloatingMeterSample(state.floatingMeter, statesById, keys, now, integrationHours);
-  const knownWashIds = new Set((persistedWashing.cycles ?? []).map((cycle) => cycle.id));
-  const washing = recordWashingMachineTick(
-    { ...blankWashingMachineState(), ...persistedWashing },
-    statesById,
-    now,
-    integrationHours,
-    rate.cPerKwh / 100,
-  );
-
+  // The metering plugs have their own faster tick (sampleMetersUnlocked,
+  // specs/power-meters.md §7.3). This sample only reads what that tick stored.
   state.lastSampleAt = now.toISOString();
   await refreshPowerRatesIfDue(state, now, rate);
   pruneState(state, now);
   await writeJsonAtomic(POWER_STATE_PATH, state);
+  const washing = powerConfig().washingMachine ? { ...blankWashingMachineState(), ...persistedWashing } : null;
   if (washing) {
-    await reconcileWashCompletion(washing, statesById).catch((error) => console.warn("Wash reminder reconciliation failed", error));
-    await writeJsonAtomic(WASHING_MACHINE_PATH, washing);
-    const sensor = powerConfig().washingMachine?.powerSensorEntityId;
-    await recordWashTrace(knownWashIds, washing, sensor ? numericState(statesById, sensor) : null, now)
-      .then(() => loadRecentWashCurves(washing, now))
-      .catch((error) => console.warn("Wash trace recording failed", error));
+    await loadRecentWashCurves(washing, now).catch((error) => console.warn("Wash curve loading failed", error));
   }
   const summary = buildDashboard(state, readings, accountUsage, dailyUsage, accountMetadata, now, washing);
   void maybePublishToHa(summary, ratings).catch((error) => {
@@ -1806,10 +1882,213 @@ async function samplePowerUnlocked(): Promise<PowerDashboard> {
   return summary;
 }
 
-let powerWriteQueue: Promise<unknown> = Promise.resolve();
+/**
+ * The metering plugs' tick (specs/power-meters.md §7.3): floating-meter
+ * accumulation, wash detection, completion and traces, at
+ * `power.timing.meterSampleIntervalMs`. Reads only the meter entities, plus the
+ * weather and sun entities the completion's drying advice needs.
+ */
+async function sampleMetersUnlocked(): Promise<void> {
+  const config = powerConfig();
+  if (!config.floatingMeter && !config.washingMachine) return;
+  const dashboardConfig = readDashboardConfigSync();
+  const entityIds = [
+    ...(config.floatingMeter ? meterEntityIds(config.floatingMeter) : []),
+    ...(config.washingMachine ? meterEntityIds(config.washingMachine) : []),
+  ];
+  const now = new Date();
+  const [persisted, persistedWashing] = await Promise.all([
+    readJson<PowerState>(POWER_STATE_PATH, blankState()),
+    readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState()),
+  ]);
+  // Weather and sun only feed a completion's drying advice, which can only
+  // happen while a wash is open.
+  if (config.washingMachine?.completionAlert?.enabled && persistedWashing.open) {
+    entityIds.push(dashboardConfig.homeAssistant.weatherEntityId, dashboardConfig.homeAssistant.sunEntityId);
+  }
+  const [fetched] = await Promise.all([
+    Promise.all(
+      [...new Set(entityIds)].map((entityId) =>
+        haRest<HaState>(`/api/states/${encodeURIComponent(entityId)}`).catch(() => null),
+      ),
+    ),
+  ]);
+  const statesById = new Map(
+    fetched.filter((haState): haState is HaState => Boolean(haState?.entity_id)).map((haState) => [haState.entity_id, haState]),
+  );
+  const state = { ...blankState(), ...persisted };
+  const keys = currentKeys(now);
+  const rate = currentRate(now);
+  const lastMs = state.lastMeterSampleAt ? Date.parse(state.lastMeterSampleAt) : NaN;
+  const elapsedHours = Number.isFinite(lastMs) ? (now.getTime() - lastMs) / 3_600_000 : 0;
+  const integrate = elapsedHours > 0 && elapsedHours <= config.timing.maxIntegrationHours;
+  const integrationHours = integrate ? elapsedHours : 0;
+
+  if (config.floatingMeter) {
+    const energyKwh = counterDeltaKwh(state, statesById, config.floatingMeter.energySensorEntityId, now, config.timing.maxIntegrationHours,
+      meterReading(statesById, config.floatingMeter) !== null);
+    state.floatingMeter = recordFloatingMeterSample(state.floatingMeter, statesById, keys, now, integrationHours, energyKwh);
+  }
+  state.lastMeterSampleAt = now.toISOString();
+
+  let washing: WashingMachineState | null = null;
+  const knownWashIds = new Set((persistedWashing.cycles ?? []).map((cycle) => cycle.id));
+  if (config.washingMachine) {
+    const energyKwh = counterDeltaKwh(state, statesById, config.washingMachine.energySensorEntityId, now, config.timing.maxIntegrationHours,
+      meterReading(statesById, config.washingMachine) !== null);
+    washing = recordWashingMachineTick(
+      { ...blankWashingMachineState(), ...persistedWashing },
+      statesById,
+      now,
+      integrationHours,
+      rate.cPerKwh / 100,
+      energyKwh,
+    );
+  }
+  await writeJsonAtomic(POWER_STATE_PATH, state);
+  if (washing) {
+    const settled = washing;
+    // Reconcile only when something it acts on changed — a wash opening,
+    // being claimed, completing, closing or being discarded — and once after
+    // start-up, so reminder.due is emitted on the completion edge, not every tick.
+    const signature = washReconcileSignature(settled);
+    // A once-a-minute backstop catches anything the signature misses, such as
+    // a reminder changed from elsewhere.
+    const backstopDue = Date.now() - (powerRuntime.washReconciledAt ?? 0) >= 60_000;
+    if (signature !== powerRuntime.washReconcileSignature || backstopDue) {
+      await reconcileWashCompletion(settled, statesById)
+        .then(() => {
+          powerRuntime.washReconcileSignature = signature;
+          powerRuntime.washReconciledAt = Date.now();
+        })
+        .catch((error) => console.warn("Wash reminder reconciliation failed", error));
+    }
+    await writeJsonAtomic(WASHING_MACHINE_PATH, settled);
+    const watts = config.washingMachine ? meterReading(statesById, config.washingMachine)?.watts ?? null : null;
+    await recordWashTrace(knownWashIds, settled, watts, now)
+      .then(() => loadRecentWashCurves(settled, now))
+      .catch((error) => console.warn("Wash trace recording failed", error));
+  }
+}
+
+function washReconcileSignature(state: WashingMachineState) {
+  const open = state.open;
+  const last = state.cycles[state.cycles.length - 1];
+  const alert = powerConfig().washingMachine?.completionAlert;
+  return JSON.stringify([
+    alert?.enabled ?? false, alert?.personId ?? null,
+    open?.startedAt ?? null, open?.person ?? null, open?.completion?.at ?? null,
+    state.cycles.length, last?.id ?? null, last?.person ?? null, last?.completion?.at ?? null,
+  ]);
+}
+
+async function backupFile(filePath: string, stamp: string) {
+  await copyFile(filePath, `${filePath}.bak-${stamp}`).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+  });
+}
+
+function backupStamp(now = new Date()) {
+  return now.toISOString().replace(/[:.]/g, "-");
+}
+
+/** Epoch ms at which a local `YYYY-MM-DDTHH` hour bucket ends, in power.timeZone. */
+function localHourEndMs(hourKey: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})$/.exec(hourKey);
+  if (!match) return NaN;
+  const wall = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]));
+  let utc = wall;
+  // Two passes settle the offset either side of a daylight-saving change.
+  for (let pass = 0; pass < 2; pass += 1) {
+    const parts = localParts(new Date(utc));
+    const shown = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour % 24);
+    utc -= shown - wall;
+  }
+  return utc + 3_600_000;
+}
+
+/**
+ * Move a floating-meter category's history up to `until` onto another category
+ * (specs/power-meters.md §7.5). Backs up the power state before changing it.
+ * Null when either category is not configured.
+ */
+export function reattributeFloatingMeterHistory(fromCategoryId: string, toCategoryId: string, until: string) {
+  return serializePower(async () => {
+    const config = powerConfig().floatingMeter;
+    const known = new Set(config?.categories.map((category) => category.id) ?? []);
+    if (!config || !known.has(fromCategoryId) || !known.has(toCategoryId)) return null;
+    const untilMs = Date.parse(until);
+    if (!Number.isFinite(untilMs)) throw new Error("until must be an ISO timestamp");
+    const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
+    const state = { ...blankState(), ...persisted };
+    const result = reattributeFloatingBuckets(
+      { ...blankFloatingMeterState(), ...state.floatingMeter },
+      { fromCategoryId, hourStartMs: (hourKey) => localHourEndMs(hourKey) - 3_600_000, toCategoryId, untilMs },
+    );
+    if (result.moved.length > 0) {
+      await backupFile(POWER_STATE_PATH, backupStamp());
+      state.floatingMeter = result.state;
+      await writeJsonAtomic(POWER_STATE_PATH, state);
+    }
+    return { moved: result.moved };
+  });
+}
+
+/**
+ * Insert washes missing from the store, rebuilt from Home Assistant history
+ * (specs/power-meters.md §7.5). Stored cycles are never changed. Null when no
+ * washing machine is configured.
+ */
+export function rebuildWashingMachineHistory(from: string, to: string) {
+  return serializePower(async () => {
+    const power = powerConfig();
+    const config = power.washingMachine;
+    if (!config) return null;
+    const fromMs = Date.parse(from);
+    const toMs = Date.parse(to);
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs <= fromMs) {
+      throw new Error("from and to must be ISO timestamps with from before to");
+    }
+    const sensors = [config.powerSensorEntityId, config.fallbackPowerSensorEntityId].filter((id): id is string => Boolean(id));
+    const query = new URLSearchParams({ end_time: new Date(toMs).toISOString(), filter_entity_id: sensors.join(",") });
+    const history = await haRest<unknown>(
+      `/api/history/period/${encodeURIComponent(new Date(fromMs).toISOString())}?${query}&minimal_response&no_attributes`,
+    );
+    const rebuilt = replayWashingHistory({
+      config,
+      costPerKwhAt: (atMs) => currentRate(new Date(atMs)).cPerKwh / 100,
+      fromMs,
+      maxIntegrationHours: power.timing.maxIntegrationHours,
+      points: meterHistoryPoints(history, sensors),
+      tickSeconds: power.timing.meterSampleIntervalMs / 1000,
+      toMs,
+    });
+    const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
+    const state = { ...blankWashingMachineState(), ...persisted };
+    const inserted = newRebuiltWashes(state, rebuilt, Date.now());
+    if (inserted.length > 0) {
+      await backupFile(WASHING_MACHINE_PATH, backupStamp());
+      state.cycles = [...state.cycles, ...inserted.map((wash) => wash.cycle)].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+      await writeJsonAtomic(WASHING_MACHINE_PATH, state);
+      for (const wash of inserted) {
+        const file: WashTraceFile = {
+          cycleId: wash.cycle.id, endedAt: wash.cycle.endedAt, kwh: wash.cycle.kwh,
+          person: wash.cycle.person, points: wash.points, startedAt: wash.cycle.startedAt,
+        };
+        await writeJsonAtomic(path.join(WASH_TRACE_DIR, `${wash.cycle.id}.json`), file);
+        washCurves.set(wash.cycle.id, downsampleTrace(wash.points));
+      }
+    }
+    return {
+      inserted: inserted.map((wash) => ({ endedAt: wash.cycle.endedAt, id: wash.cycle.id, kwh: wash.cycle.kwh, startedAt: wash.cycle.startedAt })),
+    };
+  });
+}
+
+// On the global runtime so a hot reload shares one queue with the old module's timers.
 function serializePower<T>(work: () => Promise<T>): Promise<T> {
-  const result = powerWriteQueue.then(work);
-  powerWriteQueue = result.catch(() => undefined);
+  const result = (powerRuntime.writeQueue ?? Promise.resolve()).then(work);
+  powerRuntime.writeQueue = result.catch(() => undefined);
   return result;
 }
 export function attributeWashingMachineCycle(id: string) {
@@ -1822,6 +2101,39 @@ export async function samplePowerNow(): Promise<PowerDashboard> {
     });
   }
   return powerRuntime.samplePromise;
+}
+
+export function sampleMetersNow(): Promise<void> {
+  if (!powerRuntime.meterPromise) {
+    powerRuntime.meterPromise = serializePower(sampleMetersUnlocked).finally(() => {
+      powerRuntime.meterPromise = null;
+    });
+  }
+  return powerRuntime.meterPromise;
+}
+
+/** Ask HA to refresh report-on-change meter entities (specs/power-meters.md §7.2). */
+async function pollMeters() {
+  const polling = powerConfig().meterPolling;
+  if (!polling || powerRuntime.pollInFlight) return;
+  powerRuntime.pollInFlight = true;
+  const logged = (powerRuntime.pollLogged ??= { failure: false, success: false });
+  try {
+    await callService("homeassistant", "update_entity", { entity_id: polling.refreshEntityIds });
+    if (!logged.success) {
+      logged.success = true;
+      console.log("[nova-dashboard] meter refresh accepted by Home Assistant", polling.refreshEntityIds);
+    }
+  } catch (error) {
+    // Logged once: the report-on-change stream still arrives, and the next
+    // interval tries again.
+    if (!logged.failure) {
+      logged.failure = true;
+      console.warn("[nova-dashboard] meter refresh failed", error);
+    }
+  } finally {
+    powerRuntime.pollInFlight = false;
+  }
 }
 
 export function ensurePowerMonitorStarted() {
@@ -1837,4 +2149,19 @@ export function ensurePowerMonitorStarted() {
       console.warn("[nova-dashboard] power sample failed", error);
     });
   }, powerConfig().timing.sampleIntervalMs);
+
+  const power = powerConfig();
+  if (power.floatingMeter || power.washingMachine) {
+    void sampleMetersNow().catch((error) => console.warn("[nova-dashboard] initial meter sample failed", error));
+    powerRuntime.meterTimer = setInterval(() => {
+      void sampleMetersNow().catch((error) => console.warn("[nova-dashboard] meter sample failed", error));
+    }, Math.max(1000, power.timing.meterSampleIntervalMs));
+  }
+  if (power.meterPolling) {
+    powerRuntime.pollTimer = setInterval(() => {
+      // A refused refresh is not worth surfacing: the report-on-change stream
+      // still arrives, and the next interval tries again.
+      void pollMeters();
+    }, Math.max(1000, power.meterPolling.intervalMs));
+  }
 }

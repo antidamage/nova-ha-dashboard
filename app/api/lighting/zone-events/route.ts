@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { patchDashboardConfig, readDashboardConfig } from "../../../../lib/dashboard-config";
 import type { ZoneLightEvent } from "../../../../lib/types";
+import { projectLightingRules } from "../../../../lib/zone-light-rules";
 
 /**
  * The zone light events a dashboard can read and edit. The rules themselves
@@ -14,7 +15,8 @@ export async function GET() {
   try {
     const config = await readDashboardConfig();
     return NextResponse.json({
-      events: config.dashboard.lighting.zoneEvents ?? [],
+      // Event rules included (specs/zone-light-events.md, round 2).
+      events: projectLightingRules(config.dashboard.lighting).zoneEvents,
       switchOnEntityIds: config.dashboard.lighting.eventSwitchOnEntityIds ?? [],
     });
   } catch (error) {

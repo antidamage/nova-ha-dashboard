@@ -29,8 +29,7 @@ Scroll progress `t = clamp(scrollX / 400, 0, 1)`.
 | Status orb | 200px, centred horizontally and vertically in the sidebar | 100px, still centred |
 | Sidebar width | 224px (orb + 12px each side) | 124px (100px orb + 12px each side) |
 | Shadow gradient | invisible | fully in; black at the left edge fading to transparent at the right, sidebar width |
-| Reload button | top of sidebar, fully visible and usable | faded out; no pointer events from t ≥ 0.5 |
-| Config link | bottom of sidebar, fully visible and usable | same fade as Reload |
+| Reload, theme override, config cog | one row at the bottom of the sidebar, in that order (2026-09-15, `specs/theme-override.md`), fully visible and usable | faded out; no pointer events from t ≥ 0.5 |
 | Mini time / date | invisible | fully in, stacked under the orb's bottom edge |
 
 - Everything is a continuous function of `scrollX`, no timers or triggered
@@ -182,3 +181,17 @@ the knob into the next control. Keep this treatment scoped to landscape.
 - House Party is in the Advanced section of every lighting zone panel.
 - Portrait: see `specs/portrait-layout.md`.
 - Unit tests pass; deployed and checked live.
+
+## Round 2 (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2.
+
+- **No scroll snap on selection.** Selecting a zone no longer scrolls its
+  controls into view; the page stays where it is. This replaces "After
+  selection the page scrolls that group's controls into view".
+- **A vertical mouse wheel never scrolls the page sideways.** Only a horizontal
+  wheel does. This replaces "Wheel maps to sideways travel except over a
+  vertical scroller" in "Page model".
+- **The live transcript fits its column**: no minimum or maximum height; it
+  fills the height the column gives it and scrolls inside itself, at its current
+  width (560px).

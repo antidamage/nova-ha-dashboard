@@ -19,6 +19,7 @@ import {
   type AirconFanStep,
   type AirconMode,
 } from "../../../lib/aircon-control";
+import { airconDrySupport } from "../../../lib/aircon-dry";
 import {
   BEDROOM_HEATER_MAX_TARGET_C,
   BEDROOM_HEATER_MIN_TARGET_C,
@@ -34,6 +35,7 @@ import type { EncoderLed, RotaryEncoderRing } from "../RotaryEncoder";
 import {
   FAN_VALUE_WIDEST,
   MODE_COOL_COLOUR,
+  MODE_DRY_COLOUR,
   MODE_FAN_COLOUR,
   MODE_HEAT_COLOUR,
   TIMER_MAX_MINUTES,
@@ -47,12 +49,21 @@ import {
 import { useSharedAirconCommands, useSharedBedroomHeaterCommands } from "./ClimateCommandsProvider";
 import type { EntityActionsHandler } from "./climateCommands";
 
-/** Cool at the 7:30 end, Fan at 12, Heat at the 4:30 end (Adeline, 2026-09-12). */
-const MODE_STOPS: ReadonlyArray<{ mode: AirconMode; colour: string }> = [
-  { mode: "cool", colour: MODE_COOL_COLOUR },
-  { mode: "fan_only", colour: MODE_FAN_COLOUR },
-  { mode: "heat", colour: MODE_HEAT_COLOUR },
-] as const;
+type ModeStop = { mode: AirconMode; colour: string; text: string; label: string };
+
+/**
+ * Left to right: Cool, Dry, Fan, Heat. Dry is a stop only when the unit has it
+ * or Nova can emulate it; otherwise three stops (specs/temperature-encoder.md,
+ * round 2).
+ */
+const MODE_STOPS_ALL: ReadonlyArray<ModeStop> = [
+  { mode: "cool", colour: MODE_COOL_COLOUR, text: "COOL", label: "Cooling" },
+  { mode: "dry", colour: MODE_DRY_COLOUR, text: "DRY", label: "Dry" },
+  { mode: "fan_only", colour: MODE_FAN_COLOUR, text: "FAN", label: "Fan" },
+  { mode: "heat", colour: MODE_HEAT_COLOUR, text: "HEAT", label: "Heating" },
+];
+const MODE_STOPS_NO_DRY = MODE_STOPS_ALL.filter((stop) => stop.mode !== "dry");
+const MODE_VALUE_WIDEST = "HEAT";
 
 /** What the aircon's entity says about its range, or the usual 16–30. */
 function targetRange(entity?: DashboardEntity) {
@@ -153,6 +164,11 @@ export function AirconKnob({
   // Auto sets itself — the only thing left to say is when to stop; Off has
   // nothing to set at all.
   const manual = power === "manual";
+  // A unit already in Dry always shows the stop, so the thumb has somewhere to sit.
+  const drySupport = airconDrySupport(aircon.supportedModes, climateControl?.dryEmulatable === true);
+  const MODE_STOPS = activeMode === "dry" || drySupport === "native" || drySupport === "emulated"
+    ? MODE_STOPS_ALL
+    : MODE_STOPS_NO_DRY;
   const modeIndex = Math.max(0, MODE_STOPS.findIndex((stop) => stop.mode === activeMode));
   const modeColour = off ? null : MODE_STOPS[modeIndex]?.colour ?? null;
   const fanIndex = Math.max(0, AIRCON_FAN_STEPS.indexOf(aircon.fanStep));
@@ -162,19 +178,23 @@ export function AirconKnob({
       id: "mode",
       label: "Mode",
       kind: "selector",
-      symmetric: true,
+      // Not symmetric: a symmetric ring carries no value, and round 2 puts
+      // COOL/DRY/FAN/HEAT at its end (specs/temperature-encoder.md).
       value: modeIndex,
       min: 0,
       max: MODE_STOPS.length - 1,
       step: 1,
       fill: modeColour,
+      valueText: (value) => MODE_STOPS[Math.round(value)]?.text ?? "",
+      valueTextWidest: MODE_VALUE_WIDEST,
       hidden: !manual,
       disabled: aircon.entityUnavailable,
       onChange: () => undefined,
       onCommit: (value) => {
         const stop = MODE_STOPS[Math.round(value)];
-        if (!stop || !airconModeSupported(aircon.supportedModes, stop.mode)) return;
-        void aircon.setMode(stop.mode, stop.mode === "fan_only" ? "Fan" : stop.mode === "cool" ? "Cooling" : "Heating");
+        if (!stop) return;
+        if (stop.mode !== "dry" && !airconModeSupported(aircon.supportedModes, stop.mode)) return;
+        void aircon.setMode(stop.mode, stop.label);
       },
     },
     {

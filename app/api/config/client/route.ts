@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readDashboardConfig } from "../../../../lib/dashboard-config";
+import { projectLightingRules } from "../../../../lib/zone-light-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function GET() {
       avatar: config.dashboard.avatar,
       bedroomHeater: config.dashboard.bedroomHeater,
       legacyPanelHeaterCardEnabled: config.dashboard.legacyPanelHeaterCardEnabled,
-      lighting: config.dashboard.lighting,
+      lighting: projectLightingRules(config.dashboard.lighting),
       // Rotation rules only. The kiosk ADDRESSES stay server-side: they are how
       // a control mutation is recognised as coming from the panel, and handing
       // that list to every browser would publish the household's topology for

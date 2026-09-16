@@ -1,6 +1,6 @@
 "use client";
 
-import { Flame, PartyPopper, Power, PowerOff, Sun } from "lucide-react";
+import { PartyPopper } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   DashboardPreferences,
@@ -19,6 +19,7 @@ import { AdvancedFold } from "./AdvancedFold";
 import { IconButton } from "./IconButton";
 import { LabeledSlideSwitch } from "../SlideSwitch";
 import { ZoneLightEvents } from "./ZoneLightEvents";
+import { ZoneRulePresetRow } from "./zoneLightRulesClient";
 import { selectPrimaryZonePanel } from "./panel-registry";
 import { ModuleSlot } from "../modules/ModuleSlot";
 import {
@@ -359,16 +360,25 @@ export function ZoneControls({
           ) : (
             <AdvancedFold
               advanced={
-                <>
-                  {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
-                  {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
+                /* House Party owns its own full-width row; everything else in
+                   Advanced sits beneath it (specs/portrait-layout.md round 2).
+                   Landscape flattens both wrappers with `display: contents`. */
+                <div className="zone-advanced-stack">
                   <HousePartyControl
                     disabled={!hasLightDevices}
                     enabled={housePartyEnabled}
                     onToggle={toggleHouseParty}
                   />
-                  <ZoneLightEvents lights={lightEntities} zone={zone} />
-                </>
+                  <div className="zone-advanced-rest">
+                    {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
+                    {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
+                    <ZoneLightEvents
+                      lights={lightEntities}
+                      presetHandlers={{ applyPreset: applyPresetAction, setLocalBrightness, rememberSpectrum, onZoneAction }}
+                      zone={zone}
+                    />
+                  </div>
+                </div>
               }
             >
               <div className="zone-lighting-controls">
@@ -384,30 +394,13 @@ export function ZoneControls({
                   onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
                   onSpectrumChange={rememberSpectrum}
                 />
-                <div className="zone-lighting-presets" role="group" aria-label="Lighting presets">
-                  <IconButton label={`On: ${adaptivePresetLabel}`} disabled={!hasLightDevices} variant="yellow" onClick={() => applyPresetAction("on")}>
-                    <Power aria-hidden="true" /><span>On</span>
-                  </IconButton>
-                  <IconButton
-                    label={adaptivePresetLabel}
-                    disabled={!hasLightDevices}
-                    variant="yellow"
-                    onClick={() => applyPresetAction("candlelight")}
-                  >
-                    <Flame aria-hidden="true" /><span>Adaptive</span>
-                  </IconButton>
-                  <IconButton
-                    label="White"
-                    disabled={!hasLightDevices}
-                    variant="white"
-                    onClick={() => applyPresetAction("white")}
-                  >
-                    <Sun aria-hidden="true" /><span>White</span>
-                  </IconButton>
-                  <IconButton label="Off" disabled={!hasLightDevices && zone.counts.switch === 0} variant="pink" onClick={() => onZoneAction("off")}>
-                    <PowerOff aria-hidden="true" /><span>Off</span>
-                  </IconButton>
-                </div>
+                <ZoneRulePresetRow
+                  adaptiveLabel={adaptivePresetLabel}
+                  hasLightDevices={hasLightDevices}
+                  hasSwitches={zone.counts.switch > 0}
+                  handlers={{ applyPreset: applyPresetAction, setLocalBrightness, rememberSpectrum, onZoneAction }}
+                  zoneId={zone.id}
+                />
               </div>
             </AdvancedFold>
           )}

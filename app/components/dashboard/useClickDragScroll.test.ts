@@ -101,13 +101,18 @@ describe("page pan gestures", () => {
     expect(scroll).not.toHaveBeenCalled();
   });
 
-  it("maps wheel input to horizontal travel without intercepting browser zoom", () => {
+  it("pans the page sideways from a horizontal wheel only, without intercepting browser zoom", () => {
     const scroll = setup(true);
     const target = document.querySelector("button")!;
-    target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 }));
+    target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 120 }));
     expect(scroll).toHaveBeenCalledWith({ left: 120, behavior: "instant" });
     scroll.mockClear();
-    target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120, ctrlKey: true }));
+    // A vertical wheel never pans the page sideways.
+    const vertical = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 });
+    target.dispatchEvent(vertical);
+    expect(scroll).not.toHaveBeenCalled();
+    expect(vertical.defaultPrevented).toBe(false);
+    target.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaX: 120, ctrlKey: true }));
     expect(scroll).not.toHaveBeenCalled();
   });
 

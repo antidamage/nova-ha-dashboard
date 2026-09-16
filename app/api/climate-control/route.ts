@@ -16,8 +16,8 @@ function parseIntent(value: unknown): ClimateControlIntent {
   if (input.mode !== undefined && !["auto", "manual", "off"].includes(String(input.mode))) {
     throw new Error("mode must be auto, manual, or off");
   }
-  if (input.direction !== undefined && !["heat", "cool", "fan_only"].includes(String(input.direction))) {
-    throw new Error("direction must be heat, cool, or fan_only");
+  if (input.direction !== undefined && !["heat", "cool", "dry", "fan_only"].includes(String(input.direction))) {
+    throw new Error("direction must be heat, cool, dry, or fan_only");
   }
   const intent: ClimateControlIntent = {
     room: input.room,

@@ -143,7 +143,7 @@ export function normalizedOrbInfoPreferences(value: OrbInfoPreferences | undefin
 export function resolveOrbEntries(value: OrbInfoPreferences | undefined): OrbStackEntry[] {
   const legacyId = resolveOrbModuleId(value);
   const raw = value?.entries ?? [{
-    id: `legacy-${legacyId}`, moduleId: legacyId, activation: "always" as const,
+    id: `legacy-${legacyId}`, moduleId: legacyId, enabled: true,
     ...value?.modules?.[legacyId],
   }];
   const seen = new Set<string>();
@@ -155,7 +155,9 @@ export function resolveOrbEntries(value: OrbInfoPreferences | undefined): OrbSta
     seen.add(id);
     return [{
       id, moduleId: module.id,
-      activation: entry.activation === "whenAlerting" ? "whenAlerting" as const : "always" as const,
+      // Legacy `activation`: always -> enabled; whenAlerting -> enabled, alert-only.
+      enabled: typeof entry.enabled === "boolean" ? entry.enabled : true,
+      ...(entry.showOnlyWhenAlerting === true || entry.activation === "whenAlerting" ? { showOnlyWhenAlerting: true } : {}),
       display: resolveOrbDisplay({ modules: { [module.id]: entry } }, module.id),
       params: normalizeOrbParams(entry.params, module),
     }];

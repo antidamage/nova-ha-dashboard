@@ -36,7 +36,8 @@ import { normalizeTimerIcons, type TimerIcon } from "../../lib/orb-timer-setting
 import { ReminderIconPicker } from "./reminders/ReminderIconPicker";
 import { ReminderGlyphMark } from "./reminders/icon-registry";
 import { MomentaryFeedbackButton } from "./MomentaryFeedbackButton";
-import { SwitchRow } from "./SlideSwitch";
+import { SlideSwitch, SwitchRow } from "./SlideSwitch";
+import { isCountdownModule } from "../../lib/orb-info/stack";
 
 type GymCounterSettings = {
   gymAlertThresholdHours?: number;
@@ -161,7 +162,7 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
   };
   const selectModule = (nextId: string) => {
     const id = crypto.randomUUID();
-    saveEntries([...entries, { id, moduleId: nextId, activation: "always" }]);
+    saveEntries([...entries, { id, moduleId: nextId, enabled: true }]);
     setSelectedId(id);
   };
   const updateEntry = (patch: Partial<OrbStackEntry>, persist = true) => {
@@ -226,9 +227,9 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
   const usesThreshold = module.id.startsWith("gym");
 
   const entryEditor = <div className="grid gap-4">
-        {selected && !["washing", "timer", "rain-arriving", "power-high", "update-running"].includes(selected.moduleId) && <ConfigSelect label="Activation" ariaLabel="Entry activation" value={selected.activation}
-          options={[{ value: "always", label: "Always" }, { value: "whenAlerting", label: "When alerting" }]}
-          onChange={(activation) => updateEntry({ activation })} />}
+        {selected && !isCountdownModule(selected.moduleId) && !["power-high", "update-running"].includes(selected.moduleId) && <SwitchRow
+          checked={selected.showOnlyWhenAlerting === true} label="Only When Alerting"
+          onChange={(showOnlyWhenAlerting) => updateEntry({ showOnlyWhenAlerting })} />}
         {module.id === "none" ? null : (
           <>
             <div className="orb-info-preview" aria-live="polite">
@@ -415,19 +416,24 @@ export function StatusOrbInfoConfig({ initialSettings }: { initialSettings?: Gym
       <div className="panel-corner panel-corner-right" />
 
       <div className="grid gap-4">
-        <p className="text-sm text-neutral-400">Highest active entry wins. An always-active entry blocks the rows below it.</p>
+        <p className="text-sm text-neutral-400">Alerts first, then countdowns by time left, then enabled rows in this order.</p>
         <div className="grid gap-2" aria-label="Status orb priority stack">
-          {entries.map((entry, index) => <div key={entry.id} className="grid gap-3" onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => { event.preventDefault(); moveEntry(entries.findIndex((row) => row.id === dragId), index); setDragId(null); }}>
+          {entries.map((entry, index) => { const countdown = isCountdownModule(entry.moduleId); return <div key={entry.id} className="grid gap-3" data-orb-entry-kind={countdown ? "countdown" : "ordered"}
+            onDragOver={countdown ? undefined : (event) => event.preventDefault()}
+            onDrop={countdown ? undefined : (event) => { event.preventDefault(); moveEntry(entries.findIndex((row) => row.id === dragId), index); setDragId(null); }}>
             <div className="flex items-center gap-2">
-            <MomentaryFeedbackButton draggable onDragStart={() => setDragId(entry.id)} aria-label={`Drag ${orbModuleById(entry.moduleId).label}`} className="config-icon-button"><GripVertical size={18} /></MomentaryFeedbackButton>
+            {countdown
+              ? <span className="config-icon-button text-xs font-black uppercase" title="Countdowns order by time left">Countdown</span>
+              : <MomentaryFeedbackButton draggable onDragStart={() => setDragId(entry.id)} aria-label={`Drag ${orbModuleById(entry.moduleId).label}`} className="config-icon-button"><GripVertical size={18} /></MomentaryFeedbackButton>}
             <MomentaryFeedbackButton onClick={() => setSelectedId(selected?.id === entry.id ? "" : entry.id)} aria-expanded={selected?.id === entry.id} className="flex-1 text-left">{orbModuleById(entry.moduleId).label}</MomentaryFeedbackButton>
-            <MomentaryFeedbackButton aria-label="Move entry up" disabled={index === 0} onClick={() => moveEntry(index, index - 1)}><ArrowUp size={18} /></MomentaryFeedbackButton>
-            <MomentaryFeedbackButton aria-label="Move entry down" disabled={index === entries.length - 1} onClick={() => moveEntry(index, index + 1)}><ArrowDown size={18} /></MomentaryFeedbackButton>
+            {!countdown && <SlideSwitch label={`Enable ${orbModuleById(entry.moduleId).label}`} checked={entry.enabled !== false}
+              onChange={() => saveEntries(entries.map((row) => row.id === entry.id ? { ...row, enabled: row.enabled === false } : row))} />}
+            {!countdown && <MomentaryFeedbackButton aria-label="Move entry up" disabled={index === 0} onClick={() => moveEntry(index, index - 1)}><ArrowUp size={18} /></MomentaryFeedbackButton>}
+            {!countdown && <MomentaryFeedbackButton aria-label="Move entry down" disabled={index === entries.length - 1} onClick={() => moveEntry(index, index + 1)}><ArrowDown size={18} /></MomentaryFeedbackButton>}
             <MomentaryFeedbackButton aria-label="Remove entry" onClick={() => saveEntries(entries.filter((row) => row.id !== entry.id))}><X size={18} /></MomentaryFeedbackButton>
             </div>
             {selected?.id === entry.id && entryEditor}
-          </div>)}
+          </div>; })}
         </div>
         {saveError && <p role="alert">{saveError}</p>}
         <ConfigSelect

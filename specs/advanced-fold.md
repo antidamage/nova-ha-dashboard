@@ -234,3 +234,71 @@ job.
 System / Reminders places `TimerEncoder` in the default area and Today/Upcoming
 `TaskLists` in the advanced area of the shared `AdvancedFold`. See
 [status-orb-stack.md](status-orb-stack.md).
+
+## Round 2 (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
+`20260914T101019Z-06c0031b`. These rules supersede the matching parts above.
+
+### Drag band is longer and harder; wheel unchanged
+
+- **Touch and mouse drags break at 160 px of input**, and the content moves at
+  most **14 px** before the break: `d(p) = 14 × (1 − (1 − p/160)²)`.
+- **Wheel keeps its own band**: 80 px of (quarter-weighted) travel, 28 px curve,
+  400 ms decay — unchanged. Drag and wheel constants are separate.
+- Everything else about the break (1:1 landing, 220 ms overshoot, 180 ms
+  spring-back, reduced motion) is unchanged.
+
+### Where a drag can start
+
+- A drag may start on the divider **or anywhere in the sub-panel that is not a
+  control** — the default view's whitespace and headings, and the Advanced
+  region's whitespace, titles and labels — in both directions (opening and
+  closing). Controls that own a press or drag (buttons, inputs, switches,
+  sliders, knobs, maps) still do not start one; a tap on a button stays a tap.
+- The inner-scroller exclusion applies only to a real scroller that still has
+  room to scroll in the drag direction.
+
+### The line is the accent colour
+
+- The divider line, the "ADVANCED" label and the triangle use the theme accent
+  (`--cyber-highlight`), keeping the sunken bevel.
+
+### Wheel axis
+
+- **A vertical wheel never scrolls the landscape page sideways**, anywhere on
+  the page. Sideways page travel is horizontal wheel (`deltaX`, including
+  Shift+wheel as the browser reports it) only.
+- **A vertical wheel never moves a portrait fold sideways.** Portrait folds take
+  `deltaX` only (already the rule; now also true of every other sideways
+  scroller on the portrait page).
+- A vertical wheel over a landscape sub-panel scrolls that sub-panel and feeds
+  its fold's pull as before.
+
+### Portrait: lists flow into columns
+
+- In portrait no Advanced cell may make the sub-panel taller. The zone's
+  "may be switched on by an event" list, the light events list and any other
+  list cell flow their rows into as many columns as needed at the default
+  view's height (grid, `grid-auto-flow: column`). Seen on an iPad: the Home
+  lighting panel doubled in height when opened — that must not happen at any
+  portrait size (768×1024, 820×1180, 430×932, 1080×1920).
+
+### Reminders sub-panel width
+
+- The Reminders sub-panel is the one exception to "Advanced adds no width":
+  its **landscape sub-panel is twice its previous width**, and its **portrait
+  Advanced cell may be up to twice the panel width**, scrolling sideways. See
+  `specs/tasks-panel.md`.
+- The Reminders fold gets a definite height in landscape (the Tasks stage chain
+  passes the column height down), so it opens with the band like every other
+  fold.
+
+### Tests (carried over from the round-1 review)
+
+- No fixed sleeps in `e2e/advanced-fold.spec.ts`; wait on visible state. The
+  spec passes with the configured workers, twice in a row.
+- Touch coverage through CDP `Input.dispatchTouchEvent` with `hasTouch`: 120 px
+  stays closed, 180 px opens, a vertical swipe over a portrait fold scrolls the
+  page.
+- Unit tests for both bands' constants and the drag-surface rules.

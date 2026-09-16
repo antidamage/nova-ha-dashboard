@@ -11,7 +11,10 @@ import type {
   OrbSourceId,
 } from "../../../lib/orb-info/types";
 import { useOrbTimer } from "./useOrbTimer";
-import { resolveActiveEntry } from "../../../lib/orb-info/stack";
+import { orderOrbStack } from "../../../lib/orb-info/stack";
+import { isTaskAlerting, taskAlertSessionKey } from "../tasks/task-model";
+import type { OrbModule } from "../../../lib/orb-info/catalogue";
+import type { OrbModuleOutput, OrbStackEntry } from "../../../lib/orb-info/types";
 import type { DashboardState, Task } from "../../../lib/types";
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
 
@@ -114,7 +117,11 @@ export function tasksSourceFrom(tasks: Task[], now: number): NonNullable<OrbInfo
       nextDueAt = start;
     }
   }
+  const alerting = live.filter((task) => isTaskAlerting(task, now))
+    .sort((a, b) => Date.parse(b.start) - Date.parse(a.start))
+    .map((task) => ({ id: task.id, start: task.start }));
   return {
+    alerting,
     nextDueInHours: nextDueAt === null ? null : Math.max(0, nextDueAt - now) / MS_PER_HOUR,
     nextDueAt: nextDueAt === null ? null : new Date(nextDueAt).toISOString(),
     overdueCount,
@@ -145,9 +152,11 @@ export function useOrbInfo({
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [novaLoad, setNovaLoad] = useState<NovaLoadSample | null>(null);
   const [tick, setTick] = useState(() => Date.now());
+  // Dismissals this screen has sent: hidden at once, before the broadcast returns.
+  const [locallyDismissed, setLocallyDismissed] = useState<ReadonlySet<string>>(() => new Set());
 
   const entries = useMemo(() => moduleIdOverride !== undefined
-    ? [{ id: "preview", moduleId: moduleIdOverride, activation: "always" as const,
+    ? [{ id: "preview", moduleId: moduleIdOverride, enabled: true,
         display: displayOverride, params: paramsOverride }]
     : resolveOrbEntries(preferences), [preferences, moduleIdOverride, displayOverride, paramsOverride]);
   const neededSources = useMemo(() => new Set(entries.flatMap((entry) => orbModuleById(entry.moduleId).sources)), [entries]);
@@ -332,6 +341,16 @@ export function useOrbInfo({
           // Ignore a malformed frame; the next push replaces it.
         }
       },
+      // A dismissal on another screen clears this orb's alert at once, without
+      // waiting for (or depending on) the full task list push.
+      "task-dismiss": (event) => {
+        try {
+          const { taskId } = JSON.parse(event.data) as { taskId?: string };
+          if (alive && taskId) setTasks((current) => current && applyTaskDismissal(current, taskId));
+        } catch {
+          // Ignore a malformed frame.
+        }
+      },
     });
 
     void (async () => {
@@ -391,7 +410,15 @@ export function useOrbInfo({
 
   const outputs = Object.fromEntries(entries.map((entry) => [entry.id,
     orbModuleById(entry.moduleId).read(sources, entry.params)]));
-  const selected = resolveActiveEntry(entries, outputs);
+  // First-seen time for alerts whose module carries no timestamp of its own.
+  const alertSinceRef = useRef<Record<string, number>>({});
+  for (const entry of entries) {
+    if (outputs[entry.id]?.alert) alertSinceRef.current[entry.id] ??= Date.now();
+    else delete alertSinceRef.current[entry.id];
+  }
+  const ordered = orderOrbStack(entries, outputs, alertSinceRef.current)
+    .filter((item) => !(item.output.dismiss && locallyDismissed.has(dismissalKey(item.output))));
+  const selected = ordered[0] ?? null;
   const module = orbModuleById(selected?.entry.moduleId ?? "none");
   const entryPreferences = { modules: { [module.id]: selected?.entry ?? {} } };
   const display = resolveOrbDisplay(entryPreferences, module.id);
@@ -430,12 +457,40 @@ export function useOrbInfo({
     });
   }, [needsNovaLoad]);
 
-  return {
-    dismiss: outputValue.dismiss ? async () => {
-      const target = outputValue.dismiss!;
+  const dismissTarget = useCallback(async (output: Pick<OrbModuleOutput, "dismiss" | "alertAt">) => {
+    const target = output.dismiss;
+    if (!target) return;
+    // Keyed per occurrence, so the next occurrence of a repeating reminder still shows.
+    const key = dismissalKey(output);
+    setLocallyDismissed((current) => new Set(current).add(key));
+    try {
       if (target.kind === "timer") await timerCommand({ command: "dismiss", id: target.id });
-      else await fetch(`/api/tasks/${encodeURIComponent(target.id)}/dismiss`, { method: "POST" });
-    } : undefined,
+      else {
+        const response = await fetch(`/api/tasks/${encodeURIComponent(target.id)}/dismiss`, { method: "POST" });
+        if (!response.ok) throw new Error("Dismiss failed");
+        setTasks((current) => current && applyTaskDismissal(current, target.id));
+      }
+    } catch (error) {
+      // Let the alert come back so the tap can be retried.
+      setLocallyDismissed((current) => { const next = new Set(current); next.delete(key); return next; });
+      throw error;
+    }
+  }, [timerCommand]);
+
+  const stack: OrbStackView[] = ordered.map((item) => {
+    const itemModule = orbModuleById(item.entry.moduleId);
+    const itemDisplay = resolveOrbDisplay({ modules: { [itemModule.id]: item.entry } }, itemModule.id);
+    const formatted = formatOrbValue(item.output, itemDisplay, { label: itemModule.label });
+    return { entry: item.entry, state: item.state, module: itemModule, output: item.output, text: formatted.text,
+      alert: formatted.alert || item.state === "alert", ariaLabel: formatted.ariaLabel };
+  });
+
+  return {
+    dismiss: outputValue.dismiss ? () => dismissTarget(outputValue) : undefined,
+    /** Dismiss a specific stack item's alert everywhere. */
+    dismissTarget,
+    /** The full ordered stack for the dial; index 0 is what the orb shows at rest. */
+    stack,
     module,
     display,
     params,
@@ -450,4 +505,30 @@ export function useOrbInfo({
     /** True when the module renders nothing at all (the "None" selection). */
     empty: module.id === "none",
   };
+}
+
+export type OrbStackView = {
+  entry: OrbStackEntry;
+  state: "on" | "alert" | "countdown";
+  module: OrbModule;
+  output: OrbModuleOutput;
+  text: string;
+  alert: boolean;
+  ariaLabel: string;
+};
+
+/** Mark a reminder's current occurrence acknowledged, as the server does. */
+export function applyTaskDismissal(tasks: Task[], taskId: string, at = new Date().toISOString()): Task[] {
+  return tasks.map((task) => {
+    if (task.id !== taskId) return task;
+    const session = taskAlertSessionKey(task);
+    // Same test as isTaskAlertSilenced: an earlier occurrence's acknowledgement does not count.
+    if (task.alertDismissedFor === session) return task;
+    return { ...task, alertDismissedAt: at, alertDismissedFor: session, alertChimedFor: session };
+  });
+}
+
+/** One alert occurrence: a dismissal hides only this, never a later occurrence of the same task. */
+export function dismissalKey(output: Pick<OrbModuleOutput, "dismiss" | "alertAt">): string {
+  return `${output.dismiss?.kind}:${output.dismiss?.id}:${output.alertAt ?? ""}`;
 }

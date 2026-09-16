@@ -252,12 +252,19 @@ function isLightSurface(element: HTMLElement | null) {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5;
 }
 
-/** An evenodd clip that keeps the ring annulus and drops the knob's disc. */
+/**
+ * An evenodd clip that drops the knob's disc and keeps everything outside it.
+ *
+ * The outer edge sits well beyond the footprint: the outermost ring's curved
+ * label, value text and thumb shadow reach past the footprint's inscribed
+ * circle at 7:30 and 4:30, and an outer edge at the footprint radius cut them
+ * off at the bottom left and right (specs/temperature-encoder.md, round 2).
+ */
 function annulusClip(footprint: number, holeRadius: number) {
   const c = footprint / 2;
   const ring = (radius: number) =>
     `M ${c - radius} ${c} A ${radius} ${radius} 0 1 0 ${c + radius} ${c} A ${radius} ${radius} 0 1 0 ${c - radius} ${c} Z`;
-  return `path(evenodd, "${ring(c)} ${ring(holeRadius)}")`;
+  return `path(evenodd, "${ring(c * 2)} ${ring(holeRadius)}")`;
 }
 
 export function RotaryEncoder({

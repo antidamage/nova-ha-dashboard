@@ -224,7 +224,10 @@ export function useAirconCommands({
   const rememberedMode: AirconMode | null =
     isAirconMode(rememberedHvacMode) && rememberedHvacMode !== "auto" ? rememberedHvacMode : null;
   const observedMode: AirconMode | null =
-    entity && isClimateEntityOn(entity) ? airconEntityMode(entity) ?? rememberedMode : null;
+    entity && isClimateEntityOn(entity)
+      // Emulated Dry runs the unit in cool/fan_only; the mode is still Dry.
+      ? controlState?.direction === "dry" ? "dry" : airconEntityMode(entity) ?? rememberedMode
+      : null;
 
   const resolvedPower = resolveCommandedState({
     intent: powerIntent,

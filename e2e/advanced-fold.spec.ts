@@ -2,7 +2,7 @@ import { expect, test, type CDPSession, type Locator, type Page } from "@playwri
 import { gotoDashboard, selectZone, waitForStableLayout } from "./helpers";
 
 // The Advanced fold in landscape (specs/advanced-fold.md, "Done means"): the
-// size lock, the 80px rubber band by mouse and wheel, re-locking, independent
+// size lock, the rubber band (160px for a drag, 80px for the wheel), re-locking, independent
 // sub-panel scrolling, and the page's own pan still working over the folds.
 
 // The dashboard renders at a handful of frames a second in headless Chromium
@@ -176,7 +176,7 @@ for (const viewport of [
           expect(closed.divider.top + closed.divider.height, `${selector} divider bottom`)
             .toBeLessThanOrEqual(closed.rect.top + closed.rect.height + 0.5);
 
-          await pull(page, fold, 120);
+          await pull(page, fold, 200);
           await opened(fold);
           const open = await geometry(fold);
           expectSameRect(open.rect, closed.rect, `${selector} sub-panel`);
@@ -190,17 +190,17 @@ for (const viewport of [
       });
     }
 
-    test("a 60px pull resists and springs back; a 100px pull opens on the 1:1 offset", async ({ page }) => {
+    test("a 120px pull resists and springs back; a 180px pull opens on the 1:1 offset", async ({ page }) => {
       await openZone(page, /Grid/);
       const fold = page.locator(POWER);
       await toBoundary(page, fold);
       const boundary = (await geometry(fold)).offset;
 
-      await pull(page, fold, 60, false);
+      await pull(page, fold, 120, false);
       const held = await geometry(fold);
       expect(held.open).toBe("false");
       expect(Math.abs(held.shift)).toBeGreaterThan(5);
-      expect(Math.abs(held.shift)).toBeLessThan(28);
+      expect(Math.abs(held.shift)).toBeLessThanOrEqual(14);
       await page.mouse.up();
       await atRest(fold);
       const rested = await geometry(fold);
@@ -208,10 +208,10 @@ for (const viewport of [
       expect(Math.abs(rested.shift)).toBeLessThan(0.5);
       expect(Math.abs(rested.offset - boundary)).toBeLessThanOrEqual(1);
 
-      await pull(page, fold, 100);
+      await pull(page, fold, 180);
       await opened(fold);
       const open = await geometry(fold);
-      expect(Math.abs(open.offset - Math.min(boundary + 100, open.max))).toBeLessThanOrEqual(4);
+      expect(Math.abs(open.offset - Math.min(boundary + 180, open.max))).toBeLessThanOrEqual(4);
     });
 
     test("wheel: three 100px notches stay closed, four open", async ({ page }) => {
@@ -238,21 +238,21 @@ for (const viewport of [
       await toBoundary(page, fold);
       const closed = await geometry(fold);
 
-      await pull(page, fold, 100);
+      await pull(page, fold, 180);
       await opened(fold);
 
       // Back by mouse drag, which the fold drives: well past the boundary.
       const box = (await fold.boundingBox())!;
-      await page.mouse.move(box.x + box.width / 2, box.y + 60);
+      await page.mouse.move(box.x + box.width / 2, box.y + 20);
       await page.mouse.down();
-      await page.mouse.move(box.x + box.width / 2, box.y + 60 + 150, { steps: 12 });
+      await page.mouse.move(box.x + box.width / 2, box.y + 20 + 260, { steps: 12 });
       await page.mouse.up();
       await expect.poll(async () => (await geometry(fold)).open).toBe("false");
       const back = await geometry(fold);
       expectSameRect({ left: 0, top: 0, ...back.defaultSize }, { left: 0, top: 0, ...closed.defaultSize }, "default area");
 
       await toBoundary(page, fold);
-      await pull(page, fold, 40, false);
+      await pull(page, fold, 80, false);
       const again = await geometry(fold);
       expect(again.open).toBe("false");
       expect(Math.abs(again.shift)).toBeGreaterThan(5);
@@ -273,7 +273,7 @@ for (const viewport of [
       await atRest(fold);
       expect((await geometry(fold)).open).toBe("false");
 
-      await pull(page, fold, 100);
+      await pull(page, fold, 180);
       await opened(fold);
 
       await fold.evaluate((el, boundary) => {
@@ -287,7 +287,7 @@ for (const viewport of [
       const weather = page.locator(WEATHER);
       const others = [page.locator(OUTSIDE_LIGHT), page.locator(CAMERA)];
       await toBoundary(page, weather);
-      await pull(page, weather, 100);
+      await pull(page, weather, 180);
       await opened(weather);
       const before = await Promise.all(others.map((fold) => geometry(fold)));
       const start = (await geometry(weather)).offset;
@@ -377,18 +377,18 @@ for (const viewport of [
       const fold = page.locator(POWER);
       await toBoundary(page, fold);
       const boundary = (await geometry(fold)).offset;
-      await pull(page, fold, 100);
+      await pull(page, fold, 180);
+      await expect.poll(async () => (await geometry(fold)).open).toBe("true");
       const opened = await geometry(fold);
-      expect(opened.open).toBe("true");
       expect(Math.abs(opened.shift)).toBeLessThan(0.5);
-      expect(Math.abs(opened.offset - Math.min(boundary + 100, opened.max))).toBeLessThanOrEqual(4);
+      expect(Math.abs(opened.offset - Math.min(boundary + 180, opened.max))).toBeLessThanOrEqual(4);
     });
 
     test("choosing another zone and coming back shows the fold closed; so does a reload", async ({ page }) => {
       await openZone(page, /Lounge/);
       const fold = page.locator(LIGHTING);
       await toBoundary(page, fold);
-      await pull(page, fold, 120);
+      await pull(page, fold, 200);
       await opened(fold);
 
       // Mark this zone's fold, so each switch can wait for a new one to mount.
@@ -407,7 +407,7 @@ for (const viewport of [
 
       await settled(page.locator(LIGHTING));
       await toBoundary(page, page.locator(LIGHTING));
-      await pull(page, page.locator(LIGHTING), 120);
+      await pull(page, page.locator(LIGHTING), 200);
       await opened(page.locator(LIGHTING));
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.locator(LIGHTING)).toHaveCount(1, { timeout: 30_000 });
@@ -419,7 +419,7 @@ for (const viewport of [
 test.describe("advanced fold, landscape 1366x768: Reminders", () => {
   test.use({ viewport: { width: 1366, height: 768 } });
 
-  test("the Reminders fold has a definite height and opens with the 80px band", async ({ page }) => {
+  test("the Reminders fold has a definite height and opens with the drag band", async ({ page }) => {
     await openZone(page, /Reminders/);
     const fold = page.locator(REMINDERS);
     await expect(fold).toHaveCount(1);
@@ -433,7 +433,7 @@ test.describe("advanced fold, landscape 1366x768: Reminders", () => {
     expect(closed.divider.top + closed.divider.height).toBeLessThanOrEqual(closed.rect.top + closed.rect.height + 0.5);
     expect(closed.rect.top + closed.rect.height).toBeLessThanOrEqual(panel!.y + panel!.height + 0.5);
 
-    await pull(page, fold, 60, false);
+    await pull(page, fold, 120, false);
     const held = await geometry(fold);
     expect(held.open).toBe("false");
     expect(Math.abs(held.shift)).toBeGreaterThan(5);
@@ -441,7 +441,7 @@ test.describe("advanced fold, landscape 1366x768: Reminders", () => {
     await atRest(fold);
     expect((await geometry(fold)).open).toBe("false");
 
-    await pull(page, fold, 100);
+    await pull(page, fold, 180);
     await opened(fold);
     const open = await geometry(fold);
     expectSameRect(open.rect, closed.rect, "Reminders sub-panel");
@@ -476,22 +476,40 @@ test.describe("advanced fold, landscape 1366x768: Reminders", () => {
   });
 });
 
+/** A point inside the fold's visible box that is not on a control. */
+async function nonControlPoint(fold: Locator) {
+  return fold.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const top = Math.max(r.top, 0);
+    const bottom = Math.min(r.bottom, window.innerHeight);
+    for (let j = 1; j < 12; j += 1) for (let i = 1; i < 12; i += 1) {
+      const x = r.left + (r.width * i) / 12;
+      const y = top + ((bottom - top) * j) / 12;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && el.contains(hit) && !hit.closest("button,a,input,select,[role=slider],[role=switch],[role=button],[role=checkbox],[data-nova-no-drag-scroll],.maplibregl-map")) {
+        return { x, y };
+      }
+    }
+    return null;
+  });
+}
+
+async function touchPull(client: CDPSession, x: number, y: number, dx: number, dy: number, release = true) {
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  const steps = 12;
+  for (let i = 1; i <= steps; i += 1) {
+    await client.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: x + (dx * i) / steps, y: y + (dy * i) / steps }],
+    });
+  }
+  if (release) await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
 test.describe("advanced fold, landscape 1366x768: touch", () => {
   test.use({ viewport: { width: 1366, height: 768 }, hasTouch: true });
 
-  async function touchPull(client: CDPSession, x: number, y: number, pixels: number, release = true) {
-    await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
-    const steps = 12;
-    for (let i = 1; i <= steps; i += 1) {
-      await client.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [{ x, y: y - (pixels * i) / steps }],
-      });
-    }
-    if (release) await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-  }
-
-  test("a 60px touch pull stays closed and springs back; a 100px pull opens", async ({ page }) => {
+  test("a 120px touch pull stays closed and springs back; a 180px pull opens", async ({ page }) => {
     await openZone(page, /Lounge/);
     const fold = page.locator(LIGHTING);
     await toBoundary(page, fold);
@@ -501,20 +519,120 @@ test.describe("advanced fold, landscape 1366x768: touch", () => {
     const x = divider.x + divider.width / 2;
     const y = divider.y + divider.height / 2;
 
-    await touchPull(client, x, y, 60, false);
+    await touchPull(client, x, y, 0, -120, false);
     const held = await geometry(fold);
     expect(held.open).toBe("false");
     expect(Math.abs(held.shift)).toBeGreaterThan(5);
-    expect(Math.abs(held.shift)).toBeLessThan(28);
+    expect(Math.abs(held.shift)).toBeLessThanOrEqual(14);
     await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await atRest(fold);
     const rested = await geometry(fold);
     expect(rested.open).toBe("false");
     expect(Math.abs(rested.offset - boundary)).toBeLessThanOrEqual(1);
 
-    await touchPull(client, x, y, 100);
+    await touchPull(client, x, y, 0, -180);
     await opened(fold);
     const open = await geometry(fold);
-    expect(Math.abs(open.offset - Math.min(boundary + 100, open.max))).toBeLessThanOrEqual(4);
+    expect(Math.abs(open.offset - Math.min(boundary + 180, open.max))).toBeLessThanOrEqual(4);
+  });
+});
+
+test.describe("advanced fold, portrait 820x1180: touch", () => {
+  test.use({ viewport: { width: 820, height: 1180 }, hasTouch: true });
+
+  test("a vertical swipe over a fold scrolls the page and does not open it", async ({ page }) => {
+    await gotoDashboard(page);
+    await waitForStableLayout(page);
+    const fold = page.locator(".zone-panel[data-lighting-zone] .advanced-fold:not([data-foldless])").first();
+    await expect(fold).toBeVisible({ timeout: 30_000 });
+    await fold.evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect.poll(() => fold.evaluate((el) => el.style.touchAction)).toBe("pan-y");
+    // A point in the fold that is not a control.
+    const point = await nonControlPoint(fold);
+    expect(point, "a non-control point in the fold").not.toBeNull();
+    const before = await page.evaluate(() => window.scrollY);
+    const client = await page.context().newCDPSession(page);
+    await touchPull(client, point!.x, point!.y, 0, -300);
+    await expect.poll(async () => Math.abs((await page.evaluate(() => window.scrollY)) - before), {
+      message: "page scrolled",
+    }).toBeGreaterThan(50);
+    expect(await fold.evaluate((el) => el.dataset.open)).toBe("false");
+  });
+});
+
+test.describe("advanced fold, landscape 1366x768: touch flick", () => {
+  test.use({ viewport: { width: 1366, height: 768 }, hasTouch: true });
+
+  test("a flick in Power keeps scrolling after the finger lifts, and stops at the boundary", async ({ page }) => {
+    await openZone(page, /Grid/);
+    const fold = page.locator(POWER);
+    await fold.evaluate((el) => {
+      el.scrollIntoView({ inline: "center", block: "nearest", behavior: "instant" });
+      el.scrollTop = 0;
+    });
+    const start = await geometry(fold);
+    expect(start.max, "Power taller than its column").toBeGreaterThan(60);
+    const point = await nonControlPoint(fold);
+    expect(point, "a non-control point in Power").not.toBeNull();
+    const { x, y } = point!;
+    const client = await page.context().newCDPSession(page);
+    // A short, quick swipe: 40px over four 16ms moves. The events carry their
+    // own timestamps, so a slow headless frame rate does not make it a slow drag.
+    const t0 = Date.now() / 1000;
+    await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }], timestamp: t0 });
+    for (let i = 1; i <= 4; i += 1) {
+      await client.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y: y - 10 * i }],
+        timestamp: t0 + 0.016 * i,
+      });
+    }
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [], timestamp: t0 + 0.08 });
+    const lifted = (await geometry(fold)).offset;
+    await expect.poll(async () => (await geometry(fold)).offset, { message: "inertia carried on" })
+      .toBeGreaterThan(lifted + 10);
+    // It comes to rest without breaking the band.
+    let last = -1;
+    await expect.poll(async () => {
+      const now = (await geometry(fold)).offset;
+      const same = Math.abs(now - last) < 0.5;
+      last = now;
+      return same;
+    }, { intervals: [250] }).toBe(true);
+    const rest = await geometry(fold);
+    expect(rest.open).toBe("false");
+    expect(rest.offset).toBeLessThanOrEqual(rest.max + 0.5);
+  });
+});
+
+test.describe("advanced fold, portrait 430x932: diagonal touch", () => {
+  test.use({ viewport: { width: 430, height: 932 }, hasTouch: true });
+
+  test("a diagonal swipe decided along the fold moves only the fold", async ({ page }) => {
+    await gotoDashboard(page);
+    await waitForStableLayout(page);
+    await selectZone(page, /Lounge/);
+    const fold = page.locator(".zone-panel[data-lighting-zone] .advanced-fold:not([data-foldless])").first();
+    await expect(fold).toBeVisible({ timeout: 30_000 });
+    await fold.evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await waitForStableLayout(page);
+    // The divider owns no control, and it cannot be mistaken for one after a late layout shift.
+    const divider = (await fold.locator(':scope > .advanced-fold-track > .advanced-fold-divider').boundingBox())!;
+    const point = { x: divider.x + divider.width / 2, y: divider.y + divider.height / 2 };
+    const before = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+    const foldBefore = await fold.evaluate((el) => el.scrollLeft);
+    const client = await page.context().newCDPSession(page);
+    // Mostly sideways (toward Advanced), with a vertical drift.
+    await touchPull(client, point!.x, point!.y, -120, -70, false);
+    const during = await fold.evaluate((el, start) => {
+      const transform = getComputedStyle(el.querySelector(".advanced-fold-track")!).transform;
+      const shift = transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m41;
+      return Math.abs(shift) + Math.abs(el.scrollLeft - start);
+    }, foldBefore);
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    expect(during, "the fold moved").toBeGreaterThan(3);
+    const after = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+    expect(Math.abs(after.y - before.y), "page did not scroll vertically").toBeLessThanOrEqual(1);
+    expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1);
   });
 });

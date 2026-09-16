@@ -277,3 +277,19 @@ nothing drawn it would only swallow taps on whatever the empty annulus covers.
   and running, no room reading, the aircon's four rings and the heater's one,
   the full cards in portrait and landscape, and Quick Access at 100px —
   reviewed against this spec until a reviewer finds no deviation.
+
+## Round 2: mode labels, Dry, clipped rings (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
+`20260914T101019Z-06c0031b`.
+
+- The aircon **mode ring shows its value as text** at the ring's end: `COOL`,
+  `DRY`, `FAN`, `HEAT` (`valueText` with `valueTextWidest`).
+- Stops, left to right: **Cool, Dry, Fan, Heat**. Dry's colour is **pale lime
+  green** (`MODE_DRY_COLOUR`, about `#d9f99d`).
+- Dry is a stop only when the device supports it natively, or when Nova can
+  emulate it (`specs/aircon-auto-control.md`, "Dry emulation"). Otherwise the
+  ring keeps three stops.
+- **Untucked rings are clipped at the bottom left** by a circular mask or
+  overflow on an ancestor of the floating (portalled) rings. A floated ring is
+  never clipped; its whole arc and labels are visible.

@@ -340,6 +340,13 @@ export type ReminderIconPatch = {
   glyph?: unknown;
   showInBar?: unknown;
   order?: unknown;
+  /**
+   * With a glyph, creates the entry when the key is not in the roster yet: the
+   * Reminders editor writes a new reminder's glyph straight after creating it,
+   * before the fire-and-forget assignment has necessarily run, and a rename
+   * carries a glyph to a key nothing has observed yet.
+   */
+  displayName?: unknown;
 };
 
 export async function patchReminderIcon(key: string, patch: ReminderIconPatch) {
@@ -350,11 +357,24 @@ export async function patchReminderIcon(key: string, patch: ReminderIconPatch) {
 
   return mutateEntries((entries) => {
     const index = entries.findIndex((entry) => entry.key === trimmedKey);
-    if (index < 0) {
+    const displayName = typeof patch.displayName === "string" ? patch.displayName.trim() : "";
+    if (index < 0 && !(displayName && patch.glyph !== undefined)) {
       throw new Error("Reminder not found");
     }
 
-    const current = entries[index];
+    const current: ReminderIconEntry =
+      index >= 0
+        ? entries[index]
+        : {
+            key: trimmedKey,
+            displayName,
+            glyph: FALLBACK_REMINDER_GLYPH,
+            source: "fallback",
+            showInBar: false,
+            showInBarLocked: false,
+            order: entries.reduce((max, entry) => Math.max(max, entry.order), -1) + 1,
+            lastSeenAt: new Date().toISOString(),
+          };
     const next: ReminderIconEntry = { ...current };
 
     if (patch.glyph !== undefined) {
@@ -383,7 +403,7 @@ export async function patchReminderIcon(key: string, patch: ReminderIconPatch) {
     }
 
     return {
-      entries: entries.map((entry) => (entry.key === trimmedKey ? next : entry)),
+      entries: index >= 0 ? entries.map((entry) => (entry.key === trimmedKey ? next : entry)) : [...entries, next],
       result: next,
     };
   });

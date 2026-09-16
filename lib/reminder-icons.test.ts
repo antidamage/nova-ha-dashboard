@@ -242,3 +242,20 @@ describe("patch validation", () => {
     ]);
   });
 });
+
+describe("glyph written before the reminder is observed", () => {
+  it("creates the entry when a glyph arrives with a display name, and assignment keeps it", async () => {
+    const store = await isolatedIconStore();
+    await expect(store.patchReminderIcon("feed the cat", { glyph: { kind: "text", value: "C" } })).rejects.toThrow(
+      "Reminder not found",
+    );
+
+    await store.patchReminderIcon("feed the cat", { glyph: { kind: "text", value: "C" }, displayName: "Feed the cat" });
+    await store.ensureReminderIcons([task({ name: "Feed the cat" })]);
+
+    const [entry] = await store.readReminderIcons();
+    expect(entry.key).toBe("feed the cat");
+    expect(entry.glyph).toEqual({ kind: "text", value: "C" });
+    expect(entry.source).toBe("user");
+  });
+});

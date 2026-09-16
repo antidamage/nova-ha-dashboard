@@ -70,7 +70,7 @@ describe("AdvancedFold", () => {
 
     drag(fold, 60, "y", false);
     expect(fold.dataset.open).toBe("false");
-    expect(track!.style.transform).toBe(`translateY(${-bandDisplacement(60)}px)`);
+    expect(track!.style.transform).toBe(`translateY(${-bandDisplacement(60, "drag")}px)`);
     expect(track!.style.transition).toBe("none");
 
     fireEvent.mouseUp(window);
@@ -79,14 +79,16 @@ describe("AdvancedFold", () => {
     expect(screen.queryByText("Advanced detail")).toBeNull();
   });
 
-  it("breaks at 80px and lands on the 1:1 offset", () => {
+  it("holds a 120px drag closed, breaks at 160px and lands on the 1:1 offset", () => {
     const { fold } = renderFold();
     fakeFoldGeometry(fold);
 
-    drag(fold, 100);
+    drag(fold, 120);
+    expect(fold.dataset.open).toBe("false");
+    drag(fold, 180);
     expect(fold.dataset.open).toBe("true");
     expect(screen.getByText("Advanced detail")).toBeTruthy();
-    expect(fold.scrollTop).toBe(100);
+    expect(fold.scrollTop).toBe(180);
   });
 
   it("engages only at the boundary of a default view taller than the panel", () => {
@@ -104,9 +106,9 @@ describe("AdvancedFold", () => {
 
     fold.scrollTop = 150;
     fireEvent.scroll(fold);
-    drag(fold, 100);
+    drag(fold, 180);
     expect(fold.dataset.open).toBe("true");
-    expect(fold.scrollTop).toBe(250);
+    expect(fold.scrollTop).toBe(330);
 
     // Back to the boundary re-locks.
     fold.scrollTop = 150;
@@ -117,7 +119,7 @@ describe("AdvancedFold", () => {
   it("closes when the user scrolls back to the boundary, and resists again", () => {
     const { fold, track } = renderFold();
     fakeFoldGeometry(fold);
-    drag(fold, 100);
+    drag(fold, 180);
     expect(fold.dataset.open).toBe("true");
     // The break's own write is not a return.
     fireEvent.scroll(fold);
@@ -130,14 +132,14 @@ describe("AdvancedFold", () => {
 
     drag(fold, 40, "y", false);
     expect(fold.dataset.open).toBe("false");
-    expect(track!.style.transform).toBe(`translateY(${-bandDisplacement(40)}px)`);
+    expect(track!.style.transform).toBe(`translateY(${-bandDisplacement(40, "drag")}px)`);
     fireEvent.mouseUp(window);
   });
 
   it("does not close when Advanced's own content shrinks and clamps the offset", () => {
     const { fold } = renderFold();
     const geometry = fakeFoldGeometry(fold);
-    drag(fold, 100);
+    drag(fold, 180);
     fold.scrollTop = 500;
     fireEvent.scroll(fold);
     expect(fold.dataset.open).toBe("true");
@@ -151,16 +153,16 @@ describe("AdvancedFold", () => {
   it("does not open when there is nothing past the boundary", () => {
     const { fold } = renderFold();
     fakeFoldGeometry(fold, { advanced: 0 });
-    drag(fold, 120);
+    drag(fold, 200);
     expect(fold.dataset.open).toBe("false");
   });
 
   it("does not pull from a drag that starts on a knob or its toggle ring", () => {
     const { fold, track } = renderFold();
     fakeFoldGeometry(fold);
-    drag(screen.getByText("face"), 120);
+    drag(screen.getByText("face"), 200);
     expect(fold.dataset.open).toBe("false");
-    drag(screen.getByRole("switch"), 120);
+    drag(screen.getByRole("switch"), 200);
     expect(fold.dataset.open).toBe("false");
     expect(track!.style.transform).toBe("");
   });
@@ -228,9 +230,9 @@ describe("AdvancedFold", () => {
     for (let i = 0; i < 6; i += 1) expect(fireEvent.wheel(fold, { deltaY: 100 })).toBe(true);
     expect(fold.dataset.open).toBe("false");
 
-    drag(fold, 100, "x");
+    drag(fold, 180, "x");
     expect(fold.dataset.open).toBe("true");
-    expect(fold.scrollLeft).toBe(100);
+    expect(fold.scrollLeft).toBe(180);
   });
 
   it("lets the band go after a wheel break with nothing to open onto", () => {
@@ -256,14 +258,14 @@ describe("AdvancedFold", () => {
 
     act(() => {
       fireEvent.mouseDown(fold, { button: 0, clientX: 300, clientY: 300 });
-      fireEvent.mouseMove(window, { clientX: 300, clientY: 240 });
+      fireEvent.mouseMove(window, { clientX: 300, clientY: 200 });
       // Breaks here; the open region has not committed yet inside this act.
-      fireEvent.mouseMove(window, { clientX: 300, clientY: 210 });
-      fireEvent.mouseMove(window, { clientX: 300, clientY: 170 });
+      fireEvent.mouseMove(window, { clientX: 300, clientY: 130 });
+      fireEvent.mouseMove(window, { clientX: 300, clientY: 90 });
     });
     fireEvent.mouseUp(window);
     expect(fold.dataset.open).toBe("true");
-    expect(fold.scrollTop).toBe(130);
+    expect(fold.scrollTop).toBe(210);
   });
 
   it("does not pull from a drag that starts inside a scroller of its own", () => {
@@ -284,19 +286,66 @@ describe("AdvancedFold", () => {
     Object.defineProperty(inner, "scrollHeight", { configurable: true, get: () => 400 });
     Object.defineProperty(inner, "clientHeight", { configurable: true, get: () => 100 });
 
-    drag(screen.getByText("inner row"), 120);
+    drag(screen.getByText("inner row"), 200);
     expect(fold.dataset.open).toBe("false");
     expect(track!.style.transform).toBe("");
 
     // A container that cannot scroll along the axis does not own the drag.
-    drag(screen.getByText("short row"), 120);
+    drag(screen.getByText("short row"), 200);
     expect(fold.dataset.open).toBe("true");
   });
 
-  it("sets touch-action for the next gesture while locked at the boundary", () => {
+  it("leaves only the cross-axis pan to the browser, open or closed", () => {
     const { fold } = renderFold();
     fakeFoldGeometry(fold);
     fireEvent.scroll(fold);
     expect(fold.style.touchAction).toBe("pan-x");
+    drag(fold, 180);
+    expect(fold.dataset.open).toBe("true");
+    expect(fold.style.touchAction).toBe("pan-x");
+  });
+
+  it("does not pull from a drag that starts on a button, and a tap stays a tap", () => {
+    const onClick = vi.fn();
+    const { container } = render(
+      <AdvancedFold advanced={<p>Advanced detail</p>}>
+        <h3>Heading</h3>
+        <button type="button" onClick={onClick}>On</button>
+      </AdvancedFold>,
+    );
+    const fold = container.querySelector(".advanced-fold") as HTMLElement;
+    const track = container.querySelector(".advanced-fold-track") as HTMLElement;
+    fakeFoldGeometry(fold);
+    drag(screen.getByRole("button", { name: "On" }), 200);
+    expect(fold.dataset.open).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "On" }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    // A press that moves less than the threshold does not move the band.
+    fireEvent.mouseDown(screen.getByText("Heading"), { button: 0, clientX: 300, clientY: 300 });
+    fireEvent.mouseMove(window, { clientX: 300, clientY: 295 });
+    expect(track.style.transform).toBe("");
+    fireEvent.mouseUp(window);
+    // A heading starts one.
+    drag(screen.getByText("Heading"), 180);
+    expect(fold.dataset.open).toBe("true");
+  });
+
+  it("drives touch from the default view's text, opening and closing", () => {
+    const { fold } = renderFold();
+    fakeFoldGeometry(fold);
+    const touchDrag = (target: HTMLElement, pixels: number) => {
+      const point = (y: number) => ({ touches: [{ clientX: 300, clientY: y }] });
+      fireEvent.touchStart(target, point(300));
+      for (let i = 1; i <= 6; i += 1) fireEvent.touchMove(target, point(300 - (pixels * i) / 6));
+      fireEvent.touchEnd(target, { touches: [] });
+    };
+    touchDrag(screen.getByText("Default view"), 120);
+    expect(fold.dataset.open).toBe("false");
+    touchDrag(screen.getByText("Default view"), 180);
+    expect(fold.dataset.open).toBe("true");
+    expect(fold.scrollTop).toBe(180);
+    // Back past the boundary from inside Advanced closes it.
+    touchDrag(screen.getByText("Advanced detail"), -240);
+    expect(fold.dataset.open).toBe("false");
   });
 });

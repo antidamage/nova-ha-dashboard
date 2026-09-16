@@ -437,6 +437,8 @@
       }
     ],
     "zoneEvents": [],
-    "eventSwitchOnEntityIds": []
+    "eventSwitchOnEntityIds": [],
+    "zoneRules": [],
+    "zoneRulesSeededZoneIds": []
   }
 }

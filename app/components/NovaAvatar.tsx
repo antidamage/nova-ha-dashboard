@@ -22,7 +22,9 @@ import { arePageUpdatesPaused } from "./dashboard/pageUpdatePause";
 import { isHorizontalDashboard } from "./dashboard/useClickDragScroll";
 import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
-import { OrbEventReadout } from "./orb-info/OrbEventReadout";
+import { OrbStackReadout } from "./orb-info/OrbEventReadout";
+import { useOrbDial } from "./orb-info/useOrbDial";
+import { orbDialMarkAngle } from "./orb-info/orbDialModel";
 import { useOrbInfo } from "./orb-info/useOrbInfo";
 import type { OrbInfoDisplay } from "../../lib/orb-info/types";
 import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
@@ -235,6 +237,23 @@ function NovaAvatarVisual({
     moduleIdOverride: orbInfoModuleId,
     displayOverride: orbInfoDisplay,
   });
+  // The dial (tap to open, drag to step) only exists on the live orb, never on
+  // previews or the transient speaking orb. Orb push-to-talk is removed.
+  const dialEnabled = !forceVisible && !speechOnly && !hidden && !orbInfo.empty && orbInfo.stack.length > 0;
+  const dial = useOrbDial({
+    enabled: dialEnabled,
+    ids: orbInfo.stack.map((item) => item.entry.id),
+    hostRef,
+    shownAlerting: (id) => {
+      const item = orbInfo.stack.find((candidate) => candidate.entry.id === id);
+      return Boolean(item?.alert && item.output.dismiss);
+    },
+    dismiss: (id) => {
+      const item = orbInfo.stack.find((candidate) => candidate.entry.id === id);
+      if (item?.output.dismiss) void orbInfo.dismissTarget(item.output).catch(console.error);
+    },
+  });
+  const shownItem = orbInfo.stack[dial.index] ?? orbInfo.stack[0];
   // Read by the load poll without making the hook a dependency of that effect
   // (which would tear the 2s poll down and rebuild it on every readout change).
   const ingestNovaLoadRef = useRef(orbInfo.ingestNovaLoad);
@@ -489,14 +508,15 @@ function NovaAvatarVisual({
 
   if (hidden) return null;
 
-  gymAlertActiveRef.current = forceGymAlert || orbInfo.alert;
+  gymAlertActiveRef.current = forceGymAlert || (shownItem ? shownItem.alert : orbInfo.alert);
   const gymRgb = appliedThemeRgb(theme.gymNumberColor);
   const gymOpacity = percentRatio(theme.gymNumberOpacity);
   const gymCounterStyle = {
     color: gymColorReady ? `rgba(${gymRgb[0]}, ${gymRgb[1]}, ${gymRgb[2]}, ${gymOpacity})` : "transparent",
   };
-  // Tapping the orb starts/stops a push-to-talk turn on non-always-on native
-  // devices. Custom-input and always-on devices are inert (see useVoiceMode).
+  // Orb push-to-talk was removed (Round 2): a tap opens the stack dial or
+  // dismisses an alert. `orbTappable` now only gates the stand-down catcher
+  // for a live conversation started by wake word or another voice entry.
   const orbTappable = voiceInteractive && voice.tappable;
   // When the orb is enlarged mid-speech, a full-screen catcher lets a tap
   // anywhere stand the turn down (only while it is genuinely enlarged, so it
@@ -510,7 +530,7 @@ function NovaAvatarVisual({
     speechOnly
       ? `nova-avatar-speech-host${speechOnlyVisible ? " nova-avatar-speech-visible" : ""}`
       : className ?? "nova-avatar-host",
-    orbTappable ? "nova-avatar-tappable" : "",
+    dialEnabled ? "nova-avatar-tappable" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -585,10 +605,19 @@ function NovaAvatarVisual({
       data-nova-force-orb-info={forceVisible ? "true" : undefined}
       role="group"
       style={hostStyle}
-      onClick={orbInfo.dismiss ? () => void orbInfo.dismiss?.().catch(console.error) : orbTappable ? voice.toggleTap : undefined}
-      tabIndex={orbInfo.dismiss ? 0 : undefined}
-      onKeyDown={orbInfo.dismiss ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void orbInfo.dismiss?.().catch(console.error); } } : undefined}
+      data-orb-dial={dialEnabled ? (dial.open ? "open" : "closed") : undefined}
+      data-orb-dial-index={dialEnabled ? dial.index : undefined}
+      tabIndex={dialEnabled ? 0 : undefined}
+      {...dial.handlers}
     >
+      {dialEnabled ? (
+        <svg className={`orb-dial-ring${dial.open ? " is-open" : ""}`} viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.55" />
+          <g className="orb-dial-mark" style={{ transform: `rotate(${orbDialMarkAngle(dial.index, orbInfo.stack.length)}deg)` }}>
+            <circle cx="50" cy="2.5" r="2.2" fill="currentColor" />
+          </g>
+        </svg>
+      ) : null}
       <div
         className={`nova-avatar-voice-glow${voiceGlowActive ? " is-visible" : ""}`}
         aria-hidden="true"
@@ -627,11 +656,13 @@ function NovaAvatarVisual({
         <div
           className={`nova-avatar-gym-counter${speechActive ? " nova-avatar-gym-counter-speech-hidden" : ""}`}
           style={gymCounterStyle}
-          aria-label={orbInfo.ariaLabel}
-          data-nova-orb-info-module={orbInfo.module.id}
+          aria-label={shownItem && dialEnabled ? shownItem.ariaLabel : orbInfo.ariaLabel}
+          data-nova-orb-info-module={shownItem && dialEnabled ? shownItem.module.id : orbInfo.module.id}
           suppressHydrationWarning
         >
-          {orbInfo.output.icon ? <OrbEventReadout icon={orbInfo.output.icon} fraction={orbInfo.output.countdownFraction} text={orbInfo.text} /> : orbInfo.text}
+          {dialEnabled && shownItem
+            ? <OrbStackReadout item={shownItem} index={dial.index} direction={dial.direction} />
+            : <OrbStackReadout item={{ entry: { id: orbInfo.module.id }, output: orbInfo.output, text: orbInfo.text }} index={0} direction={1} />}
         </div>
       ) : null}
     </div>

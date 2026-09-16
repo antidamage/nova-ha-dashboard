@@ -37,6 +37,8 @@ export const TEMPERATURE_UNKNOWN = "#1e2024";
 
 /** The aircon's mode ring takes its colours from the same three. */
 export const MODE_COOL_COLOUR = TEMPERATURE_COLD;
+/** Pale lime (specs/temperature-encoder.md, round 2). */
+export const MODE_DRY_COLOUR = "#d9f99d";
 export const MODE_FAN_COLOUR = "#3a3d44";
 export const MODE_HEAT_COLOUR = TEMPERATURE_HOT;
 

@@ -31,13 +31,13 @@ import { useDashboardSelection, zoneForSelection } from "./dashboard/useDashboar
 import { useGroupSelection } from "./dashboard/useGroupSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
-import { isHorizontalDashboard } from "./dashboard/useClickDragScroll";
 import { FluidBackground } from "./FluidBackground";
 import { WallpaperBackground } from "./WallpaperBackground";
 import { useExperienceFeature } from "./dashboard/experienceModeSetting";
 import { TasksPanel } from "./TasksPanel";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
+import { ThemeOverrideButton } from "./ThemeOverrideButton";
 import { HeaderFadeStrip } from "./dashboard/HeaderFadeStrip";
 import { useBuildReload } from "./useBuildReload";
 import { VoiceTranscriptPanel } from "./VoiceTranscriptPanel";
@@ -108,7 +108,7 @@ export function Dashboard() {
     setToast,
   });
 
-  const { homeId, systemsId, groupOf } = useGroupSelection(zoneTree, selectedZoneId, data !== null);
+  const { homeId, systemsId } = useGroupSelection(zoneTree, selectedZoneId, data !== null);
 
   const zoneControlsFor = (zone: DashboardZone) => (
     <ZoneControls
@@ -159,6 +159,7 @@ export function Dashboard() {
           ) : null}
           <HeaderFadeStrip />
           <ReloadButton />
+          <ThemeOverrideButton />
           <GatedLink
             className="dashboard-config-link"
             href="/config"
@@ -166,8 +167,7 @@ export function Dashboard() {
             data-demo-tooltip-title="Config"
             data-demo-tooltip="Open dashboard theme and setup tools."
           >
-            <Settings className="h-5 w-5" />
-            Config
+            <Settings className="h-5 w-5" aria-hidden="true" />
           </GatedLink>
 
           <UpdateBanner />
@@ -239,16 +239,9 @@ export function Dashboard() {
               zones={zoneTree}
               homeControls={groupStage(homeId, "home")}
               systemsControls={groupStage(systemsId, "systems")}
-              onSelectZone={(zoneId) => {
-                selectZone(zoneId);
-                if (isHorizontalDashboard()) {
-                  requestAnimationFrame(() => {
-                    document.querySelector(`.dashboard-home .control-stage[data-group="${groupOf(zoneId)}"]`)?.scrollIntoView({
-                      block: "nearest", inline: "nearest", behavior: "instant",
-                    });
-                  });
-                }
-              }}
+              /* Selecting a zone never scrolls the page, in either
+                 orientation (specs/portrait-layout.md round 2). */
+              onSelectZone={(zoneId) => selectZone(zoneId)}
             />
 
             {/* Kept mounted in one place in both orientations so reminders keep

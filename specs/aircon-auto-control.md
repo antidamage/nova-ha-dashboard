@@ -213,3 +213,17 @@ identically. Manual has no direction to reverse, so §3.3 does not arise.
    the reading while heating produces a single transition to `cool` with no
    intervening `off`. A subsequent untouched cycle still spaces its starts by at
    least ten minutes.
+
+## Dry emulation (Adeline, 2026-09-15)
+
+Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2.
+
+- A climate device **without** a native `dry` mode is offered Dry only when its
+  room has both a humidity sensor and a temperature sensor.
+- Nova runs it like emulated Auto, toward `dryTargetHumidityPct` (default 55).
+  Above target + 3 % it runs `cool` at the lowest fan speed with a setpoint 1 °C
+  below room temperature, never below the device minimum. At or below target it
+  switches to `fan_only`, or off if that is unsupported. It uses the same minimum
+  dwell and rate limit as Auto. Stale sensors (older than the Auto grace window)
+  hold it in its current state.
+- A device with native Dry simply gets `dry`.

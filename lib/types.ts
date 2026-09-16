@@ -1,5 +1,6 @@
 import type { AppleTvSwipeSettings } from "./appletv-swipe";
 import type { LightEntityPreset } from "./lighting-presets";
+import type { ZoneLightRule } from "./zone-light-rules";
 import type { OrbInfoPreferences } from "./orb-info/types";
 
 export type { OrbInfoPreferences };
@@ -161,6 +162,11 @@ export type DashboardLightingConfig = {
   // Lights an event may switch on; everything else has the value staged for
   // its next switch-on instead.
   eventSwitchOnEntityIds?: string[];
+  // Every lighting automation for a zone, as rules (specs/zone-light-events.md,
+  // round 2). The keys above are what they project into.
+  zoneRules?: ZoneLightRule[];
+  // Zones already given their Adaptive and White preset rules.
+  zoneRulesSeededZoneIds?: string[];
 };
 
 export type SpectrumCursor = {
@@ -384,7 +390,12 @@ export type ClimateControlRoomState = {
   owner: ClimateControlOwner;
   mode: ClimateControlMode;
   phase: ClimateControlPhase;
-  direction: "heat" | "cool" | "fan_only" | null;
+  direction: "heat" | "cool" | "dry" | "fan_only" | null;
+  /**
+   * Dry is offered for a unit without native dry because its room has fresh-
+   * capable humidity and temperature sensors configured (aircon instances only).
+   */
+  dryEmulatable?: boolean;
   sensorAvailable: boolean;
   sensorReportedAt: string | null;
   sensorGraceEndsAt: string | null;

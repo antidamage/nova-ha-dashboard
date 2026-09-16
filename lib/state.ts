@@ -1,6 +1,7 @@
 import type { DashboardConfig } from "./config-schema";
 import type { DashboardEntity, DashboardState, DashboardZone, HaState } from "./types";
 import { lightingBrightnessTargetSnapshot } from "./lighting-convergence";
+import { projectLightingRules } from "./zone-light-rules";
 import { haRest } from "./ha/client";
 import { reconcileHaStates } from "./ha/health";
 import { readDashboardConfig } from "./dashboard-config";
@@ -152,7 +153,7 @@ export async function buildDashboardState(): Promise<DashboardState> {
       .filter((status) => status.active)
       .map((status) => status.id),
     totals: countDomains(entities, controlDomains),
-    lighting: config.dashboard.lighting,
+    lighting: projectLightingRules(config.dashboard.lighting),
     zoneEnvironmentFallbacks: ha.zoneEnvironmentFallbacks,
     router: buildRouterStatus(states, config),
     sun: buildSunStatus(states, config),

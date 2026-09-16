@@ -1,7 +1,7 @@
 "use client";
 import { TIMER_SOUNDS } from "../../lib/orb-timer-settings";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ALERT_PULSE_RATE_DEFAULT,
   DEFAULT_NOVA_GLASS_SETTINGS,
@@ -1141,9 +1141,59 @@ export function resolveThemeVariant(selection: ThemeSelection, sun?: SunThemeSta
   return sunStatusIsDark(sun) ? "dark" : "light";
 }
 
-export function resolveDeviceTheme(themeSet: DeviceThemeSet, sun?: SunThemeStatus | null) {
+// ---- Per-device theme override (specs/theme-override.md) ------------------
+// A local layer over the global ThemeSelection. "unset" means no key stored and
+// the global selection applies. Never written to the server or global settings.
+export type ThemeOverride = ThemeSelection | "unset";
+export const THEME_OVERRIDE_STORAGE_KEY = "nova.dashboard.themeOverride.v1";
+export const THEME_OVERRIDE_CHANGE_EVENT = "nova-theme-override-change";
+export const THEME_OVERRIDE_CYCLE: ThemeOverride[] = ["unset", "auto", "light", "dark"];
+
+export function normalizeThemeOverride(value: unknown): ThemeOverride {
+  return value === "auto" || value === "light" || value === "dark" ? value : "unset";
+}
+
+export function nextThemeOverride(current: ThemeOverride): ThemeOverride {
+  const index = THEME_OVERRIDE_CYCLE.indexOf(normalizeThemeOverride(current));
+  return THEME_OVERRIDE_CYCLE[(index + 1) % THEME_OVERRIDE_CYCLE.length];
+}
+
+export function effectiveThemeSelection(global: ThemeSelection, override: ThemeOverride | null | undefined): ThemeSelection {
+  const normalized = normalizeThemeOverride(override);
+  return normalized === "unset" ? global : normalized;
+}
+
+export function readThemeOverride(): ThemeOverride {
+  if (typeof window === "undefined") return "unset";
+  try {
+    return normalizeThemeOverride(window.localStorage.getItem(THEME_OVERRIDE_STORAGE_KEY));
+  } catch {
+    return "unset";
+  }
+}
+
+export function writeThemeOverride(next: ThemeOverride) {
+  if (typeof window === "undefined") return;
+  const normalized = normalizeThemeOverride(next);
+  try {
+    if (normalized === "unset") {
+      window.localStorage.removeItem(THEME_OVERRIDE_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(THEME_OVERRIDE_STORAGE_KEY, normalized);
+    }
+  } catch {
+    // Storage blocked: the change still applies for this page view.
+  }
+  window.dispatchEvent(new CustomEvent(THEME_OVERRIDE_CHANGE_EVENT, { detail: normalized }));
+}
+
+export function resolveDeviceTheme(
+  themeSet: DeviceThemeSet,
+  sun?: SunThemeStatus | null,
+  override?: ThemeOverride | null,
+) {
   const normalized = normalizeThemeSet(themeSet);
-  const activeVariant = resolveThemeVariant(normalized.selection, sun);
+  const activeVariant = resolveThemeVariant(effectiveThemeSelection(normalized.selection, override), sun);
   return {
     activeVariant,
     theme: normalized.themes[activeVariant],
@@ -1540,6 +1590,19 @@ export function mixDeviceThemeColors(configured: DeviceTheme, target: DeviceThem
 let documentThemeOverride: DeviceTheme | null = null;
 let housePartyThemeOverride: DeviceTheme | null = null;
 let lastResolvedDocumentTheme: DeviceTheme | null = null;
+let lastResolvedDocumentVariant: ThemeVariant | null = null;
+
+// data-theme-variant on :root names the variant actually painted. House party
+// blends from the resolved variant, so it keeps it; the config editor's pin
+// paints an arbitrary edited theme, so no variant applies while it is set.
+function syncThemeVariantAttribute() {
+  if (typeof document === "undefined") return;
+  if (documentThemeOverride || !lastResolvedDocumentVariant) {
+    delete document.documentElement.dataset.themeVariant;
+  } else {
+    document.documentElement.dataset.themeVariant = lastResolvedDocumentVariant;
+  }
+}
 const HOUSE_PARTY_THEME_OVERRIDE_EVENT = "nova-house-party-theme-override";
 
 export function setHousePartyThemeOverride(theme: DeviceTheme | null) {
@@ -1550,6 +1613,7 @@ export function setHousePartyThemeOverride(theme: DeviceTheme | null) {
     lastResolvedDocumentTheme ??
     resolveDeviceTheme(normalizeThemeSet(DEFAULT_THEME_SET)).theme;
   applyDeviceTheme(next);
+  syncThemeVariantAttribute();
   window.dispatchEvent(new CustomEvent(HOUSE_PARTY_THEME_OVERRIDE_EVENT, {
     detail: housePartyThemeOverride,
   }));
@@ -1563,6 +1627,7 @@ export function setDocumentThemeOverride(theme: DeviceTheme | null) {
     lastResolvedDocumentTheme ??
     resolveDeviceTheme(normalizeThemeSet(DEFAULT_THEME_SET)).theme;
   applyDeviceTheme(next);
+  syncThemeVariantAttribute();
 }
 
 function cookieValue(name: string) {
@@ -1816,6 +1881,8 @@ function initialThemeState(initialTheme: ThemeStorageValue | null | undefined) {
   };
 }
 
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialSun?: SunThemeStatus | null) {
   const instanceIdRef = useRef(0);
   if (instanceIdRef.current === 0) {
@@ -1838,6 +1905,9 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     initialSun ?? null,
   );
   const [activeVariant, setActiveVariant] = useState<ThemeVariant>(initialResolvedTheme.activeVariant);
+  // The variant the global selection resolves to, ignoring this device's
+  // override — what the config editor opens on.
+  const [globalVariant, setGlobalVariant] = useState<ThemeVariant>(initialResolvedTheme.activeVariant);
   const [theme, setThemeState] = useState(() => initialResolvedTheme.theme);
   const [runtimeThemeOverride, setRuntimeThemeOverride] = useState<DeviceTheme | null>(() => housePartyThemeOverride);
   const [themeReady, setThemeReady] = useState(initialStateRef.current?.ready ?? false);
@@ -1859,7 +1929,7 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
   ) => {
     const normalized = normalizeThemeSet(value, DEFAULT_THEME_SET);
     const sun = options.sun === undefined ? sunStatusRef.current : options.sun;
-    const resolved = resolveDeviceTheme(normalized, sun);
+    const resolved = resolveDeviceTheme(normalized, sun, readThemeOverride());
     const source = options.source;
 
     themeSetRef.current = normalized;
@@ -1873,6 +1943,9 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     }
     lastResolvedDocumentTheme = resolved.theme;
     applyDeviceTheme(documentThemeOverride ?? housePartyThemeOverride ?? resolved.theme);
+    lastResolvedDocumentVariant = resolved.activeVariant;
+    syncThemeVariantAttribute();
+    setGlobalVariant(resolveThemeVariant(normalized.selection, sun));
     writeThemeCookie(normalized);
 
     if (options.persist) {
@@ -1923,7 +1996,7 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
         setThemeReady(true);
         return;
       }
-      const nextSun = nextThemeSet.selection === "auto"
+      const nextSun = effectiveThemeSelection(nextThemeSet.selection, readThemeOverride()) === "auto"
         ? await readSunStatus().catch(() => sunStatusRef.current)
         : sunStatusRef.current;
 
@@ -1948,8 +2021,25 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     }
   }, [applyThemeSet, initialTheme]);
 
+  // SSR and hydration render the global selection; a stored per-device
+  // override is applied in a layout effect so it lands before the first paint
+  // after hydration instead of flashing the global variant.
+  useIsomorphicLayoutEffect(() => {
+    if (readThemeOverride() !== "unset") {
+      applyThemeSet(themeSetRef.current, { broadcast: false });
+    }
+  }, [applyThemeSet]);
+
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
+      if (event.key === THEME_OVERRIDE_STORAGE_KEY) {
+        onOverrideChange();
+        return;
+      }
+      if (event.key === null) {
+        // Storage cleared in another tab: the override key went with it.
+        onOverrideChange();
+      }
       if (
         event.key &&
         event.key !== THEME_STORAGE_KEY &&
@@ -1966,6 +2056,18 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
       void loadTheme();
     };
     const onScopeChange = () => void loadTheme();
+    const onOverrideChange = () => {
+      if (effectiveThemeSelection(themeSetRef.current.selection, readThemeOverride()) !== "auto") {
+        applyThemeSet(themeSetRef.current, { broadcast: false });
+        return;
+      }
+      void readSunStatus()
+        .then((nextSun) => {
+          sunStatusRef.current = nextSun;
+          applyThemeSet(themeSetRef.current, { broadcast: false, sun: nextSun });
+        })
+        .catch(() => applyThemeSet(themeSetRef.current, { broadcast: false }));
+    };
     const onThemeSetChange = (event: Event) => {
       if (!(event instanceof CustomEvent)) {
         return;
@@ -1995,7 +2097,7 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
       }
       const nextSun = event instanceof CustomEvent ? event.detail as SunThemeStatus | null : null;
       sunStatusRef.current = nextSun;
-      if (themeSetRef.current.selection === "auto") {
+      if (effectiveThemeSelection(themeSetRef.current.selection, readThemeOverride()) === "auto") {
         applyThemeSet(themeSetRef.current, { sun: nextSun });
       }
     };
@@ -2010,12 +2112,14 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
     void loadTheme();
     window.addEventListener("storage", onStorage);
     window.addEventListener(THEME_SCOPE_CHANGE_EVENT, onScopeChange);
+    window.addEventListener(THEME_OVERRIDE_CHANGE_EVENT, onOverrideChange);
     window.addEventListener(NOVA_THEME_SET_CHANGE_EVENT, onThemeSetChange);
     window.addEventListener(SUN_CHANGE_EVENT, onSunChange);
     window.addEventListener(HOUSE_PARTY_THEME_OVERRIDE_EVENT, onHousePartyThemeOverride);
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(THEME_SCOPE_CHANGE_EVENT, onScopeChange);
+      window.removeEventListener(THEME_OVERRIDE_CHANGE_EVENT, onOverrideChange);
       window.removeEventListener(NOVA_THEME_SET_CHANGE_EVENT, onThemeSetChange);
       window.removeEventListener(SUN_CHANGE_EVENT, onSunChange);
       window.removeEventListener(HOUSE_PARTY_THEME_OVERRIDE_EVENT, onHousePartyThemeOverride);
@@ -2121,6 +2225,7 @@ export function useDeviceTheme(initialTheme?: ThemeStorageValue | null, initialS
 
   return {
     activeVariant,
+    globalVariant,
     resetTheme,
     setTheme,
     setThemeColor,

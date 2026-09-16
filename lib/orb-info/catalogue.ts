@@ -70,6 +70,8 @@ export type OrbInfoSources = {
     nextDueInHours: number | null;
     nextDueAt: string | null;
     overdueCount: number;
+    /** Due reminders whose alert is not yet acknowledged, most recent first. */
+    alerting?: Array<{ id: string; start: string }>;
   } | null;
 };
 
@@ -86,6 +88,22 @@ function output(overrides: Partial<OrbModuleOutput>): OrbModuleOutput {
 }
 
 const MS_PER_HOUR = 3_600_000;
+
+export const GYM_SHOW_AFTER_HOURS = 24;
+
+function gymShowAfterHours(params?: OrbModuleParams): number {
+  const value = Number(params?.showAfterHours);
+  return Number.isFinite(value) && value >= 0 ? value : GYM_SHOW_AFTER_HOURS;
+}
+
+/** A due, unacknowledged reminder alerts; an orb tap acknowledges the most recent. */
+function reminderAlert(tasks: OrbInfoSources["tasks"], fallback = false): Partial<OrbModuleOutput> {
+  // Sources without the acknowledgement list (older payloads) keep the count alert.
+  if (!tasks?.alerting) return { alert: fallback };
+  const due = tasks.alerting[0];
+  if (!due) return { alert: false };
+  return { alert: true, alertAt: Date.parse(due.start) || 0, dismiss: { kind: "reminder", id: due.id } };
+}
 
 /** A finite reading, or the unavailable output when the source has nothing. */
 function reading(
@@ -112,9 +130,10 @@ export const ORB_INFO_MODULES: OrbModule[] = [
     baseUnit: "none", sources: ["power", "tasks", "clock"], supportedFormats: ["text"], defaultDisplay: display({ format: "text" }),
     read: ({ washing, washTasks, now }) => {
       const task = washTasks?.find((task) => !task.dismissedAt && !task.alertDismissedAt && (task.moduleData?.["washing-machine"] as { phase?: string })?.phase === "active");
-      if (task) return output({ status: "ok", active: true, icon: "washing-machine", text: "Done", alert: true, dismiss: { kind: "washing", id: task.id } });
+      if (task) return output({ status: "ok", active: true, icon: "washing-machine", text: "Done", alert: true, alertAt: Date.parse(task.start) || 0, dismiss: { kind: "washing", id: task.id } });
       if (washing?.open?.completion || !washing?.primaryPersonId || washing.open?.person !== washing.primaryPersonId || !washing.etaAt) return output({ active: false });
-      return output({ status: "ok", active: true, icon: "washing-machine", text: countdownText(Date.parse(washing.etaAt) - now) });
+      const remaining = Date.parse(washing.etaAt) - now;
+      return output({ status: "ok", active: true, icon: "washing-machine", text: countdownText(remaining), remainingMs: Math.max(0, remaining) });
     },
   },
   ...([
@@ -136,7 +155,8 @@ export const ORB_INFO_MODULES: OrbModule[] = [
       if (!timer || timer.dismissedAt !== null) return output({ active: false });
       const done = timer.completedAt !== null || now >= timer.endsAt;
       return output({ active: true, status: "ok", icon: timer.icon, text: done ? "Done" : countdownText(timerRemaining(timer, now)),
-        alert: done, ...(done ? { dismiss: { kind: "timer" as const, id: timer.id } } : { countdownFraction: timerRemaining(timer, now) / timer.durationMs }) });
+        alert: done, remainingMs: timerRemaining(timer, now),
+        ...(done ? { alertAt: timer.completedAt ?? timer.endsAt, dismiss: { kind: "timer" as const, id: timer.id } } : { countdownFraction: timerRemaining(timer, now) / timer.durationMs }) });
     },
   },
   {
@@ -161,7 +181,8 @@ export const ORB_INFO_MODULES: OrbModule[] = [
     sources: ["watchface"],
     supportedFormats: ["duration", "number", "percent"],
     defaultDisplay: display({ format: "duration", unit: "hours", decimals: 0, rounding: "floor" }),
-    read: ({ watchface, now }) => {
+    params: [{ key: "showAfterHours", label: "Show after hours", kind: "number", min: 0, max: 720, step: 1, fallback: GYM_SHOW_AFTER_HOURS }],
+    read: ({ watchface, now }, params) => {
       if (!watchface || watchface.gymLastResetAt === null) {
         return output({ baseUnit: "hours", status: "unavailable", alertThreshold: watchface?.gymAlertThresholdHours ?? null });
       }
@@ -175,8 +196,13 @@ export const ORB_INFO_MODULES: OrbModule[] = [
         baseUnit: "hours",
         status: "ok",
         observedAt: new Date(watchface.gymLastResetAt).toISOString(),
+        icon: "barbell",
         alert: threshold !== null && hours >= threshold,
         alertThreshold: threshold,
+        // Off until `showAfterHours` since the last session; the reading stays
+        // attached so previews still render it.
+        ...(hours < gymShowAfterHours(params) ? { active: false } : {}),
+        ...(threshold !== null && hours >= threshold ? { alertAt: watchface.gymLastResetAt + threshold * MS_PER_HOUR } : {}),
       });
     },
   },
@@ -189,7 +215,7 @@ export const ORB_INFO_MODULES: OrbModule[] = [
     sources: ["watchface"],
     supportedFormats: ["percent", "duration", "number"],
     defaultDisplay: display({ format: "percent", decimals: 0, rounding: "floor", showUnit: true, percentClamp: true }),
-    read: (sources) => ORB_INFO_MODULES_BY_ID.gym.read(sources),
+    read: (sources) => ({ ...ORB_INFO_MODULES_BY_ID.gym.read(sources, { showAfterHours: 0 }), icon: undefined }),
   },
 
   // ---- Host health (already polled by the orb; no new traffic) ------------
@@ -495,7 +521,7 @@ export const ORB_INFO_MODULES: OrbModule[] = [
     sources: ["tasks"],
     supportedFormats: ["duration", "number"],
     defaultDisplay: display({ format: "duration", unit: "auto", decimals: 0, rounding: "floor", showUnit: true }),
-    read: ({ tasks }) => reading(tasks?.nextDueInHours, "hours", { observedAt: tasks?.nextDueAt ?? null }),
+    read: ({ tasks }) => reading(tasks?.nextDueInHours, "hours", { observedAt: tasks?.nextDueAt ?? null, ...reminderAlert(tasks) }),
   },
   {
     id: "reminders-overdue",
@@ -508,7 +534,7 @@ export const ORB_INFO_MODULES: OrbModule[] = [
     defaultDisplay: display({ format: "number", decimals: 0 }),
     read: ({ tasks }) => {
       if (!tasks) return output({ baseUnit: "count", status: "unavailable" });
-      return output({ value: tasks.overdueCount, baseUnit: "count", status: "ok", alert: tasks.overdueCount > 0 });
+      return output({ value: tasks.overdueCount, baseUnit: "count", status: "ok", ...reminderAlert(tasks, tasks.overdueCount > 0) });
     },
   },
 

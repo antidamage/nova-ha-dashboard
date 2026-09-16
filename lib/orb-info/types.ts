@@ -91,7 +91,11 @@ export type OrbModuleOutput = {
   active?: boolean;
   icon?: string;
   countdownFraction?: number;
-  dismiss?: { kind: "timer" | "washing"; id: string };
+  dismiss?: { kind: "timer" | "washing" | "reminder"; id: string };
+  /** Countdown entries: milliseconds left (an overrun counts as 0). */
+  remainingMs?: number;
+  /** Epoch ms the alert began; most recent alert orders first. */
+  alertAt?: number;
   /** Canonical magnitude in `baseUnit`, or null when there is no reading. */
   value: number | null;
   /** Pre-rendered words for `text`-format modules (HA health, WAN state). */
@@ -178,9 +182,18 @@ export type OrbInfoPreferences = {
   updatedAt?: string;
 };
 
-/** First active row wins. IDs keep duplicate modules independently editable. */
+/**
+ * One row of the orb stack. IDs keep duplicate modules independently editable.
+ * Order is evaluated by `orderOrbStack` (stack.ts): alerts, then running
+ * countdowns, then enabled rows in this list's order.
+ */
 export type OrbStackEntry = OrbModulePreference & {
   id: string;
   moduleId: string;
-  activation: "always" | "whenAlerting";
+  /** User switch. A disabled row never appears. */
+  enabled: boolean;
+  /** Legacy `whenAlerting`: the row only appears while it alerts. */
+  showOnlyWhenAlerting?: boolean;
+  /** Legacy input only; migrated by `resolveOrbEntries`. */
+  activation?: "always" | "whenAlerting";
 };
