@@ -45,7 +45,10 @@ class PipelineFinalizeMixin:
             playlist.unlink(missing_ok=True)
             return str(output)
         except (subprocess.SubprocessError, OSError) as error:
-            LOG.warning("clip creation failed for %s: %s", event["id"], error)
+            # CalledProcessError renders the whole command line, which carries the
+            # camera bearer token in its -headers argument. Never log it.
+            detail = str(error).replace(SOURCE_TOKEN, "<redacted>") if SOURCE_TOKEN else str(error)
+            LOG.warning("clip creation failed for %s: %s", event["id"], detail)
             return None
 
     def finalize_if_ready(self, analysed_through: float, stalled: bool = False) -> None:
