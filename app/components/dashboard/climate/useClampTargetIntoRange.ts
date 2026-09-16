@@ -23,7 +23,7 @@ export function useClampTargetIntoRange(
       sentFor.current = null;
       return;
     }
-    const key = `::`;
+    const key = `${target}:${range.min}:${range.max}`;
     if (sentFor.current === key) return;
     sentFor.current = key;
     sendRef.current(clamped);
