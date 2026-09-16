@@ -3931,11 +3931,35 @@ button.config-breadcrumb-crumb:focus-visible {
   container: zone-panel / inline-size;
 }
 
-.zone-lighting-controls {
+/* Dial preset band (specs/dial-preset-band.md, Adeline 2026-09-16). Every round
+   control reserves the same band beneath it, presets or not, so dials line up
+   across panels. The dial is centred in the region above the band; the band
+   never pushes it up. Panels use the zone preset grid's height (68px buttons +
+   5px padding + 1px border, each side); Quick Access uses its 44px buttons. */
+:root {
+  --dial-preset-band: 80px;
+  --dial-preset-gap: 24px;
+  --quick-preset-band: 44px;
+}
+
+.zone-lighting-controls,
+.outside-light-controls,
+.climate-knob-body,
+.timer-encoder-panel {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) var(--dial-preset-band);
   align-items: center;
   justify-items: center;
-  gap: 24px;
+  row-gap: var(--dial-preset-gap);
+}
+
+.climate-knob-body::after,
+.timer-encoder-panel::after {
+  content: "";
+  grid-row: 2;
+}
+
+.zone-lighting-controls {
   padding-block: 8px;
 }
 
@@ -4229,11 +4253,9 @@ button.config-breadcrumb-crumb:focus-visible {
 
 /* The knob with its On/Off pair under it, the Quick Access shape
    (specs/outside-card.md). */
+/* Grid rows come from the dial preset band rule. */
 .outside-light-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
+  flex: 1 1 auto;
 }
 
 /* ===== Outside camera / DVR player ===== */
@@ -8049,8 +8071,7 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 /* A climate card is its knob and nothing else (Adeline, 2026-09-12). The rings
    float over the page, so the card reserves only the knob's own footprint. */
 .climate-knob-body {
-  display: flex;
-  justify-content: center;
+  flex: 1 1 auto;
   padding-block: 12px;
 }
 
@@ -8332,6 +8353,20 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
 .quick-button-pair {
   display: flex;
   gap: 6px;
+}
+
+/* Quick Access dial preset band: the lights' preset row always holds its
+   height, and each climate knob reserves the same row (4px gap + 4px margin
+   matches the lights segment's 8px gap). */
+.quick-segment-lights .quick-button-pair {
+  min-height: var(--quick-preset-band);
+}
+
+.quick-climate::after {
+  content: "";
+  flex: none;
+  height: var(--quick-preset-band);
+  margin-top: 4px;
 }
 
 .quick-button,
@@ -8933,14 +8968,19 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 }
 
 /* Status orb event readouts retain the existing orb and theme treatment. */
-.orb-event-readout { display:flex; flex-direction:column; align-items:center; gap:.12em; font-size:.48em; line-height:1.1; }
+/* The icon and its countdown ring are what centre in the orb; the text hangs
+   below them out of flow so it never pushes them off-centre. */
+.orb-event-readout { position:relative; display:flex; flex-direction:column; align-items:center; font-size:.48em; line-height:1.1; }
+.orb-event-readout > .orb-event-text { position:absolute; top:calc(100% + .12em); left:50%; transform:translateX(-50%); }
 .orb-event-icon { position:relative; display:grid; place-items:center; width:2em; height:2em; }
 .orb-event-icon > svg:not(.orb-countdown-ring) { width:1.3em; height:1.3em; }
 .orb-countdown-ring { position:absolute; inset:0; width:100%; height:100%; color:rgb(var(--nova-alert-rgb)); pointer-events:none; }
 .orb-countdown-ring-pulsing { animation: orb-countdown-ring-pulse 1s ease-in-out infinite; }
 @keyframes orb-countdown-ring-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-.timer-encoder-panel { display:grid; place-items:center; min-height:240px; padding:30px; }
+.timer-encoder-panel { min-height:240px; padding:30px; }
+.timer-encoder-panel > .rotary-encoder { grid-row:1; }
+.timer-encoder-panel > :not(.rotary-encoder) { grid-row:3; }
 .timer-encoder-face { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:48px; }
 
 .timer-encoder-face { color:rgba(255,255,255,.46); font-weight:700; }
