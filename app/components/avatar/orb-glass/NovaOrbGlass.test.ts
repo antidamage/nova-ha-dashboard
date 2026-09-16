@@ -5,8 +5,8 @@ import {
   glassBoxShadow,
   glassCssBackdropFilter,
   imageTransformDisplacement,
-} from "./NovaOrbGlass";
-import { DEFAULT_NOVA_GLASS_SETTINGS, type NovaGlassSettings } from "./avatarThemeModel";
+} from "../../NovaOrbGlass";
+import { DEFAULT_NOVA_GLASS_SETTINGS, type NovaGlassSettings } from "../../avatarThemeModel";
 
 describe("concentric glass layers", () => {
   it("makes each nested lens circle smaller than the previous", () => {

@@ -1,15 +1,15 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import NovaAvatar from "./NovaAvatar";
-import type { ThemeStorageValue } from "./accentColor";
+import NovaAvatar from "../../NovaAvatar";
+import type { ThemeStorageValue } from "../../accentColor";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
 let mockSpeechPhase: "idle" | "speaking" | "ending" = "idle";
-vi.mock("./dashboard/voiceSpeech", async () => {
-  const actual = await vi.importActual<typeof import("./dashboard/voiceSpeech")>("./dashboard/voiceSpeech");
+vi.mock("../../dashboard/voiceSpeech", async () => {
+  const actual = await vi.importActual<typeof import("../../dashboard/voiceSpeech")>("../../dashboard/voiceSpeech");
   return {
     ...actual,
     useVoiceSpeechPhase: () => mockSpeechPhase,

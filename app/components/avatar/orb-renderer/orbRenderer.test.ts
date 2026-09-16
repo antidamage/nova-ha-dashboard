@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BUILTIN_ORB_MODULES, normalizeOrbModule, type OrbPalette } from "../../lib/orb-modules";
-import { DEFAULT_NOVA_AVATAR_THEME, normalizeNovaAvatarTheme } from "./avatarThemeModel";
-import { createOrbRenderer, type OrbFrame } from "./orbRenderer";
+import { BUILTIN_ORB_MODULES, normalizeOrbModule, type OrbPalette } from "../../../../lib/orb-modules";
+import { DEFAULT_NOVA_AVATAR_THEME, normalizeNovaAvatarTheme } from "../../avatarThemeModel";
+import { createOrbRenderer, type OrbFrame } from "../../orbRenderer";
 
 // jsdom has no real 2D context, so the renderer is exercised against a
 // recording stub that implements exactly the canvas surface the renderer

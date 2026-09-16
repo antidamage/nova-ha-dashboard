@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_NOVA_AVATAR_THEME, NovaAvatarConfig } from "./NovaAvatarConfig";
+import { DEFAULT_NOVA_AVATAR_THEME, NovaAvatarConfig } from "../../NovaAvatarConfig";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/config",
