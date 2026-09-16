@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "fs/promises";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Task } from "./types";
+import type { Task } from "../types";
 
 const tempDirs: string[] = [];
 
@@ -11,7 +11,7 @@ async function isolatedTaskStore() {
   const dir = await mkdtemp(path.join(os.tmpdir(), "nova-tasks-"));
   tempDirs.push(dir);
   vi.stubEnv("NOVA_DASHBOARD_TASKS", path.join(dir, "tasks.json"));
-  return import("./tasks");
+  return import("../tasks");
 }
 
 function task(overrides: Partial<Task> = {}): Task {

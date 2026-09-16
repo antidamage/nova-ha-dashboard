@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { CAMERAS } from "./config";
-import { ensureRecorder, recordersPaused, setRecordersPaused } from "./recorder";
+import { CAMERAS } from "../config";
+import { ensureRecorder, recordersPaused, setRecordersPaused } from "../recorder";
 
 describe("recorder pause gate", () => {
   afterEach(() => {

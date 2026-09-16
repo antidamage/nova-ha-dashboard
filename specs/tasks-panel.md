@@ -128,7 +128,7 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 
 ### CI
 
-- `lib/tasks.test.ts` "creates one wash reminder, arbitrates chimes and
+- `lib/tasks/tasks.test.ts` "creates one wash reminder, arbitrates chimes and
   preserves acknowledgement" passes locally and failed on GitHub
   (`expected [false, true] to deeply equal [true, false]`). It must pass with
   `TZ=UTC` and `TZ=Pacific/Auckland`, independent of run order.
@@ -141,7 +141,7 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 - Choosing an icon in the editor changes that reminder's tile in the reminder
   bar.
 - Width doubled in landscape; portrait cell up to 2× panel width.
-- `TZ=UTC npx vitest run lib/tasks.test.ts` passes.
+- `TZ=UTC npx vitest run lib/tasks/tasks.test.ts` passes.
 
 ## No panel heading
 

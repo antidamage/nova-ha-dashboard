@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { voiceSatelliteRestartCommand } from "./voice-satellite-reconnect";
@@ -19,10 +19,16 @@ import { voiceSatelliteRestartCommand } from "./voice-satellite-reconnect";
  * `ios` platform because the abstraction is convenient.
  */
 describe("the companion is not a managed computer", () => {
-  const source = readFileSync(
+  // The module is a facade over lib/managed-computers/; read the whole package.
+  const packageDir = path.join(__dirname, "managed-computers");
+  const source = [
     path.join(__dirname, "managed-computers.ts"),
-    "utf8",
-  );
+    ...readdirSync(packageDir)
+      .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+      .map((name) => path.join(packageDir, name)),
+  ]
+    .map((file) => readFileSync(file, "utf8"))
+    .join("\n");
 
   it("has no iOS platform to describe a phone with", () => {
     const union = source.match(/export type ManagedComputerPlatform = ([^;]+);/);
