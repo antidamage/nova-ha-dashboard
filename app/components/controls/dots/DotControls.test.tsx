@@ -1,14 +1,14 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CONTROL_INTERACTION_COOLDOWN_MS, resetControlInteractionCooldownForTests } from "./controlInteractionCooldown";
+import { CONTROL_INTERACTION_COOLDOWN_MS, resetControlInteractionCooldownForTests } from "../../controlInteractionCooldown";
 import {
   DotEnvelopeControl,
   DotLineControl,
   DotRangeControl,
   DotSpectrumControl,
   precisionDragScale,
-} from "./DotControls";
-import { TAP_MAX_MS } from "./sliderTapGesture";
+} from "../../DotControls";
+import { TAP_MAX_MS } from "../../sliderTapGesture";
 
 describe("precision drag scaling", () => {
   it("keeps full speed in the dead zone and reaches quarter speed at 100 pixels", () => {
