@@ -98,7 +98,7 @@ describe("design change reaches every client", () => {
   const read = (file: string) => readFileSync(join(root, file), "utf8");
 
   it("broadcasts the new design after the write lands", () => {
-    const events = read("lib/dashboard-events.ts");
+    const events = read("lib/dashboard-events/publish.ts");
     expect(events, "publishDesign must exist").toContain("export function publishDesign");
     expect(events, "it must broadcast on an SSE event named 'design'").toContain('sseEvent("design"');
 
