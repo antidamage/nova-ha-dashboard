@@ -3959,8 +3959,23 @@ button.config-breadcrumb-crumb:focus-visible {
   grid-row: 2;
 }
 
-.zone-lighting-controls {
+/* One padding for every dial container: 20px above the dial's box (the zone
+   container's 8px plus the colour encoder's own 12px). */
+.zone-lighting-controls,
+.outside-light-controls {
   padding-block: 8px;
+}
+
+.climate-knob-body,
+.timer-encoder-panel {
+  padding-block: 20px 8px;
+}
+
+/* A climate knob card with nothing in its header (no title, no fault pill, no
+   module action) drops the header so the knob starts where a lighting dial
+   does. */
+.climate-card > header:not(:has(h2, p)):has(> div:empty) {
+  display: none;
 }
 
 .zone-lighting-presets {
@@ -8072,7 +8087,6 @@ html[data-nova-design]:not([data-nova-design="nova-classic"]) .dashboard-shell:n
    float over the page, so the card reserves only the knob's own footprint. */
 .climate-knob-body {
   flex: 1 1 auto;
-  padding-block: 12px;
 }
 
 /* ── TemperatureEncoder (specs/temperature-encoder.md) ────────────────────
@@ -8982,7 +8996,7 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 .orb-countdown-ring-pulsing { animation: orb-countdown-ring-pulse 1s ease-in-out infinite; }
 @keyframes orb-countdown-ring-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-.timer-encoder-panel { min-height:240px; padding:30px; }
+.timer-encoder-panel { min-height:240px; padding-inline:30px; }
 .timer-encoder-panel > .rotary-encoder { grid-row:1; }
 .timer-encoder-panel > :not(.rotary-encoder) { grid-row:3; }
 .timer-encoder-face { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:48px; }

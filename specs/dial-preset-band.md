@@ -18,6 +18,18 @@ wrappers: ColorEncoder, TemperatureEncoder, TimerEncoder).
 | Panels (zone lighting, outside light, climate cards, timer) | `--dial-preset-band` 80px (zone preset grid: 68px buttons + 5px padding + 1px border per side) | `--dial-preset-gap` 24px |
 | Quick Access (lights segment, climate knobs) | `--quick-preset-band` 44px (quick button height) | 8px |
 
+## Same rules for lights, timers and climate
+
+Adeline, 2026-09-16 (follow-up): climate dials follow the lights' rules exactly.
+For now the band is for alignment only.
+
+- Every panel dial container has 20px above the dial's box and 8px below the
+  band (zone/outside: 8px container + 12px colour-encoder padding).
+- A climate knob card with an empty header (no title, no fault pill, no module
+  action) hides the header, so its knob starts where a lighting dial does.
+- Measured at 1920x1080 against the e2e fixtures: dial centres lights 482px,
+  climate 481px, timer 476px.
+
 ## Implementation
 
 `app/globals.css`, "Dial preset band": panel containers are a two-row grid,
