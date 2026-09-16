@@ -1,7 +1,7 @@
 /**
  * EXAMPLE — the smallest legal dashboard module.
  *
- * Demonstrates rule 2 of SPEC.md §32.2: a module must be INERT when
+ * Demonstrates rule 2 of specs/module-system.md: a module must be INERT when
  * unconfigured. No thrown error, no zone, no panel, no log spam — a home
  * without this capability should not be able to tell the module exists.
  *

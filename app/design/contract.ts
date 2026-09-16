@@ -24,7 +24,7 @@ export type DesignManifest = {
 };
 
 /**
- * Experience-mode parity (SPEC.md §2) is not optional: a design that has not
+ * Experience-mode parity (specs/maintenance-rule.md) is not optional: a design that has not
  * said what it does on a lite device does not ship. These four mirror
  * `ExperienceFeatureKey` — `true` means the design renders that feature when
  * the device allows it, `false` means it never does regardless.

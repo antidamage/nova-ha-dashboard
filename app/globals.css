@@ -187,8 +187,8 @@ body:has(.nova-avatar-host) {
    `animation: none`) are used so fill-mode reveals still complete and land on
    their end state. JS-driven work is NOT covered: anything using rAF loops,
    canvas/WebGL, polling, or media playback must gate itself explicitly with
-   useLiteMode() / readExperienceModeSetting(). See SPEC.md "Experience
-   Modes" and docs/lite-mode.md before adding a new visual/costly feature. */
+   useLiteMode() / readExperienceModeSetting(). See specs/experience-modes.md
+   and docs/lite-mode.md before adding a new visual/costly feature. */
 html[data-nova-lite] *,
 html[data-nova-lite] *::before,
 html[data-nova-lite] *::after {

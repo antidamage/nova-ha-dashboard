@@ -14,7 +14,7 @@
 // Tap a tile to complete its reminder. Press and hold a just-completed tile to
 // take that back (see the undo journal in lib/tasks.ts).
 //
-// LITE MODE (SPEC §2/§31): everything animated here is CSS, so the
+// LITE MODE (specs/maintenance-rule.md + specs/experience-modes.md): everything animated here is CSS, so the
 // `html[data-nova-lite] *` kill-switch neutralises the pulse for free. There is
 // no rAF, no canvas, and no polling of its own — the 1s tick and the task feed
 // are both shared. Nothing needs an explicit `useLiteMode()` gate.

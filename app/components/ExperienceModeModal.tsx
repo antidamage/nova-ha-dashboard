@@ -17,7 +17,7 @@ import { useAgentName } from "./AgentNameContext";
 //
 // Renders nothing on the server and on the first client render — the stored
 // mode is read in an effect so server markup always matches hydration (see
-// SPEC.md hydration rule). Decided devices therefore never see a flash of
+// specs/maintenance-rule.md hydration rule). Decided devices therefore never see a flash of
 // the modal.
 export function ExperienceModeModal() {
   const { agentName } = useAgentName();

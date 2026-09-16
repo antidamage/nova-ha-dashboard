@@ -3,7 +3,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 
 /**
- * SPEC.md §2, "Golden Rule: No Machine-Specific Code": nova-ha-dashboard is a
+ * specs/maintenance-rule.md, "Golden Rule: No Machine-Specific Code": nova-ha-dashboard is a
  * distributable product. A new user must be able to deploy it against their own
  * Home Assistant with no code changes and without inheriting this household's
  * devices, rooms, router, timezone or electricity account.
@@ -269,7 +269,7 @@ describe("no household data in product source", () => {
       unwaived,
       unwaived.length
         ? `Household-specific values must live in config (or the nova-household package), ` +
-            `not in dashboard source. See SPEC.md §2.\n${report}\n\n` +
+            `not in dashboard source. See specs/maintenance-rule.md.\n${report}\n\n` +
             `If one of these is genuinely generic, refine the detector rather than waiving it.`
         : undefined,
     ).toEqual([]);

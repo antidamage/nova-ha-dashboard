@@ -2,7 +2,7 @@
 
 The dashboard supports two per-device experience modes: **rich** (full
 visuals) and **lite** (fast pathway for old tablets). Both are always
-supported. SPEC.md §31 is the canonical description; §2 "Experience Mode
+supported. specs/experience-modes.md is the canonical description; specs/maintenance-rule.md "Experience Mode
 Parity" is the rule that makes this checklist mandatory: **a new visual,
 animated, or computationally costly feature is not complete until its lite
 behavior is decided, implemented, and tested.**
@@ -60,7 +60,7 @@ is seeded pre-paint by the `app/layout.tsx` head bootstrap).
       and/or a case in `e2e/experience-mode.spec.ts`).
 - [ ] Remember every e2e navigation via `gotoDashboard`/`gotoConfig` is seeded
       rich; use `seedExperienceMode(page, "lite")` to test the lite pathway.
-- [ ] Update the "Lite behavior by feature" table in SPEC.md §31.
+- [ ] Update the "Lite behavior by feature" table in specs/experience-modes.md.
 - [ ] Verify in the demo build too (§2 Demo Dashboard Parity — both modes must
       work there as well).
 - [ ] `npm run test:unit` (includes `app/liteMode.contract.test.ts`, the

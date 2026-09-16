@@ -76,7 +76,7 @@ export async function saveActiveDesignId(id: string): Promise<void> {
 /**
  * Returns the default on the server and on the first client render, then the
  * real id once mounted. That two-step is deliberate: `app/page.tsx` is static,
- * so SSR cannot know the answer, and SPEC.md §2 requires the first client
+ * so SSR cannot know the answer, and specs/maintenance-rule.md requires the first client
  * render to match the server rather than reading client-only state inline.
  */
 export function useActiveDesignId(): string {

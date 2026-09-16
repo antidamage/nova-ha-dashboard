@@ -20,7 +20,7 @@ import { readDashboardSecrets } from "./dashboard-secrets";
 // - so this comes from the host's environment.
 //
 // The default names the ROLE, not whichever machine fills it, the same way
-// NOVA_VOICE_HOST_URL does (SPEC.md §2): a house's own dashboard address is
+// NOVA_VOICE_HOST_URL does (specs/maintenance-rule.md): a house's own dashboard address is
 // household configuration and must not be a literal here. An install that has
 // not set NOVA_PUBLIC_BASE_URL therefore sends a URL that will not resolve for
 // it, which is a soft failure - the notification still arrives and the address

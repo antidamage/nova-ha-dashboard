@@ -10,6 +10,27 @@ owner makes differs from a change the sensor implies. It supersedes the
 reversal rule previously stated in `docs/aircon-auto.md`; everything else in
 that document remains a correct summary and now points here.
 
+## Implementation
+
+This is the dashboard's own thermostat, not Home Assistant's or the Gree
+unit's native Auto mode. The planner is React-free, lives in
+`lib/aircon-control.ts`, and runs on a 1000 ms poll interval. The dashboard
+tick skips while the tab is hidden or another climate action is in flight, and
+decides from the shared SSE/poll snapshot rather than fetching per tick.
+Planned actions apply through `/api/entity`. Each acting tick emits
+`aircon-auto`; each change of blocking reason emits `aircon-auto-held` once —
+both carry the planner's `reason` and `wantedMode`. The loop runs only while
+`preferences.aircon.autoMode` is true.
+
+The control sensor is the Gree unit's own `current_temperature`, downstream of
+the compressor it drives (§2). `sensor.lounge_temperature` reads the same
+attribute for display only and must never feed control.
+
+Supported modes are heat, cool, fan-only and auto; Auto only ever commands
+heat or cool (Dry, native or emulated, is covered separately — see Dry
+emulation, below). Fan steps range from quiet through turbo; while driving,
+the planner picks fan strength from the absolute delta.
+
 ## 1. The incident this comes from
 
 Reported: "the aircon isn't turning on when changing the temp in auto mode…
@@ -116,6 +137,13 @@ is safe because the reversal that caused the 2026-08-09 incident was
 and 30-minute hold. The Gree's firmware compressor protection is unaffected by
 what Nova sends.
 
+<!-- SPEC.md §15 said breaking the 30-minute direction hold is decided in the
+UI, not the planner (pressing Heat/Cool, or moving the setpoint more than 1
+degree past the current reading), see docs/aircon-auto.md. This file's
+mechanism instead has the planner itself perform the reversal, driven by the
+userRequestAt latch (§4), with no stated 1-degree threshold. Kept this file's
+version, which is newer. Verify. -->
+
 ### 3.4 The card gains no new text
 
 The queued intent is reported in `/api/state` as
@@ -137,7 +165,8 @@ timestamp of the last user-initiated change that has not yet been acted on.
 - `targetChanged` — `lastTargetTemperature` is non-null and differs from the
   effective target. A null `lastTargetTemperature` is a *fresh planner*, not a
   change, and must not set the latch.
-- `forceRemember` — a fresh press of Auto.
+- `forceRemember` — a fresh press of Auto. This can update stored auto
+  preferences without immediately requiring an HA mode change.
 
 Otherwise the latch is inherited from the incoming state. It is **not** cleared
 by observing the new target: `lastTargetTemperature` is a change detector and
@@ -159,7 +188,8 @@ nothing more.
 **Persistence.** The latch and the change detector both survive a container
 restart, carried in preferences as `autoUserRequestAt` and
 `autoLastTargetTemperature` alongside the existing `autoLastMode` /
-`autoLastTransitionAt` family, and folded back by
+`autoLastTransitionAt` / `autoRecentStartsAt` family (the last backing the
+compressor-start rate limit, §6), and folded back by
 `airconAutoCycleStateFromPreferences`. `AirconAutoThermostat.reconcile` merges
 the latch with the same "whichever is further ahead wins" rule as the other
 clocks, so a latch set by another client is not dropped by this process's stale
@@ -192,8 +222,9 @@ identically. Manual has no direction to reverse, so §3.3 does not arise.
 - **The median filter.** Starts and direction selection use the median of the
   five most recent fresh readings; stopping uses the raw value.
 - **Autonomous guard values.** 10-minute dwell, 30-minute settling, 10-minute
-  sensor time constant, 3 °C reversal, 1 °C same-direction resume, and the
-  first-order extrapolation that may resume a same-direction cycle early.
+  sensor time constant, 3 °C reversal, 1 °C same-direction resume, a cap of 3
+  compressor starts in any trailing hour, and the first-order extrapolation
+  that may resume a same-direction cycle early.
 - **Ownership.** Someone working the unit itself still takes ownership away
   from Nova; a target change does not reclaim it. Only mode intents do.
 - **Off clears Auto** (§3.2).

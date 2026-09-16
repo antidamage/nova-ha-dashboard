@@ -71,9 +71,9 @@ Three constraints, all load-bearing:
    is prerendered. Demo mode builds with `output: "export"` and
    `scripts/build-demo.mjs` renames `app/api` out of the tree first. **The
    server cannot know which design is active**, and in demo there is no server.
-2. `SPEC.md` §2: an element whose SSR markup depends on client-only state must
-   not be gated directly on it — gate the reveal on a post-mount flag so the
-   first client render matches the server.
+2. `specs/maintenance-rule.md`: an element whose SSR markup depends on
+   client-only state must not be gated directly on it — gate the reveal on a
+   post-mount flag so the first client render matches the server.
 3. Swapping a Design swaps a whole component tree, not a CSS variable. The
    theme/camera bootstrap precedent (which only sets CSS custom properties and
    attributes on already-rendered markup) does not cover it.
@@ -120,10 +120,15 @@ export type DesignManifest = {
 export type DesignModule = {
   manifest: DesignManifest;
   Root: ComponentType;
-  /** Experience-mode parity (SPEC.md §2): required, not optional. */
+  /** Experience-mode parity (specs/maintenance-rule.md): required, not optional. */
   lite: { statusOrb: boolean; background: boolean; camera: boolean; worldMap: boolean };
 };
 ```
+
+`lite` is not documentation: `DashboardGlobalServices` consults the active
+design's `lite.statusOrb` on `/` and does not mount the status orb for a
+design that declares it `false`. That's what satisfies the Experience Mode
+Parity rule (`specs/maintenance-rule.md`) rather than merely stating it.
 
 `app/design/registry.ts` owns `builtinDesigns`, `listDesigns()`,
 `resolveDesign(id)` and `DEFAULT_DESIGN_ID`. Nothing outside the registry
@@ -176,7 +181,7 @@ Nothing else on the config page changes.
 
 ## Demo parity
 
-`SPEC.md` §2 requires the demo to support every feature. `lib/demo-config.ts`
+`specs/maintenance-rule.md` requires the demo to support every feature. `lib/demo-config.ts`
 intercepts `/api/*` client-side and backs the theme with `sessionStorage`;
 `/api/design` joins it on the same terms. In demo, `sessionStorage` *is* the
 server, so "shared, not per-device" still holds.

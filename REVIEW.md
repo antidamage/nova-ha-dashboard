@@ -9,7 +9,7 @@ in this pass and what is **recommended** as follow-up.
 
 The codebase is in good shape: domains under `lib/` are focused and loosely
 coupled, names are precise, and comments mostly explain *why* rather than restate
-*what* — consistent with the standards in [SPEC.md](SPEC.md) §2. The review found
+*what* — consistent with the standards in [specs/maintenance-rule.md](specs/maintenance-rule.md). The review found
 two real correctness bugs (now fixed), a hydration mismatch that hid the demo
 theme editor (fixed), and a set of oversized UI/logic modules that are the main
 remaining structural debt. No architectural rewrites were required.
@@ -48,7 +48,7 @@ remaining structural debt. No architectural rewrites were required.
 
 ### Tests & tooling
 
-- New Playwright E2E suite (see [SPEC.md](SPEC.md) §26) with a root runner
+- New Playwright E2E suite (see [specs/testing.md](specs/testing.md)) with a root runner
   `run-e2e.ps1`, plus `@vitest/coverage-v8` wired in (`npm run test:coverage`).
 - Seven new `lib/` unit-test files raising `lib/` line coverage ~31% → ~42%.
 

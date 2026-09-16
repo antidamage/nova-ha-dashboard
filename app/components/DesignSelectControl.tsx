@@ -25,7 +25,7 @@ export function DesignSelectControl() {
   const { containerRef, menuRef, menuStyle } = useSelectMenu(open, setOpen);
 
   // Read after mount, not during render: the id comes from a client-only
-  // global, and the config page is server-rendered (SPEC.md §2 hydration rule).
+  // global, and the config page is server-rendered (specs/maintenance-rule.md hydration rule).
   useEffect(() => {
     setActiveId(readActiveDesignId());
   }, []);

@@ -585,7 +585,7 @@ sets `color: var(--ce-tint)` on its root, reads that back resolved, and stamps
 theme variants differ only in custom-property values — nothing in the DOM says
 which is active — so this keeps the control self-contained and correct on the
 config page, inside a design module, and for any caller that overrides
-`--ce-tint`. It starts dark on the server and first client render (SPEC.md §2)
+`--ce-tint`. It starts dark on the server and first client render (specs/maintenance-rule.md)
 and re-reads on `nova-accent-change`, `nova-theme-set-change` and
 `nova-sun-change`.
 

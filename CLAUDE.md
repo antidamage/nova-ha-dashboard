@@ -1,5 +1,13 @@
 # Nova web dashboard — custom UX component inventory
 
+**Before creating or growing a source file, read
+[`specs/agent-token-footprint.md`](specs/agent-token-footprint.md).** This code
+is read by agents: there is a 10 KB soft cap per file, a fixed
+package/file-role directory convention, and a ratchet in
+`lib/architecture.test.ts` that fails the build when an oversized file grows.
+`ARCHITECTURE.md` says where things live; [`specs/README.md`](specs/README.md)
+indexes the specification, which replaced the root `SPEC.md` on 2026-09-16.
+
 The reuse rule itself lives in the repo-root `AGENTS.md` under "UI
 implementation conventions": when a surface already has a custom component for
 a control, find and reuse it rather than dropping to a raw `<input>`, an

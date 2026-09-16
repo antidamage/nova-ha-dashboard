@@ -12,7 +12,7 @@ export type VoiceHostRefreshResult =
 
 // Where the voice server lives. Named for the ROLE, not for whichever machine
 // currently fills it: the same build must run against any host configured for
-// it (SPEC.md §2). `NOVA_VOICE_IRIDIUM_URL` is the previous, machine-named
+// it (specs/maintenance-rule.md). `NOVA_VOICE_IRIDIUM_URL` is the previous, machine-named
 // spelling and is still honoured so existing deployments keep working — new
 // installs should set NOVA_VOICE_HOST_URL.
 const DEFAULT_VOICE_HOST_URL = "https://voice-server.local:8766";

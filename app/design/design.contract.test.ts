@@ -67,7 +67,7 @@ describe("design registry contract", () => {
     }
   });
 
-  // SPEC.md §2 Experience Mode Parity: a feature with no declared lite
+  // specs/maintenance-rule.md, Experience Mode Parity: a feature with no declared lite
   // behaviour does not ship.
   it("makes every design declare all four lite flags", () => {
     for (const design of designs) {
