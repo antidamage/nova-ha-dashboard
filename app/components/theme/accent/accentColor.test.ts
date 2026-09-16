@@ -7,8 +7,8 @@ import {
   mixDeviceThemeColors,
   useDeviceTheme,
   type ThemeStorageValue,
-} from "./accentColor";
-import { SliderControlPanel } from "./ConfigControls";
+} from "../../accentColor";
+import { SliderControlPanel } from "../../ConfigControls";
 
 function themeWithGymColor(rgb: [number, number, number]): ThemeStorageValue {
   return {
