@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compareReminderTiles } from "./ReminderIconBar";
+import { compareReminderTiles } from "../ReminderIconBar";
 
 function tile(key: string, nextDueMs: number, order = 0) {
   return { key, nextDueMs, order };

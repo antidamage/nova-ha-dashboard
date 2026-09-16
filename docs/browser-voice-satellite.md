@@ -30,7 +30,7 @@ browser mic ─getUserMedia→ AudioWorklet ─16 kHz int16 640B NVAF frames→
     ─mTLS /v1/satellites→ Iridium voice server
 ```
 
-- **Client runtime**: `app/components/dashboard/browserSatellite.ts`
+- **Client runtime**: `app/components/dashboard/browserSatellite.ts` (facade; the class is in `app/components/dashboard/satellite/runtime.ts`)
   (capture + resample + NVAF framing + playback), driven by the shared
   `voiceMode.ts` store and mounted headless via
   `app/components/dashboard/BrowserVoiceSatellite.tsx`.

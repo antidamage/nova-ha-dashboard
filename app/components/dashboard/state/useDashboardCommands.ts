@@ -1,0 +1,348 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import type { DashboardState, DashboardZone } from "../../../../lib/types";
+import type { EntityActionInput } from "../../../../lib/aircon-control";
+import { LIGHT_COMMAND_POLL_HOLD_MS } from "../lighting";
+import {
+  entityActionsAffectClimatePolling,
+  entityActionsAffectLightPolling,
+  isLightZoneAction,
+  optimisticStateForEntityActions,
+  optimisticStateForZoneAction,
+} from "./optimistic-model";
+import { isClimateZone } from "../shared";
+import { playUxSound } from "../controlSound";
+import { lightSoundForEntityActions, lightSoundForZoneAction } from "../lightSoundTransition";
+import { useModuleIntercepts } from "../../modules/ModuleHost";
+import {
+  CLIMATE_COMMAND_HOLD_MS,
+  CLIMATE_COMMAND_POLL_DELAYS_MS,
+  ENTITY_COMMAND_HOLD_MS,
+  ENTITY_COMMAND_POLL_DELAYS_MS,
+} from "./constants";
+import type { ApplyEntityActionsOptions, RefreshDashboardState } from "./types";
+
+export function useDashboardCommands({
+  data,
+  eventClientId,
+  pausePolling,
+  refresh,
+  selectedZone,
+  setData,
+  setToast,
+}: {
+  data: DashboardState | null;
+  eventClientId: MutableRefObject<number | null>;
+  pausePolling: (durationMs: number) => void;
+  refresh: RefreshDashboardState;
+  selectedZone: DashboardZone | null;
+  setData: Dispatch<SetStateAction<DashboardState | null>>;
+  setToast: Dispatch<SetStateAction<string | null>>;
+}) {
+  const runModuleIntercepts = useModuleIntercepts();
+  const [desktopSleepBusy, setDesktopSleepBusy] = useState(false);
+  const [desktopWakeBusy, setDesktopWakeBusy] = useState(false);
+  const entityActionSequence = useRef(0);
+  const zoneActionSequence = useRef(0);
+  const entityPollTimers = useRef<number[]>([]);
+  const lightResumePollTimer = useRef<number | null>(null);
+  const zoneLightAbortController = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      entityPollTimers.current.forEach(window.clearTimeout);
+      if (lightResumePollTimer.current !== null) {
+        window.clearTimeout(lightResumePollTimer.current);
+      }
+      zoneLightAbortController.current?.abort();
+    };
+  }, []);
+
+  const scheduleLightResumePoll = useCallback(() => {
+    if (lightResumePollTimer.current !== null) {
+      window.clearTimeout(lightResumePollTimer.current);
+    }
+
+    lightResumePollTimer.current = window.setTimeout(() => {
+      lightResumePollTimer.current = null;
+      void refresh().catch(() => undefined);
+    }, LIGHT_COMMAND_POLL_HOLD_MS + 100);
+  }, [refresh]);
+
+  const scheduleEntityCommandPolls = useCallback(
+    (sequence: number, delaysMs: readonly number[]) => {
+      entityPollTimers.current.forEach(window.clearTimeout);
+      entityPollTimers.current = delaysMs.map((delay) =>
+        window.setTimeout(() => {
+          if (sequence === entityActionSequence.current) {
+            void refresh().catch(() => undefined);
+          }
+        }, delay),
+      );
+    },
+    [refresh],
+  );
+
+  useEffect(() => {
+    if (!selectedZone || !isClimateZone(selectedZone)) {
+      return;
+    }
+
+    let alive = true;
+    const load = () => {
+      if (!alive || document.hidden) {
+        return;
+      }
+      refresh().catch(() => undefined);
+    };
+
+    load();
+    const timer = window.setInterval(load, 3000);
+
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [refresh, selectedZone?.id]);
+
+  /**
+   * A zone action for any zone, not only the selected one. Quick Access drives
+   * the Home zone while another zone is open (specs/quick-access-card.md). The
+   * sequence and abort controller stay shared: the server treats every
+   * interactive lighting command as superseding the last, whatever its zone.
+   */
+  const applyZoneActionFor = useCallback(
+    async (zone: DashboardZone, action: string, body: Record<string, unknown> = {}) => {
+      // Module interceptors run BEFORE the optimistic write and the poll hold,
+      // so a cancelled action leaves neither behind.
+      const proceed = await runModuleIntercepts({
+        id: "zone.action",
+        source: "client",
+        zone: { id: zone.id, name: zone.name },
+        service: action,
+        data: body,
+      });
+      if (!proceed) {
+        return;
+      }
+
+      const sequence = zoneActionSequence.current + 1;
+      zoneActionSequence.current = sequence;
+      const holdLightPolling = isLightZoneAction(action);
+
+      if (holdLightPolling) {
+        const zoneLightSound = lightSoundForZoneAction(zone.id, action, data);
+        if (zoneLightSound) playUxSound(zoneLightSound);
+
+        pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
+        setData((current) =>
+          current ? optimisticStateForZoneAction(current, zone.id, action, body) : current,
+        );
+      }
+
+      const controller = holdLightPolling ? new AbortController() : null;
+      if (controller) {
+        zoneLightAbortController.current?.abort();
+        zoneLightAbortController.current = controller;
+      }
+
+      try {
+        const response = await fetch("/api/zone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ zoneId: zone.id, action, sourceClientId: eventClientId.current, ...body }),
+          signal: controller?.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Zone action failed");
+        }
+
+        if (sequence !== zoneActionSequence.current) {
+          return;
+        }
+
+        if (holdLightPolling) {
+          pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
+          scheduleLightResumePoll();
+        } else {
+          setData(payload);
+        }
+
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        if (sequence === zoneActionSequence.current) {
+          setToast(err instanceof Error ? err.message : "Zone action failed");
+          if (holdLightPolling) {
+            void refresh({ force: true }).catch(() => undefined);
+          }
+        }
+      } finally {
+        if (controller && zoneLightAbortController.current === controller) {
+          zoneLightAbortController.current = null;
+        }
+      }
+    },
+    [eventClientId, pausePolling, refresh, runModuleIntercepts, scheduleLightResumePoll, setData, setToast],
+  );
+
+  const applyZoneAction = useCallback(
+    (action: string, body: Record<string, unknown> = {}) =>
+      selectedZone ? applyZoneActionFor(selectedZone, action, body) : Promise.resolve(),
+    [applyZoneActionFor, selectedZone],
+  );
+
+  const applyEntityActions = useCallback(
+    // `toastMessage` no longer shows on success — the confirmation box is gone
+    // (Adeline, 2026-09-12) — but it stays in the signature as the action's
+    // name for callers and for any future reporting.
+    async (actions: EntityActionInput[], toastMessage: string, _options?: ApplyEntityActionsOptions) => {
+      if (!actions.length) {
+        return;
+      }
+
+      // One decision for the whole batch: the actions in a batch are one user
+      // gesture, so confirming them individually would ask the same question
+      // several times for a single press.
+      const first = actions[0];
+      const proceed = await runModuleIntercepts({
+        id: "entity.action",
+        source: "client",
+        entity: {
+          id: first.entityId,
+          domain: first.domain,
+          friendlyName: data?.entities.find((entity) => entity.entity_id === first.entityId)?.name,
+          state: data?.entities.find((entity) => entity.entity_id === first.entityId)?.state,
+        },
+        service: first.service,
+        data: { actions: actions.map(({ entityId, domain, service }) => ({ entityId, domain, service })) },
+      });
+      if (!proceed) {
+        return;
+      }
+
+      const sequence = entityActionSequence.current + 1;
+      entityActionSequence.current = sequence;
+      const holdLightPolling = entityActionsAffectLightPolling(actions, data);
+      const holdClimatePolling = entityActionsAffectClimatePolling(actions);
+      const commandHoldMs = holdLightPolling
+        ? LIGHT_COMMAND_POLL_HOLD_MS
+        : holdClimatePolling
+          ? CLIMATE_COMMAND_HOLD_MS
+          : ENTITY_COMMAND_HOLD_MS;
+
+      // Measured against the state before the optimistic write, so the
+      // crossing is real; played on this surface only (specs/ux-sounds.md).
+      const lightSound = lightSoundForEntityActions(actions, data);
+      if (lightSound) playUxSound(lightSound);
+
+      pausePolling(commandHoldMs);
+      setData((current) => (current ? optimisticStateForEntityActions(current, actions) : current));
+
+      try {
+        for (const action of actions) {
+          const response = await fetch("/api/entity", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...action, sourceClientId: eventClientId.current }),
+          });
+          const body = await response.json();
+          if (!response.ok) {
+            throw new Error(body.error ?? "Entity action failed");
+          }
+        }
+
+        if (sequence !== entityActionSequence.current) {
+          return;
+        }
+
+        if (holdLightPolling) {
+          pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
+          scheduleLightResumePoll();
+        } else {
+          pausePolling(commandHoldMs);
+          scheduleEntityCommandPolls(
+            sequence,
+            holdClimatePolling ? CLIMATE_COMMAND_POLL_DELAYS_MS : ENTITY_COMMAND_POLL_DELAYS_MS,
+          );
+        }
+
+      } catch (err) {
+        if (sequence === entityActionSequence.current) {
+          setToast(err instanceof Error ? err.message : "Entity action failed");
+          void refresh({ force: true }).catch(() => undefined);
+        }
+      }
+    },
+    [data, eventClientId, pausePolling, refresh, runModuleIntercepts, scheduleEntityCommandPolls, scheduleLightResumePoll, setData, setToast],
+  );
+
+  const applyDesktopSleep = useCallback(
+    async (computer: { id: string; name: string }) => {
+      if (desktopSleepBusy) {
+        return;
+      }
+
+      setDesktopSleepBusy(true);
+
+      try {
+        const response = await fetch("/api/desktop/sleep", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: computer.id, sourceClientId: eventClientId.current }),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body.error ?? "Desktop sleep action failed");
+        }
+
+      } catch (err) {
+        setToast(err instanceof Error ? err.message : "Desktop sleep action failed");
+      } finally {
+        setDesktopSleepBusy(false);
+      }
+    },
+    [desktopSleepBusy, eventClientId, setToast],
+  );
+
+  const applyDesktopWake = useCallback(
+    async (computer: { id: string; name: string }) => {
+      if (desktopWakeBusy) {
+        return;
+      }
+
+      setDesktopWakeBusy(true);
+
+      try {
+        const response = await fetch("/api/desktop/wake", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: computer.id, sourceClientId: eventClientId.current }),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body.error ?? "Desktop wake action failed");
+        }
+
+      } catch (err) {
+        setToast(err instanceof Error ? err.message : "Desktop wake action failed");
+      } finally {
+        setDesktopWakeBusy(false);
+      }
+    },
+    [desktopWakeBusy, eventClientId, setToast],
+  );
+
+  return {
+    applyDesktopSleep,
+    applyDesktopWake,
+    applyEntityActions,
+    applyZoneAction,
+    applyZoneActionFor,
+    desktopSleepBusy,
+    desktopWakeBusy,
+  };
+}
