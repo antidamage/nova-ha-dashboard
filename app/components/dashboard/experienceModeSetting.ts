@@ -29,7 +29,7 @@ import { useCallback, useEffect, useState } from "react";
 // full lite; JS-driven work (rAF loops, canvas/WebGL, polling, media playback)
 // is NOT auto-covered and must gate itself on the relevant feature via
 // useExperienceFeature() / readExperienceFeatures() (or useLiteMode() for the
-// all-off pathway). See SPEC.md "Experience Modes" and docs/lite-mode.md
+// all-off pathway). See specs/experience-modes.md and docs/lite-mode.md
 // before adding any new visual or costly feature.
 export type ExperienceMode = "rich" | "lite";
 

@@ -1,7 +1,7 @@
 /**
  * EXAMPLE — enriching entity data before zones are assembled.
  *
- * Demonstrates `transformEntities` plus rule 3 of SPEC.md §32.2: absence must
+ * Demonstrates `transformEntities` plus rule 3 of specs/module-system.md: absence must
  * not degrade anything else. This module mutates entities in place and must
  * behave correctly whether it runs first, last, or not at all.
  *

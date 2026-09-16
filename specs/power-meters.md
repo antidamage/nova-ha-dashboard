@@ -28,6 +28,67 @@ estimate for the other two keeps getting better.
 | `app/components/dashboard/PowerMeters.tsx` | both surfaces, mounted by `PowerPanel` |
 | `instrumentation.ts` | starts the guard |
 
+## Power estimation background
+
+`lib/power.ts` estimates whole-house electricity usage and cost from Home
+Assistant state — there is no household-wide meter. Data sources, in the
+order they are preferred:
+
+- Explicit power sensors, where available (the two metered plugs above are
+  the only ones with `confidence: "measured"` today).
+- Device wattage ratings (`power.deviceRatings`), combined with
+  brightness/color state for lights and mode/temperature state for climate.
+- Integrated local sample history.
+- Optional Powershop account usage scrape files (§Powershop scrape below).
+- Configured modeled base loads.
+- Hardcoded Powershop rates for known 2025/2026 plans, unless overridden by
+  data or config in future code.
+
+State files: `data/power/state.json` (sample history and the floating-meter
+categories of §3.3), `device-ratings.json` (`power.deviceRatings`), and
+`account-usage.json` (Powershop scrape output).
+
+Estimation behavior:
+
+- Explicit power sensors override modeled estimates.
+- Lights and illumination switches estimate standby/off and active watts;
+  brightness scales the estimate, and color can apply an additional factor
+  where modeled.
+- Climate estimates cover standby/off, fan/dry, Gree heat/cool input watts,
+  and a generic climate load based on temperature delta. Panel heater
+  estimates reduce draw when the target appears satisfied.
+- Modeled base loads include fridges, the water heater, the desktop PC, and
+  Nova's own always-on load (`novaAioAverageWatts`) — the same base loads
+  §3.4 suppresses when a floating-meter category measures them directly.
+
+Integration behavior:
+
+- Samples are serialized; elapsed hours since the previous sample are capped
+  by `maxIntegrationHours`.
+- Daily and hourly buckets are updated, and per-device kWh/cost accumulated.
+- The billing cycle is a configured day-of-month start/end in
+  `Pacific/Auckland`.
+
+The dashboard payload includes the current rate, current watts, current cost
+per hour, day/week/billing/year summaries, a billing projection, the account
+usage and rate curves, a recent usage curve, background/base-load estimates,
+top devices, and a rate-source warning when the rate fetch or hash
+validation fails.
+
+MQTT/Home Assistant publishing (general): the power monitor publishes MQTT
+discovery and state through the HA `mqtt.publish` service, including
+per-device estimated power/energy/rated power and home estimated power, at
+configurable discovery/state intervals, retained. §6 below adds the two
+meters' own sensors on the same path.
+
+### Power UI
+
+The Grid zone renders `PowerPanel`, which polls `/api/power` every 5 seconds
+and on visibility/focus/online/pageshow, and toggles between credits/cost and
+kWh display. It shows current use, daily estimate, billing estimate,
+billing-to-date, curves, summaries, inferred base loads, and top devices, in
+addition to the two meter surfaces described below.
+
 ## 1. The golden rule: neither meter is ever off
 
 Adeline: *"neither of them must ever be switched off. If they are, power is to
@@ -575,3 +636,78 @@ rebuilt 2026-09-14T20:06Z wash to Tonya (manual); the 05:04Z wash stays Addie.
 - Power panel shows two washes: Addie (yesterday 17:04) and Tonya (this morning
   08:07), and Home Entertainment's history reaches back to 2026-09-14T17.
 - Reattribute and rebuild are covered by unit tests, including idempotence.
+
+## Powershop scrape
+
+`scripts/powershop-daily-scrape.mjs` uses Playwright to log into Powershop,
+capture usage data, normalize it, and write daily JSON records — the account
+usage data source §Power estimation background lists above.
+
+- Credentials: `POWERSHOP_EMAIL` / `POWERSHOP_PASSWORD`.
+- Supports dry-run, target date, `--storage-state`, template path, data
+  directory, and headful/headless options. `--fresh-login` ignores the saved
+  state for one run but replaces it only after a successful login, so a
+  failed refresh leaves the working state recoverable.
+- `--start-date YYYY-MM-DD --end-date YYYY-MM-DD` refreshes an inclusive
+  range in one authenticated session via the direct hourly-measurements API,
+  retains separate raw evidence and daily output per date, pauses briefly
+  between requests, continues past isolated failures, and updates
+  `latest.json` only after the end date completes.
+- MFA challenge pages are not treated as authenticated dashboard sessions; a
+  successful dashboard check refreshes the saved Playwright storage state at
+  `storage-state.json` in the Powershop data directory. Login codes come via
+  `--login-code`, `POWERSHOP_LOGIN_CODE`, or `--wait-for-login-code` in the
+  same session; the Docker wrapper's file-based form
+  (`--wait-for-login-code --login-code-file /data/login-code.txt`) lets an
+  operator write the temporary code into the host data directory without a
+  second login session. Code files are consumed and removed as soon as they
+  are read; storage state is written atomically with mode `0600`, and an
+  unusable state is ignored so the process falls through to login instead of
+  dying before the MFA wait.
+- A durable manual refresh keeps the original browser request open while an
+  operator (or a Gmail-connected agent) retrieves the fresh six-digit code:
+  `bash scripts/run-powershop-daily-scrape.sh --fresh-login --login-only
+  --wait-for-login-code --login-code-file /data/login-code.txt`. Write the
+  code atomically to `data/power/powershop/login-code.txt` (mode-`0600`
+  sibling temp file, then rename); the old saved session is untouched until
+  the replacement authenticates.
+- After authentication, the scraper calls Powershop's authenticated
+  `measurements` GraphQL query directly for hourly consumption records,
+  deriving kWh from `value` and cost from `CONSUMPTION_COST` plus
+  `STANDING_CHARGE_COST` `costInclTax.estimatedAmount`, and keeps the older
+  page/network scrape as fallback evidence. Account/property discovery
+  accepts the current `accountsList`/`account` bootstrap responses as well as
+  the older `accountViewer` response.
+- Failed runs are retained under `failures/` with their error text, rather
+  than leaving only an opaque status line in the cron log.
+- `scripts/run-powershop-daily-scrape.sh` runs the scraper in a Playwright
+  Docker image matching the checked-in Playwright 1.60 dependency, host
+  networking, logs in the data directory, `flock` serialization, and passes
+  only `POWERSHOP_*` values into the browser container rather than exposing
+  the dashboard's unrelated secrets.
+- `scripts/install-powershop-cron.sh` installs a cron entry at `8 5 * * *`
+  for the runner under `/opt/nova-ha-dashboard` by default.
+
+## GymMaster attendance scrape
+
+`scripts/gymmaster-attendance-scrape.mjs` uses Playwright to log into the
+AllFit GymMaster member portal and open `/portal/account/visithistory`.
+
+- Credentials (`GYMMASTER_EMAIL` / `GYMMASTER_PASSWORD`) live in the runtime
+  environment or Nova `.env.local`, never in source.
+- The scraper reuses a Playwright storage state file under the GymMaster data
+  directory after successful login, extracts candidate visit timestamps from
+  the visit-history DOM and captured portal responses, chooses the newest
+  non-future visit, and writes `data/gymmaster/latest.json`.
+- On success it updates `/api/watchface` with `gymLastResetAt: <latest visit
+  ISO timestamp>` so the avatar and watchface share the same counter source;
+  if the API is unreachable it falls back to updating the dashboard
+  preferences file directly.
+- It writes only compact status/evidence metadata and the selected
+  timestamp — never the GymMaster password or raw portal HTML.
+- `scripts/run-gymmaster-attendance-scrape.sh` runs it in a Playwright Docker
+  image with host networking, a non-overlap lock, mounted dashboard data, and
+  logs under `data/gymmaster/logs`.
+- `scripts/install-gymmaster-cron.sh` installs the cadence: every 15 minutes
+  from 20:00 through 02:00, once per hour from 03:00 through 19:00, in the
+  Nova host's local timezone.

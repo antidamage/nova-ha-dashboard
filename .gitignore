@@ -36,6 +36,11 @@ pnpm-debug.log*
 .codex/
 .cache/
 .tmp/
+# Scratch dirs and files agents create beside .tmp/. `.tmp/` misses the
+# hyphenated variants, so `.tmp-probe/` and `.tmp-zones.json` were tracked --
+# the latter carrying this household's real entity ids.
+.tmp-*/
+.tmp-*
 .playwright-cli/
 output/
 data/*.json

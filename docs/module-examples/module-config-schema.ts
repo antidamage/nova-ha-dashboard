@@ -1,7 +1,7 @@
 /**
  * EXAMPLE — the zod block that goes with a module.
  *
- * Demonstrates rule 1 of SPEC.md §32.2 and the clause that matters most in the
+ * Demonstrates rule 1 of specs/module-system.md and the clause that matters most in the
  * golden rule: a config read with a hard-coded fallback beside it does NOT
  * satisfy the rule.
  *

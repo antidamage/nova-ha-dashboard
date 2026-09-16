@@ -136,4 +136,4 @@ requests than the integration's default (about one an hour), not fewer.
 - Unit tests cover: one HA call per interval under repeated builds, a failure
   cached for the interval, no call while the entity is unavailable, and last
   good status returned on failure.
-- `SPEC.md` §7 "Weather and sun" points at this spec.
+- `specs/home-assistant-integration.md` ("Weather and sun") points at this spec.

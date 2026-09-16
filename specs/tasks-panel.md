@@ -6,6 +6,58 @@ task log `20260914T101019Z-06c0031b`.
 `app/components/TasksPanel.tsx`; the filter is `taskVisibleInTab` in
 `app/components/tasks/task-model.ts`.
 
+## Data model
+
+`lib/tasks.ts` stores and manages tasks.
+
+- Sources: `local`, `icloud-calendar`, `icloud-reminders`.
+- Fields: `id`, `name`, `start`, `end`, `createdAt`, `dismissedAt`,
+  `alertDismissedAt`, `alertDismissedFor`, `alertChimedFor` (the chime claim
+  described under Task alerts and audio), `annoy`, `repeat`, `source`,
+  `sourceId`, `sourceCalendar`, `occurrenceDate`, `readOnly`.
+- Repeat support: hourly; morning-night (12-hour cadence); every N days
+  (1–365). A repeat's duration must be shorter than its interval.
+- Store behavior: a missing task file reads as empty; invalid rows are
+  normalized or discarded; a completed repeating task advances to its next
+  occurrence once the current one passes; an accidentally dismissed current
+  repeating occurrence is repaired; mirrored/read-only iCloud tasks cannot be
+  edited through the local update APIs; alert dismissal is separate from
+  task completion; completing a repeating task advances it where
+  appropriate; task operations broadcast task events to SSE clients.
+
+## CSV task parser
+
+Input format is `start,end,name[,repeat]`.
+
+- Blank lines and comment lines are ignored.
+- Time-only values use the reference date; a time-only end before the start
+  rolls to the next day.
+- Repeat values accept `hourly`, `morning-night`/`morning`/`night`, `days:N`,
+  or a bare integer day count.
+
+## Task import/export
+
+- The import modal exposes iCloud status and Sync Now; CSV text can be
+  previewed and validated before a bulk import posts to `/api/tasks/bulk`.
+- Export emits local tasks as `start,end,name,repeat` text, with commas in
+  task names replaced by spaces.
+
+## Task editing
+
+- Local tasks can be created and edited inline: name, start, optional end,
+  repeat settings.
+- iOS-style edit mode supports selection and deletion.
+- Completing a task calls `/api/tasks/[id]/complete`; dismissing only the
+  reminder calls `/api/tasks/[id]/dismiss`.
+- Mirrored iCloud tasks show source metadata and are read-only; converting
+  one to local clones it through the add API and deletes the mirrored local
+  copy.
+- Realtime updates arrive over `/api/events`; initial state loads from
+  `/api/tasks?command=list`. `TasksPanel` is always mounted so current-task
+  state is tracked even when the Reminders zone isn't selected, and a
+  current-task bar can show while another zone is selected. Local time ticks
+  every second. Status labels are Active, Due, Done, and Upcoming.
+
 ## Two lists, not two tabs
 
 - The **Today** / **Upcoming** tab switch is gone. The panel shows **two lists,
@@ -95,3 +147,84 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 
 Adeline, 2026-09-16: the panel has no "Schedule / Reminders" header. The
 highlighted Reminders menu item already names it.
+
+## Task alerts and audio
+
+- Server alert scanning runs every second while clients are connected; a
+  task alert is emitted as a rising edge when a task enters its alert
+  window.
+- Banners are a **per-device opt-in**, off by default:
+  `nova.dashboard.reminderBanner.v1`
+  (`app/components/dashboard/reminderBannerSetting.ts`), surfaced as the
+  Reminder Banners checkbox in Appearance & Dashboard → Reminders. The
+  switch covers the bottom bar and the full-screen overlay; it does not
+  govern sound cadence, which is per-reminder (below).
+  - Enabled: the client adds `task-alerting` to the body, shows the
+    overlay/banner UI, and dismisses the alert (swallowing the tap) on a
+    capture-phase tap outside the banner, or on the banner itself.
+  - Disabled: no bottom bar or overlay renders, and the capture-phase tap
+    swallow is not installed, so it doesn't eat taps meant for the reminder
+    icon bar.
+- Audio plays from `/api/tasks/audio` when an MP3 exists. A reminder chimes
+  **once per occurrence, household-wide**: the first screen to play it
+  claims the occurrence via `POST /api/tasks/:id/chimed`, which sets
+  `alertChimedFor` to the alert session key and broadcasts the task; every
+  other screen, and every later page load, sees the claim and stays quiet.
+  Dismissing the alert also spends the chime, so dismissal implies silence
+  even if the sound never played. `alertChimedFor` is cleared wherever
+  `alertDismissedFor` is — repeat roll-forward, completion, or any
+  reschedule that moves `start`/`end` — so a new occurrence gets a new
+  chime.
+- A reminder with `annoy: true` ("Keep chiming until dismissed" in the
+  editor, off by default) is exempt from the once-per-occurrence claim: it
+  repeats on the configured interval until dismissed, ended, or completed.
+- The audio window and repeat interval come from
+  `tasks.alertAudio.alertWindowMs` and `tasks.alertAudio.repeatMs`,
+  delivered over `/api/config/client`. Browser audio blocking is logged
+  rather than treated as fatal.
+
+## Reminder icon bar
+
+A fixed row of sigils between the clock and zones panels
+(`app/components/dashboard/ReminderIconBar.tsx`), rendered on every device
+regardless of the banner setting.
+
+- Placement: portrait/narrow is a full-width row between the clock and zones
+  panel; wide landscape (`min-width: 1126px` and `orientation: landscape`)
+  moves the bar into the 300px sidebar column, centred under the status orb,
+  sitting on top of the zones menu, with tiles wrapping within the column
+  rather than overflowing it.
+- Sigils come from a curated Phosphor catalogue (`lib/reminder-glyph.ts`,
+  joined to components in `app/components/reminders/icon-registry.tsx`) plus
+  a 1–2 character text glyph option.
+- Assignments live in `lib/reminder-icons.ts`, keyed on the **normalised
+  reminder name**, not the task id — iCloud mirrors get fresh ids on every
+  sync and `updateTask` refuses to write to a mirrored task, so a name key is
+  the only way a read-only Apple reminder can carry a user-chosen icon.
+  Assignment order on first sight: existing entry (sticky) → keyword table →
+  LLM → generic bell. The LLM step (`POST /v1/classify-icon` on the voice
+  orchestrator, proxied to the loopback-bound `llama-server`, catalogue ids
+  sent as an allow-list compiled into the response schema and re-validated
+  on both sides) is asynchronous and best-effort — it never blocks or fails
+  a reminder write.
+- Bar membership: a repeating reminder (local `repeat`, or an iCloud RRULE
+  recorded as `Task.recurs`) auto-joins; one-offs get a sigil but no tile.
+  Toggling membership by hand sets `showInBarLocked` and the auto rule stops
+  applying to that reminder.
+- Tile state: dimmed to `dashboard.reminders.inactiveOpacity` when nothing is
+  due, full opacity when due or active, and a slow glow pulse in the orb's
+  alert colour once overdue past `dashboard.reminders.overduePulseAfterMs`
+  (published as `--nova-alert-rgb` from the theme's avatar `gradientAlert`
+  slot). Overdue is `isTaskOverdue` in `app/components/tasks/task-model.ts`,
+  separate from `statusForTask` (which collapses everything past its end
+  into "Done") — a repeating local task with an end rolls itself forward and
+  so is never overdue; end-less reminders and iCloud mirrors are what
+  actually reach the state.
+- Tapping a tile completes its reminder. Pressing and holding for
+  `undoHoldMs` within `undoWindowMs` of that tap restores it through
+  `POST /api/tasks/[id]/uncomplete`, replaying a pre-completion snapshot —
+  completing a repeating reminder also rolls it to the next occurrence, so
+  clearing `dismissedAt` alone would not undo anything.
+- Lite mode: everything here is CSS, so `html[data-nova-lite] *`
+  neutralises the pulse; no rAF, no canvas, no polling of its own (the 1s
+  tick and task feed are shared), so no `useLiteMode()` gate is required.

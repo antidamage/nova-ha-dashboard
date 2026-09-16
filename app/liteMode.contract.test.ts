@@ -2,12 +2,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Contract tripwire for the lite-mode plumbing (SPEC.md "Experience Modes",
+// Contract tripwire for the lite-mode plumbing (specs/experience-modes.md,
 // docs/lite-mode.md). The pre-paint seed lives in an inline <head> script and
 // the kill-switch lives in plain CSS — neither has a runtime handle in jsdom,
 // so these assertions grep the sources. If one of these fails, the per-device
 // lite pathway is broken for every lite device: fix the plumbing (or update
-// SPEC.md §"Experience Modes" and this test together if the contract itself
+// specs/experience-modes.md and this test together if the contract itself
 // is intentionally changing).
 
 const appDir = __dirname;

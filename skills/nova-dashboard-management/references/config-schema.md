@@ -22,7 +22,7 @@ Portable config excludes secrets and machine-local paths. Runtime environment st
 - `POWERSHOP_PASSWORD`
 - `NOVA_DASHBOARD_MCP_TOKEN`
 
-Nothing specific to one home may go in dashboard source — no entity IDs, area names, device IDs, hostnames, IPs, timezones or tariffs. It lives in config, and the values for this particular installation live in a separate household package merged via `NOVA_DASHBOARD_HOUSEHOLD_CONFIG`. `lib/no-household-data.test.ts` fails the build if one reappears; SPEC.md §2 and §32 have the rule and the module contract.
+Nothing specific to one home may go in dashboard source — no entity IDs, area names, device IDs, hostnames, IPs, timezones or tariffs. It lives in config, and the values for this particular installation live in a separate household package merged via `NOVA_DASHBOARD_HOUSEHOLD_CONFIG`. `lib/no-household-data.test.ts` fails the build if one reappears; `specs/maintenance-rule.md` and `specs/module-system.md` have the rule and the module contract.
 
 Always call `nova.config.validate` before `nova.config.apply`.
 For setup-only edits, put common Home Assistant/map/power values in `config/common.json`. Do not put settings that are managed by `/config` there.

@@ -12,7 +12,7 @@ built-in look in place. Invalid files are skipped and reported in the API respon
 `errors` array; they never break the orb.
 
 The authoritative format documentation lives in `lib/orb-modules.ts` (types +
-normalization) and SPEC.md ("Status Orb Modules"). The short version:
+normalization) and specs/status-orb-stack.md. The short version:
 
 - **Unit space** — the orb radius is `1.0`, center `(0, 0)`, +y down. Every
   length is a fraction of the orb radius.

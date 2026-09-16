@@ -1,7 +1,7 @@
 /**
  * EXAMPLE — zero to N instances from a config array.
  *
- * Demonstrates rule 4 of SPEC.md §32.2: multi-instance by default. One-of-a-kind
+ * Demonstrates rule 4 of specs/module-system.md: multi-instance by default. One-of-a-kind
  * is a special case of N, not the shape to design for.
  *
  * This rule was learned the hard way. A heater and an air conditioner were each
