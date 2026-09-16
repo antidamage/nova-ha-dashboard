@@ -14,7 +14,7 @@ each climate card, Network's router and Computers, Power.
 
 | File | Holds |
 |---|---|
-| `app/components/dashboard/AdvancedFold.tsx` | the component: scroller, default region, divider, advanced region, gesture |
+| `app/components/dashboard/AdvancedFold.tsx` | facade; the component (scroller, default region, divider, advanced region, gesture) is in `advanced-fold/AdvancedFold.tsx`, its axis helpers in `advanced-fold/scroller-model.ts` |
 | `app/components/dashboard/advancedFoldBand.ts` | the band curve and constants, pure functions |
 | `app/globals.css` | `.advanced-fold*` rules, landscape and portrait |
 | `app/components/dashboard/useClickDragScroll.ts` | the page's mouse drag and wheel, which the fold has to cooperate with |
@@ -227,7 +227,7 @@ job.
 - Choosing another zone and coming back shows the fold closed.
 - A reload with a fold open comes back with it closed, while page scroll and
   zone selection restore as before.
-- Unit tests (`AdvancedFold.test.tsx`, `advancedFoldBand.test.ts`) and
+- Unit tests (`advanced-fold/AdvancedFold.test.tsx`, `advancedFoldBand.test.ts`) and
   `e2e/advanced-fold.spec.ts` cover the above.
 
 ## Reminders timer

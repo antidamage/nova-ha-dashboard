@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AdvancedFold } from "./AdvancedFold";
-import { bandDisplacement } from "./advancedFoldBand";
-import { fakeFoldGeometry } from "./advancedFoldTesting";
+import { AdvancedFold } from "../AdvancedFold";
+import { bandDisplacement } from "../advancedFoldBand";
+import { fakeFoldGeometry } from "../advancedFoldTesting";
 
 function matchWide(wide: boolean) {
   vi.stubGlobal("matchMedia", (query: string) => ({
