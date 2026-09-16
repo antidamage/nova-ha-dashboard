@@ -12,5 +12,5 @@
     "target": "ES2022",
     "types": ["node"]
   },
-  "include": ["lib/aircon-control.ts", "lib/aircon-control.test.ts", "lib/types.ts"]
+  "include": ["lib/aircon-control.ts", "lib/aircon-control/**/*.ts", "lib/aircon-control.test.ts", "lib/types.ts"]
 }
