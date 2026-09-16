@@ -30,6 +30,15 @@ export const SOUND_FILE_MAX_BYTES = 1_000_000;
 
 /** Served statically from `public/sounds/ux/<id>.mp3`. */
 export const BUILTIN_SOUNDS: readonly { id: string; name: string }[] = [
+  // The six timer chimes, copied out of `public/sounds/timer-*.mp3` so any
+  // action can use one, not just the timer alert. The timer picker still reads
+  // its own copies; these are separate files under their own ids.
+  { id: "chime-classic", name: "Chime (classic)" },
+  { id: "chime-magical", name: "Chime (magical)" },
+  { id: "chime-motion-tracker", name: "Chime (motion tracker)" },
+  { id: "chime-retro-boop", name: "Chime (retro boop)" },
+  { id: "chime-soft-boop", name: "Chime (soft boop)" },
+  { id: "chime-tink", name: "Chime (tink)" },
   { id: "chunky-mechanical-click", name: "Chunky mechanical click" },
   { id: "light-mechanical-click", name: "Light mechanical click" },
   { id: "light-ratchet", name: "Light ratchet" },

@@ -43,9 +43,9 @@ chars max, uniquified with a `-2` / `-3` suffix on collision. `name` is the
 display label, 120 chars max, defaulting to the uploaded file's basename without
 its extension.
 
-### The six built-ins
+### The built-ins
 
-Sourced from `D:\Downloads\Click sounds\`:
+Six clicks, sourced from `D:\Downloads\Click sounds\`:
 
 | id | name |
 |---|---|
@@ -55,6 +55,24 @@ Sourced from `D:\Downloads\Click sounds\`:
 | `soft-mechanical-click` | Soft mechanical click |
 | `light-ratchet` | Light ratchet |
 | `medium-ratchet` | Medium ratchet |
+
+Plus the six timer chimes, so a chime can be assigned to any action rather than
+only the timer alert. Each is a byte copy of the matching `public/sounds/timer-*.mp3`
+under a library id of its own; the timer picker keeps reading its own files, and
+the `timer-chime` sentinel (whatever the theme's timer sound currently is) is
+unchanged and still `timerAlert`'s default:
+
+| id | name | copied from |
+|---|---|---|
+| `chime-classic` | Chime (classic) | `timer-chime.mp3` |
+| `chime-magical` | Chime (magical) | `timer-magical.mp3` |
+| `chime-motion-tracker` | Chime (motion tracker) | `timer-motion-tracker.mp3` |
+| `chime-retro-boop` | Chime (retro boop) | `timer-retro-boop.mp3` |
+| `chime-soft-boop` | Chime (soft boop) | `timer-soft-boop.mp3` |
+| `chime-tink` | Chime (tink) | `timer-tink.mp3` |
+
+Assigning `chime-classic` pins that clip; assigning the `timer-chime` sentinel
+follows the theme's timer-sound setting.
 
 ### Upload limits
 
