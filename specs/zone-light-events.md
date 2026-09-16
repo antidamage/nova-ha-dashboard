@@ -12,7 +12,7 @@ conservatory pinned preset — rather than replacing them.
 | `lib/config-schema.ts`, `lib/types.ts` | the rule schema |
 | `lib/light-events.ts` | when a rule is due, and what it sends |
 | `lib/dashboard-events.ts` | the host poller that fires them (`scanAdaptiveLighting`) |
-| `lib/ha.ts` | the turn-on path that consumes a staged value |
+| `lib/ha/lighting/commands.ts` | the turn-on path that consumes a staged value |
 | `app/api/lighting/zone-events/route.ts` | list and edit |
 
 ## They live and run on the host
