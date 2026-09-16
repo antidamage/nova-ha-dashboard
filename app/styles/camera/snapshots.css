@@ -1,0 +1,147 @@
+/* Saved captures accordion and the snapshot list. */
+
+.camera-snapshots {
+  margin-top: 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: var(--cyber-panel-soft);
+}
+
+.camera-snapshots-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--cyber-accent-on-bg);
+  cursor: pointer;
+  font-family: var(--cyber-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.camera-snapshots-toggle:hover {
+  color: var(--cyber-title-on-bg);
+}
+
+.camera-snapshots-chevron {
+  flex: none;
+  transition: transform 150ms ease;
+}
+
+.camera-snapshots-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.camera-snapshots-title {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.camera-snapshots-count {
+  flex: none;
+  font-family: var(--cyber-mono);
+  color: var(--cyber-text-dim, rgba(180, 200, 210, 0.7));
+}
+
+.camera-snapshots-body {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-top: 1px solid var(--cyber-border-dim);
+}
+
+.camera-snapshots-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.camera-snapshot-save,
+.camera-snapshot-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--cyber-border-dim);
+  background: var(--cyber-panel);
+  color: var(--cyber-title-on-bg);
+  cursor: pointer;
+  font-family: var(--cyber-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.camera-snapshot-save:hover:not(:disabled),
+.camera-snapshot-download:hover {
+  border-color: var(--cyber-cyan);
+  color: var(--cyber-accent-on-bg);
+}
+
+.camera-snapshot-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.camera-snapshots-message {
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  color: var(--cyber-accent-on-bg);
+}
+
+.camera-snapshots-hint,
+.camera-snapshots-empty {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--cyber-text-dim, rgba(180, 200, 210, 0.6));
+}
+
+.camera-snapshots-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.camera-snapshot-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--cyber-border-dim);
+  background: var(--cyber-bg);
+}
+
+.camera-snapshot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.camera-snapshot-when {
+  font-family: var(--cyber-mono);
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--cyber-title-on-bg, #e5f6ff);
+}
+
+.camera-snapshot-size {
+  font-family: var(--cyber-mono);
+  font-size: 0.66rem;
+  color: var(--cyber-text-dim, rgba(180, 200, 210, 0.6));
+}

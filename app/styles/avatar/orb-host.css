@@ -1,0 +1,74 @@
+/* Nova avatar host positioning and the voice speaking-orb migration. */
+
+.nova-avatar-visual {
+  display: inline-block;
+  position: relative;
+}
+
+.nova-avatar-host {
+  position: fixed;
+  top: var(--nova-avatar-margin);
+  left: 50%;
+  transform: translateX(-50%) scale(var(--nova-avatar-scale, 1));
+  transform-origin: top center;
+  height: var(--nova-avatar-size);
+  z-index: 1000;
+  pointer-events: none;
+  /* NB: no `filter` here. The orb's cast shadow is a box-shadow on the glass
+     disc instead — a `filter` on this ancestor would make the orb a backdrop
+     root and silently disable the glass backdrop-filter refraction. */
+  will-change: transform;
+}
+
+/* ==== VOICE SPEAKING ORB ==================================================
+   While the voice agent speaks, NovaAvatar migrates the orb to the viewport
+   centre and enlarges it (travel computed in JS as CSS variables), pulsing
+   the gym-alert colour in time with the response's consonants. The transient
+   .nova-avatar-returning class carries the way-back transition; the base
+   .nova-avatar-host rule must stay transition-free so scroll scaling never
+   lags. Lite mode's blanket near-zero transition rule makes both journeys
+   instant automatically. */
+.nova-avatar-host.nova-avatar-speaking {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(-50%)
+    translate(
+      var(--nova-avatar-speech-x, 0px),
+      var(--nova-avatar-speech-y, 0px)
+    )
+    scale(var(--nova-avatar-speech-scale, 2));
+  z-index: 4000;
+}
+
+.nova-avatar-host.nova-avatar-returning {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Speech-only host: devices with the status orb feature off still show the
+   speaking orb (it mounts just for the speech window). It spawns already
+   centred and fades instead of migrating; the distinct class keeps it clear
+   of the data-nova-no-orb/data-nova-lite display:none rules and the body
+   padding reserved for .nova-avatar-host. */
+.nova-avatar-speech-host {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(var(--nova-avatar-speech-scale, 2));
+  z-index: 4000;
+  pointer-events: none;
+  /* No `filter` — see .nova-avatar-host; the shadow rides the glass disc. */
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  will-change: opacity;
+}
+
+.nova-avatar-speech-host.nova-avatar-speech-visible {
+  opacity: 1;
+}
+
+.nova-avatar-canvas {
+  display: block;
+  border-radius: 50%;
+  pointer-events: none;
+  position: relative;
+  z-index: 2;
+}

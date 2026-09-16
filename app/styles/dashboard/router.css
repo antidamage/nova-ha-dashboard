@@ -1,0 +1,101 @@
+/* Router panel: gauges, throughput tracks and the WAN card. */
+
+.router-grid {
+  grid-template-columns: 1.2fr 1fr;
+  grid-template-areas:
+    "gauge throughput"
+    "wan throughput";
+}
+
+.router-gauge-card {
+  grid-area: gauge;
+  container-type: inline-size;
+}
+
+.router-throughput-card {
+  grid-area: throughput;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.router-wan-card {
+  grid-area: wan;
+}
+
+.router-gauge {
+  --router-gauge-deg: 0deg;
+  position: relative;
+  width: min(100%, 360px);
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+}
+
+.router-gauge::before,
+.router-gauge::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 999px 999px 0 0;
+}
+
+.router-gauge::before {
+  bottom: 0;
+  width: 100%;
+  height: 200%;
+  background: conic-gradient(
+    from 270deg at 50% 50%,
+    var(--cyber-cyan) 0deg var(--router-gauge-deg),
+    rgb(var(--cyber-line-rgb) / 0.14) var(--router-gauge-deg) 180deg,
+    transparent 180deg 360deg
+  );
+}
+
+.router-gauge::after {
+  bottom: 0;
+  width: 72%;
+  height: 144%;
+  background: var(--cyber-panel);
+}
+
+.router-gauge-readout {
+  position: absolute;
+  inset: auto 0 18px;
+  z-index: 1;
+  text-align: center;
+}
+
+.router-gauge-readout .text-5xl {
+  font-size: clamp(1.65rem, 15cqw, 3rem) !important;
+  line-height: 0.95;
+  white-space: nowrap;
+}
+
+.router-throughput-track {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.08);
+}
+
+.router-throughput-track span {
+  position: absolute;
+  inset-block: 0;
+  min-width: 2px;
+}
+
+.router-throughput-down {
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--cyber-cyan-rgb) / 0.18),
+    var(--cyber-cyan)
+  );
+}
+
+.router-throughput-up {
+  right: 0;
+  background: linear-gradient(90deg, transparent, var(--cyber-line));
+}

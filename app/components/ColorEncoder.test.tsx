@@ -1,8 +1,7 @@
-import { readFileSync } from "fs";
-import { resolve } from "path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { readCss } from "../styles/readCss";
 import * as haptics from "./haptics";
 import { appliedThemeRgb, type ThemeColorValue } from "./accentColor";
 import { ColorEncoder, COLOR_ENCODER_CHANNELS_WITH_ALPHA } from "./ColorEncoder";
@@ -296,7 +295,7 @@ describe("ColorEncoder", () => {
     // Unscoped, it is the more specific selector and overrides the lit light's
     // own fill, leaving no light lit at all in light mode (2026-09-11). jsdom
     // loads no CSS, so this guards the stylesheet itself.
-    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    const css = readCss();
     expect(css).toContain('.rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="false"] {');
     expect(css).not.toContain('.rotary-encoder[data-mode="light"] .rotary-encoder-led {');
   });
@@ -306,7 +305,7 @@ describe("ColorEncoder", () => {
     // stack: the PNG is only there to stop Brave's auto-dark rewriting the
     // layers over it (2026-09-12). jsdom loads no CSS, so this guards the
     // stylesheet itself.
-    const css = readFileSync(resolve(process.cwd(), "app/globals.css"), "utf8");
+    const css = readCss();
     expect(css).toContain("--re-led-on: var(--nova-led-color, #ffffff);");
     expect(css).toContain("--re-led-on-rgb: var(--nova-led-rgb, 255 255 255);");
 

@@ -1,0 +1,137 @@
+/* Temperature and clock readouts, weekday strip and the outside control grid. */
+
+:root,
+.temperature-stepper {
+  --climate-temp-size: calc(
+    clamp(3rem, 8vw, 5.5rem) * var(--cyber-clock-scale, 1)
+  );
+}
+
+.climate-temp-readout {
+  font-family: var(--cyber-mono);
+  font-size: var(--climate-temp-size);
+  line-height: 0.9;
+  white-space: nowrap;
+}
+
+.climate-temp-readout span {
+  font-size: 0.55em;
+}
+
+/* Current-room-temp is 75% of the target readout so it stays legible from
+   across the room; it rides the same clock scale/weight as the target. */
+.climate-current-readout {
+  font-size: calc(var(--climate-temp-size) * 0.75);
+  line-height: 0.95;
+  white-space: nowrap;
+}
+
+.climate-current-readout span {
+  font-size: 0.55em;
+}
+
+/* Temperature/number readouts follow the selected clock font + weight (--cyber-clock),
+   like the clock itself. Matching (0,2,0) specificity placed after the base
+   `.climate-temp-readout` (--cyber-mono); the clock size offset rides on font-size. */
+.dashboard-shell .temp-readout,
+.dashboard-shell .climate-temp-readout {
+  font-family: var(--cyber-clock);
+  font-weight: var(--cyber-clock-weight, 900);
+}
+
+.clock-face {
+  display: flex;
+  min-height: 132px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-align: center;
+}
+
+.clock-time {
+  font-family: var(--cyber-clock);
+  font-size: calc(clamp(3.25rem, 11vw, 7rem) * var(--cyber-clock-scale, 1));
+  line-height: 0.9;
+  white-space: nowrap;
+}
+
+.clock-date {
+  font-family: var(--cyber-clock);
+  font-size: calc(clamp(2.4rem, 6vw, 3.6rem) * var(--cyber-clock-scale, 1));
+  letter-spacing: 0;
+}
+
+.clock-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12em;
+  font-family: var(--cyber-clock);
+  font-size: calc(clamp(0.9rem, 2.25vw, 1.35rem) * var(--cyber-clock-scale, 1));
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.clock-day {
+  display: inline-flex;
+  min-width: 2.55em;
+  align-items: center;
+  justify-content: center;
+  line-height: 0.9;
+  padding: 0.1em 0.22em 0.02em;
+}
+
+.clock-day-current {
+  background: var(--cyber-clock-text-fill);
+  color: var(--cyber-bg) !important;
+  -webkit-text-fill-color: var(--cyber-bg) !important;
+  text-shadow: none;
+}
+
+.clock-subtime {
+  font-family: var(--cyber-clock);
+  font-size: calc(clamp(0.7rem, 1.5vw, 0.95rem) * var(--cyber-clock-scale, 1));
+  letter-spacing: 0;
+}
+
+/* The shared `.dashboard-shell .tabular-nums { font-family: var(--cyber-mono) }`
+   rule (defined earlier) outranks the plain `.clock-time` selector, so the clock
+   TIME — which carries tabular-nums — was being dragged onto --cyber-mono while the
+   DATE (no tabular-nums) correctly followed the selected clock font. Re-assert the
+   clock font at matching (0,2,0) specificity, placed after that rule, so the time
+   and date both follow the clockFont selection. */
+.dashboard-shell .clock-time,
+.dashboard-shell .clock-date,
+.dashboard-shell .clock-weekdays,
+.dashboard-shell .clock-subtime {
+  font-family: var(--cyber-clock);
+  font-weight: var(--cyber-clock-weight, 900);
+  color: var(--cyber-clock-color) !important;
+}
+
+.outside-control-grid {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.outside-map-panel {
+  aspect-ratio: 4 / 2.55;
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.outside-light-card,
+.weather-panel {
+  min-width: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+/* The knob with its On/Off pair under it, the Quick Access shape
+   (specs/outside-card.md). */
+/* Grid rows come from the dial preset band rule. */
+.outside-light-controls {
+  flex: 1 1 auto;
+}

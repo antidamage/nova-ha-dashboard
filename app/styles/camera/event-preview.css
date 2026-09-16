@@ -1,0 +1,49 @@
+/* The latest camera events strip under the camera bar. */
+
+.camera-event-preview-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  padding: 6px;
+  text-align: left;
+}
+
+.camera-event-preview-row.is-unreviewed {
+  border-color: rgb(var(--cyber-highlight-rgb) / 0.55);
+}
+
+.camera-event-preview-row img,
+.camera-event-preview-row .camera-event-no-thumb {
+  display: flex;
+  width: 56px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  object-fit: cover;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.camera-event-preview-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.camera-event-preview-text strong {
+  overflow: hidden;
+  color: var(--cyber-title-on-bg);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camera-event-preview-text small,
+.camera-event-preview-empty {
+  color: var(--cyber-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}

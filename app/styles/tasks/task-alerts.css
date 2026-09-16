@@ -1,0 +1,130 @@
+/* Current-task bar, task alert overlay/banner and their glow animation. */
+
+.current-task-bar {
+  position: fixed;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  z-index: 1160;
+  display: flex;
+  width: min(720px, calc(100vw - 24px));
+  min-height: var(--current-task-bar-height);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(var(--cyber-highlight-rgb) / 0.92);
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight);
+  font-family: var(--cyber-mono);
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  padding: 10px 16px;
+  pointer-events: none;
+  box-shadow: 0 0 24px rgb(var(--cyber-highlight-rgb) / 0.32);
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+body:has(.current-task-bar) {
+  padding-bottom: var(--current-task-safe-area);
+}
+
+body.task-alerting {
+  cursor: pointer;
+}
+
+.task-alert-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  width: 100vw;
+  height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--cyber-title-on-highlight);
+  cursor: pointer;
+  padding: 0;
+  pointer-events: auto;
+  text-align: center;
+  touch-action: manipulation;
+}
+
+.task-alert-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 var(--task-glow-cyan-blur) var(--task-glow-cyan-spread)
+      rgb(var(--cyber-cyan-rgb) / var(--task-glow-cyan-alpha)),
+    inset 0 0 var(--task-glow-line-blur) var(--task-glow-line-spread)
+      rgb(var(--cyber-line-rgb) / var(--task-glow-line-alpha));
+  animation: task-alert-pulse 1.2s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+body.task-glow-preview::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 var(--task-glow-cyan-blur) var(--task-glow-cyan-spread)
+      rgb(var(--cyber-cyan-rgb) / var(--task-glow-cyan-alpha)),
+    inset 0 0 var(--task-glow-line-blur) var(--task-glow-line-spread)
+      rgb(var(--cyber-line-rgb) / var(--task-glow-line-alpha));
+  animation: task-alert-pulse 1.2s ease-in-out 2;
+  mix-blend-mode: screen;
+}
+
+.task-alert-banner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100vw;
+  min-height: clamp(96px, 18vh, 190px);
+  align-items: center;
+  justify-content: center;
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight);
+  font-family: var(--cyber-mono);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 0.95;
+  padding: clamp(20px, 4vw, 42px);
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow:
+    0 0 0 1px rgb(var(--cyber-highlight-rgb) / 0.94),
+    0 0 42px rgb(var(--cyber-highlight-rgb) / 0.54);
+}
+
+.task-alert-title {
+  display: block;
+  max-width: min(1100px, calc(100vw - 28px));
+  overflow-wrap: anywhere;
+  font-size: 3rem;
+}
+
+@media (min-width: 720px) {
+  .task-alert-title {
+    font-size: 5.5rem;
+  }
+}
+
+@keyframes task-alert-pulse {
+  0%,
+  100% {
+    opacity: 0.32;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}

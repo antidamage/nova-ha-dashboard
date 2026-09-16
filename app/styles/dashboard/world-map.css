@@ -1,0 +1,84 @@
+/* World zone map panel, weather metrics and the lounge environment grid. */
+
+/* ===== World zone map ===== */
+.world-map-panel {
+  aspect-ratio: 4 / 2.55;
+  min-height: 420px;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Static stand-in shown instead of the maplibre map on lite devices. */
+.world-map-panel-lite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+
+.world-map-panel-lite-title {
+  font-family: var(--cyber-mono);
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--cyber-title-on-bg);
+}
+
+.world-map-panel-lite-detail {
+  max-width: 420px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--cyber-muted);
+}
+
+.weather-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lounge-environment-panel {
+  min-width: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.lounge-environment-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lounge-environment-metric {
+  min-width: 0;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+.weather-metric {
+  min-width: 0;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+.intensity-panel {
+  min-height: 0;
+  /*
+   * The panel measures ITSELF, not the window. Its label/control/readout row is
+   * laid out by a `md:` breakpoint, which asks how wide the screen is — a
+   * question with the wrong answer for a panel five levels deep in the
+   * Visualiser's controls. On a 768px screen that row kept its three columns
+   * inside a 408px card and gave the slider a 2px track: a control that is
+   * simply not there. Below, the row stacks whenever the panel is narrow,
+   * whatever the screen is doing.
+   */
+  container-type: inline-size;
+}
+
+@container (max-width: 520px) {
+  .intensity-panel > .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .intensity-panel .config-slider-value {
+    text-align: left;
+  }
+}

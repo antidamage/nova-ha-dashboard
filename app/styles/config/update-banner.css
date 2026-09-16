@@ -1,0 +1,126 @@
+/* Self-update banner, its buttons and the running-update progress card. */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 7px 14px;
+  border: 1px solid rgb(var(--cyber-highlight-rgb) / 0.55);
+  background: rgb(var(--cyber-highlight-rgb) / 0.1);
+  color: var(--cyber-title-on-bg);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.update-banner-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.update-banner-text-warn {
+  color: #fde68a;
+}
+
+.update-banner-sha {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.update-banner-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border: 1px solid var(--cyber-highlight);
+  background: rgb(var(--cyber-highlight-rgb) / 0.2);
+  color: var(--cyber-title-on-bg);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background-color 160ms ease;
+}
+
+.update-banner-button:hover {
+  background: rgb(var(--cyber-highlight-rgb) / 0.35);
+}
+
+.update-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--cyber-muted);
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.update-banner-dismiss:hover {
+  color: var(--cyber-title-on-bg);
+}
+
+/* Anchor (link) variant of the banner button used for "Update" -> config. */
+a.update-banner-button {
+  text-decoration: none;
+}
+
+/* Primary call-to-action button on the config Updates section. */
+.config-page-button-primary {
+  border-color: var(--cyber-highlight) !important;
+  background: rgb(var(--cyber-highlight-rgb) / 0.22) !important;
+  color: var(--cyber-title-on-bg) !important;
+  font-weight: 800;
+}
+
+.config-page-button-primary:hover {
+  background: rgb(var(--cyber-highlight-rgb) / 0.36) !important;
+}
+
+/* Large, prominent banner shown while an update is actually running. */
+.update-banner-lg {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 14px 18px;
+  border-width: 2px;
+  background: rgb(var(--cyber-highlight-rgb) / 0.16);
+  box-shadow: 0 0 28px rgb(var(--cyber-highlight-rgb) / 0.28);
+}
+
+.update-banner-lg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.update-banner-lg-title {
+  font-size: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.update-banner-lg .update-banner-sha {
+  margin-left: auto;
+}
+
+.update-banner-progress {
+  position: relative;
+  height: 6px;
+  width: 100%;
+  background: rgb(var(--cyber-highlight-rgb) / 0.16);
+  overflow: hidden;
+}
+
+.update-banner-progress-fill {
+  height: 100%;
+  background: var(--cyber-highlight);
+  box-shadow: 0 0 12px rgb(var(--cyber-highlight-rgb) / 0.6);
+  transition: width 600ms ease;
+}

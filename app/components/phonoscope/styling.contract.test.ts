@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readCss } from "../../styles/readCss";
 
 // The colour theme editor once used a `theme-widget-grid` class that did not
 // exist in globals.css. Tailwind's `grid` then fell back to one column and
 // listed every palette slot down the page. A missing class name is invisible at
 // runtime, so it is checked here instead.
 const componentDir = __dirname;
-const css = readFileSync(join(componentDir, "..", "..", "globals.css"), "utf8");
+// globals.css is an entry file of ordered @imports now; readCss resolves them.
+const css = readCss();
 const library = readFileSync(join(componentDir, "ColorThemeLibrary.tsx"), "utf8");
 const centreImages = readFileSync(join(componentDir, "CentreImageLibrary.tsx"), "utf8");
 

@@ -1,0 +1,185 @@
+/* Config breadcrumb, import/export and the category navigation list. */
+
+/* Floating "where am I" breadcrumb over the config page — same fixed-top
+   pattern as .dashboard-config-link/.dashboard-reload-link (top offset +
+   safe-area inset, centred instead of edge-anchored), same dark-panel
+   language as .config-page-button/.config-category-button. Purely a jump-to
+   readout: crumbs are plain buttons, see ConfigBreadcrumb.tsx. */
+.config-breadcrumb {
+  position: fixed !important;
+  top: calc(16px + var(--nova-status-bar-clearance));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+  cursor: grab;
+  border: 1px solid rgb(64 64 64);
+  background: rgb(10 10 10 / 0.7);
+  padding: 6px 20px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  scrollbar-width: none;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+/* Just the category, nothing unfolded yet — the trail has nothing to add
+   over the page header, so keep it out of the way until one level deep. */
+.config-breadcrumb-shallow {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.config-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+
+.config-breadcrumb-segment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.config-breadcrumb-chevron {
+  color: rgb(163 163 163);
+  flex-shrink: 0;
+}
+
+.config-breadcrumb-crumb {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--cyber-title-on-bg);
+}
+
+.config-breadcrumb-root {
+  color: rgb(163 163 163);
+}
+
+button.config-breadcrumb-crumb:hover,
+button.config-breadcrumb-crumb:focus-visible {
+  color: var(--cyber-cyan);
+  outline: none;
+  cursor: pointer;
+}
+
+.config-import-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.config-category-nav {
+  /* Full-bleed: the nav breaks out of the centred max-w-5xl config column and
+     spans the viewport, so the category strip is never clipped to the column.
+     Page scrollbars are hidden (see the html/body rules above), so 100vw is the
+     client width and this adds no horizontal page overflow. */
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  cursor: grab;
+  position: sticky;
+  top: calc(8px + var(--nova-status-bar-clearance));
+  z-index: 70;
+  display: grid;
+  grid-auto-columns: minmax(190px, 1fr);
+  grid-auto-flow: column;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px;
+  border-block: 1px solid var(--cyber-border-dim);
+  background: color-mix(in srgb, var(--cyber-bg) 94%, transparent);
+  backdrop-filter: blur(18px);
+  scrollbar-width: none;
+}
+
+.config-category-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.config-category-button {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.035);
+  color: var(--cyber-title-on-bg);
+  padding: 10px 12px;
+}
+
+.config-category-button:hover,
+.config-category-button:focus-visible,
+.config-category-button-active {
+  border-color: rgb(var(--cyber-highlight-rgb) / 0.7);
+  background: rgb(var(--cyber-highlight-rgb) / 0.12);
+  color: var(--cyber-title-on-cyan);
+  outline: none;
+}
+
+.config-category-label,
+.config-category-kicker {
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.config-category-detail {
+  color: rgb(163 163 163);
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.config-category-content {
+  scroll-margin-top: 92px;
+}
+
+/* Opening a section scrolls it to the top of the viewport. The category nav is
+   sticky, so without this the section header lands underneath it and the first
+   thing you see is the middle of the section's own content. Matches the
+   category offset above. */
+.config-accordion {
+  scroll-margin-top: 92px;
+}
+
+.config-category-heading,
+.config-category-empty {
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.035);
+  padding: 18px 20px;
+}
+
+.config-category-heading h1,
+.config-category-empty h1 {
+  margin-top: 4px;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: clamp(1.1rem, 3vw, 1.5rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.config-category-heading p:last-child,
+.config-category-empty p:last-child {
+  margin-top: 5px;
+  color: rgb(163 163 163);
+  font-size: 0.86rem;
+}
+
+@media (max-width: 640px) {
+  .config-category-nav {
+    grid-auto-columns: minmax(165px, 78vw);
+  }
+}

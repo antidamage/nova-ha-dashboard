@@ -1,0 +1,143 @@
+/* Dashboard grid, zones panel, demo tooltip and the zone tree buttons. */
+
+.dashboard-grid {
+  background:
+    linear-gradient(rgb(var(--cyber-line-rgb) / 0.18) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      rgb(var(--cyber-line-rgb) / 0.18) 1px,
+      transparent 1px
+    );
+  background-size: 24px 24px;
+}
+
+.zones-panel > .grid {
+  align-items: start;
+}
+
+.dashboard-shell .zone-title-bar {
+  display: block;
+  max-width: 100%;
+  padding: 5px 12px 4px 16px;
+  background: var(--cyber-line);
+  color: var(--cyber-title-on-line) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-line) !important;
+  line-height: 1;
+  text-shadow: 0 0 1px var(--cyber-title-glow-line) !important;
+  clip-path: polygon(11px 0, 100% 0, 100% 100%, 0 100%, 0 11px);
+}
+
+.dashboard-shell .zone-button:hover:not(:disabled) .zone-title-bar,
+.dashboard-shell .zone-button:focus-visible .zone-title-bar {
+  background: var(--cyber-cyan);
+  color: var(--cyber-title-on-cyan) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-cyan) !important;
+  text-shadow: 0 0 1px var(--cyber-title-glow-cyan) !important;
+}
+
+.dashboard-shell .zone-button.zone-button-selected {
+  border-color: var(--cyber-cyan) !important;
+  background-color: rgb(var(--cyber-cyan-rgb) / 0.12) !important;
+}
+
+.dashboard-shell .zone-button.zone-button-selected .zone-title-bar {
+  background: var(--cyber-cyan);
+  color: var(--cyber-title-on-cyan) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-cyan) !important;
+}
+
+.dashboard-shell .zone-button-child .zone-title-bar {
+  padding-block: 4px 3px;
+  padding-left: 14px;
+  font-size: 0.98rem !important;
+}
+
+.demo-tooltip {
+  position: fixed;
+  z-index: 1800;
+  width: min(286px, calc(100vw - 24px));
+  pointer-events: none;
+  border: 1px solid var(--cyber-border-dim);
+  background: color-mix(in srgb, var(--cyber-panel) 94%, transparent);
+  padding: 10px;
+  color: var(--cyber-text);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
+}
+
+.demo-tooltip-title {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 10px 3px 13px;
+  background: var(--cyber-line);
+  color: var(--cyber-title-on-line);
+  font-family: var(--cyber-display);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 1px var(--cyber-title-glow-line);
+  text-transform: uppercase;
+  white-space: nowrap;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+}
+
+.demo-tooltip-text {
+  margin-top: 8px;
+  color: var(--cyber-text);
+  font-family: var(--cyber-display);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.zone-tree,
+.zone-children {
+  position: relative;
+}
+
+.zone-parent-widget {
+  overflow: hidden;
+  border: 1px solid var(--cyber-border-dim);
+  background: color-mix(in srgb, var(--cyber-panel) 88%, transparent);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  padding: 12px;
+}
+
+.zone-parent-widget > .zone-button {
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  clip-path: none;
+  padding: 0 !important;
+}
+
+.zone-parent-widget > .zone-button > .absolute {
+  display: none;
+}
+
+.zone-children {
+  padding-left: 18px;
+}
+
+.zone-children::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: -12px;
+  bottom: 10px;
+  border-left: 1px solid rgb(var(--cyber-border-rgb) / 0.42);
+}
+
+.zone-button-child::after {
+  content: "";
+  position: absolute;
+  left: -11px;
+  top: 50%;
+  width: 11px;
+  border-top: 1px solid rgb(var(--cyber-border-rgb) / 0.42);
+}

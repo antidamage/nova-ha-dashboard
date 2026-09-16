@@ -1,0 +1,222 @@
+/* Climate cards: state/mode buttons, timer rows and the climate switch row. */
+
+.router-panel {
+  margin-top: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.clock-panel {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.climate-control-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.climate-card {
+  min-width: 0;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.aircon-state-button,
+.climate-toggle,
+.climate-mode-button,
+.climate-timer-button,
+.climate-timer-cancel,
+.climate-icon-button {
+  display: inline-flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
+  color: var(--cyber-title-on-bg) !important;
+  font-family: var(--cyber-mono);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.aircon-state-button,
+.climate-toggle,
+.climate-mode-button,
+.climate-timer-button {
+  padding-inline: 12px;
+}
+
+.aircon-state-button {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.climate-mode-button {
+  min-height: 76px;
+  flex-direction: column;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.climate-timer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-width: 0;
+}
+
+.climate-timer-row-disabled {
+  opacity: 0.6;
+}
+
+.climate-timer-button {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.9rem;
+  line-height: 1;
+  text-transform: none;
+}
+
+.climate-timer-button-active {
+  border-color: var(--cyber-cyan) !important;
+  color: var(--cyber-cyan) !important;
+}
+
+.climate-timer-cancel {
+  width: 64px;
+  min-width: 64px;
+  padding-inline: 0;
+}
+
+.aircon-state-button-active,
+.climate-toggle-active,
+.climate-mode-button-active {
+  border-color: var(--cyber-highlight) !important;
+  background: var(--cyber-highlight) !important;
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .aircon-state-button-active,
+.dashboard-shell .climate-mode-button-active,
+.dashboard-shell .climate-toggle-active {
+  color: var(--cyber-title-on-highlight) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .aircon-state-button-active svg,
+.dashboard-shell .climate-mode-button-active svg,
+.dashboard-shell .climate-toggle-active svg {
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .aircon-state-button:focus,
+.dashboard-shell .aircon-state-button:focus-visible,
+.dashboard-shell .aircon-state-button:active:not(:disabled) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dashboard-shell .aircon-state-button-active:hover:not(:disabled),
+.dashboard-shell .aircon-state-button-active:active:not(:disabled) {
+  border-color: var(--cyber-highlight) !important;
+  background: var(--cyber-highlight) !important;
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.aircon-state-button:disabled,
+.climate-toggle:disabled,
+.climate-mode-button:disabled {
+  opacity: 0.6;
+}
+
+.climate-switch-row {
+  position: relative;
+  display: grid;
+  min-height: 56px;
+  grid-template-columns: minmax(0, auto) 72px minmax(0, auto);
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  overflow: hidden;
+  padding: 6px 12px;
+}
+
+.climate-switch-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.climate-switch-row-disabled {
+  opacity: 0.6;
+}
+
+.climate-switch-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The slide switch: one toggle for the whole surface. See
+   specs/slide-switch.md. Labels sit outside the track and never change
+   colour; the track fill and the thumb's position carry the state. */
+.cyber-switch {
+  position: relative;
+  display: block;
+  width: 72px;
+  min-width: 72px;
+  height: 40px;
+  border: 1px solid var(--cyber-border-dim);
+  border-radius: 999px;
+  background: rgb(var(--cyber-line-rgb) / 0.12);
+  outline: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.cyber-switch-checked {
+  border-color: rgb(var(--cyber-highlight-rgb) / 0.75);
+  background: var(--cyber-highlight);
+}
+
+.cyber-switch:disabled {
+  cursor: not-allowed;
+}
+
+.cyber-switch:focus-visible {
+  border-color: var(--cyber-highlight);
+  box-shadow: 0 0 0 2px rgb(var(--cyber-highlight-rgb) / 0.35);
+}
+
+.cyber-switch-thumb {
+  position: absolute;
+  inset-block: 4px;
+  left: 4px;
+  display: flex;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--cyber-title-on-bg);
+  color: var(--cyber-panel);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  transition: left 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.cyber-switch-checked .cyber-switch-thumb {
+  left: calc(100% - 34px);
+  background: var(--cyber-title-on-highlight);
+  color: var(--cyber-highlight);
+}
+
+.zone-panel {
+  container: zone-panel / inline-size;
+}

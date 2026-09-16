@@ -1,0 +1,20 @@
+/* The Dynamic Island clearance floor for the iOS standalone web app. */
+
+/* The Dynamic Island floor for --nova-status-bar-clearance. Phone-sized only:
+   an iPad standalone install has no island and reports its own inset
+   correctly, and Safari with chrome is not standalone at all.
+   `[data-nova-ios-standalone]` is set by the head bootstrap in app/layout.tsx
+   from `navigator.standalone`, which is the iOS-only signal for "launched from
+   the Home Screen"; the display-mode query is the same rule for any engine that
+   reports the mode but not that property. specs/ios-home-screen-webapp.md. */
+@media (max-width: 640px) {
+  html[data-nova-ios-standalone="true"] {
+    --nova-status-bar-clearance: max(env(safe-area-inset-top, 0px), 59px);
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 640px) {
+  :root {
+    --nova-status-bar-clearance: max(env(safe-area-inset-top, 0px), 59px);
+  }
+}

@@ -1,0 +1,17 @@
+/* The room lighting tint blended over the page. */
+
+/* Lighting tint — the room's light colour blended over everything, modals
+   included. Never takes input. See specs/lighting-tint.md. */
+.lighting-tint-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity 1.2s ease, background-color 0.2s linear;
+}
+
+html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
+  opacity: calc(var(--nova-lighting-tint-strength, 30) / 100);
+}

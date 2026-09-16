@@ -1,0 +1,321 @@
+/* The portalled cyber listbox: trigger, swatches, menu, groups, options, fonts. */
+
+.theme-library-select {
+  position: relative;
+}
+
+.cyber-select-trigger {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 1px solid var(--cyber-border-dim);
+  background:
+    linear-gradient(135deg, rgb(var(--cyber-cyan-rgb) / 0.08), transparent 38%),
+    rgb(var(--cyber-line-rgb) / 0.045);
+  color: var(--cyber-title-on-bg);
+  text-align: left;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+/* Swatch-less variant (e.g. the voice personality picker): no leading colour
+   swatch, so drop that column and let the name use the full width instead of
+   being squeezed into the 44px/34px swatch slot (which truncated names to a
+   couple of characters). */
+.cyber-select-trigger.cyber-select-trigger-plain {
+  grid-template-columns: minmax(0, 1fr) 24px;
+}
+
+.cyber-select-option.cyber-select-option-plain {
+  grid-template-columns: minmax(0, 1fr) 18px;
+}
+
+.cyber-select-trigger:hover,
+.cyber-select-trigger:focus-visible,
+.cyber-select-trigger-open {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.1);
+  outline: none;
+}
+
+.cyber-select-swatch {
+  display: block;
+  height: 44px;
+  width: 44px;
+  border: 1px solid rgb(var(--cyber-line-rgb) / 0.55);
+  box-shadow: inset 0 0 0 3px var(--cyber-panel);
+}
+
+.cyber-select-icon {
+  display: grid;
+  height: 44px;
+  width: 44px;
+  place-items: center;
+  border: 1px solid rgb(var(--cyber-cyan-rgb) / 0.45);
+  background: rgb(var(--cyber-cyan-rgb) / 0.08);
+  box-shadow: inset 0 0 0 3px var(--cyber-panel);
+  color: var(--cyber-cyan);
+}
+
+.cyber-select-icon > svg {
+  height: 22px;
+  width: 22px;
+}
+
+.cyber-select-swatch-empty {
+  background: repeating-linear-gradient(
+    135deg,
+    rgb(var(--cyber-line-rgb) / 0.25) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.cyber-select-trigger-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* The label column shrinks with the trigger; without this the secondary line
+   keeps its full text width and runs out past the card. */
+.cyber-select-trigger-copy {
+  min-width: 0;
+}
+
+.cyber-select-trigger-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cyber-select-trigger-name {
+  width: max-content;
+  max-width: 100%;
+  padding: 5px 12px 4px 14px;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cyber-select-trigger-detail {
+  font-family: var(--cyber-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--cyber-muted);
+}
+
+.cyber-select-chevron {
+  justify-self: end;
+  color: var(--cyber-cyan);
+  transition: transform 180ms ease;
+}
+
+.cyber-select-chevron-open {
+  transform: rotate(180deg);
+}
+
+.cyber-select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--cyber-cyan);
+  background: var(--cyber-panel);
+  box-shadow:
+    0 18px 48px rgb(0 0 0 / 0.55),
+    0 0 24px rgb(var(--cyber-cyan-rgb) / 0.2);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.cyber-date-input {
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--cyber-panel-border, rgba(115, 115, 115, 0.5));
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-weight: 900;
+}
+
+.orb-info-preview {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--cyber-panel-border, rgba(115, 115, 115, 0.5));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.orb-info-preview-label {
+  color: var(--cyber-text-dim);
+  font-family: var(--cyber-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.orb-info-preview-value {
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.cyber-select-group-heading {
+  padding: 10px 12px 4px;
+  color: var(--cyber-text-dim);
+  font-family: var(--cyber-mono);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cyber-select-group-heading + li .cyber-select-option {
+  border-top: none;
+}
+
+.cyber-select-option {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-weight: 900;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.cyber-select-option:hover,
+.cyber-select-option:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+  outline: none;
+}
+
+.cyber-select-option-active {
+  background: rgb(var(--cyber-cyan-rgb) / 0.16);
+}
+
+.cyber-select-option .cyber-select-swatch {
+  height: 34px;
+  width: 34px;
+}
+
+.cyber-select-option .cyber-select-icon {
+  height: 34px;
+  width: 34px;
+}
+
+.cyber-select-option .cyber-select-icon > svg {
+  height: 18px;
+  width: 18px;
+}
+
+.cyber-select-option-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cyber-select-option-check {
+  color: var(--cyber-cyan);
+}
+
+.cyber-select-empty {
+  padding: 16px 12px;
+  font-family: var(--cyber-mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--cyber-muted);
+}
+
+/* Font picker (theme + clock). Reuses the cyber-select dropdown shell; the swatch
+   shows a glyph sample and each label renders in its own font for live preview. */
+.font-select-field {
+  display: grid;
+  gap: 8px;
+}
+
+/* Live sample for a FontControl: renders in the chosen font/weight/size so the weight
+   and size-offset sliders have a visible effect even when the real usage (clock,
+   number readouts, gym orb) is not on the config page. */
+.font-control-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 6px 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  color: var(--cyber-title-on-bg);
+  border: 1px solid rgb(var(--cyber-line-rgb) / 0.22);
+  background: rgb(var(--cyber-line-rgb) / 0.05);
+}
+
+.font-select-swatch {
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--cyber-title-on-bg);
+  background: rgb(var(--cyber-line-rgb) / 0.06);
+  box-shadow: inset 0 0 0 2px var(--cyber-panel);
+}
+
+/* Override the cyber-select option's forced uppercase/900 so script and
+   handwriting fonts preview in their natural case and weight. */
+.font-select-name {
+  text-transform: none;
+  font-weight: 500;
+}
+
+/* Every cyber-select menu (theme library, personality library, orb module, font
+   picker, and visualiser effects) is portalled to <body> and positioned with fixed
+   coords (left/top/width set inline) so it escapes config overflow/clip-path and
+   stacking contexts. ModalOverlay uses z-index 10000, so selectors used inside a
+   modal must sit above that interaction layer or the modal intercepts option taps. */
+.cyber-select-menu-portal {
+  position: fixed;
+  right: auto;
+  z-index: 11000;
+}
+
+/* The numeric field a slider tap opens. Portalled and fixed for the same reason
+   the select menus are — an absolute child of a config card paints behind the
+   panel below it — and above ModalOverlay's 10000 so a slider inside a colour
+   modal can still be typed into. */
+.cyber-numeric-entry {
+  position: fixed;
+  z-index: 11000;
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border: 1px solid var(--cyber-cyan);
+  background: var(--cyber-bg);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.55);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}

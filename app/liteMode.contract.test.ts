@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readCss } from "./styles/readCss";
 
 // Contract tripwire for the lite-mode plumbing (specs/experience-modes.md,
 // docs/lite-mode.md). The pre-paint seed lives in an inline <head> script and
@@ -11,7 +12,8 @@ import { describe, expect, it } from "vitest";
 // is intentionally changing).
 
 const appDir = __dirname;
-const globalsCss = readFileSync(join(appDir, "globals.css"), "utf8");
+// globals.css is an entry file of ordered @imports now; readCss resolves them.
+const globalsCss = readCss();
 const layoutSource = readFileSync(join(appDir, "layout.tsx"), "utf8");
 
 describe("lite mode contract", () => {

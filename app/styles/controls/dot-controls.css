@@ -1,0 +1,181 @@
+/* DotControls: spectrum/line SVG dots, cursors and the shared control thumb. */
+
+.spectrum-svg,
+.dot-line-svg {
+  display: block;
+  overflow: visible;
+}
+
+.spectrum-svg-dot,
+.dot-line-svg-dot {
+  mix-blend-mode: plus-lighter;
+  opacity: 0.96;
+  pointer-events: none;
+}
+
+.spectrum-svg-dot {
+  mix-blend-mode: plus-lighter;
+}
+
+.dot-line-svg-dot {
+  stroke: var(--cyber-title-on-bg);
+}
+
+.spectrum-svg-cursor,
+.dot-line-svg-cursor {
+  fill: none;
+  pointer-events: none;
+  stroke: var(--cyber-line);
+  stroke-linecap: butt;
+}
+
+.spectrum-svg-cursor-dragging,
+.dot-line-svg-cursor-active {
+  stroke: var(--cyber-cyan);
+}
+
+.spectrum-svg-cursor circle,
+.dot-line-svg-cursor circle {
+  fill: none;
+  stroke: inherit;
+  vector-effect: non-scaling-stroke;
+}
+
+.spectrum-dot {
+  --spectrum-dot-size: 1px;
+  --spectrum-dot-scale: 1;
+  position: absolute;
+  display: block;
+  width: var(--spectrum-dot-size) !important;
+  height: var(--spectrum-dot-size) !important;
+  border-radius: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  background: transparent !important;
+  opacity: 0.96;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.intensity-dot {
+  opacity: var(--line-dot-opacity, 0.96);
+}
+
+.spectrum-dot::before,
+.spectrum-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.spectrum-dot::before {
+  background: rgb(var(--spectrum-dot-rgb)) !important;
+  transform: scale(var(--spectrum-dot-scale));
+  transform-origin: center;
+  will-change: transform;
+}
+
+.spectrum-dot::after {
+  display: none;
+}
+
+.spectrum-cursor {
+  --spectrum-cursor-size: 80px;
+  --spectrum-cursor-outline: var(--cyber-line);
+  position: absolute;
+  display: block;
+  width: var(--spectrum-cursor-size);
+  height: var(--spectrum-cursor-size);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  /* Four arc segments at N, E, S, W with 60° gaps between them */
+  background: conic-gradient(
+    from 345deg,
+    var(--spectrum-cursor-outline) 0deg 30deg,
+    transparent 30deg 90deg,
+    var(--spectrum-cursor-outline) 90deg 120deg,
+    transparent 120deg 180deg,
+    var(--spectrum-cursor-outline) 180deg 210deg,
+    transparent 210deg 270deg,
+    var(--spectrum-cursor-outline) 270deg 300deg,
+    transparent 300deg 360deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    white calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    white calc(100% - 3px)
+  );
+}
+
+.spectrum-cursor-dragging {
+  --spectrum-cursor-outline: var(--cyber-cyan);
+}
+
+.control-thumb {
+  border-color: var(--cyber-line) !important;
+  outline: none !important;
+  box-shadow: 0 0 14px var(--cyber-border-dim);
+}
+
+.dashboard-shell [role="slider"] {
+  outline: none !important;
+}
+
+.dashboard-shell .spectrum-pad {
+  box-shadow: none !important;
+}
+
+.dashboard-shell .spectrum-pad-bg {
+  background-color: #000 !important;
+}
+
+.dashboard-shell .spectrum-pad-disabled {
+  border-color: rgb(148 163 184 / 0.28) !important;
+  cursor: not-allowed;
+}
+
+.dashboard-shell .spectrum-pad:active {
+  border-color: var(--cyber-line) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dashboard-shell .spectrum-pad-disabled:active {
+  border-color: rgb(148 163 184 / 0.28) !important;
+}
+
+.config-color-editor {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 600px) {
+  .config-color-editor {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .config-color-editor > * {
+    min-width: 0;
+  }
+
+  .config-color-editor .intensity-panel {
+    padding: 12px;
+  }
+
+  .config-color-editor .intensity-panel > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .config-color-editor .config-slider-value {
+    font-size: 1.5rem;
+    text-align: left;
+  }
+}

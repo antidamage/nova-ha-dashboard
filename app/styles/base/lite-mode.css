@@ -1,0 +1,59 @@
+/* Lite mode kill-switch: html[data-nova-lite] / html[data-nova-no-orb]. */
+
+/* ==== LITE MODE (html[data-nova-lite]) ====================================
+   Per-device experience mode. Source of truth: experienceModeSetting.ts
+   (localStorage nova.dashboard.experienceMode.v1); the attribute is set
+   before first paint by the head bootstrap in app/layout.tsx.
+
+   The blanket rule below makes every CSS animation, transition, and backdrop
+   filter effectively instant in lite mode, so NEW CSS effects are lite-safe
+   automatically — no author action needed. Near-zero durations (not
+   `animation: none`) are used so fill-mode reveals still complete and land on
+   their end state. JS-driven work is NOT covered: anything using rAF loops,
+   canvas/WebGL, polling, or media playback must gate itself explicitly with
+   useLiteMode() / readExperienceModeSetting(). See specs/experience-modes.md
+   and docs/lite-mode.md before adding a new visual/costly feature. */
+html[data-nova-lite] *,
+html[data-nova-lite] *::before,
+html[data-nova-lite] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  backdrop-filter: none !important;
+}
+
+/* Busy spinners are functional feedback, not decoration — keep them alive. */
+html[data-nova-lite] .animate-spin {
+  animation: spin 1s linear infinite !important;
+}
+
+/* Devices with the status orb turned off render as if the orb markup were
+   absent: no orb, and none of the layout space it reserves. React unmounts the
+   orb right after hydration; these rules cover the pre-hydration window. The
+   `data-nova-lite` rule stays standalone (all-features-off) for the contract
+   tripwire; `data-nova-no-orb` covers the granular "orb off but other features
+   on" case seeded pre-paint by the layout bootstrap. */
+html[data-nova-lite] .nova-avatar-host {
+  display: none;
+}
+
+html[data-nova-lite] body:has(.nova-avatar-host) {
+  padding-top: 0;
+}
+
+html[data-nova-no-orb] .nova-avatar-host {
+  display: none;
+}
+
+html[data-nova-no-orb] body:has(.nova-avatar-host) {
+  padding-top: 0;
+}
+
+/* Flatten the task-glow blur stacks: their vars are set as inline styles on
+   <html>, so override the consuming rules rather than the variables. The
+   alert overlay stays visible and clickable — just without the GPU-heavy
+   inset blur. */
+html[data-nova-lite] .task-alert-overlay::before,
+html[data-nova-lite] body.task-glow-preview::after {
+  box-shadow: none;
+}

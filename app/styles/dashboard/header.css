@@ -1,0 +1,64 @@
+/* Header fade strip and the mini clock/date pair. */
+
+/* ==== HEADER FADE STRIP ====================================================
+   Fades in behind the fixed status orb purely as a function of scroll
+   position (--nova-header-fade, 0..1, set by NovaAvatar's scroll handler) —
+   no enter/exit trigger and no fade-out timer, so stopping mid-scroll and
+   reversing direction reverses the fade exactly. The reload/config buttons
+   fade the opposite way and stop accepting input once the strip is at least
+   half in (nova-header-controls-disabled, toggled by the same handler at
+   t >= 0.5, matching their opacity crossing 0.5 too). */
+.header-fade-strip {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nova-avatar-size);
+  /* Colour and its alpha come from the theme; the element's own opacity stays
+     the scroll's (specs/header-fade.md). Falls back to the black it always
+     was before the theme loads. */
+  background: linear-gradient(to bottom, var(--cyber-header-fade, #000) 0%, transparent 100%);
+  opacity: var(--nova-header-fade, 0);
+  z-index: 90;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+/* Mini clock/date follow the same clock font + colour as the full ClockPanel
+   readout (.clock-time/.clock-date, --cyber-clock family) rather than the
+   generic mono/title tokens, so a theme's clock font choice carries here too. */
+.header-mini-clock,
+.header-mini-date {
+  position: fixed !important;
+  top: calc(10px + var(--nova-status-bar-clearance));
+  font-family: var(--cyber-clock);
+  font-weight: var(--cyber-clock-weight, 900);
+  font-size: 1.56rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cyber-clock-color) !important;
+  opacity: var(--nova-header-fade, 0);
+  z-index: 95;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.header-mini-clock {
+  left: calc(16px + env(safe-area-inset-left, 0px));
+}
+
+.header-mini-date {
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  text-align: right;
+}
+
+.dashboard-config-link,
+.dashboard-reload-link {
+  opacity: calc(1 - var(--nova-header-fade, 0));
+  will-change: opacity;
+}
+
+html.nova-header-controls-disabled .dashboard-config-link,
+html.nova-header-controls-disabled .dashboard-reload-link {
+  pointer-events: none;
+}

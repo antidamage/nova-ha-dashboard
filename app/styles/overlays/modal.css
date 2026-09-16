@@ -1,0 +1,188 @@
+/* Shared portal modal layer, experience chooser and the restart/offline blocker. */
+
+/* Shared portal-backed modal layer. It deliberately sits above every dashboard
+   overlay and darkens/blocks the whole page; tapping the backdrop dismisses. */
+.modal-overlay,
+.system-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 0.78);
+  backdrop-filter: blur(2px);
+}
+
+.system-confirm-card {
+  width: 100%;
+  max-width: 460px;
+  display: grid;
+  gap: 12px;
+  padding: 36px 26px;
+  color: color-mix(in srgb, var(--cyber-highlight) 60%, #ffffff);
+  font-family: var(--cyber-display);
+}
+
+.system-confirm-step {
+  font-family: var(--cyber-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--cyber-highlight) 50%, #ffffff);
+}
+
+.system-confirm-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cyber-highlight) 72%, #ffffff);
+}
+
+.system-confirm-body {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #d6d6d6;
+}
+
+.system-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.system-confirm-cancel,
+.system-confirm-go {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  font-family: var(--cyber-mono);
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.system-confirm-cancel {
+  flex: 0 0 auto;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.05);
+  color: var(--cyber-title-on-bg);
+}
+
+.system-confirm-cancel:hover:not(:disabled),
+.system-confirm-cancel:focus-visible {
+  outline: none;
+  border-color: var(--cyber-border-strong);
+}
+
+.system-confirm-go {
+  flex: 1 1 auto;
+  border: 1.5px solid var(--cyber-highlight);
+  background: rgb(var(--cyber-highlight-rgb) / 0.22);
+  color: color-mix(in srgb, var(--cyber-highlight) 60%, #ffffff);
+}
+
+.system-confirm-go:hover:not(:disabled),
+.system-confirm-go:focus-visible {
+  outline: none;
+  background: rgb(var(--cyber-highlight-rgb) / 0.38);
+  box-shadow: 0 0 24px rgb(var(--cyber-highlight-rgb) / 0.4);
+}
+
+.system-confirm-cancel:disabled,
+.system-confirm-go:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.system-confirm-dismiss-hint {
+  margin-top: 2px;
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--cyber-highlight) 35%, #9a9a9a);
+}
+
+/* First-run experience chooser (ExperienceModeModal) reuses the system
+   confirm styling; its body holds multiple paragraphs. */
+.experience-mode-card .system-confirm-body {
+  display: grid;
+  gap: 8px;
+}
+
+/* Restart/reboot/offline blocker: 25% black wash + a spinner card in the same
+   construction-box scheme as the popup. Close affordances (Dismiss/Refresh)
+   only appear when the caller passes handlers — restart/reboot flows stay
+   un-dismissable. */
+.system-blocker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 0.25);
+  cursor: wait;
+}
+
+.system-blocker-card {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 420px;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 40px 28px;
+  text-align: center;
+  border: 1.5px solid var(--cyber-highlight);
+  background:
+    linear-gradient(
+      rgb(var(--cyber-highlight-rgb) / 0.16),
+      rgb(var(--cyber-highlight-rgb) / 0.16)
+    ),
+    #000;
+  box-shadow:
+    inset 0 0 24px rgb(var(--cyber-highlight-rgb) / 0.22),
+    0 0 28px rgb(var(--cyber-highlight-rgb) / 0.3);
+  font-family: var(--cyber-display);
+}
+
+.system-blocker-spinner {
+  color: color-mix(in srgb, var(--cyber-highlight) 60%, #ffffff);
+  filter: drop-shadow(0 0 10px rgb(var(--cyber-highlight-rgb) / 0.55));
+}
+
+.system-blocker-title {
+  font-size: 1.2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--cyber-highlight) 72%, #ffffff);
+}
+
+.system-blocker-body {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #d6d6d6;
+}
+
+.system-blocker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+  width: 100%;
+  cursor: default;
+}

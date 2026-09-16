@@ -1,0 +1,156 @@
+/* Config page layout: panels, corners, links, category column and header buttons. */
+
+.zone-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 1px solid var(--cyber-border-dim);
+  clip-path: polygon(0 0, 42% 0, 46% 18px, 100% 18px, 100% 100%, 0 100%);
+}
+
+.panel-corner {
+  position: absolute;
+  top: -1px;
+  height: 28px;
+  width: 90px;
+  border-top: 2px solid var(--cyber-border-strong);
+  pointer-events: none;
+}
+
+.panel-corner-left {
+  left: -1px;
+  border-left: 2px solid var(--cyber-border-strong);
+}
+
+.panel-corner-right {
+  right: -1px;
+  border-right: 2px solid rgb(var(--cyber-cyan-rgb) / 0.9);
+  border-top-color: rgb(var(--cyber-cyan-rgb) / 0.9);
+}
+
+.config-link,
+.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--cyber-border-dim);
+  color: var(--cyber-line);
+  text-decoration: none;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.config-link:hover,
+.config-link:focus-visible,
+.icon-link:hover,
+.icon-link:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+  color: var(--cyber-cyan);
+  outline: none;
+}
+
+.icon-link-text-tone {
+  color: var(--cyber-title-on-bg) !important;
+}
+
+.icon-link-text-tone:hover,
+.icon-link-text-tone:focus-visible {
+  color: var(--cyber-title-on-cyan) !important;
+}
+
+.config-layout {
+  width: min(100%, 64rem);
+}
+
+.config-layout-categories-closed {
+  display: flex;
+  min-height: calc(100svh - 2.5rem);
+  flex-direction: column;
+}
+
+.config-layout-categories-closed .config-category-nav {
+  position: relative;
+  top: auto;
+  margin-block: auto;
+}
+
+.config-top-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+.config-page-button,
+.dashboard-config-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 14px;
+  text-decoration: none;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.config-page-button:hover:not(:disabled),
+.config-page-button:focus-visible,
+.dashboard-config-link:hover,
+.dashboard-config-link:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+  color: var(--cyber-title-on-cyan) !important;
+  outline: none;
+}
+
+.config-page-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.dashboard-config-link {
+  position: fixed !important;
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  top: calc(16px + var(--nova-status-bar-clearance));
+  z-index: 80;
+  white-space: nowrap;
+}
+
+/* Header buttons (specs/theme-override.md): icon-only squares. Portrait puts
+   Reload then theme override at the top left and the cog at the top right,
+   clear of the centred orb. Every one carries .dashboard-config-link for the
+   box; the modifiers move it to the left edge, theme one 44px + 8px step in. */
+.dashboard-config-link {
+  min-width: 44px;
+  padding: 0;
+}
+
+.dashboard-reload-link {
+  right: auto;
+  left: calc(16px + env(safe-area-inset-left, 0px));
+}
+
+.dashboard-theme-override-link {
+  right: auto;
+  left: calc(16px + 52px + env(safe-area-inset-left, 0px));
+}
+
+/* Below ~420px wide a second button beside Reload would reach the centred
+   200px orb's resting box, so the theme button drops under Reload instead. */
+@media (max-aspect-ratio: 1 / 1) and (max-width: 419px) {
+  .dashboard-theme-override-link {
+    left: calc(16px + env(safe-area-inset-left, 0px));
+    top: calc(16px + 52px + var(--nova-status-bar-clearance));
+  }
+}
