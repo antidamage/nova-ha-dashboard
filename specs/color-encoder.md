@@ -784,6 +784,13 @@ with them (`theme-display-card*`, `theme-colour-popover*`, `theme-inline-editor*
 `theme-display-swatch/copy/detail/label`), along with the session-stored
 "which widget is open" key.
 
+Adeline, 2026-09-16: **the status orb colour slots carry the same copy/paste
+actions as the theme slots, on the same clipboard** (`themeClipboard.ts`), so a
+theme colour can be copied onto the orb and back. Copy takes the slot's opacity
+when it has one (gym number, the three lines). Paste writes the colour, and the
+opacity too when both the clip and the slot carry one; a slot without opacity
+ignores the clip's. Paste is disabled while nothing is copied.
+
 ## The map colour slots carry their sliders as rings
 
 Adeline, 2026-09-11: the map colour controls move their extra sliders onto the
