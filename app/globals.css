@@ -8970,11 +8970,12 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 /* Status orb event readouts retain the existing orb and theme treatment. */
 /* The icon and its countdown ring are what centre in the orb; the text hangs
    below them out of flow so it never pushes them off-centre, centred halfway
-   between the icon's edge (1em below centre) and the orb's colour ring (half
-   the orb size below centre). The readout box is the 2em icon, so its centre
-   is at top:1em. */
+   between the gauge's outer edge (0.96em below centre: r46 + half the 4-unit
+   stroke, of 50) and the colour ring's inner edge (measured at 0.385 of the orb
+   size below centre). The readout box is the 2em icon, so its centre is at
+   top:1em. */
 .orb-event-readout { position:relative; display:flex; flex-direction:column; align-items:center; font-size:.48em; line-height:1.1; }
-.orb-event-readout > .orb-event-text { position:absolute; top:calc(1.5em + var(--nova-avatar-instance-size, 128px) / 4); left:50%; transform:translate(-50%, -50%); }
+.orb-event-readout > .orb-event-text { position:absolute; top:calc(1.48em + var(--nova-avatar-instance-size, 128px) * .1925); left:50%; transform:translate(-50%, -50%); }
 .orb-event-icon { position:relative; display:grid; place-items:center; width:2em; height:2em; }
 .orb-event-icon > svg:not(.orb-countdown-ring) { width:1.3em; height:1.3em; }
 .orb-countdown-ring { position:absolute; inset:0; width:100%; height:100%; color:rgb(var(--nova-alert-rgb)); pointer-events:none; }
