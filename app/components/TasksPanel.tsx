@@ -810,7 +810,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const { theme: soundTheme } = useDeviceTheme();
   const reminderAlertUrl = useMemo(
     () => resolveUxSoundUrl("reminderAlert"),
-    [soundTheme.uxSounds, soundTheme.controlSound.source, soundTheme.timerSound],
+    [soundTheme.uxSounds],
   );
   const audioStopTimer = useRef<number | null>(null);
   const audioRepeatTimer = useRef<number | null>(null);

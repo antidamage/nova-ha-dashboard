@@ -1,7 +1,10 @@
 # UX sounds — library and per-action assignment
 
 Adeline, 2026-09-16. Plan `piped-wondering-mountain`, task log
-`20260916T060507Z-6ebf8190`.
+`20260916T060507Z-6ebf8190`. Revised the same day (task log
+`20260916T072426Z-87a09fd9`): the single control sound and the timer-sound
+picker are **retired**, every assignment is a library id, and the timer chime
+plays through the engine rather than an HTMLAudioElement.
 
 Before this, the dashboard had exactly one UI sound: a single MP3 the owner
 uploaded into `DeviceTheme.controlSound`, stored as a data URL, played by a
@@ -19,7 +22,8 @@ assignment map** in the theme.
 | `lib/sound-library.ts` | manifest shape, ids, slugging, normalisation |
 | `app/api/sounds/route.ts` | list / upload / delete |
 | `app/api/sounds/[id]/route.ts` | serve one uploaded clip |
-| `app/components/accentColor.ts` | `DeviceTheme.uxSounds`, defaults, normalisation |
+| `app/components/accentColor.ts` | `DeviceTheme.uxSounds`, the volume, defaults, normalisation |
+| `lib/sound-migration.ts` | one-time import of the retired control sound into the library |
 | `app/components/dashboard/controlSound.ts` | the playback engine, `playUxSound(action)` |
 | `app/components/haptics.ts`, `HapticFeedback.tsx` | global dispatch from `data-ux-sound` |
 | `app/components/AccentConfig.tsx` | the Sound accordion: library block + assignment block |
@@ -57,10 +61,9 @@ Six clicks, sourced from `D:\Downloads\Click sounds\`:
 | `medium-ratchet` | Medium ratchet |
 
 Plus the six timer chimes, so a chime can be assigned to any action rather than
-only the timer alert. Each is a byte copy of the matching `public/sounds/timer-*.mp3`
-under a library id of its own; the timer picker keeps reading its own files, and
-the `timer-chime` sentinel (whatever the theme's timer sound currently is) is
-unchanged and still `timerAlert`'s default:
+only the timer alert. Each began as a byte copy of the matching
+`public/sounds/timer-*.mp3`; those originals and the timer-sound picker that read
+them are gone, so these ids are now the only copies:
 
 | id | name | copied from |
 |---|---|---|
@@ -71,8 +74,7 @@ unchanged and still `timerAlert`'s default:
 | `chime-soft-boop` | Chime (soft boop) | `timer-soft-boop.mp3` |
 | `chime-tink` | Chime (tink) | `timer-tink.mp3` |
 
-Assigning `chime-classic` pins that clip; assigning the `timer-chime` sentinel
-follows the theme's timer-sound setting.
+`chime-classic` is `timerAlert`'s default.
 
 ### Upload limits
 
@@ -86,13 +88,14 @@ descriptive error string on rejection, and a status push through
 polling.
 
 Deleting an entry that is still assigned to an action leaves the assignment
-dangling; a dangling id resolves to **the button-press default**, not to silence,
+dangling; a dangling id resolves to **that action's default**, not to silence,
 so a deleted clip never quietly kills an action.
 
 ## The twelve actions
 
 `DeviceTheme.uxSounds` maps each action to a **sound id**, the sentinel
-`"button-press"`, or `null`.
+`"reminder-audio"` (the server-stored reminder MP3, uploaded under Reminders),
+or `null`.
 
 | Action | Fires when |
 |---|---|
@@ -142,29 +145,51 @@ These are tied to no panel. They fire on the **transition**, not on the command:
 
 ## Defaults
 
-Every action in every theme, built-in and saved preset, defaults to the sentinel
-`"button-press"` — except two, which keep the sound they already had, so that
-adding this feature does not quietly disable a deliberate choice:
+Every action defaults to a click, `medium-mechanical-click`, except two which
+keep a deliberate sound of their own:
 
-- `timerAlert` defaults to the theme's existing `timerSound` chime
-  (`/sounds/timer-*.mp3`).
-- `reminderAlert` defaults to the uploaded reminder MP3 (`/api/tasks/audio`).
-
-The sentinel `"button-press"` resolves at playback time to the theme's existing
-`controlSound` clip. It is listed in every assignment dropdown as **"Button press
-(theme)"**. Because it is a sentinel rather than a copied id, re-uploading the
-theme's control sound changes every action still sitting on the default — the
-behaviour the single-sound design had.
+- `timerAlert` defaults to `chime-classic`.
+- `reminderAlert` defaults to the uploaded reminder MP3 (`/api/tasks/audio`),
+  held as the sentinel `"reminder-audio"` and offered in every dropdown as
+  **"Reminder audio (uploaded)"**.
 
 `null` is **"None"** and is the **first** option in every assignment list.
+
+### The retired sentinels
+
+Until the 2026-09-16 revision a theme also carried its own uploaded clip
+(`controlSound.source`, a data URL) and a timer-chime name (`timerSound`), and
+assignments reached them through two sentinels: `"button-press"` meaning "this
+theme's uploaded clip" and `"timer-chime"` meaning "this theme's timer-sound
+selection". Both fields are gone from the theme and from the config page. One
+list of clips with one assignment per action replaces them, so both sentinels
+are retired.
+
+Nothing is silently dropped in the process:
+
+- `lib/sound-migration.ts` runs once at server start (`instrumentation.ts`). It
+  writes each theme's uploaded clip into `data/sounds/` as an ordinary library
+  upload named after the original file, repoints every `"button-press"`
+  assignment at that id, turns each `"timer-chime"` into the matching built-in
+  chime (`Tink` becomes `chime-tink`), reduces `controlSound` to its `volume`,
+  and drops `timerSound`. It walks saved presets in `themeLibrary` too, imports
+  a clip shared by several themes once, and makes no writes at all once every
+  theme is migrated.
+- `normalizeUxSounds` maps a surviving `"button-press"` to the default click and
+  `"timer-chime"` to `chime-classic`, which covers a preset JSON or a shared
+  config that never passed through the server migration.
+
+`controlSound` keeps only `volume`, still one slider for every action.
 
 ## Playback
 
 `playUxSound(action)` replaces `playControlSound()`.
 
 - Resolution order: the theme's `uxSounds[action]`; `null` returns immediately;
-  `"button-press"` or a dangling id resolves to the theme's `controlSound`
-  source; any other id resolves to that library clip's URL.
+  `"reminder-audio"` resolves to `/api/tasks/audio`; any other id resolves to
+  that library clip's URL, a built-in to its static path even before the library
+  has loaded, so a chime that fires early still sounds. A dangling upload id
+  falls back to the action's default.
 - Decoded `AudioBuffer`s are cached **per sound id**, not as the single
   `decodedSource` / `decodedBuffer` pair the old engine used. A clip is decoded on
   first use and pre-decoded when it is newly assigned, so the first press after an
@@ -174,21 +199,38 @@ behaviour the single-sound design had.
 - Volume stays the single `controlSound.volume` slider, applied to every action.
   There is no per-action volume.
 - The `AudioContext` is still created lazily and resumed on the first gesture.
+  `HapticFeedback` also resumes it from any `pointerdown` or `keydown`, not only
+  a button click, so a sound that fires with no gesture of its own has a running
+  context.
+- A clip that is not decoded yet is decoded and **then played** on that same
+  call. It used to be skipped with only the decode kicked off, which is why the
+  config page's preview had to be pressed twice.
+- The timer chime goes through `playUxSound("timerAlert")`, not a fresh
+  `Audio()` element. An element constructed minutes after the last gesture is
+  subject to the browser's autoplay policy and was refused silently: a completed
+  timer claimed the chime slot (`soundSlot` advanced server-side) and then made
+  no sound on any screen. Observed 2026-09-16 on the live host. The
+  washing-machine announcement stays on an `Audio` element; it is per-occurrence
+  TTS, not a library clip.
 
 ## Config UI
 
-Both blocks live in the existing **Sound** accordion of `AccentConfig.tsx`, below
-the `timerSound` selector, replacing today's single upload row.
+Both blocks live in the **Sound** accordion of `AccentConfig.tsx`.
 
-**Sound library** — a list of entries, each with its name, a preview button, and
-for uploads a rename field and a delete button. Below the list, one upload control
-reusing `ControlSoundConfig`'s existing file handling. Built-ins are listed first,
-then uploads, each group alphabetical by name.
+The accordion holds, in order: the **Volume** slider, the **assignments**, then
+the **library** in a `ConfigAccordion` of its own which is **collapsed by
+default**. The clips are a store to dip into when adding one; the assignments
+are the part that gets tuned.
 
-**Sound assignments** — twelve `ConfigSelect` rows in the order of the action
-table above, each labelled with the action's plain-English name. Every list reads
-`None`, then `Button press (theme)`, then the library entries in the same order
-the library block shows them.
+**Sound assignments** — twelve rows in the order of the action table above, each
+a label, a `ConfigSelect` and a **Play** button that previews what that row is
+currently set to (disabled on `None`). Every list reads `None`, then
+`Reminder audio (uploaded)`, then the library entries in the same order the
+library block shows them.
+
+**Sound library** — a list of entries, each with its name, a Play button, and for
+uploads a rename field and a delete button. Below the list, one upload control.
+Built-ins are listed first, then uploads, each group alphabetical by name.
 
 Both blocks obey the parameter-group structure rule and carry no explanatory UX
 prose.
@@ -212,6 +254,10 @@ it.
 ## Done means
 
 - The six clicks are selectable on every one of the twelve actions.
+- A completed timer chimes on the screen that claims it.
+- One press of a Play button plays the clip; there is no second press.
+- A household that had uploaded a control sound still hears it on every action
+  that used to default to it, now listed in the library under its filename.
 - Uploading an MP3 in config adds it to every assignment dropdown without a
   reload.
 - Setting an action to None silences exactly that action and nothing else.

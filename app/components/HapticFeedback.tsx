@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { buttonHaptic, triggerHaptic, uxSoundActionFor } from "./haptics";
+import { unlockUxSound } from "./dashboard/controlSound";
 import { useSoundLibrary } from "./dashboard/useSoundLibrary";
 
 const BUTTON_SELECTOR = "button, [role='button']";
@@ -31,8 +32,20 @@ export function HapticFeedback() {
       else triggerHaptic("button");
     };
 
+    // Any gesture at all, not just a click on a button, gets the AudioContext
+    // created and running. A sound that fires later with no gesture of its own
+    // — a timer chime, a reminder alert — then has a live context to play into
+    // instead of being refused by the autoplay policy (specs/ux-sounds.md).
+    const onGesture = () => unlockUxSound();
+
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("pointerdown", onGesture, true);
+    document.addEventListener("keydown", onGesture, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("pointerdown", onGesture, true);
+      document.removeEventListener("keydown", onGesture, true);
+    };
   }, []);
 
   return null;

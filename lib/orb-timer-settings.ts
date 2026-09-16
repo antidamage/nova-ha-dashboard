@@ -1,7 +1,6 @@
 import { normalizeGlyph, type ReminderGlyph } from "./reminder-glyph";
 export type TimerIcon = { id: string; label: string; glyph: ReminderGlyph };
 export const DEFAULT_TIMER_ICONS: TimerIcon[] = [{ id: "timer", label: "Countdown", glyph: { kind: "phosphor", id: "timer" } }];
-export const TIMER_SOUNDS = ["Chime", "Magical", "Motion tracker", "Retro boop", "Soft boop", "Tink"] as const;
 export function normalizeTimerIcons(value: unknown): TimerIcon[] {
   if (!Array.isArray(value)) return DEFAULT_TIMER_ICONS;
   const ids = new Set<string>();
