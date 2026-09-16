@@ -293,3 +293,9 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 - **Untucked rings are clipped at the bottom left** by a circular mask or
   overflow on an ancestor of the floating (portalled) rings. A floated ring is
   never clipped; its whole arc and labels are visible.
+
+## No state pill on climate knob cards
+
+Adeline, 2026-09-16: the aircon and bedroom-heater cards show no On/Off pill in
+the top-right corner. The pill still shows when the entity is unknown,
+unavailable or missing.

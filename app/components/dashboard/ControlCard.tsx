@@ -49,14 +49,18 @@ export function ControlCard({ cardId, children, entity, kicker, subPanel = false
         ) : null}
         <div className="flex items-center gap-2">
           <ModuleSlot id="card.header.actions" context={{ cardId, entity }} />
-          <div
-            className={classNames(
-              "border px-3 py-2 text-xs font-black uppercase",
-              unavailable ? "border-red-400/50 text-red-400" : "border-cyan-300/50 text-cyan-200",
-            )}
-          >
-            {entity?.state ?? "missing"}
-          </div>
+          {/* A knob card (no kicker or title) shows no On/Off pill: the knob
+              already shows the state (Adeline, 2026-09-16). A fault still shows. */}
+          {kicker || title || unavailable ? (
+            <div
+              className={classNames(
+                "border px-3 py-2 text-xs font-black uppercase",
+                unavailable ? "border-red-400/50 text-red-400" : "border-cyan-300/50 text-cyan-200",
+              )}
+            >
+              {entity?.state ?? "missing"}
+            </div>
+          ) : null}
         </div>
       </header>
 
