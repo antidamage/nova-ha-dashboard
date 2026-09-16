@@ -32,7 +32,7 @@ Visualiser controls (the config panel formerly called Physics):
 - Driver-lane semantics — driver types, `every`/`offset` gating, `divide`
   subdivision, modifier summation, envelopes, the four combine modes, and the
   overshoot guard — are specified in `PHONOSCOPE_MODULE_SPEC.md` §10 "Driver
-  lanes" and shared by all three engines. `lib/phonoscope-drivers.ts` is the
+  lanes" and shared by all three engines. `lib/phonoscope-drivers/` is the
   dashboard's copy.
 - "When stacked" offers **Sum**, **Least frequent lane wins**, **Most frequent
   lane wins** and **Override**. The first two keep their original wire values

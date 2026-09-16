@@ -3,9 +3,9 @@ import {
   normalizePhonoscopeColorGroups,
   normalizePhonoscopeSettingsGroups,
   prunePhonoscopeLanes,
-} from "./phonoscope-store";
-import { phonoscopeDriver } from "./phonoscope-drivers";
-import type { PhonoscopeDriverLane } from "./types";
+} from "../phonoscope-store";
+import { phonoscopeDriver } from "../phonoscope-drivers";
+import type { PhonoscopeDriverLane } from "../types";
 
 const declared = new Set(["intensity", "__glowBlur"]);
 

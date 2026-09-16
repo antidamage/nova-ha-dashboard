@@ -35,7 +35,7 @@ camera-events/     Python service — camera event processing
 | Aircon or heater | `lib/aircon-control.ts`, `lib/climate-control.ts`, `app/components/dashboard/climateCommands.ts` |
 | Power figures | `lib/power/` (`store.ts` owns the state) |
 | Theme, accent, colour | `app/components/accentColor.ts`, `app/components/AccentConfig.tsx` |
-| Visualiser | `lib/phonoscope*.ts`, `app/components/phonoscope/` |
+| Visualiser | `lib/phonoscope*.ts` + `lib/phonoscope*/`, `app/components/phonoscope/` |
 | Status orbs | `lib/orb-modules/`, `lib/orb-info/`, `app/components/orb-info/` |
 | Tasks and reminders | `lib/tasks.ts`, `app/components/tasks/`, `app/components/reminders/` |
 | Camera | `lib/camera/`, `app/components/dashboard/CameraPanel.tsx`, `camera-events/` |

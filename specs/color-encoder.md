@@ -661,7 +661,7 @@ skin and the light theme's knob skin are independent settings, same shape as
 `KNOB_SKIN_MODES = ["auto", "dark", "light"]`).
 
 This is unrelated to Phonoscope's `altActive` colour-group flip
-(`lib/phonoscope-theme-state.ts`) — that is a separate, visualiser-only
+(`lib/phonoscope-theme-state/`) — that is a separate, visualiser-only
 concept and this feature does not touch it.
 
 ## Glow

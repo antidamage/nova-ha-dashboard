@@ -59,7 +59,7 @@ named in the commit body, one sentence, naming which criterion:
 
 Large table-driven tests are explicitly out of scope for splitting — a big
 table-driven test is the correct shape. `lib/aircon-control.test.ts` (48 KB)
-and `lib/phonoscope-drivers.test.ts` (35 KB) are permanent exceptions.
+and `lib/phonoscope-drivers/phonoscope-drivers.test.ts` (35 KB) are permanent exceptions.
 
 ## 3. Directory convention
 
