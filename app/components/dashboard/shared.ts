@@ -52,6 +52,7 @@ function zoneEnvironmentFallback(zone: DashboardZone, data: DashboardState | nul
 export const TASKS_ZONE_ID = "tasks";
 export const POWER_ZONE_ID = "power";
 export const WORLD_ZONE_ID = "world";
+export const VOICE_ZONE_ID = "voice";
 export const POWER_ZONE: DashboardZone = {
   id: POWER_ZONE_ID,
   name: "Grid",
@@ -102,6 +103,23 @@ export const WORLD_ZONE: DashboardZone = {
   isOn: false,
   brightnessPct: 0,
   special: "world",
+};
+export const VOICE_ZONE: DashboardZone = {
+  id: VOICE_ZONE_ID,
+  name: "Voice",
+  entities: [],
+  counts: {
+    light: 0,
+    switch: 0,
+    climate: 0,
+    fan: 0,
+    cover: 0,
+    humidifier: 0,
+    sensor: 0,
+  },
+  isOn: false,
+  brightnessPct: 0,
+  special: "voice",
 };
 
 export function classNames(...parts: Array<string | false | null | undefined>) {
@@ -253,6 +271,10 @@ export function isPowerZone(zone: DashboardZone) {
   return zone.id === POWER_ZONE_ID || zone.special === "power";
 }
 
+export function isVoiceZone(zone: DashboardZone) {
+  return zone.id === VOICE_ZONE_ID || zone.special === "voice";
+}
+
 export function sensorMatches(entity: DashboardEntity, target: "temperature" | "humidity") {
   if (entity.domain !== "sensor") {
     return false;
@@ -392,6 +414,10 @@ export function countDomainsForZone(zone: DashboardZone): HaDomain[] {
   }
 
   if (isWorldZone(zone)) {
+    return [];
+  }
+
+  if (isVoiceZone(zone)) {
     return [];
   }
 

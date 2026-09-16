@@ -1439,7 +1439,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     const canComplete = status !== "Done";
 
     return (
-      <div key={task.id} className="grid gap-2">
+      <div key={task.id} className="task-card">
         <div
           className={classNames(
             "task-row grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-neutral-700 bg-neutral-950/70 p-3 text-left",

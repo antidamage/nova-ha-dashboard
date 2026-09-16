@@ -6,6 +6,8 @@ import {
   POWER_ZONE,
   POWER_ZONE_ID,
   TASKS_ZONE_ID,
+  VOICE_ZONE,
+  VOICE_ZONE_ID,
   WORLD_ZONE,
   WORLD_ZONE_ID,
 } from "./shared";
@@ -23,6 +25,7 @@ export function zoneForSelection(data: DashboardState | null, zoneId: string | n
   if (!zoneId) return null;
   if (zoneId === POWER_ZONE_ID && (!data || data.activeModuleIds?.includes("power"))) return POWER_ZONE;
   if (zoneId === WORLD_ZONE_ID) return WORLD_ZONE;
+  if (zoneId === VOICE_ZONE_ID) return VOICE_ZONE;
   return data?.zones.find((zone) => zone.id === zoneId) ?? null;
 }
 
@@ -42,6 +45,9 @@ export function useDashboardSelection(data: DashboardState | null) {
     if (selectedZoneId === WORLD_ZONE_ID) {
       return WORLD_ZONE;
     }
+    if (selectedZoneId === VOICE_ZONE_ID) {
+      return VOICE_ZONE;
+    }
     if (!data || selectedZoneId === TASKS_ZONE_ID) {
       return null;
     }
@@ -54,6 +60,7 @@ export function useDashboardSelection(data: DashboardState | null) {
       selectedZoneId !== TASKS_ZONE_ID &&
       (selectedZoneId !== POWER_ZONE_ID || !powerAvailable) &&
       selectedZoneId !== WORLD_ZONE_ID &&
+      selectedZoneId !== VOICE_ZONE_ID &&
       !data.zones.some((zone) => zone.id === selectedZoneId)
     ) {
       const fallbackZoneId = data.zones[0]?.id ?? "everything";

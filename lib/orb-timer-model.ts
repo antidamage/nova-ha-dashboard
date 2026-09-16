@@ -24,5 +24,11 @@ export function timerRemaining(timer: OrbTimer, now: number): number {
 }
 export function countdownText(ms: number): string {
   const seconds = Math.ceil(Math.abs(ms) / 1000);
-  return `${ms < 0 ? "+" : ""}${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const minutes = Math.floor(seconds / 60);
+  const sign = ms < 0 ? "+" : "";
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    return `${sign}${hours}:${String(minutes % 60).padStart(2, "0")}`;
+  }
+  return `${sign}${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }

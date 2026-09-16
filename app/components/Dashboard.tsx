@@ -41,7 +41,6 @@ import { ReloadButton } from "./ReloadButton";
 import { ThemeOverrideButton } from "./ThemeOverrideButton";
 import { HeaderFadeStrip } from "./dashboard/HeaderFadeStrip";
 import { useBuildReload } from "./useBuildReload";
-import { VoiceTranscriptPanel } from "./VoiceTranscriptPanel";
 import { ModuleSlot } from "./modules/ModuleSlot";
 
 export function Dashboard() {
@@ -254,7 +253,6 @@ export function Dashboard() {
             <div className="control-stage tasks-stage" data-group="systems" hidden={systemsId !== TASKS_ZONE_ID}>
               <TasksPanel showPanel={systemsId === TASKS_ZONE_ID} />
             </div>
-            <VoiceTranscriptPanel />
           </div>
           </ClimateCommandsProvider>
 

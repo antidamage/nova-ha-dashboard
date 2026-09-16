@@ -13,6 +13,8 @@ import {
   POWER_ZONE_ID,
   TASKS_ZONE,
   TASKS_ZONE_ID,
+  VOICE_ZONE,
+  VOICE_ZONE_ID,
   WORLD_ZONE,
   WORLD_ZONE_ID,
 } from "./shared";
@@ -74,6 +76,7 @@ export function ZonesPanel({
   const tasksZoneSelected = systemsSelectedId === TASKS_ZONE_ID;
   const powerZoneSelected = systemsSelectedId === POWER_ZONE_ID;
   const worldZoneSelected = systemsSelectedId === WORLD_ZONE_ID;
+  const voiceZoneSelected = systemsSelectedId === VOICE_ZONE_ID;
 
   return (
     <aside className="zones-panel border border-neutral-700 bg-neutral-950/70 p-4">
@@ -134,9 +137,14 @@ export function ZonesPanel({
           attached={systemsControls}
           attachKey={systemsSelectedId}
         >
+        {/* Sub-zone styled and grid-distributed like a parent zone's children
+            (globals.css), so the fixed roster of system tabs uses the panel's
+            width instead of stacking one to a row. */}
+        <div className="zone-children systems-zone-children grid gap-3">
         {zones.climate ? (
           <ZoneButton
             zone={zones.climate}
+            nested
             selected={systemsSelectedId === zones.climate.id}
             onClick={() => onSelectZone(zones.climate!.id)}
           />
@@ -145,6 +153,7 @@ export function ZonesPanel({
         {zones.outside ? (
           <ZoneButton
             zone={zones.outside}
+            nested
             selected={systemsSelectedId === zones.outside.id}
             onClick={() => onSelectZone(zones.outside!.id)}
           />
@@ -152,6 +161,7 @@ export function ZonesPanel({
 
         <ZoneButton
           zone={zones.world}
+          nested
           selected={worldZoneSelected}
           onClick={() => onSelectZone(WORLD_ZONE_ID)}
         />
@@ -159,6 +169,7 @@ export function ZonesPanel({
         {zones.network ? (
           <ZoneButton
             zone={zones.network}
+            nested
             selected={systemsSelectedId === zones.network.id}
             onClick={() => onSelectZone(zones.network!.id)}
             routerStatus={data?.router}
@@ -168,6 +179,7 @@ export function ZonesPanel({
         {zones.power ? (
           <ZoneButton
             zone={zones.power}
+            nested
             selected={powerZoneSelected}
             onClick={() => onSelectZone(POWER_ZONE_ID)}
           />
@@ -175,10 +187,19 @@ export function ZonesPanel({
 
         <ZoneButton
           zone={TASKS_ZONE}
+          nested
           selected={tasksZoneSelected}
           onClick={() => onSelectZone(TASKS_ZONE_ID)}
           className="zone-button-tasks"
         />
+
+        <ZoneButton
+          zone={VOICE_ZONE}
+          nested
+          selected={voiceZoneSelected}
+          onClick={() => onSelectZone(VOICE_ZONE_ID)}
+        />
+        </div>
         </HorizontalAccordion>
       </div>
     </aside>

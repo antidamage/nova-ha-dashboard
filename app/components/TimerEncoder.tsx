@@ -45,12 +45,12 @@ export function TimerEncoder() {
   const icon = locked && active ? active.icon : timerIconCode(icons[index % icons.length].glyph);
   const done = active && (active.completedAt !== null || active.endsAt <= now);
   return <div className="timer-encoder-panel">
-    <RotaryEncoder title="Timer" ariaLabel="Set household timer" size={150} leds={[]} value={index}
+    <RotaryEncoder title="Timer" ariaLabel="Set household timer" size={200} leds={[]} value={index}
       range={{ min: 0, max: Math.max(1, icons.length), step: 1, wrap: true }} sensitivity={1 / 30}
       onChange={(value) => { setIndex(Math.round(value) % icons.length); dirty.current = true; }}
       color="rgb(var(--nova-alert-rgb))" tuckAfterMs={numericOpen.current ? 3600000 : 5000} onLockChange={onLockChange}
       rings={[{ id: "duration", label: "Duration", value: timerMinutesToFraction(minutes), min: 0, max: 1, step: .001,
-        valueText: (value) => { const m = timerFractionToMinutes(value); return m ? `${m} min` : "Off"; }, valueTextWidest: "480 min",
+        valueText: (value) => { const m = timerFractionToMinutes(value); return m ? countdownText(m * 60_000) : "Off"; }, valueTextWidest: "8:00",
         onChange: (value) => changeMinutes(timerFractionToMinutes(value)),
         onValueTap: (anchor) => { numericOpen.current = true; numeric.open({ anchor, anchorOffsetX: anchor.clientWidth / 2,
           label: "Timer minutes", min: 0, max: 480, step: 1 / 60, value: minutes, hint: "0 = Off; up to 480 minutes",

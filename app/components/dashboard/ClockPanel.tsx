@@ -19,6 +19,16 @@ function formatClockTime(date: Date) {
   }).format(date).replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
 }
 
+// The clock face itself already shows wherever the screen is (see the note
+// above); the zone badge used to say "Auckland" regardless, which lied about
+// which zone that actually was on any other machine. This reads the resolved
+// IANA zone and shows just its city segment.
+function localZoneLabel() {
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const city = zone.split("/").pop() ?? zone;
+  return city.replace(/_/g, " ");
+}
+
 function ordinalDay(day: number) {
   const remainder = day % 100;
   if (remainder >= 11 && remainder <= 13) {
@@ -67,7 +77,7 @@ export function ClockPanel() {
         time: "--:--:--",
         weekday: null,
         date: "Syncing time",
-        zone: "Auckland",
+        zone: localZoneLabel(),
       };
     }
 
@@ -77,7 +87,7 @@ export function ClockPanel() {
         weekday: "short",
       }).format(now),
       date: formatClockDate(now),
-      zone: "Auckland",
+      zone: localZoneLabel(),
     };
   }, [now]);
 
