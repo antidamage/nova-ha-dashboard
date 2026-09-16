@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DashboardEntity } from "../../../lib/types";
-import { AirconKnob, HeaterKnob } from "./ClimateKnobs";
-import { CLIMATE_MODE_COMMIT_DEBOUNCE_MS } from "./climateCommands";
+import type { DashboardEntity } from "../../../../lib/types";
+import { AirconKnob, HeaterKnob } from "../ClimateKnobs";
+import { CLIMATE_MODE_COMMIT_DEBOUNCE_MS } from "../climateCommands";
 
 const DIAL_BOX = 248.8;
 

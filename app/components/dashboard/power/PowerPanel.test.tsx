@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { PowerDashboard } from "../../../lib/power";
-import { PowerPanel } from "./PowerPanel";
-import { openAdvancedFold } from "./advancedFoldTesting";
+import type { PowerDashboard } from "../../../../lib/power";
+import { PowerPanel } from "../PowerPanel";
+import { openAdvancedFold } from "../advancedFoldTesting";
 
 const data = {
   accountRateGraph: [{ cPerKwh: 30, label: "May 2026" }],
@@ -43,11 +43,11 @@ const data = {
   },
 } as unknown as PowerDashboard;
 
-vi.mock("./usePowerDashboard", () => ({
+vi.mock("../usePowerDashboard", () => ({
   usePowerDashboard: () => ({ data, error: null }),
 }));
 
-vi.mock("../AgentNameContext", () => ({
+vi.mock("../../AgentNameContext", () => ({
   useAgentName: () => ({ agentName: "Nova" }),
 }));
 
