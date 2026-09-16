@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Task } from "../../lib/types";
-import { shouldClearTaskAlert, taskVisibleInTab } from "./TasksPanel";
+import type { Task } from "../../../lib/types";
+import { shouldClearTaskAlert, taskVisibleInTab } from "../TasksPanel";
 
 const now = new Date(2026, 4, 21, 12, 0, 0).getTime();
 
