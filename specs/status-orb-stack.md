@@ -197,3 +197,24 @@ orb."
   open browser contexts at once.
 - Gym shows the barbell icon with fitted text.
 - Apple TV conformance cases updated for the new ordering.
+
+## Round 3: the gym alert sinks (Adeline, 2026-09-16)
+
+The gym alert is the exception to alert priority: it goes **at the bottom of
+the stack, always**, below running countdowns and below plain `on` entries. A
+running timer sits above it, as does everything else. The justification is that
+a gym alert is typically a week old and clearing it needs physical work, so it
+is never the most useful thing on the orb at the moment it fires.
+
+- Ordering becomes: other alerts (most recent first) → countdowns (shortest
+  remaining first) → `on` entries in user order → **gym alerts** (most recent of
+  them first, when more than one gym module is on the stack).
+- Applies to both gym modules, `gym` and `gym-progress`
+  (`ORB_SINKING_ALERT_MODULE_IDS` in `lib/orb-info/stack.ts`, mirrored by
+  `OrbStackOrdering.sinkingAlertModuleIDs` on Apple TV).
+- A sunk gym alert still alerts: it keeps its alert colour and pulse on the dial,
+  it just no longer takes the orb's resting slot from anything else.
+- Done means: the shared case table in `lib/orb-info/stack-cases.json` covers a
+  gym alert ordering below a countdown and a plain `on` row, and two gym alerts
+  ordering among themselves; both the web tests and the Apple TV parity self
+  tests run it.
