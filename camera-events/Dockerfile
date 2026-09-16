@@ -13,6 +13,7 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY core.py service.py benchmark_models.py ./
+COPY service_impl/ ./service_impl/
 RUN python -c "from ultralytics import YOLO; YOLO('yolo11n.pt'); YOLO('yolo26n.pt')"
 
 EXPOSE 8098

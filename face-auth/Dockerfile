@@ -61,7 +61,9 @@ RUN mkdir -p /models/antispoof && cd /models/antispoof \
 # where a missing GPU is an expected, handled state rather than a crash.
 RUN python -c "from insightface.utils.storage import ensure_available; ensure_available('models', 'buffalo_l', root='/models')"
 
-COPY core.py models.py service.py /app/
+COPY models.py /app/
+COPY core /app/core
+COPY service /app/service
 COPY antispoof /app/antispoof
 COPY authenticator /app/authenticator
 COPY test_core.py test_authenticator.py /app/
