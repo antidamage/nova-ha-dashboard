@@ -1,5 +1,4 @@
 "use client";
-import { TIMER_SOUNDS } from "../../lib/orb-timer-settings";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -89,12 +88,10 @@ export type DesktopWallpaperSettings = {
   useAsDashboardBackground: boolean;
 };
 
-// A user-uploaded UI sound played when a control button commands a device. The
-// audio is embedded as a data URL so it travels with the shared config and saved
-// theme presets. `source` null means no sound (silent).
+// Volume for every UX sound this theme plays. The clips themselves live in the
+// sound library and are chosen per action in `uxSounds`; there is no per-action
+// volume (specs/ux-sounds.md).
 export type ControlSoundSettings = {
-  name: string | null;
-  source: string | null;
   volume: number;
 };
 
@@ -178,7 +175,6 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   panel: ThemePanelValue;
   clockColor: ThemeColorValue;
   clockFont: ThemeFontSetting;
-  timerSound: string;
   controlSound: ControlSoundSettings;
   /** Which library sound each UX action plays (specs/ux-sounds.md). */
   uxSounds: UxSoundAssignments;
@@ -314,14 +310,7 @@ export const VOICE_TRANSCRIPT_SCANLINE_SCALE_MIN = 50;
 export const CONTROL_SOUND_VOLUME_DEFAULT = 60;
 export const CONTROL_SOUND_VOLUME_MAX = 100;
 export const CONTROL_SOUND_VOLUME_MIN = 0;
-// Uploaded UI sounds are embedded as data URLs inside the theme, so cap the raw
-// file to keep the theme/preset JSON sane. ~1 MB is plenty for any UI click.
-export const CONTROL_SOUND_FILE_MAX_BYTES = 1_000_000;
-// base64 inflates by ~4/3, plus the "data:audio/...;base64," prefix.
-const CONTROL_SOUND_SOURCE_MAX_LENGTH = Math.ceil(CONTROL_SOUND_FILE_MAX_BYTES * 1.4) + 64;
 export const DEFAULT_CONTROL_SOUND: ControlSoundSettings = {
-  name: null,
-  source: null,
   volume: CONTROL_SOUND_VOLUME_DEFAULT,
 };
 
@@ -440,7 +429,6 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
     rgb: [224, 205, 154],
   },
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
-  timerSound: "Chime",
   controlSound: { ...DEFAULT_CONTROL_SOUND },
   uxSounds: { ...DEFAULT_UX_SOUNDS },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
@@ -655,7 +643,6 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
     rgb: [174, 0, 255],
   },
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
-  timerSound: "Chime",
   controlSound: { ...DEFAULT_CONTROL_SOUND },
   uxSounds: { ...DEFAULT_UX_SOUNDS },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
@@ -924,28 +911,8 @@ export function normalizeDesktopWallpaperSettings(value: Partial<DesktopWallpape
   };
 }
 
-export function normalizeControlSoundSource(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed.startsWith("data:audio/") || trimmed.length > CONTROL_SOUND_SOURCE_MAX_LENGTH) {
-    return null;
-  }
-
-  return trimmed;
-}
-
 export function normalizeControlSound(value: Partial<ControlSoundSettings> | null | undefined): ControlSoundSettings {
-  const source = normalizeControlSoundSource(value?.source);
-  const name = source && typeof value?.name === "string" && value.name.trim()
-    ? value.name.trim().slice(0, 120)
-    : null;
-
   return {
-    name,
-    source,
     volume: normalizeNumber(value?.volume, DEFAULT_CONTROL_SOUND.volume, CONTROL_SOUND_VOLUME_MIN, CONTROL_SOUND_VOLUME_MAX),
   };
 }
@@ -1004,7 +971,6 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     backgroundEffect: normalizeFluidBackgroundSettings(value?.backgroundEffect),
     clockColor: normalizeColor(value?.clockColor, titleColors[titleColorSlotFor(titleTone, appliedThemeRgb(background), true)]),
     clockFont: normalizeThemeFontSetting(value?.clockFont, DEFAULT_CLOCK_FONT_ID, DEFAULT_CLOCK_FONT_SETTING.weight),
-    timerSound: TIMER_SOUNDS.includes(value?.timerSound as typeof TIMER_SOUNDS[number]) ? value!.timerSound! : "Chime",
     controlSound: normalizeControlSound(value?.controlSound),
     uxSounds: normalizeUxSounds(value?.uxSounds),
     desktopWallpaper: normalizeDesktopWallpaperSettings(value?.desktopWallpaper),
@@ -1510,7 +1476,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssTaskGlowIntensity(normalized.taskGlowIntensity);
   applyCssAlertColor(normalized.avatar.gradientAlert);
   applyCssLedColor(normalized.ledColor);
-  setActiveControlSound(normalized.controlSound, normalized.uxSounds, normalized.timerSound);
+  setActiveControlSound(normalized.controlSound, normalized.uxSounds);
   applyThemeFontVars("display", normalized.font);
   applyThemeFontVars("clock", normalized.clockFont);
   applyThemeFontVars("gym", normalized.gymFont);

@@ -2,26 +2,24 @@
 
 import type { ControlSoundSettings } from "../accentColor";
 import {
-  BUTTON_PRESS_SOUND,
   DEFAULT_UX_SOUNDS,
   REMINDER_AUDIO_SOUND,
-  TIMER_CHIME_SOUND,
+  migrateLegacySoundId,
   type UxSoundAction,
   type UxSoundAssignments,
 } from "./uxSoundActions";
-import { soundUrl, type SoundLibraryEntry } from "../../../lib/sound-library";
+import { isBuiltinSoundId, soundUrl, type SoundLibraryEntry } from "../../../lib/sound-library";
 
 // Plays the UX sound each action is assigned in the theme. Web Audio gives
 // precise control over volume and concurrency: when controls are mashed faster
 // than a clip finishes, only the two newest voices keep playing and the rest
 // are cancelled.
 //
-// The active settings (the theme's own uploaded clip, the action assignments
-// and the timer chime choice) live in the theme and are pushed here by
-// applyDeviceTheme via setActiveControlSound, so this module never reads the
-// theme itself — callers just invoke playUxSound(action). The library of
-// available clips is pushed separately by setSoundLibrary, because it lives in
-// preferences rather than the theme.
+// The active settings (the volume and the action assignments) live in the theme
+// and are pushed here by applyDeviceTheme via setActiveControlSound, so this
+// module never reads the theme itself — callers just invoke playUxSound(action).
+// The library of available clips is pushed separately by setSoundLibrary,
+// because it lives in preferences rather than the theme.
 //
 // See specs/ux-sounds.md.
 
@@ -30,9 +28,8 @@ const RELEASE_SECONDS = 0.02;
 
 type ActiveVoice = { stop: () => void };
 
-let activeSettings: ControlSoundSettings = { name: null, source: null, volume: 60 };
+let activeSettings: ControlSoundSettings = { volume: 60 };
 let activeAssignments: UxSoundAssignments = { ...DEFAULT_UX_SOUNDS };
-let activeTimerSound = "Chime";
 let libraryUrls = new Map<string, string>();
 let audioContext: AudioContext | null = null;
 const activeVoices: ActiveVoice[] = [];
@@ -40,17 +37,15 @@ const activeVoices: ActiveVoice[] = [];
 // Decoded clips, keyed by the URL they came from, so every assigned sound stays
 // latency-free rather than only the most recently used one.
 const decoded = new Map<string, AudioBuffer>();
-const decoding = new Set<string>();
+const decoding = new Map<string, Promise<void>>();
 
-/** The theme's own clip, the action assignments, and the timer chime choice. */
+/** The volume and the action assignments. */
 export function setActiveControlSound(
   settings: ControlSoundSettings,
   assignments: UxSoundAssignments = DEFAULT_UX_SOUNDS,
-  timerSound = "Chime",
 ) {
   activeSettings = settings;
   activeAssignments = assignments;
-  activeTimerSound = timerSound;
   prewarm();
 }
 
@@ -60,31 +55,40 @@ export function setSoundLibrary(entries: readonly SoundLibraryEntry[]) {
   prewarm();
 }
 
+/** The URL of one library id, without the library loaded if it is a built-in. */
+function urlForSoundId(id: string): string | null {
+  const known = libraryUrls.get(id);
+  if (known) {
+    return known;
+  }
+  // Built-ins are static files at a derivable path, so they play even before
+  // the library fetch lands — which is exactly when a chime tends to fire.
+  return isBuiltinSoundId(id) ? `/sounds/ux/${id}.mp3` : null;
+}
+
 /**
  * The URL an assignment resolves to, or null for silence.
  *
- * A dangling id — a clip that has since been deleted — falls back to the
- * theme's own sound rather than going silent, so removing a clip never quietly
- * kills an action (specs/ux-sounds.md).
+ * A dangling id — an uploaded clip that has since been deleted — falls back to
+ * the action's default rather than going silent, so removing a clip never
+ * quietly kills an action (specs/ux-sounds.md).
  */
 export function resolveUxSoundUrl(action: UxSoundAction): string | null {
   const assigned = activeAssignments[action] ?? null;
   if (assigned === null) {
     return null;
   }
-  if (assigned === TIMER_CHIME_SOUND) {
-    return `/sounds/timer-${activeTimerSound.toLowerCase().replaceAll(" ", "-")}.mp3`;
-  }
   if (assigned === REMINDER_AUDIO_SOUND) {
     return "/api/tasks/audio";
   }
-  if (assigned !== BUTTON_PRESS_SOUND) {
-    const url = libraryUrls.get(assigned);
-    if (url) {
-      return url;
-    }
+
+  const url = urlForSoundId(migrateLegacySoundId(assigned));
+  if (url) {
+    return url;
   }
-  return activeSettings.source;
+
+  const fallback = DEFAULT_UX_SOUNDS[action];
+  return fallback && fallback !== REMINDER_AUDIO_SOUND ? urlForSoundId(fallback) : null;
 }
 
 /** Decode everything currently assigned, so the first press is never swallowed. */
@@ -140,22 +144,43 @@ function getAudioContext(): AudioContext | null {
   return audioContext;
 }
 
-async function decodeSource(source: string) {
-  const ctx = getAudioContext();
-  if (!ctx) {
-    return;
+/**
+ * Create and resume the context from a real gesture, so a sound that fires
+ * later with no gesture of its own — a timer chime, a reminder alert — has an
+ * already-running context to play into. Cheap and idempotent.
+ */
+export function unlockUxSound() {
+  getAudioContext();
+}
+
+function decodeSource(source: string): Promise<void> {
+  const existing = decoding.get(source);
+  if (existing) {
+    return existing;
   }
 
-  decoding.add(source);
-  try {
-    const response = await fetch(source);
-    const arrayBuffer = await response.arrayBuffer();
-    decoded.set(source, await ctx.decodeAudioData(arrayBuffer));
-  } catch {
-    decoded.delete(source);
-  } finally {
-    decoding.delete(source);
+  const ctx = getAudioContext();
+  if (!ctx) {
+    return Promise.resolve();
   }
+
+  const work = (async () => {
+    try {
+      const response = await fetch(source);
+      if (!response.ok) {
+        throw new Error(`Sound fetch failed: ${response.status}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      decoded.set(source, await ctx.decodeAudioData(arrayBuffer));
+    } catch {
+      decoded.delete(source);
+    } finally {
+      decoding.delete(source);
+    }
+  })();
+
+  decoding.set(source, work);
+  return work;
 }
 
 function trimToNewest() {
@@ -168,12 +193,11 @@ function trimToNewest() {
 /** Play whatever the theme assigns to `action`. Silent when it is set to None. */
 export function playUxSound(action: UxSoundAction, override?: Partial<ControlSoundSettings>) {
   const volume = override?.volume ?? activeSettings.volume;
-  const source = override && "source" in override ? override.source ?? null : resolveUxSoundUrl(action);
-  playSource(source, volume);
+  playSource(resolveUxSoundUrl(action), volume);
 }
 
 /** Play one specific clip, for the config page's preview buttons. */
-export function previewSound(url: string) {
+export function previewSound(url: string | null) {
   playSource(url, activeSettings.volume);
 }
 
@@ -187,16 +211,24 @@ function playSource(source: string | null, volume: number) {
     return;
   }
 
-  // Not decoded yet (e.g. first press right after an upload) — kick off the
-  // decode so the next press has it, and skip this one rather than blocking.
+  // Not decoded yet — the first press after an upload or an assignment change,
+  // and every preview of a clip nothing is assigned to. Decode, then play the
+  // same press rather than swallowing it and waiting to be asked twice.
   const buffer = decoded.get(source);
   if (!buffer) {
-    if (!decoding.has(source)) {
-      void decodeSource(source);
-    }
+    void decodeSource(source).then(() => {
+      const ready = decoded.get(source);
+      if (ready) {
+        startVoice(ctx, ready, volume);
+      }
+    });
     return;
   }
 
+  startVoice(ctx, buffer, volume);
+}
+
+function startVoice(ctx: AudioContext, buffer: AudioBuffer, volume: number) {
   const now = ctx.currentTime;
   const gainNode = ctx.createGain();
   gainNode.gain.setValueAtTime(Math.max(0.0001, volume / 100), now);

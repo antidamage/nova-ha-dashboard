@@ -51,6 +51,16 @@ export async function register() {
     console.error("[nova-modules] failed to start", error);
   }
 
+  // One-time: the retired single control sound becomes an ordinary library
+  // clip, and the assignments that pointed at the sentinels point at it
+  // (specs/ux-sounds.md). No-ops once every theme has been migrated.
+  try {
+    const { migrateControlSoundIntoLibrary } = await import("@/lib/sound-migration");
+    await migrateControlSoundIntoLibrary();
+  } catch (error) {
+    console.error("[ux-sounds] control sound migration failed", error);
+  }
+
   const { startOrbTimer } = await import("@/lib/orb-timer");
   startOrbTimer();
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { lightSoundForEntityActions, lightSoundForZoneAction } from "./lightSoundTransition";
 import {
-  BUTTON_PRESS_SOUND,
+  DEFAULT_CHIME_SOUND,
+  DEFAULT_CLICK_SOUND,
   DEFAULT_UX_SOUNDS,
   normalizeUxSounds,
   REMINDER_AUDIO_SOUND,
-  TIMER_CHIME_SOUND,
   UX_SOUND_ACTIONS,
 } from "./uxSoundActions";
 import type { DashboardState } from "../../../lib/types";
@@ -15,9 +15,9 @@ describe("ux sound assignments", () => {
   it("fills a theme saved before the feature with the full default map", () => {
     const filled = normalizeUxSounds(undefined);
     expect(Object.keys(filled).sort()).toEqual([...UX_SOUND_ACTIONS].sort());
-    expect(filled.buttonPress).toBe(BUTTON_PRESS_SOUND);
-    // The two actions that already had a deliberate sound keep it.
-    expect(filled.timerAlert).toBe(TIMER_CHIME_SOUND);
+    expect(filled.buttonPress).toBe(DEFAULT_CLICK_SOUND);
+    // The two actions with a deliberate sound of their own keep it.
+    expect(filled.timerAlert).toBe(DEFAULT_CHIME_SOUND);
     expect(filled.reminderAlert).toBe(REMINDER_AUDIO_SOUND);
   });
 
@@ -31,8 +31,14 @@ describe("ux sound assignments", () => {
 
   it("ignores a blank or non-string assignment rather than silencing the action", () => {
     const filled = normalizeUxSounds({ buttonPress: "   ", dialClick: 7 });
-    expect(filled.buttonPress).toBe(BUTTON_PRESS_SOUND);
-    expect(filled.dialClick).toBe(BUTTON_PRESS_SOUND);
+    expect(filled.buttonPress).toBe(DEFAULT_CLICK_SOUND);
+    expect(filled.dialClick).toBe(DEFAULT_CLICK_SOUND);
+  });
+
+  it("maps the retired sentinels onto the clips that replaced them", () => {
+    const filled = normalizeUxSounds({ buttonPress: "button-press", timerAlert: "timer-chime" });
+    expect(filled.buttonPress).toBe(DEFAULT_CLICK_SOUND);
+    expect(filled.timerAlert).toBe(DEFAULT_CHIME_SOUND);
   });
 });
 

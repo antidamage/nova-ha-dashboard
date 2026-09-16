@@ -1,6 +1,5 @@
 "use client";
 import { ConfigSelect } from "./ConfigSelect";
-import { TIMER_SOUNDS } from "../../lib/orb-timer-settings";
 
 import { ArrowLeftRight, Bell, Check, CircleDot, Clipboard, Copy, Download, Image as ImageIcon, Map as MapIcon, Music, Palette, Play, SlidersHorizontal, Trash2, Type, Upload, UploadCloud, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
@@ -66,13 +65,11 @@ import {
   appliedThemeRgb,
   flushPendingSharedThemeWrite,
   setDocumentThemeOverride,
-  CONTROL_SOUND_FILE_MAX_BYTES,
   CONTROL_SOUND_VOLUME_DEFAULT,
   CONTROL_SOUND_VOLUME_MAX,
   CONTROL_SOUND_VOLUME_MIN,
   ControlSoundSettings,
   normalizeControlSound,
-  normalizeControlSoundSource,
   normalizeRadarOpacity,
   normalizeTaskGlowIntensity,
   useDeviceTheme,
@@ -504,16 +501,7 @@ function TaskGlowIntensityControl({
   );
 }
 
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function ControlSoundConfig({
+function SoundVolumeConfig({
   color,
   onChange,
   onPreview,
@@ -524,116 +512,29 @@ function ControlSoundConfig({
   onPreview: (value: ControlSoundSettings) => void;
   value: ControlSoundSettings;
 }) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const settings = normalizeControlSound(value);
-  const hasSound = Boolean(settings.source);
-
-  const uploadFile = async (file: File | null) => {
-    if (!file) {
-      return;
-    }
-
-    if (file.size > CONTROL_SOUND_FILE_MAX_BYTES) {
-      setMessage(`File is too large (max ${Math.round(CONTROL_SOUND_FILE_MAX_BYTES / 1000)} KB)`);
-      return;
-    }
-
-    setMessage(null);
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      if (!normalizeControlSoundSource(dataUrl)) {
-        setMessage("That file isn't a supported audio format");
-        return;
-      }
-      onChange({ ...settings, name: file.name, source: dataUrl });
-      setMessage("Sound uploaded");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to read file");
-    } finally {
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
-    }
-  };
-
-  const clearSound = () => {
-    setMessage(null);
-    onChange({ ...settings, name: null, source: null });
-  };
 
   return (
-    <div className="grid gap-3">
-      <div className="intensity-panel border border-cyan-300/30 bg-neutral-900/80 p-4">
-        <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)_auto] md:items-center">
-          <p className="text-sm font-black uppercase text-cyan-200">Control Sound</p>
-          <div className="grid gap-1 font-mono text-sm font-black uppercase text-neutral-300">
-            <span className="inline-flex items-center gap-2">
-              <Music className="h-4 w-4" />
-              {hasSound ? (settings.name ?? "Sound ready") : "No sound uploaded"}
-            </span>
-            {message ? <span className="text-xs text-cyan-100">{message}</span> : null}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <input
-              ref={inputRef}
-              className="sr-only"
-              type="file"
-              accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
-              onChange={(event) => void uploadFile(event.target.files?.[0] ?? null)}
-            />
-            <button
-              className="inline-flex min-h-11 items-center gap-2 border border-cyan-300/60 px-4 py-2 text-sm font-black"
-              type="button"
-              onClick={() => inputRef.current?.click()}
-            >
-              <Upload className="h-4 w-4" />
-              Upload
-            </button>
-            {hasSound ? (
-              <MomentaryFeedbackButton
-                type="button"
-                className="inline-flex min-h-11 items-center gap-2 border border-cyan-300/60 px-4 py-2 text-sm font-black"
-                aria-label="Test control sound"
-              >
-                <Play className="h-4 w-4" />
-                Test
-              </MomentaryFeedbackButton>
-            ) : null}
-            {hasSound ? (
-              <button
-                className="inline-flex min-h-11 items-center gap-2 border border-red-400/60 px-4 py-2 text-sm font-black"
-                type="button"
-                onClick={clearSound}
-              >
-                <Trash2 className="h-4 w-4" />
-                Clear
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <SliderControlPanel
-        activeColor={color}
-        ariaLabel="Control sound volume"
-        ariaValueText={`${settings.volume}%`}
-        color={color}
-        intensity={settings.volume}
-        label="Volume"
-        max={CONTROL_SOUND_VOLUME_MAX}
-        min={CONTROL_SOUND_VOLUME_MIN}
-        step={5}
-        value={settings.volume}
-        valueText={`${settings.volume}%`}
-        onPreview={(volume) => onPreview({ ...settings, volume: Math.round(volume) })}
-        onCommit={(volume) => {
-          onChange({ ...settings, volume: Math.round(volume) });
-        }}
-        markers={[
-          { active: settings.volume === CONTROL_SOUND_VOLUME_DEFAULT, label: "Default", value: CONTROL_SOUND_VOLUME_DEFAULT },
-        ]}
-      />
-    </div>
+    <SliderControlPanel
+      activeColor={color}
+      ariaLabel="UX sound volume"
+      ariaValueText={`${settings.volume}%`}
+      color={color}
+      intensity={settings.volume}
+      label="Volume"
+      max={CONTROL_SOUND_VOLUME_MAX}
+      min={CONTROL_SOUND_VOLUME_MIN}
+      step={5}
+      value={settings.volume}
+      valueText={`${settings.volume}%`}
+      onPreview={(volume) => onPreview({ ...settings, volume: Math.round(volume) })}
+      onCommit={(volume) => {
+        onChange({ ...settings, volume: Math.round(volume) });
+      }}
+      markers={[
+        { active: settings.volume === CONTROL_SOUND_VOLUME_DEFAULT, label: "Default", value: CONTROL_SOUND_VOLUME_DEFAULT },
+      ]}
+    />
   );
 }
 
@@ -2173,20 +2074,17 @@ export function AccentConfig({
             className="config-sub-accordion"
             actions={sectionActions("sound", "sound")}
           >
-            <ConfigSelect label="Timer sound" ariaLabel="Timer completion sound" value={theme.timerSound}
-              options={TIMER_SOUNDS.map((name) => ({ value: name, label: name }))}
-              onChange={(timerSound) => setTheme({ ...theme, timerSound })} />
-            <ControlSoundConfig
+            <SoundVolumeConfig
               color={highlightRgb}
               value={theme.controlSound}
               onChange={(controlSound) => setTheme({ ...theme, controlSound })}
               onPreview={(controlSound) => setTheme({ ...theme, controlSound }, { persist: false })}
             />
-            <SoundLibraryConfig />
             <UxSoundAssignmentsConfig
               value={theme.uxSounds}
               onChange={(uxSounds) => setTheme({ ...theme, uxSounds })}
             />
+            <SoundLibraryConfig />
           </ConfigAccordion>
             </ConfigAccordion>
           </div>

@@ -1,7 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { playControlSound, setActiveControlSound } from "./controlSound";
+import {
+  playControlSound,
+  playUxSound,
+  previewSound,
+  resolveUxSoundUrl,
+  setActiveControlSound,
+  setSoundLibrary,
+} from "./controlSound";
+import { DEFAULT_UX_SOUNDS, type UxSoundAssignments } from "./uxSoundActions";
+import type { SoundLibraryEntry } from "../../../lib/sound-library";
 
-const SOURCE = "data:audio/wav;base64,UklGRiQAAABXQVZF";
+const CLICK_URL = "/sounds/ux/medium-mechanical-click.mp3";
+const UPLOAD_URL = "/api/sounds/soft-click";
+
+const LIBRARY: SoundLibraryEntry[] = [
+  { id: "medium-mechanical-click", name: "Medium mechanical click", origin: "builtin", bytes: 0, updatedAt: null },
+  { id: "chime-classic", name: "Chime (classic)", origin: "builtin", bytes: 0, updatedAt: null },
+  { id: "soft-click", name: "Soft click", origin: "upload", bytes: 900, updatedAt: null },
+];
 
 type FakeBufferSource = {
   buffer: unknown;
@@ -63,18 +79,20 @@ function wasCancelled(node: FakeBufferSource) {
   return node.stop.mock.calls.length > 0;
 }
 
-async function loadSound() {
-  setActiveControlSound({ name: "click.wav", source: SOURCE, volume: 60 });
+/** The default assignments, the library loaded, everything decoded. */
+async function ready(assignments: Partial<UxSoundAssignments> = {}, volume = 60) {
+  setSoundLibrary(LIBRARY);
+  setActiveControlSound({ volume }, { ...DEFAULT_UX_SOUNDS, ...assignments });
   await flush();
 }
 
-describe("control sound engine", () => {
+describe("ux sound engine", () => {
   beforeEach(() => {
     created.length = 0;
     vi.stubGlobal("AudioContext", FakeAudioContext as unknown as typeof AudioContext);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({ arrayBuffer: async () => new ArrayBuffer(8) })),
+      vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) })),
     );
   });
 
@@ -87,7 +105,7 @@ describe("control sound engine", () => {
   });
 
   it("keeps only the two newest voices, cancelling older ones", async () => {
-    await loadSound();
+    await ready();
 
     playControlSound();
     playControlSound();
@@ -100,7 +118,7 @@ describe("control sound engine", () => {
   });
 
   it("cancels each older voice as newer presses arrive", async () => {
-    await loadSound();
+    await ready();
 
     playControlSound();
     playControlSound();
@@ -114,24 +132,65 @@ describe("control sound engine", () => {
     expect(wasCancelled(created[3])).toBe(false);
   });
 
-  it("plays nothing when no sound is uploaded", async () => {
-    setActiveControlSound({ name: null, source: null, volume: 60 });
-    await flush();
+  it("plays nothing when the action is set to None", async () => {
+    await ready({ buttonPress: null });
     playControlSound();
+    await flush();
     expect(created).toHaveLength(0);
   });
 
   it("plays nothing at zero volume", async () => {
-    await loadSound();
-    setActiveControlSound({ name: "click.wav", source: SOURCE, volume: 0 });
-    await flush();
+    await ready({}, 0);
     playControlSound();
+    await flush();
     expect(created).toHaveLength(0);
   });
 
-  it("a volume override still plays the uploaded sound", async () => {
-    await loadSound();
+  it("a volume override still plays the assigned sound", async () => {
+    await ready();
     playControlSound({ volume: 40 });
     expect(created).toHaveLength(1);
+  });
+
+  // The bug this replaced: an undecoded clip was skipped, so the config page's
+  // preview had to be pressed twice to hear anything.
+  it("plays an undecoded clip on the first press, not the second", async () => {
+    setSoundLibrary(LIBRARY);
+    setActiveControlSound({ volume: 60 }, { ...DEFAULT_UX_SOUNDS, buttonPress: null });
+    await flush();
+
+    previewSound(UPLOAD_URL);
+    expect(created).toHaveLength(0);
+    await flush();
+    expect(created).toHaveLength(1);
+  });
+
+  it("resolves each assignment to its clip, and a deleted clip to the default", async () => {
+    await ready({ timerAlert: "chime-classic", dialClick: "gone-for-good" });
+
+    expect(resolveUxSoundUrl("timerAlert")).toBe("/sounds/ux/chime-classic.mp3");
+    expect(resolveUxSoundUrl("dialClick")).toBe(CLICK_URL);
+    expect(resolveUxSoundUrl("buttonPress")).toBe(CLICK_URL);
+  });
+
+  it("resolves a built-in before the library has loaded", async () => {
+    setSoundLibrary([]);
+    setActiveControlSound({ volume: 60 }, { ...DEFAULT_UX_SOUNDS });
+    await flush();
+    expect(resolveUxSoundUrl("timerAlert")).toBe("/sounds/ux/chime-classic.mp3");
+  });
+
+  it("migrates the retired sentinels rather than falling silent", async () => {
+    await ready({ buttonPress: "button-press", timerAlert: "timer-chime" });
+    expect(resolveUxSoundUrl("buttonPress")).toBe(CLICK_URL);
+    expect(resolveUxSoundUrl("timerAlert")).toBe("/sounds/ux/chime-classic.mp3");
+
+    playUxSound("timerAlert");
+    expect(created).toHaveLength(1);
+  });
+
+  it("plays the reminder MP3 for the reminder alert", async () => {
+    await ready();
+    expect(resolveUxSoundUrl("reminderAlert")).toBe("/api/tasks/audio");
   });
 });
