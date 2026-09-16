@@ -1,0 +1,54 @@
+/* Reminders Advanced region in the tasks panel and its save row. */
+
+/* Reminders Advanced region (specs/tasks-panel.md, Round 2 / Round 3). One
+   cell — the lists, or the editor in their place. Landscape: it takes the
+   whole row and grows vertically (advanced-fold[data-axis="y"] rows above).
+   Portrait: it is the panel's own width and grows horizontally within the
+   fold (advanced-fold[data-axis="x"] above) rather than doubling it. */
+.tasks-panel .advanced-fold[data-axis="y"] .advanced-fold-advanced > .tasks-advanced-cell {
+  grid-column: 1 / -1;
+}
+
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-list-view {
+  width: 100cqi;
+  max-width: 100cqi;
+}
+
+/* Portrait: neither view may make the sub-panel taller. The region is sized
+   explicitly (size containment), so the track's stretch is its only height and
+   the cell scrolls inside it. */
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced {
+  contain: size;
+  width: calc(100cqi + 16px);
+}
+
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-advanced-cell {
+  height: 100%;
+}
+
+/* The editor is one panel wide, so its Save row is on screen with its back arrow. */
+.tasks-panel .advanced-fold[data-axis="x"] .advanced-fold-advanced > .tasks-editor-view {
+  width: 100cqi;
+  max-width: 100cqi;
+}
+
+/* Save / Cancel stay reachable: pinned to the bottom of whichever scroller
+   holds the editor (the landscape fold, the portrait cell). */
+.tasks-panel .task-editor-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-inline: -0.75rem;
+  margin-bottom: -0.75rem;
+  padding: 0.5rem 0.75rem;
+  /* The theme's panel colour can be translucent, and the editor scrolls under
+     this row, so it also blurs what passes behind it. */
+  /* Stacked so a translucent panel colour still hides the rows passing under
+     it, and blurred for whatever alpha is left. */
+  background:
+    linear-gradient(var(--cyber-panel), var(--cyber-panel)),
+    linear-gradient(var(--cyber-panel), var(--cyber-panel)),
+    var(--cyber-panel);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--cyber-border-dim);
+}

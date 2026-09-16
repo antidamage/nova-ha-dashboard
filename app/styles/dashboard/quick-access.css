@@ -1,0 +1,343 @@
+/* Quick Access card: segments, dials, steppers, buttons and its own breakpoints. */
+
+/* ── Quick Access (specs/quick-access-card.md) ─────────────────────────────
+   One line of the controls used most, above the zone menu. Its own border,
+   a highlight rail on the left and a name tab on the top edge keep it apart
+   from the panels below.
+
+   One line needs ~1480px of card. Below that the segments form a 2×2 grid,
+   and on a phone they stack with each tile's controls wrapping inside it.
+   Segments always move as whole tiles — never a horizontal scrollbar. */
+.quick-access {
+  position: relative;
+  min-width: 0;
+  container-type: inline-size;
+  border: 1px solid var(--cyber-border-dim);
+  border-left: 3px solid var(--cyber-highlight);
+  background: color-mix(in srgb, var(--cyber-panel) 88%, transparent);
+  padding: 16px 10px 10px;
+}
+
+.dashboard-shell .quick-access-kicker {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  margin: 0;
+  padding: 3px 10px 2px;
+  transform: translateY(-50%);
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-highlight) !important;
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow: none !important;
+  text-transform: uppercase;
+}
+
+.quick-access-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quick-segment {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 84px;
+  align-items: center;
+  justify-content: flex-start;
+  /* Not space-between: with only 2-4 clusters per tile that scattered them
+     across a wide tile and read as leftover space. Everything packs left, the
+     buttons beside the control they belong to (Adeline, 2026-09-11). */
+  gap: 8px 14px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  padding: 6px 8px;
+}
+
+@container (min-width: 920px) {
+  .quick-segment {
+    flex-basis: calc(50% - 4px);
+    flex-wrap: nowrap;
+  }
+}
+
+@container (min-width: 1480px) {
+  .quick-access-row {
+    flex-wrap: nowrap;
+  }
+
+  .quick-segment {
+    flex: 1 1 auto;
+  }
+}
+
+/* The climate knobs are not tiles. A 100px knob's dial is 124px across, half
+   again as tall as a tile's row, so boxing each one made it spill past its own
+   border and collide with the tile below. They sit inline instead, each under
+   its own label, in both layouts (Adeline, 2026-09-12). Their rings float over
+   the page and take no space here. */
+.quick-climate-row {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px 18px;
+  min-width: 0;
+}
+
+.quick-climate {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Lighting and weather stack instead of running across: the dial or the icon
+   and its title centred, the presets or the readings centred beneath them
+   (Adeline, 2026-09-12). The climate segments already read top-to-bottom, so
+   with these two the whole card does. */
+.quick-segment-lights,
+.quick-segment-weather {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Portrait only (Adeline, 2026-09-14): the three dials are one centred,
+   wrapping row — three across when they fit, fewer per line when they don't,
+   one per line on a phone. Keyed on the orientation, not on a container width:
+   a portrait screen here is wider than the 920px container query, which is why
+   an earlier version hung off that query and never fired.
+
+   Each dial sits in a slot as wide as the widest knob's rings
+   (`--quick-dial-slot`, set by QuickAccessCard from ringGeometry). A knob's
+   layout box is only its dial, but its floating rings reach well past it — the
+   Lounge knob's four rings are ~295px across a 165px dial at 133px — so a slot
+   sized to the dial let the rings run off the screen edge. Slots reserve the
+   reach; neighbouring slots may still overlap a ring vertically, which is fine.
+   When even one slot is wider than the card, QuickAccessCard shrinks every
+   dial together (floor 100px, the temperature knob's minimum).
+
+   The climate row dissolves (`display: contents`) so all three dials wrap as
+   siblings: as a nested flex box it sat beside the lighting dial and wrapped
+   inside itself, stacking the two climate knobs in a column to its right.
+
+   The lighting segment gives up its tile border so the three read as one row
+   rather than a box beside two bare knobs. Weather keeps the next line to
+   itself. Landscape is untouched and keeps every rule above. */
+@media (aspect-ratio <= 1) {
+  .quick-access-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-evenly;
+    column-gap: 0;
+  }
+
+  /* The climate knobs' title arcs make their boxes taller than the dial; the
+     untitled lighting dial takes the same box (`--quick-dial-box`), so dials
+     sharing a line sit on one centre line. */
+  .quick-segment-lights .rotary-encoder {
+    height: var(--quick-dial-box, auto);
+  }
+
+  .quick-climate-row {
+    display: contents;
+  }
+
+  .quick-segment-lights,
+  .quick-climate {
+    flex: 0 0 var(--quick-dial-slot, auto);
+    width: var(--quick-dial-slot, auto);
+    max-width: 100%;
+  }
+
+  .quick-segment-lights {
+    border-color: transparent;
+    background: none;
+    padding: 0;
+  }
+
+  /* Beats the 920px container query's half-width basis, so weather never
+     climbs onto the dials' line. */
+  .quick-segment-weather {
+    flex-basis: 100%;
+  }
+}
+
+.quick-segment-lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-segment-text {
+  display: flex;
+  min-width: 4.5rem;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-shell .quick-segment-title {
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-display);
+  font-size: 0.95rem;
+  font-weight: var(--cyber-display-weight, 700);
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quick-segment-state,
+.quick-stepper-caption {
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quick-current,
+.quick-stepper-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-current-number,
+.quick-stepper-number {
+  min-width: 2.6ch;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.quick-access-degree {
+  font-size: 0.6em;
+  vertical-align: top;
+}
+
+.quick-stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-stepper-disabled .quick-stepper-value {
+  opacity: 0.6;
+}
+
+.quick-button-pair {
+  display: flex;
+  gap: 6px;
+}
+
+/* Quick Access dial preset band: the lights' preset row always holds its
+   height, and each climate knob reserves the same row (4px gap + 4px margin
+   matches the lights segment's 8px gap). */
+.quick-segment-lights .quick-button-pair {
+  min-height: var(--quick-preset-band);
+}
+
+.quick-climate::after {
+  content: "";
+  flex: none;
+  height: var(--quick-preset-band);
+  margin-top: 4px;
+}
+
+.quick-button,
+.quick-stepper-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
+  font-family: var(--cyber-mono);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quick-button {
+  padding-inline: 9px;
+}
+
+.quick-weather-readings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
+
+/* No label to make room for: a square button holding its icon. */
+.quick-button-icon {
+  width: 44px;
+  padding-inline: 0;
+}
+
+.quick-stepper-button {
+  width: 44px;
+  padding: 0;
+}
+
+/* The house chamfer is 14px, sized for 64px buttons; at 44px it eats the label. */
+.dashboard-shell .quick-button,
+.dashboard-shell .quick-stepper-button {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+.dashboard-shell .quick-button-active,
+.dashboard-shell .quick-button-active:hover:not(:disabled) {
+  border-color: var(--cyber-highlight) !important;
+  background: var(--cyber-highlight) !important;
+  color: var(--cyber-title-on-highlight) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .quick-button-active svg {
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.quick-button:disabled,
+.quick-stepper-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.zone-color-encoder.quick-access-encoder {
+  flex: none;
+  padding-block: 0;
+}
+
+.quick-weather-icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--cyber-title-on-bg);
+}

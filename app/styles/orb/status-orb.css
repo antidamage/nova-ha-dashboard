@@ -1,0 +1,73 @@
+/* Status orb readouts, countdown ring, the orb stack dial and its indicator. */
+
+/* Status orb event readouts retain the existing orb and theme treatment. */
+/* The icon and its countdown ring are what centre in the orb; the text hangs
+   below them out of flow so it never pushes them off-centre, centred halfway
+   between the gauge's outer edge (0.96em below centre: r46 + half the 4-unit
+   stroke, of 50) and the colour ring's inner edge (measured at 0.385 of the orb
+   size below centre). The readout box is the 2em icon, so its centre is at
+   top:1em. */
+.orb-event-readout { position:relative; display:flex; flex-direction:column; align-items:center; font-size:.48em; line-height:1.1; }
+.orb-event-readout > .orb-event-text { position:absolute; top:calc(1.48em + var(--nova-avatar-instance-size, 128px) * .1925); left:50%; transform:translate(-50%, -50%); }
+.orb-event-icon { position:relative; display:grid; place-items:center; width:2em; height:2em; }
+.orb-event-icon > svg:not(.orb-countdown-ring) { width:1.3em; height:1.3em; }
+.orb-countdown-ring { position:absolute; inset:0; width:100%; height:100%; color:rgb(var(--nova-alert-rgb)); pointer-events:none; }
+.orb-countdown-ring-pulsing { animation: orb-countdown-ring-pulse 1s ease-in-out infinite; }
+@keyframes orb-countdown-ring-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.timer-encoder-panel { min-height:240px; padding-inline:30px; }
+.timer-encoder-panel > .rotary-encoder { grid-row:1; }
+.timer-encoder-panel > :not(.rotary-encoder) { grid-row:3; }
+.timer-encoder-face { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:48px; }
+
+.timer-encoder-face { color:rgba(255,255,255,.46); font-weight:700; }
+.rotary-encoder[data-mode="light"] .timer-encoder-face { color:rgba(0,0,0,.46); }
+
+/* Status orb stack dial (specs/status-orb-stack.md, Round 2). */
+.orb-event-text { font-size: calc(1em * var(--orb-text-fit, 1)); white-space: nowrap; }
+.orb-stack-viewport {
+  position: relative; display: grid; place-items: center; width: 100%; height: 100%; overflow-x: clip; overflow-y: visible;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.orb-stack-slide { grid-area: 1 / 1; display: flex; align-items: center; justify-content: center; }
+.orb-stack-in-next { animation: orb-stack-in-next 220ms ease-out both; }
+.orb-stack-in-prev { animation: orb-stack-in-prev 220ms ease-out both; }
+.orb-stack-out-next { animation: orb-stack-out-next 220ms ease-out both; }
+.orb-stack-out-prev { animation: orb-stack-out-prev 220ms ease-out both; }
+@keyframes orb-stack-in-next { from { transform: translateX(70%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes orb-stack-in-prev { from { transform: translateX(-70%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes orb-stack-out-next { from { transform: none; opacity: 1; } to { transform: translateX(-70%); opacity: 0; } }
+@keyframes orb-stack-out-prev { from { transform: none; opacity: 1; } to { transform: translateX(70%); opacity: 0; } }
+/* The orb's dial indicator: the RotaryEncoder ring and index line laid over
+   the orb face (no LEDs — Adeline, 2026-09-16), appearing and fading on the same rules the
+   temperature dial's tuck-away uses (specs/status-orb-stack.md). Locked, the
+   whole indicator is gone and the orb looks untouched; unlocked, it fades in.
+   pointer-events stay off so the orb host keeps the gesture. */
+.orb-dial-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 1;
+  transition: opacity 180ms ease-out;
+}
+
+.orb-dial-indicator[data-locked="true"] {
+  opacity: 0;
+}
+
+/* No knob under it: the orb face is the face. */
+.orb-dial-indicator .rotary-encoder-dial {
+  cursor: default;
+}
+
+.nova-avatar-visual[data-orb-dial] { touch-action: none; }
+.nova-avatar-visual[data-orb-dial]:focus-visible { outline: 2px solid var(--cyber-accent, rgb(60, 220, 240)); outline-offset: 4px; border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .orb-stack-in-next, .orb-stack-in-prev, .orb-stack-out-next, .orb-stack-out-prev { animation: none; }
+  .orb-stack-out-next, .orb-stack-out-prev { display: none; }
+  .orb-dial-indicator { transition: none; }
+}

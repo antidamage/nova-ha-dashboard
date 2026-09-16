@@ -1,0 +1,54 @@
+/* Shell padding after every breakpoint rule, plus the overview/accordion order. */
+
+.dashboard-shell {
+  padding-bottom: calc(
+    1.25rem + var(--ios-bottom-gesture-blind-spot) +
+      env(safe-area-inset-bottom, 0px)
+  ) !important;
+  /* Added to the iOS Home Screen the dashboard runs as a standalone web app
+     with `apple-mobile-web-app-status-bar-style: black-translucent`
+     (app/layout.tsx), so the page draws under the clock/battery strip instead
+     of iOS reserving that strip and filling it with a colour sampled from the
+     theme background. The page owns the space now, so it keeps its own content
+     clear of it. Sits here, after every breakpoint rule, for the same reason
+     the bottom inset does: the narrow and tablet blocks set the whole `padding`
+     shorthand with `!important` and would reset it. Zero everywhere else —
+     desktop, kiosk and Safari-with-chrome all report a 0 top inset.
+     specs/ios-home-screen-webapp.md. */
+  padding-top: calc(1.25rem + var(--nova-status-bar-clearance)) !important;
+}
+
+/* One DOM order in both orientations. Square belongs to the vertical layout. */
+@media (aspect-ratio <= 1) {
+  .dashboard-home[data-demo="true"] .top-banner {
+    margin-top: 64px;
+  }
+
+  .dashboard-home[data-demo="true"] .dashboard-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-home[data-demo="true"] .clock-time {
+    font-size: clamp(1.8rem, 9vw, 4rem);
+  }
+
+  .dashboard-home[data-demo="true"] .clock-date {
+    font-size: clamp(1.2rem, 5.5vw, 2.4rem);
+  }
+}
+
+.dashboard-overview {
+  display: contents;
+}
+
+.dashboard-layout > .voice-transcript-panel {
+  margin-top: 0;
+}
+
+/* The multimeter's horizontal accordion, adapted to the dashboard's controls.
+   Landscape lays it out sideways (below, `aspect-ratio > 1`); portrait stacks
+   it as a card: bar, list, then the selected zone's controls
+   (specs/portrait-layout.md). */
+.horizontal-accordion-content[hidden] {
+  display: none;
+}

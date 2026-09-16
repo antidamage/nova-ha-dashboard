@@ -1,0 +1,207 @@
+/* Dial preset band, zone lighting controls and the climate knob body. */
+
+/* Dial preset band (specs/dial-preset-band.md, Adeline 2026-09-16). Every round
+   control reserves the same band beneath it, presets or not, so dials line up
+   across panels. The dial is centred in the region above the band; the band
+   never pushes it up. Panels use the zone preset grid's height (68px buttons +
+   5px padding + 1px border, each side); Quick Access uses its 44px buttons. */
+:root {
+  --dial-preset-band: 80px;
+  --dial-preset-gap: 24px;
+  --quick-preset-band: 44px;
+}
+
+.zone-lighting-controls,
+.outside-light-controls,
+.climate-knob-body,
+.timer-encoder-panel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) var(--dial-preset-band);
+  align-items: center;
+  justify-items: center;
+  row-gap: var(--dial-preset-gap);
+}
+
+.climate-knob-body::after,
+.timer-encoder-panel::after {
+  content: "";
+  grid-row: 2;
+}
+
+/* One padding for every dial container: 20px above the dial's box (the zone
+   container's 8px plus the colour encoder's own 12px). */
+.zone-lighting-controls,
+.outside-light-controls {
+  padding-block: 8px;
+}
+
+.climate-knob-body,
+.timer-encoder-panel {
+  padding-block: 20px 8px;
+}
+
+/* A climate knob card with nothing in its header (no title, no fault pill, no
+   module action) drops the header so the knob starts where a lighting dial
+   does. */
+.climate-card > header:not(:has(h2, p)):has(> div:empty) {
+  display: none;
+}
+
+.zone-lighting-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  max-width: 420px;
+  padding: 5px;
+  gap: 5px;
+  border: 1px solid var(--cyber-border-dim);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--cyber-panel) 88%, var(--cyber-border-dim));
+}
+
+.dashboard-shell .zone-lighting-presets button {
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  height: 68px;
+  padding: 10px 4px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  clip-path: none;
+  background: transparent !important;
+  color: var(--cyber-title-on-bg) !important;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-shell .zone-lighting-presets button:hover:not(:disabled),
+.dashboard-shell .zone-lighting-presets button:focus-visible {
+  background: color-mix(in srgb, var(--cyber-highlight) 14%, var(--cyber-panel)) !important;
+  border-color: var(--cyber-highlight);
+}
+
+.dashboard-shell .zone-lighting-presets button:focus-visible {
+  outline: 2px solid var(--cyber-highlight);
+  outline-offset: -2px;
+}
+
+.dashboard-shell .zone-lighting-presets button:disabled {
+  opacity: 0.4;
+}
+
+.zone-lighting-presets svg {
+  width: 21px;
+  height: 21px;
+}
+
+.zone-panel .zone-stats {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Last row of a lighting zone panel, full width (the panel is a flex column
+   and this carries mt-auto). The gap keeps it off the controls above when the
+   panel is too short for mt-auto to add space. */
+.zone-party-control {
+  width: 100%;
+}
+
+.zone-panel > .mt-8 {
+  margin-bottom: 20px;
+}
+
+.zone-party-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+}
+
+.zone-party-control-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.zone-party-control .climate-switch-row {
+  border: 0;
+  background: transparent;
+  padding-inline: 0;
+}
+
+@container zone-panel (min-width: 580px) {
+  .zone-panel-header {
+    flex-direction: row !important;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.dashboard-shell .momentary-feedback {
+  isolation: isolate;
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  overflow: hidden;
+  position: relative;
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 240ms ease,
+    color 220ms ease,
+    outline-color 240ms ease;
+}
+
+.dashboard-shell .momentary-feedback::after,
+.dashboard-shell .climate-switch-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgb(var(--cyber-cyan-rgb) / 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+.dashboard-shell .momentary-feedback > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-shell .cyber-switch-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  z-index: 1;
+}
+
+.dashboard-shell .momentary-feedback-active:not(:disabled) {
+  border-color: var(--cyber-cyan) !important;
+  color: var(--cyber-title-on-cyan) !important;
+  outline-color: var(--cyber-cyan) !important;
+  box-shadow: 0 0 18px rgb(var(--cyber-cyan-rgb) / 0.38) !important;
+  transition-duration: 0ms;
+}
+
+.dashboard-shell .momentary-feedback-active:not(:disabled)::after,
+.dashboard-shell .climate-switch-row:has(.momentary-feedback-active)::after {
+  opacity: 1;
+  transition-duration: 0ms;
+}
+
+.temperature-stepper,
+.climate-fan-speed {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+
+.temperature-stepper-disabled,
+.climate-fan-speed-disabled {
+  opacity: 0.6;
+}

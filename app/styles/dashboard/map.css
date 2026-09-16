@@ -1,0 +1,104 @@
+/* MapLibre controls, home marker and attribution on the dashboard map. */
+
+button,
+[role="slider"] {
+  font: inherit;
+}
+
+.maplibregl-ctrl-group {
+  background: var(--cyber-panel) !important;
+  border: 1px solid var(--cyber-line-dim) !important;
+  border-radius: 0 !important;
+}
+
+.maplibregl-ctrl-group button {
+  color: var(--cyber-line) !important;
+  background: transparent !important;
+  border-bottom: 1px solid var(--cyber-line-dim) !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: rgb(var(--cyber-line-rgb) / 0.1) !important;
+}
+
+.maplibregl-ctrl-group button:last-child {
+  border-bottom: none !important;
+}
+
+.maplibregl-ctrl-logo,
+.maplibregl-ctrl-attrib {
+  display: none !important;
+}
+
+.nova-map-home-marker {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  pointer-events: none;
+}
+
+.nova-map-home-marker::before,
+.nova-map-home-marker::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.nova-map-home-marker::before {
+  inset: 8px;
+  background: var(--cyber-cyan);
+  box-shadow:
+    0 0 0 2px var(--cyber-bg),
+    0 0 16px rgb(var(--cyber-cyan-rgb) / 0.78);
+}
+
+.nova-map-home-marker::after {
+  border: 1px solid rgb(var(--cyber-cyan-rgb) / 0.84);
+  background: rgb(var(--cyber-cyan-rgb) / 0.08);
+  animation: nova-map-home-marker-pulse 1500ms ease-out infinite;
+}
+
+.nova-map-attribution {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  z-index: 1;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.72;
+  pointer-events: none;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.nova-map-attribution a {
+  color: inherit;
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.nova-map-attribution a:hover,
+.nova-map-attribution a:focus-visible {
+  color: rgb(var(--cyber-cyan-rgb) / 0.9);
+  text-decoration: underline;
+}
+
+@keyframes nova-map-home-marker-pulse {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.72);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}

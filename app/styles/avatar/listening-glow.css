@@ -1,0 +1,71 @@
+/* Voice listening glow around the orb and its tap-to-talk targets. */
+
+/* ==== VOICE LISTENING GLOW ================================================
+   While this device owns a live voice conversation a coloured halo sits behind
+   the orb: it fades in and grows from behind the orb, then pulses rhythmically
+   while visible, and shrinks/fades out when the conversation ends. It is a DOM
+   element (not a canvas layer) because it extends ~25% past the orb's outer
+   ring — beyond the canvas bounds. Colour comes from the theme's Voice Glow
+   slot via --nova-avatar-voice-glow. */
+.nova-avatar-voice-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--nova-avatar-instance-size, 128px) * 1.25);
+  height: calc(var(--nova-avatar-instance-size, 128px) * 1.25);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.55);
+  background: radial-gradient(
+    circle at center,
+    rgba(var(--nova-avatar-voice-glow, 60, 220, 240), 0.55) 0%,
+    rgba(var(--nova-avatar-voice-glow, 60, 220, 240), 0.28) 42%,
+    rgba(var(--nova-avatar-voice-glow, 60, 220, 240), 0) 72%
+  );
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+/* The 0.5s animation delay lets the grow-in transition play before the pulse
+   takes over; the pulse keeps the centring translate so it never drifts. */
+.nova-avatar-voice-glow.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  animation: nova-voice-glow-pulse 2.4s ease-in-out 0.5s infinite;
+}
+
+@keyframes nova-voice-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+/* Non-always-on native devices: the orb is a tap-to-talk target. */
+.nova-avatar-host.nova-avatar-tappable {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* When the orb is enlarged mid-speech, a tap anywhere stands the turn down.
+   Sits just under the enlarged orb (z-index 4000) so the orb itself still
+   toggles, but the rest of the screen becomes a stop-listening target. */
+.nova-avatar-tap-anywhere {
+  position: fixed;
+  inset: 0;
+  z-index: 3999;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}

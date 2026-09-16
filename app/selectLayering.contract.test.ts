@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readCss } from "./styles/readCss";
 
-const globalsCss = readFileSync(join(__dirname, "globals.css"), "utf8");
+// globals.css is an entry file of ordered @imports now; readCss resolves them.
+const globalsCss = readCss();
 
 function zIndexFor(selector: string) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

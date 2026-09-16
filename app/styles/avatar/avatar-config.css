@@ -1,0 +1,123 @@
+/* Nova avatar configuration section on /config. */
+
+/* Nova avatar config section on /config */
+.nova-avatar-cfg {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  border: 0;
+  background: transparent;
+  color: var(--cyber-text);
+  font-family: var(--cyber-display);
+}
+
+.nova-avatar-cfg-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.nova-avatar-cfg-preview-wrap {
+  position: sticky;
+  top: var(--nova-avatar-margin);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--cyber-line-rgb) / 0.08) 70%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.nova-avatar-cfg-preview-wrap > * {
+  pointer-events: auto;
+}
+
+.nova-avatar-cfg-title {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nova-avatar-cfg-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--cyber-muted);
+}
+
+.nova-avatar-cfg-preview-host {
+  display: block;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55));
+}
+
+.nova-avatar-cfg-group {
+  padding-top: 12px;
+  border-top: 1px solid var(--cyber-border-dim);
+}
+
+.nova-avatar-cfg-group-title {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyber-muted);
+}
+
+.nova-avatar-cfg-color-block {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cyber-border-dim);
+}
+
+.nova-avatar-cfg-color-block:last-child {
+  border-bottom: none;
+}
+
+.nova-avatar-cfg-actions {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nova-avatar-cfg-reset {
+  background: transparent;
+  border: 1px solid var(--cyber-border-dim);
+  color: var(--cyber-text);
+  padding: 6px 14px;
+  font-family: var(--cyber-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.nova-avatar-cfg-reset:hover {
+  border-color: var(--cyber-border-strong);
+}
+
+.nova-avatar-cfg-default-hint {
+  font-family: var(--cyber-mono);
+  font-size: 0.75rem;
+  color: var(--cyber-muted);
+}
+
+@media (min-width: 1126px) and (orientation: landscape) {
+  body:has(.nova-avatar-host) {
+    padding-top: 0;
+  }
+
+  .nova-avatar-host {
+    left: var(--dashboard-wide-sidebar-center-x);
+    transform: translateX(-50%) scale(var(--nova-avatar-scale, 1));
+    transform-origin: top center;
+  }
+}

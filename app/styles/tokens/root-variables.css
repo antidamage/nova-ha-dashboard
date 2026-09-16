@@ -1,0 +1,114 @@
+/* Theme tokens: the :root custom-property block (colours, sizes, insets). */
+
+:root {
+  /* Always dark to the browser, whichever theme is selected, so Chromium's
+     auto dark mode never repaints the page (see the meta in app/layout.tsx). */
+  color-scheme: dark;
+  /* How far down the page has to start to clear the iOS status bar / Dynamic
+     Island. Normally just the reported inset — zero on desktop, the kiosk and
+     Safari with its own chrome. In the standalone home-screen web app iOS can
+     report a 0 top inset even though the island is still overlapping the page
+     (the `black-translucent` status bar style tells WebKit the page owns that
+     strip), so the phone-sized standalone rules below floor it at the 59px
+     inset a Dynamic Island device actually has. `max()` means a correctly
+     reported inset still wins. specs/ios-home-screen-webapp.md. */
+  --nova-status-bar-clearance: env(safe-area-inset-top, 0px);
+  --background: #1a1a1a;
+  --foreground: #333333;
+  --cyber-bg: #1a1a1a;
+  --cyber-panel: #161616;
+  --cyber-panel-soft: #2a2a2a;
+  --cyber-line: #333333;
+  --cyber-line-rgb: 51 51 51;
+  --cyber-line-dim: rgb(var(--cyber-line-rgb) / 0.36);
+  --cyber-border-rgb: 255 255 255;
+  --cyber-border-dim: rgb(var(--cyber-border-rgb) / 0.19);
+  --cyber-border-strong: rgb(var(--cyber-border-rgb) / 0.73);
+  --cyber-cyan: #4b0075;
+  --cyber-cyan-rgb: 75 0 117;
+  --cyber-highlight: var(--cyber-cyan);
+  --cyber-highlight-rgb: var(--cyber-cyan-rgb);
+  --cyber-map-base: #1a1a1a;
+  --cyber-map-base-rgb: 26 26 26;
+  --cyber-map-water: #8c00ff;
+  --cyber-map-water-rgb: 140 0 255;
+  --cyber-map-water-enabled: 1;
+  --cyber-map-water-opacity: 10;
+  --cyber-map-land: #1e2020;
+  --cyber-map-land-rgb: 30 32 32;
+  --cyber-map-building-low: #4800a1;
+  --cyber-map-building-low-rgb: 72 0 161;
+  --cyber-map-building-high: #7300ff;
+  --cyber-map-building-high-rgb: 115 0 255;
+  --cyber-map-building-opacity: 66;
+  --cyber-map-roads: #b19adf;
+  --cyber-map-roads-rgb: 177 154 223;
+  --cyber-map-labels: #a8a8a8;
+  --cyber-map-labels-rgb: 168 168 168;
+  --cyber-map-radar-low: #fff200;
+  --cyber-map-radar-low-rgb: 255 242 0;
+  --cyber-map-radar-high: #6aff00;
+  --cyber-map-radar-high-rgb: 106 255 0;
+  --cyber-map-label-size: 150;
+  --cyber-map-radar-opacity: 87;
+  --cyber-map-radar-mode: custom;
+  --cyber-danger: #ff405b;
+  --cyber-title-dark: #2a003d;
+  --cyber-title-light: #adadad;
+  --cyber-title-on-line: var(--cyber-title-light);
+  --cyber-title-on-cyan: var(--cyber-title-light);
+  --cyber-title-on-highlight: var(--cyber-title-on-cyan);
+  --cyber-title-on-bg: var(--cyber-title-light);
+  --cyber-clock-text-fill: var(--cyber-title-on-bg);
+  --cyber-clock-color: var(--cyber-title-on-bg);
+  --cyber-title-on-clock-fill: var(--cyber-title-dark);
+  --cyber-title-glow-bg: color-mix(
+    in srgb,
+    var(--cyber-title-on-bg) 28%,
+    transparent
+  );
+  --cyber-title-glow-line: color-mix(
+    in srgb,
+    var(--cyber-title-on-line) 28%,
+    transparent
+  );
+  --cyber-title-glow-cyan: color-mix(
+    in srgb,
+    var(--cyber-title-on-cyan) 28%,
+    transparent
+  );
+  --cyber-text: var(--cyber-title-on-bg);
+  --cyber-muted: color-mix(
+    in srgb,
+    var(--cyber-title-on-bg) 58%,
+    var(--cyber-bg)
+  );
+  /* Secondary label text. This was never defined, so every `var(--cyber-text-dim)`
+     without a fallback resolved to the inherited body colour — which is the accent
+     line colour, and disappears against the background on most themes. Derived from
+     --cyber-title-on-bg so it stays readable whichever way that token flips. */
+  --cyber-text-dim: color-mix(
+    in srgb,
+    var(--cyber-title-on-bg) 86%,
+    var(--cyber-bg)
+  );
+  /* Accent-tinted text. --cyber-cyan is a fill colour and sits at any luminance the
+     theme picks, so text keeps only a tint of it and rests on the readable title
+     colour. Use this instead of --cyber-cyan/--cyber-highlight for foreground text. */
+  --cyber-accent-on-bg: color-mix(
+    in srgb,
+    var(--cyber-cyan) 20%,
+    var(--cyber-title-on-bg)
+  );
+  --cyber-display:
+    "Rajdhani", "Share Tech Mono", "Arial Narrow", system-ui, sans-serif;
+  --cyber-mono: "Share Tech Mono", "Consolas", "Courier New", monospace;
+  --cyber-clock: "Share Tech Mono", "Consolas", "Courier New", monospace;
+  --task-glow-intensity: 100;
+  --task-glow-cyan-blur: 128px;
+  --task-glow-cyan-spread: 42px;
+  --task-glow-line-blur: 72px;
+  --task-glow-line-spread: 18px;
+  --task-glow-cyan-alpha: 0.7;
+  --task-glow-line-alpha: 0.72;
+}

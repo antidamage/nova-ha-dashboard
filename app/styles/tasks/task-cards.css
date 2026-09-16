@@ -1,0 +1,42 @@
+/* Reminder event cards in the tasks panel. */
+
+/* Reminder events as cards flowing into a wrapping grid, rather than a
+   stacked list of rows -- each card its own natural height, min 220px wide,
+   as many per row as fit. */
+.task-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.task-card {
+  min-width: 0;
+  height: 100%;
+}
+
+.task-card > .task-row {
+  height: 100%;
+}
+
+.task-row-main {
+  border: 0 !important;
+  background: transparent !important;
+  clip-path: none !important;
+  color: inherit !important;
+  padding: 0 !important;
+}
+
+.dashboard-shell .task-row-main:hover,
+.dashboard-shell .task-row-main:focus-visible {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.dashboard-shell button:active:not(:disabled),
+.dashboard-shell a:active,
+.dashboard-shell .control-thumb:active {
+  border-color: var(--cyber-cyan) !important;
+  outline: 2px solid var(--cyber-cyan) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 18px rgb(var(--cyber-cyan-rgb) / 0.38) !important;
+}

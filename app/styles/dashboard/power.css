@@ -1,0 +1,295 @@
+/* Power panel: current use, mode toggle, metric cards, wash blocks and curves. */
+
+.power-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.power-panel::before {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--cyber-highlight-rgb) / 0.14),
+      transparent 40%
+    ),
+    linear-gradient(180deg, rgb(var(--cyber-line-rgb) / 0.1), transparent 52%);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.power-panel > * {
+  position: relative;
+}
+
+.power-current-use {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.power-current-use-cell {
+  background:
+    linear-gradient(135deg, rgb(var(--cyber-line-rgb) / 0.12), transparent 54%),
+    rgb(10 10 10 / 0.62);
+  border: 1px solid rgb(var(--cyber-line-rgb) / 0.28);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% 100%,
+    10px 100%,
+    0 calc(100% - 10px)
+  );
+  min-width: 0;
+  padding: 14px;
+}
+
+.power-current-use-cell span,
+.power-current-use-cell small {
+  color: var(--cyber-muted);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.power-current-use-cell strong {
+  color: var(--cyber-text);
+  display: block;
+  font-size: 2.1rem;
+  font-weight: 950;
+  line-height: 1;
+  margin-top: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-shadow: 0 0 16px rgb(var(--cyber-line-rgb) / 0.34);
+}
+
+.power-current-use-cell small {
+  color: rgb(var(--cyber-line-rgb) / 0.86);
+  margin-top: 8px;
+}
+
+.power-mode-toggle {
+  align-items: center;
+  display: inline-flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.power-mode-toggle input {
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
+.power-mode-label {
+  color: var(--cyber-muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  transition:
+    color 160ms ease,
+    text-shadow 160ms ease;
+}
+
+.power-mode-label.is-active {
+  color: var(--cyber-line);
+  text-shadow: 0 0 10px rgb(var(--cyber-line-rgb) / 0.42);
+}
+
+.power-mode-track {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--cyber-line-rgb) / 0.18),
+      rgb(var(--cyber-highlight-rgb) / 0.16)
+    ),
+    var(--cyber-panel);
+  border: 1px solid var(--cyber-border-strong);
+  box-shadow:
+    inset 0 0 14px rgb(var(--cyber-line-rgb) / 0.16),
+    0 0 18px rgb(var(--cyber-line-rgb) / 0.14);
+  cursor: pointer;
+  display: inline-flex;
+  height: 30px;
+  padding: 3px;
+  position: relative;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+  width: 62px;
+}
+
+.power-mode-thumb {
+  background: linear-gradient(
+    135deg,
+    var(--cyber-line),
+    var(--cyber-highlight)
+  );
+  box-shadow: 0 0 12px rgb(var(--cyber-line-rgb) / 0.54);
+  display: block;
+  height: 22px;
+  transform: translateX(0);
+  transition: transform 160ms ease;
+  width: 24px;
+}
+
+.power-mode-toggle input:checked + .power-mode-track {
+  border-color: var(--cyber-highlight);
+  box-shadow:
+    inset 0 0 14px rgb(var(--cyber-line-rgb) / 0.2),
+    0 0 18px rgb(var(--cyber-line-rgb) / 0.22);
+}
+
+.power-mode-toggle input:checked + .power-mode-track .power-mode-thumb {
+  background: linear-gradient(
+    135deg,
+    var(--cyber-highlight),
+    var(--cyber-line)
+  );
+  box-shadow: 0 0 12px rgb(var(--cyber-line-rgb) / 0.62);
+  transform: translateX(30px);
+}
+
+.power-mode-toggle input:focus-visible + .power-mode-track {
+  outline: 2px solid var(--cyber-line);
+  outline-offset: 3px;
+}
+
+.power-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.power-metric-card,
+.power-curve-card,
+.power-device-list,
+.power-meter-card,
+.power-summary-row {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 12px) 0,
+    100% 12px,
+    100% 100%,
+    12px 100%,
+    0 calc(100% - 12px)
+  );
+}
+
+
+/* The metering plugs in the Grid panel's main part. specs/power-meters.md. */
+.power-meter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .power-meter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.power-meter-row.is-live {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyber-highlight) 40%, transparent);
+}
+
+/* The month of washes. Blocks are absolutely placed on a day axis, so the
+   container owns the height and the SVG behind it only draws the grid. */
+.power-wash-graph {
+  height: 84px;
+  position: relative;
+}
+
+.power-wash-svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.power-wash-blocks {
+  inset: 6px 8px;
+  position: absolute;
+}
+
+.power-wash-empty {
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.power-wash-block {
+  border: 1px solid rgb(0 0 0 / 0.45);
+  bottom: 0;
+  /* A touch target first and a bar second: a thin bar cannot be tapped on a
+     kiosk, and every block here exists to be tapped. */
+  min-width: 14px;
+  position: absolute;
+  /* The 12-hour timeline supplies the left edge and duration as width. */
+  transform: none;
+  /* No background transition: a tap shows the new person at once (§7.6). */
+  transition: height 160ms ease;
+  width: 14px;
+}
+
+/* A tap leaves no focus box; keyboard focus still shows via :focus-visible. */
+.power-wash-block:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* The wash's own watts, drawn across its block (specs/power-meters.md §5.2). */
+.power-wash-curve {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.power-wash-curve polyline {
+  fill: none;
+  stroke: rgb(10 10 10 / 0.75);
+  stroke-linejoin: round;
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+
+.power-wash-block:focus-visible {
+  outline: 2px solid var(--cyber-highlight);
+  outline-offset: 2px;
+}
+
+.power-wash-swatch {
+  border: 1px solid rgb(0 0 0 / 0.45);
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.power-curve {
+  display: block;
+  height: 164px;
+  width: 100%;
+}
+
+.power-curve-grid {
+  fill: none;
+  stroke: rgb(var(--cyber-line-rgb) / 0.14);
+  stroke-width: 0.35;
+}
+
+.power-curve-line {
+  fill: none;
+  filter: drop-shadow(0 0 5px rgb(var(--cyber-highlight-rgb) / 0.55));
+  stroke-linecap: round;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.power-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

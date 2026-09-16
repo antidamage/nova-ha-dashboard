@@ -1,0 +1,302 @@
+/* Library actions, text inputs, number panels, checkbox rows and switches. */
+
+.theme-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.theme-library-button {
+  display: inline-flex;
+  /* A long action ("Paste Strong beat multiplier") in a narrow column wraps
+     onto a second line instead of running out past the card that holds it. */
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+  padding: 6px 14px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.05);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+}
+
+.theme-library-button:hover:not(:disabled),
+.theme-library-button:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+  color: var(--cyber-title-on-cyan);
+  outline: none;
+}
+
+.theme-library-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.theme-library-button-danger:hover:not(:disabled),
+.theme-library-button-danger:focus-visible {
+  border-color: rgb(248 113 113);
+  background: rgb(248 113 113 / 0.16);
+  color: rgb(254 202 202);
+}
+
+.theme-library-name-field {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.cyber-text-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.08);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 1rem;
+  font-weight: 900;
+  outline: none;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.cyber-text-input:focus {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.1);
+}
+
+.theme-library-error {
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: rgb(254 202 202);
+}
+
+.cyber-number-panel {
+  display: grid;
+  gap: 16px;
+  border-color: var(--cyber-border-dim) !important;
+  background:
+    linear-gradient(135deg, rgb(var(--cyber-line-rgb) / 0.1), transparent 32%),
+    rgb(var(--cyber-line-rgb) / 0.045) !important;
+  color: var(--cyber-title-on-bg);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+.cyber-number-control {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px 44px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.cyber-number-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.cyber-number-input {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.08);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1;
+  outline: none;
+  padding: 8px 38px 8px 12px;
+  text-align: right;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.cyber-number-input:hover,
+.cyber-number-input:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.1);
+  box-shadow: 0 0 18px rgb(var(--cyber-cyan-rgb) / 0.26);
+}
+
+.cyber-number-input-invalid {
+  border-color: var(--cyber-danger);
+  box-shadow: 0 0 16px rgb(255 64 91 / 0.28);
+}
+
+.cyber-number-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.85rem;
+  font-weight: 900;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: translateY(-50%);
+}
+
+.cyber-number-button {
+  display: inline-flex;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.08);
+  color: var(--cyber-line);
+  outline: none;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.cyber-number-button:hover,
+.cyber-number-button:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.12);
+  color: var(--cyber-title-on-cyan);
+  box-shadow: 0 0 16px rgb(var(--cyber-cyan-rgb) / 0.24);
+}
+
+.cyber-number-status {
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cyber-number-status-error {
+  color: var(--cyber-danger);
+}
+
+.dot-line-marker {
+  position: absolute;
+  top: 0;
+  min-width: max-content;
+  transform: translateX(-50%);
+}
+
+.dot-line-marker-active {
+  color: var(--cyber-title-on-bg);
+}
+
+.cyber-checkbox-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
+  color: var(--cyber-title-on-bg) !important;
+}
+
+.cyber-checkbox-row-active {
+  border-color: var(--cyber-cyan) !important;
+  background: rgb(var(--cyber-cyan-rgb) / 0.11) !important;
+}
+
+/* A config row that is one setting: the slide switch at the trailing edge.
+   See specs/slide-switch.md. */
+.cyber-switch-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  border-color: var(--cyber-border-dim) !important;
+  background: rgb(var(--cyber-line-rgb) / 0.045) !important;
+  color: var(--cyber-title-on-bg) !important;
+}
+
+.cyber-switch-row-active {
+  border-color: var(--cyber-cyan) !important;
+  background: rgb(var(--cyber-cyan-rgb) / 0.11) !important;
+}
+
+.cyber-checkbox {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--cyber-border-strong);
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 40%,
+      rgb(var(--cyber-line-rgb) / 0.22) 40% 52%,
+      transparent 52%
+    ),
+    rgb(var(--cyber-line-rgb) / 0.08);
+  color: var(--cyber-title-on-cyan);
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+}
+
+.cyber-checkbox-checked {
+  border-color: var(--cyber-cyan);
+  background: var(--cyber-cyan);
+  color: var(--cyber-title-on-cyan);
+}
+
+/* Compact themed checkbox for multi-option lists (e.g. voice affectations):
+   a visually-hidden native input drives a styled box sibling, mirroring the
+   .power-mode-toggle mechanism and the .cyber-checkbox look at list scale. */
+.cyber-mini-checkbox-input {
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
+.cyber-mini-checkbox {
+  display: flex;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--cyber-border-strong);
+  background: rgb(var(--cyber-line-rgb) / 0.08);
+  color: var(--cyber-title-on-cyan);
+  clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 0 100%);
+  transition:
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.cyber-mini-checkbox > svg {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.cyber-mini-checkbox-input:checked + .cyber-mini-checkbox {
+  border-color: var(--cyber-cyan);
+  background: var(--cyber-cyan);
+}
+
+.cyber-mini-checkbox-input:checked + .cyber-mini-checkbox > svg {
+  opacity: 1;
+}
+
+.cyber-mini-checkbox-input:focus-visible + .cyber-mini-checkbox {
+  outline: 2px solid var(--cyber-cyan);
+  outline-offset: 2px;
+}

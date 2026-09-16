@@ -1,0 +1,93 @@
+/* Theme choice tabs, colour widget cells and the copy/paste colour actions. */
+
+.theme-choice-tab[aria-selected="true"],
+.theme-choice-tab[data-active="true"],
+.theme-scope-tab-active {
+  border-color: var(--cyber-cyan) !important;
+  background: rgb(var(--cyber-cyan-rgb) / 0.11) !important;
+  color: var(--cyber-title-on-bg) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--cyber-cyan-rgb) / 0.65),
+    0 0 20px rgb(var(--cyber-cyan-rgb) / 0.24) !important;
+}
+
+.theme-choice-tab[aria-selected="true"] .zone-title-bar,
+.theme-choice-tab[data-active="true"] .zone-title-bar,
+.theme-scope-tab-active .zone-title-bar {
+  background: var(--cyber-cyan) !important;
+  color: var(--cyber-title-on-cyan) !important;
+  -webkit-text-fill-color: var(--cyber-title-on-cyan) !important;
+  text-shadow: 0 0 1px var(--cyber-title-glow-cyan) !important;
+}
+
+/* Collapsed colour chips run left-to-right and wrap naturally at the edge. */
+/* One colour slot, inline. The dial replaces the swatch card that used to open
+   a modal (Adeline, 2026-09-11), so the cell itself now carries the framing.
+   It sizes to the dial and grows only for slots that carry extra controls. */
+.theme-widget-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 132px;
+  padding: 12px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+}
+
+.theme-widget-cell .config-color-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Extras (a toggle, a shared-opacity or size slider) sit under the dial and
+   take the cell's full width rather than the dial's. */
+.theme-widget-cell .config-color-editor > *:not(.config-color-encoder) {
+  width: 100%;
+}
+
+.theme-widget-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* --- Per-widget colour copy / paste actions ----------------------------- */
+.theme-widget-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.theme-widget-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  min-width: 40px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.06);
+  color: var(--cyber-line);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+
+.theme-widget-action:hover:not(:disabled),
+.theme-widget-action:focus-visible {
+  border-color: var(--cyber-cyan);
+  background: rgb(var(--cyber-cyan-rgb) / 0.14);
+  color: var(--cyber-cyan);
+  outline: none;
+}
+
+.theme-widget-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* --- Theme library: stylised cyber dropdown + management ----------------- */
+.theme-library {
+  display: grid;
+  gap: 12px;
+}

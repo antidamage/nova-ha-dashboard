@@ -1,0 +1,195 @@
+/* Cross-cutting width breakpoints: narrow phones and the tablet band. */
+
+@media (max-width: 640px) {
+  .dashboard-shell {
+    background-size:
+      32px 32px,
+      32px 32px,
+      auto;
+  }
+
+  .dashboard-shell {
+    padding: 16px !important;
+  }
+
+  .dashboard-shell header {
+    margin-bottom: 20px !important;
+    padding: 16px !important;
+  }
+
+  .dashboard-shell header h1 {
+    font-size: 2rem !important;
+    line-height: 1;
+  }
+
+  .dashboard-layout {
+    gap: 20px !important;
+  }
+
+  .clock-panel {
+    padding: 16px !important;
+  }
+
+  .clock-face {
+    min-height: 112px;
+  }
+
+  .clock-time {
+    font-size: calc(clamp(2.75rem, 14vw, 4.5rem) * var(--cyber-clock-scale, 1));
+  }
+
+  .zones-panel {
+    padding: 16px !important;
+  }
+
+  .zones-panel > .grid {
+    gap: 8px !important;
+  }
+
+  .zone-button {
+    min-height: 72px !important;
+    padding: 10px 12px !important;
+  }
+
+  .zone-children {
+    padding-left: 12px;
+  }
+
+  .zone-button-child {
+    min-height: 64px !important;
+    padding-block: 9px !important;
+    padding-left: 16px !important;
+  }
+
+  .zone-title-bar {
+    font-size: 1rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .zone-counts {
+    margin-top: 8px !important;
+    gap: 8px !important;
+    font-size: 0.62rem !important;
+    line-height: 1;
+  }
+
+  .zone-panel {
+    min-height: 0 !important;
+    padding: 20px !important;
+  }
+
+  .zone-panel h1 {
+    font-size: 2.3rem !important;
+    line-height: 1 !important;
+  }
+
+  .zone-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .zone-actions {
+    gap: 12px !important;
+  }
+
+  .zone-actions button {
+    height: 64px !important;
+    min-width: 0 !important;
+  }
+
+  .spectrum-pad {
+    height: 10rem !important;
+  }
+
+  .intensity-panel {
+    min-height: 0 !important;
+    padding: 16px !important;
+  }
+
+  .router-panel {
+    margin-top: 0;
+    padding: 20px !important;
+  }
+
+  .climate-control-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .weather-metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lounge-environment-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .router-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "gauge"
+      "throughput"
+      "wan";
+  }
+
+  .router-gauge {
+    width: min(100%, 280px);
+  }
+
+  .router-gauge-readout .text-5xl {
+    font-size: 2rem !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1125px),
+  (min-width: 768px) and (max-aspect-ratio: 1/1) {
+  .dashboard-shell {
+    padding: 28px !important;
+  }
+
+  .dashboard-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .clock-panel {
+    order: -1;
+  }
+
+  .zones-panel > .grid {
+    gap: 12px !important;
+  }
+
+  .zone-button {
+    min-height: 86px !important;
+    padding: 14px 16px !important;
+  }
+
+  .zone-counts {
+    margin-top: 10px !important;
+  }
+
+  .zone-panel {
+    min-height: 0 !important;
+  }
+
+  .zone-panel > .mt-8 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .intensity-panel {
+    min-height: 0 !important;
+  }
+
+  .router-panel {
+    margin-top: 0;
+  }
+
+  .router-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "gauge throughput"
+      "wan wan";
+  }
+
+  .weather-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,111 @@
+/* RotaryEncoder slider rings: tracks, fills, thumbs and curved labels. */
+
+
+/* ── Slider rings ───────────────────────────────────────────────────────── */
+/* In front of the dial, not behind it. A dial that does not tuck draws its
+   rings in the same grid cell, and the dial came later in the DOM and so took
+   every press that landed near the innermost ring. The rings' own clip stops
+   at the knob, so raising them here costs the knob nothing (Adeline,
+   2026-09-12). */
+.rotary-encoder-rings {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rotary-encoder-rings path {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.rotary-encoder-ring-slider {
+  cursor: pointer;
+  outline: none;
+}
+
+.rotary-encoder-ring-slider[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Focus follows the ring: the surface's highlight-coloured focus convention,
+   outside the knob face. */
+.rotary-encoder-rings .rotary-encoder-focus {
+  stroke: transparent;
+}
+
+.rotary-encoder-ring-slider:focus-visible .rotary-encoder-focus {
+  stroke: var(--cyber-highlight, #22d3ee);
+  stroke-opacity: 0.55;
+}
+
+/* A sunken channel like the colour ring: a raised lip, a dark well, and the
+   ring's lighting — darker at the top left, catching light at the bottom
+   right. */
+.rotary-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.2); }
+.rotary-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.3); }
+.rotary-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.1); }
+.rotary-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.42); }
+.rotary-encoder-shade-b { stop-color: rgba(0, 0, 0, 0); }
+.rotary-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.18); }
+
+.rotary-encoder-rings .rotary-encoder-well {
+  stroke: rgba(0, 0, 0, 0.55);
+}
+
+/* Filled from the start to the thumb in the colour ring's colour, and glowing
+   in it (Adeline, 2026-09-11). The bloom keeps a px floor, the lit light's
+   rule, so it still reads on a thin ring. */
+.rotary-encoder-rings .rotary-encoder-fill {
+  stroke: var(--re-color);
+  /* One tight bloom. A second, wider one filled the gaps between rings and
+     washed out the wells' dark edges, so the tracks stopped reading as
+     channels. */
+  filter: drop-shadow(0 0 max(4px, calc(var(--re-track) * 0.3)) var(--re-color));
+}
+
+/* The thumb is a small piece of the knob: its tint, a lighter crown, a dark
+   edge and a drop shadow. No theme colour. */
+.rotary-encoder-thumb {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
+}
+
+.rotary-encoder-rings .rotary-encoder-thumb-edge {
+  stroke: rgba(0, 0, 0, 0.6);
+}
+
+.rotary-encoder-rings .rotary-encoder-thumb-body {
+  stroke: color-mix(in srgb, var(--re-tint) 78%, #fff 22%);
+}
+
+.rotary-encoder-rings .rotary-encoder-thumb-crown {
+  stroke: color-mix(in srgb, var(--re-tint) 62%, #fff 38%);
+  stroke-opacity: 0.7;
+}
+
+/* Ring labels: curved through the bottom gap, etched like the dial's caption.
+   The face is drawn over a dark cut 1px above and a lip 1px below. */
+.rotary-encoder-ring-label {
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  /* Left-aligned to the start of its own ring (Adeline, 2026-09-11), so the
+     labels begin on one radius instead of each centring on 6 o'clock. */
+  text-anchor: start;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* Flat, unembossed (Adeline, 2026-09-12). The class name stays because it is
+   how the rings' labels are addressed; the cut and lip copies are gone.
+
+   Coloured from the PAGE's text token, not the knob's skin (Adeline,
+   2026-09-12): the ring labels and the title arc are drawn outside the knob,
+   over the page, so a light knob on a dark background used to render them dark
+   on dark and they vanished. --cyber-text-dim already flips with the theme. */
+.rotary-encoder-etch-face,
+.rotary-encoder-title {
+  fill: var(--cyber-text-dim, rgba(255, 255, 255, 0.46));
+}

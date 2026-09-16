@@ -1,0 +1,161 @@
+/* Rectangular slider, range and envelope tracks, thumbs and tags. */
+
+/*
+ * Rectangular slider — the global draggable-control style shared by every linear
+ * control (light brightness, aircon fan speed, camera processing, theme sliders).
+ * Track: background fill outlined in the border colour. Thumb: filled rectangle in
+ * the accent colour, switching to the highlight colour while focused or dragging.
+ * The optional accent back-fill (`fill`) is used for magnitudes that "fill up"
+ * (brightness) and omitted for stepped choices (fan speed). Disabled hollows the
+ * thumb (border outline, background fill) and drops the back-fill.
+ */
+.rect-slider {
+  cursor: pointer;
+}
+
+.rect-slider-track {
+  position: relative;
+  flex-grow: 1;
+  height: 24px;
+  background: var(--cyber-bg);
+  border: 1px solid var(--cyber-border-dim);
+}
+
+.rect-slider-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--cyber-line);
+}
+
+.rect-slider-range-fill {
+  inset: 0 auto 0 auto;
+}
+
+.rect-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 36px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  background: var(--cyber-line);
+  /* Same height + border as the track, co-centred, so the outlines align.
+     The border is the contrast-checked colour for text ON the accent, not the
+     dim border colour: a light theme's accent can be as pale as the track it
+     sits on, and the thumb vanished into it entirely (Adeline, 2026-09-12 —
+     "invisible until dragged, then they vanish into the white track again").
+     Whatever the accent is, this edge reads against it. */
+  border: 1px solid var(--cyber-title-on-line);
+  pointer-events: none;
+}
+
+.rect-range-thumb {
+  pointer-events: auto;
+  touch-action: none;
+  outline: none;
+}
+
+.rect-envelope-thumb {
+  transform: translate(-50%, -50%);
+}
+
+.rect-envelope-thumb-1 {
+  clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 100%);
+}
+
+.rect-envelope-thumb-3 {
+  clip-path: polygon(0 0, 100% 35%, 100% 100%, 0 100%);
+}
+
+.rect-envelope-value {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--cyber-highlight);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  clip-path: none;
+  pointer-events: none;
+}
+
+/* The three-letter tag a slider control hangs off a thumb (ATK/HLD/REL) or off
+   its own edge (RND). Typography only, so it reads as one family wherever it is
+   put; .rect-envelope-label adds the thumb positioning on top. */
+.rect-envelope-tag,
+.rect-envelope-label {
+  color: var(--cyber-muted);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.rect-envelope-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.rect-range-thumb:focus-visible {
+  background: var(--cyber-highlight);
+  border-color: var(--cyber-title-on-highlight);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--cyber-highlight) 28%, transparent);
+}
+
+.rect-slider.rect-slider-active .rect-slider-thumb,
+.rect-slider:focus-visible .rect-slider-thumb {
+  background: var(--cyber-highlight);
+  /* Same reasoning as the resting thumb: the edge must read against the fill,
+     and a pale highlight is as invisible as a pale accent. */
+  border-color: var(--cyber-title-on-highlight);
+}
+
+.rect-slider-disabled {
+  cursor: not-allowed;
+}
+
+.rect-slider-disabled .rect-slider-fill {
+  display: none;
+}
+
+.rect-slider-disabled .rect-slider-thumb {
+  background: var(--cyber-bg);
+  border: 1px solid var(--cyber-border-dim);
+}
+
+.intensity-cursor {
+  --intensity-cursor-size: 36px;
+  --intensity-cursor-outline: var(--cyber-line);
+  position: absolute;
+  top: 50%;
+  display: block;
+  width: var(--intensity-cursor-size);
+  height: var(--intensity-cursor-size);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: conic-gradient(
+    from 330deg,
+    var(--intensity-cursor-outline) 0deg 60deg,
+    transparent 60deg 180deg,
+    var(--intensity-cursor-outline) 180deg 240deg,
+    transparent 240deg 360deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    white calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 3px),
+    white calc(100% - 3px)
+  );
+}
+
+.intensity-cursor-active {
+  --intensity-cursor-outline: var(--cyber-cyan);
+}

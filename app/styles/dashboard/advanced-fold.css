@@ -1,0 +1,348 @@
+/* The Advanced fold: divider, drag handle, landscape and portrait layouts. */
+
+/* The Advanced fold: a panel's default view, the sunken line at the bottom of
+   it, and the detail past it. specs/advanced-fold.md */
+.advanced-fold {
+  position: relative;
+  min-width: 0;
+  scrollbar-width: none;
+}
+
+/* A mouse drag the fold is driving selects no text. */
+.advanced-fold.advanced-fold-dragging,
+.advanced-fold.advanced-fold-dragging * {
+  user-select: none;
+}
+
+.advanced-fold::-webkit-scrollbar {
+  display: none;
+}
+
+/* Transitions stay off while the band is being moved; AdvancedFold sets one
+   inline for the spring-back and the break only. */
+.advanced-fold-track {
+  position: relative;
+  display: flex;
+}
+
+.advanced-fold-default {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.advanced-fold-divider {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.advanced-fold-divider-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cyber-line);
+  font-family: var(--cyber-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* A solid, flattened triangle: wider than it is tall. */
+.advanced-fold-divider-arrow {
+  width: 0;
+  height: 0;
+  border-top: 5px solid var(--cyber-line);
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+}
+
+/* The line itself is sunken, not a border: the same inset bevel the rotary
+   encoder's ring uses, in the theme accent. The accent is --cyber-line
+   (applyCssColor("line", accent)); --cyber-highlight is the separate highlight
+   field and was the wrong variable here. */
+.advanced-fold-divider-line {
+  flex: 1 1 auto;
+  background: var(--cyber-line);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.65),
+    0 1px 0 rgb(var(--cyber-line-rgb) / 0.18);
+}
+
+/* Landscape: every sub-panel is its own vertical scroller. No sideways
+   overflow: the page's drag-pan and wheel-pan would take it for a sideways
+   scroller and stop panning over it. */
+.advanced-fold[data-axis="y"] {
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-track {
+  flex-direction: column;
+}
+
+/* The default area is the scroller's content box less the divider
+   (--advanced-fold-default-min, measured by AdvancedFold), so the line rests
+   just inside the bottom and the area never changes size when Advanced
+   opens. */
+.advanced-fold[data-axis="y"] .advanced-fold-default {
+  flex: 0 0 auto;
+  min-height: var(--advanced-fold-default-min, 0px);
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-divider {
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: 10px;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-divider-label {
+  align-self: center;
+  padding-bottom: 5px;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-divider-line {
+  height: 2px;
+  flex: 0 0 2px;
+}
+
+/* Advanced contributes no width: the sub-panel is as wide as its default view,
+   and Advanced is laid out again to fit it, as cells that wrap. */
+.advanced-fold[data-axis="y"] .advanced-fold-advanced {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  align-items: start;
+  gap: 16px;
+  min-width: 0;
+  padding-top: 16px;
+  contain: inline-size;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* List-shaped cells take the whole row and wrap their own items. */
+.advanced-fold[data-axis="y"] .advanced-fold-row {
+  grid-column: 1 / -1;
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced .truncate,
+.advanced-fold[data-axis="y"] .advanced-fold-advanced h2 {
+  overflow-wrap: anywhere;
+}
+
+/* Portrait: the line stands on the right edge and the detail is hidden to the
+   right of it. */
+.advanced-fold[data-axis="x"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+.advanced-fold[data-axis="x"]:not([data-foldless]) {
+  container-type: inline-size;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-track {
+  flex-direction: row;
+  align-items: stretch;
+  min-width: 100%;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-default {
+  width: var(--advanced-fold-default-min, 100cqi);
+  flex: 0 0 var(--advanced-fold-default-min, 100cqi);
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider {
+  flex-direction: row-reverse;
+  padding-left: 10px;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider-label {
+  writing-mode: vertical-rl;
+  align-self: center;
+  padding-left: 5px;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider-arrow {
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 5px solid var(--cyber-highlight);
+  border-right: 0;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-divider-line {
+  width: 2px;
+  flex: 0 0 2px;
+}
+
+/* Advanced contributes no height (`contain: block-size`): the sub-panel is as
+   tall as its default view, and Advanced is stretched to exactly that height
+   by the track. Its cells sit side by side at their natural width, each capped
+   at the panel's content width (100cqi of the fold), and none taller than the
+   region; the region grows sideways instead. */
+.advanced-fold[data-axis="x"] .advanced-fold-advanced {
+  display: flex;
+  flex: none;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 16px;
+  padding-left: 16px;
+  contain: block-size;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > * {
+  flex: none;
+  width: max-content;
+  max-width: 100cqi;
+  min-width: 0;
+  max-height: 100%;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > *::-webkit-scrollbar {
+  display: none;
+}
+
+/* List-shaped cells flow their items down, then into the next column, against
+   the region's definite height: a grid, not a wrapping flex column, so the
+   cell widens for every column it adds. The row count comes from each list's
+   own item height (--advanced-fold-row-min). Each column is capped at the
+   panel's width; a single item taller than the panel scrolls in the cell. */
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > .advanced-fold-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, minmax(var(--advanced-fold-row-min, 64px), max-content));
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+  align-content: start;
+  align-items: start;
+  column-gap: 16px;
+  row-gap: 8px;
+  height: 100%;
+  max-width: none;
+}
+
+.advanced-fold[data-axis="x"] .advanced-fold-row > * {
+  min-width: 0;
+  max-width: 100cqi;
+}
+
+/* One-line items: rows as short as a line of text. */
+.advanced-fold[data-axis="x"] .power-tariff-text {
+  --advanced-fold-row-min: 16px;
+}
+
+/* Landscape keeps the flat stack of Advanced cells it always had. */
+.advanced-fold[data-axis="y"] .zone-advanced-stack,
+.advanced-fold[data-axis="y"] .zone-advanced-rest {
+  display: contents;
+}
+
+/* Portrait: House Party takes a full-width row of its own across the Advanced
+   cell, and the rest of Advanced flows beneath it in the height that is left
+   (specs/portrait-layout.md round 2). */
+.advanced-fold[data-axis="x"] .advanced-fold-advanced > .zone-advanced-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  width: max-content;
+  max-width: none;
+  overflow: hidden;
+}
+
+.advanced-fold[data-axis="x"] .zone-advanced-stack > .zone-party-control {
+  flex: none;
+  width: 100%;
+}
+
+.advanced-fold[data-axis="x"] .zone-advanced-rest {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.advanced-fold[data-axis="x"] .zone-advanced-rest > * {
+  max-height: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+/* Every list cell in a portrait Advanced flows its rows into extra columns
+   against the definite height instead of making the sub-panel taller
+   (specs/advanced-fold.md, "Portrait: lists flow into columns"). */
+.advanced-fold[data-axis="x"] .zone-light-events {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, minmax(var(--advanced-fold-row-min, 64px), max-content));
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+  align-content: start;
+  column-gap: 16px;
+  row-gap: 12px;
+  height: 100%;
+  max-width: none;
+  overflow-y: hidden;
+}
+
+.advanced-fold[data-axis="x"] .zone-light-events > * {
+  max-width: 100cqi;
+  min-width: 0;
+}
+
+.advanced-fold[data-axis="x"] .zone-light-event-switch-ons {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(auto-fill, minmax(28px, max-content));
+  grid-template-columns: none;
+  grid-auto-columns: max-content;
+  align-content: start;
+  column-gap: 16px;
+  row-gap: 8px;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+}
+
+/* Lists inside Advanced wrap their items to the sub-panel's width. */
+.advanced-fold[data-axis="y"] .weather-forecast-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+}
+
+.advanced-fold[data-axis="y"] .advanced-fold-advanced .power-metric-grid,
+.advanced-fold[data-axis="y"] .advanced-fold-advanced .power-summary-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+.advanced-fold[data-axis="y"] .zone-light-event-days {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.camera-panel .advanced-fold-default {
+  gap: 10px;
+}
+
+/* Network's Computers sub-panel is only there when it has a machine to show. */
+.router-computers:not(:has(.desktop-power-panel)) {
+  display: none;
+}

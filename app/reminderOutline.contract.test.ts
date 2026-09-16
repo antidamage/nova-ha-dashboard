@@ -1,6 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readCss } from "./styles/readCss";
 
 // Contract tripwire for the reminder tile outline shape.
 //
@@ -14,7 +13,8 @@ import { describe, expect, it } from "vitest";
 // from a render test, so assert on the source the way the lite-mode contract
 // test does.
 
-const globalsCss = readFileSync(join(__dirname, "globals.css"), "utf8");
+// globals.css is an entry file of ordered @imports now; readCss resolves them.
+const globalsCss = readCss();
 
 describe("reminder outline contract", () => {
   it("still has the hard-corner rule these escapes exist to defeat", () => {

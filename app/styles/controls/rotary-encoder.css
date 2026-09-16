@@ -1,0 +1,169 @@
+/* RotaryEncoder base: the dial, its bevel, the disabled state and the light skin. */
+
+/* ══════════════════════════════════════════════════════════════════════
+   ColorEncoder — the rotary colour control (specs/color-encoder.md).
+   Every dial dimension derives from --re-size, the knob diameter (50–200px);
+   ring geometry is computed in the component and drawn in SVG. The ringed
+   copy this block came from was merged back in on 2026-09-11, so there is
+   one dial again.
+   ══════════════════════════════════════════════════════════════════════ */
+.rotary-encoder {
+  /* The dial paints itself in this colour so it can read its own surface back
+     and pick a light or dark treatment (see isLightSurface in ColorEncoder). */
+  color: var(--re-tint);
+  --re-size: 200px;
+  --re-ring: calc(var(--re-size) * 0.1);
+  --re-bevel: calc(var(--re-size) * 0.022);
+  --re-outer: calc(var(--re-size) + 2 * var(--re-ring) + 2 * var(--re-bevel));
+  --re-ring-outer: calc(var(--re-size) + 2 * var(--re-ring));
+  --re-led-w: max(3px, calc(var(--re-size) * 0.048));
+  /* Silkscreen under each light. Smaller than the caption — three of them have
+     to sit side by side across the face — with a floor so a 100px knob still
+     renders them. */
+  --re-led-name-size: clamp(5px, calc(var(--re-size) * 0.05), 9px);
+  --re-led-name-gap: calc(var(--re-size) * 0.03);
+  --re-tint: var(--background, #050608);
+  /* The lit lights' colour, from the theme's LED Lights slot
+     (Adeline, 2026-09-12). Raw channels too, because the glow needs alpha. */
+  --re-led-on: var(--nova-led-color, #ffffff);
+  --re-led-on-rgb: var(--nova-led-rgb, 255 255 255);
+  --re-checker-a: #c4c5c9;
+  --re-checker-b: #7a7b80;
+  --re-color: #ffffff;
+  --re-glow: 0 0 0 rgba(0, 0, 0, 0);
+  --re-angle: 0deg;
+  --re-annulus: radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%);
+  /* The rings' SVG and the dial share one grid cell, both centred, so the
+     dial sits dead centre inside its rings with no absolute positioning. */
+  display: inline-grid;
+  place-items: center;
+  max-width: 100%;
+}
+
+.rotary-encoder > * {
+  grid-area: 1 / 1;
+}
+
+/* The two skins each name their own face colour. The dark one used to inherit
+   the page's `--background`, which was invisible while every theme was dark —
+   and wrong the moment a light theme asked for dark knobs: the knob painted
+   itself the light page and stayed light (Adeline, 2026-09-12, "Psionyk 1978"
+   light mode). The light skin was already a fixed colour; now both are, so a
+   knob's skin is the skin it was set to whatever the page behind it is. */
+.rotary-encoder[data-mode="dark"] {
+  --re-tint: #191b20;
+}
+
+/* Light mode. The dark treatment is the design; this is its counterpart, not an
+   inversion of it: a soft off-white knob (Adeline, 2026-09-11), shading pulled
+   back so black shadows do not read as grime on a pale face, and the specular
+   dropped since a light dome has little to catch. The light wells stay dark, so
+   the white lit one still reads against them. */
+.rotary-encoder[data-mode="light"] {
+  --re-tint: #eceef1;
+  --re-checker-a: #d7d8dc;
+  --re-checker-b: #9b9ca1;
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-outer-bevel {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.16) 55%, rgba(255, 255, 255, 0.6));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-ring-shade {
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 42%, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 0 calc(var(--re-ring) * 0.5) rgba(0, 0, 0, 0.28);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-inner-bevel {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 calc(var(--re-size) * -0.008) calc(var(--re-size) * 0.02) rgba(0, 0, 0, 0.16);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-knob {
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      #ffffff,
+      var(--re-tint) 68%,
+      color-mix(in srgb, var(--re-tint) 86%, #000 14%) 100%);
+  box-shadow:
+    inset 0 0 calc(var(--re-size) * 0.08) rgba(0, 0, 0, 0.09),
+    0 calc(var(--re-size) * 0.01) calc(var(--re-size) * 0.045) rgba(0, 0, 0, 0.18);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-spec {
+  background: none;
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rotor::before {
+  background: repeating-conic-gradient(from 0deg, rgba(0, 0, 0, 0.035) 0deg 1.2deg, rgba(255, 255, 255, 0.035) 1.2deg 2.4deg);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-index {
+  background: linear-gradient(180deg, rgba(40, 44, 52, 0.85), rgba(40, 44, 52, 0.55));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-channel,
+.rotary-encoder[data-mode="light"] .rotary-encoder-label {
+  color: rgba(0, 0, 0, 0.46);
+}
+
+/* Unlit wells go darker still on a pale knob: the lit one is white, so the
+   contrast between them has to come from the wells. */
+/* Unlit only: without [data-lit="false"] this outranks the lit light's own
+   fill and leaves no light lit in light mode. */
+.rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="false"] {
+  background: linear-gradient(180deg, rgba(28, 31, 36, 0.62), rgba(18, 20, 24, 0.86));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/* A pale bloom is invisible on a pale knob, so the lit light reads by contrast
+   against its own dark well instead. The inner bloom still follows the themed
+   LED colour; the outer ring stays neutral grey because it is the contrast
+   edge, not the light (Adeline, 2026-09-12). */
+.rotary-encoder[data-mode="light"] .rotary-encoder-led[data-lit="true"] {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 0 max(3px, calc(var(--re-led-w) * 1.1)) max(1px, calc(var(--re-led-w) * 0.3)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.75),
+    0 0 max(7px, calc(var(--re-led-w) * 2.4)) max(1px, calc(var(--re-led-w) * 0.6)) rgba(80, 86, 96, 0.35);
+}
+
+.rotary-encoder-dial {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--re-outer);
+  height: var(--re-outer);
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rotary-encoder-dial[data-pressed="true"] {
+  cursor: grabbing;
+}
+
+.rotary-encoder-dial:focus-visible {
+  outline: 2px solid var(--cyber-highlight, #22d3ee);
+  outline-offset: 3px;
+}
+
+.rotary-encoder-disabled .rotary-encoder-dial {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.rotary-encoder-dial > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}

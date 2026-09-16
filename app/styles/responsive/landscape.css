@@ -1,0 +1,662 @@
+/* Cross-cutting landscape (aspect-ratio > 1) restyling of the dashboard. */
+
+@media (aspect-ratio > 1) {
+  body:has(.dashboard-home) {
+    padding-top: 0;
+  }
+
+  /* ==== LEFT SIDEBAR (specs/landscape-layout.md) ===========================
+     Portrait's top bar turned sideways. Everything is a continuous function of
+     --nova-header-fade (0..1), which NovaAvatar sets from scrollX / 400px in
+     this layout: the sidebar narrows 224px -> 124px, the orb (200px canvas)
+     scales 200px -> 100px via --nova-avatar-scale (1 -> 0.5),
+     the shadow and mini time/date fade in, Reload/Config fade out. */
+  body:has(.dashboard-home) {
+    --dashboard-sidebar-width: calc(224px - 100px * var(--nova-header-fade, 0));
+    /* Orb is vertically centred: its rendered size is 200px -> 100px. */
+    --dashboard-sidebar-orb-size: calc(200px - 100px * var(--nova-header-fade, 0));
+    --dashboard-sidebar-orb-top: calc(50dvh - var(--dashboard-sidebar-orb-size) / 2);
+    --dashboard-sidebar-orb-bottom: calc(50dvh + var(--dashboard-sidebar-orb-size) / 2);
+  }
+
+  body:has(.dashboard-home) .nova-avatar-host:not(.nova-avatar-speaking) {
+    top: var(--dashboard-sidebar-orb-top);
+    left: calc(var(--dashboard-sidebar-width) / 2 + env(safe-area-inset-left, 0px));
+    transform: translateX(-50%) scale(var(--nova-avatar-scale, 1));
+    transform-origin: top center;
+  }
+
+  /* The speaking migration measures from wherever the orb rests; keep its
+     start point in the sidebar too. */
+  body:has(.dashboard-home) .nova-avatar-host.nova-avatar-speaking {
+    top: var(--dashboard-sidebar-orb-top);
+    left: calc(var(--dashboard-sidebar-width) / 2 + env(safe-area-inset-left, 0px));
+  }
+
+  body:has(.dashboard-home) .header-fade-strip {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    width: calc(var(--dashboard-sidebar-width) + env(safe-area-inset-left, 0px));
+    height: auto;
+    background: linear-gradient(to right, var(--cyber-header-fade, #000) 0%, transparent 100%);
+  }
+
+  body:has(.dashboard-home) .dashboard-config-link {
+    top: auto;
+    right: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: calc(12px + env(safe-area-inset-left, 0px));
+  }
+
+  /* Reload and theme override also carry .dashboard-config-link; out-rank the
+     rule above. The three sit in one row at the sidebar bottom: Reload, theme,
+     cog (specs/theme-override.md). */
+  body:has(.dashboard-home) .dashboard-config-link.dashboard-reload-link {
+    left: calc(12px + env(safe-area-inset-left, 0px));
+  }
+
+  body:has(.dashboard-home) .dashboard-config-link.dashboard-theme-override-link {
+    left: calc(12px + 52px + env(safe-area-inset-left, 0px));
+  }
+
+  body:has(.dashboard-home) .dashboard-config-link:not(.dashboard-reload-link):not(.dashboard-theme-override-link) {
+    left: calc(12px + 104px + env(safe-area-inset-left, 0px));
+  }
+
+  /* Mini time/date stack under the orb's bottom edge as it shrinks, centred
+     in the sidebar. */
+  body:has(.dashboard-home) .header-mini-clock,
+  body:has(.dashboard-home) .header-mini-date {
+    left: env(safe-area-inset-left, 0px);
+    right: auto;
+    width: var(--dashboard-sidebar-width);
+    text-align: center;
+    white-space: nowrap;
+    /* Under the orb this is sidebar text, not the clock readout, so it takes
+       the contrast-checked light/dark text fill rather than the theme's clock
+       colour — which is chosen against the clock panel and can be unreadable
+       here (Adeline, 2026-09-12). The clock font still carries. */
+    color: var(--cyber-title-on-bg) !important;
+  }
+
+  body:has(.dashboard-home) .header-mini-clock {
+    top: calc(var(--dashboard-sidebar-orb-bottom) + 12px);
+    font-size: 0.8rem;
+  }
+
+  body:has(.dashboard-home) .header-mini-date {
+    top: calc(var(--dashboard-sidebar-orb-bottom) + 12px + 1.1rem);
+    font-size: 0.6rem;
+  }
+
+  .dashboard-home {
+    --dashboard-column-height: min(600px, calc(100dvh - 160px - env(safe-area-inset-bottom, 0px)));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: max-content;
+    min-width: 100%;
+    min-height: 100dvh;
+    /* Left padding clears the resting 224px sidebar plus a gap. */
+    padding: 48px 40px 48px calc(224px + 24px + env(safe-area-inset-left, 0px)) !important;
+    overflow: clip;
+  }
+
+  .dashboard-home .top-banner {
+    position: fixed !important;
+    bottom: 8px;
+    left: 40px;
+    max-width: calc(100vw - 80px);
+  }
+
+  .dashboard-home[data-demo="true"] .top-banner {
+    top: 0;
+    bottom: auto;
+    left: 248px;
+    max-width: calc(100vw - 272px);
+  }
+
+  /* The browser's own scroll anchoring fights useScrollAnchor's compensation and
+   nudges the offset whenever a column remounts, so it is off across the page
+   chain (specs/landscape-layout.md). */
+html,
+body,
+.dashboard-home,
+.dashboard-home .dashboard-layout,
+.dashboard-home .zones-panel,
+.dashboard-home .control-stage {
+  overflow-anchor: none;
+}
+
+.dashboard-home .dashboard-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 28px;
+    width: max-content;
+  }
+
+  .dashboard-home .dashboard-overview {
+    display: grid;
+    grid-template-rows: minmax(min-content, 1fr) auto;
+    gap: 20px;
+    width: 400px;
+    flex: none;
+    border: 1px solid var(--cyber-border-dim);
+    background: var(--cyber-panel);
+    padding-bottom: 20px;
+  }
+
+  .dashboard-home .dashboard-layout > * {
+    flex-shrink: 0;
+    height: var(--dashboard-column-height);
+    max-height: var(--dashboard-column-height);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-home .dashboard-layout > *::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-home .clock-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 20px !important;
+    min-height: 0;
+    order: 0;
+    border: 0;
+    background: transparent !important;
+    clip-path: none;
+  }
+
+  .dashboard-home .clock-panel header {
+    margin-bottom: 20px !important;
+  }
+
+  .dashboard-home .clock-face {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    padding: 24px 8px !important;
+  }
+
+  .dashboard-home .clock-time {
+    font-size: calc(2.7rem * var(--cyber-clock-scale, 1));
+    white-space: nowrap;
+  }
+
+  .dashboard-home .clock-date {
+    font-size: calc(1.5rem * var(--cyber-clock-scale, 1));
+  }
+
+  .dashboard-home .clock-weekdays {
+    font-size: calc(0.8rem * var(--cyber-clock-scale, 1));
+  }
+
+  .dashboard-home .reminder-icon-bar {
+    --reminder-tile-size: 2.3rem;
+    margin: 0;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-home .quick-access {
+    width: 520px;
+    /* Leave the raised kicker inside the scrollable column's paint bounds. */
+    margin-top: 0;
+    padding-top: 28px;
+  }
+
+  .dashboard-home .quick-access .quick-access-kicker {
+    top: 8px;
+    transform: none;
+  }
+
+  .dashboard-home .quick-access-row {
+    display: grid;
+    /* An explicit 84px minimum replaces the automatic content-based one, so a
+       row whose content is taller — the climate knobs — used to overflow its
+       track and overlap the tile below. max() keeps the 84px floor for short
+       tiles while letting a taller one size to its content. */
+    grid-auto-rows: minmax(max(84px, min-content), 1fr);
+    height: 100%;
+  }
+
+  .dashboard-home .zones-panel {
+    /* max-content, not auto. A block box in a flex row shrink-to-fits against
+       the space available, which here is the viewport — so the panel capped at
+       ~1850px and every joined control panel inside it was squeezed down onto
+       its 520px floor however wide its card actually was. The page scrolls
+       sideways; the panel is allowed to be wider than the screen. */
+    width: max-content;
+    padding: 0 !important;
+    border: 0;
+    background: transparent !important;
+    clip-path: none;
+  }
+
+  .dashboard-home .zones-panel-heading {
+    display: none;
+  }
+
+  .dashboard-home .zone-selector-groups {
+    display: flex;
+    gap: 16px;
+    height: 100%;
+  }
+
+  .dashboard-home .horizontal-accordion {
+    display: flex;
+    height: 100%;
+    flex: none;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    flex: 0 0 96px;
+    width: 96px;
+    height: 100%;
+    padding: clamp(12px, 2.5vh, 24px) 16px;
+    border: 1px solid var(--cyber-border-dim);
+    background: var(--cyber-panel) !important;
+    color: var(--cyber-title-on-bg);
+    cursor: pointer;
+    clip-path: none;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:hover,
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    border-color: var(--cyber-highlight);
+    background: color-mix(in srgb, var(--cyber-highlight) 12%, var(--cyber-panel)) !important;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    outline: 2px solid var(--cyber-highlight);
+    outline-offset: -4px;
+  }
+
+  .dashboard-home .horizontal-accordion-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-family: var(--cyber-display);
+    font-size: clamp(1rem, 3.4vh, 1.9rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-home .horizontal-accordion-indicator {
+    display: grid;
+    place-items: center;
+    width: clamp(24px, 4.5vh, 40px);
+    height: clamp(24px, 4.5vh, 40px);
+    flex-shrink: 0;
+    border: 1px solid var(--cyber-border-dim);
+  }
+
+  .dashboard-home .horizontal-accordion[data-open="true"] .horizontal-accordion-trigger {
+    border-color: var(--cyber-highlight);
+    border-right-color: var(--cyber-border-dim);
+  }
+
+  .dashboard-home .horizontal-accordion-content:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: minmax(68px, 1fr);
+    gap: 10px;
+    width: 300px;
+    height: 100%;
+    padding: 20px;
+    border: 1px solid var(--cyber-border-dim);
+    border-left: 0;
+    background: var(--cyber-panel);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-home .horizontal-accordion-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-tree,
+  .dashboard-home .horizontal-accordion .zone-children {
+    display: contents;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-button {
+    order: 0;
+    min-height: 68px !important;
+    padding: 12px !important;
+    aspect-ratio: auto;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-title-bar {
+    font-size: 1rem !important;
+  }
+
+  .dashboard-home .horizontal-accordion .zone-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    font-size: 0.65rem !important;
+    margin-top: 0 !important;
+    line-height: 1.2;
+  }
+
+  /* Selected zone's controls, joined to the right of the owning entry's list:
+     shared border, no gap, one bordered unit. */
+  .dashboard-home .horizontal-accordion-attached {
+    flex: none;
+    width: max-content;
+    height: 100%;
+    border: 1px solid var(--cyber-border-dim);
+    border-left: 0;
+    background: var(--cyber-panel);
+  }
+
+  /* As wide as the card needs (Adeline, 2026-09-12). The old
+     min(760px, 100vw - 80px) cap made a wide card — Outside, with its light,
+     weather and camera in a row — wrap and scroll vertically instead.
+     Landscape already scrolls sideways between columns, so width costs
+     nothing; height is the budget that matters. */
+  .dashboard-home .control-stage {
+    display: block;
+    width: max-content;
+    max-width: none;
+    min-width: 520px;
+    height: 100%;
+    overflow-y: auto;
+    scrollbar-width: none;
+    /* Clear the shrunk sidebar when scrolled into view. */
+    scroll-margin-inline-start: 148px;
+    scroll-margin-inline-end: 40px;
+  }
+
+  /* The control stage is `width: max-content`, so every wrapper between it and
+     a card has to pass both the height DOWN and the intrinsic width UP.
+     Without this the chain's heights are indefinite, which is what broke the
+     camera (below) and collapsed the stage onto its 520px floor. */
+  .dashboard-home .control-stage > .zone-panel {
+    /* Inline-size containment discards the cards' intrinsic widths. Keep it
+       for portrait container queries, but let landscape size from content. */
+    container-type: normal;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-home .zone-panel-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+  }
+
+  /* The adjacent zone menu already identifies the selected panel. */
+  .dashboard-home .zone-panel-kicker,
+  .dashboard-home .zone-panel-title {
+    display: none;
+  }
+
+  .dashboard-home .zone-panel-header .zone-stats {
+    margin-top: 0;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] {
+    display: grid;
+    grid-template-columns: minmax(420px, max-content);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] > .zone-panel-header {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-home .control-stage > .zone-panel[data-lighting-zone] > .mt-8 {
+    margin: 0;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] .lighting-column {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(280px, max-content);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    /* Centred in the panel rather than packed to its left edge: the dial and
+       its presets are the content, and a wide panel left them hanging off one
+       side (Adeline, 2026-09-12). */
+    justify-content: center;
+    gap: 24px;
+  }
+
+  .dashboard-home .zone-panel[data-lighting-zone] .zone-lighting-controls {
+    min-width: 420px;
+  }
+
+  /* The zone panel is a flex column with a header above its controls, so the
+     controls take what the header leaves — `height: 100%` here would be the
+     panel's full height and push the card's foot out the bottom. */
+  .dashboard-home .control-stage > .zone-panel > .mt-8 {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+
+  /* Both wrappers are grids, so the height is passed on as a row that fills.
+     The rows are floored at 0: each sub-panel under them is its own scroller
+     (specs/advanced-fold.md), so a sub-panel taller than the column scrolls
+     inside itself instead of growing the stage. The body no longer scrolls. */
+  .dashboard-home .control-stage > .zone-panel > .mt-8,
+  .dashboard-home .control-stage .lighting-column {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .dashboard-home .control-stage > .zone-panel > .mt-8 {
+    overflow: visible;
+  }
+
+  .dashboard-home .control-stage .lighting-column {
+    min-height: 0;
+  }
+
+  /* Network: two sub-panels side by side, the router and Computers
+     (specs/advanced-fold.md). Computers only when it has a machine to show. */
+  .dashboard-home .control-stage .router-panel-grid {
+    grid-template-columns: minmax(400px, auto);
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 20px;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-home .control-stage .router-panel-grid:has(.desktop-power-panel) {
+    grid-template-columns: minmax(400px, auto) minmax(260px, auto);
+  }
+
+  /* Sleep and Wake side by side, one machine per row: half the height of a
+     single stacked column, and width is cheap in landscape. */
+  .dashboard-home .control-stage .router-computers .system-power-grid {
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
+  }
+
+  /* Outside flows across: light, weather, camera, in that order, each column
+     as wide as it needs (specs/outside-card.md). The camera no longer spans a
+     row underneath, which is what made the card taller than its column.
+
+     The tracks are minmax(floor, max-content), not bare `auto`. An `auto`
+     track only gets the width its content asks for, and none of these three
+     ask for much: the light and weather cards are built from full-width rows,
+     and the camera's width comes from its aspect-ratio off a height, which
+     contributes nothing at all during intrinsic sizing. All three collapsed,
+     the stage fell back to its 520px minimum, and the card came out as the
+     narrow crushed panel. The floors are what stop that; max-content still
+     lets a column grow past its floor when its content is wider. */
+  .dashboard-home .outside-control-grid {
+    grid-template-columns:
+      minmax(320px, max-content)
+      minmax(520px, max-content)
+      minmax(560px, max-content);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    height: 100%;
+  }
+
+  /* Reserve breathing room for the light, the weather's title/readout and
+     three metric tiles, and the camera's playback controls. These are floors,
+     not caps: longer content can ask the page for more horizontal space. */
+  .dashboard-home .outside-control-grid > * {
+    min-height: 0;
+  }
+
+  /* Climate: one card per column, side by side, each wide enough for a 200px
+     knob and the card's own padding. `repeat(2, minmax(0, 1fr))` let both
+     tracks shrink to nothing against a stage sitting on its 520px floor, which
+     is what pushed the two knobs over each other. `auto-flow: column` also
+     means a home with only one climate device gets one column, not a half-
+     empty pair. */
+  .dashboard-home .climate-control-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(380px, max-content);
+    align-items: stretch;
+    height: 100%;
+  }
+
+  .dashboard-home .climate-control-grid .climate-card {
+    min-width: 0;
+  }
+
+  /* The feed takes its size from the column's height. It is 16:9 off a full
+     width otherwise, which is exactly what forced the vertical scroll. The
+     camera floor above is what the track is worth before the aspect-ratio can
+     speak, since a height-driven ratio contributes no intrinsic width. */
+  .dashboard-home .outside-camera-panel {
+    grid-column: auto;
+    width: auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-home .outside-camera-panel .camera-stage {
+    flex: 1;
+    width: auto;
+    min-height: 0;
+  }
+
+  /* The camera's default area is exactly the sub-panel less the divider, not
+     merely at least that, so the stage above shrinks to fit the column rather
+     than pushing the playback controls past the line. */
+  .dashboard-home .outside-camera-panel .advanced-fold-default {
+    height: var(--advanced-fold-default-min, auto);
+  }
+
+  .dashboard-home .control-stage::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* TasksPanel stays mounted in its own column straight after the zones
+     panel; it closes the layout gap so it reads as the Systems entry's joined
+     panel, and hides with that entry. */
+  .dashboard-home .tasks-stage {
+    margin-left: -28px;
+    border: 1px solid var(--cyber-border-dim);
+    border-left: 0;
+    background: var(--cyber-panel);
+    /* The stage's `height: 100%` has no definite parent height to resolve
+       against; take the column height, as the other columns do. */
+    height: var(--dashboard-column-height);
+  }
+
+  /* The Reminders fold needs a definite height to scroll and open
+     (specs/advanced-fold.md): the panel fills the stage, and the fold takes
+     the column left below the header, the edit row and the editor. */
+
+  .dashboard-home .tasks-stage > .tasks-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .dashboard-home .tasks-panel > div:has(> .advanced-fold) {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .dashboard-home .tasks-panel > div:has(> .advanced-fold) > * {
+    flex-shrink: 0;
+  }
+
+  .dashboard-home .tasks-panel > div:has(> .advanced-fold) > .advanced-fold {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /* Adeline, 2026-09-16: back to the panel's own width (specs/tasks-panel.md,
+     "Width") -- the Reminders sub-panel no longer doubles it, so the timer
+     above the line sits in a square panel instead of a wide one. */
+  .dashboard-home .tasks-stage {
+    width: 564px;
+    max-width: none;
+    min-width: 564px;
+  }
+
+  .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
+    display: none;
+  }
+
+  .dashboard-home .voice-transcript-panel {
+    display: flex;
+    flex-direction: column;
+    width: 560px;
+    margin-top: 0;
+  }
+
+  /* As an accordion the panel stops being the bordered box — the accordion's
+     content is, exactly as it is for Home and Systems. Its content is a column
+     of transcript, not a grid of zone buttons, so the zone sizing comes off. */
+  .dashboard-home .voice-transcript-panel:has(.horizontal-accordion) {
+    width: auto;
+    border: 0;
+    background: transparent;
+  }
+
+  .dashboard-home .horizontal-accordion[data-group="transcript"] .horizontal-accordion-content:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-auto-rows: auto;
+    width: 560px;
+    gap: 0;
+    padding: 0;
+  }
+
+  .dashboard-home .zone-panel {
+    min-height: 100% !important;
+  }
+
+  /* The body carries a class of its own: this used to select
+     `> div:nth-child(2)`, which stopped meaning the body the moment the panel
+     gained an accordion around it (specs/landscape-layout.md). */
+  .dashboard-home .voice-transcript-body,
+  .dashboard-home .voice-transcript-screen {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard-home .voice-transcript-log {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+
+}

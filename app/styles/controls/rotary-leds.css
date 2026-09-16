@@ -1,0 +1,165 @@
+/* RotaryEncoder channel lights, their names, the etched caption and dial label. */
+
+/* Channel lights: 2:1 tall, gap = 3 x width, dead centre, never rotate. */
+.rotary-encoder-dial > .rotary-encoder-leds {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--re-led-w) * 3);
+  border-radius: 0;
+}
+
+.rotary-encoder-led-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--re-led-name-gap);
+}
+
+/* Named lights (`ledLabels`). Each name sits under its own light, so a slot is
+   as wide as its name and the lights spread to suit — the gap comes down to
+   compensate, because the names already separate them. The lights must not
+   move: the block is centred on its whole height, so it is pushed back down by
+   half of what the names added, leaving the lights exactly where they were on
+   an unnamed dial (Adeline, 2026-09-12). */
+.rotary-encoder-dial > .rotary-encoder-leds[data-labelled="true"] {
+  gap: calc(var(--re-led-w) * 1.2);
+  transform: translate(-50%, calc(-50% + (var(--re-led-name-gap) + var(--re-led-name-size)) / 2));
+}
+
+/* Etched like the caption, and for the same reason: no theme colour touches
+   the knob face, so this is black and white over whatever tint it has. */
+.rotary-encoder-led-name {
+  color: rgba(255, 255, 255, 0.46);
+  font-family: inherit;
+  font-size: var(--re-led-name-size);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-led-name {
+  color: rgba(0, 0, 0, 0.46);
+}
+
+/* The caption drops below the names rather than through them. */
+.rotary-encoder[data-led-labels="true"] .rotary-encoder-dial > .rotary-encoder-channel {
+  top: calc(50% + var(--re-led-w) + var(--re-led-name-gap) + var(--re-led-name-size) + calc(var(--re-size) * 0.03));
+}
+
+/* Names the channel the lights are showing. A channel name, not a value — the
+   ring stays the only readout. Clamped 10-14px so it is legible in a 50px knob
+   and does not balloon in a 200px one (Adeline, 2026-09-11). */
+/* Etched into the knob, not printed on it: a dark cut with a light lip under
+   it. No theme colour touches the knob face (Adeline, 2026-09-11) — this is
+   black and white over whatever tint the knob happens to have, so it reads as
+   engraving on a dark face and on a pale one. */
+.rotary-encoder-dial > .rotary-encoder-channel,
+.rotary-encoder-dial > .rotary-encoder-label {
+  top: calc(50% + var(--re-led-w) + calc(var(--re-size) * 0.055));
+  transform: translate(-50%, 0);
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: clamp(10px, calc(var(--re-size) * 0.075), 14px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0.16em;
+  white-space: nowrap;
+}
+
+/* The dial's label sits on the knob above the lights, mirroring the caption
+   below them: its bottom edge is as far above the lights as the caption's top
+   edge is below. Same font and etching as the caption (Adeline, 2026-09-11). */
+.rotary-encoder-dial > .rotary-encoder-label {
+  top: auto;
+  bottom: calc(50% + var(--re-led-w) + calc(var(--re-size) * 0.055));
+  /* The component cuts the text to fit (with "...", see ColorEncoder);
+     this only guards the rounding. */
+  max-width: calc(var(--re-size) * 0.7);
+  overflow: hidden;
+  text-transform: uppercase;
+}
+
+.rotary-encoder-led {
+  width: var(--re-led-w);
+  height: calc(var(--re-led-w) * 2);
+  border-radius: calc(var(--re-led-w) * 0.35);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  transition: background 160ms linear, box-shadow 160ms linear;
+}
+
+/* The lit light takes its colour from the theme's LED Lights slot, and glows in
+   that colour (Adeline, 2026-09-12; white until she picks something else).
+   Adeline, 2026-09-11: at 50px the light is 3px wide, so the fill has to carry
+   at every size the dial scales to. The glow keeps a px floor for the same
+   reason: a radius derived purely from the light's width disappears along with
+   it. */
+.rotary-encoder-led[data-lit="true"] {
+  /* Chromium's "Auto Dark Mode for Web Contents" (which Brave exposes as a flag
+     and Adeline has enabled) rewrites an element's light background when that
+     background is colours only, and skips the element entirely once a raster
+     background image is present. A lit light declared as a plain gradient came
+     out grey there, which is why the 97-byte 1x8 PNG below exists — but a
+     themeable colour cannot be baked into a PNG.
+
+     So the PNG stays in the stack purely as the auto-dark suppressor, and the
+     themed colour is layered ON TOP of it as the first (topmost) background
+     image: an opaque ramp in --re-led-on, shaded at the bottom the same ~6% the
+     PNG's white-to-#eef2f6 ramp was. The PNG is never seen; it is only what
+     stops Brave rewriting the layers above it. background-color keeps the
+     themed colour as well for any engine that decodes neither layer. */
+  background-color: var(--re-led-on, #ffffff);
+  background-image:
+    linear-gradient(180deg, var(--re-led-on, #ffffff), color-mix(in srgb, var(--re-led-on, #ffffff) 94%, #0b1016)),
+    url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAICAIAAAC3eAIWAAAAKElEQVR42gXBBw4AIAgAsfv/Y41xIEPElqoi8+FxUQu2OlOMvg5tyAd4dxdNMt07oQAAAABJRU5ErkJggg==");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 0 max(4px, calc(var(--re-led-w) * 1.3)) max(1px, calc(var(--re-led-w) * 0.35)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.9),
+    0 0 max(9px, calc(var(--re-led-w) * 3)) max(2px, calc(var(--re-led-w) * 0.9)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.45);
+}
+
+/* A disabled dial is dark: nothing on it is emitting (Adeline, 2026-09-11).
+   No light is lit and the ring's glow is off, on top of the fade. The colour
+   ring keeps its colour — it is the readout. Placed after the lit-light rules,
+   and carrying the dial's own class, so it outranks them in both modes. */
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-led[data-lit="true"] {
+  background-color: transparent;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+.rotary-encoder.rotary-encoder-disabled[data-mode="light"] .rotary-encoder-led[data-lit="true"] {
+  background-image: linear-gradient(180deg, rgba(28, 31, 36, 0.62), rgba(18, 20, 24, 0.86));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-glow {
+  box-shadow: none;
+}
+
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-rings .rotary-encoder-fill {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotary-encoder-knob,
+  .rotary-encoder-glow,
+  .rotary-encoder-led,
+  .rotary-encoder-dial > .rotary-encoder-rotor {
+    transition: none;
+  }
+
+  /* The rings still tuck away, but they only fade: no shrink. */
+  .rotary-encoder-ring-slider {
+    transform: none !important;
+    transition: opacity 450ms linear;
+  }
+}

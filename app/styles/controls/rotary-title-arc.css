@@ -1,0 +1,131 @@
+/* RotaryEncoder title arc, ring values, selector/toggle fills and tuck-away. */
+
+/* ── The title arc ─────────────────────────────────────────────────── */
+/* The dial's name, curved over the top of the knob outside the colour ring and
+   under the sliders (specs/color-encoder.md, "The title arcs over the knob").
+   Its own SVG in the control's grid cell, behind the dial and taking no input,
+   so it neither tucks away with the rings nor steals a press. */
+.rotary-encoder-title-arc {
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The face title's type, unchanged (Adeline, 2026-09-12) — only its place moved.
+   Mixed case: the ring labels uppercase themselves, the title does not. */
+.rotary-encoder-title {
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* Light mode, as for the colour ring and the lights: paler lip and shading,
+   and a darker well so the coloured fill still reads against it. */
+.rotary-encoder[data-mode="light"] .rotary-encoder-lip-a { stop-color: rgba(255, 255, 255, 0.9); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-lip-b { stop-color: rgba(0, 0, 0, 0.16); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-lip-c { stop-color: rgba(255, 255, 255, 0.6); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-shade-a { stop-color: rgba(0, 0, 0, 0.22); }
+.rotary-encoder[data-mode="light"] .rotary-encoder-shade-c { stop-color: rgba(255, 255, 255, 0.5); }
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-well {
+  stroke: rgba(28, 31, 36, 0.6);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-thumb {
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.28));
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-edge {
+  stroke: rgba(0, 0, 0, 0.26);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-body {
+  stroke: var(--re-tint);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-crown {
+  stroke: #ffffff;
+}
+
+/* A ring's value, right-aligned so it ends where its track ends
+   (specs/color-encoder.md, "Value on the right"). */
+.rotary-encoder-ring-value {
+  text-anchor: end;
+}
+
+/* A selector's or a toggle's fill: the whole track, in the caller's colour,
+   rather than filling behind a thumb. A toggle fades over half a second. */
+.rotary-encoder-whole-fill {
+  transition: stroke 500ms ease, opacity 500ms ease;
+}
+
+.rotary-encoder-whole-fill[data-on="true"] {
+  filter: drop-shadow(0 0 max(4px, calc(var(--re-track) * 0.3)) var(--re-fill));
+  opacity: 1;
+}
+
+.rotary-encoder-whole-fill[data-on="false"] {
+  opacity: 0;
+}
+
+/* Tuck-away: each ring shrinks towards the centre and fades behind the knob,
+   innermost first (specs/color-encoder.md, "Tuck-away"). */
+.rotary-encoder-ring-slider {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 450ms ease-out, opacity 450ms ease-out;
+}
+
+.rotary-encoder[data-locked="true"] .rotary-encoder-ring-slider {
+  transition-timing-function: ease-in;
+}
+
+.rotary-encoder-rings[data-collapsed="true"] {
+  pointer-events: none;
+}
+
+/* The floating ring layer: portalled to the body and pinned over the dial, so
+   a scrolling or clipped ancestor cannot cut it off. It is clipped to an
+   annulus, which leaves the knob visible and tappable through the middle and
+   hides a ring collapsing behind it. Under modals (10000) and the lighting
+   tint (2147483647). */
+.rotary-encoder-ring-layer {
+  position: fixed;
+  z-index: 9000;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* The layer's clip reaches well past the rings so their outer labels are never
+   cut off; the SVG's own box therefore must not take pointers, or its square
+   corners would swallow taps meant for neighbouring controls. Only what is
+   painted (tracks, thumbs, labels) and the round blocker answer. */
+.rotary-encoder-ring-layer .rotary-encoder-rings {
+  pointer-events: none;
+}
+
+.rotary-encoder-ring-layer .rotary-encoder-rings > * {
+  pointer-events: visiblePainted;
+}
+
+.rotary-encoder-ring-layer .rotary-encoder-rings .rotary-encoder-blocker {
+  pointer-events: all;
+}
+
+/* Swallows a tap that lands between two rings, so it never reaches a control
+   underneath. */
+.rotary-encoder-blocker {
+  fill: transparent;
+  pointer-events: all;
+}
+
+/* No light-mode override for .rotary-encoder-etch-face: that text is outside the
+   knob and follows the page's token, not the knob's skin (Adeline, 2026-09-12). */
+/* A climate card is its knob and nothing else (Adeline, 2026-09-12). The rings
+   float over the page, so the card reserves only the knob's own footprint. */
+.climate-knob-body {
+  flex: 1 1 auto;
+}

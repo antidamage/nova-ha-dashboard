@@ -1,0 +1,154 @@
+/* Cross-cutting portrait (aspect-ratio <= 1) restyling of the dashboard. */
+
+@media (aspect-ratio <= 1) {
+  /* The zones panel stops being a box: each group is its own bordered card.
+     It stays a real (transparent) column rather than display: contents, so it
+     still has a rect to wait on and measure. */
+  .dashboard-home .zones-panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 0 !important;
+    border: 0;
+    background: transparent !important;
+    clip-path: none;
+  }
+
+  .dashboard-home .zones-panel-heading {
+    display: none;
+  }
+
+  .dashboard-home .zones-panel > .zone-selector-groups {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px !important;
+    min-width: 0;
+  }
+
+  .dashboard-home .horizontal-accordion {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* The landscape bar's border, panel colour and feedback, laid flat: title
+     on the left, chevron on the right. */
+  .dashboard-home .horizontal-accordion-trigger {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    height: 56px;
+    min-height: 56px;
+    padding: 0 12px 0 16px;
+    border: 1px solid var(--cyber-border-dim);
+    background: var(--cyber-panel) !important;
+    color: var(--cyber-title-on-bg);
+    cursor: pointer;
+    clip-path: none;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:hover,
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    border-color: var(--cyber-highlight);
+    background: color-mix(in srgb, var(--cyber-highlight) 12%, var(--cyber-panel)) !important;
+  }
+
+  .dashboard-home .horizontal-accordion-trigger:focus-visible {
+    outline: 2px solid var(--cyber-highlight);
+    outline-offset: -4px;
+  }
+
+  .dashboard-home .horizontal-accordion-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--cyber-display);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-home .horizontal-accordion-indicator {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px solid var(--cyber-border-dim);
+  }
+
+  .dashboard-home .horizontal-accordion[data-open="true"] .horizontal-accordion-trigger {
+    border-color: var(--cyber-highlight);
+    border-bottom-color: var(--cyber-border-dim);
+  }
+
+  /* The list, joined under the bar. */
+  /* Tiles flow across the full width (Adeline, 2026-09-16), not two per row. */
+  .dashboard-home .horizontal-accordion-content:not([hidden]) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid var(--cyber-border-dim);
+    border-top: 0;
+    background: var(--cyber-panel);
+  }
+
+  /* Home: the home zone full width, its subzones as tiles beneath. */
+  .dashboard-home .horizontal-accordion .zone-tree,
+  .dashboard-home .horizontal-accordion .systems-zone-children {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  /* The selected zone's controls, joined under the list in the same card. */
+  .dashboard-home .horizontal-accordion-attached {
+    min-width: 0;
+    border: 1px solid var(--cyber-border-dim);
+    border-top: 0;
+    background: var(--cyber-panel);
+  }
+
+  .dashboard-home .horizontal-accordion-attached > .control-stage {
+    display: block;
+    min-width: 0;
+  }
+
+  /* The card is the box now; the zone panel inside it is not a second one. */
+  .dashboard-home .horizontal-accordion-attached .zone-panel {
+    min-height: 0 !important;
+    border: 0;
+    background: transparent;
+    clip-path: none;
+  }
+
+  /* TasksPanel is mounted once, after the zones panel (it runs reminders while
+     hidden). It closes the layout gap and drops its top border so it reads as
+     the Systems card's panel, and hides with that card. */
+  .dashboard-home .tasks-stage {
+    min-width: 0;
+    margin-top: -20px;
+    border: 1px solid var(--cyber-border-dim);
+    border-top: 0;
+    background: var(--cyber-panel);
+  }
+
+  .dashboard-home .zones-panel:has(.horizontal-accordion[data-group="systems"][data-open="false"]) + .tasks-stage {
+    display: none;
+  }
+}
+
+@media (aspect-ratio <= 1) and (min-width: 768px) {
+  .dashboard-home .horizontal-accordion-content:not([hidden]) {
+    gap: 12px;
+  }
+}
