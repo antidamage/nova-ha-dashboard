@@ -10,7 +10,7 @@ are now a theme slot.
 |---|---|
 | `app/components/dashboard/HeaderFadeStrip.tsx` | the element |
 | `app/globals.css` | the two gradients |
-| `app/components/NovaAvatar.tsx` | the scroll handler that drives it |
+| `app/components/avatar/nova-avatar/useAvatarScrollScale.ts` | the scroll handler that drives it |
 | `app/components/accentColor.ts` | the stored colour and opacity |
 
 ## What it is
@@ -34,7 +34,7 @@ Three values multiply into what you see:
 2. **The theme's opacity** — the slot's own 0–100, which becomes the alpha
    *inside* the gradient's colour.
 3. **`--nova-header-fade`** — the scroll progress, 0 to 1, set on `<html>` by
-   the scroll handler in `NovaAvatar.tsx` and applied as the element's
+   the scroll handler in `avatar/nova-avatar/useAvatarScrollScale.ts` and applied as the element's
    `opacity`. Portrait divides `scrollY` by the scale distance (300 by
    default); landscape divides `scrollX` by 400.
 

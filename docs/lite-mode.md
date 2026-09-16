@@ -33,7 +33,7 @@ behavior is decided, implemented, and tested.**
      (true only when all four features are off).
    - Outside React or in a first-tick race: read the resolved feature set with
      `readExperienceFeatures().statusOrb` (see the sync read in
-     `NovaAvatar.tsx`), or `readExperienceModeSetting() === "lite"` for the
+     `avatar/nova-avatar/NovaAvatarVisual.tsx`), or `readExperienceModeSetting() === "lite"` for the
      all-off pathway.
    - If the feature is informational, give lite a cheap static stand-in
      (see `WorldMapPanel`'s "Map Offline" placeholder) rather than a hole in

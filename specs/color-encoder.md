@@ -845,7 +845,7 @@ them. Call sites:
   background, border, `map.*` (7), `map.radar*` (2), `title.light`,
   `title.dark`, `clockColor`, `voiceTranscript.background`,
   `voiceTranscript.text`.
-- `app/components/NovaAvatarConfig.tsx` — `renderWidget`: gradientCenter,
+- `app/components/avatar/avatar-config/NovaAvatarConfigView.tsx` — `renderWidget`: gradientCenter,
   gradientOuter, gradientAlert, gymNumberColor, voiceGlowColor,
   lineColors[0..2]. The `NovaOpacity` slider goes; those opacities become
   fourth lights.

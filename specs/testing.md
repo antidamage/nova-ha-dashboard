@@ -17,7 +17,7 @@ with Vitest under jsdom. Notable suites include:
   `lib/powershop-usage.test.ts`, `lib/icloud-config.test.ts`,
   `lib/config-scaffold.test.ts`, `lib/system-control.test.ts` — pure
   CSV/preferences/usage/config logic.
-- `lib/orb-modules.test.ts` and `app/components/orbRenderer.test.ts` — orb
+- `lib/orb-modules.test.ts` and `app/components/avatar/orb-renderer/orbRenderer.test.ts` — orb
   module normalization and canvas rendering against a recording stub.
 - `lib/dashboard-config.test.ts`, `lib/mcp-dashboard.test.ts`,
   `lib/state.golden.test.ts`, `lib/tasks/tasks.test.ts`,
