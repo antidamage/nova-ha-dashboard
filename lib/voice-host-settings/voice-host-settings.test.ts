@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { triggerVoiceHostSettingsRefresh } from "./voice-host-settings";
+import { triggerVoiceHostSettingsRefresh } from "../voice-host-settings";
 
 afterEach(() => {
   vi.unstubAllEnvs();
