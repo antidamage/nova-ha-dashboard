@@ -23,6 +23,7 @@ import { buildOrbPalette, useOrbModule, useOrbModules } from "./orbModules";
 import { createOrbRenderer } from "./orbRenderer";
 import { useAgentName } from "./AgentNameContext";
 import { useSelectMenu } from "./useSelectMenu";
+import { copyColorToClipboard, useThemeClipboard } from "./themeClipboard";
 import { SwitchRow } from "./SlideSwitch";
 
 type AvatarSlot =
@@ -494,12 +495,29 @@ function NovaAvatarConfigView({
     },
     [opacityTheme, slotTheme],
   );
+  // Shares the theme editor's colour clipboard, so a theme colour can be
+  // pasted into an orb slot and back (specs/color-encoder.md).
+  const clipboard = useThemeClipboard();
   const renderWidget = (choice: AvatarSlotChoice) => {
     const value = readSlot(theme, choice.slot);
     const opacity = opacityForSlot(theme, choice.slot);
+    const pasteColor = () => {
+      const clip = clipboard.color;
+      if (!clip) return;
+      const nextOpacity = opacity === null
+        ? null
+        : clip.opacity === undefined ? opacity : Math.max(0, Math.min(100, Math.round(clip.opacity)));
+      setTheme(colorAndOpacityTheme(choice.slot, clip.value, nextOpacity));
+    };
 
     return (
-      <ColorWidget key={choice.slot} label={choice.label}>
+      <ColorWidget
+        key={choice.slot}
+        label={choice.label}
+        onCopyColor={() => copyColorToClipboard({ value, opacity: opacity === null ? undefined : opacity })}
+        onPasteColor={pasteColor}
+        pasteColorDisabled={!clipboard.color}
+      >
         <ColorEncoderPanel
           label={choice.label}
           value={value}
