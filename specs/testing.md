@@ -9,7 +9,7 @@ Unit tests are colocated `*.test.ts(x)` files next to the code they cover, run
 with Vitest under jsdom. Notable suites include:
 
 - `lib/aircon-control.test.ts` (via the dedicated Node runner, see below).
-- `lib/camera/recorder.args.test.ts`, `recorder.pause.test.ts`,
+- `lib/camera/recorder/args.test.ts`, `recorder/pause.test.ts`,
   `update-pause.test.ts` — device argument shaping and the updater pause gate.
 - `lib/router-metrics.test.ts` and `lib/modules/router/module.test.ts` —
   data-rate unit normalization, rate-entity selection, and router status.
@@ -20,7 +20,7 @@ with Vitest under jsdom. Notable suites include:
 - `lib/orb-modules.test.ts` and `app/components/orbRenderer.test.ts` — orb
   module normalization and canvas rendering against a recording stub.
 - `lib/dashboard-config.test.ts`, `lib/mcp-dashboard.test.ts`,
-  `lib/state.golden.test.ts`, `lib/tasks.test.ts`,
+  `lib/state.golden.test.ts`, `lib/tasks/tasks.test.ts`,
   `app/components/ConfigWorkspace.test.tsx`, and the dashboard component/hook
   suites under `app/components/`.
 - `app/components/dashboard/experienceModeSetting.test.tsx`,

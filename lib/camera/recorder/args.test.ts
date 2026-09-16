@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CameraConfig } from "./config";
-import { ffmpegArgs, isRecordingFilename } from "./recorder";
+import type { CameraConfig } from "../config";
+import { ffmpegArgs, isRecordingFilename } from "../recorder";
 
 const camera: CameraConfig = {
   id: "outside",

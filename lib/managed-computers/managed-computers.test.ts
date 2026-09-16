@@ -12,7 +12,7 @@ async function importWithTempStore(storeValue: unknown) {
   vi.stubEnv("NOVA_MANAGED_COMPUTER_KNOWN_HOSTS_DIR", path.join(tempDir, "known-hosts"));
   vi.resetModules();
   return {
-    mod: await import("./managed-computers"),
+    mod: await import("../managed-computers"),
     tempDir,
   };
 }
