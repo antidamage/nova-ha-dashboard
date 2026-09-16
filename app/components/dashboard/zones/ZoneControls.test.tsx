@@ -1,10 +1,10 @@
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { DashboardEntity, DashboardZone, RouterStatus } from "../../../lib/types";
-import { REMOTE_SETTING_MIN_HOLD_MS, REMOTE_SETTING_SETTLE_MS } from "./useRemoteSetting";
-import { ZoneControls } from "./ZoneControls";
-import { openAdvancedFold } from "./advancedFoldTesting";
+import type { DashboardEntity, DashboardZone, RouterStatus } from "../../../../lib/types";
+import { REMOTE_SETTING_MIN_HOLD_MS, REMOTE_SETTING_SETTLE_MS } from "../useRemoteSetting";
+import { ZoneControls } from "../ZoneControls";
+import { openAdvancedFold } from "../advancedFoldTesting";
 
 type Hsva = { h: number; s: number; v: number; a: number };
 type EncoderChannel = "hue" | "brightness" | "saturation" | "opacity";
@@ -19,7 +19,7 @@ type ColorEncoderProps = {
 
 let latestEncoder: ColorEncoderProps | null = null;
 
-vi.mock("../ColorEncoder", () => ({
+vi.mock("../../ColorEncoder", () => ({
   ColorEncoder: (props: ColorEncoderProps) => {
     latestEncoder = props;
     return <div aria-label="Zone lights" />;
