@@ -33,15 +33,17 @@ camera-events/     Python service — camera event processing
 | A device won't respond | `lib/ha.ts` and `lib/ha/` |
 | Lighting, zones, presets | `lib/ha/`, `app/components/dashboard/ZoneControls.tsx` |
 | Aircon or heater | `lib/aircon-control.ts`, `lib/climate-control.ts`, `app/components/dashboard/climateCommands.ts` |
-| Power figures | `lib/power.ts` |
+| Power figures | `lib/power/` (`store.ts` owns the state) |
 | Theme, accent, colour | `app/components/accentColor.ts`, `app/components/AccentConfig.tsx` |
 | Visualiser | `lib/phonoscope*.ts`, `app/components/phonoscope/` |
-| Status orbs | `lib/orb-modules.ts`, `lib/orb-info/`, `app/components/orb-info/` |
+| Status orbs | `lib/orb-modules/`, `lib/orb-info/`, `app/components/orb-info/` |
 | Tasks and reminders | `lib/tasks.ts`, `app/components/tasks/`, `app/components/reminders/` |
 | Camera | `lib/camera/`, `app/components/dashboard/CameraPanel.tsx`, `camera-events/` |
 | Login or face auth | `app/components/auth/`, `app/components/face/`, `face-auth/` |
 | Styling | `app/globals.css` — see the warning below |
-| Config schema or validation | `lib/config-schema.ts`, `app/api/config/` |
+| Config schema or validation | `lib/config-schema/`, `app/api/config/` |
+| A shared type (`DashboardState`, preferences, HA entities) | `lib/types/`, by domain; import from `lib/types.ts` |
+| Realtime events / SSE | `lib/dashboard-events/` (`store.ts` owns the state) |
 | The module system | `lib/modules/`, `app/components/modules/` |
 
 ## `lib/`
@@ -100,7 +102,7 @@ Things that will bite an agent that does not know them:
   matches nothing also fails. Moving a waived file breaks it in both
   directions. Grep the waiver list before moving anything under `lib/` or
   `app/`.
-- **`lib/power.ts` keeps state on `globalThis`** because Next.js can
+- **`lib/power/store.ts` keeps state on `globalThis`** because Next.js can
   instantiate a module more than once. Two copies of that state means two
   power histories, silently.
 - **`test:aircon` compiles separately** via `tsconfig.aircon-test.json` and
