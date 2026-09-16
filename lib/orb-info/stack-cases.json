@@ -32,6 +32,18 @@
       "expectOrder": ["z", "y", "x"]
     },
     {
+      "name": "gym alert sinks below everything, even plain on rows",
+      "entries": [{ "id": "gym", "moduleId": "gym" }, { "id": "timer", "moduleId": "timer" }, { "id": "clock", "moduleId": "clock" }],
+      "outputs": { "gym": { "alert": true, "alertAt": 9000 }, "timer": { "active": true, "remainingMs": 60000 }, "clock": {} },
+      "expectOrder": ["timer", "clock", "gym"]
+    },
+    {
+      "name": "gym alerts sink together, most recent of them first",
+      "entries": [{ "id": "gym", "moduleId": "gym" }, { "id": "gymp", "moduleId": "gym-progress" }, { "id": "lan", "moduleId": "wan-status" }],
+      "outputs": { "gym": { "alert": true, "alertAt": 1000 }, "gymp": { "alert": true, "alertAt": 2000 }, "lan": { "alert": true, "alertAt": 500 } },
+      "expectOrder": ["lan", "gymp", "gym"]
+    },
+    {
       "name": "gym is off before showAfterHours",
       "entries": [{ "id": "gym", "moduleId": "gym" }, { "id": "clock", "moduleId": "clock" }],
       "outputs": { "gym": { "active": false }, "clock": {} },

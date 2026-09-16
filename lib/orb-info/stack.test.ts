@@ -8,7 +8,7 @@ import cases from "./stack-cases.json";
 import { parseOrbInfoUpdateRequest } from "../api/dashboard-requests";
 
 const entries: OrbStackEntry[] = [
-  { id: "first", moduleId: "gym", enabled: true, activation: "whenAlerting" },
+  { id: "first", moduleId: "openings-open", enabled: true, activation: "whenAlerting" },
   { id: "second", moduleId: "clock", enabled: true },
 ];
 type CaseOutput = Partial<OrbModuleOutput>;
@@ -32,6 +32,12 @@ describe("priority stack", () => {
     outputs.first.alert = true;
     expect(resolveActiveEntry(rows, outputs)?.entry.id).toBe("first");
     expect(resolveActiveEntry([], outputs)).toBeNull();
+  });
+  it("a gym alert sits at the bottom rather than taking the orb", () => {
+    const rows: OrbStackEntry[] = [{ id: "gym", moduleId: "gym", enabled: true }, { id: "clock", moduleId: "clock", enabled: true }];
+    const outputs = { gym: { ...ORB_MODULE_OUTPUT_EMPTY, alert: true }, clock: { ...ORB_MODULE_OUTPUT_EMPTY } };
+    expect(orderOrbStack(rows, outputs).map((item) => item.entry.id)).toEqual(["clock", "gym"]);
+    expect(resolveActiveEntry(rows, outputs)?.entry.id).toBe("clock");
   });
   it("threshold alerts without timestamps order by first-seen time", () => {
     const rows: OrbStackEntry[] = [{ id: "a", moduleId: "openings-open", enabled: true }, { id: "b", moduleId: "lights-on", enabled: true }];
