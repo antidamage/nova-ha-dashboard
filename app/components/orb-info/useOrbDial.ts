@@ -2,7 +2,8 @@
 
 import { type KeyboardEvent, type PointerEvent, type RefObject, useCallback, useEffect, useReducer, useRef } from "react";
 import { pointerAngle } from "../rotaryEncoderGeometry";
-import { angleDelta, ORB_DIAL_INITIAL, orbDialDetentDeg, orbDialIndex, orbDialNextDeadline, orbDialReducer } from "./orbDialModel";
+import { playUxSound } from "../dashboard/controlSound";
+import { angleDelta, clampIndex, ORB_DIAL_INITIAL, orbDialDetentDeg, orbDialIndex, orbDialNextDeadline, orbDialReducer } from "./orbDialModel";
 
 const TAP_SLOP_PX = 8;
 
@@ -17,8 +18,9 @@ type Options = {
 };
 
 /**
- * Status orb dial: tap opens, drag around the orb steps entries, 5 s idle or a
- * focus change defocuses, 10 s after the last touch returns to the first entry.
+ * Status orb dial: tap opens, drag around the orb steps entries, and 5 s idle
+ * or a focus change defocuses — which also reverts to the preferred display
+ * order at once (specs/status-orb-stack.md).
  * Drag maths reuse RotaryEncoder's `pointerAngle` (relative sweep).
  */
 export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Options) {
@@ -69,6 +71,7 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Op
     // The entry actually on show at the moment of the tap, by id.
     const shown = idsRef.current[orbDialIndex(current, idsRef.current)];
     if (shown !== undefined && shownAlerting(shown)) { dismiss(shown); dispatch({ type: "touch", now: Date.now() }); return; }
+    if (!current.open) playUxSound("unlockDial");
     dispatch({ type: current.open ? "touch" : "open", now: Date.now() });
   }, [dismiss, shownAlerting]);
 
@@ -90,7 +93,12 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Op
     const steps = Math.trunc(active.sweep / detent);
     if (steps !== 0) {
       active.sweep -= steps * detent;
+      const before = orbDialIndex(stateRef.current, idsRef.current);
       dispatch({ type: "step", delta: steps, ids: idsRef.current, now: Date.now() });
+      // Only a detent that actually moves the stack clicks; grinding against
+      // either end is silent (specs/ux-sounds.md).
+      const after = clampIndex(before + Math.trunc(steps), idsRef.current.length);
+      if (after !== before) playUxSound("dialClick");
     } else dispatch({ type: "touch", now: Date.now() });
     event.preventDefault();
   };
@@ -110,8 +118,11 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Op
     else if (event.key === "Escape") { if (stateRef.current.open) { event.preventDefault(); dispatch({ type: "close" }); } }
     else if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) {
       event.preventDefault();
-      if (!stateRef.current.open) dispatch({ type: "open", now });
-      dispatch({ type: "step", delta: event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1, ids: idsRef.current, now });
+      if (!stateRef.current.open) { playUxSound("unlockDial"); dispatch({ type: "open", now }); }
+      const before = orbDialIndex(stateRef.current, idsRef.current);
+      const delta = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1;
+      dispatch({ type: "step", delta, ids: idsRef.current, now });
+      if (clampIndex(before + delta, idsRef.current.length) !== before) playUxSound("dialClick");
     }
   };
 

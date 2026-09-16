@@ -9,6 +9,7 @@ import {
   type NovaAvatarTheme,
 } from "./avatarThemeModel";
 import { setActiveControlSound } from "./dashboard/controlSound";
+import { DEFAULT_UX_SOUNDS, normalizeUxSounds, type UxSoundAssignments } from "./dashboard/uxSoundActions";
 import {
   isControlInteractionCoolingDown,
   markControlInteraction,
@@ -179,6 +180,8 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   clockFont: ThemeFontSetting;
   timerSound: string;
   controlSound: ControlSoundSettings;
+  /** Which library sound each UX action plays (specs/ux-sounds.md). */
+  uxSounds: UxSoundAssignments;
   desktopWallpaper: DesktopWallpaperSettings;
   font: ThemeFontSetting;
   gymFont: ThemeFontSetting;
@@ -439,6 +442,7 @@ const DEFAULT_DARK_THEME: DeviceTheme = {
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
   timerSound: "Chime",
   controlSound: { ...DEFAULT_CONTROL_SOUND },
+  uxSounds: { ...DEFAULT_UX_SOUNDS },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
   gymFont: { ...DEFAULT_GYM_FONT_SETTING },
   transcriptFont: { ...DEFAULT_TRANSCRIPT_FONT_SETTING },
@@ -653,6 +657,7 @@ const DEFAULT_LIGHT_THEME: DeviceTheme = {
   clockFont: { ...DEFAULT_CLOCK_FONT_SETTING },
   timerSound: "Chime",
   controlSound: { ...DEFAULT_CONTROL_SOUND },
+  uxSounds: { ...DEFAULT_UX_SOUNDS },
   font: { ...DEFAULT_DISPLAY_FONT_SETTING },
   gymFont: { ...DEFAULT_GYM_FONT_SETTING },
   transcriptFont: { ...DEFAULT_TRANSCRIPT_FONT_SETTING },
@@ -1001,6 +1006,7 @@ function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | null | u
     clockFont: normalizeThemeFontSetting(value?.clockFont, DEFAULT_CLOCK_FONT_ID, DEFAULT_CLOCK_FONT_SETTING.weight),
     timerSound: TIMER_SOUNDS.includes(value?.timerSound as typeof TIMER_SOUNDS[number]) ? value!.timerSound! : "Chime",
     controlSound: normalizeControlSound(value?.controlSound),
+    uxSounds: normalizeUxSounds(value?.uxSounds),
     desktopWallpaper: normalizeDesktopWallpaperSettings(value?.desktopWallpaper),
     font: normalizeThemeFontSetting(value?.font, DEFAULT_THEME_FONT_ID, DEFAULT_DISPLAY_FONT_SETTING.weight),
     gymFont: normalizeThemeFontSetting(value?.gymFont, DEFAULT_THEME_FONT_ID, DEFAULT_GYM_FONT_SETTING.weight),
@@ -1504,7 +1510,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssTaskGlowIntensity(normalized.taskGlowIntensity);
   applyCssAlertColor(normalized.avatar.gradientAlert);
   applyCssLedColor(normalized.ledColor);
-  setActiveControlSound(normalized.controlSound);
+  setActiveControlSound(normalized.controlSound, normalized.uxSounds, normalized.timerSound);
   applyThemeFontVars("display", normalized.font);
   applyThemeFontVars("clock", normalized.clockFont);
   applyThemeFontVars("gym", normalized.gymFont);

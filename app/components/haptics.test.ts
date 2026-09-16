@@ -1,13 +1,13 @@
-const { playControlSound } = vi.hoisted(() => ({ playControlSound: vi.fn() }));
+const { playUxSound } = vi.hoisted(() => ({ playUxSound: vi.fn() }));
 
-vi.mock("./dashboard/controlSound", () => ({ playControlSound }));
+vi.mock("./dashboard/controlSound", () => ({ playUxSound }));
 
 import { buttonHaptic, roundHapticInterval, selectionHaptic, SliderHapticController, triggerHaptic } from "./haptics";
 
 describe("haptics", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    playControlSound.mockReset();
+    playUxSound.mockReset();
     delete (window as Window & { webkit?: unknown }).webkit;
     document.querySelectorAll("[data-nova-ios-haptic]").forEach((element) => element.remove());
   });
@@ -59,7 +59,7 @@ describe("haptics", () => {
     buttonHaptic();
     selectionHaptic();
 
-    expect(playControlSound).toHaveBeenCalledTimes(2);
+    expect(playUxSound).toHaveBeenCalledTimes(2);
   });
 
   it("scales slow-drag landmarks to values ending in zero or five", () => {
@@ -81,7 +81,7 @@ describe("haptics", () => {
     expect(controller.move(0.01, { now: 750, value: 5 })).toBe(true);
     expect(controller.move(0.01, { now: 1000, value: 6 })).toBe(false);
     expect(vibrate).toHaveBeenCalledTimes(2);
-    expect(playControlSound).toHaveBeenCalledTimes(2);
+    expect(playUxSound).toHaveBeenCalledTimes(2);
   });
 
   it("uses 0.05 landmarks for hundredth-step fine tuning", () => {

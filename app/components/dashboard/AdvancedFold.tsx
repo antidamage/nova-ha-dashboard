@@ -9,6 +9,7 @@ import {
   type HTMLAttributes,
   type ReactNode,
 } from "react";
+import { playUxSound } from "./controlSound";
 import { useWideDashboard } from "./HorizontalAccordion";
 import {
   ADVANCED_FOLD_BREAK_EASING,
@@ -174,6 +175,9 @@ export function AdvancedFold({ advanced, children, className = "", as = "div", .
   }, [axis, foldless]);
 
   const close = useCallback(() => {
+    // The heal sound only for a fold that was actually open: `close` also runs
+    // on every mount and layout flip (specs/ux-sounds.md).
+    if (openRef.current) playUxSound("foldHeal");
     pendingBreakRef.current = null;
     pullRef.current = 0;
     displacedRef.current = 0;
@@ -318,6 +322,9 @@ export function AdvancedFold({ advanced, children, className = "", as = "div", .
       return;
     }
 
+    // The break has taken: sounded here rather than in breakOpen, because a
+    // dead break above reverts and must stay silent (specs/ux-sounds.md).
+    playUxSound("foldBreak");
     writeOffset(node, axis, breakOffset(boundary, Math.max(0, pending.pull), max));
     const applied = readOffset(node, axis);
     selfWriteRef.current = applied;

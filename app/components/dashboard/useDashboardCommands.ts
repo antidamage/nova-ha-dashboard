@@ -11,6 +11,8 @@ import {
   optimisticStateForZoneAction,
 } from "./state";
 import { isClimateZone } from "./shared";
+import { playUxSound } from "./controlSound";
+import { lightSoundForEntityActions, lightSoundForZoneAction } from "./lightSoundTransition";
 import { useModuleIntercepts } from "../modules/ModuleHost";
 
 export type ApplyEntityActionsOptions = {
@@ -149,6 +151,9 @@ export function useDashboardCommands({
       const holdLightPolling = isLightZoneAction(action);
 
       if (holdLightPolling) {
+        const zoneLightSound = lightSoundForZoneAction(zone.id, action, data);
+        if (zoneLightSound) playUxSound(zoneLightSound);
+
         pausePolling(LIGHT_COMMAND_POLL_HOLD_MS);
         setData((current) =>
           current ? optimisticStateForZoneAction(current, zone.id, action, body) : current,
@@ -247,6 +252,11 @@ export function useDashboardCommands({
         : holdClimatePolling
           ? CLIMATE_COMMAND_HOLD_MS
           : ENTITY_COMMAND_HOLD_MS;
+
+      // Measured against the state before the optimistic write, so the
+      // crossing is real; played on this surface only (specs/ux-sounds.md).
+      const lightSound = lightSoundForEntityActions(actions, data);
+      if (lightSound) playUxSound(lightSound);
 
       pausePolling(commandHoldMs);
       setData((current) => (current ? optimisticStateForEntityActions(current, actions) : current));

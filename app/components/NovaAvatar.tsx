@@ -24,7 +24,7 @@ import { useStatusOrbInfoSetting } from "./dashboard/statusOrbInfoSetting";
 import { buildOrbPalette, useOrbModule } from "./orbModules";
 import { OrbStackReadout } from "./orb-info/OrbEventReadout";
 import { useOrbDial } from "./orb-info/useOrbDial";
-import { orbDialMarkAngle } from "./orb-info/orbDialModel";
+import { OrbDialIndicator } from "./orb-info/OrbDialIndicator";
 import { useOrbInfo } from "./orb-info/useOrbInfo";
 import type { OrbInfoDisplay } from "../../lib/orb-info/types";
 import { createOrbRenderer, type OrbRenderer } from "./orbRenderer";
@@ -607,16 +607,24 @@ function NovaAvatarVisual({
       style={hostStyle}
       data-orb-dial={dialEnabled ? (dial.open ? "open" : "closed") : undefined}
       data-orb-dial-index={dialEnabled ? dial.index : undefined}
+      /* Dialling must never drag the page: any press starting on the orb is
+         exempt from useClickDragScroll, the way .rotary-encoder-dial is.
+         touch-action alone only stops native touch scrolling, which is why
+         the orb used to pan the page under the mouse
+         (specs/status-orb-stack.md, "The dial never drags the page"). */
+      data-nova-no-drag-scroll={dialEnabled ? "true" : undefined}
       tabIndex={dialEnabled ? 0 : undefined}
       {...dial.handlers}
     >
       {dialEnabled ? (
-        <svg className={`orb-dial-ring${dial.open ? " is-open" : ""}`} viewBox="0 0 100 100" aria-hidden="true">
-          <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.55" />
-          <g className="orb-dial-mark" style={{ transform: `rotate(${orbDialMarkAngle(dial.index, orbInfo.stack.length)}deg)` }}>
-            <circle cx="50" cy="2.5" r="2.2" fill="currentColor" />
-          </g>
-        </svg>
+        <OrbDialIndicator
+          count={orbInfo.stack.length}
+          index={dial.index}
+          open={dial.open}
+          /* The orb face is smaller than the canvas, which keeps a margin for
+             glow spill; the ring belongs on the rim, not the canvas edge. */
+          size={size * ORB_RADIUS_FRACTION * 2}
+        />
       ) : null}
       <div
         className={`nova-avatar-voice-glow${voiceGlowActive ? " is-visible" : ""}`}

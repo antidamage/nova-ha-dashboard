@@ -30,6 +30,7 @@ import { useHousePartyClockSync } from "./dashboard/useHousePartyClockSync";
 import { useDashboardSelection, zoneForSelection } from "./dashboard/useDashboardSelection";
 import { useGroupSelection } from "./dashboard/useGroupSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
+import { useScrollAnchor } from "./dashboard/useScrollAnchor";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
 import { FluidBackground } from "./FluidBackground";
 import { WallpaperBackground } from "./WallpaperBackground";
@@ -109,6 +110,9 @@ export function Dashboard() {
   });
 
   const { homeId, systemsId } = useGroupSelection(zoneTree, selectedZoneId, data !== null);
+  // Selecting a zone remounts its control stage at a different size; hold the
+  // page still across that (specs/landscape-layout.md).
+  useScrollAnchor(`${homeId ?? ""}|${systemsId ?? ""}`);
 
   const zoneControlsFor = (zone: DashboardZone) => (
     <ZoneControls

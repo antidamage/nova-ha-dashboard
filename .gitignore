@@ -65,6 +65,8 @@ data/nova-voice-tls/
 data/terrain-fetches/
 data/*-sleep-token.txt
 data/wallpapers/
+# Uploaded UX sound clips (specs/ux-sounds.md); built-ins live in public/sounds/ux/.
+data/sounds/
 # Secret-knock rhythm templates. Encrypted at rest, but an unlock credential
 # is not something to publish even in ciphertext (data/*.json misses .enc).
 data/doorbell-secrets.json.enc

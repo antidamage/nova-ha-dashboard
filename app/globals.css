@@ -6173,7 +6173,19 @@ button.config-breadcrumb-crumb:focus-visible {
     max-width: calc(100vw - 272px);
   }
 
-  .dashboard-home .dashboard-layout {
+  /* The browser's own scroll anchoring fights useScrollAnchor's compensation and
+   nudges the offset whenever a column remounts, so it is off across the page
+   chain (specs/landscape-layout.md). */
+html,
+body,
+.dashboard-home,
+.dashboard-home .dashboard-layout,
+.dashboard-home .zones-panel,
+.dashboard-home .control-stage {
+  overflow-anchor: none;
+}
+
+.dashboard-home .dashboard-layout {
     display: flex;
     align-items: flex-start;
     gap: 28px;
@@ -8418,7 +8430,7 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--cyber-highlight);
+  color: var(--cyber-line);
   font-family: var(--cyber-mono);
   font-size: 0.7rem;
   font-weight: 700;
@@ -8432,16 +8444,18 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 .advanced-fold-divider-arrow {
   width: 0;
   height: 0;
-  border-top: 5px solid var(--cyber-highlight);
+  border-top: 5px solid var(--cyber-line);
   border-right: 5px solid transparent;
   border-left: 5px solid transparent;
 }
 
 /* The line itself is sunken, not a border: the same inset bevel the rotary
-   encoder's ring uses, in the theme accent. */
+   encoder's ring uses, in the theme accent. The accent is --cyber-line
+   (applyCssColor("line", accent)); --cyber-highlight is the separate highlight
+   field and was the wrong variable here. */
 .advanced-fold-divider-line {
   flex: 1 1 auto;
-  background: var(--cyber-highlight);
+  background: var(--cyber-line);
   box-shadow:
     inset 0 1px 2px rgb(0 0 0 / 0.65),
     0 1px 0 rgb(var(--cyber-line-rgb) / 0.18);
@@ -8906,15 +8920,37 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 @keyframes orb-stack-in-prev { from { transform: translateX(-70%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes orb-stack-out-next { from { transform: none; opacity: 1; } to { transform: translateX(-70%); opacity: 0; } }
 @keyframes orb-stack-out-prev { from { transform: none; opacity: 1; } to { transform: translateX(70%); opacity: 0; } }
-.orb-dial-ring { position: absolute; inset: 2%; width: 96%; height: 96%; pointer-events: none; z-index: 6; color: var(--cyber-accent, rgb(60, 220, 240)); opacity: 0; transition: opacity 180ms ease-out; }
-.orb-dial-ring.is-open { opacity: 1; }
-.orb-dial-mark { transition: transform 220ms ease-out; transform-origin: 50px 50px; }
+/* The orb's dial indicator: the RotaryEncoder ring, index line and LED lines
+   laid over the orb face, appearing and fading on the same rules the
+   temperature dial's tuck-away uses (specs/status-orb-stack.md). Locked, the
+   whole indicator is gone and the orb looks untouched; unlocked, it fades in.
+   pointer-events stay off so the orb host keeps the gesture. */
+.orb-dial-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 6;
+  opacity: 1;
+  transition: opacity 180ms ease-out;
+}
+
+.orb-dial-indicator[data-locked="true"] {
+  opacity: 0;
+}
+
+/* No knob under it: the orb face is the face. */
+.orb-dial-indicator .rotary-encoder-dial {
+  cursor: default;
+}
+
 .nova-avatar-visual[data-orb-dial] { touch-action: none; }
 .nova-avatar-visual[data-orb-dial]:focus-visible { outline: 2px solid var(--cyber-accent, rgb(60, 220, 240)); outline-offset: 4px; border-radius: 50%; }
 @media (prefers-reduced-motion: reduce) {
   .orb-stack-in-next, .orb-stack-in-prev, .orb-stack-out-next, .orb-stack-out-prev { animation: none; }
   .orb-stack-out-next, .orb-stack-out-prev { display: none; }
-  .orb-dial-ring, .orb-dial-mark { transition: none; }
+  .orb-dial-indicator { transition: none; }
 }
 
 /* Reminders Advanced region (specs/tasks-panel.md, Round 2). One cell — the

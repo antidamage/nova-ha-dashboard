@@ -13,17 +13,18 @@ describe("orb dial model", () => {
     state = orbDialReducer(state, { type: "step", delta: -9, ids, now: 300 });
     expect(state).toMatchObject({ shownId: null, direction: -1 });
   });
-  it("defocuses after 5 s idle and returns to the first entry after 10 s", () => {
+  it("defocuses after 5 s idle and reverts to the preferred order at once", () => {
     let state = orbDialReducer(orbDialReducer(ORB_DIAL_INITIAL, { type: "open", now: 0 }), { type: "step", delta: 2, ids, now: 1000 });
     expect(orbDialNextDeadline(state)).toBe(6000);
     state = orbDialReducer(state, { type: "tick", now: 5999 });
-    expect(state.open).toBe(true);
+    expect(state).toMatchObject({ open: true, shownId: "c" });
     state = orbDialReducer(state, { type: "tick", now: 6000 });
-    expect(state).toMatchObject({ open: false, shownId: "c" });
-    expect(orbDialNextDeadline(state)).toBe(11000);
-    state = orbDialReducer(state, { type: "tick", now: 11000 });
-    expect(state).toMatchObject({ shownId: null, direction: -1 });
+    expect(state).toMatchObject({ open: false, shownId: null, direction: -1 });
     expect(orbDialNextDeadline(state)).toBeNull();
+  });
+  it("reverts on an explicit close too, not only on the idle tick", () => {
+    const shown = orbDialReducer(orbDialReducer(ORB_DIAL_INITIAL, { type: "open", now: 0 }), { type: "step", delta: 1, ids, now: 10 });
+    expect(orbDialReducer(shown, { type: "close" })).toMatchObject({ open: false, shownId: null, direction: -1 });
   });
   it("keeps the shown entry when the stack reorders, and falls back to the top when it vanishes", () => {
     const state = orbDialReducer(ORB_DIAL_INITIAL, { type: "step", delta: 1, ids, now: 0 });
