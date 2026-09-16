@@ -140,6 +140,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: isDemoMode ? "Nova — Interactive Smart Home Demo" : `${agentName} Control`,
     description: isDemoMode ? "Explore Nova's room controls, energy dashboard, reminders, camera review and custom voice personalities in an interactive fictional household." : `Zone-based Home Assistant controls for ${agentName}`,
+    // Added to the iOS Home Screen, the dashboard runs as a standalone web app.
+    // Without `black-translucent` iOS reserves the clock/battery strip and fills
+    // it with a colour sampled from the page background — which tracks whatever
+    // the theme's background colour happens to be, so it reads as a random
+    // dashboard colour above the page. `black-translucent` makes the page itself
+    // draw under that strip (with viewportFit "cover" above); `.dashboard-home`
+    // pads its top by env(safe-area-inset-top) so nothing hides behind the clock.
+    appleWebApp: {
+      capable: true,
+      // No `title`: that writes apple-mobile-web-app-title and would rename an
+      // already-installed home-screen icon.
+      statusBarStyle: "black-translucent",
+    },
     icons: {
       icon: publicAssetPath("/favicon.ico"),
       apple: [
@@ -197,6 +210,12 @@ export default async function RootLayout({
             fills are rewritten too. Mirrored on `:root` in globals.css
             (specs/color-encoder.md, "Surviving Brave's auto dark mode"). */}
         <meta name="color-scheme" content="dark" />
+        {/* Next's appleWebApp.capable only emits the modern
+            `mobile-web-app-capable`, which iOS Safari does not read. iOS still
+            requires this exact legacy name, and the black-translucent status
+            bar style below it only applies when it is present.
+            specs/ios-home-screen-webapp.md. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" href={googleFontsHref()} />

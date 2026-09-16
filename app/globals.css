@@ -5868,6 +5868,17 @@ button.config-breadcrumb-crumb:focus-visible {
     1.25rem + var(--ios-bottom-gesture-blind-spot) +
       env(safe-area-inset-bottom, 0px)
   ) !important;
+  /* Added to the iOS Home Screen the dashboard runs as a standalone web app
+     with `apple-mobile-web-app-status-bar-style: black-translucent`
+     (app/layout.tsx), so the page draws under the clock/battery strip instead
+     of iOS reserving that strip and filling it with a colour sampled from the
+     theme background. The page owns the space now, so it keeps its own content
+     clear of it. Sits here, after every breakpoint rule, for the same reason
+     the bottom inset does: the narrow and tablet blocks set the whole `padding`
+     shorthand with `!important` and would reset it. Zero everywhere else —
+     desktop, kiosk and Safari-with-chrome all report a 0 top inset.
+     specs/ios-home-screen-webapp.md. */
+  padding-top: calc(1.25rem + env(safe-area-inset-top, 0px)) !important;
 }
 
 /* One DOM order in both orientations. Square belongs to the vertical layout. */
