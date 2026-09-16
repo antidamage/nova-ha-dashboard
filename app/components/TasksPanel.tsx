@@ -1565,13 +1565,8 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
       {showPanel ? (
         <>
           <section className="tasks-panel border border-neutral-700 bg-neutral-950/70 p-4">
-            <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-black uppercase text-cyan-300">Schedule</p>
-                <h2 className="mt-1 text-2xl font-black uppercase text-neutral-50">Reminders</h2>
-              </div>
-            </header>
-
+            {/* No heading: the highlighted menu item already names the panel
+                (Adeline, 2026-09-16, specs/tasks-panel.md). */}
             <div className="grid gap-3">
               {/* Only the timer above the line; everything else past it (specs/tasks-panel.md). */}
               <AdvancedFold

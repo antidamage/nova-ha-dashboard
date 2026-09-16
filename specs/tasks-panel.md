@@ -90,3 +90,8 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
   bar.
 - Width doubled in landscape; portrait cell up to 2× panel width.
 - `TZ=UTC npx vitest run lib/tasks.test.ts` passes.
+
+## No panel heading
+
+Adeline, 2026-09-16: the panel has no "Schedule / Reminders" header. The
+highlighted Reminders menu item already names it.

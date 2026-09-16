@@ -40,7 +40,8 @@ test.describe("tasks and reminders", () => {
   test("shows the reminders panel when its zone is selected", async ({ page }) => {
     await neutralizeTaskAlerts(page);
     await selectZone(page, /Reminders/);
-    await expect(page.getByRole("heading", { name: "Reminders" })).toBeVisible();
+    await expect(page.locator(".tasks-panel")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Reminders" })).toHaveCount(0);
     const advanced = await openReminderLists(page);
     await expect(advanced.locator(".task-row-main").first()).toBeVisible();
   });
