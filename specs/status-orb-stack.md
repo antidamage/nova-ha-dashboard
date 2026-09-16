@@ -140,15 +140,17 @@ lines that appear when we enable a temperature dial, following the same display
 rules."
 
 - The orb no longer draws its own ring and position mark. It renders the
-  **`RotaryEncoder` indicator layer** — the sunken ring, the index line and the
-  LED lines — in the accent colour, exactly as the temperature dial does, and
+  **`RotaryEncoder` indicator layer** — the sunken ring and the index line — in
+  the accent colour, exactly as the temperature dial does, and
   inherits `specs/color-encoder.md`'s tuck-away rules verbatim: a tap of
   60–400 ms with under 5 px travel unlocks; the indicator re-locks after 5 s
   idle; a pointer-down outside locks it at once; Escape locks; Enter/Space
   unlocks. The orb's own `ORB_DIAL_DEFOCUS_MS` timing is the same 5 s, so the
   visible behaviour of the timeout does not change.
-- One LED line per stack entry, the lit one marking the entry on show, on the
-  same `skip` and spacing rules the temperature dial uses.
+- **No LEDs on the orb** (Adeline, 2026-09-16). The knob's lights are not
+  carried over: the orb face is a readout, and the lights sat on top of it. The
+  index line alone marks the entry on show, its angle taken from the entry's
+  position in the stack.
 - **De-focusing reverts to the preferred display order immediately.** The
   separate 10-second `ORB_DIAL_RETURN_MS` linger is removed: when the dial
   locks, the orb slides straight back to the top of the order computed by

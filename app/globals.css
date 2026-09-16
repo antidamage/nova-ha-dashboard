@@ -8940,8 +8940,8 @@ html[data-lighting-tint="on"] .lighting-tint-overlay[data-lit="true"] {
 @keyframes orb-stack-in-prev { from { transform: translateX(-70%); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes orb-stack-out-next { from { transform: none; opacity: 1; } to { transform: translateX(-70%); opacity: 0; } }
 @keyframes orb-stack-out-prev { from { transform: none; opacity: 1; } to { transform: translateX(70%); opacity: 0; } }
-/* The orb's dial indicator: the RotaryEncoder ring, index line and LED lines
-   laid over the orb face, appearing and fading on the same rules the
+/* The orb's dial indicator: the RotaryEncoder ring and index line laid over
+   the orb face (no LEDs — Adeline, 2026-09-16), appearing and fading on the same rules the
    temperature dial's tuck-away uses (specs/status-orb-stack.md). Locked, the
    whole indicator is gone and the orb looks untouched; unlocked, it fades in.
    pointer-events stay off so the orb host keeps the gesture. */

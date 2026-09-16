@@ -1,16 +1,20 @@
 "use client";
 
-// The status orb's dial indicator: the RotaryEncoder's sunken ring, index line
-// and LED lines, laid over the orb face.
+// The status orb's dial indicator: the RotaryEncoder's sunken ring and index
+// line, laid over the orb face.
 //
 // Adeline, 2026-09-16: "the tap-and-dial function for the status orb ... should
 // just be the existing dial indicator and lines that appear when we enable a
 // temperature dial, following the same display rules." So this is not a second
 // dial visual — it mounts the encoder's own classes (`.rotary-encoder-ring`,
-// `-ring-shade`, `-rotor`/`-index`, `-leds`/`-led`) inside a `.rotary-encoder`
-// root, and `data-locked` drives exactly the same fade the temperature knob
-// uses when it tucks away. Only the geometry variables are ours, so the ring
-// lands on the orb's rim instead of round a knob.
+// `-ring-shade`, `-rotor`/`-index`) inside a `.rotary-encoder` root, and
+// `data-locked` drives exactly the same fade the temperature knob uses when it
+// tucks away. Only the geometry variables are ours, so the ring lands on the
+// orb's rim instead of round a knob.
+//
+// Adeline, 2026-09-16: the orb takes the ring and the index mark only — no
+// LEDs. The orb face is a readout, not a knob face, and the lights sat on top
+// of it.
 //
 // specs/status-orb-stack.md, "The dial is the RotaryEncoder indicator".
 
@@ -27,7 +31,7 @@ export function OrbDialIndicator({
   open,
   size,
 }: {
-  /** Entries in the stack: one LED line each. */
+  /** Entries in the stack: the index mark's positions round the ring. */
   count: number;
   /** The entry on show. */
   index: number;
@@ -39,8 +43,6 @@ export function OrbDialIndicator({
   const style = {
     "--re-size": `${size / OUTER_RATIO}px`,
     "--re-color": "var(--cyber-line)",
-    "--re-led-on": "var(--cyber-line)",
-    "--re-led-on-rgb": "var(--cyber-line-rgb)",
     "--re-angle": `${orbDialMarkAngle(index, count)}deg`,
   } as CSSProperties;
 
@@ -56,13 +58,6 @@ export function OrbDialIndicator({
         <span className="rotary-encoder-ring-shade" />
         <span className="rotary-encoder-rotor">
           <span className="rotary-encoder-index" />
-        </span>
-        <span className="rotary-encoder-leds">
-          {Array.from({ length: count }, (_, slot) => (
-            <span key={slot} className="rotary-encoder-led-slot">
-              <span className="rotary-encoder-led" data-lit={slot === index ? "true" : "false"} />
-            </span>
-          ))}
         </span>
       </div>
     </div>
