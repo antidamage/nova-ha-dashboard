@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { RotaryEncoder, TUCK_RING_MS, TUCK_RING_STAGGER_MS, type RotaryEncoderRing } from "./RotaryEncoder";
+import { RotaryEncoder, TUCK_RING_MS, TUCK_RING_STAGGER_MS, type RotaryEncoderRing } from "../../RotaryEncoder";
 import {
   ARC_END,
   ARC_START,
@@ -15,7 +15,7 @@ import {
   thumbAngle,
   fractionAt,
   gapLength,
-} from "./rotaryEncoderGeometry";
+} from "../../rotaryEncoderGeometry";
 
 /** The 200px dial's box: the footprint is 1.244 knob diameters. */
 const DIAL_BOX = 248.8;

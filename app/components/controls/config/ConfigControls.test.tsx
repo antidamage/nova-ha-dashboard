@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { CONFIG_ACCORDION_CLOSE_EVENT, ConfigAccordion } from "./ConfigControls";
-import { computeOpenAccordionChain, seedPendingBreadcrumb } from "./configBreadcrumb";
+import { CONFIG_ACCORDION_CLOSE_EVENT, ConfigAccordion } from "../../ConfigControls";
+import { computeOpenAccordionChain, seedPendingBreadcrumb } from "../../configBreadcrumb";
 
 describe("ConfigAccordion", () => {
   afterEach(() => {
