@@ -3,9 +3,39 @@
 ## Configuration Model
 
 The checked-in default configuration is assembled from
-`config/dashboard-config.default.json`, setup-oriented `config/common.json`, and
-task setup `config/tasks.json`. Runtime configuration is merged over those
-defaults and validated by `lib/config-schema.ts`.
+`config/dashboard-config.default.json`, setup-oriented `config/common.json`,
+task setup `config/tasks.json`, and the git-ignored `config/common.local.json`.
+`lib/dashboard-config.ts` then merges, lowest priority first:
+
+```
+dashboard-config.default.json → common.json → tasks.json → common.local.json
+  → the household package (NOVA_DASHBOARD_HOUSEHOLD_CONFIG)
+  → data/dashboard-config.json (the runtime store)
+  → environment compatibility overrides
+```
+
+Objects merge key by key; arrays replace wholesale. `readDefaultDashboardConfig()`
+stops at the shipped files and deliberately excludes the household layer, so demo
+mode and the config page's defaults view stay household-free. The merged result is
+validated by `lib/config-schema.ts`.
+
+Every layer below the household one is shipped and generic; the household package
+is the only layer that describes one home. See `nova-household/README.md` for the
+rule that decides what belongs in it.
+
+### The update channel is exempt from the store
+
+`update.repo`, `update.branch` and `update.apiBase` are read from the shipped
+defaults plus the household overlay only, and are never persisted to the runtime
+store. They are channel identity, not settings: they decide where the updater
+looks, `/config` cannot edit them, and the runtime store merges above the
+household layer, so storing them let one `/config` save pin a shipped default
+permanently. The mechanism and the reasoning are in `self-update-channel.md`.
+
+The same shape of bug still exists for every other key — a `/config` save writes
+the merged whole document, so any later change to a shipped default is shadowed
+by the install's stored copy. Narrowing the store to a diff against
+`defaults + household` is the general fix and has not been done.
 
 `config/orb-modules/` holds hot-droppable status orb module JSON files served
 by `GET /api/orb-modules` (see Status Orb Modules); these are standalone
@@ -59,7 +89,8 @@ Configuration UI:
 
 The app stores mutable local state in JSON files under `data/` by default.
 
-- `data/dashboard-config.json`: runtime config overrides.
+- `data/dashboard-config.json`: runtime config overrides. Never holds
+  `update.repo`, `update.branch` or `update.apiBase`.
 - `data/dashboard-preferences.json`: dashboard preferences, remembered device
   settings, theme, and adaptive lighting state.
 - `data/dashboard-tasks.json`: local tasks plus mirrored iCloud task records.

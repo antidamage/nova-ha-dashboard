@@ -29,7 +29,8 @@ convention that came with it.
 | [configuration-model.md](configuration-model.md) | Config layering, the household package, persistence and atomic writes |
 | [home-assistant-integration.md](home-assistant-integration.md) | HA client, entity registry, dashboard state, realtime events, entity control |
 | [experience-modes.md](experience-modes.md) | Rich vs lite, and the parity contract every feature owes |
-| [deployment-and-operations.md](deployment-and-operations.md) | Build, deploy, the update path and operational runbooks |
+| [deployment-and-operations.md](deployment-and-operations.md) | Build, deploy and operational runbooks |
+| [self-update-channel.md](self-update-channel.md) | Where the dashboard looks for a new version, which config layer decides it, and the host-side apply half |
 | [testing.md](testing.md) | Test layers, what each one guards, and how to run them |
 | [mcp-and-agent-interface.md](mcp-and-agent-interface.md) | The MCP surface the dashboard exposes to agents |
 | [system-power-controls.md](system-power-controls.md) | Host power actions and the reconnect blocker |
