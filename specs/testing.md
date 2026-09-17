@@ -13,13 +13,13 @@ with Vitest under jsdom. Notable suites include:
   `update-pause.test.ts` — device argument shaping and the updater pause gate.
 - `lib/router-metrics.test.ts` and `lib/modules/router/module.test.ts` —
   data-rate unit normalization, rate-entity selection, and router status.
-- `lib/parse-task-csv.test.ts`, `lib/preferences.test.ts`,
+- `lib/parse-task-csv.test.ts`, `lib/preferences/preferences.test.ts`,
   `lib/powershop-usage.test.ts`, `lib/icloud-config.test.ts`,
   `lib/config-scaffold.test.ts`, `lib/system-control.test.ts` — pure
   CSV/preferences/usage/config logic.
 - `lib/orb-modules.test.ts` and `app/components/avatar/orb-renderer/orbRenderer.test.ts` — orb
   module normalization and canvas rendering against a recording stub.
-- `lib/dashboard-config.test.ts`, `lib/mcp-dashboard.test.ts`,
+- `lib/dashboard-config.test.ts`, `lib/mcp-dashboard/mcp-dashboard.test.ts`,
   `lib/state.golden.test.ts`, `lib/tasks/tasks.test.ts`,
   `app/components/ConfigWorkspace.test.tsx`, and the dashboard component/hook
   suites under `app/components/`.

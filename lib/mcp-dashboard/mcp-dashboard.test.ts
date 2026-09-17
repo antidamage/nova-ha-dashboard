@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readDefaultDashboardConfig } from "./dashboard-config";
-import { handleMcpRequest, mcpServerMetadata } from "./mcp-dashboard";
+import { readDefaultDashboardConfig } from "../dashboard-config";
+import { handleMcpRequest, mcpServerMetadata } from "../mcp-dashboard";
 
 describe("dashboard MCP descriptors", () => {
   it("advertises dashboard-wide tools and resources", () => {

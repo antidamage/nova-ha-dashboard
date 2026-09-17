@@ -53,7 +53,7 @@ fetches `GET /api/desktop/wallpapers/current?orientation=ipad` (also aliased
 at `.../current/wallpaper.png?orientation=ipad`) directly, the same way the
 phone Shortcut already fetches the portrait asset.
 
-Resolution, in `lib/managed-desktop-sync.ts`:
+Resolution, in `lib/managed-desktop-sync/theme-model.ts` (`assetIdForOrientation`):
 
 ```
 ipad orientation → wallpaper.ipadAssetId ?? wallpaper.landscapeAssetId

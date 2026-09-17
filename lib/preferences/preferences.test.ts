@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 async function load() {
-  return await import("./preferences");
+  return await import("../preferences");
 }
 
 describe("dashboard preferences", () => {
