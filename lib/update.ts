@@ -6,7 +6,8 @@
  *   update/constants.ts      update directory layout, check timeout, busy phases
  *   update/status-model.ts   busy-phase staleness, sha normalisation
  *   update/store.ts          SOLE file owner: state/check reads, control requests
- *   update/github-check.ts   GitHub head-commit check
+ *   update/channel-check.ts  update channel head-commit check, one shape for
+ *                            GitHub and Forgejo/Gitea
  *   update/status.ts         auto-update resolution, the status the UI reads
  */
 export type {
@@ -25,5 +26,5 @@ export {
   requestUpdate,
   updaterBusy,
 } from "./update/store";
-export { checkGitHubForUpdate } from "./update/github-check";
+export { checkForUpdate } from "./update/channel-check";
 export { getUpdateStatus, resolveAutoUpdate } from "./update/status";
