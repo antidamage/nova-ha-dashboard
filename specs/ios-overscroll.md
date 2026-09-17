@@ -15,12 +15,14 @@ supposed to look fixed.
 
 **Which surface it was seen on decides whether this change is the fix.**
 Pull-to-refresh belongs to Safari's browser UI, not to a launch from the Home
-Screen. What the repo records is the iPhone, where the dashboard is a Home
-Screen bookmark (`specs/ios-home-screen-webapp.md`), and
-`specs/wallpaper-background-mode.md`'s note that the dashboard does not run in
-the iPad's browser chrome — which is about how the iPad's wallpaper is
-delivered, and does not say what Adeline had the iPad dashboard open in when
-she saw the reload. So:
+Screen. The repo's record points both ways: the iPhone runs the dashboard as a
+Home Screen bookmark, and the iPad is recorded as a standalone install too
+(`specs/ios-home-screen-webapp.md`, `app/styles/responsive/standalone.css`),
+with `specs/wallpaper-background-mode.md` noting that the dashboard does not
+run in its browser chrome — while other specs treat the iPad as a live
+dashboard client (`specs/lighting-tint.md`, `specs/advanced-fold.md`). None of
+that says what Adeline actually had the dashboard open in when she saw the
+reload, and the two answers lead in opposite directions. So:
 
 - If it was Safari with its address bar, this declaration is the fix.
 - If it was the installed web app, this change is not the explanation: there is
@@ -89,10 +91,14 @@ Two side effects, one of them expected rather than proven:
   switch is enough, because this repo has seen iOS ignore a CSS-only
   suppression before (`specs/status-orb-stack.md`).
 - A sideways drag in portrait is not the overscroll of any scroller. The
-  document only gains a horizontal extent in landscape (`.dashboard-home` is
-  `width: max-content` there), and `.dashboard-shell` is `overflow: hidden`, so
-  past the side edge the gesture belongs to the web view. This is the claim in
-  "side effects" that most needs the device check.
+  document only gains a horizontal extent in landscape, where `.dashboard-home`
+  — the same element as `.dashboard-shell` (`app/components/Dashboard.tsx`) — is
+  `width: max-content` and `overflow: clip`
+  (`app/styles/responsive/landscape.css`, which supersedes `dashboard/shell.css`'s
+  `overflow: hidden`). That is why `e2e/advanced-fold.spec.ts` can drag
+  `window.scrollX` sideways at all. In portrait there is no horizontal extent,
+  so past the side edge the gesture belongs to the web view. This is the claim
+  in "side effects" that most needs the device check.
 - The modal-locked state is its own case: `app/components/ModalOverlay.tsx` sets
   the root's `overflow` to `hidden` and `body` to `position: fixed` while any
   dialog is open, so the root cannot be scrolled to an edge at all. Whether a
