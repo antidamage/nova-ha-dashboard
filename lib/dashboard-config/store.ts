@@ -16,26 +16,11 @@ import {
   TASKS_CONFIG_PATH,
 } from "./constants";
 import { envCompatibilityOverrides } from "./env-model";
+import { isRecord, mergeDeep } from "./merge-model";
 import { validateDashboardConfig } from "./schema-model";
 import type { ConfigImportResult, DashboardConfig } from "../config-schema";
 
 let writeQueue = Promise.resolve();
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function mergeDeep<T>(base: T, override: unknown): T {
-  if (!isRecord(base) || !isRecord(override)) {
-    return override === undefined ? base : override as T;
-  }
-
-  const next: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(override)) {
-    next[key] = key in next ? mergeDeep(next[key], value) : value;
-  }
-  return next as T;
-}
 
 async function readJsonIfExists(filePath: string) {
   try {
