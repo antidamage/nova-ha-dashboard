@@ -147,7 +147,7 @@ rather than each assembling the detail themselves.
 
 ## 5. A generic switch toggle may not arm Auto
 
-`lib/climate-control.ts:774-776` — `handleLegacyClimateAction`'s `turn_on`
+`handleLegacyClimateAction` in `lib/climate-control/intents.ts` — its `turn_on`
 branch sets `mode: "auto"` unconditionally for **any** caller that issues
 `switch.turn_on` against an entity in `bedroomHeater.switchEntityIds`. A zone
 "everything on" control, a scene, an MCP tool call, or anything else that

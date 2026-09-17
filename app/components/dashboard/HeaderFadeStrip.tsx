@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 // Fades in behind the status orb as the page scrolls, driven purely by the
 // --nova-header-fade custom property NovaAvatar's scroll handler sets on
-// <html> (see NovaAvatar.tsx) — no timers, no enter/exit trigger, so the
+// <html> (see avatar/nova-avatar/useAvatarScrollScale.ts) — no timers, no enter/exit trigger, so the
 // strip and the mini clock/date track scroll position exactly and reverse
 // the instant the user scrolls back up. The reload/config buttons fade the
 // opposite direction and lose pointer-events past the halfway point via the
