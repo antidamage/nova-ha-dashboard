@@ -95,3 +95,23 @@ Not reproducible on desktop — the inset is only non-zero in the standalone web
 app on a notched device. Check on Adeline's iPhone with the dashboard opened
 from the Home Screen icon. If the strip still shows a band, the installed icon
 predates the meta: delete it and re-add from Safari.
+
+### The status orb
+
+Adeline, 2026-09-17: "the status orb is still behind the dynamic island on my
+iphone." The orb is `position: fixed` and took its top from
+`--nova-avatar-margin` alone, so the clearance never reached it — only the
+shell content moved.
+
+- `--nova-avatar-top` (`styles/base/reset.css`) is
+  `calc(var(--nova-avatar-margin) + var(--nova-status-bar-clearance))`.
+- `.nova-avatar-host` (`styles/avatar/orb-host.css`) and the sticky /config
+  preview wrap (`styles/avatar/avatar-config.css`) rest at `--nova-avatar-top`.
+- `PinnedOrbPreview` resolves `--nova-avatar-top` through a hidden probe
+  element, because `getPropertyValue` returns the calc/env/max text unresolved.
+- The body's orb reservation (`size + margin * 2`) is unchanged: the shell
+  already adds the clearance under it, so orb and content move down together
+  and keep their spacing.
+- Landscape keeps its own `--dashboard-sidebar-orb-top`; iPhone landscape has
+  no floor (wider than 640px) and no top inset.
+

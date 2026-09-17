@@ -405,6 +405,13 @@ orb."
   a page pan (`role="slider"` / `data-nova-no-drag-scroll`). `touch-action:
   none` alone is not enough — it stops native touch scrolling but leaves the
   mouse drag-pan armed, which is why the orb dragged the page before this.
+- **iOS needs a native guard too** (Adeline, 2026-09-17: the iPhone still
+  panned). Safari kept scrolling the page from a touch on the fixed-position
+  orb despite `touch-action: none`. `useOrbDial` adds a non-passive
+  `touchmove` listener on the orb host that calls `preventDefault()` while the
+  dial is enabled; touchmove only fires on the element the touch started on,
+  so this covers exactly "the first tap was in the status orb". React's own
+  touch handlers are passive and cannot do this.
 
 ### Tapping an alert
 

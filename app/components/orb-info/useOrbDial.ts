@@ -61,6 +61,19 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Op
 
   useEffect(() => { if (!enabled) dispatch({ type: "close" }); }, [enabled]);
 
+  // iOS Safari still pans the page from a touch on the fixed-position orb
+  // despite `touch-action: none`, and React's touch listeners are passive, so a
+  // native non-passive touchmove is what actually holds the page still. Any
+  // touch that lands on the orb blocks panning for the whole gesture
+  // (specs/status-orb-stack.md, "The dial never drags the page").
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!enabled || !host) return;
+    const hold = (event: TouchEvent) => { if (event.cancelable) event.preventDefault(); };
+    host.addEventListener("touchmove", hold, { passive: false });
+    return () => host.removeEventListener("touchmove", hold);
+  }, [enabled, hostRef]);
+
   // Re-lock sound: every close after an open, however it happened (idle
   // timeout, outside tap, focus loss, page hidden, Escape).
   const wasOpenRef = useRef(state.open);
