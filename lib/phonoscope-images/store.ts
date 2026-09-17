@@ -1,6 +1,7 @@
 // The phonoscope-images package's only owner of disk state: the image files and
 // manifest under data/phonoscope/images — reading, listing, saving with per-slot
 // eviction, deleting and pruning orphans.
+import { randomUUID } from "crypto";
 import { mkdir, readFile, readdir, rename, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { MAX_DIMENSION, PHONOSCOPE_IMAGE_CONTENT_TYPES, PHONOSCOPE_IMAGE_LIMIT } from "./constants";
@@ -54,7 +55,9 @@ async function writeManifest(images: PhonoscopeImage[]) {
   await mkdir(IMAGES_DIR, { recursive: true });
   // Written beside the target and renamed, so a crash mid-write cannot leave a
   // half-parsed manifest that loses the whole library.
-  const temporary = `${MANIFEST_PATH}.${process.pid}.tmp`;
+  // The temp name is unique per write, not per process: a save and a delete that
+  // overlap would otherwise share one temp file, and the second rename fails.
+  const temporary = `${MANIFEST_PATH}.${process.pid}.${randomUUID()}.tmp`;
   await writeFile(temporary, `${JSON.stringify(images, null, 2)}\n`, "utf8");
   await rename(temporary, MANIFEST_PATH);
 }
