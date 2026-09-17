@@ -112,7 +112,9 @@ function sourceFiles(dir: string): string[] {
       continue;
     }
     if (!/\.tsx?$/.test(entry)) continue;
-    if (/\.(test|spec)\.tsx?$/.test(entry)) continue;
+    // Tests and the fixtures helpers that tests import are not product source; a
+    // fixture naming a sample entity id is test data, not this household's.
+    if (/\.(test|spec|fixtures)\.tsx?$/.test(entry)) continue;
     found.push(path.join(dir, entry).split(path.sep).join("/"));
   }
   return found;
