@@ -23,15 +23,28 @@ function householdFile(contents: unknown) {
   return file;
 }
 
-async function freshConfigModule(householdPath: string | undefined) {
+/** A runtime-store path in a fresh scratch dir, with nothing written yet. */
+function scratchRuntimePath() {
+  const dir = mkdtempSync(path.join(tmpdir(), "nova-runtime-"));
+  scratchDirs.push(dir);
+  return path.join(dir, "dashboard-config.json");
+}
+
+function runtimeFile(contents: unknown) {
+  const file = scratchRuntimePath();
+  writeFileSync(file, JSON.stringify(contents), "utf8");
+  return file;
+}
+
+async function freshConfigModule(householdPath: string | undefined, runtimePath?: string) {
   vi.resetModules();
   if (householdPath) {
     vi.stubEnv("NOVA_DASHBOARD_HOUSEHOLD_CONFIG", householdPath);
   } else {
     vi.stubEnv("NOVA_DASHBOARD_HOUSEHOLD_CONFIG", "");
   }
-  // Keep the runtime store out of it; this suite is about the household layer.
-  vi.stubEnv("NOVA_DASHBOARD_CONFIG", path.join(tmpdir(), "nova-absent-runtime-config.json"));
+  // Out of the way by default; this suite is mostly about the household layer.
+  vi.stubEnv("NOVA_DASHBOARD_CONFIG", runtimePath ?? path.join(tmpdir(), "nova-absent-runtime-config.json"));
   return import("./dashboard-config");
 }
 
@@ -139,5 +152,86 @@ describe("household config layer", () => {
     const { readDashboardConfigSync } = await freshConfigModule(file);
 
     expect(readDashboardConfigSync().power.billing.startDay).toBe(3);
+  });
+});
+
+/**
+ * The update channel is the one part of the overlay the runtime store may not
+ * override or hold. It used to: the store merges above this layer and a
+ * `/config` save wrote the whole merged document, so one save froze the
+ * then-current shipped default and every later override here silently lost.
+ * specs/self-update-channel.md.
+ */
+describe("the household update channel", () => {
+  const FORGE = "https://forge.example/api/v1";
+  const SHIPPED = { repo: "antidamage/nova-ha-dashboard", branch: "main", apiBase: "https://api.github.com" };
+
+  it("wins over a store that pinned the shipped default", async () => {
+    const runtime = runtimeFile({ update: SHIPPED });
+    const file = householdFile({ update: { apiBase: FORGE } });
+    const { readDashboardConfig } = await freshConfigModule(file, runtime);
+
+    const live = await readDashboardConfig();
+    expect(live.update.apiBase).toBe(FORGE);
+    expect(live.update.repo).toBe(SHIPPED.repo);
+  });
+
+  it("wins in the synchronous reader too", async () => {
+    const runtime = runtimeFile({ update: SHIPPED });
+    const file = householdFile({ update: { apiBase: FORGE, branch: "household" } });
+    const { readDashboardConfigSync } = await freshConfigModule(file, runtime);
+
+    expect(readDashboardConfigSync().update.apiBase).toBe(FORGE);
+    expect(readDashboardConfigSync().update.branch).toBe("household");
+  });
+
+  it("still lets an ordinary update setting come from the store", async () => {
+    const runtime = runtimeFile({ update: { checkHourLocal: 5 } });
+    const file = householdFile({ update: { apiBase: FORGE } });
+    const { readDashboardConfig } = await freshConfigModule(file, runtime);
+
+    expect((await readDashboardConfig()).update.checkHourLocal).toBe(5);
+  });
+
+  it("cannot be set by a config import", async () => {
+    const runtime = scratchRuntimePath();
+    const file = householdFile({ update: { apiBase: FORGE } });
+    const { readDashboardConfig, writeDashboardConfig } = await freshConfigModule(file, runtime);
+
+    const result = await writeDashboardConfig({ update: { apiBase: "https://elsewhere.example/api/v1" } });
+
+    expect(result.ok).toBe(true);
+    expect((await readDashboardConfig()).update.apiBase).toBe(FORGE);
+  });
+
+  it("is never written to the runtime store", async () => {
+    const runtime = scratchRuntimePath();
+    const file = householdFile({ update: { apiBase: FORGE } });
+    const { writeDashboardConfig } = await freshConfigModule(file, runtime);
+
+    await writeDashboardConfig({ mcp: { requireBearerAuth: false } });
+
+    const stored = JSON.parse(readFileSync(runtime, "utf8")) as { update?: Record<string, unknown> };
+    expect(stored.update).toBeDefined();
+    expect(Object.keys(stored.update ?? {}).sort()).toEqual(["autoUpdate", "checkHourLocal"]);
+  });
+
+  it("carries through a dry run, which reports what a save would apply", async () => {
+    const file = householdFile({ update: { apiBase: FORGE } });
+    const { dryRunDashboardConfigImport } = await freshConfigModule(file);
+
+    const result = await dryRunDashboardConfigImport({
+      update: { apiBase: "https://elsewhere.example/api/v1" },
+      mcp: { requireBearerAuth: false },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.config.update.apiBase).toBe(FORGE);
+  });
+
+  it("falls back to the shipped GitHub channel when nothing overrides it", async () => {
+    const { readDashboardConfig } = await freshConfigModule(undefined);
+
+    expect((await readDashboardConfig()).update).toMatchObject(SHIPPED);
   });
 });
