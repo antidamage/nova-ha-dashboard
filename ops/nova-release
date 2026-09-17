@@ -219,9 +219,32 @@ do_prune() {
 # ---------------------------------------------------------------------------
 do_apply() {
   local requested="${1:-}"
+  # A missing clone means `migrate` was never run on this host. Say so instead
+  # of comparing an empty target against an empty current sha and reporting
+  # "Already up to date ()" -- which is what this did on iridium for months,
+  # every time an update was queued, while nothing was ever fetched or built.
+  #
+  # Every failure below is an explicit guard, not a bare command: do_apply runs
+  # from do_process as `do_apply ... || true`, which suppresses `set -e` for the
+  # whole function body. Only explicit checks fail here.
+  if [ ! -d "$REPO_DIR/.git" ]; then
+    fail_state "No git clone at $REPO_DIR; run 'nova-release migrate' on this host"
+    return 1
+  fi
   write_state "checking" "Fetching latest from origin/$BRANCH"
-  git -C "$REPO_DIR" fetch --prune origin "$BRANCH"
-  local target; target="$(git -C "$REPO_DIR" rev-parse "origin/$BRANCH")"
+  if ! git -C "$REPO_DIR" fetch --prune origin "$BRANCH"; then
+    fail_state "Could not fetch origin/$BRANCH from the update channel"
+    return 1
+  fi
+  local target
+  if ! target="$(git -C "$REPO_DIR" rev-parse --verify --quiet "origin/$BRANCH")"; then
+    fail_state "origin/$BRANCH does not resolve after fetch"
+    return 1
+  fi
+  if [ -z "$target" ]; then
+    fail_state "origin/$BRANCH resolved to an empty sha"
+    return 1
+  fi
   [ -n "$requested" ] && [ "$requested" != "$target" ] && \
     log "requested $requested differs from branch HEAD $target; using HEAD"
 
@@ -343,11 +366,18 @@ do_migrate() {
   mkdir -p "$RELEASES_DIR" "$CONTROL_DIR" "$APP_ROOT/bin"
   if [ ! -d "$REPO_DIR/.git" ]; then
     write_state "checking" "Cloning $REPO_URL"
-    git clone --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"
+    if ! git clone --branch "$BRANCH" "$REPO_URL" "$REPO_DIR"; then
+      fail_state "Could not clone $REPO_URL"; return 1
+    fi
   else
-    git -C "$REPO_DIR" fetch --prune origin "$BRANCH"
+    if ! git -C "$REPO_DIR" fetch --prune origin "$BRANCH"; then
+      fail_state "Could not fetch origin/$BRANCH"; return 1
+    fi
   fi
-  local target short rel; target="$(git -C "$REPO_DIR" rev-parse "origin/$BRANCH")"
+  local target short rel
+  if ! target="$(git -C "$REPO_DIR" rev-parse --verify --quiet "origin/$BRANCH")" || [ -z "$target" ]; then
+    fail_state "origin/$BRANCH did not resolve; check the clone's origin and $BRANCH"; return 1
+  fi
   short="$(printf '%s' "$target" | cut -c1-7)"
 
   write_state "building" "Building first release ${short}"
