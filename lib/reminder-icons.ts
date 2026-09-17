@@ -3,7 +3,7 @@
 // (specs/agent-token-footprint.md §3.3).
 //
 // Keyed on the NORMALISED REMINDER NAME, not the task id. iCloud mirrors are
-// regenerated with fresh ids on every sync (icloud-sync.ts `taskIdFor` hashes
+// regenerated with fresh ids on every sync (lib/icloud-sync/ical-model.ts `taskIdFor` hashes
 // source|sourceId|occurrenceDate, and the whole mirror is rebuilt every ~10
 // minutes), so an id-keyed assignment would evaporate constantly. The name is
 // the only durable handle, and it is also what lets a user assign an icon to a

@@ -5,7 +5,7 @@ import type { ReminderGlyph } from "./types";
 /**
  * Stable identity for a reminder across iCloud resyncs.
  *
- * Mirrored tasks are regenerated with fresh ids every sync (icloud-sync.ts
+ * Mirrored tasks are regenerated with fresh ids every sync (lib/icloud-sync/ical-model.ts
  * `taskIdFor`), so an icon assignment keyed on task id would be lost roughly
  * every ten minutes. The name is the only thing that survives, and this
  * normaliser mirrors the one behind `localTaskMatchesReminder` so the two
