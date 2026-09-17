@@ -9,6 +9,11 @@ body {
   min-height: 100%;
   background: var(--background);
   color: var(--foreground);
+  /* No rubber-band past the page's edges, and no iOS pull-to-refresh reload:
+     this is the supported switch for the root scroller (Safari 16+, Chrome,
+     Firefox). It also stops the browser's own edge-swipe back/forward
+     navigation on this page. specs/ios-overscroll.md. */
+  overscroll-behavior: none;
   /* Scrolling is native (instant). The smooth-scroll feature — CSS
      `scroll-behavior: smooth` plus the JS wheel-momentum engine — was removed;
      page-level jumps (anchor/hash nav, keys, programmatic scrollTo) land
