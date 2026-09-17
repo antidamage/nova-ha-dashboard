@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBeatTimeline, selectSongleCandidate } from "./phonoscope-tracks";
+import { buildBeatTimeline, selectSongleCandidate } from "../phonoscope-tracks";
 
 describe("buildBeatTimeline", () => {
   it("materialises the complete beat file from tempo and offset", () => {
