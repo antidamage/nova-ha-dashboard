@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { orbModuleById } from "../../../lib/orb-info/catalogue";
-import type { Task } from "../../../lib/types";
-import { applyTaskDismissal, dismissalKey, tasksSourceFrom } from "./useOrbInfo";
+import { orbModuleById } from "../../../../lib/orb-info/catalogue";
+import type { Task } from "../../../../lib/types";
+import { applyTaskDismissal, dismissalKey, tasksSourceFrom } from "../useOrbInfo";
 
 const base = { watchface: null, novaLoad: null, power: null, dashboardState: null } as const;
 

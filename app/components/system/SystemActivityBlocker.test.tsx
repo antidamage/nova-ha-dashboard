@@ -1,8 +1,8 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SystemActivityBlocker } from "./SystemActivityBlocker";
+import { SystemActivityBlocker } from "../SystemActivityBlocker";
 
-vi.mock("./AgentNameContext", () => ({
+vi.mock("../AgentNameContext", () => ({
   useAgentName: () => "Nova",
 }));
 
