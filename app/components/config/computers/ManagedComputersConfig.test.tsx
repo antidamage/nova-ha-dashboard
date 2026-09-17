@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ManagedComputersConfig } from "./ManagedComputersConfig";
+import { ManagedComputersConfig } from "../../ManagedComputersConfig";
 
 const { saveManagedComputers } = vi.hoisted(() => ({
   saveManagedComputers: vi.fn(async (computers: Array<Record<string, unknown>>) => computers),
 }));
 
-vi.mock("./managed-computers-client", () => ({
+vi.mock("../../managed-computers-client", () => ({
   applyManagedDesktopWallpapers: vi.fn(async () => []),
   loadManagedComputers: vi.fn(async () => [{
     address: "desktop.local",
