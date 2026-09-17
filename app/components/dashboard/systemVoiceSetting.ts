@@ -3,7 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 // Client-side mirror of the household voice killswitch (VoicePreferences
-// .systemVoiceEnabled, edited by VoiceKillswitch in VoiceInfrastructureConfig).
+// .systemVoiceEnabled, edited by VoiceKillswitch in config/voice/VoiceKillswitch.tsx).
 //
 // The killswitch is the master switch for the whole system: when it is off,
 // voice host drops every microphone frame. This module makes the dashboard page

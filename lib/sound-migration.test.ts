@@ -46,7 +46,7 @@ describe("control sound migration", () => {
     process.env.NOVA_DASHBOARD_PREFERENCES = preferencesFile;
     process.env.NOVA_DASHBOARD_SOUNDS = path.join(directory, "sounds");
     process.env.NOVA_DASHBOARD_HISTORY = path.join(directory, "history");
-    // lib/preferences.ts reads its path once at module load, so each test needs
+    // lib/preferences/store.ts reads its path once at module load, so each test needs
     // a fresh module graph pointed at its own temp directory.
     vi.resetModules();
   });

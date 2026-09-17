@@ -837,7 +837,8 @@ saturation are inert and send nothing (the old pad was disabled the same way);
 brightness still works, since raising it is how the zone comes back on.
 
 **Config** — `app/components/ConfigControls.tsx`: `ColorSpectrum` and
-`ColorIntensitySlider` are removed and replaced by one `ColorEncoderPanel`.
+`ColorIntensitySlider` are removed and replaced by one `ColorEncoderPanel` (now in
+`app/components/controls/config/ColorEncoderPanel.tsx`).
 `ConfigColorPicker` (`app/components/ConfigColorPicker.tsx`) is deleted with
 them. Call sites:
 

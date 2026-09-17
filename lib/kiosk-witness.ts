@@ -16,7 +16,7 @@
  * **This records. It does not refuse.** A later gate could read the same join,
  * but nothing here is a switch waiting to be flipped.
  *
- * The pure half sits at the top and takes `now` explicitly, so the state
+ * The pure half (kiosk-witness/session-model.ts) takes `now` explicitly, so the state
  * machine is testable without timers or a clock.
  *
  * Facade. The body lives in lib/kiosk-witness/; this file keeps the import
