@@ -187,6 +187,7 @@ describe("ConfigWorkspace", () => {
     } finally {
       // @ts-expect-error -- restoring the read-only global after the test
       delete window.location;
+      // @ts-expect-error -- Window["location"] only accepts an assignable href here
       window.location = originalLocation;
     }
   });
