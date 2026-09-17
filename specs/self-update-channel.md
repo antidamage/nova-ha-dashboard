@@ -50,14 +50,16 @@ carries the host, and is what a non-GitHub install overrides. A full git URL in
 updater looks. They are not editable anywhere in `/config`, and no per-install
 runtime state may pin them.
 
-`lib/dashboard-config.ts` therefore treats them as an exception to the normal
-merge order:
+`lib/dashboard-config/update-channel-model.ts` therefore treats them as an
+exception to the normal merge order, and `store.ts` applies it:
 
 - The reader takes them from `mergeDeep(defaults, household)` — the shipped
   defaults, overlaid by the household package — and ignores whatever the runtime
   store holds.
-- The writer strips them from the candidate before validating and persisting, so
-  the runtime store can never come to hold a stale copy of a shipped default.
+- The writer strips them from the import it is given, so a caller cannot set
+  them, and then from the document it persists, so the store never gains a copy.
+  An install that saved its config before this rule existed still has one on
+  disk; the reader ignores it, and the next save rewrites the file without it.
 
 The exception exists because of a real failure. `writeDashboardConfig` persists
 the *merged whole document*, and the runtime store merges **above** the

@@ -89,8 +89,9 @@ Configuration UI:
 
 The app stores mutable local state in JSON files under `data/` by default.
 
-- `data/dashboard-config.json`: runtime config overrides. Never holds
-  `update.repo`, `update.branch` or `update.apiBase`.
+- `data/dashboard-config.json`: runtime config overrides. Written without
+  `update.repo`, `update.branch` and `update.apiBase`; a file saved before that
+  rule existed may still carry them, and the loader ignores any copy it finds.
 - `data/dashboard-preferences.json`: dashboard preferences, remembered device
   settings, theme, and adaptive lighting state.
 - `data/dashboard-tasks.json`: local tasks plus mirrored iCloud task records.
