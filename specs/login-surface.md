@@ -438,7 +438,9 @@ carrying the Outside camera.
 ## Components
 
 ```
-app/components/auth/LoginPanel.tsx      the body: fields, the two buttons, all state
+app/components/auth/LoginPanel.tsx      facade over auth/login-panel/
+app/components/auth/login-panel/        the body: LoginPanel.tsx renders, useLoginFlow.ts
+                                        holds all state and the three sign-in paths
 app/components/auth/LoginModal.tsx      LoginPanel inside ModalOverlay, striped card
 app/components/auth/LoginProvider.tsx   requestLogin() context + the single mounted modal
 app/components/auth/useAuthSession.ts   whoami probe, cached

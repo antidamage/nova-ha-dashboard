@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACE_REASON_MESSAGES, faceReasonDetail, faceReasonMessage } from "./faceCapture";
+import { FACE_REASON_MESSAGES, faceReasonDetail, faceReasonMessage } from "../faceCapture";
 
 describe("face refusal messages", () => {
   it("distinguishes the three kinds of failure, because each calls for a different action", () => {

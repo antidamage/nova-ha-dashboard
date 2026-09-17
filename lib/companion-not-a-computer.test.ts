@@ -56,10 +56,12 @@ describe("the companion is not a managed computer", () => {
     // The companion surface is read-only by design. Its recovery path is a
     // Shortcut on the device itself, which is the only thing that can actually
     // bring a suspended app back.
-    const card = readFileSync(
-      path.join(__dirname, "..", "app", "components", "CompanionStatusCard.tsx"),
-      "utf8",
-    );
+    // The card's body is the app/components/companion/ package; read all of it.
+    const cardDir = path.join(__dirname, "..", "app", "components", "companion");
+    const card = readdirSync(cardDir)
+      .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file))
+      .map((file) => readFileSync(path.join(cardDir, file), "utf8"))
+      .join("\n");
 
     // Asserted on what the card can *do*, not on the words it uses — it has
     // to be able to say "there is no remote wake" without tripping its own
