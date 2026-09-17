@@ -138,6 +138,16 @@ The host half is separate and not configurable from here. Iridium's
 `nova-release` clone fetches from its own `origin`, so moving the whole channel
 means moving that too — see `ops/iridium/README.md`.
 
+A private channel needs the token on **both** sides, and one token serves both.
+The app reads `NOVA_UPDATE_TOKEN` from its environment; the host updater reads
+`NOVA_UPDATE_TOKEN` or a 0600 file outside the app tree. The updater never writes
+the token into the clone's remote URL: the container bind-mounts the whole tree,
+installable modules run code inside it, and `repo/.git/config` would hand the
+token to anything running there. It is supplied per-invocation through a git
+credential helper that answers for the channel's host and no other, which is
+also what keeps a GitHub fetch from ever being offered it. The scope actually
+needed is `read:repository`.
+
 ## What done means
 
 - `/api/update` reports `channel.repo` and `channel.branch` from the effective

@@ -87,7 +87,29 @@ nova-release migrate        one-time flat -> releases conversion
 ```
 
 Tunables via env (`NOVA_*`): `NOVA_KEEP_RELEASES` (default 3 = current + 2),
-`NOVA_HEALTH_TIMEOUT`, `NOVA_UPDATE_BRANCH`, `NOVA_REPO_URL`, `NOVA_BUILD_IMAGE`.
+`NOVA_HEALTH_TIMEOUT`, `NOVA_UPDATE_BRANCH`, `NOVA_REPO_URL`, `NOVA_BUILD_IMAGE`,
+`NOVA_UPDATE_TOKEN`, `NOVA_UPDATE_TOKEN_FILE` (default
+`~/.config/nova/update-token`), `NOVA_UPDATE_USER`.
+
+### A private channel
+
+`NOVA_REPO_URL` defaults to the public GitHub repository, which needs no
+credentials and clones unauthenticated. Point it at a private host and the clone
+and every later fetch need a token, read from `NOVA_UPDATE_TOKEN` or, if that is
+unset, from `NOVA_UPDATE_TOKEN_FILE` — a 0600 file outside the app tree. The file
+is the better default: the cron needs no secret in its environment, and the
+container cannot read it.
+
+The token is deliberately **not** written into the clone's remote URL. The
+systemd unit bind-mounts this whole tree at `/app` and the installable-module
+system runs code inside that container, so anything in `repo/.git/config` is
+readable from inside the container. Instead the token is supplied
+per-invocation through a git credential helper (`nova-release credential`, wired
+in by `git_channel`) that answers for **one host only** — the host named in
+`NOVA_REPO_URL`. A fetch of any other host, GitHub included, is never handed it.
+
+The scope that is actually needed on the forge is `read:repository` and nothing
+else.
 
 ## Container timezone
 

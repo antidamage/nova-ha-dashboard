@@ -195,44 +195,50 @@ never once worked:
 The crontab already runs the drain every minute, which is correct:
 `* * * * * NOVA_UPDATE_BRANCH=main ~/.local/bin/nova-release process`.
 
-### 1. A read-only Forgejo deploy key
+### 1. Give the updater a read-only token
 
-The login shell here is fish, so wrap the commands in `bash -c '...'` or run
-`bash` first.
+The channel here is a **private** Forgejo repository, so the clone and every
+later fetch need a token. This replaces the ssh deploy key this runbook used to
+require: an HTTPS clone authenticated with a token needs nothing in `~/.ssh`.
 
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_nova_forge -N '' -C 'iridium nova-release'
-cat ~/.ssh/id_ed25519_nova_forge.pub
-```
-
-Add that public key in Forgejo under *Repository → antidamage/nova-ha-dashboard →
-Settings → Deploy keys*, with **write access left off**. Then pin it so ssh does
-not offer the other keys first:
+Mint one in Forgejo under *Settings → Applications* with the **`read:repository`**
+scope and nothing else, then put it where only this account can read it — outside
+the app tree, because the container mounts that tree read/write and can read
+anything inside it:
 
 ```bash
-cat >> ~/.ssh/config <<'CONF'
-
-Host ununhexium.tuatara-dory.ts.net
-  Port 2222
-  User git
-  IdentityFile ~/.ssh/id_ed25519_nova_forge
-  IdentitiesOnly yes
-CONF
-ssh -T -p 2222 git@ununhexium.tuatara-dory.ts.net   # expect a "Hi there" greeting
+install -d -m 0700 ~/.config/nova
+umask 077; printf '%s' '<token>' > ~/.config/nova/update-token
+chmod 600 ~/.config/nova/update-token
 ```
 
-### 2. A token for the in-app check
+`nova-release` reads that path by default (`NOVA_UPDATE_TOKEN_FILE`). Verify the
+helper answers for the forge and withholds for anyone else before trusting it:
 
-The repository is private, so the check needs one. In Forgejo, *Settings →
-Applications → Generate token* with `read:repository` only. `.env.local` is owned
-by the app owner, so no sudo is involved:
+```bash
+printf 'protocol=https\nhost=ununhexium.tuatara-dory.ts.net\n\n' \
+  | NOVA_REPO_URL=https://ununhexium.tuatara-dory.ts.net:3300/antidamage/nova-ha-dashboard.git \
+    ~/.local/bin/nova-release credential get      # expect username= and password=
+printf 'protocol=https\nhost=github.com\n\n' \
+  | NOVA_REPO_URL=https://ununhexium.tuatara-dory.ts.net:3300/antidamage/nova-ha-dashboard.git \
+    ~/.local/bin/nova-release credential get      # expect NOTHING
+```
+
+### 2. The same token, for the in-app check
+
+One token serves both halves; do not mint a second. The in-app check reads it
+from the container's environment rather than from a file, because the container
+can only see the app tree and `/opt/nova-household`, and `.env.local` is owned by
+the app owner, so no sudo is involved:
 
 ```bash
 sed -i '/^NOVA_UPDATE_TOKEN=/d' /opt/nova-ha-dashboard/.env.local
-printf 'NOVA_UPDATE_TOKEN=%s\n' '<the-token>' >> /opt/nova-ha-dashboard/.env.local
+printf 'NOVA_UPDATE_TOKEN=%s\n' '<the-same-token>' >> /opt/nova-ha-dashboard/.env.local
 ```
 
-It takes effect on the next container start, which step 3 performs anyway.
+Unlike the clone, a copy here is safe and intended: the container *is* the
+consumer. It takes effect on the next container start, which step 3 performs
+anyway.
 
 ### 3. Refresh the helper, then migrate
 
