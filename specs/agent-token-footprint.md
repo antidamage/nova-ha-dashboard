@@ -20,19 +20,33 @@ cheap, which comes from four things:
 3. Generated data excluded from agent reads.
 4. An index that says where to look.
 
-### Baseline, 2026-09-16
+### Before and after
 
-| Measure | Value |
-|---|---|
-| Tracked text (excl. images, lockfiles, fonts, audio) | 8.5 MB |
-| Source files (`.ts`, `.tsx`, `.css`, `.py`) | 833 |
-| Source files over 10 KB | 154 (125 excluding tests) |
-| Largest file | `app/globals.css`, 247 KB |
-| Largest doc | `SPEC.md`, 185 KB |
-| Flat files at `lib/` top level | 216 |
-| Flat files at `app/components/` top level | 142 |
+| Measure | 2026-09-16 (before) | 2026-09-17 (after) |
+|---|---|---|
+| Tracked text (excl. images, lockfiles, fonts, audio) | 8.5 MB | 8.6 MB |
+| Source files (`.ts`, `.tsx`, `.css`, `.py`, `.mjs`) | 833 | 1,679 |
+| Source files over 10 KB | 154 | 56 |
+| Bytes in files over 10 KB | 3,977 KB | 858 KB |
+| Median source file | — | 2.9 KB |
+| Largest file | `app/globals.css`, 247 KB | `controls/rotary/RotaryEncoder.tsx`, 38 KB |
+| Largest doc | `SPEC.md`, 185 KB | `specs/face-auth.md`, 64 KB (`SPEC.md` is a 3 KB index) |
+| Flat files at `lib/` top level | 216 | 189 |
+| Flat files at `app/components/` top level | 142 | 136 |
 
-Re-measure at the end of the campaign and record the after-figures here.
+Total size barely moved — this campaign relocates code, it does not delete it.
+What changed is the cost of a read: the median file is under 3 KB, and a facade
+at each original path lists what its package contains.
+
+Most top-level files that remain are those facades, kept on purpose so no call
+site changed. The 56 files still over 10 KB are each recorded in
+`lib/architecture.test.ts`: permanent ones carry their section 2 criterion,
+and the rest are burn-down entries that may only shrink. The largest burn-down
+entries — `RotaryEncoder.tsx`, `config/accent/AccentConfig.tsx`,
+`dashboard/camera/CameraPanel.tsx`, `advanced-fold/AdvancedFold.tsx`,
+`useAirconCommands.ts` and `tasks/TasksPanel.tsx` — share closure state across
+their parts, so reducing them further needs a behaviour-preserving extraction
+under test rather than a move.
 
 ## 2. Thresholds
 
