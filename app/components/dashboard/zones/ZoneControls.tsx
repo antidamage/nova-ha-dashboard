@@ -220,7 +220,6 @@ export function ZoneControls({
                     {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
                     <ZoneLightEvents
                       lights={lightEntities}
-                      presetHandlers={{ applyPreset: applyPresetAction, setLocalBrightness, rememberSpectrum, onZoneAction }}
                       zone={zone}
                     />
                   </div>

@@ -27,7 +27,8 @@
 .zone-light-event {
   display: grid;
   gap: 12px;
-  border-color: var(--cyber-border-dim) !important;
+  border-color: var(--cyber-line) !important;
+  border-radius: 8px;
   background: rgb(var(--cyber-line-rgb) / 0.045);
   padding: 12px;
 }
@@ -47,7 +48,7 @@
 
 .zone-light-event-value {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
   gap: 12px;
 }
