@@ -7,7 +7,7 @@
 
 .nova-avatar-host {
   position: fixed;
-  top: var(--nova-avatar-margin);
+  top: var(--nova-avatar-top);
   left: 50%;
   transform: translateX(-50%) scale(var(--nova-avatar-scale, 1));
   transform-origin: top center;

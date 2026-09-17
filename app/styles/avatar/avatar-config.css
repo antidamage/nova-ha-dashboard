@@ -23,7 +23,7 @@
 
 .nova-avatar-cfg-preview-wrap {
   position: sticky;
-  top: var(--nova-avatar-margin);
+  top: var(--nova-avatar-top);
   z-index: 20;
   display: flex;
   justify-content: center;

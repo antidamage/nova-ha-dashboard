@@ -36,6 +36,13 @@ export function PinnedOrbPreview({
     const float = floatRef.current;
     if (!slot || !float) return;
     let raf = 0;
+    // --nova-avatar-top is a calc() over env() and max(), which
+    // getPropertyValue returns unresolved; a hidden probe sized by it gives the
+    // resolved pixels (margin plus the iOS status-bar clearance).
+    const topProbe = document.createElement("div");
+    topProbe.style.cssText =
+      "position:fixed;top:0;left:0;width:0;height:var(--nova-avatar-top);visibility:hidden;pointer-events:none";
+    document.body.appendChild(topProbe);
     const update = () => {
       raf = 0;
       const rect = slot.getBoundingClientRect();
@@ -44,7 +51,7 @@ export function PinnedOrbPreview({
         float.style.visibility = "hidden";
         return;
       }
-      const margin = parseFloat(getComputedStyle(document.body).getPropertyValue("--nova-avatar-margin")) || 14;
+      const margin = topProbe.getBoundingClientRect().height || 14;
       const naturalTop = rect.top + (rect.height - PREVIEW_SIZE) / 2;
       const overshoot = Math.max(0, margin - naturalTop);
       const t = Math.min(1, overshoot / PREVIEW_SCROLL_SCALE_DISTANCE);
@@ -74,6 +81,7 @@ export function PinnedOrbPreview({
       window.removeEventListener("scroll", schedule, { capture: true });
       window.removeEventListener("resize", schedule);
       observer.disconnect();
+      topProbe.remove();
     };
   }, [mounted, sectionRef]);
 

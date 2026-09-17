@@ -38,6 +38,12 @@ body {
   --nova-avatar-size: 96px;
   --nova-avatar-render-size: 200px;
   --nova-avatar-margin: 14px;
+  /* Where the status orb's top edge rests: its margin below the iOS status
+     bar / Dynamic Island clearance (zero off iOS standalone).
+     specs/ios-home-screen-webapp.md. */
+  --nova-avatar-top: calc(
+    var(--nova-avatar-margin) + var(--nova-status-bar-clearance)
+  );
   --dashboard-wide-shell-x: 24px;
   --dashboard-wide-sidebar-width: 300px;
   --dashboard-wide-sidebar-center-x: calc(
