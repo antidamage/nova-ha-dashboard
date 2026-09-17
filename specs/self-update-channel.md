@@ -90,12 +90,15 @@ assumed:
 | `…/commits/{branch}` (branch in the path) | works | **404** |
 | `Authorization: Bearer <token>` | works | works |
 
-Neither host honours the other's page-size parameter (`per_page` vs `limit`), so
-both are sent; each ignores the one it does not know, and the response is an
-array either way. The parser also accepts a bare object, because that is what
-the branch-in-path form returns and a future provider may insist on it. There is
-no provider enum and must not be one: the two hosts differ in nothing the
-updater cares about.
+Neither host honours the other's page-size parameter, so both are sent: probed
+2026-09-17, GitHub with `limit=1` alone returns 30 and Forgejo with `per_page=1`
+alone returns 30, while each honours its own. The head commit is first either
+way, so the page size is an optimisation rather than a correctness requirement —
+the parser takes element zero and never walks the list.
+
+The parser also accepts a bare object, because that is what the branch-in-path
+form returns and a future provider may insist on it. There is no provider enum
+and must not be one: the two hosts differ in nothing the updater cares about.
 
 ### Token
 
