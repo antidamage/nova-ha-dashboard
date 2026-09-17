@@ -9,7 +9,7 @@ import {
   voiceTranscriptStatus,
   VOICE_TRANSCRIPT_PENDING_TIMEOUT_MS,
   type VoiceTranscriptEvent,
-} from "./voice-transcript";
+} from "../voice-transcript";
 
 describe("voice transcript outcome", () => {
   const command = (extra: Partial<VoiceTranscriptEvent> = {}): VoiceTranscriptEvent => ({

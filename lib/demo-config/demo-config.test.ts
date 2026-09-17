@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readDefaultDashboardConfig } from "./dashboard-config";
+import { readDefaultDashboardConfig } from "../dashboard-config";
 import {
   DEMO_CONFIG_STORAGE_KEY,
   DEMO_THEME_STORAGE_KEY,
@@ -7,9 +7,9 @@ import {
   demoDashboardConfig,
   demoConfigBootstrapScript,
   demoSecretSetupStatus,
-} from "./demo-config";
-import demoTheme from "../config/demo-theme.default.json";
-import demoLibrary from "../config/demo-theme-library.default.json";
+} from "../demo-config";
+import demoTheme from "../../config/demo-theme.default.json";
+import demoLibrary from "../../config/demo-theme-library.default.json";
 
 const DEMO_THEME = {
   theme: {

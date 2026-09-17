@@ -8,7 +8,7 @@ import {
   matchReminderIconByKeyword,
   normalizeGlyph,
   normalizeReminderKey,
-} from "./reminder-glyph";
+} from "../reminder-glyph";
 
 describe("normalizeReminderKey", () => {
   it("collapses case, punctuation and spacing so one reminder is one key", () => {

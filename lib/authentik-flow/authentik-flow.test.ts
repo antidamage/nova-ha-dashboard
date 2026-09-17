@@ -18,7 +18,7 @@ import {
   webauthnChallengeValue,
   type DeviceChallenge,
   type FlowChallenge,
-} from "./authentik-flow";
+} from "../authentik-flow";
 
 describe("flowUrl", () => {
   it("stays on the dashboard origin under the proxied prefix", () => {
