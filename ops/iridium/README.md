@@ -250,11 +250,34 @@ NOVA_UPDATE_BRANCH=main ~/.local/bin/nova-release migrate
 `migrate` clones `repo/`, builds the first release out-of-line, moves the current
 flat install into `releases/bootstrap-<ts>` as the rollback target, repoints the
 symlink farm and restarts the container. It is the one irreversible-looking step
-and it is the only way self-update starts working here. Verify afterwards:
+and it is the only way self-update starts working here.
+
+It takes about a minute and a half to build, and the `/opt` tree is mid-move
+while it runs, so **do not run it in the foreground of an ssh session you might
+lose.** Launch it as a transient user unit and watch it from outside:
 
 ```bash
+XDG_RUNTIME_DIR=/run/user/$(id -u) systemd-run --user --collect \
+  --unit=nova-migrate \
+  env NOVA_REPO_URL=ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git \
+      NOVA_UPDATE_BRANCH=main \
+      "$HOME/.local/bin/nova-release" migrate
+
+journalctl --user -u nova-migrate -f      # until it reports success
 ~/.local/bin/nova-release status
+```
+
+`Linger=yes` is already set for this account, so the user manager survives logout
+and the migration finishes whether or not you stay connected. This is the same
+incantation that restored the farm on the previous host on 2026-06-28, after it
+had been flat for weeks.
+
+Verify afterwards:
+
+```bash
 git -C /opt/nova-ha-dashboard/repo remote -v
+ls -l /opt/nova-ha-dashboard | head          # top-level entries are symlinks
+ls -ld /opt/nova-ha-dashboard/data /opt/nova-ha-dashboard/.env.local   # still real
 curl -s http://127.0.0.1:3001/api/update | head -c 400
 ```
 
@@ -262,7 +285,10 @@ curl -s http://127.0.0.1:3001/api/update | head -c 400
 
 `deploy-nova-dashboard.ps1` deletes everything at the app root except `data/`,
 `.env.local` and `.staging`, which takes `releases/` and `repo/` with it and
-breaks self-update. Order matters: deploy the source change flat **first** (that
-is the current state anyway), migrate **second**. If a flat deploy happens after
-a migration, recovery is `nova-release migrate` again — the home-directory
-helper and the cron survive it, which is why they live outside the app root.
+breaks self-update. This is not hypothetical: it is how the farm came to be
+missing for weeks on the previous host, restored on 2026-06-28.
+
+Order matters: deploy the source change flat **first** (that is the current state
+anyway), migrate **second**. If a flat deploy happens after a migration,
+recovery is the same `migrate` invocation — the home-directory helper and the
+cron survive it, which is exactly why they live outside the app root.
