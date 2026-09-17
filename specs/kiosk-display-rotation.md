@@ -104,9 +104,12 @@ Only written from a confident, settled reading.
 
 - `ops/kiosk/nova-kiosk-orient.py`, user unit `nova-kiosk-orient.service`
   (needs the Wayland session for `kscreen-doctor` and seat ACLs for the camera).
+  The script is the entry point; its body is the sibling package
+  `ops/kiosk/nova_kiosk_orient/`, which imports because Python puts the
+  script's own directory on `sys.path`.
 - `deploy-kiosk-orient.ps1` at repo root: installs `python3-opencv`, the
-  script, the unit, `/var/lib/nova-kiosk-orient` owned by the login user;
-  enables and restarts.
+  script and its package (and the witness script and its package), the unit,
+  `/var/lib/nova-kiosk-orient` owned by the login user; enables and restarts.
 - `nova-kiosk-orient.py reference` captures the reference. Refuses to
   overwrite without `--force`.
 

@@ -547,7 +547,9 @@ behaviour — IP-only attribution — rather than to an open endpoint.
 
 # Deployment
 
-`ops/nocturnium-kiosk-witness.py` and its unit install to Nocturnium alongside
+`ops/nocturnium-kiosk-witness.py`, its sibling package
+`ops/nocturnium_kiosk_witness/` (the script is the entry point; Python puts the
+script's directory on `sys.path`) and its unit install to Nocturnium alongside
 the existing camera proxy. Nothing in the dashboard container needs the camera.
 
 Nothing under `ops/` or `lib/` may carry a key, a host address or a household
