@@ -15,18 +15,25 @@ const rootBlocks = [...globalsCss.matchAll(/html,\s*body\s*\{([^}]*)\}/g)].map(
   (match) => match[1],
 );
 
+// Just the root rules that say something about overscroll. A later
+// `html, body { font-size: 100% }` is not this test's business.
+const overscrollBlocks = rootBlocks.filter((block) => block.includes("overscroll"));
+
 describe("page overscroll", () => {
   it("refuses overscroll on the root scroller, so iOS cannot bounce or reload the page", () => {
-    expect(rootBlocks.length).toBeGreaterThan(0);
+    expect(overscrollBlocks.length).toBeGreaterThan(0);
     // The last one wins: the stylesheet has no @layer discipline, so source
     // order decides, and an inner scroller cannot suppress the viewport's own
     // overscroll.
-    expect(rootBlocks.at(-1)).toMatch(/overscroll-behavior:\s*none/);
+    expect(overscrollBlocks.at(-1)).toMatch(/overscroll-behavior:\s*none\s*;/);
   });
 
   it("leaves no root rule that hands overscroll back to the browser", () => {
-    const handedBack = rootBlocks.filter(
-      (block) => block.includes("overscroll") && !/overscroll-behavior:\s*none/.test(block),
+    // Every overscroll declaration on the root has to be the shorthand's
+    // `none`: a longhand after it, such as `overscroll-behavior-x: auto`,
+    // would hand that axis back.
+    const handedBack = overscrollBlocks.filter((block) =>
+      block.replace(/overscroll-behavior(?:-[xy])?:\s*none\s*;?/g, "").includes("overscroll"),
     );
     expect(handedBack).toEqual([]);
   });
