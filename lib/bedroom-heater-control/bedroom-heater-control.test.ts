@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
+import { autonomousClimateInputIsUsable } from "../autonomous-climate-safety";
 import {
   BEDROOM_HEATER_MIN_CYCLE_MS,
   BEDROOM_HEATER_SENSOR_GRACE_MS,
@@ -12,7 +12,7 @@ import {
   createInitialBedroomHeaterAutoState,
   planBedroomHeaterTick,
   type BedroomHeaterAutoState,
-} from "./bedroom-heater-control";
+} from "../bedroom-heater-control";
 
 describe("room temperature authority", () => {
   it("trusts exactly the configured sensors, in order", () => {
@@ -102,7 +102,7 @@ describe("no clock schedule", () => {
    * so reinstating a schedule is a deliberate act, not an accident.
    */
   it("exports nothing that turns the heater on or off by the clock", async () => {
-    const control = await import("./bedroom-heater-control");
+    const control = await import("../bedroom-heater-control");
     for (const name of [
       "bedroomHeaterScheduleEdge",
       "bedroomHeaterWindow",

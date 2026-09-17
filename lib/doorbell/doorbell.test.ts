@@ -12,7 +12,7 @@ import {
   type DoorbellKnock,
   type DoorbellSecretTemplate,
   type DoorbellSequence,
-} from "./doorbell";
+} from "../doorbell";
 
 function knocks(...at: number[]): DoorbellKnock[] {
   return at.map((atMs) => ({ atMs, peak: 0.7 }));

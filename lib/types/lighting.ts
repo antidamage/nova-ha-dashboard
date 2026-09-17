@@ -1,5 +1,5 @@
 import type { LightEntityPreset } from "../lighting-presets";
-import type { ZoneLightRule } from "../zone-light-rules";
+import type { ZoneLightRule } from "../zone-light-rules/types";
 
 export type LightingIntensityThreshold = {
   name?: string;
