@@ -323,6 +323,7 @@
   "update": {
     "repo": "antidamage/nova-ha-dashboard",
     "branch": "main",
+    "apiBase": "https://api.github.com",
     "autoUpdate": true,
     "checkHourLocal": 3
   }

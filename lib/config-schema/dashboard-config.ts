@@ -509,10 +509,17 @@ export const DashboardConfigSchema = z.object({
     mutatingToolsRequireConfirm: z.boolean(),
   }),
   update: z.object({
-    // GitHub "owner/repo" the live install tracks for self-updates.
+    // "owner/repo" slug on the host named by apiBase. A slug, not a URL: the
+    // same value has to mean the same thing on every host, and the host is
+    // apiBase's job. See specs/self-update-channel.md.
     repo: z.string().min(1),
     // Branch whose HEAD counts as the latest available version.
     branch: z.string().min(1),
+    // API root of the host in `repo` — https://api.github.com by default, and
+    // <origin>/api/v1 for a Forgejo or Gitea instance. Together with `repo`
+    // and `branch` this is the update channel, which the runtime config is
+    // never allowed to override or store.
+    apiBase: z.string().url(),
     // Default for the auto-update switch; the live toggle is stored in
     // runtime preferences so flipping it never rewrites the whole config.
     autoUpdate: z.boolean(),

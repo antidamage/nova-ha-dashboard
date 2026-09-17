@@ -77,6 +77,17 @@ NOVA_CAMERA_OUTSIDE_SHARPNESS=0
   `NOVA_CAMERA_OUTSIDE_DEVICE` and restart `nova-ha-dashboard`; do not remove the
   generator implementation.
 
+Self-update:
+
+- The dashboard detects a new version in-app and the host applies it; the two
+  halves have separate configuration and neither can point the other at a
+  repository. See `self-update-channel.md` for the channel, the request shape and
+  the rules, and `ops/README.md` for the host-side updater.
+- This deployment's channel comes from the household overlay, not from the
+  shipped default. Iridium's `nova-release` clone fetches from its own `origin`,
+  so both halves must name the same host for an update to detect and then
+  actually install. `ops/iridium/README.md` is the runbook.
+
 Powershop scheduled scrape:
 
 - Runner defaults to `/opt/nova-ha-dashboard`.

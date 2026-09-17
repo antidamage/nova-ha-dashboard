@@ -77,7 +77,6 @@ const ALLOWED: Allowance[] = [
   { file: "app/components/face/capture/useFaceCapture.ts", bytes: 12314, permanent: "section 2 criterion 2 — capture steps share streamRef, recorderRef, clipTimerRef and videoRef" },
   { file: "app/components/dashboard/power/PowerPanel.tsx", bytes: 12149, permanent: "section 2 criterion 2 — one render tree" },
   { file: "app/components/theme/accent/defaults.ts", bytes: 12103, permanent: "section 2 criterion 1 — the two shipped theme tables" },
-  { file: "lib/dashboard-config.ts", bytes: 12051 },
   { file: "lib/phonoscope-effect-groups.ts", bytes: 12045 },
   { file: "app/components/dashboard/state/useDashboardCommands.ts", bytes: 11872, permanent: "section 2 criterion 2 — one hook sharing sequence counters, timers and abort controller" },
   { file: "app/components/config/reminders/RemindersConfig.tsx", bytes: 11848, permanent: "section 2 criterion 2 — callbacks share roster and config state" },
