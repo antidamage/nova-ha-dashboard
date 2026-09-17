@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { calibratePowershopEstimates, POWERSHOP_ESTIMATE_HALF_LIFE_DAYS } from "./power-estimation";
-import type { PowershopDailyUsageRecord } from "./powershop-usage";
+import { calibratePowershopEstimates, POWERSHOP_ESTIMATE_HALF_LIFE_DAYS } from "../power-estimation";
+import type { PowershopDailyUsageRecord } from "../powershop-usage";
 
 function dateBefore(today: string, days: number) {
   const date = new Date(`${today}T12:00:00Z`);

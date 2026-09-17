@@ -10,8 +10,8 @@ import {
   pruneWashingMachineCycles,
   recordWashingMachineSample,
   type WashingMachineState,
-} from "./washing-machine";
-import type { WashingMachineConfig } from "./config-schema";
+} from "../washing-machine";
+import type { WashingMachineConfig } from "../config-schema";
 
 const CONFIG: WashingMachineConfig = {
   powerSensorEntityId: "sensor.washing_machine_power",

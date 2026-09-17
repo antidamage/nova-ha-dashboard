@@ -1,6 +1,3 @@
-import type { BedroomHeaterMode, BedroomHeaterPreferences } from "./types";
-import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
-
 /*
  * Dashboard bedroom-heater control rules.
  *
@@ -41,346 +38,45 @@ import { autonomousClimateInputIsUsable } from "./autonomous-climate-safety";
  * against the target.
  */
 
-export const BEDROOM_HEATER_AUTO_POLL_MS = 30_000;
-export const BEDROOM_HEATER_BAND_DEGREES = 0.5;
-export const BEDROOM_HEATER_MIN_CYCLE_MS = 10 * 60_000;
-/** Compatibility export: the remote room puck requires no post-target tail. */
-export const BEDROOM_HEATER_TAIL_OFF_MS = 0;
 /**
- * How long Auto is allowed to run with NO usable room-temperature reading
- * before it fails safe. Same rationale as AIRCON_AUTO_SENSOR_GRACE_MS in
- * lib/aircon-control.ts: failing safe the instant a reading is missing would
- * mean Auto can never turn itself on from cold if the sensor is slow to
- * populate. This grace window lets it try heating first (heat-only, so there
- * is only one direction to guess); only if the sensor is STILL unusable after
- * it does the heater switch off. The unified controller then clears Auto so it
- * cannot retry without a later user action.
- */
-export const BEDROOM_HEATER_SENSOR_GRACE_MS = 2 * 60_000;
-export const BEDROOM_HEATER_DEFAULT_TARGET_C = 18;
-export const BEDROOM_HEATER_MIN_TARGET_C = 5;
-export const BEDROOM_HEATER_MAX_TARGET_C = 30;
-
-/**
- * The only temperature sources permitted to drive or display the heater's room.
+ * Bedroom heater control — facade. The body lives in
+ * lib/bedroom-heater-control/; this file keeps the import path stable for its
+ * callers (specs/agent-token-footprint.md §3.3).
  *
- * The safety rule is unchanged: nothing outside this list may stand in, so an
- * unavailable room sensor disables Auto rather than silently substituting the
- * heater plug's own body temperature — which is far too damped to be a room
- * reading and would let Auto heat an already-warm room.
- *
- * What changed is where the list comes from. Callers already passed
- * `dashboard.bedroomHeater.temperatureEntityIds` in, and this function then
- * filtered it against a single hard-coded entity id — so the configured value
- * could never actually change anything, and one household's sensor was the only
- * one the product could ever trust. The configured list IS the trust list.
+ *   bedroom-heater-control/types.ts         action, auto-state and plan shapes
+ *   bedroom-heater-control/constants.ts     poll/band/dwell/grace/target limits,
+ *                                           initial auto state
+ *   bedroom-heater-control/inputs-model.ts  room-sensor trust and freshness,
+ *                                           mode/target/sleep-timer readers
+ *   bedroom-heater-control/thermostat.ts    planBedroomHeaterTick and the
+ *                                           BedroomHeaterThermostat wrapper
  */
-export function roomTemperatureEntityIds(entityIds: readonly string[]) {
-  return entityIds.filter((entityId) => entityId.trim().length > 0);
-}
-
-export function bedroomTemperatureStateIsFresh(
-  state: { attributes?: Record<string, unknown>; last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
-  now: number = Date.now(),
-) {
-  const sourceReportedAt = state?.attributes?.source_reported_at;
-  return autonomousClimateInputIsUsable(
-    state ? {
-      ...state,
-      last_reported: typeof sourceReportedAt === "string" ? sourceReportedAt : state.last_reported,
-      measurement: 0,
-      sourceState: "available",
-    } : undefined,
-    now,
-  );
-}
-
-export function bedroomTemperatureStateIsUsable(
-  state: { state?: string; attributes?: Record<string, unknown>; last_reported?: string; last_updated?: string; last_changed?: string } | null | undefined,
-  now: number = Date.now(),
-) {
-  const sourceReportedAt = state?.attributes?.source_reported_at;
-  return autonomousClimateInputIsUsable(
-    state ? {
-      ...state,
-      last_reported: typeof sourceReportedAt === "string" ? sourceReportedAt : state.last_reported,
-      measurement: state.state,
-      sourceState: state.state,
-    } : undefined,
-    now,
-  );
-}
-
-export type BedroomHeaterAction = {
-  entityId: string;
-  domain: "switch";
-  service: "turn_on" | "turn_off";
-};
-
-export type BedroomHeaterAutoState = {
-  /** When the switch last changed state, for min-cycle enforcement. */
-  lastTransitionAt: number | null;
-  /** Set once the room first reaches target, cleared when it drifts back out. */
-  enteredBandAt: number | null;
-  /** Legacy compatibility bit: true after the immediate at-target stop. */
-  tailedOff: boolean;
-  /** Tracks the target so a user's new setpoint reopens a settled cycle. */
-  lastTargetTemperature: number | null;
-  /**
-   * When Auto first started trying to run without a usable sensor reading.
-   * Null once a usable reading arrives or the fail-safe fires. Bounds
-   * BEDROOM_HEATER_SENSOR_GRACE_MS — see its comment above.
-   */
-  sensorPendingSinceAt: number | null;
-};
-
-export const INITIAL_BEDROOM_HEATER_AUTO_STATE: BedroomHeaterAutoState = {
-  lastTransitionAt: null,
-  enteredBandAt: null,
-  tailedOff: false,
-  lastTargetTemperature: null,
-  sensorPendingSinceAt: null,
-};
-
-export function createInitialBedroomHeaterAutoState(): BedroomHeaterAutoState {
-  return { ...INITIAL_BEDROOM_HEATER_AUTO_STATE };
-}
-
-export function clampTargetTemperature(value: number) {
-  return Math.min(BEDROOM_HEATER_MAX_TARGET_C, Math.max(BEDROOM_HEATER_MIN_TARGET_C, value));
-}
-
-/**
- * The stored mode, with the retired "manual" folded into "auto".
- *
- * Manual meant "hold the switch on regardless of temperature", which is what
- * Auto already does when the room is cold — the difference was never visible to
- * anyone, so the button went. Existing preferences still carry it, and the
- * honest reading of a heater someone left on is Auto, not Off.
- */
-export function bedroomHeaterMode(preferences?: BedroomHeaterPreferences): BedroomHeaterMode {
-  return preferences?.mode === "auto" || preferences?.mode === "manual" ? "auto" : "off";
-}
-
-export function bedroomHeaterTargetTemperature(preferences?: BedroomHeaterPreferences) {
-  const value = preferences?.temperature;
-  return typeof value === "number" && Number.isFinite(value)
-    ? clampTargetTemperature(value)
-    : BEDROOM_HEATER_DEFAULT_TARGET_C;
-}
-
-/**
- * Sleep-timer endpoint as a number, or null when no timer is set. Unparseable
- * values are treated as "no timer" rather than "expired": a corrupt preference
- * must never be the reason the heater shuts off.
- */
-export function bedroomHeaterSleepTimerEndsAt(preferences?: BedroomHeaterPreferences) {
-  const value = preferences?.offTimerEndsAt;
-  if (typeof value !== "string") {
-    return null;
-  }
-  const endsAt = new Date(value).getTime();
-  return Number.isFinite(endsAt) ? endsAt : null;
-}
-
-export function bedroomHeaterSleepTimerExpired(
-  preferences?: BedroomHeaterPreferences,
-  now: number = Date.now(),
-) {
-  const endsAt = bedroomHeaterSleepTimerEndsAt(preferences);
-  return endsAt !== null && endsAt <= now;
-}
-
-export type BedroomHeaterPlanInput = {
-  currentTemperature: number | null;
-  entityId?: string;
-  isOn: boolean;
-  now?: number;
-  preferences?: BedroomHeaterPreferences;
-  state?: BedroomHeaterAutoState;
-};
-
-export type BedroomHeaterPlan = {
-  actions: BedroomHeaterAction[];
-  nextState: BedroomHeaterAutoState;
-  /** Why the planner did what it did, for the monitoring stream. */
-  reason: string;
-};
-
-function normalizeState(state?: BedroomHeaterAutoState): BedroomHeaterAutoState {
-  return { ...INITIAL_BEDROOM_HEATER_AUTO_STATE, ...(state ?? {}) };
-}
-
-function turnOn(entityId: string): BedroomHeaterAction {
-  return { entityId, domain: "switch", service: "turn_on" };
-}
-
-function turnOff(entityId: string): BedroomHeaterAction {
-  return { entityId, domain: "switch", service: "turn_off" };
-}
-
-/**
- * Decide what the heater should do on this tick.
- *
- * Every return is idempotent: when the heater is already in the desired state
- * the plan is empty, so a loop that ticks forever does not re-send commands.
- */
-export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHeaterPlan {
-  const state = normalizeState(input.state);
-  const now = input.now ?? Date.now();
-  const entityId = input.entityId;
-  const target = bedroomHeaterTargetTemperature(input.preferences);
-
-  if (!entityId) {
-    return { actions: [], nextState: state, reason: "no-entity" };
-  }
-
-  const active = state;
-
-  if (input.currentTemperature === null) {
-    const pendingSinceAt = active.sensorPendingSinceAt ?? now;
-    const elapsedMs = now - pendingSinceAt;
-    const minCycleElapsed =
-      active.lastTransitionAt === null || now - active.lastTransitionAt >= BEDROOM_HEATER_MIN_CYCLE_MS;
-
-    if (elapsedMs >= BEDROOM_HEATER_SENSOR_GRACE_MS) {
-      // Ran blind for the whole grace window and still no usable reading:
-      // switch off (if on). The unified controller also clears Auto.
-      return {
-        actions: input.isOn ? [turnOff(entityId)] : [],
-        nextState: {
-          ...createInitialBedroomHeaterAutoState(),
-          lastTransitionAt: input.isOn ? now : active.lastTransitionAt,
-          sensorPendingSinceAt: null,
-        },
-        reason: "sensor-fail-safe-off",
-      };
-    }
-
-    // Still inside the grace window: try heating rather than sit off waiting
-    // for a reading that may simply be slow to populate. Heat-only, so there
-    // is only one direction to attempt. Still respects the compressor^H^H
-    // relay's minimum dwell so a flapping sensor cannot short-cycle it.
-    const pendingState: BedroomHeaterAutoState = { ...active, sensorPendingSinceAt: pendingSinceAt };
-    if (input.isOn || !minCycleElapsed) {
-      return { actions: [], nextState: pendingState, reason: "sensor-pending" };
-    }
-    return {
-      actions: [turnOn(entityId)],
-      nextState: { ...pendingState, lastTransitionAt: now },
-      reason: "sensor-pending",
-    };
-  }
-
-  // A new target reopens a settled cycle — otherwise a warmer setpoint would be
-  // ignored until the appliance sensor happened to move.
-  const targetChanged = active.lastTargetTemperature !== null && active.lastTargetTemperature !== target;
-  const base: BedroomHeaterAutoState = targetChanged
-    ? { ...active, enteredBandAt: null, tailedOff: false }
-    : active;
-
-  const delta = input.currentTemperature - target;
-  const withinBand = Math.abs(delta) <= BEDROOM_HEATER_BAND_DEGREES;
-  const tooCold = delta < -BEDROOM_HEATER_BAND_DEGREES;
-  const minCycleElapsed =
-    base.lastTransitionAt === null || now - base.lastTransitionAt >= BEDROOM_HEATER_MIN_CYCLE_MS;
-
-  const nextState: BedroomHeaterAutoState = {
-    ...base,
-    lastTargetTemperature: target,
-    // A usable reading arrived: whatever blind-attempt clock was running is moot.
-    sensorPendingSinceAt: null,
-  };
-
-  if (tooCold) {
-    // Below band: heat. Clearing the band marks means the next approach to
-    // target gets a fresh at-target decision.
-    if (input.isOn) {
-      return {
-        actions: [],
-        nextState: { ...nextState, enteredBandAt: null, tailedOff: false },
-          reason: "heating",
-      };
-    }
-    if (!minCycleElapsed) {
-      return {
-        actions: [],
-        nextState: { ...nextState, enteredBandAt: null, tailedOff: false },
-          reason: "min-cycle-hold-off",
-      };
-    }
-    return {
-      actions: [turnOn(entityId)],
-      nextState: { ...nextState, enteredBandAt: null, tailedOff: false, lastTransitionAt: now },
-      reason: "heating",
-    };
-  }
-
-  // The standalone puck does not self-heat with the relay. At or above target
-  // therefore means stop immediately; relay dwell gates starts only.
-  const enteredBandAt = withinBand ? base.enteredBandAt ?? now : null;
-
-  if (!input.isOn) {
-    return {
-      actions: [],
-      nextState: { ...nextState, enteredBandAt, tailedOff: true },
-      reason: withinBand ? "at-target" : "above-target",
-    };
-  }
-
-  return {
-    actions: [turnOff(entityId)],
-    nextState: { ...nextState, enteredBandAt, tailedOff: true, lastTransitionAt: now },
-    reason: withinBand ? "reached-target" : "above-target",
-  };
-}
-
-export class BedroomHeaterThermostat {
-  private state: BedroomHeaterAutoState = createInitialBedroomHeaterAutoState();
-
-  plan(input: Omit<BedroomHeaterPlanInput, "state">): BedroomHeaterPlan {
-    const result = planBedroomHeaterTick({ ...input, state: this.state });
-    this.state = result.nextState;
-    return result;
-  }
-
-  reset() {
-    this.state = createInitialBedroomHeaterAutoState();
-  }
-
-  /**
-   * Clear the settle state so a user request is acted on now, WITHOUT clearing
-   * lastTransitionAt.
-   *
-   * reset() used to be what ran on every user command, and that quietly
-   * disabled the minimum cycle: lastTransitionAt is the only thing enforcing
-   * BEDROOM_HEATER_MIN_CYCLE_MS, so wiping it re-armed the loop to switch a
-   * 2 kW relay instantly. Repeated presses could then flap the relay with no
-   * dwell at all (observed 2026-08-08: three turn_on commands in 12 seconds).
-   *
-   * The dwell guards the hardware and must survive user input. What the user
-   * legitimately needs cleared is the band bookkeeping, so a fresh request
-   * is not swallowed by an already-settled cycle.
-   */
-  resetForUserRequest() {
-    this.state = {
-      ...createInitialBedroomHeaterAutoState(),
-      lastTransitionAt: this.state.lastTransitionAt,
-    };
-  }
-
-  snapshot() {
-    return { ...this.state };
-  }
-
-  /** Restore safety state that must survive a dashboard process restart. */
-  reconcile(durable: Partial<BedroomHeaterAutoState>) {
-    const later = (a: number | null | undefined, b: number | null | undefined) =>
-      Math.max(a ?? 0, b ?? 0) || null;
-    this.state = {
-      ...this.state,
-      lastTransitionAt: later(this.state.lastTransitionAt, durable.lastTransitionAt),
-      sensorPendingSinceAt: this.state.sensorPendingSinceAt ?? durable.sensorPendingSinceAt ?? null,
-    };
-  }
-}
+export type {
+  BedroomHeaterAction,
+  BedroomHeaterAutoState,
+  BedroomHeaterPlan,
+  BedroomHeaterPlanInput,
+} from "./bedroom-heater-control/types";
+export {
+  BEDROOM_HEATER_AUTO_POLL_MS,
+  BEDROOM_HEATER_BAND_DEGREES,
+  BEDROOM_HEATER_DEFAULT_TARGET_C,
+  BEDROOM_HEATER_MAX_TARGET_C,
+  BEDROOM_HEATER_MIN_CYCLE_MS,
+  BEDROOM_HEATER_MIN_TARGET_C,
+  BEDROOM_HEATER_SENSOR_GRACE_MS,
+  BEDROOM_HEATER_TAIL_OFF_MS,
+  INITIAL_BEDROOM_HEATER_AUTO_STATE,
+} from "./bedroom-heater-control/constants";
+export {
+  bedroomHeaterMode,
+  bedroomHeaterSleepTimerEndsAt,
+  bedroomHeaterSleepTimerExpired,
+  bedroomHeaterTargetTemperature,
+  bedroomTemperatureStateIsFresh,
+  bedroomTemperatureStateIsUsable,
+  clampTargetTemperature,
+  createInitialBedroomHeaterAutoState,
+  roomTemperatureEntityIds,
+} from "./bedroom-heater-control/inputs-model";
+export { BedroomHeaterThermostat, planBedroomHeaterTick } from "./bedroom-heater-control/thermostat";
