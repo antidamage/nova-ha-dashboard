@@ -14,7 +14,12 @@ import { readCss } from "./styles/readCss";
 const appDir = __dirname;
 // globals.css is an entry file of ordered @imports now; readCss resolves them.
 const globalsCss = readCss();
-const layoutSource = readFileSync(join(appDir, "layout.tsx"), "utf8");
+// The head bootstrap script body lives in app/shell/head-bootstrap-script.ts;
+// layout.tsx inlines it, so the two files are read as one source.
+const layoutSource = [
+  readFileSync(join(appDir, "layout.tsx"), "utf8"),
+  readFileSync(join(appDir, "shell", "head-bootstrap-script.ts"), "utf8"),
+].join("\n");
 
 describe("lite mode contract", () => {
   it("globals.css keeps the html[data-nova-lite] kill-switch that neutralises CSS effects", () => {
