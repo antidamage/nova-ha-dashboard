@@ -8,7 +8,12 @@ import { describe, expect, it } from "vitest";
 // accident — a preview handler that "just saves too" looks harmless — and the
 // symptom is a feel problem no assertion about values would catch, so it is
 // pinned here instead.
-const panel = readFileSync(join(__dirname, "..", "PhonoscopeConfig.tsx"), "utf8");
+// The panel's body lives in config/phonoscope/ behind the PhonoscopeConfig.tsx
+// facade: the save boundary is in the hook, the rendering in the component.
+const panelDir = join(__dirname, "..", "config", "phonoscope");
+const panel = ["usePhonoscopeConfig.ts", "PhonoscopeConfig.tsx"]
+  .map((file) => readFileSync(join(panelDir, file), "utf8"))
+  .join("\n");
 
 describe("Visualiser panel save boundary", () => {
   it("previews into local state only", () => {
