@@ -1,16 +1,16 @@
 import { readDashboardConfig } from "./dashboard-config";
 import {
-  checkGitHubForUpdate,
+  checkForUpdate,
   getUpdateStatus,
   requestUpdate,
   resolveAutoUpdate,
 } from "./update";
 
 // Server-side once-a-day update check. Runs inside the long-lived `next start`
-// process (started from instrumentation.ts). It checks GitHub at a configured
-// late-night hour in the user's timezone; if an update exists and auto-update
-// is enabled it queues an apply request for the host updater. Manual checks and
-// the update banner share the same underlying logic.
+// process (started from instrumentation.ts). It checks the configured update
+// channel at a configured late-night hour in the user's timezone; if an update
+// exists and auto-update is enabled it queues an apply request for the host
+// updater. Manual checks and the update banner share the same underlying logic.
 
 const BOOT_CHECK_DELAY_MS = 60_000;
 const MIN_TIMER_MS = 60_000;
@@ -65,7 +65,7 @@ export function msUntilNextLocalHour(now: Date, timeZone: string, hour: number):
 
 async function runScheduledCheck(autoApply: boolean): Promise<void> {
   try {
-    await checkGitHubForUpdate();
+    await checkForUpdate();
     if (!autoApply) {
       return;
     }

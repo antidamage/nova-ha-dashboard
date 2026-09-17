@@ -107,6 +107,10 @@ Additional runtime paths used by code:
 - `NOVA_DASHBOARD_POWER_DATA`: optional power data directory.
 - `NOVA_DASHBOARD_POWERSHOP_DATA`: optional Powershop usage data directory.
 - `NOVA_DASHBOARD_BUILD_ID`: build ID fallback when `.next/BUILD_ID` is absent.
+- `NOVA_UPDATE_TOKEN`: token for the update channel when it is private; unset is
+  a supported state, and a public channel needs none. `NOVA_GITHUB_TOKEN` is
+  still read as a fallback. The channel's repo, branch and API root are
+  dashboard config, not environment. See `self-update-channel.md`.
 
 ## Known Constraints and Non-Goals
 

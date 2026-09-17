@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { checkGitHubForUpdate, getUpdateStatus } from "../../../../lib/update";
+import { checkForUpdate, getUpdateStatus } from "../../../../lib/update";
 
 export const dynamic = "force-dynamic";
 
 export async function POST() {
   try {
-    await checkGitHubForUpdate();
+    await checkForUpdate();
     return NextResponse.json(await getUpdateStatus());
   } catch (error) {
     return NextResponse.json(
