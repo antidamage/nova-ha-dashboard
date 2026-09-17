@@ -1,10 +1,16 @@
-# Nova self-update (GitHub → build → safe switch)
+# Nova self-update (configured channel → build → safe switch)
 
-The dashboard updates itself from GitHub while running, with no risk of a bad
-state: new versions are built **out-of-line**, the live install is switched by
-re-pointing a symlink farm, every switch is **health-gated**, and a failed
-update **auto-rolls-back** to the previous version. Two prior releases are kept,
-so a manual "reinstall previous version" is always available.
+The dashboard updates itself from its configured update channel while running,
+with no risk of a bad state: new versions are built **out-of-line**, the live
+install is switched by re-pointing a symlink farm, every switch is
+**health-gated**, and a failed update **auto-rolls-back** to the previous
+version. Two prior releases are kept, so a manual "reinstall previous version"
+is always available.
+
+The channel is two values that must agree: `update.apiBase` + `update.repo` +
+`update.branch` decide where the app *checks*, and this clone's `origin` decides
+where the host *fetches*. The app cannot set the second — see
+`specs/self-update-channel.md` for why that is deliberate.
 
 ## Why this shape
 
@@ -95,6 +101,14 @@ next container restart (`docker stop nova-ha-dashboard`).
 ## Failure handling
 
 - Build fails → release discarded, live install untouched.
+- Missing or unfetchable clone → state recorded as `failed`, non-zero exit, and
+  nothing is built. This is the one failure that used to be invisible: the clone
+  directory was never checked, so an empty target sha compared equal to an empty
+  current sha and the run reported `success: Already up to date ()`. A host that
+  had never run `migrate` therefore looked permanently up to date while fetching
+  nothing at all. Every guard in `do_apply` is explicit rather than a bare
+  command, because `do_process` calls it as `do_apply ... || true`, which
+  suppresses `set -e` for the whole function body.
 - New release fails health check → farm repointed to previous, restart, verify;
   state recorded as `rolledback` (the bad release is kept for inspection).
 - Disk guard (`NOVA_MIN_FREE_MB`) and `flock` (no overlapping runs) protect the

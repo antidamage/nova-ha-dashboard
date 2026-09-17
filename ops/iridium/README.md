@@ -173,3 +173,145 @@ Retire, in this order, and only once verification passes:
 Enumerate every automation that touches a frozen service, not just the obvious
 one: in 2026-07 a nightly maintenance job silently restarted a "frozen" stack and
 left two HA instances controlling the same devices for nine hours.
+
+## Self-update on this host — the two halves must name the same host
+
+The app *checks* a channel (`update.apiBase` + `repo` + `branch` in
+dashboard-config) and the host *fetches* from this clone's `origin`. They are
+configured separately and neither can move the other, so a change to one is half
+a change. See `../../specs/self-update-channel.md`.
+
+As found on 2026-09-17, three things are missing here and the self-updater has
+never once worked:
+
+- `/opt/nova-ha-dashboard/repo` does not exist and there is no `releases/`. The
+  install is flat, so `nova-release migrate` was never run on this host. Every
+  queued update logged `fatal: cannot change to '.../repo'` and then, before the
+  fix in `ops/nova-release`, reported `success: Already up to date ()`.
+- No key in `~/.ssh` is registered with Forgejo, so the app owner cannot fetch a
+  private repository over SSH from here.
+- `~/.local/bin/nova-release` is the 2026-08-03 copy, older than the repo's.
+
+The crontab already runs the drain every minute, which is correct:
+`* * * * * NOVA_UPDATE_BRANCH=main ~/.local/bin/nova-release process`.
+
+### 1. A read-only Forgejo deploy key
+
+The login shell here is fish, so wrap the commands in `bash -c '...'` or run
+`bash` first.
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_nova_forge -N '' -C 'iridium nova-release'
+cat ~/.ssh/id_ed25519_nova_forge.pub
+```
+
+Add that public key in Forgejo under *Repository → antidamage/nova-ha-dashboard →
+Settings → Deploy keys*, with **write access left off**. Then pin it so ssh does
+not offer the other keys first:
+
+```bash
+cat >> ~/.ssh/config <<'CONF'
+
+Host ununhexium.tuatara-dory.ts.net
+  Port 2222
+  User git
+  IdentityFile ~/.ssh/id_ed25519_nova_forge
+  IdentitiesOnly yes
+CONF
+ssh -T -p 2222 git@ununhexium.tuatara-dory.ts.net   # expect a "Hi there" greeting
+```
+
+### 2. A token for the in-app check
+
+The repository is private, so the check needs one. In Forgejo, *Settings →
+Applications → Generate token* with `read:repository` only. `.env.local` is owned
+by the app owner, so no sudo is involved:
+
+```bash
+sed -i '/^NOVA_UPDATE_TOKEN=/d' /opt/nova-ha-dashboard/.env.local
+printf 'NOVA_UPDATE_TOKEN=%s\n' '<the-token>' >> /opt/nova-ha-dashboard/.env.local
+```
+
+It takes effect on the next container start, which step 3 performs anyway.
+
+### 3. Refresh the helper, then migrate
+
+Do step 2 (the token) **before** the flat deploy that carries the household
+overlay. Ordering step 1 (the key) only matters relative to `migrate`, which is
+the first thing here that talks to the forge. With `update.apiBase` pointing at
+the private Forgejo and no token yet, the in-app check gets a 404 and records a
+check error rather than an available update — harmless, but it reads like a bug.
+
+```bash
+# The helper lives in the home directory rather than the app root, so a flat
+# deploy cannot break it — but it also never updates itself. Refresh it by hand
+# whenever ops/nova-release changes, or the guards this runbook relies on are not
+# the ones running on this host.
+install -m 0755 /opt/nova-ha-dashboard/ops/nova-release ~/.local/bin/nova-release
+
+NOVA_REPO_URL=ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git \
+NOVA_UPDATE_BRANCH=main ~/.local/bin/nova-release migrate
+```
+
+`migrate` clones `repo/`, builds the first release out-of-line, moves the current
+flat install into `releases/bootstrap-<ts>` as the rollback target, repoints the
+symlink farm and restarts the container. It is the one irreversible-looking step
+and it is the only way self-update starts working here.
+
+**`NOVA_REPO_URL` is only consulted when `repo/` does not exist.** `do_migrate`
+clones if there is no `$REPO_DIR/.git` and otherwise just fetches `origin` — so
+if a clone ever exists from a previous run, this variable is ignored and the
+host keeps fetching whatever that clone's `origin` says. Passing it is
+load-bearing here only because this host has no clone, and getting it wrong is
+the worst outcome available: the app would *report* the Forgejo's head while the
+host *fetched* GitHub, so the dashboard would offer an update and then install
+something else. Check it straight afterwards, and fix it by hand if it is wrong:
+
+```bash
+git -C /opt/nova-ha-dashboard/repo remote -v
+# origin must be ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git
+# wrong? then:
+git -C /opt/nova-ha-dashboard/repo remote set-url origin \
+  ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git
+```
+
+It takes about a minute and a half to build, and the `/opt` tree is mid-move
+while it runs, so **do not run it in the foreground of an ssh session you might
+lose.** Launch it as a transient user unit and watch it from outside:
+
+```bash
+XDG_RUNTIME_DIR=/run/user/$(id -u) systemd-run --user --collect \
+  --unit=nova-migrate \
+  env NOVA_REPO_URL=ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git \
+      NOVA_UPDATE_BRANCH=main \
+      "$HOME/.local/bin/nova-release" migrate
+
+journalctl --user -u nova-migrate -f      # until it reports success
+~/.local/bin/nova-release status
+```
+
+`Linger=yes` is already set for this account, so the user manager survives logout
+and the migration finishes whether or not you stay connected. This is the same
+incantation that restored the farm on the previous host on 2026-06-28, after it
+had been flat for weeks.
+
+Verify afterwards:
+
+```bash
+git -C /opt/nova-ha-dashboard/repo remote -v
+ls -l /opt/nova-ha-dashboard | head          # top-level entries are symlinks
+ls -ld /opt/nova-ha-dashboard/data /opt/nova-ha-dashboard/.env.local   # still real
+curl -s http://127.0.0.1:3001/api/update | head -c 400
+```
+
+### 4. From now on, do not flat-deploy over `/opt/nova-ha-dashboard`
+
+`deploy-nova-dashboard.ps1` deletes everything at the app root except `data/`,
+`.env.local` and `.staging`, which takes `releases/` and `repo/` with it and
+breaks self-update. This is not hypothetical: it is how the farm came to be
+missing for weeks on the previous host, restored on 2026-06-28.
+
+Order matters: deploy the source change flat **first** (that is the current state
+anyway), migrate **second**. If a flat deploy happens after a migration,
+recovery is the same `migrate` invocation — the home-directory helper and the
+cron survive it, which is exactly why they live outside the app root.

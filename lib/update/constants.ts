@@ -4,7 +4,7 @@ import type { UpdatePhase } from "./types";
 // The host-side updater (nova-release) and the app communicate through plain
 // files inside the shared, bind-persistent `data/` directory:
 //   data/update/state.json        <- written by the host updater, read here
-//   data/update/check.json        <- GitHub check cache, owned by the app
+//   data/update/check.json        <- update check cache, owned by the app
 //   data/update/control/<id>.json <- update/rollback requests, app -> updater
 // Using `data/` means no extra Docker mounts: the container already sees it and
 // the host updater operates on the same inode under shared/data.
@@ -15,7 +15,7 @@ export const STATE_PATH = path.join(UPDATE_DIR, "state.json");
 export const CHECK_PATH = path.join(UPDATE_DIR, "check.json");
 export const CONTROL_DIR = path.join(UPDATE_DIR, "control");
 
-export const GITHUB_CHECK_TIMEOUT_MS = 10_000;
+export const UPDATE_CHECK_TIMEOUT_MS = 10_000;
 
 export const BUSY_PHASES = new Set<UpdatePhase>([
   "queued",
