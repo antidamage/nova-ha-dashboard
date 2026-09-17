@@ -18,6 +18,7 @@ import {
 import { envCompatibilityOverrides } from "./env-model";
 import { isRecord, mergeDeep } from "./merge-model";
 import { validateDashboardConfig } from "./schema-model";
+import { pinUpdateChannel, resolveUpdateChannel, runtimeStoreDocument, withoutUpdateChannel } from "./update-channel-model";
 import type { ConfigImportResult, DashboardConfig } from "../config-schema";
 
 let writeQueue = Promise.resolve();
@@ -97,7 +98,9 @@ export async function readDashboardConfig(): Promise<DashboardConfig> {
   const household = await readHouseholdDashboardConfig();
   const stored = await readStoredDashboardConfig();
   const merged = mergeDeep(mergeDeep(mergeDeep(defaults, household), stored), envCompatibilityOverrides());
-  const result = validateDashboardConfig(merged);
+  const result = validateDashboardConfig(
+    pinUpdateChannel(merged, resolveUpdateChannel(defaults, household)),
+  );
   if (!result.ok) {
     throw new Error(`Dashboard config is invalid: ${result.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
   }
@@ -117,7 +120,9 @@ export function readDashboardConfigSync(): DashboardConfig {
     mergeDeep(mergeDeep(defaultResult.config, household), isRecord(stored) ? stored : {}),
     envCompatibilityOverrides(),
   );
-  const result = validateDashboardConfig(merged);
+  const result = validateDashboardConfig(
+    pinUpdateChannel(merged, resolveUpdateChannel(defaultResult.config, household)),
+  );
   if (!result.ok) {
     throw new Error(`Dashboard config is invalid: ${result.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
   }
@@ -130,7 +135,9 @@ export async function writeDashboardConfig(next: unknown): Promise<ConfigImportR
   // document, so composing over bare defaults would write generic values on top
   // of this home's and silently undo the household layer on the next save.
   const household = await readHouseholdDashboardConfig();
-  const merged = mergeDeep(mergeDeep(defaults, household), next);
+  // The channel is not importable: a caller cannot set it, and the document
+  // written below does not carry it either.
+  const merged = mergeDeep(mergeDeep(defaults, household), withoutUpdateChannel(next));
   const result = validateDashboardConfig(merged);
   if (!result.ok) {
     return { ...result, applied: false };
@@ -139,7 +146,7 @@ export async function writeDashboardConfig(next: unknown): Promise<ConfigImportR
   writeQueue = writeQueue.then(async () => {
     await mkdir(path.dirname(RUNTIME_CONFIG_PATH), { recursive: true });
     const tempPath = `${RUNTIME_CONFIG_PATH}.${process.pid}.tmp`;
-    await writeFile(tempPath, `${JSON.stringify(result.config, null, 2)}\n`, "utf8");
+    await writeFile(tempPath, `${JSON.stringify(runtimeStoreDocument(result.config), null, 2)}\n`, "utf8");
     await rename(tempPath, RUNTIME_CONFIG_PATH);
   });
 
@@ -160,7 +167,9 @@ export async function patchDashboardConfig(partial: unknown): Promise<ConfigImpo
 export async function dryRunDashboardConfigImport(next: unknown): Promise<ConfigImportResult> {
   const defaults = await readDefaultDashboardConfig();
   const household = await readHouseholdDashboardConfig();
-  const result = validateDashboardConfig(mergeDeep(mergeDeep(defaults, household), next));
+  const result = validateDashboardConfig(
+    mergeDeep(mergeDeep(defaults, household), withoutUpdateChannel(next)),
+  );
   return { ...result, applied: false } as ConfigImportResult;
 }
 
