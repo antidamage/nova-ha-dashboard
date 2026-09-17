@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Task } from "./types";
+import type { Task } from "../types";
 
 const tempDirs: string[] = [];
 
@@ -12,15 +12,15 @@ const tempDirs: string[] = [];
 // keyword table decides, what the LLM is allowed to change, and what it is not.
 const classifyReminderIcon = vi.fn<(name: string, timeoutMs: number) => Promise<string | null>>();
 
-vi.mock("./voice-host-settings", () => ({
+vi.mock("../voice-host-settings", () => ({
   classifyReminderIcon: (name: string, timeoutMs: number) => classifyReminderIcon(name, timeoutMs),
 }));
 
-vi.mock("./dashboard-events", () => ({
+vi.mock("../dashboard-events", () => ({
   publishReminderIcons: () => undefined,
 }));
 
-vi.mock("./dashboard-config", () => ({
+vi.mock("../dashboard-config", () => ({
   readDashboardConfig: async () => ({
     dashboard: { reminders: { classifier: { enabled: true, timeoutMs: 1000 } } },
   }),
@@ -31,7 +31,7 @@ async function isolatedIconStore() {
   const dir = await mkdtemp(path.join(os.tmpdir(), "nova-reminder-icons-"));
   tempDirs.push(dir);
   vi.stubEnv("NOVA_DASHBOARD_REMINDER_ICONS", path.join(dir, "reminder-icons.json"));
-  return import("./reminder-icons");
+  return import("../reminder-icons");
 }
 
 function task(overrides: Partial<Task> = {}): Task {

@@ -59,7 +59,7 @@ describe("design registry contract", () => {
   // that no longer exists, with nothing else failing.
   it("keeps the literal default id in the demo bootstrap and shim in step", () => {
     const root = join(__dirname, "..", "..");
-    for (const file of ["app/layout.tsx", "lib/demo-config.ts"]) {
+    for (const file of ["app/layout.tsx", "lib/demo-config/bootstrap-script.ts"]) {
       const source = readFileSync(join(root, file), "utf8");
       expect(source, `${file} must spell the default design id`).toContain(
         `"${DEFAULT_DESIGN_ID}"`,
