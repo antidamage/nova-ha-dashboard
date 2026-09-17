@@ -227,8 +227,8 @@ job.
 - Choosing another zone and coming back shows the fold closed.
 - A reload with a fold open comes back with it closed, while page scroll and
   zone selection restore as before.
-- Unit tests (`advanced-fold/AdvancedFold.test.tsx`, `advancedFoldBand.test.ts`) and
-  `e2e/advanced-fold.spec.ts` cover the above.
+- Unit tests (`advanced-fold/AdvancedFold*.test.tsx`, `advancedFoldBand.test.ts`) and
+  `e2e/advanced-fold*.spec.ts` cover the above.
 
 ## Reminders timer
 
@@ -303,8 +303,8 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 
 ### Tests (carried over from the round-1 review)
 
-- No fixed sleeps in `e2e/advanced-fold.spec.ts`; wait on visible state. The
-  spec passes with the configured workers, twice in a row.
+- No fixed sleeps in `e2e/advanced-fold*.spec.ts`; wait on visible state. The
+  specs pass with the configured workers, twice in a row.
 - Touch coverage through CDP `Input.dispatchTouchEvent` with `hasTouch`: 120 px
   stays closed, 180 px opens, a vertical swipe over a portrait fold scrolls the
   page.
