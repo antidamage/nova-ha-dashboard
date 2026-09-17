@@ -1,3 +1,5 @@
+import type { OrbTimer } from "../orb-timer-model";
+
 /**
  * Status orb info modules — the contract.
  *
@@ -196,4 +198,66 @@ export type OrbStackEntry = OrbModulePreference & {
   showOnlyWhenAlerting?: boolean;
   /** Legacy input only; migrated by `resolveOrbEntries`. */
   activation?: "always" | "whenAlerting";
+};
+
+/** The narrow slices of shared client data the catalogue reads. */
+export type OrbInfoSources = {
+  now: number;
+  orbTimer?: OrbTimer | null;
+  events?: Record<string, OrbModuleOutput>;
+  washing?: { primaryPersonId?: string; etaAt?: string | null; open: { startedAt: string | null; person?: string | null; completion?: unknown } | null } | null;
+  washTasks?: Array<{ id: string; start: string; dismissedAt?: string; alertDismissedAt?: string; moduleData?: Record<string, unknown> }>;
+
+  watchface: {
+    gymLastResetAt: number | null;
+    gymAlertThresholdHours: number | null;
+  } | null;
+  novaLoad: {
+    cpu: number;
+    gpu: number;
+    net: number;
+    load: number;
+    listening: boolean;
+    ts: number;
+  } | null;
+  power: {
+    currentWatts: number | null;
+    currentCostPerHourNzd: number | null;
+    generatedAt: string | null;
+  } | null;
+  dashboardState: {
+    outsideTemperature: number | null;
+    outsideFeelsLike: number | null;
+    humidity: number | null;
+    rainChancePct: number | null;
+    uvIndex: number | null;
+    windSpeed: number | null;
+    forecastHigh: number | null;
+    forecastLow: number | null;
+    nextSetting: string | null;
+    nextRising: string | null;
+    sunState: string | null;
+    haHealthy: boolean | null;
+    wanConnected: boolean | null;
+    lightsOn: number | null;
+    openingsOpen: number | null;
+    unavailableCount: number | null;
+    generatedAt: string | null;
+    /** Per-zone resolved environment, for the zone-parameterised modules. */
+    zones: Array<{ id: string; name: string; temperatureC: number | null; humidityPct: number | null }>;
+    /** Numeric entity readings, keyed by entity id, for `entity-numeric`. */
+    numericEntities: Array<{ entityId: string; name: string; value: number | null; unit: string | null }>;
+  } | null;
+  tasks: {
+    /** Hours until the next undismissed reminder is due; null when none. */
+    nextDueInHours: number | null;
+    nextDueAt: string | null;
+    overdueCount: number;
+    /** Due reminders whose alert is not yet acknowledged, most recent first. */
+    alerting?: Array<{ id: string; start: string }>;
+  } | null;
+};
+
+export type OrbModule = OrbModuleDefinition & {
+  read: (sources: OrbInfoSources, params?: OrbModuleParams) => OrbModuleOutput;
 };
