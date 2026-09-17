@@ -12,7 +12,7 @@ import {
   type KioskAction,
   type WitnessState,
   type WitnessTimings,
-} from "./kiosk-witness";
+} from "../kiosk-witness";
 
 const TIMINGS: WitnessTimings = {
   identityTtlMs: 30_000,

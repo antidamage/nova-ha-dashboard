@@ -154,7 +154,7 @@ identifying string to the sync test's mock. Nothing in
 
 ### Change detection
 
-`AppliedWallpaperRecord` in `lib/managed-desktop-sync.ts` gains
+`AppliedWallpaperRecord` in `lib/managed-desktop-sync/types.ts` gains
 `themeActionSignature: string | null`, parsed nullable-defaulting-to-`null` and
 compared in `appliedWallpaperRecordMatches`. This mirrors `lockScreenFileName`
 exactly, including its deliberate side effect: records written before this

@@ -63,7 +63,7 @@ async function importSyncModule(options: {
   const copyFileToManagedComputer = vi.fn(options.copyImpl ?? (async () => ({ stderr: "", stdout: "" })));
   const runManagedComputerSsh = vi.fn(async () => ({ stderr: "", stdout: "" }));
   vi.resetModules();
-  vi.doMock("./managed-computers", () => ({
+  vi.doMock("../managed-computers", () => ({
     copyFileToManagedComputer,
     listManagedComputers: vi.fn(async () => options.computers ?? [testComputer()]),
     remoteLockScreenCommand: vi.fn((_platform: string, fileName: string) => `lockscreen ${fileName}`),
@@ -71,7 +71,7 @@ async function importSyncModule(options: {
     remoteWallpaperFileName: vi.fn((assetId: string) => `nova-${assetId}.png`),
     runManagedComputerSsh,
   }));
-  vi.doMock("./wallpaper-assets", () => ({
+  vi.doMock("../wallpaper-assets", () => ({
     readWallpaperAssetFile: vi.fn(async (id: string) => ({
       asset: {
         contentType: "image/png",
@@ -89,7 +89,7 @@ async function importSyncModule(options: {
   }));
 
   // Extraction has its own tests; here it only has to be deterministic.
-  vi.doMock("./wallpaper-color", () => ({
+  vi.doMock("../wallpaper-color", () => ({
     clampForContrast: (color: unknown) => color,
     highlightColorForAsset: vi.fn(async () => ({
       fallback: false,
@@ -107,18 +107,18 @@ async function importSyncModule(options: {
       await runManagedComputerSsh(context.computer, "theme-actions");
     }
   });
-  vi.doMock("./desktop-theme-actions", () => ({
+  vi.doMock("../desktop-theme-actions", () => ({
     desktopThemeActionSignature: vi.fn((context: { computer: { platform: string }; highlight: { hex: string } }) =>
       context.computer.platform === "windows" ? `windows-terminal:${context.highlight.hex}` : ""),
     runDesktopThemeActions,
   }));
 
   const sendThemeChangeNotification = vi.fn(async () => ({ ok: true, sent: true }));
-  vi.doMock("./theme-change-notification", () => ({ sendThemeChangeNotification }));
+  vi.doMock("../theme-change-notification", () => ({ sendThemeChangeNotification }));
 
   return {
     copyFileToManagedComputer,
-    mod: await import("./managed-desktop-sync"),
+    mod: await import("../managed-desktop-sync"),
     runDesktopThemeActions,
     runManagedComputerSsh,
     sendThemeChangeNotification,
@@ -128,9 +128,9 @@ async function importSyncModule(options: {
 
 describe("managed desktop sync", () => {
   afterEach(() => {
-    vi.doUnmock("./managed-computers");
-    vi.doUnmock("./wallpaper-assets");
-    vi.doUnmock("./theme-change-notification");
+    vi.doUnmock("../managed-computers");
+    vi.doUnmock("../wallpaper-assets");
+    vi.doUnmock("../theme-change-notification");
     vi.unstubAllEnvs();
     vi.resetModules();
   });

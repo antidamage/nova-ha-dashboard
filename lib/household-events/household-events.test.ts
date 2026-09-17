@@ -6,8 +6,8 @@ import {
   HouseholdEventLog,
   normalizedHaStateChange,
   normalizedTaskSnapshots,
-} from "./household-events";
-import type { HaState, Task } from "./types";
+} from "../household-events";
+import type { HaState, Task } from "../types";
 
 const tempDirs: string[] = [];
 
