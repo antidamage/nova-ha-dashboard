@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus, Trash2, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { DashboardEntity, DashboardZone } from "../../../../lib/types";
 import type { ReminderGlyph } from "../../../../lib/reminder-glyph";
@@ -13,7 +13,7 @@ import { ConfigSelect } from "../../ConfigSelect";
 import { IconButton } from "../IconButton";
 import { SlideSwitch } from "../../SlideSwitch";
 import { ReminderIconPicker } from "../../reminders/ReminderIconPicker";
-import { RuleIcon, triggerRulePreset, useZoneLightRules, type RulePresetHandlers } from "../zoneLightRulesClient";
+import { RuleIcon, useZoneLightRules } from "../zoneLightRulesClient";
 import { KIND_LABELS, PERCENTS } from "./constants";
 import { newRule } from "./zone-model";
 import { EntityToggles } from "./EntityToggles";
@@ -30,12 +30,9 @@ import { ValueEncoder } from "./ValueEncoder";
 export function ZoneLightEvents({
   lights,
   zone,
-  presetHandlers,
 }: {
   lights: DashboardEntity[];
   zone: DashboardZone;
-  /** The zone card's own preset path, so "Now" moves the dial as a preset press does. */
-  presetHandlers?: RulePresetHandlers;
 }) {
   const { error, loaded, rules, switchOnEntityIds, create, update, remove, reorder, setSwitchOn } = useZoneLightRules(zone.id);
   const [addKind, setAddKind] = useState<ZoneLightRuleKind>("preset");
@@ -54,14 +51,6 @@ export function ZoneLightEvents({
     if (index < 0 || target < 0 || target >= ids.length) return;
     [ids[index], ids[target]] = [ids[target], ids[index]];
     void reorder(ids);
-  };
-
-  const trigger = (rule: ZoneLightRule) => {
-    if (presetHandlers) {
-      void triggerRulePreset(rule, presetHandlers);
-    } else {
-      void fetch(`/api/lighting/zone-rules/${encodeURIComponent(rule.id)}/trigger`, { method: "POST" });
-    }
   };
 
   return (
@@ -100,9 +89,6 @@ export function ZoneLightEvents({
                   onChange={() => void update(rule.id, { enabled: !rule.enabled })}
                 />
               )}
-              <IconButton label={`Apply ${rule.name ?? KIND_LABELS[rule.kind]} now`} variant="yellow" onClick={() => trigger(rule)}>
-                <Zap aria-hidden="true" /><span>Now</span>
-              </IconButton>
             </div>
 
             {rule.kind === "event" ? <EventEditor rule={rule} onUpdate={(patch) => void update(rule.id, patch)} /> : null}
