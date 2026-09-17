@@ -129,7 +129,7 @@ A facade re-exporting across packages is what creates cycles.
 Four cases where a facade is wrong:
 
 - **Anything reached by `next/dynamic` or `await import()`.** The 19 config
-  sections in `ConfigWorkspace.tsx:35-53`, and `MapPanel` via
+  sections in `ConfigWorkspace.tsx` (the block of `dynamic()` imports), and `MapPanel` via
   `panel-registry.tsx:32` and `useRadarPreload.ts:28`, are lazily loaded on
   purpose. Their facade re-exports **only the component**, and that component
   file must not import the package's server-side or heavy siblings.
@@ -421,7 +421,7 @@ branch in the main directory.
 
 ## 16. Known follow-ups, deliberately out of scope
 
-- `lib/ha.ts:38` imports `hsvToRgb` from `app/components/colorEncoderModel` —
+- `lib/ha/lighting/zone-rules.ts` imports `hsvToRgb` from `app/components/colorEncoderModel` —
   server code reaching into `app/components`. The target is `lib/color/hsv.ts`.
   Not fixed during the campaign: it is a behaviour risk, and a reviewer must
   not reject a split for preserving it.
