@@ -38,4 +38,21 @@ test.describe("dashboard shell", () => {
     await expect(page).toHaveURL(/\/config\/?$/);
     await expect(page.getByRole("button", { name: "Back" }).first()).toBeVisible();
   });
+
+  test("the page itself refuses overscroll on the root element", async ({ page }) => {
+    await gotoDashboard(page);
+
+    // The computed value, not the source text: this is what proves the
+    // declaration survives the Tailwind v4 / Lightning CSS pipeline and that
+    // nothing later in the cascade overrides it on the root element — an inner
+    // scroller cannot suppress the viewport's own overscroll. Chromium cannot
+    // be asked about the iOS gesture itself; that check is on the iPad.
+    // specs/ios-overscroll.md.
+    const overscroll = await page.evaluate(() => ({
+      html: getComputedStyle(document.documentElement).getPropertyValue("overscroll-behavior"),
+      body: getComputedStyle(document.body).getPropertyValue("overscroll-behavior"),
+    }));
+
+    expect(overscroll).toEqual({ html: "none", body: "none" });
+  });
 });
