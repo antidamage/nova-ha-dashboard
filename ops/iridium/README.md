@@ -236,6 +236,12 @@ It takes effect on the next container start, which step 3 performs anyway.
 
 ### 3. Refresh the helper, then migrate
 
+Do step 2 (the token) **before** the flat deploy that carries the household
+overlay. Ordering step 1 (the key) only matters relative to `migrate`, which is
+the first thing here that talks to the forge. With `update.apiBase` pointing at
+the private Forgejo and no token yet, the in-app check gets a 404 and records a
+check error rather than an available update — harmless, but it reads like a bug.
+
 ```bash
 # The helper lives in the home directory rather than the app root, so a flat
 # deploy cannot break it — but it also never updates itself. Refresh it by hand
@@ -251,6 +257,23 @@ NOVA_UPDATE_BRANCH=main ~/.local/bin/nova-release migrate
 flat install into `releases/bootstrap-<ts>` as the rollback target, repoints the
 symlink farm and restarts the container. It is the one irreversible-looking step
 and it is the only way self-update starts working here.
+
+**`NOVA_REPO_URL` is only consulted when `repo/` does not exist.** `do_migrate`
+clones if there is no `$REPO_DIR/.git` and otherwise just fetches `origin` — so
+if a clone ever exists from a previous run, this variable is ignored and the
+host keeps fetching whatever that clone's `origin` says. Passing it is
+load-bearing here only because this host has no clone, and getting it wrong is
+the worst outcome available: the app would *report* the Forgejo's head while the
+host *fetched* GitHub, so the dashboard would offer an update and then install
+something else. Check it straight afterwards, and fix it by hand if it is wrong:
+
+```bash
+git -C /opt/nova-ha-dashboard/repo remote -v
+# origin must be ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git
+# wrong? then:
+git -C /opt/nova-ha-dashboard/repo remote set-url origin \
+  ssh://git@ununhexium.tuatara-dory.ts.net:2222/antidamage/nova-ha-dashboard.git
+```
 
 It takes about a minute and a half to build, and the `/opt` tree is mid-move
 while it runs, so **do not run it in the foreground of an ssh session you might
