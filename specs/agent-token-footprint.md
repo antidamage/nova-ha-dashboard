@@ -226,7 +226,7 @@ applied so literally that a five-line union gets its own file.
   not edits — the failure class a splitting agent will not anticipate. Update
   them in the same commit as any move of a file they name:
   - `app/liteMode.contract.test.ts`, `app/reminderOutline.contract.test.ts`,
-    `app/selectLayering.contract.test.ts`,
+    `app/selectLayering.contract.test.ts`, `app/overscroll.contract.test.ts`,
     `app/components/phonoscope/styling.contract.test.ts`,
     `app/components/ColorEncoder.test.tsx:299,309` all read
     `app/globals.css`. `styling.contract.test.ts` also reads two `.tsx` files
@@ -279,7 +279,7 @@ partial imports in original order, and nothing else. Contents under
 `config/`, `dashboard/`, `tasks/`, `orb/`, `motion/`.
 
 `app/styles/readCss.ts` — a test helper, not shipped — reads the entry,
-resolves the `@import`s in order, and returns the concatenation. The five
+resolves the `@import`s in order, and returns the concatenation. The
 contract tests point at it instead of reading `globals.css` directly. This
 preserves each contract's meaning (a class defined anywhere in the bundle
 counts) and keeps order-aware assertions working. The helper also asserts it
