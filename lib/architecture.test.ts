@@ -49,70 +49,36 @@ const ALLOWED: Allowance[] = [
   { file: "lib/aircon-control.test.ts", bytes: 47984, permanent: "section 2 criterion 1 — one table-driven test" },
   { file: "app/components/controls/rotary/RotaryEncoder.tsx", bytes: 39072 },
   { file: "app/components/config/accent/AccentConfig.tsx", bytes: 32485 },
-  { file: "lib/phonoscope-theme-state/phonoscope-theme-state.test.ts", bytes: 31648 },
   { file: "app/components/dashboard/camera/CameraPanel.tsx", bytes: 30655 },
-  { file: "app/components/face/faceCapture.ts", bytes: 28225 },
-  { file: "app/components/phonoscope/EffectEntry.tsx", bytes: 27100 },
-  { file: "app/components/auth/LoginPanel.tsx", bytes: 26732 },
   { file: "lib/orb-info/catalogue.data.ts", bytes: 26282, permanent: "section 2 criterion 1 — the orb-info catalogue table" },
-  { file: "lib/phonoscope-tracks.ts", bytes: 25798 },
-  { file: "app/components/controls/rotary/RotaryEncoder.test.tsx", bytes: 25311 },
   { file: "app/components/dashboard/advanced-fold/AdvancedFold.tsx", bytes: 25249 },
   { file: "lib/config-schema/dashboard-config.ts", bytes: 24110, permanent: "section 2 criterion 3 — DashboardConfigSchema composes ~15 inline nested objects; extracting them forces a dozen single-consumer exports" },
-  { file: "app/components/phonoscope/SettingsGroupLibrary.tsx", bytes: 23894 },
-  { file: "app/components/ColorEncoder.test.tsx", bytes: 23353 },
-  { file: "lib/mcp-dashboard.ts", bytes: 22947 },
-  { file: "app/components/orb-info/useOrbInfo.ts", bytes: 21977 },
   { file: "app/styles/responsive/landscape.css", bytes: 21530, permanent: "section 2 criterion 2 — one irreducible @media (aspect-ratio > 1) block; splitting it would emit the at-rule twice and change the cascade" },
   { file: "app/components/dashboard/climate/useAirconCommands.ts", bytes: 20600 },
   { file: "app/shell/head-bootstrap-script.ts", bytes: 20484, permanent: "section 2 criterion 1 — one template literal served verbatim as the pre-hydration head script" },
-  { file: "lib/managed-desktop-sync.test.ts", bytes: 20314 },
-  { file: "lib/managed-desktop-sync.ts", bytes: 20155 },
-  { file: "lib/icloud-sync.ts", bytes: 19615 },
-  { file: "app/components/PhonoscopeConfig.tsx", bytes: 19534 },
   { file: "app/components/tasks/TasksPanel.tsx", bytes: 18949 },
-  { file: "lib/modules/runtime/store.ts", bytes: 18581 },
-  { file: "lib/voice-settings/voice-settings.test.ts", bytes: 18267 },
-  { file: "lib/authentik-flow.ts", bytes: 17707 },
-  { file: "app/components/FaceEnrolmentConfig.tsx", bytes: 17556 },
-  { file: "app/components/controls/dots/DotControls.test.tsx", bytes: 17292 },
-  { file: "lib/voice-transcript.ts", bytes: 17172 },
-  { file: "lib/preferences-history.ts", bytes: 16998 },
-  { file: "lib/phonoscope-images.ts", bytes: 16786 },
-  { file: "app/components/ColorEncoderRings.test.tsx", bytes: 16706 },
-  { file: "lib/demo-config.ts", bytes: 16678 },
   { file: "app/components/tasks/useTaskAlerts.ts", bytes: 16346 },
   { file: "lib/aircon-control/plan-model.ts", bytes: 16072 },
-  { file: "lib/bedroom-heater-control/bedroom-heater-control.test.ts", bytes: 15853 },
+  { file: "app/components/auth/login-panel/useLoginFlow.ts", bytes: 15753, permanent: "section 2 criterion 2 — one password/passkey/face state machine sharing liveRef, fail, start and applyChallenge" },
   { file: "app/components/theme/accent/useDeviceTheme.ts", bytes: 15674 },
-  { file: "lib/reminder-icons.ts", bytes: 14994 },
+  { file: "lib/demo-config/bootstrap-script.ts", bytes: 14948, permanent: "section 2 criterion 3 — one template literal of browser JS; fragments would only be reassembled by the same caller" },
   { file: "app/components/dashboard/reminders/ReminderIconBar.tsx", bytes: 14775 },
-  { file: "lib/voice-transcript.test.ts", bytes: 14661 },
-  { file: "lib/phonoscope/phonoscope.test.ts", bytes: 14272 },
-  { file: "app/components/theme/accent/accentColor.test.ts", bytes: 14195 },
+  { file: "lib/voice-transcript/voice-transcript.test.ts", bytes: 14662 },
   { file: "lib/phonoscope-migrate-v3.ts", bytes: 14161 },
   { file: "app/components/dashboard/satellite/runtime.ts", bytes: 14129, permanent: "section 2 criterion 2 — one class sharing private instance state" },
   { file: "lib/phonoscope-effects.ts", bytes: 14090 },
   { file: "app/components/controls/dots/DotLineControl.tsx", bytes: 13901, permanent: "section 2 criterion 2 — gesture handlers share the component's refs" },
-  { file: "lib/doorbell/doorbell.test.ts", bytes: 13885 },
   { file: "lib/voice-settings/normalize-model.ts", bytes: 13855, permanent: "section 2 criterion 3 — splitting per-field readers needs ~10 single-consumer exports" },
   { file: "app/components/controls/dots/DotEnvelopeControl.tsx", bytes: 13685, permanent: "section 2 criterion 2 — gesture handlers share the component's refs" },
-  { file: "lib/washing-machine/washing-machine.test.ts", bytes: 13351 },
-  { file: "lib/orb-modules/orb-modules.test.ts", bytes: 13261 },
-  { file: "lib/reminder-glyph.ts", bytes: 13048 },
-  { file: "app/components/dashboard/advanced-fold/AdvancedFold.test.tsx", bytes: 12885 },
-  { file: "lib/authentik-flow.test.ts", bytes: 12883 },
+  { file: "lib/authentik-flow/authentik-flow.test.ts", bytes: 12884 },
   { file: "lib/orb-modules/layer-model.ts", bytes: 12668, permanent: "section 2 criterion 3 — moving its helpers out needs 8 exports whose only caller is normalizeOrbLayer" },
   { file: "lib/ha/client.ts", bytes: 12662 },
   { file: "lib/desktop-theme-actions/windows-terminal.test.ts", bytes: 12641 },
-  { file: "lib/tasks/tasks.test.ts", bytes: 12560 },
-  { file: "lib/orb-info/catalogue.test.ts", bytes: 12541 },
-  { file: "app/components/CompanionStatusCard.tsx", bytes: 12283 },
+  { file: "app/components/face/capture/useFaceCapture.ts", bytes: 12314, permanent: "section 2 criterion 2 — capture steps share streamRef, recorderRef, clipTimerRef and videoRef" },
   { file: "app/components/dashboard/power/PowerPanel.tsx", bytes: 12149, permanent: "section 2 criterion 2 — one render tree" },
   { file: "app/components/theme/accent/defaults.ts", bytes: 12103, permanent: "section 2 criterion 1 — the two shipped theme tables" },
   { file: "lib/dashboard-config.ts", bytes: 12051 },
   { file: "lib/phonoscope-effect-groups.ts", bytes: 12045 },
-  { file: "lib/household-events.ts", bytes: 11898 },
   { file: "app/components/dashboard/state/useDashboardCommands.ts", bytes: 11872, permanent: "section 2 criterion 2 — one hook sharing sequence counters, timers and abort controller" },
   { file: "app/components/config/reminders/RemindersConfig.tsx", bytes: 11848, permanent: "section 2 criterion 2 — callbacks share roster and config state" },
   { file: "app/components/dashboard/zones/ZoneControls.test.tsx", bytes: 11741 },
@@ -121,21 +87,13 @@ const ALLOWED: Allowance[] = [
   { file: "app/components/tasks/TaskEditor.tsx", bytes: 11653, permanent: "section 2 criterion 2 — one form over one draft state" },
   { file: "lib/orb-modules/tech.data.ts", bytes: 11650, permanent: "section 2 criterion 1 — one built-in orb module document" },
   { file: "app/components/Dashboard.tsx", bytes: 11604 },
-  { file: "lib/kiosk-witness.ts", bytes: 11488 },
-  { file: "lib/modules/runtime/loader.ts", bytes: 11413 },
+  { file: "lib/no-household-data.test.ts", bytes: 11485 },
   { file: "lib/modules/runtime/store.test.ts", bytes: 11361 },
-  { file: "lib/no-household-data.test.ts", bytes: 11317 },
-  { file: "lib/desktop-theme-actions/jsonc-profile-patch.ts", bytes: 11265 },
   { file: "app/components/avatar/nova-avatar/NovaAvatarVisual.tsx", bytes: 11250, permanent: "section 2 criterion 3 — host wiring; further split needs ~20 pass-through props" },
-  { file: "app/components/phonoscope/effectCatalogue.test.ts", bytes: 11062 },
-  { file: "app/components/HistoryPanel.tsx", bytes: 10829 },
-  { file: "app/api/radar/[z]/[x]/[y]/route.ts", bytes: 10791 },
-  { file: "lib/update.ts", bytes: 10506 },
+  { file: "lib/preferences/store.ts", bytes: 10618, permanent: "section 2 criterion 2 — write queue, per-section merge and atomic write kept together so no merge branch is lost" },
   { file: "lib/ha/lighting/zone-action.ts", bytes: 10439, permanent: "section 2 criterion 2 — one function, setZoneAction" },
-  { file: "lib/preferences.ts", bytes: 10438 },
   { file: "app/components/theme/accent/store.ts", bytes: 10337, permanent: "section 2 criterion 2 — the package's single state owner" },
   { file: "app/components/dashboard/zones/ZoneControls.tsx", bytes: 10334, permanent: "section 2 criterion 2 — one component reading its own hook state" },
-  { file: "app/components/SystemActivityBlocker.tsx", bytes: 10315 },
 ];
 
 /**
@@ -255,5 +213,21 @@ describe("types.ts is type-only", () => {
         ? `types.ts must use \`import type\` only:\n${offenders.map((o) => `  ${o}`).join("\n")}`
         : "",
     ).toEqual([]);
+  });
+});
+
+describe("test fixtures stay test-only", () => {
+  /**
+   * lib/no-household-data.test.ts skips *.fixtures.* files because they hold
+   * sample entity ids and timezones for tests. That exemption is only sound
+   * while no product code imports a fixture.
+   */
+  it("has no product source importing a *.fixtures helper", () => {
+    const offenders = trackedSourceFiles()
+      .filter((file) => !/\.(test|spec|fixtures)\.tsx?$/.test(file))
+      .filter((file) => /from\s+["'][^"']*\.fixtures["']/.test(readFileSync(path.join(ROOT, file), "utf8")));
+
+    const report = offenders.map((file) => `  ${file}`).join("\n");
+    expect(offenders, offenders.length ? `product source imports test fixtures:\n${report}` : "").toEqual([]);
   });
 });
