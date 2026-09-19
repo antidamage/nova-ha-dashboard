@@ -19,6 +19,7 @@
 @import "./styles/tasks/task-alerts.css";
 @import "./styles/avatar/avatar-config.css";
 @import "./styles/dashboard/map.css";
+@import "./styles/dashboard/background.css";
 @import "./styles/dashboard/shell.css";
 @import "./styles/config/update-banner.css";
 @import "./styles/dashboard/grid-zones.css";
