@@ -25,6 +25,25 @@ export const PREFERRED_RANGE_MIN_GAP = 1;
  * The range a knob sweeps: the household's preferred range inside the unit's
  * hard limits, or the hard limits when there is no preference or no overlap.
  */
+/**
+ * The target to DISPLAY for a stored value that sits outside the knob's range.
+ *
+ * Display only — it must never be written back. A stored target below the floor
+ * is usually not a target the user chose at all: it is the card's own default,
+ * read because preferences had not loaded yet. Sending the "corrected" value
+ * then overwrote a real setting with a number nobody asked for, which is how
+ * Adeline's bedroom target kept resetting to 19.
+ *
+ * No user gesture, no write. See specs/bedroom-heater-control-integrity.md §4.
+ */
+export function clampTargetForDisplay(
+  target: number | null | undefined,
+  range: TargetRange,
+): number | null {
+  if (typeof target !== "number" || !Number.isFinite(target)) return null;
+  return Math.max(range.min, Math.min(range.max, target));
+}
+
 export function effectiveTargetRange(hard: TargetRange, preferred?: TargetRange | null): TargetRange {
   if (!preferred || !Number.isFinite(preferred.min) || !Number.isFinite(preferred.max)) return hard;
   const min = Math.max(hard.min, preferred.min);

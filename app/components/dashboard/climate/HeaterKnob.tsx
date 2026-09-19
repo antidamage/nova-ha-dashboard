@@ -12,12 +12,12 @@ import {
   TIMER_MAX_MINUTES,
   TIMER_STEP_MINUTES,
   TIMER_VALUE_WIDEST,
+  clampTargetForDisplay,
   effectiveTargetRange,
   type TargetRange,
   timerValueText,
 } from "../../temperatureEncoderModel";
 import { useSharedBedroomHeaterCommands } from "../ClimateCommandsProvider";
-import { useClampTargetIntoRange } from "./useClampTargetIntoRange";
 
 export function HeaterKnob({
   humidity,
@@ -41,7 +41,6 @@ export function HeaterKnob({
   const heater = useSharedBedroomHeaterCommands({ onNotice, preferences });
   const unavailable = ["unavailable", "unknown"].includes(switchEntity.state);
   const range = effectiveTargetRange({ min: BEDROOM_HEATER_MIN_TARGET_C, max: BEDROOM_HEATER_MAX_TARGET_C }, preferredRange);
-  useClampTargetIntoRange(heater.displayedTarget, range, unavailable, (next) => void heater.changeTarget(next));
 
   // Two lights, not three: the heater has no Manual, which did the same thing
   // as Auto in a cold room and was retired in August 2026 (Adeline).
@@ -87,7 +86,7 @@ export function HeaterKnob({
       running={switchEntity.state === "on"}
       rings={rings}
       size={size}
-      target={heater.displayedTarget ?? null}
+      target={clampTargetForDisplay(heater.displayedTarget, range)}
       title={title}
     />
   );

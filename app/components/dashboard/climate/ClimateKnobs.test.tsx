@@ -139,18 +139,19 @@ describe("the air conditioner's knob", () => {
     expect(container.querySelector(".temperature-encoder-room")?.textContent).toBe("23°");
   });
 
-  it("sweeps the household range and pulls an outside target in, once", () => {
+  // Was "pulls an outside target in, once" — it used to write the clamped value
+  // back. That write is what kept resetting Adeline's targets to the floor of
+  // her household range (specs/bedroom-heater-control-integrity.md §4).
+  it("sweeps the household range and shows an outside target clamped, writing nothing", () => {
     vi.useFakeTimers();
     const onEntityActions = vi.fn(async () => undefined);
-    render(<AirconKnob entity={AIRCON} preferredRange={{ min: 18, max: 21 }} title="Lounge" onEntityActions={onEntityActions} />);
+    const { container } = render(<AirconKnob entity={AIRCON} preferredRange={{ min: 18, max: 21 }} title="Lounge" onEntityActions={onEntityActions} />);
     const dial = screen.getAllByRole("slider")[0];
     expect(dial.getAttribute("aria-valuemin")).toBe("18");
     expect(dial.getAttribute("aria-valuemax")).toBe("21");
+    expect(container.querySelector(".temperature-encoder-target")?.textContent).toBe("21°");
     act(() => vi.advanceTimersByTime(10000));
-    const sent = JSON.stringify(onEntityActions.mock.calls);
-    expect(sent).toContain("set_temperature");
-    expect(sent).toContain('"temperature":21');
-    expect(onEntityActions).toHaveBeenCalledTimes(1);
+    expect(onEntityActions).not.toHaveBeenCalled();
   });
 });
 
