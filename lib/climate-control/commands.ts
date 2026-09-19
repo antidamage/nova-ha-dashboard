@@ -14,6 +14,7 @@ import { findNamedSwitch, rawAsDashboardEntity, signatureFor } from "./device-mo
 /** Owner asked for Dry on a unit Nova emulates it for. */
 export async function requestEmulatedDry(unit: AirconInstance, now: number) {
   const room = roomState(unit.id);
+  room.mode = "manual";
   room.manualDirection = "dry";
   room.dryUserRequestAt = now;
   room.dryOffByEmulation = false;
@@ -137,6 +138,10 @@ export async function stopAndCancel(
   const now = Date.now();
   const room = instance.id;
   roomState(room).lastStopReason = reason;
+  // Unlike a thermostat resting at target, this ends the mode as well as the
+  // run: an expired sleep timer is the owner's own instruction, and the sensor
+  // fail-safe is documented as clearing Auto (§6).
+  roomState(room).mode = "off";
   roomState(room).lastTransitionAt = now;
   roomState(room).sensorPendingSinceAt = null;
   roomState(room).settlingFromTemperature = null;

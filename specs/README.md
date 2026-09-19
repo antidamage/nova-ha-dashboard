@@ -64,7 +64,7 @@ convention that came with it.
 | [lighting-and-zone-control.md](lighting-and-zone-control.md) | Zone lighting model and commands |
 | [zone-light-events.md](zone-light-events.md) · [lighting-tint.md](lighting-tint.md) | Lighting rules and tint |
 | [climate-controls.md](climate-controls.md) | Climate cards |
-| [aircon-auto-control.md](aircon-auto-control.md) | Lounge aircon Auto mode |
+| [aircon-auto-control.md](aircon-auto-control.md) | Lounge aircon Auto and Manual thermostats |
 | [bedroom-heater-control-integrity.md](bedroom-heater-control-integrity.md) | Heater command integrity and its route gates |
 | [power-meters.md](power-meters.md) | Metered power, washing machine and floating meter |
 | [outside-weather-and-map.md](outside-weather-and-map.md) | Outside panel, weather and map |

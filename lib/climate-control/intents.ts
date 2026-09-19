@@ -14,6 +14,7 @@ import {
   persistSoon,
   roomState,
 } from "./store";
+import { airconLegacyActionIntent } from "./action-intent-model";
 import { airconEntityFor, emulatesDry, heaterEntityFor } from "./device-model";
 import { executeActions, leaveEmulatedDry, requestEmulatedDry, statesAndDevices } from "./commands";
 import { tick } from "./tick";
@@ -79,24 +80,18 @@ export async function handleLegacyClimateAction(action: {
       action.remember?.aircon?.autoMode === true ||
       (action.service === "set_hvac_mode" && action.data?.hvac_mode !== "dry")
     );
-    if (action.remember?.aircon?.autoMode === true) state.manualDirection = null;
-    if (action.service === "set_hvac_mode" && action.remember?.aircon?.autoMode === false) {
-      const direction = action.data?.hvac_mode;
-      if (direction === "heat" || direction === "cool" || direction === "dry" || direction === "fan_only") {
-        state.manualDirection = direction;
-      }
-    }
-    if (action.remember?.aircon?.autoMode === false && state.manualDirection === null) {
-      const direction = aircon?.state;
-      if (direction === "heat" || direction === "cool" || direction === "fan_only") {
-        state.manualDirection = direction;
-      }
-    }
-    // Every turn_off ends Manual, whoever sent it: a remembered direction
-    // would otherwise let the loop start the unit again.
-    if (action.service === "turn_off") {
-      state.manualDirection = null;
-    }
+    // The owner's mode switch, recorded durably rather than inferred from the
+    // unit's power (see action-intent-model.ts).
+    const intent = airconLegacyActionIntent({
+      service: action.service,
+      hvacMode: action.data?.hvac_mode,
+      remembered: action.remember?.aircon,
+      unitState: aircon?.state,
+      storedMode: state.mode,
+      storedDirection: state.manualDirection,
+    });
+    state.manualDirection = intent.manualDirection;
+    if (intent.mode) state.mode = intent.mode;
     if (leavingDry && instance.kind === "aircon") {
       await leaveEmulatedDry(instance, aircon?.entity_id);
     }
@@ -163,6 +158,9 @@ export async function applyClimateControlIntent(intent: ClimateControlIntent) {
       (intent.mode === "off" || intent.mode === "auto" || (intent.direction !== undefined && intent.direction !== "dry"));
     if (intent.mode === "off" || intent.mode === "auto") state.manualDirection = null;
     if (intent.mode === "manual" && intent.direction) state.manualDirection = intent.direction;
+    // Manual asked for without a direction is still Manual: it runs on the
+    // remembered hvacMode, and the selection is the owner's to change.
+    if (intent.mode) state.mode = intent.mode;
     if (aircon && intent.mode === "off") {
       await executeActions(instance, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
     }
