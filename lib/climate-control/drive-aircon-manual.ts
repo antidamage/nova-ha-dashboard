@@ -1,4 +1,5 @@
 import {
+  AIRCON_BLIND_USER_START_MS,
   AIRCON_SENSOR_RESOLUTION_DEGREES,
   AIRCON_SENSOR_SETTLE_MS,
   AIRCON_SENSOR_TIME_CONSTANT_MS,
@@ -64,11 +65,16 @@ export async function driveManualAircon({
   const userRequested = typeof room.manualUserRequestAt === "number";
   /** No usable reading: nothing says when to stop, so we do not run (§5.2). */
   const blind = rawTemperature === null;
+  /** Unless she asked just now: the Gree only reports while it runs (§5.2). */
+  const blindStartAllowed = blind &&
+    typeof room.manualUserRequestAt === "number" &&
+    now - room.manualUserRequestAt < AIRCON_BLIND_USER_START_MS;
   const decision = Number.isFinite(target)
     ? planManualAirconTick({
         direction,
         isOn: isClimateEntityOn(aircon),
         userRequested,
+        blindStartAllowed,
         rawTemperature,
         filteredTemperature,
         targetTemperature: target,
@@ -83,8 +89,10 @@ export async function driveManualAircon({
       })
     : "hold";
   // Every outcome above is an answer once a request is latched — driving already,
-  // started now, or the target is met — so none of them defer it.
-  if (userRequested) room.manualUserRequestAt = null;
+  // started now, or the target is met — so none of them defer it. A blind start is
+  // the exception: the latch is what is keeping the unit running, and clearing it
+  // would stop the unit on the very next tick.
+  if (userRequested && !blindStartAllowed) room.manualUserRequestAt = null;
 
   if (decision === "stop") {
     room.lastTransitionAt = now;

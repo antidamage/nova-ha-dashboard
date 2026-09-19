@@ -29,6 +29,10 @@ export async function claimClimateControl(room: RoomId) {
   const state = roomState(room);
   state.owner = "nova";
   state.overrideReason = null;
+  // A mode the owner just chose is a request, and on the aircon it is what allows
+  // a cold unit to run long enough to report a temperature (§5.2). Manual's latch
+  // lives here rather than only on a target change.
+  state.manualUserRequestAt = Date.now();
   state.commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
   const instance = await instanceById(room);
   // Reset only this instance's own thermostat; the others are mid-cycle on
