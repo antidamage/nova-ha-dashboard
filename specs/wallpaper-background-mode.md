@@ -283,3 +283,91 @@ for landscape/portrait assets remains reachable while wallpaper mode is on.
   `e2e/experience-mode.spec.ts`'s `.fluid-background` count assertions have
   no existing fixture that uploads wallpaper assets and adding one is out of
   scope for this feature — the unit test covers the same logic more cheaply.
+
+## WebGL lifecycle (added 2026-09-19)
+
+Plan: session `9a2268fc`. Adeline, 2026-09-19: *"let's make it both work when
+required and stop when required."* Three defects were found in
+`app/components/avatar/fluid-background/FluidBackground.tsx`; all three are
+lifecycle, not branching — the shader/wallpaper/off switch in `Dashboard.tsx`
+and `ConfigPreviewBackground.tsx` was already correct.
+
+### 1. The draw loop must stop when the surface is not visible
+
+`draw()` rescheduled `requestAnimationFrame` unconditionally; the only pause
+was `arePageUpdatesPaused()` (the scroll-coalescing signal), which still kept
+a frame callback spinning. There was no `document.hidden` check anywhere in
+the file, so an occluded or hidden dashboard kept rendering the shader at
+30fps for a surface nobody could see. Observed on nocturnium as "switched on
+and rendering, just hidden in the background".
+
+Required behaviour:
+
+- On `visibilitychange` to hidden, `cancelAnimationFrame` and **do not
+  reschedule**. Zero GPU draw work while hidden.
+- **Keep the GL context, program, buffer and mosaic texture allocated.**
+  Resume must be instant, with no rebuild and no visible flash. Decided
+  against releasing the context on hide: on this amdgpu, restore is not
+  reliable enough to pay for the extra saving.
+- On `visibilitychange` back to visible, resume the loop and reset
+  `previousFrame` so the 30fps throttle does not skip the first frame.
+- The `startedAt` time origin is **not** reset on resume — the shader's time
+  uniform stays continuous, so the animation picks up where the clock is
+  rather than jumping back to its opening state.
+
+### 2. The GL context must be released on unmount
+
+Cleanup deleted the buffer and program but never released the context —
+`WEBGL_lose_context` appeared nowhere in the repository. Chromium caps live
+WebGL contexts per page and silently drops the oldest once the cap is passed,
+so every mount/unmount leaked one: toggling the background feature, switching
+wallpaper mode, and above all navigating between `/` and `/config`, which
+mounts a second `FluidBackground` (`ConfigPreviewBackground`) while the
+dashboard's is still tearing down.
+
+This is the likely cause of both reported symptoms: the background failing to
+draw when wanted, and — Adeline, 2026-09-19 — black-screen crashes
+"a lot of ... when I went to go to config".
+
+Required: the effect cleanup calls
+`gl.getExtension("WEBGL_lose_context")?.loseContext()` after deleting the
+buffer, program and texture. It is the last teardown step.
+
+### 3. Context loss must be survivable
+
+No `webglcontextlost` / `webglcontextrestored` handlers existed, so a GPU
+reset — which nocturnium's amdgpu does, see the `MODE2 reset` entries in its
+boot logs — left the canvas permanently blank. A `createProgram` throw was
+likewise terminal: it logged and returned, leaving a mounted empty canvas
+with no retry.
+
+Required:
+
+- `webglcontextlost` handler calls `preventDefault()` (without it the browser
+  will not fire a restore) and cancels the pending frame.
+- `webglcontextrestored` rebuilds the program, buffer and mosaic texture and
+  restarts the loop.
+- **Give up after `MAX_CONTEXT_RECOVERIES = 3` losses.** Past that the canvas
+  is unmounted for the rest of the session and the flat theme background
+  colour shows instead. A GPU that has dropped the context three times is
+  sick; retrying forever on it is how a soft fault becomes a hard one.
+- The recovery count is per mount, not global.
+
+### Scope
+
+All three apply to `FluidBackground` itself, so both call sites inherit them —
+the dashboard and the `/config` live preview behave identically (Adeline chose
+"same behaviour everywhere"). The config preview is where the leak accumulated
+fastest, so it is the more important of the two.
+
+### What "done" looks like
+
+- Hiding the dashboard tab drops the shader to zero `drawArrays` calls;
+  restoring it resumes within one frame with no flash and no re-initialisation.
+- Navigating `/` → `/config` → `/` repeatedly does not grow the live WebGL
+  context count; the context from each unmounted background is explicitly lost.
+- A forced context loss (via `WEBGL_lose_context.loseContext()` in devtools)
+  is recovered automatically; a fourth forced loss unmounts the canvas and
+  leaves the flat background colour rather than a black or frozen surface.
+- Background feature off renders the flat theme colour only — no grid, no
+  border rules, no scanlines (see `specs/experience-modes.md`).

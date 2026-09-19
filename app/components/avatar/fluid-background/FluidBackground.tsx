@@ -1,8 +1,11 @@
 "use client";
 
 // Sole owner of the fluid background's WebGL context and animation loop.
+// Lifecycle rules (specs/wallpaper-background-mode.md "WebGL lifecycle"):
+// the loop stops entirely while the page is hidden, the context is explicitly
+// released on unmount, and a lost context is rebuilt up to a fixed limit.
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { appliedThemeRgb, type DeviceTheme } from "../../accentColor";
 import { arePageUpdatesPaused } from "../../dashboard/pageUpdatePause";
 import {
@@ -14,7 +17,12 @@ import {
   resizeCanvas,
 } from "./gl-program";
 import { TARGET_DPR } from "./shaders";
-import type { FluidBackgroundDebug, FluidBackgroundDiagnostics, ProgramInfo } from "./types";
+import { reportDiagnosticsOnce } from "./diagnostics";
+import type { FluidBackgroundDebug, ProgramInfo } from "./types";
+
+// A GPU that has dropped the context this many times is sick; retrying past
+// that turns a soft fault into a hard one. Give up and show the flat colour.
+export const MAX_CONTEXT_RECOVERIES = 3;
 
 export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: FluidBackgroundDebug }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -23,10 +31,27 @@ export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: 
   // Captured once at mount — the standalone test page changes these via a full
   // reload, so they never need to react to prop changes mid-session.
   const debugRef = useRef(debug);
+  // Bumped by webglcontextrestored to re-run the effect and rebuild the GL
+  // resources from scratch. Also the recovery counter.
+  const [recoveries, setRecoveries] = useState(0);
+  const [surrendered, setSurrendered] = useState(false);
+
+  const onContextLost = useCallback((event: Event) => {
+    // Without preventDefault the browser never fires webglcontextrestored.
+    event.preventDefault();
+    setRecoveries((previous) => {
+      const next = previous + 1;
+      if (next > MAX_CONTEXT_RECOVERIES) {
+        console.error("[nova-dashboard] fluid background gave up after repeated WebGL context loss");
+        setSurrendered(true);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) {
+    if (!canvas || surrendered) {
       return;
     }
     const activeCanvas = canvas;
@@ -48,51 +73,14 @@ export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: 
 
     const { attribute, buffer, gl, program, uniforms } = info;
 
-    let diagnosticsReported = false;
-    const reportDiagnostics = () => {
-      if (diagnosticsReported) {
-        return;
-      }
-      diagnosticsReported = true;
-      const onDiagnostics = debugRef.current?.onDiagnostics;
-      if (!onDiagnostics) {
-        return;
-      }
-
-      const highpFmt = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
-      const fragmentHighpSupported = Boolean(highpFmt && highpFmt.precision > 0);
-      const activePrecision: "high" | "medium" = requestedPrecision === "medium"
-        ? "medium"
-        : requestedPrecision === "high"
-          ? "high"
-          : fragmentHighpSupported
-            ? "high"
-            : "medium";
-
-      const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
-      const renderer = rendererInfo
-        ? (gl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL) as string)
-        : (gl.getParameter(gl.RENDERER) as string | null);
-      const vendor = rendererInfo
-        ? (gl.getParameter(rendererInfo.UNMASKED_VENDOR_WEBGL) as string)
-        : (gl.getParameter(gl.VENDOR) as string | null);
-
-      onDiagnostics({
-        activePrecision,
-        requestedPrecision,
-        fragmentHighpSupported,
-        devicePixelRatio: window.devicePixelRatio || 1,
-        cssWidth: window.innerWidth,
-        cssHeight: window.innerHeight,
-        backingWidth: activeCanvas.width,
-        backingHeight: activeCanvas.height,
-        scaleCap,
-        maxBackingPixels,
-        maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
-        renderer: renderer ?? null,
-        vendor: vendor ?? null,
-      });
-    };
+    const reportDiagnostics = reportDiagnosticsOnce({
+      activeCanvas,
+      debugRef,
+      gl,
+      maxBackingPixels,
+      requestedPrecision,
+      scaleCap,
+    });
     let animationFrame = 0;
     let previousFrame = 0;
     let disposed = false;
@@ -140,9 +128,7 @@ export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: 
         clearMosaicTexture();
         mosaicTexture = nextTexture;
         mosaicTextureReady = true;
-        if (reducedMotion && !animationFrame) {
-          animationFrame = requestAnimationFrame(draw);
-        }
+        schedule();
       };
       image.onerror = () => {
         if (disposed || generation !== mosaicTextureGeneration) {
@@ -150,17 +136,26 @@ export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: 
         }
         mosaicTextureReady = false;
         console.info("[nova-dashboard] background texture unavailable", url);
-        if (reducedMotion && !animationFrame) {
-          animationFrame = requestAnimationFrame(draw);
-        }
+        schedule();
       };
       image.src = url;
     };
 
+    // The page being hidden is the one state where the loop stops outright
+    // rather than idling: a hidden surface must cost zero GPU draw work.
+    const isHidden = () => typeof document !== "undefined" && document.hidden;
+
+    function schedule() {
+      if (disposed || animationFrame || isHidden()) {
+        return;
+      }
+      animationFrame = requestAnimationFrame(draw);
+    }
+
     function draw(now: number) {
       animationFrame = 0;
       if (arePageUpdatesPaused()) {
-        if (!disposed) animationFrame = requestAnimationFrame(draw);
+        schedule();
         return;
       }
       const shouldDraw = reducedMotion || now - previousFrame >= 1000 / 30;
@@ -200,29 +195,59 @@ export function FluidBackground({ theme, debug }: { theme: DeviceTheme; debug?: 
         gl.drawArrays(gl.TRIANGLES, 0, 3);
       }
 
-      if (!reducedMotion && !disposed) {
-        animationFrame = requestAnimationFrame(draw);
+      if (!reducedMotion) {
+        schedule();
       }
     }
 
     const onResize = () => resizeCanvas(activeCanvas, gl, scaleCap, maxBackingPixels);
+    const onVisibility = () => {
+      if (isHidden()) {
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = 0;
+        }
+        return;
+      }
+      // Resume on the next frame rather than replaying the 30fps gate against
+      // a stale timestamp. startedAt is deliberately NOT reset, so the shader
+      // clock stays continuous instead of snapping back to its opening state.
+      previousFrame = 0;
+      schedule();
+    };
+    const onRestored = () => setRecoveries((previous) => previous + 1);
+
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
-    animationFrame = requestAnimationFrame(draw);
+    document.addEventListener("visibilitychange", onVisibility);
+    activeCanvas.addEventListener("webglcontextlost", onContextLost);
+    activeCanvas.addEventListener("webglcontextrestored", onRestored);
+    schedule();
 
     return () => {
       disposed = true;
       mosaicTextureGeneration += 1;
       window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      activeCanvas.removeEventListener("webglcontextlost", onContextLost);
+      activeCanvas.removeEventListener("webglcontextrestored", onRestored);
       if (animationFrame) {
         cancelAnimationFrame(animationFrame);
       }
       clearMosaicTexture();
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
+      // Chromium caps live WebGL contexts per page and silently drops the
+      // oldest once passed. Without this, every mount/unmount leaked one —
+      // /config mounts a second background while this one is tearing down.
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
-  }, []);
+  }, [onContextLost, recoveries, surrendered]);
+
+  if (surrendered) {
+    return null;
+  }
 
   return <canvas ref={canvasRef} aria-hidden="true" className="fluid-background" />;
 }

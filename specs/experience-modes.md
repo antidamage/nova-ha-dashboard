@@ -64,9 +64,15 @@ must declare its lite behavior.
   canvas loop. Pre-paint CSS hides the SSR markup (via `data-nova-lite` when
   fully lite, or `data-nova-no-orb` when only the orb is off). Gated on
   `useExperienceFeature("statusOrb")`.
-- **Fluid background**: `Dashboard.tsx` does not mount `FluidBackground`; the
-  `.dashboard-shell` static themed grid background remains, so the page is
-  never unthemed. Gated on `useExperienceFeature("background")`.
+- **Fluid background**: `Dashboard.tsx` does not mount `FluidBackground`, and
+  the shell drops to the **flat theme background colour** — `var(--cyber-bg)`
+  and nothing else. The `.dashboard-shell` grid gradients and both decorative
+  pseudo-elements (`::before` border rules, `::after` scanlines) are suppressed
+  too. Background off means *no background features at all*, not "the shader
+  off but the grid still on" (Adeline, 2026-09-19). Implemented by
+  `data-nova-no-background` on `<html>`, written by the same pre-paint path
+  that already writes `data-nova-no-orb`, so there is no flash of the grid
+  before React mounts. Gated on `useExperienceFeature("background")`.
 - **World map**: `panel-registry.tsx`'s `WorldMapPanel` renders a static
   "Map Offline" placeholder instead of maplibre — no WebGL map, satellite
   tiles, or radar animation — and `useRadarPreload` skips both the radar tile

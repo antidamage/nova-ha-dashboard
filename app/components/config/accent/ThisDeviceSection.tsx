@@ -61,7 +61,7 @@ export function ThisDeviceSection({
               detail={
                 experienceFeatures.background
                   ? "This device renders the animated WebGL background"
-                  : "Background off — the static themed grid remains for fast performance"
+                  : "Background off — the flat theme colour only, no grid or overlays"
               }
               onChange={(checked) => setExperienceFeature("background", checked)}
             />

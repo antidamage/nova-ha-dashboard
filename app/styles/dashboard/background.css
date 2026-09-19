@@ -1,0 +1,109 @@
+/* Dashboard background layers: the shell's own themed ground, the WebGL
+   fluid canvas, the wallpaper image layer, the decorative grid/scanline
+   pseudo-elements, and the z-index lift that keeps page content above them.
+   Split out of shell.css to stay inside the 10 KB cap
+   (specs/agent-token-footprint.md). See specs/experience-modes.md for the
+   background-off contract and specs/wallpaper-background-mode.md for the
+   shader-vs-wallpaper switch. */
+.dashboard-shell {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(rgb(var(--cyber-line-rgb) / 0.045) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      rgb(var(--cyber-line-rgb) / 0.045) 1px,
+      transparent 1px
+    ),
+    var(--cyber-bg);
+  background-size:
+    56px 56px,
+    56px 56px,
+    auto;
+}
+
+.fluid-background {
+  position: fixed !important;
+  inset: 0;
+  z-index: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  background: var(--cyber-bg);
+}
+
+.dashboard-wallpaper-background {
+  position: fixed !important;
+  inset: 0;
+  z-index: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  background-color: var(--cyber-bg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Background feature off: the flat theme colour and nothing else. No grid
+   gradients, no border rules, no scanlines (specs/experience-modes.md).
+   Written pre-paint by head-bootstrap-script.ts so the grid never flashes. */
+html[data-nova-no-background] .dashboard-shell {
+  background: var(--cyber-bg);
+}
+
+html[data-nova-no-background] .dashboard-shell::before,
+html[data-nova-no-background] .dashboard-shell::after {
+  content: none;
+}
+
+.dashboard-shell::before,
+.dashboard-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-shell::before {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0 6%,
+      rgb(var(--cyber-line-rgb) / 0.18) 6% calc(6% + 1px),
+      transparent calc(6% + 1px) 94%,
+      rgb(var(--cyber-line-rgb) / 0.18) 94% calc(94% + 1px),
+      transparent calc(94% + 1px)
+    ),
+    linear-gradient(
+      0deg,
+      transparent 0 7%,
+      rgb(var(--cyber-line-rgb) / 0.14) 7% calc(7% + 1px),
+      transparent calc(7% + 1px) 93%,
+      rgb(var(--cyber-line-rgb) / 0.14) 93% calc(93% + 1px),
+      transparent calc(93% + 1px)
+    );
+}
+
+.dashboard-shell::after {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 80px,
+      rgb(var(--cyber-cyan-rgb) / 0.1) 80px 81px,
+      transparent 81px 170px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 120px,
+      rgb(var(--cyber-line-rgb) / 0.12) 120px 121px,
+      transparent 121px 240px
+    );
+  opacity: 0.35;
+}
+
+.dashboard-shell > *:not(.fluid-background):not(.dashboard-wallpaper-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date) {
+  position: relative;
+  z-index: 1;
+}
