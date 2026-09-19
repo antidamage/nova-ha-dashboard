@@ -80,10 +80,17 @@ export function useAirconCommands({
   const rememberedHvacMode = preferences?.hvacMode;
   const rememberedMode: AirconMode | null =
     isAirconMode(rememberedHvacMode) && rememberedHvacMode !== "auto" ? rememberedHvacMode : null;
+  // A Manual or Auto room that has reached its target rests with the unit off,
+  // and the direction it is holding is still the one the user chose — so the
+  // Heat/Cool row keeps its light from the controller rather than going blank
+  // every time the compressor stops (Adeline, 2026-09-19).
+  const restingDirection = controlState?.direction ?? undefined;
   const observedMode: AirconMode | null =
     entity && isClimateEntityOn(entity)
       // Emulated Dry runs the unit in cool/fan_only; the mode is still Dry.
       ? controlState?.direction === "dry" ? "dry" : airconEntityMode(entity) ?? rememberedMode
+      : controlState && controlState.mode !== "off"
+      ? isAirconMode(restingDirection) ? restingDirection : rememberedMode
       : null;
 
   const resolvedPower = resolveCommandedState({

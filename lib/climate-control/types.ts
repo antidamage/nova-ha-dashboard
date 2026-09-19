@@ -10,6 +10,16 @@ export type Direction = "heat" | "cool" | "dry" | "fan_only";
 
 export type PersistedRoom = {
   owner: "nova" | "external";
+  /**
+   * Which of Auto / Manual / Off the owner last selected, durable across
+   * restarts. Adeline, 2026-09-19: the mode switch is hers and nobody else's.
+   * Both Auto and Manual switch the unit off at target, so the selection cannot
+   * be inferred from the unit's power — doing that cancelled Manual the moment
+   * its own thermostat rested the compressor. null means no selection has been
+   * recorded yet (a state file written before this field existed); see
+   * airconControlMode in mode-model.ts for how those are read.
+   */
+  mode: "auto" | "manual" | "off" | null;
   observedSignature: string | null;
   commandSettleUntil: number;
   actuatorWasAvailable: boolean | null;

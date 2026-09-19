@@ -1,0 +1,80 @@
+import { describe, expect, test } from "vitest";
+import { airconControlMode } from "./climate-control/mode-model";
+import { airconLegacyActionIntent } from "./climate-control/action-intent-model";
+
+/* The two pure pieces behind "the mode switch is the owner's" — see
+ * specs/aircon-auto-control.md §5. */
+
+const mode = (input: Partial<Parameters<typeof airconControlMode>[0]>) =>
+  airconControlMode({ storedMode: null, autoMode: false, manualDirection: null, unitOn: false, ...input });
+
+describe("airconControlMode", () => {
+  test("a stored Manual stands while the unit rests at target", () => {
+    expect(mode({ storedMode: "manual", unitOn: false })).toBe("manual");
+  });
+
+  test("a stored Off stands over a unit Home Assistant still reports as running", () => {
+    expect(mode({ storedMode: "off", unitOn: true })).toBe("off");
+  });
+
+  test("Auto in preferences wins over any stored mode", () => {
+    expect(mode({ storedMode: "manual", autoMode: true })).toBe("auto");
+  });
+
+  test("with nothing stored it falls back to the old inference", () => {
+    expect(mode({ manualDirection: "heat" })).toBe("manual");
+    expect(mode({ unitOn: true })).toBe("manual");
+    expect(mode({})).toBe("off");
+  });
+});
+
+const intent = (input: Partial<Parameters<typeof airconLegacyActionIntent>[0]>) =>
+  airconLegacyActionIntent({ service: "turn_on", storedMode: null, storedDirection: null, ...input });
+
+describe("airconLegacyActionIntent", () => {
+  test("choosing Heat by hand selects Manual and seats the direction", () => {
+    expect(intent({
+      service: "set_hvac_mode",
+      hvacMode: "heat",
+      remembered: { autoMode: false, hvacMode: "heat" },
+    })).toEqual({ mode: "manual", manualDirection: "heat" });
+  });
+
+  test("a bare set_hvac_mode from voice or MCP still seats the direction", () => {
+    expect(intent({ service: "set_hvac_mode", hvacMode: "cool" }))
+      .toEqual({ mode: "manual", manualDirection: "cool" });
+  });
+
+  test("arming Auto sends a set_hvac_mode that must not read as Manual", () => {
+    expect(intent({
+      service: "set_hvac_mode",
+      hvacMode: "heat",
+      remembered: { autoMode: true, hvacMode: "heat" },
+      storedDirection: "cool",
+    })).toEqual({ mode: "auto", manualDirection: null });
+  });
+
+  test("Auto's bare turn_on does not demote it to Manual", () => {
+    expect(intent({ service: "turn_on", storedMode: "auto" }).mode).toBeNull();
+  });
+
+  test("Auto resting the compressor at target is not the owner choosing Off", () => {
+    expect(intent({ service: "turn_off", remembered: { autoMode: true } }))
+      .toEqual({ mode: "auto", manualDirection: null });
+  });
+
+  test("a turn_off from anyone else is Off", () => {
+    expect(intent({ service: "turn_off", storedMode: "manual", storedDirection: "heat" }))
+      .toEqual({ mode: "off", manualDirection: null });
+  });
+
+  test("a fan or setpoint change carrying autoMode:false leaves Auto for Manual", () => {
+    expect(intent({ service: "set_fan_mode", remembered: { autoMode: false }, unitState: "heat" }))
+      .toEqual({ mode: "manual", manualDirection: "heat" });
+  });
+
+  test("a bare setpoint change says nothing about the mode", () => {
+    expect(intent({ service: "set_temperature", storedMode: "manual", storedDirection: "heat" }))
+      .toEqual({ mode: null, manualDirection: "heat" });
+  });
+});

@@ -10,6 +10,7 @@ const STATE_PATH = process.env.NOVA_CLIMATE_CONTROL_STATE ?? path.join(process.c
 export function defaultRoom(): PersistedRoom {
   return {
     owner: "nova",
+    mode: null,
     observedSignature: null,
     commandSettleUntil: 0,
     actuatorWasAvailable: null,

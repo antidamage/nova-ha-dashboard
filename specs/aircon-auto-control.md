@@ -216,11 +216,61 @@ memory. `resetForUserRequest` preserves it.
 
 ## 5. Manual mode
 
-`planManualAirconTick` has the same shape and the same defect: with the unit
-off it returns `hold` until the 10-minute off-dwell and the settling trend both
-agree, and it has no concept of a user-initiated target change at all. A target
-moved in Manual starts the unit on the same terms as Auto — §3.1 applies
-identically. Manual has no direction to reverse, so §3.3 does not arise.
+Manual is a thermostat, not a hand on the switch. `planManualAirconTick` runs
+the direction the owner chose: it starts the unit to reach the target and
+switches it off again on arrival, then picks it up when the room drifts past the
+1 °C resume band — the same guards as Auto, minus the direction choice.
+
+`planManualAirconTick` had the same defect Auto did: with the unit off it
+returned `hold` until the 10-minute off-dwell and the settling trend both agreed,
+and it had no concept of a user-initiated target change at all. A target moved in
+Manual now starts the unit on the same terms as Auto — §3.1 applies identically.
+Manual has no direction to reverse, so §3.3 does not arise.
+
+### 5.1 The mode switch is the owner's (Adeline, 2026-09-19)
+
+> "the auto/manual/mode toggle is a switch that the user sets, nobody else. if
+> it's set to manual then it has to stay on and continue running the manual
+> rules, which are to turn the air conditioner unit on as needed to heat or cool
+> as the user has dictated."
+
+Because Manual rests the unit at target, **the selected mode can never be
+inferred from the unit's power.** It used to be: `mode` came out as Manual only
+while the Gree reported itself on, or while a `manualDirection` happened to be
+remembered. So the first tick after Manual reached the target published
+`mode: "off"` and the card deselected itself — and on a room already at
+temperature, that was the tick right after she pressed Manual.
+
+The rules, all of them server-side (`lib/climate-control/`):
+
+- **The mode is stored, not derived.** `PersistedRoom.mode` holds Auto / Manual /
+  Off, durable across restarts and deploys. `airconControlMode`
+  (`mode-model.ts`) returns it; the old power-based inference survives only as
+  the fallback for a state file written before the field existed.
+- **A thermostat resting the compressor is not a mode change.** Manual's own stop
+  at target sets `restingNow`, which publishes `phase: "resting"` with the mode
+  untouched. `forcedOff` — the flag that publishes `mode: "off"` immediately — is
+  for `stopAndCancel` only, which genuinely does end the mode.
+- **Which actions change it** (`airconLegacyActionIntent`,
+  `action-intent-model.ts`): `remember.aircon.autoMode` is the explicit
+  statement and wins, because Auto arms itself with a `set_hvac_mode` that would
+  otherwise read as Manual and rests with a `turn_off` that would otherwise read
+  as Off. Failing that, a `set_hvac_mode` selects Manual (or Off for
+  `hvac_mode: "off"`), a bare `turn_on` selects Manual unless Auto is already
+  stored, and any other `turn_off` is Off.
+- **Any direction command seats the direction.** A bare `set_hvac_mode` from
+  voice, an automation or MCP carries no `remember`; it used to leave Manual with
+  no direction and so nothing to restart on.
+- **Off stays Off.** A stored Off outranks a unit Home Assistant still reports as
+  running — that is a `turn_off` the Gree has not acknowledged yet, not a mode.
+  Someone working the unit itself takes ownership away from Nova instead, which
+  the public state reports separately.
+- **The card follows.** `useAirconCommands` keeps the Heat/Cool light on the
+  controller's `direction` while the room rests, instead of blanking the mode row
+  every time the compressor stops.
+
+Only an expired sleep timer and the sensor fail-safe end the mode without the
+owner (§6) — both through `stopAndCancel`, both explainable afterwards.
 
 ## 6. Deliberately unchanged
 
@@ -249,7 +299,13 @@ identically. Manual has no direction to reverse, so §3.3 does not arise.
    next autonomous cycle observing the full guards again; the latch surviving a
    preferences round-trip; the latch expiring at 30 minutes; and the unchanged
    autonomous behaviour of §6.
-3. Live on the lounge unit: with the room below target and Auto resting inside
+3. Manual tests (`lib/climate-control-manual.test.ts`,
+   `lib/climate-control-mode-model.test.ts`) cover: a stop at target that stays
+   in Manual with phase `resting`; a room already at target resting without
+   deselecting Manual; the restart once the room drifts past the dwell; Manual
+   surviving a controller restart with the unit resting; Off staying off; the
+   sleep timer still ending the mode; Auto still resting as Auto.
+4. Live on the lounge unit: with the room below target and Auto resting inside
    the 10-minute dwell, raising the target puts `climate.c6780cad` into `heat`
    within roughly ten seconds, visible in HA history. Dropping the target below
    the reading while heating produces a single transition to `cool` with no

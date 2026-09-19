@@ -113,7 +113,7 @@ export async function tick() {
     // the only place the instance config is in hand.
     const transitionMeta = new Map<string, { title: string; target?: number }>();
 
-    for (const { unit, aircon, mode, direction, external, rawTemperature, forcedOff } of airconResults) {
+    for (const { unit, aircon, mode, direction, external, rawTemperature, forcedOff, restingNow } of airconResults) {
       const room = roomState(unit.id);
       const prefs = airconPreferencesFor(latest, unit.id);
       const snapshot = airconThermostatFor(unit.id).snapshot();
@@ -125,15 +125,19 @@ export async function tick() {
         // read before that turn_off, so trusting them here would report the
         // pre-stop direction/auto for a beat — a real HA stop that still reads
         // as internally driving. Report the stop immediately instead.
-        mode: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : (prefs?.autoMode ? "auto" : mode),
+        mode: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : mode,
+        // `restingNow` beats the HA snapshot both ways: it was read before this
+        // tick's own turn_off, so the unit still looks like it is driving, and
+        // the mode it rested is still selected.
         phase: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
-          : prefs?.autoMode && rawTemperature === null ? "grace"
-          : aircon && isClimateEntityOn(aircon) ? "driving" : prefs?.autoMode || mode === "manual" ? "resting" : "off",
+          : restingNow ? "resting"
+          : mode === "auto" && rawTemperature === null ? "grace"
+          : aircon && isClimateEntityOn(aircon) ? "driving" : mode === "off" ? "off" : "resting",
         direction,
         dryEmulatable: emulatesDry(unit, aircon),
         sensorAvailable: rawTemperature !== null,
         sensorReportedAt: stateReportTime(aircon),
-        sensorGraceEndsAt: prefs?.autoMode && rawTemperature === null && typeof pendingAt === "number"
+        sensorGraceEndsAt: mode === "auto" && rawTemperature === null && typeof pendingAt === "number"
           ? new Date(pendingAt + 2 * 60_000).toISOString() : null,
         actuatorAvailable: usable(aircon),
         overrideReason: room.overrideReason,

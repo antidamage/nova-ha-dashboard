@@ -14,6 +14,7 @@ import type { DashboardEntity, DashboardPreferences, HaState } from "../types";
 import { planManualAirconTick } from "../climate-control-policy";
 import { AIRCON_MIN_OFF_MS, AIRCON_SAME_DIRECTION_RESUME_DRIFT_C } from "./constants";
 import type { Direction } from "./types";
+import { airconControlMode } from "./mode-model";
 import { airconThermostatFor, roomState, samplesFor } from "./store";
 import {
   airconEntityFor,
@@ -47,6 +48,14 @@ export type AirconTickResult = {
    * tick's fresh HA states to catch up.
    */
   forcedOff: boolean;
+  /**
+   * The room's own thermostat just switched the unit off because it reached the
+   * target. Unlike `forcedOff` this is NOT a mode change: Auto and Manual both
+   * rest the compressor at target and pick it up again when the room drifts, so
+   * the selected mode stands and only the phase moves to "resting". Reporting
+   * this as "off" is what made Manual deselect itself (specs/aircon-auto-control.md §5).
+   */
+  restingNow: boolean;
 };
 
 export async function driveAircon(
@@ -69,13 +78,12 @@ export async function driveAircon(
   const rawTemperature = airconAutoMeasuredTemperature(aircon, now);
   noteSample(samples, rawTemperature);
   const filteredTemperature = median(samples);
-  const mode = prefs?.autoMode
-    ? "auto"
-    : room.manualDirection
-    ? "manual"
-    : aircon && isClimateEntityOn(aircon)
-    ? "manual"
-    : "off";
+  const mode = airconControlMode({
+    storedMode: room.mode,
+    autoMode: prefs?.autoMode,
+    manualDirection: room.manualDirection,
+    unitOn: Boolean(aircon && isClimateEntityOn(aircon)),
+  });
   const direction = mode === "manual" && room.manualDirection
     ? room.manualDirection
     : aircon && ["heat", "cool", "dry", "fan_only"].includes(aircon.state)
@@ -83,6 +91,7 @@ export async function driveAircon(
     : (prefs?.hvacMode as Direction | undefined) ?? null;
   const external = room.owner === "external";
   let forcedOff = false;
+  let restingNow = false;
 
   if (aircon && usable(aircon) && !external) {
     const offTimer = prefs?.offTimerEndsAt;
@@ -197,7 +206,10 @@ export async function driveAircon(
         room.settlingFromTemperature = rawTemperature;
         room.lastStopReason = "target-reached";
         await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
-        forcedOff = true;
+        // Manual stays selected and keeps running its rules; it will start the
+        // unit again when the room drifts past the resume band (Adeline,
+        // 2026-09-19). Only the phase changes.
+        restingNow = true;
       } else if (decision === "start") {
         room.lastTransitionAt = now;
         room.settlingFromTemperature = null;
@@ -212,6 +224,6 @@ export async function driveAircon(
     }
   }
 
-  return { unit, aircon, mode, direction, external, rawTemperature, forcedOff };
+  return { unit, aircon, mode, direction, external, rawTemperature, forcedOff, restingNow };
 }
 
