@@ -1,8 +1,4 @@
 import {
-  AIRCON_SENSOR_SETTLE_MS,
-  AIRCON_SENSOR_RESOLUTION_DEGREES,
-  AIRCON_SENSOR_TIME_CONSTANT_MS,
-  AIRCON_USER_REQUEST_MAX_AGE_MS,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
   isClimateEntityOn,
@@ -11,8 +7,7 @@ import { firstState, freshSensorValue, planDryEmulationTick } from "../aircon-dr
 import type { AirconInstance } from "../climate-instances";
 import { airconPreferencesFor } from "../climate-preferences";
 import type { DashboardEntity, DashboardPreferences, HaState } from "../types";
-import { planManualAirconTick } from "../climate-control-policy";
-import { AIRCON_MIN_OFF_MS, AIRCON_SAME_DIRECTION_RESUME_DRIFT_C } from "./constants";
+import { AIRCON_MIN_OFF_MS } from "./constants";
 import type { Direction } from "./types";
 import { airconControlMode } from "./mode-model";
 import { airconThermostatFor, roomState, samplesFor } from "./store";
@@ -23,11 +18,12 @@ import {
   emulatesDry,
   median,
   noteSample,
-  pruneStarts,
   rawAsDashboardEntity,
   usable,
 } from "./device-model";
+import { emitClimateControllerWrite } from "./attribution";
 import { executeActions, observeActuator, stopAndCancel } from "./commands";
+import { driveManualAircon } from "./drive-aircon-manual";
 
 /** What driving one instance produced, for building its public state after. */
 export type AirconTickResult = {
@@ -76,6 +72,12 @@ export async function driveAircon(
   observeActuator(unit, airconSignature(states, unit), now);
 
   const rawTemperature = airconAutoMeasuredTemperature(aircon, now);
+  // A reading older than AUTONOMOUS_CLIMATE_INPUT_MAX_AGE_MS (30 minutes) or an
+  // unavailable entity reads as null, and the median of five such readings is no
+  // better than the newest of them. Drop the buffer so the loops below see no
+  // reading at all rather than starting on half-hour-old data — we do not run
+  // heating or cooling blind (Adeline, 2026-09-19).
+  if (rawTemperature === null) samples.length = 0;
   noteSample(samples, rawTemperature);
   const filteredTemperature = median(samples);
   const mode = airconControlMode({
@@ -112,13 +114,26 @@ export async function driveAircon(
         turboSwitch: turbo,
       });
       room.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
-      if (plan.reason === "sensor-fail-safe-off") {
-        await stopAndCancel(unit, aircon.entity_id, "sensor-timeout");
-        forcedOff = true;
-      } else {
-        await executeActions(unit, plan.actions);
-        if (plan.reason === "reached-target") room.lastStopReason = "target-reached";
+      if (plan.reason === "sensor-pending" && plan.actions.length) {
+        // Nova is switching the owner's unit off with nobody asking, so it has to
+        // be explainable afterwards (specs/bedroom-heater-control-integrity.md §5).
+        // Auto stays armed: the mode is hers, and the loop resumes on its own when
+        // a reading returns.
+        room.lastStopReason = "sensor-unavailable";
+        emitClimateControllerWrite({
+          instanceId: unit.id,
+          reason: plan.reason,
+          modeBefore: "auto",
+          modeAfter: "auto",
+          target: prefs?.temperature,
+          sensorTemperature: null,
+          sensorAgeSeconds: null,
+          sensorUnusableReason: aircon.state === "off" ? "unit-off-no-reading" : "stale-or-non-numeric",
+        });
       }
+      await executeActions(unit, plan.actions);
+      if (plan.reason === "reached-target") room.lastStopReason = "target-reached";
+      if (plan.reason === "sensor-pending" && plan.actions.length) restingNow = true;
     } else if (
       mode === "manual" &&
       direction === "dry" &&
@@ -162,65 +177,16 @@ export async function driveAircon(
           : { entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: "fan_only" } }]);
       }
     } else if (mode === "manual" && (direction === "heat" || direction === "cool")) {
-      const target = prefs?.temperature ?? Number(aircon.attributes.temperature);
-      pruneStarts(room, now);
-      // Latch a target the owner moved, exactly as Auto does. Read as a number
-      // rather than against null so a state file written before this field
-      // existed does not read as a change on the first tick after a deploy.
-      if (Number.isFinite(target)) {
-        if (typeof room.manualTargetTemperature === "number" && room.manualTargetTemperature !== target) {
-          room.manualUserRequestAt = now;
-        }
-        room.manualTargetTemperature = target;
-      }
-      if (
-        typeof room.manualUserRequestAt === "number" &&
-        now - room.manualUserRequestAt >= AIRCON_USER_REQUEST_MAX_AGE_MS
-      ) {
-        room.manualUserRequestAt = null;
-      }
-      const userRequested = typeof room.manualUserRequestAt === "number";
-      const decision = Number.isFinite(target)
-        ? planManualAirconTick({
-            direction,
-            isOn: isClimateEntityOn(aircon),
-            userRequested,
-            rawTemperature,
-            filteredTemperature,
-            targetTemperature: target,
-            now,
-            lastTransitionAt: room.lastTransitionAt,
-            settlingFromTemperature: room.settlingFromTemperature,
-            minOffMs: AIRCON_MIN_OFF_MS,
-            sensorSettleMs: AIRCON_SENSOR_SETTLE_MS,
-            sensorResolutionC: AIRCON_SENSOR_RESOLUTION_DEGREES,
-            sensorTimeConstantMs: AIRCON_SENSOR_TIME_CONSTANT_MS,
-            resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
-          })
-        : "hold";
-      // Every outcome above is an answer once a request is latched — driving
-      // already, started now, or the target is met — so none of them defer it.
-      if (userRequested) room.manualUserRequestAt = null;
-      if (decision === "stop") {
-        room.lastTransitionAt = now;
-        room.settlingFromTemperature = rawTemperature;
-        room.lastStopReason = "target-reached";
-        await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
-        // Manual stays selected and keeps running its rules; it will start the
-        // unit again when the room drifts past the resume band (Adeline,
-        // 2026-09-19). Only the phase changes.
-        restingNow = true;
-      } else if (decision === "start") {
-        room.lastTransitionAt = now;
-        room.settlingFromTemperature = null;
-        room.recentStartsAt.push(now);
-        await executeActions(unit, [{
-          entityId: aircon.entity_id,
-          domain: "climate",
-          service: "set_hvac_mode",
-          data: { hvac_mode: direction },
-        }]);
-      }
+      restingNow = await driveManualAircon({
+        aircon,
+        direction,
+        filteredTemperature,
+        now,
+        prefs,
+        rawTemperature,
+        room,
+        unit,
+      });
     }
   }
 

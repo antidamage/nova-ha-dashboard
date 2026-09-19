@@ -59,20 +59,14 @@ export const AIRCON_AUTO_MODE_HOLD_MS = 30 * 60_000;
 export const AIRCON_AUTO_MIN_CYCLE_MS = 10 * 60_000;
 /** Retain one hour of start telemetry; it is not a start limit. */
 export const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
-/**
- * How long Auto is allowed to run with NO usable room-temperature reading
- * before it fails safe.
- *
- * The Gree's own thermistor (see airconAutoMeasuredTemperature) only pushes
- * fresh readings while the unit is actively running — while off, Home
- * Assistant reports the attribute stale or unavailable. Failing safe the
- * instant the reading is missing therefore deadlocks Auto: it can never turn
- * itself on, because turning on is the only thing that produces a reading.
- * This grace window lets Auto attempt to run first; only if the sensor is
- * STILL unusable after it does the unit switch off. The unified controller
- * then clears Auto, preventing an unattended retry until a later user action.
+/*
+ * There is no sensor grace window any more. Auto used to run blind for two
+ * minutes, guessing a direction, and then switch Auto itself off. Adeline,
+ * 2026-09-19: "we don't run heating or cooling blind. but we do leave the
+ * goddamn mode selected in case a temp value comes back." With no usable
+ * reading the unit stops and the loop waits, mode intact — see
+ * plan-model.ts and specs/aircon-auto-control.md §5.2.
  */
-export const AIRCON_AUTO_SENSOR_GRACE_MS = 2 * 60_000;
 
 /**
  * How long an unserved owner request stays latched.

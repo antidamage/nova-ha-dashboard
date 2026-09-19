@@ -18,7 +18,6 @@ const emptyPublicRoom = (): ClimateControlRoomState => ({
   direction: null,
   sensorAvailable: false,
   sensorReportedAt: null,
-  sensorGraceEndsAt: null,
   actuatorAvailable: false,
   overrideReason: null,
   lastStopReason: null,
@@ -117,7 +116,6 @@ export async function tick() {
       const room = roomState(unit.id);
       const prefs = airconPreferencesFor(latest, unit.id);
       const snapshot = airconThermostatFor(unit.id).snapshot();
-      const pendingAt = snapshot.sensorPendingSinceAt;
       transitionMeta.set(unit.id, { title: unit.title, target: prefs?.temperature });
       publicState[unit.id] = publicRoom({
         owner: room.owner,
@@ -130,15 +128,15 @@ export async function tick() {
         // tick's own turn_off, so the unit still looks like it is driving, and
         // the mode it rested is still selected.
         phase: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
+          // No usable reading, whichever mode is selected: the unit is off and the
+          // mode is waiting for one. "grace" reads as "waiting" to a module.
+          : mode !== "off" && rawTemperature === null ? "grace"
           : restingNow ? "resting"
-          : mode === "auto" && rawTemperature === null ? "grace"
           : aircon && isClimateEntityOn(aircon) ? "driving" : mode === "off" ? "off" : "resting",
         direction,
         dryEmulatable: emulatesDry(unit, aircon),
         sensorAvailable: rawTemperature !== null,
         sensorReportedAt: stateReportTime(aircon),
-        sensorGraceEndsAt: mode === "auto" && rawTemperature === null && typeof pendingAt === "number"
-          ? new Date(pendingAt + 2 * 60_000).toISOString() : null,
         actuatorAvailable: usable(aircon),
         overrideReason: room.overrideReason,
         lastStopReason: room.lastStopReason,
@@ -150,7 +148,6 @@ export async function tick() {
 
     for (const { instance, heater, sensor, mode, sensorAvailable } of heaterResults) {
       const room = roomState(instance.id);
-      const pendingAt = heaterThermostatFor(instance.id).snapshot().sensorPendingSinceAt;
       transitionMeta.set(instance.id, {
         title: instance.title,
         target: heaterPreferencesFor(latest, instance.id)?.temperature,
@@ -164,8 +161,6 @@ export async function tick() {
         direction: heater?.state === "on" ? "heat" : null,
         sensorAvailable,
         sensorReportedAt: stateReportTime(sensor),
-        sensorGraceEndsAt: mode === "auto" && !sensorAvailable && pendingAt !== null
-          ? new Date(pendingAt + 2 * 60_000).toISOString() : null,
         actuatorAvailable: usable(heater),
         overrideReason: room.overrideReason,
         lastStopReason: room.lastStopReason,

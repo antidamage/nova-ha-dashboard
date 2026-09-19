@@ -191,8 +191,7 @@ nothing more.
    `resting` where the error is zero.
 3. `unsupported-direction` — the unit cannot do what was asked, so waiting
    changes nothing.
-4. `sensor-fail-safe-off` — Auto is being cleared entirely.
-5. Expiry: `AIRCON_USER_REQUEST_MAX_AGE_MS` = 30 minutes. A request that could
+4. Expiry: `AIRCON_USER_REQUEST_MAX_AGE_MS` = 30 minutes. A request that could
    not be served in half an hour (the entity was unavailable, or ownership was
    external) must not fire later against a room that has since moved on.
 
@@ -210,9 +209,11 @@ memory. `resetForUserRequest` preserves it.
 
 - treats any non-zero error as needing to drive (`absDelta > 0`);
 - skips `mode-hold`, `sensor-settling-hold` and `min-cycle-hold`;
-- skips the equivalent `holdBlocked` test in the sensor-grace branch, so a
-  blind attempt is not deferred either;
 - reverses directly while running, per §3.3.
+
+A latch is **not** consumed by a tick with no usable reading (§5.2): the request
+survives the outage and is served as soon as a reading returns, within its
+30-minute expiry.
 
 ## 5. Manual mode
 
@@ -272,14 +273,53 @@ The rules, all of them server-side (`lib/climate-control/`):
 Only an expired sleep timer and the sensor fail-safe end the mode without the
 owner (§6) — both through `stopAndCancel`, both explainable afterwards.
 
+### 5.2 No blind running, and no fail-safe that cancels the mode
+
+> "we don't run heating or cooling blind. but we do leave the goddamn mode
+> selected in case a temp value comes back." — Adeline, 2026-09-19
+
+A usable reading is one that passes `autonomousClimateInputIsUsable`: a real
+number, from an entity that is not `unavailable`, reported within
+`AUTONOMOUS_CLIMATE_INPUT_MAX_AGE_MS` (30 minutes). With no such reading there is
+no direction to choose and nothing to stop at, so:
+
+- **The unit switches off.** Immediately, on the tick the reading goes — not after
+  a grace window, and never on a guessed direction. `driveAircon` also drops the
+  median buffer when the raw reading is null, so the filtered value cannot keep a
+  start alive on half-hour-old data. Manual stops through the same rule
+  (`planManualAirconTick` returns `stop` while running with no raw reading).
+- **The mode stays selected.** The stop rides out on `offAutoActions`, which
+  carries `autoMode: true`; Manual's stored mode is untouched. The public state
+  reads `phase: "grace"` — waiting — with `lastStopReason: "sensor-unavailable"`,
+  and Nova's unasked-for stop is recorded through `emitClimateControllerWrite`
+  (`specs/bedroom-heater-control-integrity.md` §5).
+- **It waits, it does not retry.** No action at all while the reading is missing,
+  however long that lasts, so the loop can sit there indefinitely without
+  touching the unit.
+- **A returning reading resumes at once**, subject to the compressor dwell and
+  the direction hold — but *not* the 30-minute settling hold, which exists for the
+  enclosed thermistor's post-stop transient and has nothing to extrapolate across
+  an outage (`sensorJustReturned` in `plan-model.ts`).
+
+What this replaces: `AIRCON_AUTO_SENSOR_GRACE_MS` / `BEDROOM_HEATER_SENSOR_GRACE_MS`
+(2 minutes of blind running, then `sensor-fail-safe-off`, with the controller
+clearing Auto through `stopAndCancel`). Both constants and that reason are gone;
+so is the `sensorGraceEndsAt` field, since the wait has no deadline. The earlier
+rationale — that the Gree only reports a temperature while running, so Auto had to
+run blind to self-start — is not worth cancelling her mode for: the unit reports a
+fresh `current_temperature` while off in practice, and if it ever stops, the answer
+is a room sensor, not a guess.
+
+The same rule applies to the bedroom heater: `planBedroomHeaterTick` switches the
+element off and holds with Auto still armed.
+
 ## 6. Deliberately unchanged
 
 - **Stops are never delayed.** No guard in this file may be the reason the unit
   keeps running. Heat stops at or above target, cool at or below, immediately,
   on the raw reading.
-- **The sensor fail-safe.** Auto may run blind for `AIRCON_AUTO_SENSOR_GRACE_MS`
-  (2 minutes); after that the unit switches off and Auto is cleared, requiring a
-  later user action. It does not retry forever.
+- **Stops are not rate-limited.** No guard may delay switching the unit off,
+  including the stop for a missing sensor (§5.2).
 - **The median filter.** Starts and direction selection use the median of the
   five most recent fresh readings; stopping uses the raw value.
 - **Autonomous guard values.** 10-minute dwell, 30-minute settling, 10-minute
@@ -322,6 +362,6 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2.
   Above target + 3 % it runs `cool` at the lowest fan speed with a setpoint 1 °C
   below room temperature, never below the device minimum. At or below target it
   switches to `fan_only`, or off if that is unsupported. It uses the same minimum
-  dwell and rate limit as Auto. Stale sensors (older than the Auto grace window)
-  hold it in its current state.
+  dwell and rate limit as Auto. Stale sensors (older than
+  `AUTONOMOUS_CLIMATE_INPUT_MAX_AGE_MS`) hold it in its current state.
 - A device with native Dry simply gets `dry`.

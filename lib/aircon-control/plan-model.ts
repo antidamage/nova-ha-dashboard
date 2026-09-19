@@ -4,7 +4,6 @@ import {
   AIRCON_AUTO_MIN_CYCLE_MS,
   AIRCON_AUTO_MODE_HOLD_MS,
   AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES,
-  AIRCON_AUTO_SENSOR_GRACE_MS,
   AIRCON_SENSOR_RESOLUTION_DEGREES,
   AIRCON_SENSOR_SETTLE_MS,
   AIRCON_SENSOR_TIME_CONSTANT_MS,
@@ -73,88 +72,37 @@ export function planAirconAutoTick({
   const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
 
   if (currentTemperature === null) {
-    // pendingSinceAt tracks when Auto FIRST started running blind. A reopened
-    // cycle (user changed the target, or just pressed Auto) gets a fresh grace
-    // window rather than inheriting a clock that may already be near expiry.
-    const pendingSinceAt = reopened ? now : (currentState.sensorPendingSinceAt ?? now);
-    const elapsedMs = now - pendingSinceAt;
-    const pendingBase = autoPlanState(currentState, {
+    // We do not run heating or cooling blind (Adeline, 2026-09-19: "we don't run
+    // heating or cooling blind. but we do leave the goddamn mode selected in case
+    // a temp value comes back"). With no usable reading there is no direction to
+    // choose and nothing to stop at, so the unit switches off and the loop waits.
+    //
+    // What used to happen instead: Auto ran blind for a two-minute grace window,
+    // guessing a direction, and then "failed safe" by switching Auto itself off —
+    // which needed a human to notice and re-arm it.
+    //
+    // The MODE STAYS SELECTED. offAutoActions carries autoMode:true and yields no
+    // actions at all once the unit is already off, so this is idempotent: the loop
+    // sits here for as long as the sensor is gone and picks the room up by itself
+    // the moment a reading comes back. The owner's request latch is deliberately
+    // NOT consumed — a target moved while the sensor was missing is served as soon
+    // as one arrives (§4).
+    const stopping = isClimateEntityOn(entity);
+    const cycle = autoPlanState(currentState, {
       recentStartsAt,
       lastTargetTemperature: targetTemperature,
+      // When the reading went missing, for the public state. Kept, not cleared:
+      // nothing expires off the back of it any more.
+      sensorPendingSinceAt: reopened ? now : (currentState.sensorPendingSinceAt ?? now),
+      // Only an actual stop moves the dwell clock. Stamping it every blind tick
+      // would push the next start out indefinitely once a reading returned.
+      ...(stopping ? { lastTransitionAt: now, settlingFromTemperature: null } : {}),
     });
 
-    if (elapsedMs >= AIRCON_AUTO_SENSOR_GRACE_MS) {
-      // Ran blind for the whole grace window and still no usable reading. The
-      // planner emits the safe stop; the unified controller clears Auto.
-      const cycle = autoPlanState(pendingBase, {
-        ...served,
-        sensorPendingSinceAt: null,
-        lastTransitionAt: now,
-        settlingFromTemperature: currentTemperature,
-      });
-      return {
-        actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
-        nextState: cycle,
-        reason: "sensor-fail-safe-off",
-      };
-    }
-
-    // Still inside the grace window: try to run rather than sit off waiting for
-    // a reading that (per airconAutoMeasuredTemperature) only arrives once the
-    // unit is actually running. Without a delta to compute a direction from,
-    // drive whichever direction is already running, or failing that the
-    // user's selected Heat/Cool — never guess between them.
-    const pendingState = autoPlanState(pendingBase, { sensorPendingSinceAt: pendingSinceAt });
-    const runningNow = drivingMode(entity);
-    const attemptMode: ActiveAirconMode | undefined =
-      runningNow ?? (selectedMode === "heat" || selectedMode === "cool" ? selectedMode : undefined);
-
-    if (!attemptMode || !airconSupportsHvacMode(entity, attemptMode) || runningNow) {
-      // Nothing safe to try (no direction, or unsupported), or already trying —
-      // just let the clock run out.
-      return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
-    }
-
-    // Respect the hardware guards even for a blind attempt, so a sensor that
-    // flaps between missing and present cannot short-cycle the compressor. An
-    // outstanding owner request is not the sensor, so it is not held.
-    const holdBlocked =
-      !reopened &&
-      ((currentState.lastMode &&
-        currentState.lastMode !== attemptMode &&
-        currentState.lastModeAt !== null &&
-        now - currentState.lastModeAt < AIRCON_AUTO_MODE_HOLD_MS) ||
-        (currentState.lastTransitionAt !== null && now - currentState.lastTransitionAt < AIRCON_AUTO_MIN_CYCLE_MS));
-
-    if (holdBlocked) {
-      return { actions: [], nextState: pendingState, reason: "sensor-pending", wantedMode: attemptMode };
-    }
-
-    const modeChanged = currentState.lastMode !== attemptMode;
-    const cycle: AirconAutoState = {
-      ...pendingState,
-      ...served,
-      lastMode: attemptMode,
-      lastModeAt: modeChanged ? now : (currentState.lastModeAt ?? now),
-      lastTransitionAt: now,
-      recentStartsAt: [...recentStartsAt, now],
-      settlingFromTemperature: null,
-    };
-
     return {
-      actions: activeAutoActions({
-        cycle,
-        desiredMode: attemptMode,
-        entity,
-        fanStep: "medium",
-        forceRemember,
-        quietSwitch,
-        targetTemperature,
-        turboSwitch,
-      }),
+      actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
       nextState: cycle,
       reason: "sensor-pending",
-      wantedMode: attemptMode,
     };
   }
 
@@ -168,6 +116,15 @@ export function planAirconAutoTick({
     lastTargetTemperature: targetTemperature,
     sensorPendingSinceAt: null,
   };
+  /**
+   * The sensor outage ended on this tick. The settling hold below exists for the
+   * enclosed thermistor's post-stop transient; across an outage there is no
+   * transient to extrapolate (the stop was the sensor going, not the room
+   * arriving) and the reading that just returned is a fresh, trusted input. So
+   * that hold does not apply — the compressor dwell and the direction hold still
+   * do, and they are what protect the hardware.
+   */
+  const sensorJustReturned = currentState.sensorPendingSinceAt !== null;
 
   // A person can deliberately move the target across the measured room
   // temperature to swap heating and cooling. Do that directly: stopping first
@@ -342,6 +299,7 @@ export function planAirconAutoTick({
   // unmet in the SAME direction. Ambiguous traces wait the full 30 minutes.
   if (
     !reopened &&
+    !sensorJustReturned &&
     currentState.lastTransitionAt !== null &&
     settlingElapsedMs < AIRCON_SENSOR_SETTLE_MS &&
     !sameDirectionTrendSupportsRestart

@@ -189,6 +189,11 @@ export function planManualAirconTick(input: {
     (input.direction === "heat"
       ? input.rawTemperature >= input.targetTemperature
       : input.rawTemperature <= input.targetTemperature);
+  // No fresh reading: nothing says when to stop, so do not keep running on a
+  // guess. The unit switches off and Manual stays selected, waiting for a reading
+  // (Adeline, 2026-09-19: "we don't run heating or cooling blind. but we do leave
+  // the goddamn mode selected in case a temp value comes back").
+  if (input.rawTemperature === null && input.isOn) return "stop" as const;
   if (input.isOn) return reachedTarget ? "stop" as const : "hold" as const;
   if (input.filteredTemperature === null) return "hold" as const;
   if (input.userRequested) {

@@ -38,36 +38,24 @@ export function planBedroomHeaterTick(input: BedroomHeaterPlanInput): BedroomHea
   const active = state;
 
   if (input.currentTemperature === null) {
-    const pendingSinceAt = active.sensorPendingSinceAt ?? now;
-    const elapsedMs = now - pendingSinceAt;
-    const minCycleElapsed =
-      active.lastTransitionAt === null || now - active.lastTransitionAt >= BEDROOM_HEATER_MIN_CYCLE_MS;
-
-    if (elapsedMs >= BEDROOM_HEATER_SENSOR_GRACE_MS) {
-      // Ran blind for the whole grace window and still no usable reading:
-      // switch off (if on). The unified controller also clears Auto.
-      return {
-        actions: input.isOn ? [turnOff(entityId)] : [],
-        nextState: {
-          ...createInitialBedroomHeaterAutoState(),
-          lastTransitionAt: input.isOn ? now : active.lastTransitionAt,
-          sensorPendingSinceAt: null,
-        },
-        reason: "sensor-fail-safe-off",
-      };
-    }
-
-    // Still inside the grace window: try heating rather than sit off waiting
-    // for a reading that may simply be slow to populate. Heat-only, so there
-    // is only one direction to attempt. Still respects the compressor^H^H
-    // relay's minimum dwell so a flapping sensor cannot short-cycle it.
-    const pendingState: BedroomHeaterAutoState = { ...active, sensorPendingSinceAt: pendingSinceAt };
-    if (input.isOn || !minCycleElapsed) {
-      return { actions: [], nextState: pendingState, reason: "sensor-pending" };
-    }
+    // We do not heat blind (Adeline, 2026-09-19: "we don't run heating or cooling
+    // blind. but we do leave the goddamn mode selected in case a temp value comes
+    // back"). With no usable room reading there is nothing to aim at, so the
+    // element switches off and Auto waits — it used to heat on a guess for two
+    // minutes and then switch Auto itself off, which needed a human to re-arm.
+    //
+    // Idempotent: no actions once the heater is already off, so the loop can sit
+    // here indefinitely and pick the room up the moment a reading returns.
+    const pendingState: BedroomHeaterAutoState = {
+      ...active,
+      // When the reading went missing, for the public state. Nothing expires off
+      // the back of it, and only an actual stop moves the dwell clock.
+      sensorPendingSinceAt: active.sensorPendingSinceAt ?? now,
+      ...(input.isOn ? { lastTransitionAt: now } : {}),
+    };
     return {
-      actions: [turnOn(entityId)],
-      nextState: { ...pendingState, lastTransitionAt: now },
+      actions: input.isOn ? [turnOff(entityId)] : [],
+      nextState: pendingState,
       reason: "sensor-pending",
     };
   }
