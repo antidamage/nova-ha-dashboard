@@ -1,3 +1,4 @@
+import { ampControlledEntityIds } from "./amp-power-control";
 import { readDashboardConfigSync } from "./dashboard-config";
 import { callService, haRest } from "./ha";
 import type { AlwaysOnMeter } from "./config-schema";
@@ -47,14 +48,24 @@ function readMeters(): AlwaysOnMeter[] {
  * Every known entity id for a meter is considered, because a Tuya device that
  * is re-paired or moves between the LAN and cloud twin answers on a different
  * id (see lib/ha/twins.ts). Whichever ids are present and `off` get restored.
+ *
+ * `ownedElsewhere` is the one exception Adeline asked for: while the amp
+ * controller is holding the floating meter's plug, that plug is allowed to be
+ * off, because off then means the amp is off (specs/amp-appletv-power.md §5).
+ * The set is empty whenever that controller is inert, which is every
+ * arrangement but the one she asked for.
  */
 export function meterRestoreActions(
   meters: AlwaysOnMeter[],
   statesById: Map<string, HaState>,
+  ownedElsewhere: ReadonlySet<string> = new Set(),
 ): MeterGuardAction[] {
   const actions: MeterGuardAction[] = [];
   for (const meter of meters) {
     for (const entityId of meter.switchEntityIds) {
+      if (ownedElsewhere.has(entityId)) {
+        continue;
+      }
       const state = statesById.get(entityId);
       if (state?.state === "off") {
         actions.push({ entityId, meterId: meter.id });
@@ -83,7 +94,7 @@ async function guardTick() {
   }
 
   const statesById = new Map(states.map((state) => [state.entity_id, state]));
-  const actions = meterRestoreActions(meters, statesById);
+  const actions = meterRestoreActions(meters, statesById, ampControlledEntityIds());
   const offNow = new Set(actions.map((action) => action.entityId));
   for (const entityId of loggedOff) {
     if (!offNow.has(entityId)) {

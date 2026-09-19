@@ -1,15 +1,17 @@
 "use client";
 
-import { CookingPot, Monitor, Plug, Tv, WashingMachine } from "lucide-react";
+import { AudioLines, CookingPot, Monitor, Plug, Tv, WashingMachine } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { PowerFloatingMeterSummary } from "../../../../lib/power";
 import type { FloatingMeterCategoryReading } from "../../../../lib/power/floating-meter";
 import { ConfigSelect } from "../../ConfigSelect";
+import { ConfirmDialog } from "../../ConfirmDialog";
 import { classNames } from "../shared";
 import { formatWatts } from "./meters-model";
 
 const CATEGORY_ICONS: Record<FloatingMeterCategoryReading["icon"], ComponentType<{ className?: string }>> = {
+  amp: AudioLines,
   computers: Monitor,
   entertainment: Tv,
   kitchen: CookingPot,
@@ -27,6 +29,9 @@ const CONFIDENCE_LABEL: Record<FloatingMeterCategoryReading["confidence"], strin
 
 export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSummary }) {
   const [pending, setPending] = useState<string | null>(null);
+  /** The category a tap has chosen but not yet confirmed (specs/amp-appletv-power.md §6). */
+  const [proposed, setProposed] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   // Drop the optimistic choice as soon as the server reports it, so a failed
   // move falls back to the truth rather than sticking on screen.
@@ -52,18 +57,52 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
     [summary.categories],
   );
 
-  const move = async (categoryId: string) => {
-    setPending(categoryId);
+  const labelOf = (categoryId: string | null) =>
+    summary.categories.find((category) => category.id === categoryId)?.label ?? "nothing";
+
+  // The category is server state describing where a physical plug is, not a
+  // preference: a mis-tap teaches the model one group's draw against another
+  // group's name, and a mis-tap onto the amp hands the Apple TV authority over
+  // a plug feeding something else. So nothing is sent until it is confirmed.
+  const propose = (categoryId: string) => {
+    if (categoryId !== activeId) {
+      setProposed(categoryId);
+    }
+  };
+
+  const move = async () => {
+    const categoryId = proposed;
+    if (!categoryId) {
+      return;
+    }
+    setBusy(true);
     try {
       await fetch("/api/power/floating-meter", {
         body: JSON.stringify({ categoryId }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
+      setPending(categoryId);
     } catch {
       setPending(null);
+    } finally {
+      setBusy(false);
+      setProposed(null);
     }
   };
+
+  const confirmCopy = proposed
+    ? {
+        stages: [
+          {
+            title: "Move the floating meter?",
+            body: `The meter is measuring ${labelOf(activeId)}. Moving it to ${labelOf(proposed)} folds what it has learned into ${labelOf(activeId)} and starts measuring ${labelOf(proposed)}. Only move it if you have physically moved the plug.`,
+            confirmLabel: "Move the meter",
+          },
+        ],
+        cancelLabel: "Cancel",
+      }
+    : null;
 
   return (
     <section className="power-meter-card border border-neutral-700 bg-neutral-950/70 p-4">
@@ -74,7 +113,7 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
 
       <ConfigSelect
         ariaLabel="What the floating meter is measuring"
-        onChange={move}
+        onChange={propose}
         options={options}
         value={activeId}
       />
@@ -106,6 +145,14 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
           );
         })}
       </div>
+
+      <ConfirmDialog
+        busy={busy}
+        copy={confirmCopy}
+        onCancel={() => setProposed(null)}
+        onConfirm={move}
+        open={proposed !== null}
+      />
     </section>
   );
 }

@@ -162,6 +162,19 @@ async function setFloatingMeterCategoryUnlocked(categoryId: string) {
   return categoryId;
 }
 
+/**
+ * Which group the meter is on, read from disk. The amp controller asks this on
+ * every tick: it is inert unless the answer is its own category
+ * (specs/amp-appletv-power.md §4.2).
+ */
+export async function readActiveFloatingCategoryId() {
+  if (!powerConfig().floatingMeter) {
+    return null;
+  }
+  const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
+  return activeFloatingCategoryId(persisted.floatingMeter);
+}
+
 export function buildFloatingMeterSummary(
   state: FloatingMeterState | undefined,
   now: Date,

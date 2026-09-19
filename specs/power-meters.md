@@ -233,7 +233,10 @@ and from the modelled daily base:
 - **Computers** suppresses `nova_aio`. Iridium is Nova's host; its always-on
   draw is what `novaAioAverageWatts` models.
 - **Home Entertainment** suppresses nothing. Nothing in that group — kiosk, TV,
-  amps, network gear — is a modelled base load today.
+  amps, network gear — is a modelled base load today. Since 2026-09-19 the amps
+  are their own category; see [amp-appletv-power.md](amp-appletv-power.md),
+  which also carries the one exception to §1 above — the always-on guard stands
+  down on this plug while, and only while, that category is selected.
 - The **water heater** and **desktop PC** are never suppressed. Neither is on a
   floating-meter group; Adeline's desk machine is not one of Iridium, Indium or
   Ununhexium.

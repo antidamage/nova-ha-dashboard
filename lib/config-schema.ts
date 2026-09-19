@@ -8,6 +8,7 @@ export type { ZoneLightEvent, ZoneLightEventTime } from "./config-schema/lightin
 
 export type {
   AlwaysOnMeter,
+  AmpPowerControlConfig,
   FloatingMeterCategory,
   FloatingMeterConfig,
   HouseholdPerson,

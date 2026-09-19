@@ -8,6 +8,7 @@ import { DoorbellConfigSchema } from "./doorbell";
 import { LightingEntityPresetSchema, LightingIntensityThresholdSchema, ZoneLightEventSchema, ZoneLightRuleSchema } from "./lighting";
 import {
   AlwaysOnMeterSchema,
+  AmpPowerControlSchema,
   FloatingMeterConfigSchema,
   HouseholdPersonSchema,
   PowerAccountUsagePointSchema,
@@ -459,6 +460,9 @@ export const DashboardConfigSchema = z.object({
     // one at a time and learning what each group draws. Absent by default —
     // most homes do not have one. See specs/power-meters.md §3.
     floatingMeter: FloatingMeterConfigSchema.optional(),
+    // Switch the floating meter's plug with an Apple TV, while and only while
+    // that plug is measuring the amp. See specs/amp-appletv-power.md.
+    ampPowerControl: AmpPowerControlSchema.optional(),
     // A metering plug on a washing machine, with cycle detection so a wash can
     // be attributed to a person. See specs/power-meters.md §4.
     washingMachine: WashingMachineConfigSchema.optional(),

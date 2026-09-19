@@ -37,7 +37,7 @@ export type {
   PowerRatePoint,
   PowerWashingMachineSummary,
 } from "./power/types";
-export { setFloatingMeterCategory } from "./power/meters";
+export { readActiveFloatingCategoryId, setFloatingMeterCategory } from "./power/meters";
 export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle } from "./power/washing";
 export { reattributeFloatingMeterHistory, rebuildWashingMachineHistory } from "./power/history-repair";
 export { ensurePowerMonitorStarted, sampleMetersNow, samplePowerNow } from "./power/sampling";
