@@ -101,7 +101,61 @@ Required behaviour:
 - A save is only ever sent as a direct consequence of a user gesture in the
   foreground.
 
-## 4. Every heater write is attributable
+## 4. No preference write without a user gesture
+
+**Decision (Adeline, 2026-09-19): "don't let default html values be sent to the
+server. no user interaction was recorded so why would it do anything with it
+besides wait?"**
+
+This comes from a second, quieter version of the same incident: Adeline
+reported the bedroom target repeatedly resetting itself to **19**, and the
+aircon doing it too.
+
+### What was happening
+
+Three values collided:
+
+| value | where | number |
+|---|---|---|
+| Heater target default | `BEDROOM_HEATER_DEFAULT_TARGET_C` | 18 |
+| Knob floor | `preferences.climateTargetRange.min` (Adeline's setting) | 19 |
+| What got written | — | 19 |
+
+`useBedroomHeaterCommands` falls back to the **18** default whenever
+`preferences` is absent — which is every render before preferences have loaded,
+and every render after a preferences fetch fails. `useClampTargetIntoRange` then
+saw a target of 18 sitting below a floor of 19, concluded it was out of range,
+and **POSTed 19 to the server** — destroying the real stored target.
+
+It is visible in `data/history/preferences/log.jsonl` as bare
+`/bedroomHeater/temperature -> 19` writes with no adjacent user activity, and on
+the aircon as `/aircon/temperature -> 19` (2026-09-18T05:22Z), because
+`AirconKnob` shares the hook.
+
+### Required behaviour
+
+- **A client may not write a preference that no user gesture produced.** Mount,
+  re-render, a range change, a preferences load or a failed preferences load are
+  none of them user input. The rule is not specific to clamping or to the
+  heater; it governs every climate control write.
+- **Out-of-range is a display concern, not a correction to persist.** A stored
+  target below the floor or above the ceiling is shown clamped to the nearest
+  edge. The stored value is left exactly as it is until the user moves the knob,
+  at which point the value they land on is written normally.
+- A default is **never** a value to send. `BEDROOM_HEATER_DEFAULT_TARGET_C` is
+  what the card *renders* with no preference; it is not a target the user chose,
+  and it must never reach the server.
+- The rule holds even when the default and the floor are made consistent.
+  Aligning the two numbers would hide this instance and leave the mechanism
+  live for the next floor Adeline sets, so the numbers are not the fix.
+
+### Not in scope
+
+Adeline's floor of 19 and the default of 18 both stay as they are. This section
+changes who may write, not what the values are.
+
+
+## 5. Every heater write is attributable
 
 **Decision (Adeline, 2026-08-25): log route, caller and payload.**
 
@@ -145,7 +199,35 @@ The mechanism is unchanged and still `callerAttribution` plus
 `emitDashboardEvent`; the routes now call one shared `attributeControl` helper
 rather than each assembling the detail themselves.
 
-## 5. A generic switch toggle may not arm Auto
+### The controller's own writes, 2026-09-19
+
+**Decision (Adeline, 2026-09-19): log every write with its reason.**
+
+Route attribution answers "which caller", and by construction says nothing about
+the writes that no caller made. The unified climate controller changes `mode`
+and drives the relay on its own — sensor fail-safe, sleep-timer expiry,
+thermostat transitions — and those paths recorded **nothing**. Investigating the
+2026-09-19 report hit exactly that wall: whether the sensor fail-safe had fired
+in the preceding days was unanswerable from the logs, the same gap §1 was
+written about.
+
+Every autonomous write must emit an event carrying:
+
+- the instance id and the route-equivalent origin `climate-controller`,
+- the **reason**, as the controller's own vocabulary — `sensor-timeout`,
+  `timer-expired`, `nova-off`, `sensor-fail-safe-off`, `reached-target`,
+  `above-target`,
+- the mode and target before and after,
+- the sensor reading and its age that the decision was made on, or `null` with
+  the reason it was unusable.
+
+`callerPerson` and the IP fields are `null` on these events and must stay
+`null` rather than being attributed to whichever client happened to poll.
+
+The bar is the one §1 set: the next time the heater changes on its own, one
+query must answer what changed it and why.
+
+## 6. A generic switch toggle may not arm Auto
 
 `handleLegacyClimateAction` in `lib/climate-control/intents.ts` — its `turn_on`
 branch sets `mode: "auto"` unconditionally for **any** caller that issues
@@ -162,7 +244,7 @@ Required behaviour:
 - `turn_off` may continue to set `mode: "off"`: failing closed on a heater is
   safe, failing open is not.
 
-## 6. Voice must not route the panel heater to the bedroom heater
+## 7. Voice must not route the panel heater to the bedroom heater
 
 `nova-voice/src/nova_voice/providers/nova/provider.py:45-53` maps
 `panel_heater` → room `"bedroom"`. `app/api/climate-control/route.ts:13`
@@ -203,7 +285,7 @@ Required behaviour:
   intent that cannot be resolved to a configured instance is rejected rather
   than applied to whatever shares the room name.
 
-## 7. Out of scope
+## 8. Out of scope
 
 - The heater's clock schedule stays deleted. Nothing in this spec reintroduces
   a time-of-day trigger, and nothing may turn the heater on or off because a

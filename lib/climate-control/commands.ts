@@ -6,6 +6,7 @@ import { callService, haRest } from "../ha/client";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../preferences";
 import type { DashboardPreferences, HaState } from "../types";
 import { actuatorChangeIsExternal, poweredActuatorRecoveryIsExternal } from "../climate-control-policy";
+import { emitClimateControllerWrite } from "./attribution";
 import { COMMAND_SETTLE_MS } from "./constants";
 import { airconThermostatFor, heaterThermostatFor, persistSoon, roomState } from "./store";
 import { findNamedSwitch, rawAsDashboardEntity, signatureFor } from "./device-model";
@@ -123,13 +124,32 @@ export async function executeActions(
   await persistSoon();
 }
 
-export async function stopAndCancel(instance: ClimateInstance, entityId: string, reason: string) {
+export async function stopAndCancel(
+  instance: ClimateInstance,
+  entityId: string,
+  reason: string,
+  sensorDetail: {
+    sensorTemperature?: number | null;
+    sensorAgeSeconds?: number | null;
+    sensorUnusableReason?: string | null;
+  } = {},
+) {
   const now = Date.now();
   const room = instance.id;
   roomState(room).lastStopReason = reason;
   roomState(room).lastTransitionAt = now;
   roomState(room).sensorPendingSinceAt = null;
   roomState(room).settlingFromTemperature = null;
+  // This clears Auto as well as stopping the element, so it is exactly the
+  // kind of write nobody asked for that must be explainable afterwards
+  // (specs/bedroom-heater-control-integrity.md §5).
+  emitClimateControllerWrite({
+    instanceId: room,
+    reason,
+    modeBefore: "auto",
+    modeAfter: "off",
+    ...sensorDetail,
+  });
   if (instance.kind === "aircon") {
     airconThermostatFor(room).resetForUserRequest();
     roomState(room).manualDirection = null;
