@@ -6,6 +6,9 @@ After=graphical-session.target
 
 [Service]
 Type=simple
+# DEEPSEEK_API_KEY lives here, 0600, outside the repo. Absent, the daemon falls
+# back to the local match and logs that it could not ask for an orientation.
+EnvironmentFile=-%h/.config/nova-kiosk/orient.env
 ExecStart=/usr/bin/python3 /opt/nova-ha-dashboard/ops/kiosk/nova-kiosk-orient.py
 Restart=always
 RestartSec=10

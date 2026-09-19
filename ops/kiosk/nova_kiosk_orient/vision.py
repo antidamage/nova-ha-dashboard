@@ -6,6 +6,7 @@ Moved verbatim from `ops/kiosk/nova-kiosk-orient.py`; see that entry point.
 from __future__ import annotations
 
 import math
+import os
 from pathlib import Path
 
 import cv2
@@ -14,10 +15,12 @@ import numpy as np
 from .config import (
     CAMERA_MATCH,
     FORBIDDEN_NAMES,
+    LAST_FEATURES,
+    LAST_IMAGE,
     LOG,
     MIN_INLIERS,
     MIN_INLIER_RATIO,
-    REFERENCE,
+    STATE_DIR,
     WARMUP_FRAMES,
 )
 
@@ -45,8 +48,8 @@ def resolve_camera() -> str | None:
     return None
 
 
-def grab_gray() -> np.ndarray | None:
-    """One frame, in memory, as grayscale. None when the camera is unavailable."""
+def grab_frame() -> np.ndarray | None:
+    """One colour frame, in memory. None when the camera is unavailable."""
     device = resolve_camera()
     if not device:
         LOG.warning("built-in camera (%s) not found", CAMERA_MATCH)
@@ -64,9 +67,14 @@ def grab_gray() -> np.ndarray | None:
             ok, frame = cap.read()
             if not ok:
                 return None
-        return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        return frame
     finally:
         cap.release()
+
+
+def grab_gray() -> np.ndarray | None:
+    frame = grab_frame()
+    return None if frame is None else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
 
 _orb = cv2.ORB_create(nfeatures=1500)
@@ -108,16 +116,45 @@ def measure(gray: np.ndarray, ref_points: np.ndarray, ref_desc: np.ndarray) -> d
     return result
 
 
-def load_reference():
-    data = np.load(REFERENCE)
+# --------------------------------------------------------------------------
+# The one retained frame
+# --------------------------------------------------------------------------
+
+
+def load_retained():
+    """`(points, descriptors)` of the last frame we acted on, or None."""
+    try:
+        data = np.load(LAST_FEATURES)
+    except (OSError, ValueError):
+        return None
     return data["points"], data["descriptors"]
 
 
-def read_once(reference) -> dict:
-    gray = grab_gray()
-    if gray is None:
-        return {"confident": False, "reason": "camera"}
-    try:
-        return measure(gray, *reference)
-    finally:
-        del gray
+def save_retained(frame: np.ndarray) -> bool:
+    """Replace the retained frame and its features. No older frame survives."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    points, desc = features(gray)
+    if desc is None or len(points) < MIN_INLIERS:
+        LOG.info("retained frame not replaced: only %d features", len(points))
+        return False
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    image_tmp = LAST_IMAGE.with_suffix(".tmp.jpg")
+    feature_tmp = LAST_FEATURES.with_suffix(".tmp.npz")
+    cv2.imwrite(str(image_tmp), frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+    np.savez(feature_tmp, points=points, descriptors=desc)
+    os.replace(image_tmp, LAST_IMAGE)
+    os.replace(feature_tmp, LAST_FEATURES)
+    os.chmod(LAST_IMAGE, 0o600)
+    return True
+
+
+def read_once(retained) -> dict:
+    """A reading of how far the view has moved since the retained frame."""
+    frame = grab_frame()
+    if frame is None:
+        return {"confident": False, "reason": "camera", "frame": None}
+    reading = {"confident": False, "reason": "no-retained", "frame": frame}
+    if retained is not None:
+        reading = measure(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), *retained)
+        reading["frame"] = frame
+    return reading
