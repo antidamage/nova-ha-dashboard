@@ -99,7 +99,7 @@ test("the shared aircon selector cannot mistake a panel heater for Auto's input"
   assert.equal(dashboardAirconEntity([panel]), undefined);
 });
 
-test("missing temperature input tries to run first, within a 2-minute grace window", () => {
+test("missing temperature input never starts the unit", () => {
   const plan = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "off" }),
@@ -109,10 +109,10 @@ test("missing temperature input tries to run first, within a 2-minute grace wind
 
   assert.equal(plan.reason, "sensor-pending");
   assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
-  assert.equal(actionFor(plan.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
+  assert.equal(plan.actions.length, 0);
 });
 
-test("missing temperature input keeps letting an already-running unit try", () => {
+test("missing temperature input stops a running unit at once, and keeps Auto armed", () => {
   const plan = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
@@ -122,61 +122,54 @@ test("missing temperature input keeps letting an already-running unit try", () =
   });
 
   assert.equal(plan.reason, "sensor-pending");
-  assert.equal(plan.actions.length, 0);
+  assert.equal(plan.actions.length, 1);
+  assert.equal(plan.actions[0]?.service, "turn_off");
+  // The mode is the owner's: the stop carries autoMode:true, so Auto is still
+  // selected and simply waiting for a reading.
+  assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, true);
+  assert.equal(plan.nextState.lastTransitionAt, NOW + MINUTE);
+  // The wait has no deadline; the clock only says how long it has been waiting.
   assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
 });
 
-test("missing temperature input emits a safe stop when the grace window expires", () => {
-  const plan = planAirconAutoTick({
+test("a blind wait never becomes a blind retry, however long it lasts", () => {
+  const stopped = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
-    now: NOW + 2 * MINUTE,
+    now: NOW + MINUTE,
     preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
     state: restingState({ sensorPendingSinceAt: NOW }),
   });
 
-  assert.equal(plan.reason, "sensor-fail-safe-off");
-  assert.equal(plan.actions.length, 1);
-  assert.equal(plan.actions[0]?.service, "turn_off");
-  // Auto must never go unavailable and force a manual re-press: it stays on
-  // and simply rests, exactly like a normal reached-target/resting cycle.
-  assert.equal(plan.nextState.sensorPendingSinceAt, null);
-  assert.equal(plan.nextState.lastTransitionAt, NOW + 2 * MINUTE);
+  const muchLater = planAirconAutoTick({
+    currentTemperature: null,
+    entity: climateEntity({ state: "off" }),
+    now: NOW + MINUTE + 60 * MINUTE,
+    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
+    state: stopped.nextState,
+  });
+  assert.equal(muchLater.reason, "sensor-pending");
+  assert.equal(muchLater.actions.length, 0);
 });
 
-test("the low-level planner can retry only if a caller wrongly leaves Auto armed after timeout", () => {
-  const firstTimeout = planAirconAutoTick({
+test("a reading coming back puts the room straight back under control", () => {
+  const stopped = planAirconAutoTick({
     currentTemperature: null,
     entity: climateEntity({ state: "heat" }),
-    now: NOW + 2 * MINUTE,
+    now: NOW + MINUTE,
     preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
     state: restingState({ sensorPendingSinceAt: NOW }),
   });
 
-  // Immediately after failing safe, a retry is held by the compressor dwell —
-  // no action, but reason stays sensor-pending rather than surfacing as an
-  // error state.
-  const heldRetry = planAirconAutoTick({
-    currentTemperature: null,
+  const back = planAirconAutoTick({
+    currentTemperature: 18,
     entity: climateEntity({ state: "off" }),
-    now: NOW + 2 * MINUTE + 1,
+    now: NOW + MINUTE + 11 * MINUTE,
     preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
-    state: firstTimeout.nextState,
+    state: stopped.nextState,
   });
-  assert.equal(heldRetry.reason, "sensor-pending");
-  assert.equal(heldRetry.actions.length, 0);
-
-  // This documents why the unified controller must clear Auto at timeout: the
-  // pure planner deliberately has no authority to persist that cancellation.
-  const laterRetry = planAirconAutoTick({
-    currentTemperature: null,
-    entity: climateEntity({ state: "off" }),
-    now: NOW + 2 * MINUTE + 10 * MINUTE + 1,
-    preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
-    state: firstTimeout.nextState,
-  });
-  assert.equal(laterRetry.reason, "sensor-pending");
-  assert.equal(actionFor(laterRetry.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
+  assert.equal(actionFor(back.actions, "set_hvac_mode")?.data?.hvac_mode, "heat");
+  assert.equal(back.nextState.sensorPendingSinceAt, null);
 });
 
 test("a valid reading clears the sensor-pending clock", () => {

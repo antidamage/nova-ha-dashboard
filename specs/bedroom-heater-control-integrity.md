@@ -215,7 +215,7 @@ Every autonomous write must emit an event carrying:
 
 - the instance id and the route-equivalent origin `climate-controller`,
 - the **reason**, as the controller's own vocabulary — `sensor-timeout`,
-  `timer-expired`, `nova-off`, `sensor-fail-safe-off`, `reached-target`,
+  `timer-expired`, `nova-off`, `sensor-unavailable`, `reached-target`,
   `above-target`,
 - the mode and target before and after,
 - the sensor reading and its age that the decision was made on, or `null` with
@@ -292,5 +292,8 @@ Required behaviour:
   time of day arrived.
 - The sleep timer (`offTimerEndsAt`) is unchanged — it is a deliberate user act
   and still fires server-side with every client asleep.
-- The thermostat band, 10-minute min-cycle dwell and 2-minute sensor grace are
-  unchanged.
+- The thermostat band and the 10-minute min-cycle dwell are unchanged.
+- The 2-minute sensor grace window is **gone** (2026-09-19): with no usable room
+  reading the element switches off at once and Auto stays armed, waiting for a
+  reading. The heater never heats blind, and the fail-safe no longer cancels the
+  mode. See `specs/aircon-auto-control.md` §5.2 — the rule is shared.

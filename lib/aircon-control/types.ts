@@ -80,9 +80,9 @@ export type AirconAutoState = {
    */
   lastTargetTemperature: number | null;
   /**
-   * When Auto first started trying to run without a usable sensor reading.
-   * Null once a usable reading arrives or the fail-safe fires. Used to bound
-   * AIRCON_AUTO_SENSOR_GRACE_MS — see its comment above.
+   * When the usable sensor reading went missing. Null once one arrives. Nothing
+   * expires off the back of it — it is how long the loop has been waiting, for
+   * the public state and the telemetry, not a countdown to a fail-safe.
    */
   sensorPendingSinceAt: number | null;
   /**
@@ -111,7 +111,7 @@ export type AirconAutoState = {
 export type AirconAutoReason =
   | "no-entity"
   | "no-target"
-  | "sensor-fail-safe-off"
+  /** No usable reading: the unit is off and the selected mode waits for one. */
   | "sensor-pending"
   | "driving"
   | "reached-target"

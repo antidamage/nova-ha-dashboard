@@ -66,24 +66,23 @@ export async function driveHeater(
       });
       room.lastTransitionAt = plan.nextState.lastTransitionAt;
       room.sensorPendingSinceAt = plan.nextState.sensorPendingSinceAt;
-      if (plan.reason === "sensor-fail-safe-off") {
-        await stopAndCancel(instance, heater.entity_id, "sensor-timeout", sensorDetail);
-      } else {
-        // Only an actual relay change is worth an event; a tick that decides to
-        // leave the heater exactly as it is says nothing worth storing.
-        if (plan.actions.length > 0) {
-          emitClimateControllerWrite({
-            instanceId: instance.id,
-            reason: plan.reason,
-            modeBefore: "auto",
-            modeAfter: "auto",
-            target: bedroomHeaterTargetTemperature(prefs),
-            ...sensorDetail,
-          });
-        }
-        await executeActions(instance, plan.actions);
-        if (["reached-target", "above-target"].includes(plan.reason)) room.lastStopReason = "target-reached";
+      // Only an actual relay change is worth an event; a tick that decides to
+      // leave the heater exactly as it is says nothing worth storing. A stop for
+      // a missing sensor is one of those changes, and Auto stays armed through it:
+      // the mode is the owner's and the loop resumes when a reading returns.
+      if (plan.actions.length > 0) {
+        emitClimateControllerWrite({
+          instanceId: instance.id,
+          reason: plan.reason,
+          modeBefore: "auto",
+          modeAfter: "auto",
+          target: bedroomHeaterTargetTemperature(prefs),
+          ...sensorDetail,
+        });
       }
+      await executeActions(instance, plan.actions);
+      if (["reached-target", "above-target"].includes(plan.reason)) room.lastStopReason = "target-reached";
+      if (plan.reason === "sensor-pending" && plan.actions.length) room.lastStopReason = "sensor-unavailable";
     }
   }
 

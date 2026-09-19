@@ -81,7 +81,9 @@ export type ClimateControlRoomState = {
   dryEmulatable?: boolean;
   sensorAvailable: boolean;
   sensorReportedAt: string | null;
-  sensorGraceEndsAt: string | null;
+  // No sensorGraceEndsAt: retired 2026-09-19 with the grace window itself. A room
+  // with no usable reading waits indefinitely with its mode selected, so there is
+  // no deadline to publish — phase "grace" IS that wait.
   actuatorAvailable: boolean;
   overrideReason: string | null;
   lastStopReason: string | null;
