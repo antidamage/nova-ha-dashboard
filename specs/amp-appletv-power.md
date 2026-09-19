@@ -156,8 +156,9 @@ Every tick begins by reading `floatingMeter.activeCategoryId` from
 - the controller issues **no switching command of any kind**;
 - it **releases ownership**, so the meter guard resumes and the plug is
   on-and-guarded within at most 60 seconds (§5);
-- it clears `lastCommandAt`, so selecting Amp again starts with a fresh rate
-  limit rather than a stale one.
+- the forced-on restore that goes with that release **counts as a switching
+  command**, so re-selecting Amp waits out the full interval before the amp
+  starts following the Apple TV again (§4.6).
 
 This is the whole safety argument for the feature. The plug is only ever
 allowed off while it is demonstrably measuring the amp, because that is the
@@ -170,12 +171,22 @@ When the category moves **away** from Amp (§4.2, first tick after the change,
 so within 5 seconds), the controller issues one `switch.turn_on` on every
 configured id and then goes inert.
 
-This **bypasses the rate limit deliberately.** It is not a tracking change
-following the Apple TV; it is the controller putting down something it is no
-longer entitled to hold, and the always-on rule is the stronger claim. The
-guard would restore it within 60 seconds anyway — this just makes the handback
-immediate rather than leaving the amp dark for up to a minute after the meter
-has been reassigned.
+The restore itself **is immediate**, and that is deliberate: it is not a
+tracking change following the Apple TV, it is the controller putting down
+something it is no longer entitled to hold. The always-on rule is the stronger
+claim, and power-meters.md §1 already grants it "no dwell, no backoff". The
+guard would restore the plug within 60 seconds anyway — this just makes the
+handback immediate rather than leaving the amp dark for up to a minute after
+the meter has been reassigned.
+
+**But it counts as a switching command.** `lastCommandAt` is stamped, so
+anything that follows — including re-selecting Amp a second later — waits out
+the full interval. Without that, moving the category away and straight back
+produced an on-then-off pair 16 seconds apart (observed live on 2026-09-19,
+13:21:44 on, 13:22:00 off), and Adeline's rule has no exception in it: state
+changes NEVER occur more frequently than once every 30 seconds. The only
+sub-interval gap that remains possible is off-then-restore, which is the safety
+rule she wrote herself.
 
 The same forced-on release happens when the config is removed, and on the
 staleness path of §4.4.
@@ -236,11 +247,12 @@ previous issued one.** The clock starts when a command is *issued*, not when it
 succeeds — a failed call still consumed a switching opportunity at the plug,
 and retrying it immediately is exactly the hammering the limit exists to stop.
 
-The first command after the controller takes ownership is not rate-limited
-against anything: `lastCommandAt` is cleared on release (§4.2), so the amp
-follows the Apple TV immediately on selecting the Amp category.
+The first command after the controller takes ownership is rate-limited against
+whatever it last issued, including the forced-on restore of §4.3. So selecting
+Amp after a long inert period follows the Apple TV immediately, while selecting
+it seconds after leaving it waits out the interval first.
 
-The forced-on handback of §4.3 and §4.4 is outside the limit, as stated there.
+The forced-on restore of §4.3 and §4.4 is itself immediate, as stated there.
 
 ### 4.7 Logging
 
@@ -312,7 +324,9 @@ dropdown reading the truth.
 - With any other category selected: the Apple TV changing state produces no
   command at all, and the plug switched off in HA is restored by the guard
   within 60 seconds.
-- Moving the category away from Amp switches the plug on within 5 seconds.
+- Moving the category away from Amp switches the plug on within 5 seconds, and
+  moving it straight back does not switch the amp off until 30 seconds after
+  that restore.
 - `media_player.home_theatre` going `unavailable` produces no command; ten
   minutes of it switches the plug on and leaves it on.
 - `npx vitest run` passes, including new tests for `decideAmpAction()`

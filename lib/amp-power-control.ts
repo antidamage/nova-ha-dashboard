@@ -147,11 +147,17 @@ async function commandSwitch(entityIds: readonly string[], state: AmpSwitchState
   }
 }
 
-/** Force the plug on and stand down. Outside the rate limit on purpose (§4.3). */
+/**
+ * Force the plug on and stand down. The restore itself is immediate — it is the
+ * safety rule of specs/power-meters.md §1, which allows "no dwell, no backoff"
+ * — but it COUNTS as a switching command, so whatever follows it still waits
+ * out the full interval. That is what keeps Adeline's "NEVER more frequently
+ * than once every 30 seconds" true across a category change too (§4.3).
+ */
 async function release(entityIds: readonly string[], reason: string) {
   console.log(`[amp-power-control] releasing the plug (${reason}); restoring power`);
   owned = new Set();
-  lastCommandAt = null;
+  lastCommandAt = Date.now();
   await commandSwitch(entityIds, "on");
 }
 
