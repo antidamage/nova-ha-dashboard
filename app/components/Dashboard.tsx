@@ -151,8 +151,8 @@ export function Dashboard() {
     <Tooltip.Provider delayDuration={250}>
       <main className="min-h-screen bg-neutral-950 text-neutral-100">
         <div className="dashboard-shell dashboard-home min-h-screen px-4 py-5 sm:px-6" data-demo={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? "true" : undefined}>
-          {/* Devices with the background feature off skip the WebGL background
-              entirely; the shell's own static themed grid background remains. */}
+          {/* Background off: no WebGL, and the shell flattens to the plain
+              theme colour (specs/experience-modes.md). */}
           {showBackground ? (
             theme.desktopWallpaper.useAsDashboardBackground ? (
               <WallpaperBackground wallpaper={theme.desktopWallpaper} />

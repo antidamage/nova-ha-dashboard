@@ -27,14 +27,17 @@ try {
   // {statusOrb,background,camera,worldMap} object for mixed states.
   var experienceRaw = localStorage.getItem("nova.dashboard.experienceMode.v1");
   var experienceOrbOn = true;
+  var experienceBackgroundOn = true;
   var experienceLite = false;
   if (experienceRaw === "lite") {
     experienceLite = true;
     experienceOrbOn = false;
+    experienceBackgroundOn = false;
   } else if (experienceRaw && experienceRaw.charAt(0) === "{") {
     try {
       var experienceFeatures = JSON.parse(experienceRaw);
       experienceOrbOn = experienceFeatures.statusOrb !== false;
+      experienceBackgroundOn = experienceFeatures.background !== false;
       experienceLite =
         experienceFeatures.statusOrb === false &&
         experienceFeatures.background === false &&
@@ -44,6 +47,7 @@ try {
   }
   document.documentElement.toggleAttribute("data-nova-lite", experienceLite);
   document.documentElement.toggleAttribute("data-nova-no-orb", !experienceOrbOn);
+  document.documentElement.toggleAttribute("data-nova-no-background", !experienceBackgroundOn);
   document.documentElement.toggleAttribute(
     "data-nova-hide-orb-info",
     localStorage.getItem("nova.dashboard.statusOrbInfo.v1") === "false"
