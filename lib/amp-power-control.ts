@@ -130,8 +130,24 @@ let owned: ReadonlySet<string> = new Set();
 let lastCommandAt: number | null = null;
 let unavailableSince: number | null = null;
 let staleHeld = false;
+/** Has the first tick run? Until it has, `owned` says nothing (see below). */
+let settled = false;
 
 export function ampControlledEntityIds(): ReadonlySet<string> {
+  if (started && !settled) {
+    // Startup race, seen live 2026-09-19: both loops begin at boot, and the
+    // guard's first tick beat the controller's. It read the plug `off`, restored
+    // power, and the controller switched the amp off again a beat later — an
+    // on/off pair on every restart, inside a rate limit the guard does not
+    // observe. So while the controller is configured but has not yet had a tick,
+    // hold the guard off the plug. One tick is at most pollIntervalSeconds; if
+    // the controller then turns out not to own it, the guard restores it on its
+    // next pass (§5).
+    const config = ampConfig();
+    if (config) {
+      return new Set(config.switchEntityIds);
+    }
+  }
   return owned;
 }
 
@@ -162,6 +178,14 @@ async function release(entityIds: readonly string[], reason: string) {
 }
 
 async function tick() {
+  try {
+    await tickUnsettled();
+  } finally {
+    settled = true;
+  }
+}
+
+async function tickUnsettled() {
   const config = ampConfig();
   if (!config) {
     if (owned.size > 0) {
@@ -248,6 +272,7 @@ export function startAmpPowerControl() {
 
 export function resetAmpPowerControlForTest() {
   started = false;
+  settled = false;
   owned = new Set();
   lastCommandAt = null;
   unavailableSince = null;

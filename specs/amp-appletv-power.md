@@ -274,10 +274,29 @@ maintained by its own tick. It is:
 - **the configured switch ids** only while the Amp category is selected and the
   controller is actually managing the plug.
 
+There is a third state, and it is the one that bit us live on 2026-09-19:
+**started but not yet ticked**. Both loops begin at boot, and the guard's first
+tick won the race — it read the plug `off`, restored power, and the controller
+switched the amp off again a beat later:
+
+```
+[power-meter-guard] switch.tuya_mobile_floating_meter was off; restoring
+[amp-power-control] holding the plug; the amp now follows media_player.home_theatre
+[amp-power-control] Apple TV is off; switching the amp off
+```
+
+An on/off pair on every restart, inside an interval the guard does not observe.
+So while `ampPowerControl` is configured and the controller has started but has
+not completed a tick, the set reports the **configured** switch ids. That hold
+lasts at most one `pollIntervalSeconds`; if the controller then turns out not to
+own the plug, the guard restores it on its next 60-second pass — which is
+exactly the delay §1 already tolerates.
+
 So the guard's golden rule is untouched in every arrangement but the one
 Adeline explicitly asked for, and it resumes within 60 seconds of the
 controller letting go. The pure function keeps its own tests and gains one for
-the exclusion.
+the exclusion; `lib/amp-power-control-ownership.test.ts` covers the boot race
+the pure function cannot see.
 
 The plug also stays in `homeAssistant.everythingExcludedEntityIds`: Home Off
 and zone-off must still never reach it. The amp is switched by the Apple TV, by
@@ -329,6 +348,8 @@ dropdown reading the truth.
   that restore.
 - `media_player.home_theatre` going `unavailable` produces no command; ten
   minutes of it switches the plug on and leaves it on.
+- Restarting the dashboard with Amp selected and the Apple TV asleep leaves the
+  amp off, with no on/off pair in the log.
 - `npx vitest run` passes, including new tests for `decideAmpAction()`
   (rate limit boundary at 29/30 s, the coalescing cases, unavailable, the gate)
   and for the guard's exclusion set.
