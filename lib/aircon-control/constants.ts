@@ -59,6 +59,19 @@ export const AIRCON_AUTO_MODE_HOLD_MS = 30 * 60_000;
 export const AIRCON_AUTO_MIN_CYCLE_MS = 10 * 60_000;
 /** Retain one hour of start telemetry; it is not a start limit. */
 export const AIRCON_AUTO_STARTS_WINDOW_MS = 60 * 60_000;
+/**
+ * How long a start the OWNER just asked for may run without a usable reading.
+ *
+ * The autonomous loop never runs blind (see below). A press is different: the
+ * Gree's thermistor only reports while the unit is running, so a unit that has
+ * been off for half an hour has no reading, and refusing to start without one
+ * would make Manual and Auto dead controls exactly when she reaches for them.
+ * The unit gets two minutes to produce a reading; if none arrives it stops and
+ * waits, with the mode still selected. It only ever attempts the direction she
+ * chose — it never guesses between heat and cool.
+ */
+export const AIRCON_BLIND_USER_START_MS = 2 * 60_000;
+
 /*
  * There is no sensor grace window any more. Auto used to run blind for two
  * minutes, guessing a direction, and then switch Auto itself off. Adeline,

@@ -173,6 +173,12 @@ export function planManualAirconTick(input: {
    * See specs/aircon-auto-control.md §5.
    */
   userRequested?: boolean;
+  /**
+   * The owner asked for this within the last AIRCON_BLIND_USER_START_MS. Her
+   * press is allowed to run the unit without a reading for that long, because on
+   * this hardware running is what produces one; the loop on its own never is.
+   */
+  blindStartAllowed?: boolean;
   rawTemperature: number | null;
   filteredTemperature: number | null;
   targetTemperature: number;
@@ -192,8 +198,12 @@ export function planManualAirconTick(input: {
   // No fresh reading: nothing says when to stop, so do not keep running on a
   // guess. The unit switches off and Manual stays selected, waiting for a reading
   // (Adeline, 2026-09-19: "we don't run heating or cooling blind. but we do leave
-  // the goddamn mode selected in case a temp value comes back").
-  if (input.rawTemperature === null && input.isOn) return "stop" as const;
+  // the goddamn mode selected in case a temp value comes back"). The exception is
+  // a start she just asked for — see blindStartAllowed.
+  if (input.rawTemperature === null) {
+    if (input.blindStartAllowed) return input.isOn ? "hold" as const : "start" as const;
+    return input.isOn ? "stop" as const : "hold" as const;
+  }
   if (input.isOn) return reachedTarget ? "stop" as const : "hold" as const;
   if (input.filteredTemperature === null) return "hold" as const;
   if (input.userRequested) {

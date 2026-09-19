@@ -31,6 +31,7 @@ export type {
 } from "./aircon-control/types";
 export {
   AIRCON_AUTO_POLL_MS,
+  AIRCON_BLIND_USER_START_MS,
   AIRCON_FAN_STEPS,
   AIRCON_MODES,
   AIRCON_SENSOR_RESOLUTION_DEGREES,

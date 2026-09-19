@@ -301,6 +301,19 @@ no direction to choose and nothing to stop at, so:
   enclosed thermistor's post-stop transient and has nothing to extrapolate across
   an outage (`sensorJustReturned` in `plan-model.ts`).
 
+**The one exception: a start the owner just asked for.** The Gree's thermistor
+only reports while the unit runs, so a unit that has been off for half an hour has
+no reading at all — and refusing to start without one would make Manual and Auto
+dead controls exactly when she reaches for a cold unit. A press (any mode intent;
+`claimClimateControl` latches it, as a moved target already did) may therefore run
+the unit for `AIRCON_BLIND_USER_START_MS` — two minutes — without a reading. It
+attempts only the direction she chose or the one already running, never a guess
+between heat and cool; if no reading has arrived when the window closes the unit
+stops and waits, mode intact. The distinction is the whole point: **the loop never
+runs blind on its own, and a person asking is not the loop.** The bedroom heater
+has no such exception — its sensor is a separate puck that reports whether or not
+the element is on.
+
 What this replaces: `AIRCON_AUTO_SENSOR_GRACE_MS` / `BEDROOM_HEATER_SENSOR_GRACE_MS`
 (2 minutes of blind running, then `sensor-fail-safe-off`, with the controller
 clearing Auto through `stopAndCancel`). Both constants and that reason are gone;

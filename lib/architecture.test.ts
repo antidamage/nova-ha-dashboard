@@ -58,7 +58,7 @@ const ALLOWED: Allowance[] = [
   { file: "app/shell/head-bootstrap-script.ts", bytes: 20484, permanent: "section 2 criterion 1 — one template literal served verbatim as the pre-hydration head script" },
   { file: "app/components/tasks/TasksPanel.tsx", bytes: 18949, permanent: "individual component (Adeline, 2026-09-17): one component — the tasks panel" },
   { file: "app/components/tasks/useTaskAlerts.ts", bytes: 16346 },
-  { file: "lib/aircon-control/plan-model.ts", bytes: 16072 },
+  { file: "lib/aircon-control/plan-model.ts", bytes: 13652 },
   { file: "app/components/auth/login-panel/useLoginFlow.ts", bytes: 15753, permanent: "section 2 criterion 2 — one password/passkey/face state machine sharing liveRef, fail, start and applyChallenge" },
   { file: "app/components/theme/accent/useDeviceTheme.ts", bytes: 15674 },
   { file: "lib/demo-config/bootstrap-script.ts", bytes: 14948, permanent: "section 2 criterion 3 — one template literal of browser JS; fragments would only be reassembled by the same caller" },

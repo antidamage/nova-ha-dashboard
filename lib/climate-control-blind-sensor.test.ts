@@ -89,6 +89,37 @@ describe("a lost temperature reading", () => {
     expect((await lounge(control)).mode).toBe("manual");
   });
 
+  test("a start the owner just asked for gets two minutes to produce a reading", async () => {
+    const control = await loadController();
+    setWorld({ acState: "off", roomTemperature: 18, sensorAgeMinutes: STALE });
+    // The Gree has been off long enough to stop reporting — the state it is in
+    // whenever she reaches for a cold unit.
+    await pressManual(control);
+    await settle(control);
+
+    expect(hvacCalls("heat").length).toBeGreaterThanOrEqual(1);
+    expect((await lounge(control)).mode).toBe("manual");
+  });
+
+  test("and is stopped once those two minutes pass with nothing", async () => {
+    const control = await loadController();
+    setWorld({ acState: "off", roomTemperature: 18, sensorAgeMinutes: STALE });
+    await pressManual(control);
+    await settle(control);
+    setWorld({ acState: "heat", roomTemperature: 18, sensorAgeMinutes: STALE });
+    await settle(control);
+    world.calls.length = 0;
+
+    vi.setSystemTime(new Date("2026-09-19T08:03:00Z"));
+    setWorld({ acState: "heat", roomTemperature: 18, sensorAgeMinutes: STALE });
+    await settle(control);
+
+    expect(offCalls().length).toBeGreaterThanOrEqual(1);
+    const room = await lounge(control);
+    expect(room.mode).toBe("manual");
+    expect(room.phase).toBe("grace");
+  });
+
   test("leaves Auto armed too, in preferences as well as in the public state", async () => {
     resetWorld({ aircon: { autoMode: true, hvacMode: "heat", temperature: 21 } });
     const control = await loadController();

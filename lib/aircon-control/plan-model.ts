@@ -20,6 +20,7 @@ import {
   isAirconMode,
 } from "./mode-model";
 import { autoPlanState, noAirconActions, normalizeAirconAutoState, startsInWindow } from "./cycle-model";
+import { planAirconSensorGapTick } from "./sensor-gap-model";
 import { activeAutoActions, offAutoActions } from "./action-model";
 
 export function planAirconAutoTick({
@@ -72,38 +73,21 @@ export function planAirconAutoTick({
   const recentStartsAt = startsInWindow(currentState.recentStartsAt, now);
 
   if (currentTemperature === null) {
-    // We do not run heating or cooling blind (Adeline, 2026-09-19: "we don't run
-    // heating or cooling blind. but we do leave the goddamn mode selected in case
-    // a temp value comes back"). With no usable reading there is no direction to
-    // choose and nothing to stop at, so the unit switches off and the loop waits.
-    //
-    // What used to happen instead: Auto ran blind for a two-minute grace window,
-    // guessing a direction, and then "failed safe" by switching Auto itself off —
-    // which needed a human to notice and re-arm it.
-    //
-    // The MODE STAYS SELECTED. offAutoActions carries autoMode:true and yields no
-    // actions at all once the unit is already off, so this is idempotent: the loop
-    // sits here for as long as the sensor is gone and picks the room up by itself
-    // the moment a reading comes back. The owner's request latch is deliberately
-    // NOT consumed — a target moved while the sensor was missing is served as soon
-    // as one arrives (§4).
-    const stopping = isClimateEntityOn(entity);
-    const cycle = autoPlanState(currentState, {
+    // No usable reading: stop and wait with the mode selected, except for a start
+    // she just asked for (specs/aircon-auto-control.md §5.2, sensor-gap-model.ts).
+    // `reopened` is not applied here — the latch survives the outage.
+    return planAirconSensorGapTick({
+      entity,
+      forceRemember,
+      now,
+      quietSwitch,
       recentStartsAt,
-      lastTargetTemperature: targetTemperature,
-      // When the reading went missing, for the public state. Kept, not cleared:
-      // nothing expires off the back of it any more.
-      sensorPendingSinceAt: reopened ? now : (currentState.sensorPendingSinceAt ?? now),
-      // Only an actual stop moves the dwell clock. Stamping it every blind tick
-      // would push the next start out indefinitely once a reading returned.
-      ...(stopping ? { lastTransitionAt: now, settlingFromTemperature: null } : {}),
+      selectedMode,
+      state: currentState,
+      targetTemperature,
+      turboSwitch,
+      userRequestAt,
     });
-
-    return {
-      actions: offAutoActions({ cycle, entity, selectedMode, targetTemperature }),
-      nextState: cycle,
-      reason: "sensor-pending",
-    };
   }
 
   const delta = currentTemperature - targetTemperature;
