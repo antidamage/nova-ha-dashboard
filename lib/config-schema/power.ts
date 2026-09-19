@@ -50,7 +50,7 @@ export { AlwaysOnMeterSchema };
 const FloatingMeterCategorySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
-  icon: z.enum(["computers", "entertainment", "kitchen", "laundry", "other"]),
+  icon: z.enum(["amp", "computers", "entertainment", "kitchen", "laundry", "other"]),
   seedWatts: z.number().nonnegative(),
   suppressesBaseLoads: z
     .array(z.enum(["fridges", "water_heater", "desktop_pc", "nova_aio"]))
@@ -80,6 +80,39 @@ const FloatingMeterConfigSchema = z.object({
 });
 export type FloatingMeterConfig = z.infer<typeof FloatingMeterConfigSchema>;
 export { FloatingMeterConfigSchema };
+
+/**
+ * Switch the floating meter's plug with an Apple TV, while — and only while —
+ * the plug is measuring the amp. See specs/amp-appletv-power.md.
+ *
+ * Absent means the feature does not exist: no loop, no ownership, and the
+ * meter guard behaves exactly as specs/power-meters.md §1 describes.
+ */
+const AmpPowerControlSchema = z.object({
+  /** The floating-meter category that arms this. Inert under any other (§4.2). */
+  categoryId: z.string().min(1),
+  /**
+   * The media player Home Assistant's `apple_tv` integration publishes. That
+   * integration is pyatv, already paired; Nova reads its entity rather than
+   * opening a competing Companion session (§1).
+   */
+  sourceEntityId: entityIdSchema,
+  /**
+   * States that mean the Apple TV is asleep. Expressed as off-states, not
+   * on-states, so an HA release inventing a new playing-ish state keeps the
+   * amp on — the safe direction to be wrong in (§1.1).
+   */
+  offStates: z.array(z.string().min(1)).min(1).default(["off", "standby"]),
+  /** The plug, by every id it has been known by, most current first. */
+  switchEntityIds: z.array(entityIdSchema).min(1),
+  /** No switching command is ever issued within this of the previous one (§4.6). */
+  minIntervalSeconds: z.number().positive().default(30),
+  pollIntervalSeconds: z.number().positive().default(5),
+  /** Unavailable for this long means force the plug on and stand down (§4.4). */
+  staleRestoreSeconds: z.number().positive().default(600),
+});
+export type AmpPowerControlConfig = z.infer<typeof AmpPowerControlSchema>;
+export { AmpPowerControlSchema };
 
 /**
  * Cycle detection for a washing machine on a metering plug. Every threshold is

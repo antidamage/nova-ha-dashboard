@@ -38,6 +38,16 @@ export async function register() {
     console.error("[power-meter-guard] failed to start", error);
   }
 
+  // The amp follows the Apple TV while the floating meter is measuring it
+  // (specs/amp-appletv-power.md). No-ops when the household has configured no
+  // ampPowerControl, and starts nothing the meter guard above does not expect.
+  try {
+    const { startAmpPowerControl } = await import("@/lib/amp-power-control");
+    startAmpPowerControl();
+  } catch (error) {
+    console.error("[amp-power-control] failed to start", error);
+  }
+
   // Installable modules (specs/module-system.md). Default modules are fetched
   // first so a fresh install arrives complete, then every enabled module's
   // server half is loaded. A module that throws is disabled with its error

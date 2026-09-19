@@ -76,6 +76,29 @@ describe("meterRestoreActions", () => {
     ]);
   });
 
+  it("stands down on a plug the amp controller is holding", () => {
+    // The one exception to the always-on rule: while the amp controller holds
+    // the floating meter, `off` means the amp is off, not that the meter has
+    // stopped measuring (specs/amp-appletv-power.md §5).
+    const actions = meterRestoreActions(
+      METERS,
+      statesOf({ "switch.washing_machine": "off", "switch.tuya_mobile_floating_meter": "off" }),
+      new Set(["switch.tuya_mobile_floating_meter"]),
+    );
+
+    expect(actions).toEqual([{ entityId: "switch.washing_machine", meterId: "washing_machine" }]);
+  });
+
+  it("guards the floating meter again the moment the controller lets go", () => {
+    const actions = meterRestoreActions(
+      METERS,
+      statesOf({ "switch.tuya_mobile_floating_meter": "off" }),
+      new Set(),
+    );
+
+    expect(actions).toEqual([{ entityId: "switch.tuya_mobile_floating_meter", meterId: "floating_meter" }]);
+  });
+
   it("does nothing when no meters are configured", () => {
     expect(meterRestoreActions([], statesOf({ "switch.washing_machine": "off" }))).toEqual([]);
   });
