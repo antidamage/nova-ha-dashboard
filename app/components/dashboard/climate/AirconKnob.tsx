@@ -32,6 +32,7 @@ import {
   TIMER_MAX_MINUTES,
   TIMER_STEP_MINUTES,
   TIMER_VALUE_WIDEST,
+  clampTargetForDisplay,
   effectiveTargetRange,
   fanStepText,
   type TargetRange,
@@ -40,7 +41,6 @@ import {
 import { useSharedAirconCommands } from "../ClimateCommandsProvider";
 import type { EntityActionsHandler } from "./types";
 import { MODE_STOPS_ALL, MODE_STOPS_NO_DRY, MODE_VALUE_WIDEST, airconRunning, targetRange } from "./aircon-knob-model";
-import { useClampTargetIntoRange } from "./useClampTargetIntoRange";
 
 export function AirconKnob({
   climateControl,
@@ -76,7 +76,6 @@ export function AirconKnob({
   });
 
   const range = effectiveTargetRange(targetRange(entity), preferredRange);
-  useClampTargetIntoRange(aircon.airconSettings.temperature, range, aircon.entityUnavailable, (next) => void aircon.setTemperature(next));
   const power = aircon.displayedPowerState;
   const off = power === "off";
 
@@ -196,7 +195,7 @@ export function AirconKnob({
       running={airconRunning(entity, off)}
       rings={rings}
       size={size}
-      target={aircon.airconSettings.temperature ?? null}
+      target={clampTargetForDisplay(aircon.airconSettings.temperature, range)}
       title={title}
     />
   );
