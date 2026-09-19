@@ -148,6 +148,9 @@ function applyExperienceSideEffects(features: ExperienceFeatures) {
   // load (and the current document) agree without waiting for hydration.
   document.documentElement.toggleAttribute("data-nova-lite", isLiteFeatures(features));
   document.documentElement.toggleAttribute("data-nova-no-orb", !features.statusOrb);
+  // Background off means the flat theme colour and nothing else — the shell's
+  // grid and decorative pseudo-elements go too (specs/experience-modes.md).
+  document.documentElement.toggleAttribute("data-nova-no-background", !features.background);
   window.dispatchEvent(new CustomEvent(EXPERIENCE_MODE_CHANGE_EVENT));
 }
 
