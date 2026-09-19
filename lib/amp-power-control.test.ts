@@ -112,11 +112,18 @@ describe("decideAmpAction — the 30-second rate limit", () => {
     });
   });
 
-  it("does not rate-limit the first command after taking the plug", () => {
+  it("does not rate-limit the first command after a long inert period", () => {
     expect(decide({ desired: "off", actual: "on", msSinceLastCommand: null })).toEqual({
       type: "command",
       state: "off",
     });
+  });
+
+  it("makes a re-arm wait out the restore that released the plug", () => {
+    // Leaving Amp restores power immediately, but that restore counts as a
+    // switching command, so moving straight back does not switch the amp off
+    // 16 seconds later (observed live 2026-09-19, §4.3).
+    expect(decide({ desired: "off", actual: "on", msSinceLastCommand: 16_000 })).toEqual({ type: "wait" });
   });
 
   it("collapses on/off/on inside one window to nothing at all", () => {
