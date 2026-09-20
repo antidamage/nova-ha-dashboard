@@ -41,7 +41,11 @@ test.describe("configuration workspace", () => {
     await expect(page.getByLabel(/avatar$/)).toBeVisible({ timeout: 30_000 });
     // The zones panel itself, not its "Zones" heading: the layout hides that
     // heading, which is why helpers.ts waits on the panel (Adeline, 2026-09-21).
+    // The panel, and a zone button inside it: the panel alone only proves the
+    // shell mounted, and a dashboard that never loaded its zones is exactly the
+    // half-loaded state these waits exist to catch (Adeline, 2026-09-21).
     await expect(page.locator(".zones-panel")).toBeVisible();
+    await expect(page.locator(".zones-panel .zone-button").first()).toBeVisible();
   });
 
   test("shows voice controls without a demo notice", async ({ page }) => {

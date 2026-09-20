@@ -33,12 +33,17 @@ test.describe("experience mode", () => {
     await expect(page.locator("html")).toHaveAttribute("data-nova-lite", "");
     // The zones panel itself, not its "Zones" heading: the layout hides that
     // heading, which is why helpers.ts waits on the panel (Adeline, 2026-09-21).
+    // The panel, and a zone button inside it: the panel alone only proves the
+    // shell mounted, and a dashboard that never loaded its zones is exactly the
+    // half-loaded state these waits exist to catch (Adeline, 2026-09-21).
     await expect(page.locator(".zones-panel")).toBeVisible();
+    await expect(page.locator(".zones-panel .zone-button").first()).toBeVisible();
     await expect(page.getByLabel(/avatar$/)).toHaveCount(0);
     await expect(page.locator(".fluid-background")).toHaveCount(0);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel .zone-button").first()).toBeVisible();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(page.locator("html")).toHaveAttribute("data-nova-lite", "");
     await expect(page.getByLabel(/avatar$/)).toHaveCount(0);
@@ -87,6 +92,7 @@ test.describe("experience mode", () => {
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel .zone-button").first()).toBeVisible();
     await neutralizeTaskAlerts(page);
     await expect(page.getByLabel(/avatar$/)).toBeVisible();
     await expect(page.locator(".fluid-background")).toHaveCount(0);
@@ -101,6 +107,7 @@ test.describe("experience mode", () => {
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel .zone-button").first()).toBeVisible();
     await neutralizeTaskAlerts(page);
     await expect(page.getByLabel(/avatar$/)).toHaveCount(0);
     await expect(page.locator(".fluid-background")).toHaveCount(0);
@@ -110,6 +117,7 @@ test.describe("experience mode", () => {
     await seedExperienceMode(page, "lite");
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel .zone-button").first()).toBeVisible();
     await neutralizeTaskAlerts(page);
 
     await page.getByRole("button", { name: /world/i }).first().click();
