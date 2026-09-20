@@ -83,6 +83,9 @@ must declare its lite behavior.
 - **Dot controls**: the remote-easing rAF loops in `DotControls.tsx` are
   skipped when the device is in full lite (all four off, `useLiteMode()`);
   values snap to target.
+- **Rotary rings**: a stepping ring's glide to its stop (`useRingGlide`) is
+  skipped in full lite too, and its thumb snaps to the new stop. A ring is
+  only animated while it is being moved, so this is the whole of its rAF work.
 - **Visualiser controls**: no gate is needed. The panel is markup plus
   `ConfigAccordion`, `ConfigSelect` and the `DotControls` wrappers, so it
   inherits their lite behaviour — its sliders snap and its accordions open

@@ -85,3 +85,17 @@ export const UNLOCK_MIN_MS = 60;
 export const UNLOCK_MAX_MS = TAP_MAX_MS;
 /** Fades a toggle ring's fill in and out. */
 export const TOGGLE_FADE_MS = 500;
+
+/**
+ * How fast a stepping ring's thumb travels to the stop it has been aimed at, in
+ * degrees of its own arc per second. One rate for every ring and every step, so
+ * the distance a step covers is what decides how long it takes: a long step
+ * visibly takes longer, a short one is over almost at once. A full 270° sweep
+ * takes 375ms, the aircon Mode ring's 90° stop 125ms.
+ *
+ * It is a speed rather than a duration on purpose — a step is a distance, and an
+ * eased duration would make a two-stop jump look exactly like a one-stop jump,
+ * which is the thing this exists to show (Adeline, 2026-09-21). See
+ * `ring-glide-model.ts` and `useRingGlide.ts`.
+ */
+export const RING_GLIDE_DEG_PER_SEC = 720;

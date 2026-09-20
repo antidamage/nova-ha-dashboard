@@ -167,7 +167,9 @@ timing and motion.
    **In Off the thumb sits on the remembered mode and the track is an empty
    well** (Adeline). In Auto it shows the direction the controller is
    running. A stop the unit does not support cannot be chosen; the thumb
-   snaps to the nearest supported stop *(decided)*.
+   lands on the nearest supported stop *(decided)* — and, like every stepping
+   ring, glides there rather than snapping (specs/color-encoder.md, "A step
+   glides, it never snaps").
 2. **Fan** — a stepped `slider` over `AIRCON_FAN_STEPS`, filled behind the
    thumb. Value text: `QUIET`, `LOW`, `MED LOW`, `MEDIUM`, `MED HIGH`,
    `HIGH`, `TURBO`. The ring's length fits the widest of them.
