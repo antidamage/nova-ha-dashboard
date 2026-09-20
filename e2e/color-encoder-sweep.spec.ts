@@ -143,7 +143,9 @@ async function sweep(page: Page, run: string) {
     body: getComputedStyle(document.body).colorScheme,
   }));
   // The ring itself must resolve to dark: auto dark mode decides per element.
-  const ringScheme = await page.locator(".zone-panel .rotary-encoder-ring").evaluate((node) => getComputedStyle(node).colorScheme);
+  // Scoped to the zone's colour dial: the zone panel now also holds the climate
+  // knobs, which carry rings of their own (Adeline, 2026-09-21).
+  const ringScheme = await page.locator(".zone-panel .zone-color-encoder .rotary-encoder-ring").evaluate((node) => getComputedStyle(node).colorScheme);
   expect({ ...scheme, ring: ringScheme }, JSON.stringify({ ...scheme, ring: ringScheme })).toMatchObject({ meta: "dark", root: "dark", ring: "dark" });
   await recordCommands(page);
   const dial = page.locator(".zone-panel").getByLabel("Zone lights");
