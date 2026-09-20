@@ -26,13 +26,26 @@ async function box(locator: Locator): Promise<Box> {
 async function expectGeometry(root: Locator, size: number) {
   const tolerance = Math.max(1.5, size * 0.01);
   const dial = await box(root.locator(".rotary-encoder-dial"));
-  expect(Math.abs(dial.width - size * 1.244)).toBeLessThanOrEqual(tolerance);
+  // DIAL_OUTER_RATIO: half the knob, the unlock ring, the colour ring, the bevel.
+  expect(Math.abs(dial.width - size * 1.314)).toBeLessThanOrEqual(tolerance);
 
   const ring = await box(root.locator(".rotary-encoder-ring"));
+  const unlock = await box(root.locator(".rotary-encoder-unlock-ring"));
   const knob = await box(root.locator(".rotary-encoder-knob"));
   expect(Math.abs(knob.width - size)).toBeLessThanOrEqual(tolerance);
-  // Ring cross-section is 10% of the knob.
-  expect(Math.abs((ring.width - knob.width) / 2 - size * 0.1)).toBeLessThanOrEqual(tolerance);
+  // Both rings span the whole band between the knob's lip and the rim — the
+  // unlock ring's own 3.5% is a mask, not a box — so the two elements are the
+  // same size and the pair together are the 3.5% + 10% outside the knob.
+  expect(Math.abs((ring.width - knob.width) / 2 - size * 0.135)).toBeLessThanOrEqual(tolerance);
+  expect(Math.abs(unlock.width - ring.width)).toBeLessThanOrEqual(tolerance);
+  // And the mask that makes the band: the knob's edge (78.75% of it) round to
+  // the colour ring's inner edge (84.25%).
+  const mask = await root.locator(".rotary-encoder-unlock-glass").evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return styles.maskImage || styles.getPropertyValue("-webkit-mask-image") || "";
+  });
+  expect(mask).toContain("78.75%");
+  expect(mask).toContain("84.25%");
 
   const leds = root.locator(".rotary-encoder-led");
   const count = await leds.count();

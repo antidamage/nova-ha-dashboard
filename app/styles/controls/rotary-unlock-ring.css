@@ -1,0 +1,115 @@
+/* RotaryEncoder's embossed unlock ring: the thin band of polished glass between
+   the knob's lip and the colour ring. Dark glass normally; lit in the LED
+   colour, with a faint glow of the same colour, while the dial is unlocked
+   (specs/color-encoder.md, "The embossed unlock ring").
+
+   It is embossed rather than sunken, so its light comes from the band's own
+   top: no inset well, no inner shadow.
+
+   Four layers, and the order is the point: the wash and the reflections are
+   what make glass, so the reflections sit ABOVE the lit layer rather than under
+   it — under it they would be painted out the moment the ring lit up. */
+
+/* The band and the two things that hang off it — its cast shadow and, once lit,
+   the LED glow. The mask lives on the layers inside instead of here: a mask on
+   this element would clip away its own drop-shadow. */
+.rotary-encoder-unlock-ring {
+  width: var(--re-ring-outer);
+  height: var(--re-ring-outer);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 0 rgb(var(--re-led-on-rgb, 255 255 255) / 0));
+  transition: filter 450ms ease;
+}
+
+.rotary-encoder[data-locked="false"] .rotary-encoder-unlock-ring {
+  /* Same two shadows, so the transition has something to interpolate: the
+     second one opens up into the LED's glow. */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 max(3px, calc(var(--re-unlock) * 0.8)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.55));
+}
+
+/* Every layer is masked to the unlock ring's band. */
+.rotary-encoder-unlock-glass,
+.rotary-encoder-unlock-lit,
+.rotary-encoder-unlock-spec {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  -webkit-mask: var(--re-unlock-annulus);
+  mask: var(--re-unlock-annulus);
+}
+
+/* Dark polished glass, and the convex surface under it: the top of the circle
+   lands near the top of the gradient and the bottom near the bottom, so the
+   band is brightest at 12 and darkest at 6. */
+.rotary-encoder-unlock-glass {
+  background: linear-gradient(180deg,
+    rgba(168, 178, 196, 0.34) 5%,
+    rgba(92, 100, 116, 0.5) 20%,
+    rgba(32, 36, 46, 0.6) 45%,
+    rgba(12, 14, 19, 0.66) 78%,
+    rgba(8, 9, 12, 0.7));
+}
+
+/* The lit layer, faded in when the dial unlocks and out again when it locks. */
+.rotary-encoder-unlock-lit {
+  opacity: 0;
+  transition: opacity 450ms ease;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--re-led-on) 74%, #fff 26%) 5%,
+    var(--re-led-on) 46%,
+    color-mix(in srgb, var(--re-led-on) 88%, #000 12%));
+}
+
+.rotary-encoder[data-locked="false"] .rotary-encoder-unlock-lit {
+  opacity: 1;
+}
+
+/* The lit band's own colour shift: the bottom of it turns 5deg of hue, so the
+   light has somewhere to go instead of sitting flat. Masked to the lower half
+   of the band, and clipped to the band by the lit layer it sits in. */
+.rotary-encoder-unlock-shift {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--re-led-on);
+  filter: hue-rotate(5deg) brightness(0.9);
+  -webkit-mask: linear-gradient(180deg, transparent 38%, #000 96%);
+  mask: linear-gradient(180deg, transparent 38%, #000 96%);
+}
+
+/* The reflections: two specular streaks crossing the band on the diagonal,
+   which is what separates polished glass from a flat grey ring. Always on top,
+   so the band goes on reading as glass once the LEDs light it. */
+.rotary-encoder-unlock-spec {
+  background: linear-gradient(157deg,
+    rgba(255, 255, 255, 0) 33%,
+    rgba(255, 255, 255, 0.34) 40%,
+    rgba(255, 255, 255, 0.06) 44%,
+    rgba(255, 255, 255, 0) 51%,
+    rgba(255, 255, 255, 0) 65%,
+    rgba(255, 255, 255, 0.15) 71%,
+    rgba(255, 255, 255, 0) 78%);
+}
+
+/* Light skin: the glass is smoked rather than black, and keeps more of its
+   reflections, so it reads as polished glass on the pale knob the same way the
+   light treatment's shading does (Adeline, 2026-09-12) rather than as a black
+   band laid over it. */
+.rotary-encoder[data-mode="light"] .rotary-encoder-unlock-glass {
+  background: linear-gradient(180deg,
+    rgba(212, 217, 226, 0.5) 5%,
+    rgba(150, 157, 170, 0.46) 22%,
+    rgba(74, 80, 92, 0.42) 48%,
+    rgba(58, 63, 74, 0.44) 80%,
+    rgba(52, 57, 67, 0.46));
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-unlock-spec {
+  background: linear-gradient(157deg,
+    rgba(255, 255, 255, 0) 32%,
+    rgba(255, 255, 255, 0.65) 40%,
+    rgba(255, 255, 255, 0.1) 44%,
+    rgba(255, 255, 255, 0) 52%,
+    rgba(255, 255, 255, 0) 64%,
+    rgba(255, 255, 255, 0.3) 71%,
+    rgba(255, 255, 255, 0) 79%);
+}

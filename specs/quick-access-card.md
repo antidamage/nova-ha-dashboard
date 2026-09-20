@@ -47,8 +47,9 @@ request was executed directly).
   - **<920px** (portrait, phone): one tile per row; a tile's own controls
     may wrap to a second line inside it.
   Never a horizontal scrollbar, never a segment cut in half.
-- Tile height is 84px, set by the original colour encoder footprint (56px dial
-  × 1.244). A tile only grows past that when its controls wrap on a phone — and
+- Tile height is 84px, set by the original colour encoder footprint (a 56px
+  dial is 74px across, the unlock ring's 1.314 ×). A tile only grows past that
+  when its controls wrap on a phone — and
   the lighting segment now always does, since its 84px dial is 104px across and
   its presets sit beneath it (2026-09-12).
 - **Portrait: one centred, wrapping row of dials (Adeline, 2026-09-14;

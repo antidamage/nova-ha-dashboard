@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ARC_END,
   ARC_START,
+  DIAL_OUTER_RATIO,
+  DIAL_RADIUS_SHARE,
   RING_LIMIT,
   THUMB_LENGTH,
   captionFont,
@@ -20,13 +22,19 @@ import { useDialHarness } from "./ColorEncoderRings.fixtures";
 useDialHarness();
 
 describe("ring geometry", () => {
+  // The shares of the knob's diameter that these expected values come from are
+  // the spec's geometry table, pinned to the CSS by
+  // controls/rotary/unlockRingGeometry.test.ts; what this file checks is the
+  // layout maths built on them — pitch, track, gap and the title band.
+  const radius200 = 200 * DIAL_RADIUS_SHARE;
+
   it("is 6% track and 2.5% gap at 200px", () => {
     const geometry = ringGeometry(200, 5);
     expect(geometry.pitch).toBeCloseTo(17);
     expect(geometry.track).toBeCloseTo(12);
     expect(geometry.gap).toBeCloseTo(5);
-    expect(geometry.dialRadius).toBeCloseTo(124.4);
-    expect(geometry.radii[0]).toBeCloseTo(124.4 + 5 + 6);
+    expect(geometry.dialRadius).toBeCloseTo(radius200);
+    expect(geometry.radii[0]).toBeCloseTo(radius200 + 5 + 6);
     geometry.radii.slice(1).forEach((radius, index) => expect(radius - geometry.radii[index]).toBeCloseTo(17));
   });
 
@@ -35,10 +43,10 @@ describe("ring geometry", () => {
     const titled = ringGeometry(200, 5, true);
     // The caption plus 2% of the diameter of clearance each side.
     expect(titled.titleBand).toBeCloseTo(14 + 2 * 4);
-    expect(titled.titleRadius).toBeCloseTo(124.4 + 4 + 7);
+    expect(titled.titleRadius).toBeCloseTo(radius200 + 4 + 7);
     titled.radii.forEach((radius, index) => expect(radius - plain.radii[index]).toBeCloseTo(titled.titleBand));
     expect(titled.footprint - plain.footprint).toBeCloseTo(2 * titled.titleBand);
-    expect(titled.titleFootprint).toBeCloseTo(2 * (124.4 + titled.titleBand));
+    expect(titled.titleFootprint).toBeCloseTo(2 * (radius200 + titled.titleBand));
   });
 
   it("leaves the geometry alone when there is no title", () => {
@@ -71,7 +79,7 @@ describe("ring geometry", () => {
 
   it("draws at most five rings", () => {
     expect(ringGeometry(200, 9).radii).toHaveLength(RING_LIMIT);
-    expect(ringGeometry(200, 0).footprint).toBeCloseTo(200 * 1.244);
+    expect(ringGeometry(200, 0).footprint).toBeCloseTo(200 * DIAL_OUTER_RATIO);
   });
 
   it("keeps the thumb on the track at both ends", () => {

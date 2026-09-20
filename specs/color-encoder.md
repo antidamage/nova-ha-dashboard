@@ -60,7 +60,7 @@ Files:
 | `app/components/rotaryEncoderGeometry.ts` | ring geometry and pointer maths (formerly `colorEncoderGeometry.ts`) |
 | `app/components/ColorEncoder.tsx` | the colour wrapper |
 | `app/components/colorEncoderModel.ts` | HSVA maths + `ThemeColorValue` adapters |
-| `app/color-encoder-rings/page.tsx` | the rings demo page, `/color-encoder-rings`; its "Ring fill follows the colour ring" row seeds distinct hues (and one in the light theme) so the fill can be checked against the ring |
+| `app/color-encoder-rings/page.tsx` | the rings demo page, `/color-encoder-rings`; opens with the unlock ring itself — a dark and a light row, each carrying one colour knob, one aircon knob, one heater knob and one Tech-skin status orb, so the band can be seen in both skins, locked and lit — then its "Ring fill follows the colour ring" row seeds distinct hues (and one in the light theme) so the fill can be checked against the ring |
 | `app/globals.css` | its styles, under `.rotary-encoder*` (this surface uses `globals.css`, not CSS modules) |
 
 ## Geometry — everything derives from one number
@@ -73,9 +73,10 @@ Quick Access card.
 
 | Part | Size |
 |---|---|
+| Unlock ring cross-section | `3.5% of --ce-size` |
 | Colour ring cross-section | `10% of --ce-size` |
 | Outer bevel | `2.2% of --ce-size` each side |
-| Total footprint | `--ce-size × 1.244` |
+| Total footprint | `--ce-size × 1.314` |
 | Checkerboard tile | `5% of --ce-size`, floor 5px |
 | Light width | `4.8% of --ce-size`, floor 3px |
 | Light height | `2 × light width` |
@@ -96,23 +97,68 @@ treatment as existing config control labels.
    lowering opacity shows the checkerboard through.
 5. **Ring shade** — the inset shading that makes the ring read as a sunken
    channel rather than a painted band.
-6. **Inner bevel** — the lip between ring and knob.
-7. **Knob face** — soft CSS-gradient dome. **Its lighting never rotates.**
-8. **Rotor** — the only layer that turns: a single index line joined to the
+6. **Unlock ring** — the thin band of polished glass between the knob's lip and
+   the colour ring. See "The embossed unlock ring" below.
+7. **Inner bevel** — the lip between the unlock ring and the knob face.
+8. **Knob face** — soft CSS-gradient dome. **Its lighting never rotates.**
+9. **Rotor** — the only layer that turns: a single index line joined to the
    knob's rim, plus a faint hairline texture. Adeline, 2026-09-11: one mark, not
    two — a line and a notch on a knob this soft read as clutter.
-9. **Fixed specular** — above the rotor, so the texture passes under a
+10. **Fixed specular** — above the rotor, so the texture passes under a
    stationary highlight.
-10. **Lights** — dead centre, stationary, one lit at a time.
-11. **Channel caption** — the active channel's name under the lights, in two
-    lengths: `HUE`/`BRIGHT`/`SAT`/`ALPHA`, shortening to `BRT` and `ALPH` below
-    133px, the size at which the caption's font hits its 10px floor and a long
-    word starts crowding the lights. A channel name, not a value; the ring is
-    still the only readout. Stationary, like the lights.
+11. **Lights** — dead centre, stationary, one lit at a time.
+12. **Channel caption** — the active channel's name under the lights, in two
+   lengths: `HUE`/`BRIGHT`/`SAT`/`ALPHA`, shortening to `BRT` and `ALPH` below
+   133px, the size at which the caption's font hits its 10px floor and a long
+   word starts crowding the lights. A channel name, not a value; the ring is
+   still the only readout. Stationary, like the lights.
 
 The annulus clip is
-`radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%)`
-on an element sized `--ce-size + 2 × ring`.
+`radial-gradient(circle closest-side, transparent 0 84.25%, #000 84.45% 100%)`
+on an element sized `--ce-size + 2 × unlock + 2 × ring` — the knob's edge, then
+the unlock ring, then the colour ring's inner edge. The unlock ring's own band
+is the same mask's other half, `78.75% → 84.25%` of that element.
+
+## The embossed unlock ring
+
+Adeline, 2026-09-20: *"it's not totally clear when the climate rotary encoder
+... is unlocked for interaction."* Locked → tap → unlock → lock again on focus
+loss is a state change with no surface of its own, so the dial carries a thin
+band of polished glass that lights while it is unlocked.
+
+- **Where**: round the central smooth area, inside the colour ring. A band
+  `3.5% of --ce-size` wide, from the knob's lip to the colour ring's inner edge.
+- **Embossed, not sunken**: no well and no inner shadow. Its light comes from
+  the band's own top, which is what separates it from the channel outside it.
+- **Adding it moved the outer layers out by its own width** — 3.5% of the knob
+  at each side, for the colour ring, the outer bevel and every slider ring. The
+  relative arrangement outside it is untouched; the footprint went `1.244` →
+  `1.314 × size`. A caller that lays the dial out itself divides by
+  `DIAL_OUTER_RATIO` (the status orb does, to put the colour ring on its rim);
+  the knob's own drag maths divides by the same constant.
+- **Locked**, the band is dark glass: a 180° wash, brightest at 12 o'clock and
+  darkest at 6, with two specular streaks crossing it on the diagonal. The
+  reflections sit **above** the lit layer, so they go on reading once it lights.
+- **Unlocked**, the LED colour fades in over **450ms** (out again on lock, same
+  duration) as a second layer in `--re-led-on`, masked to the same band. Its
+  inner colour runs light at the top to the LED colour at the middle, and the
+  bottom half is turned **5° of hue** so the light has somewhere to go.
+- **The glow** is a `drop-shadow` on the band in the LED colour, opening up from
+  nothing when it lights — faint, at `55%` alpha and `max(3px, 80% of --re-unlock)`.
+- **Light skin**: smoked glass rather than black, keeping more of its
+  reflections, as the light treatment's other shading does.
+- **Locked, and nothing else**: the colour ring, the bevel and the knob face do
+  not fade on lock, so the band is never a hole in a locked dial.
+- **Which ring**: unchanged. The band is not the knob's disc, so a press on it
+  goes to the innermost slider ring exactly as the colour ring does.
+
+The same band is on the **status orb**, along its rim inside the status channel:
+`OrbDialIndicator` mounts the same markup, so `data-locked` lights it with the
+stack. The orb face is the module's, though — `lib/orb-modules/tech.unlock.ts`
+draws the locked glass band in unit space, so a closed orb still shows it.
+
+`app/components/controls/rotary/unlockRingGeometry.test.ts` fails if the band's
+share, the two masks or the orb's unit-space band drift apart.
 
 ## Channels
 
@@ -228,7 +274,7 @@ type ColorEncoderRing = {
 ### Geometry
 
 `S` is `size`, the knob diameter (50–200px). The dial's footprint radius is
-`R0 = 0.622 × S`.
+`R0 = 0.657 × S`.
 
 | Quantity | Value |
 |---|---|
@@ -255,7 +301,7 @@ keeps its size. Her call over spacing the rings further apart, which would have
 widened the control. Rings keep their 6 : 2.5 track-to-gap proportion and
 grow relatively thicker below 200px.
 
-Ring geometry is computed from `size` in `app/components/colorEncoderGeometry.ts`,
+Ring geometry is computed from `size` in `app/components/rotaryEncoderGeometry.ts`,
 because hit-testing and the SVG paths need it as numbers. It is published on
 the root as `--ce-pitch`, `--ce-track`, `--ce-rings` and `--ce-footprint` for
 layout, but overriding those does not move the rings.
@@ -349,7 +395,7 @@ it, the colour knob does not.
 When tuck-away is on, the rings float over the page instead of taking layout
 space (Adeline).
 
-- The dial's layout box is its footprint alone, `1.244 × size`, so locking
+- The dial's layout box is its footprint alone, `1.314 × size`, so locking
   and unlocking never reflow the card around it.
 - The ring layer is portalled to `document.body` (the dashboard's dropdown
   rule: a scrolling or clipped ancestor must not cut it off) and pinned over

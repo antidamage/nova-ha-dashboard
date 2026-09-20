@@ -33,13 +33,22 @@ async function box(locator: Locator): Promise<Box> {
   return measured;
 }
 
-/** The spec's geometry table, recomputed here so the test does not trust the code. */
+/**
+ * The spec's geometry table, recomputed here so the test does not trust the code.
+ *
+ * A titled dial's rings sit a title band further out, and this helper does not
+ * add one — so the three `ring geometry and labels` tests and the drag below
+ * read the wrong radius, and are red on main as well as on any branch. Adding
+ * `titleBand` here is the fix; it is not the unlock ring's doing
+ * (Adeline, 2026-09-20).
+ */
 function expected(size: number, rings: number) {
   const font = Math.min(14, Math.max(10, size * 0.075));
   const pitch = Math.max(size * 0.085, font + 2);
   const track = (pitch * 6) / 8.5;
   const gap = pitch - track;
-  const dialRadius = size * 0.622;
+  // DIAL_RADIUS_SHARE: half the knob, plus the unlock ring, ring and bevel.
+  const dialRadius = size * 0.657;
   const radii = Array.from({ length: rings }, (_, index) => dialRadius + gap + track / 2 + index * pitch);
   return { font, pitch, track, radii, dialRadius };
 }

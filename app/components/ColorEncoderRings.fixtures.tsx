@@ -6,9 +6,10 @@ import { useState } from "react";
 import { afterEach, beforeAll, vi } from "vitest";
 import { ColorEncoder, type ColorEncoderRing } from "./ColorEncoder";
 import type { Hsva } from "./colorEncoderModel";
+import { DIAL_OUTER_RATIO } from "./controls/rotary/constants";
 
-/** The 200px dial's box: --re-outer is 1.244 knob diameters. */
-export const DIAL_BOX = 248.8;
+/** The 200px dial's box: --re-outer is DIAL_OUTER_RATIO knob diameters. */
+export const DIAL_BOX = 200 * DIAL_OUTER_RATIO;
 export const DIAL_CENTRE = DIAL_BOX / 2;
 
 /** Registers the pointer-capture shim, the fixed dial box, and the teardown. */
@@ -34,12 +35,16 @@ export function useDialHarness() {
   });
 }
 
-/** A point on the knob at `angle`, clockwise degrees from 12 o'clock. */
+/**
+ * A point on the knob at `angle`, clockwise degrees from 12 o'clock. The 0.7
+ * keeps it inside the knob's face — the face is half the box over
+ * DIAL_OUTER_RATIO, and 0.8 of the box is out on the innermost ring.
+ */
 export function onKnob(angle: number) {
   const radians = (angle * Math.PI) / 180;
   return {
-    clientX: DIAL_CENTRE + DIAL_CENTRE * 0.8 * Math.sin(radians),
-    clientY: DIAL_CENTRE - DIAL_CENTRE * 0.8 * Math.cos(radians),
+    clientX: DIAL_CENTRE + DIAL_CENTRE * 0.7 * Math.sin(radians),
+    clientY: DIAL_CENTRE - DIAL_CENTRE * 0.7 * Math.cos(radians),
   };
 }
 

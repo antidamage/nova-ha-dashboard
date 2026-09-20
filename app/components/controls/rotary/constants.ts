@@ -15,6 +15,32 @@ export const ARC_MIN_SPAN = 180;
 export const TRACK_SHARE = 0.06;
 export const GAP_SHARE = 0.025;
 
+/**
+ * The dial's ring stack, as shares of the knob diameter. `rotary-encoder.css`
+ * carries the same numbers as its `--re-*` custom properties, and
+ * `unlockRingGeometry.test.ts` fails if the two ever drift apart.
+ */
+export const RING_SHARE = 0.1;
+export const BEVEL_SHARE = 0.022;
+/**
+ * The embossed unlock ring: a thin band of polished glass between the knob's
+ * lip and the colour ring, dark until the dial unlocks and then lit in the LED
+ * colour. Adding it pushed the colour ring, the outer bevel and every slider
+ * ring out by exactly this much, so the outer layers keep the arrangement they
+ * had (Adeline, 2026-09-20).
+ */
+export const UNLOCK_RING_SHARE = 0.035;
+/**
+ * Where the stack ends: the slider rings' band starts here and the dial's own
+ * footprint is `2 x` it. Half the knob, then unlock ring, colour ring, bevel.
+ */
+export const DIAL_RADIUS_SHARE = 0.5 + UNLOCK_RING_SHARE + RING_SHARE + BEVEL_SHARE;
+/**
+ * `--re-outer` over the knob diameter. A caller that has to lay the dial out
+ * itself — the status orb puts the color ring on its rim — divides by this.
+ */
+export const DIAL_OUTER_RATIO = 2 * DIAL_RADIUS_SHARE;
+
 /** Thumb thickness and visible length (round ends included), in track widths. */
 export const THUMB_THICKNESS = 1.3;
 export const THUMB_LENGTH = 2.4;

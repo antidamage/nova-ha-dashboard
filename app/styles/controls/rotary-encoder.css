@@ -12,10 +12,16 @@
      and pick a light or dark treatment (see isLightSurface in ColorEncoder). */
   color: var(--re-tint);
   --re-size: 200px;
+  /* The embossed unlock ring: a thin band of polished glass round the knob,
+     inside the colour ring. Everything outside it moved out by exactly this
+     much when it was added, so the outer layers keep their spacing
+     (Adeline, 2026-09-20). The shares below are the dial's ring stack and are
+     mirrored in controls/rotary/constants.ts. */
+  --re-unlock: calc(var(--re-size) * 0.035);
   --re-ring: calc(var(--re-size) * 0.1);
   --re-bevel: calc(var(--re-size) * 0.022);
-  --re-outer: calc(var(--re-size) + 2 * var(--re-ring) + 2 * var(--re-bevel));
-  --re-ring-outer: calc(var(--re-size) + 2 * var(--re-ring));
+  --re-outer: calc(var(--re-size) + 2 * var(--re-unlock) + 2 * var(--re-ring) + 2 * var(--re-bevel));
+  --re-ring-outer: calc(var(--re-size) + 2 * var(--re-unlock) + 2 * var(--re-ring));
   --re-led-w: max(3px, calc(var(--re-size) * 0.048));
   /* Silkscreen under each light. Smaller than the caption — three of them have
      to sit side by side across the face — with a floor so a 100px knob still
@@ -32,7 +38,13 @@
   --re-color: #ffffff;
   --re-glow: 0 0 0 rgba(0, 0, 0, 0);
   --re-angle: 0deg;
-  --re-annulus: radial-gradient(circle closest-side, transparent 0 83.3%, #000 83.5% 100%);
+  /* The colour ring's annulus on an element the size of --re-ring-outer: the
+     knob's edge to the ring's outer edge. `0.535 / 0.635` is the ring's inner
+     edge now the unlock ring sits inside it. */
+  --re-annulus: radial-gradient(circle closest-side, transparent 0 84.25%, #000 84.45% 100%);
+  /* The unlock ring's own band on the same element: the knob's edge out to the
+     colour ring's inner edge, with a hair of feather at each end. */
+  --re-unlock-annulus: radial-gradient(circle closest-side, transparent 0 78.55%, #000 78.75% 84.25%, transparent 84.45% 100%);
   /* The rings' SVG and the dial share one grid cell, both centred, so the
      dial sits dead centre inside its rings with no absolute positioning. */
   display: inline-grid;

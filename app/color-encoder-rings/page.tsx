@@ -12,18 +12,30 @@ import {
   type ColorEncoderChannel,
 } from "../components/ColorEncoder";
 import type { Hsva } from "../components/colorEncoderModel";
+import { StatusOrbDemo } from "../components/StatusOrbDemo";
 import { DemoTemperatureDial } from "../components/TemperatureEncoderDemo";
+import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from "../components/theme/accent/defaults";
 
 const RING_NAMES = ["Opacity", "Size", "Glow", "Speed", "Softness"];
+
+/** The unlock-ring dials lock themselves again after this long, as the climate knobs do. */
+const RING_DEMO_TUCK_MS = 4000;
+
+/* The tech skin for the two demo orbs, in each shipped theme's colours. */
+const TECH_DARK_ORB = { ...DEFAULT_DARK_THEME.avatar, orbModule: "tech" };
+const TECH_LIGHT_ORB = { ...DEFAULT_LIGHT_THEME.avatar, orbModule: "tech" };
 
 type DemoDialProps = {
   channels?: ColorEncoderChannel[];
   disabled?: boolean;
   id: string;
   initial?: Hsva;
+  knobSkin?: "dark" | "light";
   label: string;
   rings: number;
   size: number;
+  /** Present on the unlock-ring dials, so they start locked and light the ring on a tap. */
+  tuckAfterMs?: number;
 };
 
 const DEFAULT_COLOUR: Hsva = { h: 200, s: 70, v: 85, a: 80 };
@@ -38,7 +50,7 @@ const FILL_COLOURS: Hsva[] = [
   { h: 0, s: 0, v: 100, a: 100 },
 ];
 
-function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, initial = DEFAULT_COLOUR, label, rings, size }: DemoDialProps) {
+function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, initial = DEFAULT_COLOUR, knobSkin, label, rings, size, tuckAfterMs }: DemoDialProps) {
   const [colour, setColour] = useState<Hsva>(initial);
   const [values, setValues] = useState<number[]>(() => RING_NAMES.map((_, index) => 20 + index * 15));
 
@@ -47,8 +59,10 @@ function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, initial = D
       <ColorEncoder
         channels={channels}
         disabled={disabled}
+        knobSkin={knobSkin}
         label={label}
         size={size}
+        tuckAfterMs={tuckAfterMs}
         value={colour}
         onChange={setColour}
         rings={RING_NAMES.slice(0, rings).map((name, index) => ({
@@ -86,6 +100,25 @@ export default function ColorEncoderRingsDemo() {
   return (
     <main style={styles.page}>
       <h1 style={styles.title}>ColorEncoder</h1>
+
+      {/* Adeline, 2026-09-20: one of each surface that carries the embossed
+          unlock ring, in both skins. They start locked — a tap unlocks one and
+          lights its ring, and it locks itself again after a few seconds — and
+          the two orbs are the tech skin. */}
+      <Section title="Unlock ring, dark">
+        <DemoDial id="unlock-dark-colour" knobSkin="dark" label="Lights" rings={3} size={200} tuckAfterMs={RING_DEMO_TUCK_MS} />
+        <DemoTemperatureDial id="unlock-dark-aircon" kind="aircon" knobSkin="dark" size={200} startMode="manual" timerMinutes={38} />
+        <DemoTemperatureDial id="unlock-dark-heater" kind="heater" knobSkin="dark" size={200} startMode="auto" target={19} />
+        <StatusOrbDemo id="unlock-dark-orb" theme={TECH_DARK_ORB} />
+      </Section>
+
+      <Section light title="Unlock ring, light">
+        <DemoDial id="unlock-light-colour" knobSkin="light" label="Lights" rings={3} size={200} tuckAfterMs={RING_DEMO_TUCK_MS} />
+        <DemoTemperatureDial id="unlock-light-aircon" kind="aircon" knobSkin="light" size={200} startMode="manual" timerMinutes={12} />
+        <DemoTemperatureDial id="unlock-light-heater" kind="heater" knobSkin="light" size={200} startMode="auto" target={19} />
+        <StatusOrbDemo id="unlock-light-orb" light theme={TECH_LIGHT_ORB} />
+      </Section>
+
 
       <Section title="Ring count, 200px">
         {[0, 1, 2, 3, 4, 5].map((rings) => (
