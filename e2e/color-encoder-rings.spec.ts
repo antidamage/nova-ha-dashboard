@@ -73,18 +73,21 @@ test.describe("ColorEncoder demo", () => {
       expect(Math.abs(whole.x + whole.width / 2 - (knob.x + knob.width / 2))).toBeLessThanOrEqual(1);
       expect(Math.abs(whole.y + whole.height / 2 - (knob.y + knob.height / 2))).toBeLessThanOrEqual(1);
 
-      const label = await box(root.locator(".rotary-encoder-label"));
+      // The dial's name is its **title arc**, over the knob and outside it
+      // (specs/color-encoder.md, "The title arcs over the knob"), and a
+      // ColorEncoder dial carries no face-top text — so the old symmetric
+      // measurement (a face-top label as far above the lights as the caption is
+      // below them) no longer describes the control. What is true, and what
+      // this checks, is where each piece sits: the name over the knob, the
+      // caption under the lights, both in the caption's own font.
+      const name = await box(root.locator(".rotary-encoder-title"));
       const leds = await box(root.locator(".rotary-encoder-leds"));
       const caption = await box(root.locator(".rotary-encoder-channel"));
-      // Mirrors the caption: as far above the lights as the caption is below.
-      const above = leds.y - (label.y + label.height);
-      const below = caption.y - (leds.y + leds.height);
-      expect(Math.abs(above - below)).toBeLessThanOrEqual(1.5);
-      expect(label.y).toBeGreaterThan(knob.y);
-      // Same font as the caption.
+      expect(name.y + name.height).toBeLessThanOrEqual(knob.y);
+      expect(caption.y).toBeGreaterThanOrEqual(leds.y + leds.height);
       const sizes = await root.evaluate((element) => {
         const read = (selector: string) => getComputedStyle(element.querySelector(selector)!).fontSize;
-        return [read(".rotary-encoder-label"), read(".rotary-encoder-channel")];
+        return [read(".rotary-encoder-title"), read(".rotary-encoder-channel")];
       });
       expect(sizes[0]).toBe(sizes[1]);
       await shot(root, `count-${rings}`);
@@ -189,7 +192,12 @@ test.describe("ColorEncoder demo", () => {
         image: getComputedStyle(led).backgroundImage,
       })));
     expect(fills.filter((led) => led.lit)).toHaveLength(1);
-    for (const led of fills) expect(led.image.startsWith('url("data:image/png')).toBe(led.lit);
+    // The lit light carries the 97-byte PNG that suppresses Chromium's auto dark
+    // mode (specs/color-encoder.md, "Surviving Brave's auto dark mode"), and an
+    // unlit one does not. It is not the *first* layer of the stack — the themed
+    // ramp is layered over it, on top — so this looks for it anywhere in the
+    // value rather than at the front.
+    for (const led of fills) expect(led.image.includes('url("data:image/png')).toBe(led.lit);
 
     // A disabled control dims each ring once, to 45%, not 45% of 45%.
     const opacity = await dial(page, "disabled").evaluate((element) => {
