@@ -32,6 +32,12 @@ desktop so the display is upright.
   turned. Settle first (re-read every 1 s for up to 5 s, two consecutive
   readings agreeing within 15°), then **ask DeepSeek which way the settled
   frame is facing** and apply its answer.
+- **Lights off: abandon** (Adeline, 2026-09-20). A frame whose mean pixel
+  value is under `ORIENT_DARK_MEAN` (25) is not judged at all — no matching
+  decision, no API call — **unless a person triggered the reading**. Walking up
+  to the panel counts; the 60 s timer and the hourly check do not. A dark room
+  is where the matcher manufactures confidence out of noise, and it is the
+  exact condition that produced the 06:07 failure.
 - **Hourly, regardless of the local reading** (Adeline, 2026-09-20): send a
   frame to DeepSeek and apply the orientation it reports. The local match is a
   cheap change detector; this is the standing authority that corrects it when
@@ -70,6 +76,9 @@ time the frame is replaced.
 
 ### Per reading
 
+0. If the frame is darker than `DARK_MEAN` and nothing user-triggered this
+   reading, stop here. The hourly clock is deliberately **not** reset, so the
+   check fires on the first lit tick rather than waiting out another hour.
 1. Open `/dev/videoN` resolved by card-name substring `USB2.0 HD` (lowest
    node; never the IR node, never forbidden `macrosilicon`/`2109`). MJPG,
    640x480. Discard the first 8 frames (auto-exposure), keep the 9th, release.
@@ -175,9 +184,11 @@ world-up at the frame's left edge, giving c = 270 → `right`.
 
 ## Triggers
 
-- 60 s timer inside the daemon (the local change detector).
+- 60 s timer inside the daemon (the local change detector). **Not**
+  user-triggered, so it abandons in the dark.
 - 3600 s since the last DeepSeek answer (the standing authority). Runs on the
   next 60 s tick after the hour is up, and any change-triggered call resets it.
+  **Not** user-triggered either.
 - CDP on `127.0.0.1:9223` (the kiosk Brave). Attach to the page target whose
   URL starts with `NOVA_BACKEND_URL`; `Page.frameNavigated` (main frame) and
   `Page.navigatedWithinDocument`. Trigger when the new path is `/` or starts
@@ -239,6 +250,9 @@ Only written from a confident, settled reading.
   known indoor photo turned to each cardinal: **4/4**.
 - The gate clears an empty room and fires on an occupied one. Verified
   2026-09-20 both ways.
+- A dark frame abandons on a timer tick and proceeds when user-triggered.
+  Verified 2026-09-20 by raising `ORIENT_DARK_MEAN` above the measured
+  daylight brightness and running both paths.
 - Exactly one image file exists under `/var/lib/nova-kiosk-orient` (`last.jpg`,
   0600) and no other frame is written anywhere.
 - Witness and preview follow the state; dashboard tests pass.

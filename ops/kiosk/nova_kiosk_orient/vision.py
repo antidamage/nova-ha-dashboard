@@ -72,6 +72,11 @@ def grab_frame() -> np.ndarray | None:
         cap.release()
 
 
+def brightness(frame: np.ndarray) -> float:
+    """Mean pixel value, as a stand-in for "are the lights on?"."""
+    return round(float(frame.mean()), 1)
+
+
 def grab_gray() -> np.ndarray | None:
     frame = grab_frame()
     return None if frame is None else cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -153,8 +158,9 @@ def read_once(retained) -> dict:
     frame = grab_frame()
     if frame is None:
         return {"confident": False, "reason": "camera", "frame": None}
-    reading = {"confident": False, "reason": "no-retained", "frame": frame}
+    reading = {"confident": False, "reason": "no-retained"}
     if retained is not None:
         reading = measure(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), *retained)
-        reading["frame"] = frame
+    reading["brightness"] = brightness(frame)
+    reading["frame"] = frame
     return reading

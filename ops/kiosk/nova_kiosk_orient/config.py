@@ -29,6 +29,12 @@ SQUARE_DEGREES = env_float("ORIENT_SQUARE_DEGREES", 15.0)
 # so a quietly drifted or blind matcher gets corrected. Any change-triggered
 # call resets the clock.
 VLM_INTERVAL_SECONDS = env_float("ORIENT_VLM_INTERVAL_SECONDS", 3600.0)
+# A dark room is where this went wrong: the 06:07 reading that put the panel
+# upside down was taken with the lights off, and matching noise against noise
+# is what made it *confident*. So an unlit frame is not judged at all unless a
+# person asked for it. Measured 2026-09-20 in daylight: mean 83.4 and 79.7.
+# Every reading logs its brightness, so this can be tuned from real nights.
+DARK_MEAN = env_float("ORIENT_DARK_MEAN", 25.0)
 SETTLE_INTERVAL = 1.0
 SETTLE_SECONDS = 5.0
 WARMUP_FRAMES = 8

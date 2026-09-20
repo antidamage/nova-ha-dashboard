@@ -20,6 +20,7 @@ import threading
 import time
 
 from .config import (
+    DARK_MEAN,
     LOG,
     POLL_SECONDS,
     SETTLE_INTERVAL,
@@ -29,7 +30,7 @@ from .config import (
 )
 from .orientation import ask_cardinal
 from .people import person_in
-from .vision import grab_frame, load_retained, read_once, save_retained
+from .vision import brightness, grab_frame, load_retained, read_once, save_retained
 from . import runtime
 from .runtime import Browser, apply, last_cardinal, retained_cardinal, vlm_asked_at
 
@@ -72,7 +73,7 @@ def local_cardinal(reading: dict) -> int | None:
     return int(round((base + reading["angle"]) / 90.0)) % 4 * 90
 
 
-def evaluate() -> None:
+def evaluate(user_triggered: bool = False) -> None:
     retained = load_retained()
     reading = read_once(retained)
     frame = reading.pop("frame", None)
@@ -80,10 +81,18 @@ def evaluate() -> None:
         LOG.info("no frame: %s", reading.get("reason", "camera"))
         return
 
+    # Lights off: abandon unless a person asked (Adeline, 2026-09-20). A dark
+    # frame is where the matcher manufactures confidence out of noise, and it
+    # is not worth an API call either. Walking up to the panel overrides this;
+    # the timer and the hourly check do not.
+    if reading.get("brightness", 0) < DARK_MEAN and not user_triggered:
+        LOG.info("lights off (brightness %s); abandoning until asked", reading.get("brightness"))
+        return
+
     due = (time.time() - vlm_asked_at()) >= VLM_INTERVAL_SECONDS
     turn = turn_from_retained(reading)
     moved = retained is None or not reading.get("confident") or (turn is not None and turn > SQUARE_DEGREES)
-    LOG.info("reading %s turn=%s moved=%s hourly_due=%s", reading, turn, moved, due)
+    LOG.info("reading %s turn=%s moved=%s hourly_due=%s user=%s", reading, turn, moved, due, user_triggered)
     if not moved and not due:
         return
 
@@ -122,13 +131,17 @@ def daemon() -> int:
         SQUARE_DEGREES,
         VLM_INTERVAL_SECONDS,
     )
+    woken = False
     while True:
         wake.clear()
         try:
-            evaluate()
+            # `woken` is true when the last wait ended because the Browser
+            # thread fired, i.e. someone navigated the kiosk to / or /config.
+            # That is the user asking, and it is what overrides a dark room.
+            evaluate(user_triggered=woken)
         except Exception:
             LOG.exception("reading failed")
-        wake.wait(POLL_SECONDS)
+        woken = wake.wait(POLL_SECONDS)
 
 
 def seed() -> int:
@@ -137,6 +150,7 @@ def seed() -> int:
     if frame is None:
         print("camera unavailable")
         return 1
+    LOG.info("brightness %s", brightness(frame))
     cardinal = ask_cardinal(frame)
     if cardinal is None:
         print("DeepSeek gave no usable orientation (a person in frame blocks the send)")
