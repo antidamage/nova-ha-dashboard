@@ -193,7 +193,8 @@ often. A colour picker opens on hue, the first channel, which is the default.
   swept **since the last sample** to the value. The knob never jumps to meet
   the pointer — grabbing it at 4 o'clock and sweeping 30° clockwise turns it
   30°, wherever the value happened to be, exactly as a real knob does. Rings
-  are the exception and jump to the press (see Rings).
+  are the exception: a ring's value is absolute to the press, and a ring that
+  steps then glides its thumb to the stop (see Rings).
 - **Sensitivity**: the index follows the hand exactly, so the value moves at
   the rate its own index angle implies: hue `1°` of value per degree turned;
   brightness, saturation and alpha `1/2.7` (`100 / 270°`) per degree. Holding
@@ -264,7 +265,7 @@ type ColorEncoderRing = {
   value: number;
   min?: number;     // default 0
   max?: number;     // default 100
-  step?: number;    // snaps the value when set
+  step?: number;    // snaps the value when set; the thumb glides to the stop
   disabled?: boolean;
   onChange: (value: number) => void;  // continuous, while dragging
   onCommit?: (value: number) => void; // once per gesture
@@ -357,7 +358,8 @@ Adeline, 2026-09-12.
 - **`slider`** — everything above. The default.
 - **`selector`** — discrete stops spaced evenly across the arc (thumb
   centres inset as for a slider). Tap to jump to the nearest stop, drag to
-  snap between stops. It **does not fill behind the thumb**: the caller gives
+  snap between stops — the value snaps at once and the thumb glides to it. It
+  **does not fill behind the thumb**: the caller gives
   the whole track one fill colour for the current stop, or none, which leaves
   an empty well. Arrows move one stop.
 - **`toggle`** — no thumb and no drag. A tap anywhere on the track toggles it,
@@ -431,9 +433,11 @@ Rings share the dial's pointer surface.
   P/2)) / P)`, each keeping a band of one pitch centred on its own track; past
   the last ring, nothing.
 - **The label gap is dead**: a press in the bottom 90° does nothing.
-- **Tap the track to jump.** Unlike the knob, a ring is absolute: a press puts
-  the thumb at the press angle straight away, and the drag follows the pointer's
-  angle. A ring is a slider bent round a circle, not a knob.
+- **Tap the track to jump.** Unlike the knob, a ring is absolute: a press sets
+  the ring's **value** from the press angle straight away, and the drag follows
+  the pointer's angle. On a ring that steps, the thumb then glides to the new
+  stop rather than teleporting to it (see "A step glides, it never snaps"). A
+  ring is a slider bent round a circle, not a knob.
 - **The gap pins, it never jumps.** Dragging into the gap pins the value at the
   end it was nearer, and it stays pinned until the pointer returns to the arc on
   that end's half, so a drag can never jump the value from one end to the other.
@@ -444,6 +448,33 @@ Rings share the dial's pointer surface.
   release only if the gesture changed the value. A quick tap that jumped the
   thumb is one gesture and clicks once.
 - No tap-to-type: rings do not open `NumericEntryPopover`.
+
+### A step glides, it never snaps
+
+Adeline, 2026-09-21. A ring whose value steps — a stepped slider, or a selector
+— draws its thumb from the fraction it has **reached**, not the one its value
+was sent to, and closes the gap at one fixed rate: `RING_GLIDE_DEG_PER_SEC`,
+720°, of the ring's own arc per second (`constants.ts`, `ring-glide-model.ts`,
+`useRingGlide.ts`). The **value** still snaps to its step at once, on the sample
+the press produced it; only the drawing lags behind it.
+
+- **One speed, so a long step is visibly long.** A step is a distance and the
+  speed is constant, so the size of the step is what decides how long it takes:
+  on a full 270° arc a quarter turn takes 375ms, and the aircon Mode ring's 90°
+  stop 125ms, so cool → heat (three stops) reads as three times the move that
+  cool → dry does.
+- **The furthest step is the target.** The thumb chases whatever the ring's
+  value is *now*, re-read on every frame — a drag that crosses three stops in
+  one sample aims at the third, and the stops it passed are never queued behind
+  it. Dragged back mid-travel, the thumb turns round where it is. It is a
+  follow, not a play-list: a drag that has gone past a step must never feel held
+  back while the thumb catches up.
+- **A release lets a travel finish** rather than cutting it short, so a quick
+  flick to a far stop is still seen to happen.
+- **A ring with no step is never aimed at**, and still follows the pointer
+  exactly — no lag is added to a continuous slider.
+- **Full lite snaps**, as every other eased control on the surface does
+  (`useLiteMode`; specs/experience-modes.md).
 
 ## The title arcs over the knob
 
@@ -923,7 +954,8 @@ deleted, along with its exports, README row and showcase card. Adeline,
 - `npx tsc --noEmit`, `npm run test:unit`, `npm run test:e2e` clean.
 - Brightness, saturation and alpha stop the rotor at their ends; hue does not.
 - The knob turns by the angle swept from where the press landed, never jumping
-  to the pointer; rings do jump to the press.
+  to the pointer; a ring's value is absolute to the press, and a ring that steps
+  glides its thumb to the new stop at one fixed speed per degree.
 - Every dial's label is on its knob face, and no dial has a label above it.
 - A disabled dial shows no lit LED and no glow.
 - Rings render at 0–5, behave as specified at 56, 100 and 200px in dark and
@@ -950,6 +982,10 @@ deleted, along with its exports, README row and showcase card. Adeline,
 - The base's new pieces — variable LED count, ring value text and shortening,
   `selector` and `toggle` rings, tuck-away and floating rings — have unit
   tests, and the sample temperature knob on `/color-encoder-rings` shows them.
+- A stepping ring's glide — the rate, its behaviour on a shortened arc, a drag
+  past several stops, a mid-travel reverse, a release part-way and the lite
+  snap — is measured off the **drawn** thumb in
+  `RotaryEncoder.glide.test.tsx`, not off the ring's value.
 - An adversarial visual gauntlet passes: the control screenshotted at 50px,
   120px and 200px, in dark and light themes, in every channel state, with
   opacity at 100 and 40 — reviewed against this spec until a reviewer finds
