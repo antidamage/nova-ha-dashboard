@@ -7,7 +7,20 @@
  * length of the step decides how long the move takes, not the size of the ring
  * or the size of the range.
  */
-import { RING_GLIDE_DEG_PER_SEC } from "./constants";
+import { RING_GLIDE_DEG_PER_SEC, RING_GLIDE_MIN_STEP_SHARE } from "./constants";
+
+/**
+ * Whether a ring's `step` makes it a discrete control rather than a rounded
+ * continuous one: the step must be at least `RING_GLIDE_MIN_STEP_SHARE` of the
+ * ring's range. `override` is the ring's own `glide`, which wins either way.
+ */
+export function glidesOnStep(step: number | undefined, min: number, max: number, override?: boolean) {
+  if (override !== undefined) return override;
+  if (!step || step <= 0) return false;
+  const span = Math.abs(max - min);
+  if (span === 0) return false;
+  return step >= span * RING_GLIDE_MIN_STEP_SHARE;
+}
 
 /**
  * Where a glide from `from` to `to` has reached after `elapsedMs`. A fraction
