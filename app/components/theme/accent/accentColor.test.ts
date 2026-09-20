@@ -89,6 +89,51 @@ describe("accentColor theme normalization", () => {
     expect(themeSet.themes.light.ledColor).toEqual({ cursor: { x: 0, y: 1 }, intensity: 100, rgb: [0, 128, 255] });
   });
 
+  it("gives the unlock ring a colour of its own, and the LED colour until it has one", () => {
+    // The band lit in the LED colour before it had a slot of its own, so a
+    // theme that has never set one has to keep exactly that colour
+    // (Adeline, 2026-09-21; specs/color-encoder.md, "The unlock ring's colour").
+    const defaults = normalizeThemeSet(null).themes;
+    expect(defaults.dark.unlockRingColor).toEqual({ cursor: { x: 0, y: 1 }, intensity: 100, rgb: [255, 255, 255] });
+    expect(defaults.light.unlockRingColor).toEqual({ cursor: { x: 0, y: 1 }, intensity: 100, rgb: [255, 255, 255] });
+
+    const themeSet = normalizeThemeSet({
+      selection: "dark",
+      themes: {
+        dark: { ledColor: { cursor: { x: 0.3, y: 0.4 }, intensity: 80, rgb: [255, 0, 128] } },
+        light: {
+          ledColor: { rgb: [0, 128, 255] },
+          unlockRingColor: { cursor: { x: 0.6, y: 0.2 }, intensity: 60, rgb: [0, 255, 128] },
+        },
+      },
+    } as unknown as ThemeStorageValue);
+
+    // Nothing stored for the ring: it follows the lights, cursor and intensity
+    // included, rather than falling back to a fixed white.
+    expect(themeSet.themes.dark.unlockRingColor).toEqual({
+      cursor: { x: 0.3, y: 0.4 },
+      intensity: 80,
+      rgb: [255, 0, 128],
+    });
+    // A stored one is kept, and stays independent of the lights.
+    expect(themeSet.themes.light.unlockRingColor).toEqual({ cursor: { x: 0.6, y: 0.2 }, intensity: 60, rgb: [0, 255, 128] });
+  });
+
+  it("publishes the unlock ring's colour to CSS apart from the LEDs", () => {
+    const theme = normalizeThemeSet(null).themes.dark;
+    applyDeviceTheme({
+      ...theme,
+      ledColor: { cursor: { x: 0, y: 0 }, intensity: 100, rgb: [255, 0, 0] },
+      unlockRingColor: { cursor: { x: 0, y: 0 }, intensity: 100, rgb: [0, 0, 255] },
+    });
+    const style = document.documentElement.style;
+    expect(style.getPropertyValue("--nova-led-color")).toBe("rgb(255 0 0)");
+    expect(style.getPropertyValue("--nova-led-rgb")).toBe("255 0 0");
+    expect(style.getPropertyValue("--nova-unlock-ring-color")).toBe("rgb(0 0 255)");
+    // Raw channels too: the band's glow carries an alpha of its own.
+    expect(style.getPropertyValue("--nova-unlock-ring-rgb")).toBe("0 0 255");
+  });
+
   it("seeds the panel slot from the background so older themes keep their look", () => {
     // specs/panel-surface.md, "Default": 0.84 intensity == old 16% mix to black.
     const themeSet = normalizeThemeSet({

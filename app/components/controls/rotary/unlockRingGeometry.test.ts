@@ -111,14 +111,21 @@ describe("the ring's layers", () => {
     }
   });
 
-  it("lights the band in the LED colour only while the dial is unlocked", () => {
+  it("lights the band in the theme's own unlock-ring colour only while the dial is unlocked", () => {
     const lit = /\.rotary-encoder-unlock-lit\s*\{[^}]*\}/.exec(unlockCss)?.[0] ?? "";
     expect(lit).toContain("opacity: 0");
     expect(unlockCss).toMatch(/\.rotary-encoder\[data-locked="false"\] \.rotary-encoder-unlock-lit\s*\{[^}]*opacity: 1/);
-    // The glow is the same colour as the LEDs, and the lit layer is that colour
-    // too rather than a flat white.
-    expect(unlockCss).toMatch(/\.rotary-encoder\[data-locked="false"\] \.rotary-encoder-unlock-ring\s*\{[^}]*--re-led-on-rgb/);
-    expect(lit).toContain("var(--re-led-on)");
+    // The glow is the band's own colour, and the lit layer is that colour too
+    // rather than a flat white. Both take the Unlock Ring slot, which is a
+    // colour of its own beside the LEDs (Adeline, 2026-09-21); nothing on the
+    // band reads the LED colour directly any more.
+    expect(unlockCss).toMatch(/\.rotary-encoder\[data-locked="false"\] \.rotary-encoder-unlock-ring\s*\{[^}]*--re-unlock-on-rgb/);
+    expect(lit).toContain("var(--re-unlock-on)");
+    expect(unlockCss).not.toContain("--re-led-on");
+    // And the slot falls back to the LED colour, which is what the band
+    // followed before it had one (specs/color-encoder.md).
+    expect(property("--re-unlock-on")).toBe("var(--nova-unlock-ring-color, var(--re-led-on))");
+    expect(property("--re-unlock-on-rgb")).toBe("var(--nova-unlock-ring-rgb, var(--re-led-on-rgb))");
   });
 
   it("hue-shifts the bottom of the lit band by 5deg and leaves the top bright", () => {

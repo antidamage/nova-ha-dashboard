@@ -33,6 +33,11 @@
      (Adeline, 2026-09-12). Raw channels too, because the glow needs alpha. */
   --re-led-on: var(--nova-led-color, #ffffff);
   --re-led-on-rgb: var(--nova-led-rgb, 255 255 255);
+  /* The embossed unlock ring's lit band, from the theme's own Unlock Ring slot.
+     Its fallback is the LED colour, which is what the band followed before the
+     slot existed (specs/color-encoder.md, "The unlock ring's colour"). */
+  --re-unlock-on: var(--nova-unlock-ring-color, var(--re-led-on));
+  --re-unlock-on-rgb: var(--nova-unlock-ring-rgb, var(--re-led-on-rgb));
   --re-checker-a: #c4c5c9;
   --re-checker-b: #7a7b80;
   --re-color: #ffffff;
