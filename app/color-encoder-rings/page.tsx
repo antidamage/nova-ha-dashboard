@@ -139,9 +139,9 @@ export default function ColorEncoderRingsDemo() {
       </Section>
 
       <Section light title="Light theme">
-        <DemoDial id="light-5" label="Lights" rings={5} size={200} />
-        <DemoDial id="light-100" label="Lights" rings={3} size={100} />
-        <DemoDial id="light-amber" initial={FILL_COLOURS[1]} label="Lights" rings={3} size={140} />
+        <DemoDial id="light-5" knobSkin="light" label="Lights" rings={5} size={200} />
+        <DemoDial id="light-100" knobSkin="light" label="Lights" rings={3} size={100} />
+        <DemoDial id="light-amber" knobSkin="light" initial={FILL_COLOURS[1]} label="Lights" rings={3} size={140} />
       </Section>
 
       <Section title="States">
