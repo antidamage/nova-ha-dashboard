@@ -27,6 +27,12 @@ export type DemoTemperatureDialProps = {
   id: string;
   /** The aircon's four rings, or the heater's one. */
   kind?: "aircon" | "heater";
+  /**
+   * Pins the knob's light/dark treatment. Without it the dial follows the
+   * device theme's knob-skin setting, which the demo config pins to dark — so a
+   * light row on a demo page has to ask for light (Adeline, 2026-09-20).
+   */
+  knobSkin?: "auto" | "dark" | "light";
   room?: number | null;
   size?: number;
   target?: number;
@@ -38,6 +44,7 @@ export type DemoTemperatureDialProps = {
 export function DemoTemperatureDial({
   id,
   kind = "aircon",
+  knobSkin,
   room = 21.4,
   size = 200,
   target = 22,
@@ -120,6 +127,7 @@ export function DemoTemperatureDial({
     <div data-demo-knob={id}>
       <TemperatureEncoder
         ariaLabel={`Demo ${kind}`}
+        knobSkin={knobSkin}
         maxTarget={30}
         minTarget={kind === "heater" ? 5 : 16}
         mode={mode}
