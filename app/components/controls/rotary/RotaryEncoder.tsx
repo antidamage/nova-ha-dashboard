@@ -9,7 +9,9 @@
  * sunken ring the caller paints, and outside that up to five arc slider rings.
  * The knob turns like a real knob: a drag applies the angle swept about the
  * centre since the last sample, never jumping to meet the pointer. Rings are
- * sliders bent round a circle and do jump to the press.
+ * sliders bent round a circle and their value is absolute to the press; a ring
+ * with a step then glides its thumb to the stop it was aimed at rather than
+ * snapping to it (specs/color-encoder.md, "A step glides, it never snaps").
  *
  * It knows nothing about colour or temperature: a caller supplies the LEDs, the
  * face text, the ring paint, the glow and the value's domain. `ColorEncoder`
@@ -65,6 +67,7 @@ import { dragStep, fractionOf, valueAt } from "./ring-drag-model";
 import type { RingPress, RotaryEncoderProps, RotaryEncoderRing } from "./types";
 import { useFaceTopFit } from "./useFaceTopFit";
 import { useKnobSkin } from "./useKnobSkin";
+import { useRingGlide } from "./useRingGlide";
 import { useTitleFit } from "./useTitleFit";
 import { useTuckAway } from "./useTuckAway";
 
@@ -398,10 +401,32 @@ export function RotaryEncoder({
     return typeof ring.valueText === "string" ? ring.valueText : "";
   };
 
+  /**
+   * A ring that steps is drawn from where its thumb has reached, not from where
+   * its value was sent — so a two-stop jump reads as a longer movement than a
+   * one-stop jump (specs/color-encoder.md, "A step glides, it never snaps").
+   * A ring at rest, and a ring with no step, is drawn from its value.
+   */
+  const glide = useRingGlide(() =>
+    Object.fromEntries(shown.map((ring) => {
+      const [min, max] = ringRange(ring);
+      return [ring.id, fractionOf(ringValue(ring), min, max)];
+    })));
+  const ringDrawn = (ring: RotaryEncoderRing) => {
+    const [min, max] = ringRange(ring);
+    return glide.reading(ring.id) ?? fractionOf(ringValue(ring), min, max);
+  };
+  /** The ring's own arc, in degrees: a shortened ring glides at the same rate. */
+  const ringSweep = (ring: RotaryEncoderRing) => endOf(shown.indexOf(ring)) - ARC_START;
+
   const setRing = (ring: RotaryEncoderRing, next: number) => {
     const [min, max] = ringRange(ring);
     const bounded = clamp(next, Math.min(min, max), Math.max(min, max));
     if (bounded === ringValue(ring)) return false;
+    // Aimed before the value moves, from where the thumb is drawn right now: a
+    // drag that passed several stops aims at the furthest one, and the stops it
+    // passed are never queued behind it.
+    if (ringStep(ring)) glide.aim(ring.id, ringDrawn(ring), ringSweep(ring));
     ringLiveRef.current[ring.id] = bounded;
     rerender((count) => count + 1);
     noteInput();
@@ -689,7 +714,7 @@ export function RotaryEncoder({
         const end = endOf(index);
         const item = ringValue(ring);
         const kind = ringKind(ring);
-        const fraction = fractionOf(item, min, max);
+        const fraction = ringDrawn(ring);
         const thumbAt = thumbAngle(fraction, half, end);
         const labelText = fitted[index] ?? ring.label.toUpperCase();
         const trackPath = arcPath(centre, centre, radius, ARC_START, end);
