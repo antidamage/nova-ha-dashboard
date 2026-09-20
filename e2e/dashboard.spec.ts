@@ -16,8 +16,10 @@ test.describe("dashboard shell", () => {
   test("renders the core panels", async ({ page }) => {
     await gotoDashboard(page);
 
-    // Zones panel and its zone buttons.
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+    // Zones panel and its zone buttons. The panel itself, not its "Zones"
+    // heading: the layout hides that heading, which is why helpers.ts waits on
+    // the panel (Adeline, 2026-09-21).
+    await expect(page.locator(".zones-panel")).toBeVisible();
     await expect(page.getByRole("button", { name: /Home/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Everything/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /World/ })).toBeVisible();

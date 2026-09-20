@@ -9,7 +9,9 @@ test.describe("click-drag scroll", () => {
   test.beforeEach(async ({ page }) => {
     await seedExperienceMode(page, "rich");
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+    // The zones panel itself, not its "Zones" heading: the layout hides that
+    // heading, which is why helpers.ts waits on the panel (Adeline, 2026-09-21).
+    await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
     await neutralizeTaskAlerts(page);
     // Late-arriving content plus scroll anchoring will move scrollY under the
     // drag otherwise, which has nothing to do with what these tests measure.
