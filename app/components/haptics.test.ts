@@ -1,3 +1,5 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 const { playUxSound } = vi.hoisted(() => ({ playUxSound: vi.fn() }));
 
 vi.mock("./dashboard/controlSound", () => ({ playUxSound }));
