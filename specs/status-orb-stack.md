@@ -387,6 +387,14 @@ rules."
   carried over: the orb face is a readout, and the lights sat on top of it. The
   index line alone marks the entry on show, its angle taken from the entry's
   position in the stack.
+- **The unlock ring comes with it** (Adeline, 2026-09-20). The indicator mounts
+  the encoder's embossed glass band too, so the orb's rim shows the same locked →
+  tap → lit cycle the climate knob does: dark glass while closed, lit in the LED
+  colour with its faint glow while the stack is open (specs/color-encoder.md,
+  "The embossed unlock ring"). Because the indicator is hidden while the stack is
+  closed, the orb face carries the locked band itself —
+  `lib/orb-modules/tech.unlock.ts` draws it in the module's unit space, on the
+  rim between the dome and the status channel.
 - **De-focusing reverts to the preferred display order immediately.** The
   separate 10-second `ORB_DIAL_RETURN_MS` linger is removed: when the dial
   locks, the orb slides straight back to the top of the order computed by

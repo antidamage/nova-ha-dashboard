@@ -55,6 +55,7 @@
 @import "./styles/config/modules.css";
 @import "./styles/controls/rotary-encoder.css";
 @import "./styles/controls/rotary-knob-face.css";
+@import "./styles/controls/rotary-unlock-ring.css";
 @import "./styles/controls/rotary-leds.css";
 @import "./styles/controls/rotary-rings.css";
 @import "./styles/controls/rotary-title-arc.css";

@@ -14,6 +14,7 @@ import {
   ARC_MIN_SPAN,
   ARC_SPAN,
   ARC_START,
+  DIAL_RADIUS_SHARE,
   GAP_SHARE,
   LABEL_VALUE_CLEARANCE,
   RING_LIMIT,
@@ -52,7 +53,7 @@ export function ringLabelFont(size: number, count: number, pitch: number) {
 
 export function ringGeometry(size: number, count: number, titled = false): RingGeometry {
   const rings = clamp(Math.floor(count), 0, RING_LIMIT);
-  const dialRadius = size * 0.622;
+  const dialRadius = size * DIAL_RADIUS_SHARE;
   const caption = captionFont(size);
   // The title's band sits between the dial and the innermost ring, and pushes
   // every ring out by its full height. A dial with no title keeps the geometry

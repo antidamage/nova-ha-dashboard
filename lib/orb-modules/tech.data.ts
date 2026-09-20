@@ -1,6 +1,7 @@
 // Built-in Status Orb module "Tech". Registered in ./catalogue.
 
 import type { OrbModule } from "./layer-types";
+import { TECH_UNLOCK_LAYERS } from "./tech.unlock";
 
 /**
  * "Tech" — the RotaryEncoder knob (app/components/RotaryEncoder.tsx) drawn as
@@ -11,13 +12,21 @@ import type { OrbModule } from "./layer-types";
  * colour channel, whose paint is the status colour.
  *
  * Geometry is ported from the knob's CSS custom properties, where the dial's
- * footprint is `--re-outer` = size + 2 x ring (0.1) + 2 x bevel (0.022) =
- * 1.244 x size. Dividing through by half that footprint puts the knob in orb
- * unit space (rim = 1):
+ * footprint is `--re-outer` = size + 2 x unlock ring (0.035) + 2 x ring (0.1) +
+ * 2 x bevel (0.022) = 1.314 x size. Dividing through by half that footprint
+ * puts the knob in orb unit space (rim = 1):
  *
- *   knob face      r <= 0.804          (--re-size / --re-outer)
- *   colour channel 0.804 .. 0.965      (--re-ring, the sunken band)
- *   outer lip      0.965 .. 1          (--re-bevel)
+ *   knob face      r <= 0.761          (--re-size / --re-outer)
+ *   unlock ring    0.761 .. 0.814      (--re-unlock, the glass band)
+ *   colour channel 0.814 .. 0.966      (--re-ring, the sunken band)
+ *   outer lip      0.966 .. 1          (--re-bevel)
+ *
+ * The unlock ring arrived on 2026-09-20. In the knob's own space it pushed the
+ * channel and the lip out by its own width, which leaves the outer layers in
+ * the arrangement they had; the orb's rim is pinned, so what the orb gives up
+ * is the dome — everything cut from `--re-size` — and the channel comes down
+ * with it, 5% narrower than it was. Its band is in ./tech.unlock, and it is the
+ * one glass surface on the orb: the dome still carries no gloss of its own.
  *
  * The shading is deliberately softer than the knob's own (Adeline,
  * 2026-09-12): every shadow here is roughly half the strength of the CSS it
@@ -87,8 +96,8 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "lip-highlight",
       type: "arc",
-      radius: 0.982,
-      width: 0.035,
+      radius: 0.9833,
+      width: 0.0335,
       from: 0.48,
       to: 0.95,
       stops: [
@@ -100,8 +109,8 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "lip-shadow",
       type: "arc",
-      radius: 0.982,
-      width: 0.035,
+      radius: 0.9833,
+      width: 0.0335,
       from: 0.02,
       to: 0.46,
       stops: [
@@ -115,15 +124,15 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "channel-well",
       type: "ring",
-      radius: 0.884,
-      width: 0.161,
+      radius: 0.8904,
+      width: 0.1522,
       color: { hex: "#000000", alpha: 0.5 },
     },
     {
       id: "status-paint",
       type: "ring",
-      radius: 0.884,
-      width: 0.161,
+      radius: 0.8904,
+      width: 0.1522,
       color: { theme: "line1", alertTheme: "gradientAlert" },
     },
     // Thin activity arcs circling inside the channel — the classic orb's
@@ -134,11 +143,11 @@ export const TECH_MODULE: OrbModule = {
       blend: "additive",
       glow: 0.1,
       count: 18,
-      radiusMin: 0.824,
-      radiusMax: 0.945,
-      ringJitter: 0.012,
-      widthMin: 0.005,
-      widthMax: 0.013,
+      radiusMin: 0.8343,
+      radiusMax: 0.9465,
+      ringJitter: 0.0114,
+      widthMin: 0.0047,
+      widthMax: 0.0123,
       colors: [{ theme: "line2" }, { theme: "line3" }, { theme: "gymNumber" }],
       cap: "butt",
       idleSweepMin: 0.004,
@@ -156,8 +165,8 @@ export const TECH_MODULE: OrbModule = {
       blend: "additive",
       glow: 0.18,
       pulse: { period: 1.1, min: 0, max: 1, alertOnly: true },
-      radius: 0.884,
-      width: 0.161,
+      radius: 0.8904,
+      width: 0.1522,
       color: { theme: "gradientAlert" },
     },
     // .rotary-encoder-ring-shade, exactly: the 160deg wash that makes the band
@@ -171,8 +180,8 @@ export const TECH_MODULE: OrbModule = {
       id: "channel-shade-dark",
       type: "ring",
       enabledWhen: { setting: "light", max: 0.5 },
-      radius: 0.884,
-      width: 0.161,
+      radius: 0.8904,
+      width: 0.1522,
       color: { hex: "#000000", alpha: 0 },
       gradient: {
         angle: 160,
@@ -183,15 +192,15 @@ export const TECH_MODULE: OrbModule = {
         ],
       },
       // inset 0 0 calc(var(--re-ring) * 0.5): half the band's own width, and
-      // the band is 0.161 of the orb radius.
-      innerShadow: { blur: 0.0805, color: { hex: "#000000", alpha: 0.55 } },
+      // the band is 0.1522 of the orb radius.
+      innerShadow: { blur: 0.0761, color: { hex: "#000000", alpha: 0.55 } },
     },
     {
       id: "channel-shade-light",
       type: "ring",
       enabledWhen: { setting: "light", min: 0.5 },
-      radius: 0.884,
-      width: 0.161,
+      radius: 0.8904,
+      width: 0.1522,
       color: { hex: "#000000", alpha: 0 },
       gradient: {
         angle: 160,
@@ -201,15 +210,15 @@ export const TECH_MODULE: OrbModule = {
           { at: 1, color: { hex: "#ffffff", alpha: 0.5 } },
         ],
       },
-      innerShadow: { blur: 0.0805, color: { hex: "#000000", alpha: 0.28 } },
+      innerShadow: { blur: 0.0761, color: { hex: "#000000", alpha: 0.28 } },
     },
     // ---- Inner bevel: the lip between channel and dome, plus the dome's own
     // shadow cast down onto the channel. ----
     {
       id: "dome-shadow",
       type: "arc",
-      radius: 0.822,
-      width: 0.045,
+      radius: 0.7782,
+      width: 0.0426,
       from: 0.03,
       to: 0.47,
       stops: [
@@ -221,19 +230,24 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "inner-bevel",
       type: "ring",
-      radius: 0.81,
-      width: 0.012,
+      radius: 0.7668,
+      width: 0.0114,
       color: { hex: "#000000", alpha: 0.22 },
     },
+    // ---- The embossed unlock ring (--re-unlock), between the lip and the
+    // colour channel: dark polished glass, and above it the specular streaks
+    // that keep it reading as glass. The lit state is the indicator's
+    // (./tech.unlock says why), so what the module draws is the locked band.
+    ...TECH_UNLOCK_LAYERS,
     // ---- Knob face (.rotary-encoder-knob): one fixed light from above-left.
     // Base dome, then the highlight and the bounce, then the edge darkening.
     {
       id: "dome-dark",
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
-      radius: 0.804,
-      gradientFrom: { x: 0, y: -0.129, radius: 0 },
-      gradientTo: { x: 0, y: -0.129, radius: 0.86 },
+      radius: 0.7610,
+      gradientFrom: { x: 0, y: -0.1221, radius: 0 },
+      gradientTo: { x: 0, y: -0.1221, radius: 0.8142 },
       stops: [
         { at: 0, color: { theme: "gradientCenter" } },
         { at: 0.7, color: { theme: "gradientOuter" } },
@@ -244,9 +258,9 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-light",
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
-      radius: 0.804,
-      gradientFrom: { x: 0, y: -0.129, radius: 0 },
-      gradientTo: { x: 0, y: -0.129, radius: 0.86 },
+      radius: 0.7610,
+      gradientFrom: { x: 0, y: -0.1221, radius: 0 },
+      gradientTo: { x: 0, y: -0.1221, radius: 0.8142 },
       stops: [
         { at: 0, color: { hex: "#ffffff" } },
         { at: 0.68, color: { hex: "#eceef1" } },
@@ -257,8 +271,8 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-highlight-dark",
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
-      center: { x: -0.257, y: -0.386 },
-      radius: 0.7,
+      center: { x: -0.2433, y: -0.3654 },
+      radius: 0.6627,
       stops: [
         { at: 0, color: { hex: "#ffffff", alpha: 0.16 } },
         { at: 1, color: { hex: "#ffffff", alpha: 0 } },
@@ -268,8 +282,8 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-highlight-light",
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
-      center: { x: -0.257, y: -0.386 },
-      radius: 0.7,
+      center: { x: -0.2433, y: -0.3654 },
+      radius: 0.6627,
       stops: [
         { at: 0, color: { hex: "#ffffff", alpha: 0.6 } },
         { at: 1, color: { hex: "#ffffff", alpha: 0 } },
@@ -279,8 +293,8 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-bounce-dark",
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
-      center: { x: 0.193, y: 0.611 },
-      radius: 0.7,
+      center: { x: 0.1827, y: 0.5785 },
+      radius: 0.6627,
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0.1 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
@@ -290,8 +304,8 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-bounce-light",
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
-      center: { x: 0.193, y: 0.611 },
-      radius: 0.7,
+      center: { x: 0.1827, y: 0.5785 },
+      radius: 0.6627,
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0.05 } },
         { at: 1, color: { hex: "#000000", alpha: 0 } },
@@ -303,9 +317,9 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-edge-dark",
       type: "disc",
       enabledWhen: { setting: "light", max: 0.5 },
-      radius: 0.804,
-      gradientFrom: { x: 0, y: 0, radius: 0.45 },
-      gradientTo: { x: 0, y: 0, radius: 0.804 },
+      radius: 0.7610,
+      gradientFrom: { x: 0, y: 0, radius: 0.4260 },
+      gradientTo: { x: 0, y: 0, radius: 0.7610 },
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0 } },
         { at: 1, color: { hex: "#000000", alpha: 0.13 } },
@@ -315,9 +329,9 @@ export const TECH_MODULE: OrbModule = {
       id: "dome-edge-light",
       type: "disc",
       enabledWhen: { setting: "light", min: 0.5 },
-      radius: 0.804,
-      gradientFrom: { x: 0, y: 0, radius: 0.45 },
-      gradientTo: { x: 0, y: 0, radius: 0.804 },
+      radius: 0.7610,
+      gradientFrom: { x: 0, y: 0, radius: 0.4260 },
+      gradientTo: { x: 0, y: 0, radius: 0.7610 },
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0 } },
         { at: 1, color: { hex: "#000000", alpha: 0.05 } },
@@ -328,8 +342,8 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "dome-lip",
       type: "arc",
-      radius: 0.798,
-      width: 0.012,
+      radius: 0.7555,
+      width: 0.0114,
       from: 0.55,
       to: 0.95,
       stops: [

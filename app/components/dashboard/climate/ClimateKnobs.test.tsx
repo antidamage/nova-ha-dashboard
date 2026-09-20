@@ -3,8 +3,10 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import type { DashboardEntity } from "../../../../lib/types";
 import { AirconKnob, HeaterKnob } from "../ClimateKnobs";
 import { CLIMATE_MODE_COMMIT_DEBOUNCE_MS } from "../climateCommands";
+import { DIAL_OUTER_RATIO } from "../../controls/rotary/constants";
 
-const DIAL_BOX = 248.8;
+/** The 200px dial's box: --re-outer is DIAL_OUTER_RATIO knob diameters. */
+const DIAL_BOX = 200 * DIAL_OUTER_RATIO;
 
 beforeAll(() => {
   if (!Element.prototype.setPointerCapture) {

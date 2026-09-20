@@ -39,7 +39,8 @@ function expected(size: number, rings: number) {
   const pitch = Math.max(size * 0.085, font + 2);
   const track = (pitch * 6) / 8.5;
   const gap = pitch - track;
-  const dialRadius = size * 0.622;
+  // DIAL_RADIUS_SHARE: half the knob, plus the unlock ring, ring and bevel.
+  const dialRadius = size * 0.657;
   const radii = Array.from({ length: rings }, (_, index) => dialRadius + gap + track / 2 + index * pitch);
   return { font, pitch, track, radii, dialRadius };
 }
