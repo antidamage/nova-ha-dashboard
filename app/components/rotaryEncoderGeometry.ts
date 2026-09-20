@@ -8,11 +8,16 @@ export {
   ARC_MIN_SPAN,
   ARC_SPAN,
   ARC_START,
+  BEVEL_SHARE,
+  DIAL_OUTER_RATIO,
+  DIAL_RADIUS_SHARE,
   LABEL_VALUE_CLEARANCE,
   RING_LIMIT,
+  RING_SHARE,
   THUMB_LENGTH,
   THUMB_THICKNESS,
   TITLE_END_CLEARANCE,
+  UNLOCK_RING_SHARE,
 } from "./controls/rotary/constants";
 export type { RingDrag, RingGeometry } from "./controls/rotary/types";
 export {

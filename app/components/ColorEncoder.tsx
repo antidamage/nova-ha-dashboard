@@ -124,6 +124,8 @@ export type ColorEncoderProps = {
   /** Knob diameter in px, clamped to 50–200. */
   size?: number;
   value: Hsva;
+  /** Locks and tucks the rings as the climate knobs do (RotaryEncoder's prop). */
+  tuckAfterMs?: number;
   onActiveChannelChange?: (channel: ColorEncoderChannel) => void;
   onChange: (value: Hsva) => void;
   onCommit?: (value: Hsva) => void;
@@ -145,6 +147,7 @@ export function ColorEncoder({
   rings,
   sensitivity,
   size = ENCODER_MAX_SIZE,
+  tuckAfterMs,
   value,
   onActiveChannelChange,
   onChange,
@@ -219,6 +222,7 @@ export function ColorEncoder({
         rings={rings}
         sensitivity={sensitivity?.[channel] ?? SENSITIVITY[channel]}
         size={size}
+        tuckAfterMs={tuckAfterMs}
         value={current}
         onPressedChange={(pressed) => {
           pressedRef.current = pressed;

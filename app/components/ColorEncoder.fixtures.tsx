@@ -6,12 +6,18 @@ import { useState } from "react";
 import { afterEach, beforeAll, expect } from "vitest";
 import { ColorEncoder } from "./ColorEncoder";
 import { type Hsva } from "./colorEncoderModel";
+import { DIAL_OUTER_RATIO } from "./controls/rotary/constants";
 
-/** The 200px dial's box: --re-outer is 1.244 knob diameters. */
-export const DIAL_BOX = 248.8;
+/** The 200px dial's box: --re-outer is DIAL_OUTER_RATIO knob diameters. */
+export const DIAL_BOX = 200 * DIAL_OUTER_RATIO;
 export const CENTRE = DIAL_BOX / 2;
-/** Where the test grabs the knob: well outside the dead centre. */
-export const GRIP = CENTRE * 0.8;
+/**
+ * Where the test grabs the knob: well outside the dead centre (a 15% share of
+ * the knob's radius) and still inside the knob's face, which is half the box
+ * divided by DIAL_OUTER_RATIO — 0.8 of the box now lands on the innermost
+ * ring and would drag the ring instead of turning the knob.
+ */
+export const GRIP = CENTRE * 0.7;
 
 /** The colour every ColorEncoder suite starts from. */
 export const start: Hsva = { h: 200, s: 50, v: 50, a: 100 };

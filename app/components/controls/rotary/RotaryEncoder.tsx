@@ -35,6 +35,7 @@ import {
   ARC_START,
   ARC_SPAN,
   DEAD_CENTRE_SHARE,
+  DIAL_OUTER_RATIO,
   ELLIPSIS,
   ENCODER_MAX_SIZE,
   ENCODER_MIN_SIZE,
@@ -193,9 +194,10 @@ export function RotaryEncoder({
     if (rect.width === 0) return null;
     const dx = event.clientX - (rect.left + rect.width / 2);
     const dy = event.clientY - (rect.top + rect.height / 2);
-    // The dial element is the knob plus its ring and bevel (--re-outer, 1.244
-    // knob diameters), so the knob's own radius is that over 1.244, halved.
-    const knobRadius = rect.width / 1.244 / 2;
+    // The dial element is the knob plus its unlock ring, ring and bevel
+    // (--re-outer, DIAL_OUTER_RATIO knob diameters), so the knob's own radius
+    // is that over the ratio, halved.
+    const knobRadius = rect.width / DIAL_OUTER_RATIO / 2;
     if (Math.hypot(dx, dy) < knobRadius * DEAD_CENTRE_SHARE) return null;
     return pointerAngle(dx, dy);
   };
@@ -887,6 +889,18 @@ export function RotaryEncoder({
         <span className="rotary-encoder-ring" aria-hidden />
         <span className="rotary-encoder-ring-shade" aria-hidden />
         <span className="rotary-encoder-inner-bevel" aria-hidden />
+        {/* The embossed unlock ring: dark polished glass round the knob's lip,
+            inside the colour ring, lit in the LED colour while the dial is
+            unlocked (specs/color-encoder.md, "The embossed unlock ring"). */}
+        <span className="rotary-encoder-unlock-ring" aria-hidden>
+          <span className="rotary-encoder-unlock-glass" />
+          <span className="rotary-encoder-unlock-lit">
+            <span className="rotary-encoder-unlock-shift" />
+          </span>
+          {/* The specular streaks sit above the lit layer, so the band still
+              reads as polished glass once the LEDs light it. */}
+          <span className="rotary-encoder-unlock-spec" />
+        </span>
         <span className="rotary-encoder-knob" aria-hidden />
         <span className="rotary-encoder-rotor" aria-hidden>
           <span className="rotary-encoder-index" />

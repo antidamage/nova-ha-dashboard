@@ -26,7 +26,8 @@ async function box(locator: Locator): Promise<Box> {
 async function expectGeometry(root: Locator, size: number) {
   const tolerance = Math.max(1.5, size * 0.01);
   const dial = await box(root.locator(".rotary-encoder-dial"));
-  expect(Math.abs(dial.width - size * 1.244)).toBeLessThanOrEqual(tolerance);
+  // DIAL_OUTER_RATIO: half the knob, the unlock ring, the colour ring, the bevel.
+  expect(Math.abs(dial.width - size * 1.314)).toBeLessThanOrEqual(tolerance);
 
   const ring = await box(root.locator(".rotary-encoder-ring"));
   const knob = await box(root.locator(".rotary-encoder-knob"));

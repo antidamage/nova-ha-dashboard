@@ -5,9 +5,10 @@ import { cleanup } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeAll, vi } from "vitest";
 import { RotaryEncoder } from "../../RotaryEncoder";
+import { DIAL_OUTER_RATIO } from "./constants";
 
-/** The 200px dial's box: the footprint is 1.244 knob diameters. */
-export const DIAL_BOX = 248.8;
+/** The 200px dial's box: the footprint is DIAL_OUTER_RATIO knob diameters. */
+export const DIAL_BOX = 200 * DIAL_OUTER_RATIO;
 export const CENTRE = DIAL_BOX / 2;
 
 /** Registers the pointer-capture shim, the fixed dial box, and the teardown. */

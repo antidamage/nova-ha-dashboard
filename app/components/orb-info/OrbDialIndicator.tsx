@@ -19,11 +19,14 @@
 // specs/status-orb-stack.md, "The dial is the RotaryEncoder indicator".
 
 import type { CSSProperties } from "react";
+import { DIAL_OUTER_RATIO } from "../controls/rotary/constants";
 import { orbDialMarkAngle } from "./orbDialModel";
 
-// --re-outer is --re-size * (1 + 2*0.1 ring + 2*0.022 bevel). Dividing the orb
-// diameter by that puts the outer edge of the ring on the orb's rim.
-const OUTER_RATIO = 1.244;
+// --re-outer is --re-size * (1 + 2*0.035 unlock ring + 2*0.1 ring + 2*0.022
+// bevel). Dividing the orb diameter by that puts the outer edge of the ring on
+// the orb's rim — and, since it is the same stack the knob draws, the embossed
+// unlock ring comes along with it, inside the ring that reaches the rim.
+const OUTER_RATIO = DIAL_OUTER_RATIO;
 
 export function OrbDialIndicator({
   count,
@@ -56,6 +59,16 @@ export function OrbDialIndicator({
       <div className="rotary-encoder-dial">
         <span className="rotary-encoder-ring" />
         <span className="rotary-encoder-ring-shade" />
+        {/* The knob's embossed unlock ring, on the orb: the same thin band of
+            polished glass, hugging the dome inside the status channel, lit in
+            the LED colour while the stack is open. */}
+        <span className="rotary-encoder-unlock-ring">
+          <span className="rotary-encoder-unlock-glass" />
+          <span className="rotary-encoder-unlock-lit">
+            <span className="rotary-encoder-unlock-shift" />
+          </span>
+          <span className="rotary-encoder-unlock-spec" />
+        </span>
         <span className="rotary-encoder-rotor">
           <span className="rotary-encoder-index" />
         </span>
