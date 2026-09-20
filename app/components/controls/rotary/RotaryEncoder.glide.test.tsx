@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type RotaryEncoderRing } from "../../RotaryEncoder";
 import { ARC_END, ARC_START, fractionAt, ringGeometry } from "../../rotaryEncoderGeometry";
 import { RING_GLIDE_DEG_PER_SEC } from "./constants";
