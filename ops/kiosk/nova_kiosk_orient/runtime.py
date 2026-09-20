@@ -1,8 +1,8 @@
-"""Display rotation, the CDP browser thread, and the daemon commands.
+"""Display rotation, shared state, and the CDP browser thread.
 
-Moved verbatim from `ops/kiosk/nova-kiosk-orient.py`; see that entry point.
-These three sections share the module-global `BROWSER`, which `daemon()`
-rebinds and `write_state()` reads, so they stay in one module.
+Both sections share the module-global `BROWSER`, which `loop.daemon()` rebinds
+and `write_state()` reads, so they stay in one module. The decision loop that
+drives them is `loop.py`; see `ops/kiosk/nova-kiosk-orient.py`.
 """
 
 from __future__ import annotations
@@ -11,32 +11,21 @@ import json
 import os
 import re
 import subprocess
-import sys
 import threading
 import time
 import urllib.parse
 import urllib.request
 
-import cv2
-import numpy as np
-
 from .config import (
-    BURST_INTERVAL,
-    BURST_SECONDS,
     CAMERA_MATCH,
     CDP,
     KSCREEN_CODE,
     LOG,
     OUTPUT,
-    POLL_SECONDS,
-    REFERENCE,
     ROTATION_FOR_CARDINAL,
-    SQUARE_DEGREES,
     STATE,
-    STATE_DIR,
     backend_url,
 )
-from .vision import features, grab_gray, load_reference, measure, read_once
 
 # --------------------------------------------------------------------------
 # Display
@@ -69,7 +58,7 @@ def current_output() -> tuple[str, str] | None:
     return None
 
 
-def apply(cardinal: int) -> None:
+def apply(cardinal: int, vlm_asked: bool = False, retained: int | None = None) -> None:
     wanted = ROTATION_FOR_CARDINAL[cardinal]
     output = current_output()
     if not output:
@@ -79,24 +68,50 @@ def apply(cardinal: int) -> None:
     if have != wanted:
         LOG.info("rotating %s: %s -> %s", name, have, wanted)
         kscreen(f"output.{name}.rotation.{wanted}")
-    write_state(cardinal, wanted)
+    write_state(cardinal, wanted, vlm_asked, retained)
 
 
 def camera_rules(cardinal: int) -> list[dict]:
     return [{"match": CAMERA_MATCH, "degrees": (360 - cardinal) % 360}]
 
 
-def write_state(cardinal: int, rotation: str) -> None:
+def read_state() -> dict:
+    try:
+        return json.loads(STATE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def vlm_asked_at() -> float:
+    """When DeepSeek last gave a usable answer. 0 when it never has."""
+    try:
+        return float(read_state().get("vlmAskedAt") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def retained_cardinal() -> int | None:
+    """The cardinal the retained frame was stored at.
+
+    Not the same as `last_cardinal()`: a fallback rotation moves the panel
+    without replacing the retained frame, so the applied rotation drifts away
+    from the frame the next turn is measured against. The local fallback has to
+    add its measured turn to *this*.
+    """
+    value = read_state().get("retainedCardinal")
+    return None if value is None else int(value) % 360
+
+
+def write_state(cardinal: int, rotation: str, vlm_asked: bool = False, retained: int | None = None) -> None:
+    previous = read_state()
     state = {
         "rotation": rotation,
         "cameraCorrection": (360 - cardinal) % 360,
         "camera": CAMERA_MATCH,
         "updatedAt": int(time.time()),
+        "vlmAskedAt": time.time() if vlm_asked else previous.get("vlmAskedAt", 0),
+        "retainedCardinal": previous.get("retainedCardinal") if retained is None else retained,
     }
-    try:
-        previous = json.loads(STATE.read_text())
-    except (OSError, ValueError):
-        previous = {}
     tmp = STATE.with_suffix(".tmp")
     tmp.write_text(json.dumps(state))
     os.replace(tmp, STATE)
@@ -200,82 +215,3 @@ class _NoBrowser:
 
 
 BROWSER = _NoBrowser()
-
-
-# --------------------------------------------------------------------------
-# Main loop
-# --------------------------------------------------------------------------
-
-
-def evaluate(reference) -> None:
-    reading = read_once(reference)
-    LOG.info("reading %s", {k: v for k, v in reading.items()})
-    if not reading.get("confident"):
-        return
-    if reading["deviation"] <= SQUARE_DEGREES:
-        apply(reading["cardinal"])
-        return
-    deadline = time.monotonic() + BURST_SECONDS
-    while time.monotonic() < deadline:
-        time.sleep(BURST_INTERVAL)
-        reading = read_once(reference)
-        LOG.info("recheck %s", reading)
-        if reading.get("confident") and reading["deviation"] <= SQUARE_DEGREES:
-            apply(reading["cardinal"])
-            return
-    LOG.info("not square after %.0f s; back to polling", BURST_SECONDS)
-
-
-def daemon() -> int:
-    if not REFERENCE.is_file():
-        LOG.error("no reference at %s; run `%s reference` with the panel upright", REFERENCE, sys.argv[0])
-        return 2
-    global BROWSER
-    reference = load_reference()
-    wake = threading.Event()
-    BROWSER = Browser(wake)
-    BROWSER.start()
-    LOG.info("polling every %.0f s; square within %.0f deg", POLL_SECONDS, SQUARE_DEGREES)
-    while True:
-        wake.clear()
-        try:
-            evaluate(reference)
-        except Exception:
-            LOG.exception("reading failed")
-        wake.wait(POLL_SECONDS)
-
-
-def take_reference(force: bool) -> int:
-    if REFERENCE.exists() and not force:
-        print(f"{REFERENCE} exists; pass --force to replace it")
-        return 1
-    gray = grab_gray()
-    if gray is None:
-        print("camera unavailable")
-        return 1
-    points, desc = features(gray)
-    del gray
-    if desc is None or len(points) < 200:
-        print(f"only {len(points)} features; too little detail for a reference")
-        return 1
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = STATE_DIR / "reference.tmp.npz"
-    np.savez(tmp, points=points, descriptors=desc)
-    os.replace(tmp, REFERENCE)
-    print(f"reference stored: {len(points)} keypoints (no image kept)")
-    return 0
-
-
-def self_check() -> int:
-    """A live reading, plus the same frame turned in memory, to prove the angle convention."""
-    reference = load_reference()
-    gray = grab_gray()
-    if gray is None:
-        print("camera unavailable")
-        return 1
-    print("live", measure(gray, *reference))
-    print("cw90", measure(cv2.rotate(gray, cv2.ROTATE_90_CLOCKWISE), *reference))
-    print("180", measure(cv2.rotate(gray, cv2.ROTATE_180), *reference))
-    print("ccw90", measure(cv2.rotate(gray, cv2.ROTATE_90_COUNTERCLOCKWISE), *reference))
-    del gray
-    return 0
