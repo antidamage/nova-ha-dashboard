@@ -60,11 +60,20 @@ export type RotaryEncoderRing = {
   min?: number;
   max?: number;
   /**
-   * Snaps the value; also the keyboard step. The thumb glides to the new stop
-   * at a fixed angular speed rather than jumping to it, so a longer step is
-   * visibly longer (see `RING_GLIDE_DEG_PER_SEC`). Selectors always step by 1.
+   * Snaps the value; also the keyboard step. A *coarse* step makes the ring a
+   * discrete control, and its thumb then glides to the new stop at a fixed
+   * angular speed rather than jumping to it, so a longer step is visibly longer
+   * (see `RING_GLIDE_MIN_STEP_SHARE`; `glide` overrides the rule). Selectors
+   * always step by 1.
    */
   step?: number;
+  /**
+   * Forces the glide on or off for this ring, whatever its step is. Omitted, a
+   * ring glides when its step is coarse — `RING_GLIDE_MIN_STEP_SHARE` of the
+   * range or bigger — so that a slider which only rounds a continuous value
+   * still tracks the finger exactly.
+   */
+  glide?: boolean;
   disabled?: boolean;
   /**
    * Folds the ring away with the tuck-away animation and takes it out of reach
