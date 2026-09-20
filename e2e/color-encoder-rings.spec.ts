@@ -36,11 +36,15 @@ async function box(locator: Locator): Promise<Box> {
 /**
  * The spec's geometry table, recomputed here so the test does not trust the code.
  *
- * A titled dial's rings sit a title band further out, and this helper does not
- * add one — so the three `ring geometry and labels` tests and the drag below
- * read the wrong radius, and are red on main as well as on any branch. Adding
- * `titleBand` here is the fix; it is not the unlock ring's doing
- * (Adeline, 2026-09-20).
+ * `ColorEncoder` hands its `label` to the dial as a **title**, and a titled
+ * dial's rings sit a title band further out: the caption's font plus 2% of the
+ * size of clearance at each side (`titleBand` in
+ * `controls/rotary/geometry-model.ts`). Without the band these three tests and
+ * the drag below read the wrong radius and are red on main — named here as the
+ * fix by Adeline, 2026-09-20, with the note that it was not the unlock ring's
+ * doing. The band takes the *caption*; a dial with four or more rings shrinks
+ * only its label font, to the pitch less 6, so the labels do not crowd
+ * (Adeline, 2026-09-12).
  */
 function expected(size: number, rings: number) {
   const font = Math.min(14, Math.max(10, size * 0.075));
@@ -49,8 +53,11 @@ function expected(size: number, rings: number) {
   const gap = pitch - track;
   // DIAL_RADIUS_SHARE: half the knob, plus the unlock ring, ring and bevel.
   const dialRadius = size * 0.657;
-  const radii = Array.from({ length: rings }, (_, index) => dialRadius + gap + track / 2 + index * pitch);
-  return { font, pitch, track, radii, dialRadius };
+  // TITLE_CLEARANCE_SHARE, once each side of the caption.
+  const titleBand = font + 2 * size * 0.02;
+  const labelFont = rings >= 4 ? Math.min(font, Math.max(10, pitch - 6)) : font;
+  const radii = Array.from({ length: rings }, (_, index) => dialRadius + titleBand + gap + track / 2 + index * pitch);
+  return { font, labelFont, pitch, track, radii, dialRadius, titleBand };
 }
 
 test.describe("ColorEncoder demo", () => {
@@ -126,10 +133,10 @@ test.describe("ColorEncoder demo", () => {
       // so allow a little of the font size radially.
       expect(geometry.pitch - geometry.font).toBeGreaterThanOrEqual(2 - 1e-9);
       measured.labels.forEach((label, index) => {
-        expect(label.font).toBeCloseTo(geometry.font, 1);
+        expect(label.font).toBeCloseTo(geometry.labelFont, 1);
         expect(label.glyphs.length).toBeGreaterThan(0);
         for (const glyph of label.glyphs) {
-          expect(Math.abs(glyph.radius - geometry.radii[index])).toBeLessThanOrEqual(geometry.font * 0.2 + 0.5);
+          expect(Math.abs(glyph.radius - geometry.radii[index])).toBeLessThanOrEqual(geometry.labelFont * 0.2 + 0.5);
           expect(Math.abs(glyph.angle)).toBeGreaterThan(135);
         }
       });
@@ -140,6 +147,10 @@ test.describe("ColorEncoder demo", () => {
   test("dragging a thumb round the arc moves only that ring, and pins in the gap", async ({ page }) => {
     await openDemo(page);
     const root = dial(page, "count-3");
+    // The demo page has grown long enough that this dial sits below the fold,
+    // and the pointer is driven in viewport coordinates: without this the press
+    // lands on the page behind it and moves nothing (Adeline, 2026-09-21).
+    await root.scrollIntoViewIfNeeded();
     const svg = root.locator("svg.rotary-encoder-rings");
     const frame = await box(svg);
     const cx = frame.x + frame.width / 2;
