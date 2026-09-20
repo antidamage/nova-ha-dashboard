@@ -107,15 +107,15 @@ export default function ColorEncoderRingsDemo() {
           the two orbs are the tech skin. */}
       <Section title="Unlock ring, dark">
         <DemoDial id="unlock-dark-colour" knobSkin="dark" label="Lights" rings={3} size={200} tuckAfterMs={RING_DEMO_TUCK_MS} />
-        <DemoTemperatureDial id="unlock-dark-aircon" kind="aircon" size={200} startMode="manual" timerMinutes={38} />
-        <DemoTemperatureDial id="unlock-dark-heater" kind="heater" size={200} startMode="auto" target={19} />
+        <DemoTemperatureDial id="unlock-dark-aircon" kind="aircon" knobSkin="dark" size={200} startMode="manual" timerMinutes={38} />
+        <DemoTemperatureDial id="unlock-dark-heater" kind="heater" knobSkin="dark" size={200} startMode="auto" target={19} />
         <StatusOrbDemo id="unlock-dark-orb" theme={TECH_DARK_ORB} />
       </Section>
 
       <Section light title="Unlock ring, light">
         <DemoDial id="unlock-light-colour" knobSkin="light" label="Lights" rings={3} size={200} tuckAfterMs={RING_DEMO_TUCK_MS} />
-        <DemoTemperatureDial id="unlock-light-aircon" kind="aircon" size={200} startMode="manual" timerMinutes={12} />
-        <DemoTemperatureDial id="unlock-light-heater" kind="heater" size={200} startMode="auto" target={19} />
+        <DemoTemperatureDial id="unlock-light-aircon" kind="aircon" knobSkin="light" size={200} startMode="manual" timerMinutes={12} />
+        <DemoTemperatureDial id="unlock-light-heater" kind="heater" knobSkin="light" size={200} startMode="auto" target={19} />
         <StatusOrbDemo id="unlock-light-orb" light theme={TECH_LIGHT_ORB} />
       </Section>
 
