@@ -59,7 +59,11 @@ export type RotaryEncoderRing = {
   value: number;
   min?: number;
   max?: number;
-  /** Snaps the value; also the keyboard step. Selectors always step by 1. */
+  /**
+   * Snaps the value; also the keyboard step. The thumb glides to the new stop
+   * at a fixed angular speed rather than jumping to it, so a longer step is
+   * visibly longer (see `RING_GLIDE_DEG_PER_SEC`). Selectors always step by 1.
+   */
   step?: number;
   disabled?: boolean;
   /**
