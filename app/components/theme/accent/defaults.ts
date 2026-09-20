@@ -195,6 +195,13 @@ export const DEFAULT_DARK_THEME: DeviceTheme = {
     intensity: 100,
     rgb: [255, 255, 255],
   },
+  // The unlock ring's own lit colour. White here like the lights; a theme
+  // stored before the slot existed normalises to its LED colour instead.
+  unlockRingColor: {
+    cursor: { x: 0, y: 1 },
+    intensity: 100,
+    rgb: [255, 255, 255],
+  },
   mapBuildingOpacity: 66,
   mapLabelSize: 150,
   mapSatellite: true,
@@ -405,6 +412,13 @@ export const DEFAULT_LIGHT_THEME: DeviceTheme = {
   },
   knobSkin: "auto",
   ledColor: {
+    cursor: { x: 0, y: 1 },
+    intensity: 100,
+    rgb: [255, 255, 255],
+  },
+  // The unlock ring's own lit colour. White here like the lights; a theme
+  // stored before the slot existed normalises to its LED colour instead.
+  unlockRingColor: {
     cursor: { x: 0, y: 1 },
     intensity: 100,
     rgb: [255, 255, 255],

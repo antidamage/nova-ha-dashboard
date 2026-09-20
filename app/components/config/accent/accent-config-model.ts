@@ -17,7 +17,7 @@ export type ThemeConfigColorSlot = ThemeColorSlot | "background";
 export type MapConfigSlot = `map.${MapThemeColorSlot}`;
 export type TitleConfigSlot = "title.light" | "title.dark";
 export type VoiceTranscriptConfigSlot = "voiceTranscript.background" | "voiceTranscript.text";
-export type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "panel" | "headerFade" | "clockColor" | "ledColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
+export type ThemeConfigSlot = ThemeConfigColorSlot | "border" | "panel" | "headerFade" | "clockColor" | "ledColor" | "unlockRingColor" | MapConfigSlot | TitleConfigSlot | VoiceTranscriptConfigSlot;
 export type ThemeSlotChoice = { slot: ThemeConfigSlot; label: string; detail: string };
 
 export const THEME_SLOTS: ThemeSlotChoice[] = [
@@ -28,6 +28,7 @@ export const THEME_SLOTS: ThemeSlotChoice[] = [
   { slot: "border", label: "Borders", detail: "Optional lines" },
   { slot: "headerFade", label: "Orb Shadow", detail: "Shadow on scroll" },
   { slot: "ledColor", label: "LED Lights", detail: "Knob lights" },
+  { slot: "unlockRingColor", label: "Unlock Ring", detail: "Unlocked band" },
 ];
 
 export const MAP_THEME_SLOTS: ThemeSlotChoice[] = [
@@ -175,8 +176,8 @@ export function themeColorForSlot(theme: DeviceTheme, slot: ThemeConfigSlot): Th
   if (slot === "clockColor") {
     return theme.clockColor;
   }
-  if (slot === "ledColor") {
-    return theme.ledColor;
+  if (slot === "ledColor" || slot === "unlockRingColor") {
+    return theme[slot];
   }
   if (isTitleConfigSlot(slot)) {
     return theme.titleColors[titleSlotKey(slot)];

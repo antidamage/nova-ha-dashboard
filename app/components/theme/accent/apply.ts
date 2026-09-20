@@ -79,16 +79,28 @@ function applyCssTitleTone(
 const DEFAULT_ALERT_RGB: [number, number, number] = [250, 168, 15];
 
 /**
- * The lit LED colour every RotaryEncoder-derived knob reads, published both as
- * a ready-made rgb() and as raw channels, because the glow shadows need an
- * alpha of their own (specs/color-encoder.md, "The LED colour").
+ * Publish one theme colour to CSS: a ready-made rgb() and the raw channels,
+ * because the glow shadows need an alpha of their own.
  */
-function applyCssLedColor(value: ThemeColorValue) {
-  const rgb = appliedThemeRgb(normalizeColor(value, DEFAULT_THEME.ledColor));
+function applyCssRgbPair(name: string, rgb: readonly [number, number, number]) {
   const channels = `${rgb[0]} ${rgb[1]} ${rgb[2]}`;
   const root = document.documentElement;
-  root.style.setProperty("--nova-led-rgb", channels);
-  root.style.setProperty("--nova-led-color", `rgb(${channels})`);
+  root.style.setProperty(`--${name}-rgb`, channels);
+  root.style.setProperty(`--${name}-color`, `rgb(${channels})`);
+}
+
+/**
+ * The colours every RotaryEncoder-derived knob reads for its light: the lit
+ * LEDs (specs/color-encoder.md, "The LED colour") and, separately, the
+ * embossed unlock ring's band, which has a slot of its own and falls back to
+ * the LED colour ("The unlock ring's colour"). A ring value the theme has
+ * never set arrives here already resolved to the LED colour by normalizeTheme;
+ * the second fallback covers a caller that hands over a half-built theme.
+ */
+function applyCssKnobLightColors(ledColor: ThemeColorValue, unlockRingColor: ThemeColorValue) {
+  const led = normalizeColor(ledColor, DEFAULT_THEME.ledColor);
+  applyCssRgbPair("nova-led", appliedThemeRgb(led));
+  applyCssRgbPair("nova-unlock-ring", appliedThemeRgb(normalizeColor(unlockRingColor, led)));
 }
 
 function applyCssAlertColor(value: ThemeColorValue) {
@@ -136,7 +148,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssRadarOpacity(normalized.radarOpacity);
   applyCssTaskGlowIntensity(normalized.taskGlowIntensity);
   applyCssAlertColor(normalized.avatar.gradientAlert);
-  applyCssLedColor(normalized.ledColor);
+  applyCssKnobLightColors(normalized.ledColor, normalized.unlockRingColor);
   setActiveControlSound(normalized.controlSound, normalized.uxSounds);
   applyThemeFontVars("display", normalized.font);
   applyThemeFontVars("clock", normalized.clockFont);

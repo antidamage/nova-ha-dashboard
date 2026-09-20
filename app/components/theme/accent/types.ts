@@ -112,6 +112,11 @@ export type DeviceTheme = Record<ThemeColorSlot, ThemeColorValue> & {
   /** The lit lights on every RotaryEncoder-derived knob, and their glow.
    *  White by default; see specs/color-encoder.md, "The LED colour". */
   ledColor: ThemeColorValue;
+  /** The embossed unlock ring's lit colour, on every dial and on the status
+   *  orb's band. A theme that has never set it falls back to `ledColor`, which
+   *  is the colour the band lit in before this slot existed.
+   *  See specs/color-encoder.md, "The unlock ring's colour". */
+  unlockRingColor: ThemeColorValue;
   /** Blend the room's light colour over the page. See specs/lighting-tint.md. */
   lightingTint: boolean;
   lightingTintStrength: number;

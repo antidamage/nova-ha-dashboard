@@ -61,7 +61,7 @@ export function OrbDialIndicator({
         <span className="rotary-encoder-ring-shade" />
         {/* The knob's embossed unlock ring, on the orb: the same thin band of
             polished glass, hugging the dome inside the status channel, lit in
-            the LED colour while the stack is open. */}
+            the theme's unlock-ring colour while the stack is open. */}
         <span className="rotary-encoder-unlock-ring">
           <span className="rotary-encoder-unlock-glass" />
           <span className="rotary-encoder-unlock-lit">
