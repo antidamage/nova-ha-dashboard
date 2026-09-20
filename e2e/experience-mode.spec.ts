@@ -31,12 +31,14 @@ test.describe("experience mode", () => {
     await expect(dialog).toBeHidden();
 
     await expect(page.locator("html")).toHaveAttribute("data-nova-lite", "");
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+    // The zones panel itself, not its "Zones" heading: the layout hides that
+    // heading, which is why helpers.ts waits on the panel (Adeline, 2026-09-21).
+    await expect(page.locator(".zones-panel")).toBeVisible();
     await expect(page.getByLabel(/avatar$/)).toHaveCount(0);
     await expect(page.locator(".fluid-background")).toHaveCount(0);
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(page.locator("html")).toHaveAttribute("data-nova-lite", "");
     await expect(page.getByLabel(/avatar$/)).toHaveCount(0);
@@ -84,7 +86,7 @@ test.describe("experience mode", () => {
     await expect(page.locator("html")).not.toHaveAttribute("data-nova-lite");
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
     await neutralizeTaskAlerts(page);
     await expect(page.getByLabel(/avatar$/)).toBeVisible();
     await expect(page.locator(".fluid-background")).toHaveCount(0);
@@ -98,7 +100,7 @@ test.describe("experience mode", () => {
     await expect(page.locator("html")).toHaveAttribute("data-nova-lite", "");
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
     await neutralizeTaskAlerts(page);
     await expect(page.getByLabel(/avatar$/)).toHaveCount(0);
     await expect(page.locator(".fluid-background")).toHaveCount(0);
@@ -107,7 +109,7 @@ test.describe("experience mode", () => {
   test("lite devices show the static map placeholder instead of the live map", async ({ page }) => {
     await seedExperienceMode(page, "lite");
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".zones-panel")).toBeVisible({ timeout: 30_000 });
     await neutralizeTaskAlerts(page);
 
     await page.getByRole("button", { name: /world/i }).first().click();

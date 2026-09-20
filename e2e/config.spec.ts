@@ -39,7 +39,9 @@ test.describe("configuration workspace", () => {
     await gotoConfig(page);
     await page.getByRole("button", { name: "Back to dashboard" }).first().click();
     await expect(page.getByLabel(/avatar$/)).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+    // The zones panel itself, not its "Zones" heading: the layout hides that
+    // heading, which is why helpers.ts waits on the panel (Adeline, 2026-09-21).
+    await expect(page.locator(".zones-panel")).toBeVisible();
   });
 
   test("shows voice controls without a demo notice", async ({ page }) => {
