@@ -1,15 +1,16 @@
 import type { AmpPowerControlConfig } from "./config-schema";
+import { decideAmpAction } from "./amp-decision";
 import { desiredFromStates, switchStateOf, type AmpSwitchState } from "./amp-inputs";
 import { readDashboardConfigSync } from "./dashboard-config";
 import { callService, haRest } from "./ha";
-import { readActiveFloatingCategoryId, readAmpAutomationEnabled } from "./power";
+import { readActiveFloatingCategoryId, readAmpAutomation } from "./power";
 import type { HaState } from "./types";
 
 /**
  * The amp follows the Apple TV — while, and only while, the floating meter is
- * measuring the amp and the Grid panel's "Automate state" switch is on. What it
- * follows is the Apple TV's power and audio output (§7, §8).
- * See specs/amp-appletv-power.md.
+ * measuring the amp and the Grid panel's two switches (§7) allow the direction
+ * it would move in. What it follows is the Apple TV's power and audio output
+ * (§8). See specs/amp-appletv-power.md.
  *
  * Adeline, 2026-09-19: "ensure that state changes NEVER occur more frequently
  * than once every 30 seconds, queue and space out any secondary changes […]
@@ -28,67 +29,8 @@ import type { HaState } from "./types";
  */
 
 export type { AmpSwitchState } from "./amp-inputs";
-
-export type AmpAction =
-  /** Nothing to do, or nothing we are entitled to do. */
-  | { type: "none" }
-  /** Put the plug down: force it on and hand it back to the meter guard. */
-  | { type: "release" }
-  /** Wants a change, but the rate limit has not expired. */
-  | { type: "wait" }
-  | { type: "command"; state: AmpSwitchState };
-
-export type AmpDecisionInput = {
-  /**
-   * Allowed to act: the meter is on this controller's category (§4.2) **and**
-   * the panel's "Automate state" switch is on (§7).
-   */
-  armed: boolean;
-  /** Are we currently holding the plug (and keeping the guard off it)? */
-  owned: boolean;
-  /** What the Apple TV says the amp should be. Null: it cannot be seen. */
-  desired: AmpSwitchState | null;
-  /** What the plug actually reads in HA. Null: it cannot be seen. */
-  actual: AmpSwitchState | null;
-  /** Since the last command we issued, or null if we have issued none. */
-  msSinceLastCommand: number | null;
-  /** How long `desired` has been null, or null if it is not. */
-  msUnavailable: number | null;
-  /** Already released because the source went stale; waiting for it to return. */
-  staleHeld: boolean;
-  minIntervalMs: number;
-  staleRestoreMs: number;
-};
-
-/**
- * The whole decision, as a pure function so the rate limit and the coalescing
- * can be tested without a timer or a Home Assistant.
- */
-export function decideAmpAction(input: AmpDecisionInput): AmpAction {
-  // The gate. Any category but ours and this controller does not exist: no
-  // command of any kind, and the plug goes back to the always-on guard (§4.2).
-  if (!input.armed) {
-    return input.owned ? { type: "release" } : { type: "none" };
-  }
-
-  if (input.desired === null) {
-    // `unavailable` is not `off` — the same discipline the meter guard applies
-    // to an off-network plug. But a dead integration must not be able to leave
-    // the amp switched off forever, so after staleRestoreMs we put it down (§4.4).
-    const stale = input.msUnavailable !== null && input.msUnavailable >= input.staleRestoreMs;
-    return stale && input.owned && !input.staleHeld ? { type: "release" } : { type: "none" };
-  }
-
-  // Compared against what the switch ACTUALLY reads, not against what we last
-  // commanded, so a dropped call is retried and a manual flip is corrected (§4.5).
-  if (input.actual === null || input.actual === input.desired) {
-    return { type: "none" };
-  }
-  if (input.msSinceLastCommand !== null && input.msSinceLastCommand < input.minIntervalMs) {
-    return { type: "wait" };
-  }
-  return { type: "command", state: input.desired };
-}
+/** The decision itself, and its input shape: `lib/amp-decision.ts`. */
+export { decideAmpAction, type AmpAction, type AmpDecisionInput } from "./amp-decision";
 
 function ampConfig(): AmpPowerControlConfig | null {
   try {
@@ -163,9 +105,9 @@ async function tick() {
 }
 
 /** Why the plug is being put down, for the log line (§4.7). */
-function releaseReason(categorySelected: boolean, automationEnabled: boolean) {
-  if (!automationEnabled) {
-    return '"Automate state" is switched off';
+function releaseReason(categorySelected: boolean, autoOff: boolean, autoOn: boolean) {
+  if (!autoOn && !autoOff) {
+    return '"Auto On" and "Auto Off" are both switched off';
   }
   return categorySelected ? "Apple TV unreadable" : "another category selected";
 }
@@ -180,10 +122,12 @@ async function tickUnsettled() {
   }
 
   const categorySelected = (await readActiveFloatingCategoryId()) === config.categoryId;
-  // The Grid panel's "Automate state" checkbox (§7): off, this loop is as inert
-  // as it is under another category — no command, and the guard gets the plug.
-  const automationEnabled = await readAmpAutomationEnabled();
-  const armed = categorySelected && automationEnabled;
+  // The Grid panel's two checkboxes (§7): off in both directions, this loop is
+  // as inert as it is under another category — no command, and the guard gets
+  // the plug. One direction on and the controller manages the plug in that
+  // direction only, holding it while it does.
+  const { autoOff, autoOn } = await readAmpAutomation();
+  const armed = categorySelected && (autoOn || autoOff);
 
   let states: HaState[] = [];
   if (armed) {
@@ -210,6 +154,8 @@ async function tickUnsettled() {
   const action = decideAmpAction({
     actual: switchStateOf(config.switchEntityIds, statesById),
     armed,
+    autoOff,
+    autoOn,
     desired,
     minIntervalMs: config.minIntervalSeconds * 1000,
     msSinceLastCommand: lastCommandAt === null ? null : now - lastCommandAt,
@@ -221,7 +167,7 @@ async function tickUnsettled() {
 
   if (action.type === "release") {
     if (desired === null && armed) staleHeld = true;
-    await release(config.switchEntityIds, releaseReason(categorySelected, automationEnabled));
+    await release(config.switchEntityIds, releaseReason(categorySelected, autoOff, autoOn));
     return;
   }
 

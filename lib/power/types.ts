@@ -87,18 +87,25 @@ export type PowerBaseLoadSummary = {
 };
 
 /**
+ * The amp's follow-the-Apple-TV automation, when this household configures one
+ * (specs/amp-appletv-power.md §7).
+ */
+export type AmpControlSummary = {
+  /** May this automation switch the amp **off**? */
+  autoOff: boolean;
+  /** May it switch the amp **on**? */
+  autoOn: boolean;
+  categoryId: string;
+};
+
+/**
  * The floating meter's groups and the washing machine's month, as the panel
  * needs them. Both are absent when the household has configured no such meter,
  * so a generic install renders neither. See specs/power-meters.md.
  */
 export type PowerFloatingMeterSummary = {
   activeCategoryId: string | null;
-  /**
-   * The amp's follow-the-Apple-TV automation, when this household configures
-   * one. Absent means the panel shows no switch at all, and the whole feature
-   * does not exist (specs/amp-appletv-power.md §7).
-   */
-  ampControl?: { categoryId: string; enabled: boolean };
+  ampControl?: AmpControlSummary;
   categories: FloatingMeterCategoryReading[];
   watts: number | null;
 };
@@ -182,9 +189,22 @@ type RateCheck = {
   warning?: string;
 };
 
-/** The amp controller's own switch, as the Grid panel's checkbox left it (§7). */
-export type AmpAutomationState = {
-  automationEnabled: boolean;
+/** Which directions the amp's automation is allowed to move in (§7). */
+export type AmpSwitches = {
+  /** May the automation switch the amp **off**? */
+  autoOff: boolean;
+  /** May it switch the amp **on**? */
+  autoOn: boolean;
+};
+
+/** The amp controller's two switches, as the Grid panel's checkboxes left them (§7). */
+export type AmpAutomationState = AmpSwitches & {
+  /**
+   * The single switch these two replaced. Read for migration only and never
+   * written: a state file from before the split says one thing about both
+   * directions, and that is what it meant.
+   */
+  automationEnabled?: boolean;
   updatedAt: string;
 };
 

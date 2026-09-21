@@ -90,14 +90,15 @@ describe("FloatingMeterCard", () => {
 });
 
 /**
- * The amp's "Automate state" switch (specs/amp-appletv-power.md §7): whether
- * the amp follows the Apple TV at all, drawn under the amp's own reading.
+ * The amp's "Auto On" and "Auto Off" switches (specs/amp-appletv-power.md §7):
+ * which directions this automation may move the amp in, drawn under the amp's
+ * own reading.
  */
-describe("FloatingMeterCard — Automate state", () => {
-  const withAmpControl = (enabled: boolean) =>
+describe("FloatingMeterCard — Auto On and Auto Off", () => {
+  const withAmpControl = (autoOn: boolean, autoOff: boolean) =>
     ({
       ...summary,
-      ampControl: { categoryId: "amp", enabled },
+      ampControl: { autoOff, autoOn, categoryId: "amp" },
     }) as unknown as PowerFloatingMeterSummary;
 
   // Scoped to a row: the category label also appears in the dropdown's trigger,
@@ -111,6 +112,11 @@ describe("FloatingMeterCard — Automate state", () => {
       }
     });
 
+  const postedBody = () => {
+    const calls = (fetch as unknown as { mock: { calls: Array<[string, { body: string }]> } }).mock.calls;
+    return JSON.parse(calls[calls.length - 1][1].body);
+  };
+
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
   });
@@ -119,46 +125,71 @@ describe("FloatingMeterCard — Automate state", () => {
     vi.unstubAllGlobals();
   });
 
-  it("draws one switch, under the amp's reading and no other row's", () => {
-    render(<FloatingMeterCard summary={withAmpControl(true)} />);
+  it("draws both switches, under the amp's reading and no other row's", () => {
+    render(<FloatingMeterCard summary={withAmpControl(true, false)} />);
 
-    const box = screen.getByLabelText("Automate state");
-    expect(rowOf("Amp")?.contains(box)).toBe(true);
-    expect(rowOf("Home Entertainment")?.contains(box)).toBe(false);
-    expect(screen.getAllByLabelText("Automate state")).toHaveLength(1);
+    const autoOn = screen.getByLabelText("Auto On");
+    const autoOff = screen.getByLabelText("Auto Off");
+    expect(rowOf("Amp")?.contains(autoOn)).toBe(true);
+    expect(rowOf("Amp")?.contains(autoOff)).toBe(true);
+    expect(rowOf("Home Entertainment")?.contains(autoOn)).toBe(false);
+    expect(screen.getAllByLabelText("Auto On")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Auto Off")).toHaveLength(1);
+    // The single switch these replaced is gone.
+    expect(screen.queryByText("Automate state")).toBeNull();
   });
 
   it("draws nothing when this household has no amp controller", () => {
     render(<FloatingMeterCard summary={summary} />);
 
-    expect(screen.queryByLabelText("Automate state")).toBeNull();
+    expect(screen.queryByLabelText("Auto On")).toBeNull();
+    expect(screen.queryByLabelText("Auto Off")).toBeNull();
   });
 
-  it("shows the switch the server reports", () => {
-    render(<FloatingMeterCard summary={withAmpControl(false)} />);
+  it("shows the pair the server reports", () => {
+    render(<FloatingMeterCard summary={withAmpControl(false, true)} />);
 
-    expect((screen.getByLabelText("Automate state") as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText("Auto On") as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText("Auto Off") as HTMLInputElement).checked).toBe(true);
   });
 
-  it("sends the switch to the server when it is tapped", async () => {
-    render(<FloatingMeterCard summary={withAmpControl(true)} />);
-    fireEvent.click(screen.getByLabelText("Automate state"));
+  it("sends both switches when one is tapped", async () => {
+    render(<FloatingMeterCard summary={withAmpControl(true, true)} />);
+    fireEvent.click(screen.getByLabelText("Auto Off"));
 
     await vi.waitFor(() =>
-      expect(fetch).toHaveBeenCalledWith(
-        "/api/power/amp-automation",
-        expect.objectContaining({ body: JSON.stringify({ enabled: false }), method: "POST" }),
-      ),
+      expect(fetch).toHaveBeenCalledWith("/api/power/amp-automation", expect.objectContaining({ method: "POST" })),
     );
+    // One POST, both values: the untouched direction is sent as it stands.
+    expect(postedBody()).toEqual({ autoOff: false, autoOn: true });
   });
 
-  it("takes the truth back when the write fails", async () => {
+  it("takes both truth back when the write fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
-    render(<FloatingMeterCard summary={withAmpControl(true)} />);
-    fireEvent.click(screen.getByLabelText("Automate state"));
+    render(<FloatingMeterCard summary={withAmpControl(true, true)} />);
+    fireEvent.click(screen.getByLabelText("Auto Off"));
 
     await vi.waitFor(() =>
-      expect((screen.getByLabelText("Automate state") as HTMLInputElement).checked).toBe(true),
+      expect((screen.getByLabelText("Auto Off") as HTMLInputElement).checked).toBe(true),
     );
+    expect((screen.getByLabelText("Auto On") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("does not let a slow failure undo a newer tap", async () => {
+    const settle: Array<(value: unknown) => void> = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise((resolve) => settle.push(resolve))));
+    render(<FloatingMeterCard summary={withAmpControl(true, true)} />);
+
+    fireEvent.click(screen.getByLabelText("Auto Off"));
+    fireEvent.click(screen.getByLabelText("Auto On"));
+    // The first write fails after the second was made: the household's latest
+    // tap stands rather than being snapped back to the server's old pair.
+    settle[0]({ ok: false, json: async () => ({}) });
+    settle[1]({ ok: true, json: async () => ({}) });
+
+    await vi.waitFor(() =>
+      expect((screen.getByLabelText("Auto On") as HTMLInputElement).checked).toBe(false),
+    );
+    expect((screen.getByLabelText("Auto Off") as HTMLInputElement).checked).toBe(false);
   });
 });

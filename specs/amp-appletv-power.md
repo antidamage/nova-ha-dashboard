@@ -22,10 +22,11 @@ that:
 | `nova-household/dashboard-config.json` | the `amp` category and this house's control config |
 | `lib/amp-power-control.ts` | the decision, the rate limit, the loop |
 | `lib/amp-inputs.ts` | the decision's inputs: the Apple TV's power state and audio output, the plug's own |
+| `lib/amp-decision.ts` | the decision itself, pure: the gates, the rate limit, the coalescing |
 | `lib/power-meter-guard.ts` | stands down on entities the controller owns |
-| `lib/power/meters.ts` | `readActiveFloatingCategoryId()`, the automation switch |
-| `app/components/dashboard/power/FloatingMeterCard.tsx` | the confirmation dialog, the "Automate state" switch |
-| `app/api/power/amp-automation/route.ts` | writes the switch |
+| `lib/power/meters.ts` | `readActiveFloatingCategoryId()`, the automation switches |
+| `app/components/dashboard/power/FloatingMeterCard.tsx` | the confirmation dialog, the "Auto On"/"Auto Off" switches |
+| `app/api/power/amp-automation/route.ts` | writes the switches |
 | `ops/homeassistant/nova_appletv_outputs` | the audio-output bridge (§8) |
 | `instrumentation.ts` | starts the controller |
 
@@ -205,6 +206,11 @@ controller treats the source as dead: it forces the plug **on** (as §4.3) and
 stays inert until the entity reads live again. A dead `apple_tv` integration
 must not be able to leave the amp switched off indefinitely.
 
+**Unless "Auto On" is switched off** (§7). That restore *is* a switch-on, and the
+one switch that refuses switch-ons refuses it: the controller keeps holding the
+plug, the amp stays off, and a dead integration leaving it off is the household's
+instruction rather than a fault.
+
 The ten-minute window is long enough that an HA restart — which takes the
 entity unavailable for a minute or two — does not flap the amp.
 
@@ -330,54 +336,109 @@ something else. The dialog is cheap; the mistake is not. It is not optimistic:
 the pending selection is only sent after confirmation, so a cancel leaves the
 dropdown reading the truth.
 
-## 7. The "Automate state" switch
+## 7. The "Auto On" and "Auto Off" switches
 
 Adeline, 2026-09-21: *"on the dashboard grid page, on the 'amp measured' power
 usage amount, add a small checkbox under it and inset reading 'Automate state'.
 if this is checked, it can use the current behaviour of turning on and off with
-the apple tv. if it's unchecked, it will not respond to appletv events."*
+the apple tv. if it's unchecked, it will not respond to appletv events."* — and
+on 2026-09-22: *"split it into two: 'Auto On' and 'Auto Off'. then wire in those
+behaviours to automatically turn the amp on and off depending on which checkboxes
+are selected … put them inline in the same location as 'automated state' … and
+get rid of automate state."*
 
-**Where.** In `FloatingMeterCard`'s **amp row**, under that row's watts. It is
-the compact checkbox the config surfaces already use to annotate a reading —
-a visually-hidden input over an 18px box, under a 9px muted reading
-(`.cyber-mini-checkbox` + `.rect-envelope-tag`, as `RangeSliderControlPanel`'s
-`RandomTargetToggle` does). Not `CheckboxRow`, which is a full-width row for a
-page of settings, and not a native `<input>` raw.
+**Where.** Two of them, side by side in `FloatingMeterCard`'s **amp row**, under
+that row's watts. They are the compact checkboxes the config surfaces already
+use to annotate a reading — a visually-hidden input over an 18px box, under a
+9px muted reading (`.cyber-mini-checkbox` + `.rect-envelope-tag`, as
+`RangeSliderControlPanel`'s `RandomTargetToggle` does). Not `CheckboxRow`, which
+is a full-width row for a page of settings, and not a native `<input>` raw.
 
-Only the amp row draws it, and only when `power.ampPowerControl` exists **and**
+Only the amp row draws them, and only when `power.ampPowerControl` exists **and**
 its `categoryId` is one of the floating meter's categories. Absent config means
-no switch, like every other part of this feature.
+no switches, like every other part of this feature.
 
-**State, not config.** `data/power/state.json` → `ampPowerControl.{automationEnabled,
-updatedAt}`, written by `POST /api/power/amp-automation { enabled }` inside the
-power write queue (the meter tick rewrites the same file every few seconds, so
-an unwritten read would be clobbered — the same reason §3.2's category takes the
-queue). It sits beside `floatingMeter.activeCategoryId` because it is runtime
-state that the loop reads on its next tick, not config, which arrives by deploy.
+**What each one means.** One direction each, and they are independent:
 
-**Absent means on.** A state file written before this switch existed, or a
-household that never touches it, keeps exactly the behaviour of §1–§6.
+| Auto On | Auto Off | The amp |
+|---|---|---|
+| on | on | follows the Apple TV in both directions — the behaviour of §1–§6 throughout |
+| on | off | is switched **on** when the Apple TV asks for it and **never switched off** by this automation; it stays on until someone switches it off by hand |
+| off | on | is switched **off** when the Apple TV stops asking and **never switched on** by this automation; the amp stays off until someone switches it on |
+| off | off | is not touched at all: the controller is inert, ownership released, and the plug back with the guard |
 
-**The gate.** The switch is a second condition on §4.2's gate:
+A direction that is switched off is not commanded *in that direction* — not even
+to undo a manual flip, so the amp stays wherever the household last put it. The
+level-triggered property of §4.5 is unchanged: the controller still only ever
+asks what the plug should be and whether it is that, it just may not be entitled
+to move it the way it would.
+
+Two consequences of that pairing are worth stating, because both are what she
+would expect from the switch she left on:
+
+- **Auto On off, Auto Off on.** A manual switch-on stands while the Apple TV is
+  awake *and asking for the amp* — the controller only moves the plug *towards*
+  what it wants, and it wants the amp on then. Whenever it wants the amp off
+  instead — the Apple TV asleep, or its audio routed elsewhere (§8) — a manual
+  switch-on is switched back off within the interval, exactly as §4.5 already
+  describes for a manual flip. Untick Auto Off for a period where the amp should
+  stay on regardless of the television.
+- **Auto On on, Auto Off off.** The amp is switched on whenever the Apple TV
+  asks, and then left alone: it survives the Apple TV going to sleep, the audio
+  moving to Bluetooth headphones (§8), and a manual switch-off.
+
+**State, not config.** `data/power/state.json` →
+`ampPowerControl.{autoOn, autoOff, updatedAt}`, written by
+`POST /api/power/amp-automation { autoOn, autoOff }` inside the power write queue
+(the meter tick rewrites the same file every few seconds, so an unwritten read
+would be clobbered — the same reason §3.2's category takes the queue). Both
+values are always sent, and a body missing either is refused rather than merged:
+the panel holds both, so a partial write only invents a state neither side
+believes in. It sits beside `floatingMeter.activeCategoryId` because it is
+runtime state that the loop reads on its next tick, not config, which arrives by
+deploy.
+
+**Absent means both on.** That is what the feature did before the switches
+existed, so a state file written by an older build keeps its meaning.
+
+**Where the switches stop.** They govern what this controller does *while it is
+holding the plug*. Every path that puts the plug down — §4.3's release when the
+category moves away, and the release when the config is removed — hands it to the
+meter guard, whose golden rule of power-meters.md §1 is that these plugs are
+never off: the plug is switched on, and with the meter no longer measuring the
+amp there is no amp instruction left to honour. §4.4's stale restore is the one
+force-on that *is* refused by a switch, because §4.4's protection only has
+meaning while the automation is allowed to switch the amp on at all.
+
+**The one switch these replaced.** `ampPowerControl.automationEnabled` is read
+and no longer written: it said one thing about both directions, so it is read as
+one answer for both. A file carrying `automationEnabled: true`, and a file
+carrying neither, behave identically — both directions on — while
+`automationEnabled: false` reads as both off, which is exactly what it meant. The
+first tap of either checkbox writes both directions explicitly, dropping the
+legacy key.
+
+**The gate.** The switches are a second condition on §4.2's gate:
 
 ```
-armed = categorySelected && automationEnabled
+armed = categorySelected && (autoOn || autoOff)
 ```
 
-Off, the controller is inert in precisely the way another category being
+Both off, the controller is inert in precisely the way another category being
 selected makes it inert: no switching command of its own, ownership released,
-and the plug handed back to the meter guard.
+and the plug handed back to the meter guard. One on, and the controller is a
+controller: it holds the plug and manages the direction it is allowed to.
 
-**Switching it off restores the plug**, on §4.3's terms: the controller is
+**Switching both off restores the plug**, on §4.3's terms: the controller is
 putting down something it is no longer entitled to hold, so the restore is
 immediate and counts as a switching command — an on/off pair is still spaced by
 the interval. The consequence to expect, and it is the golden rule of
-power-meters.md §1 rather than a defect: turning the switch off while the amp
-was dark (Bluetooth headphones, §8) powers the amp **on**, because the plug is
-only ever allowed off while this controller demonstrably owns it.
+power-meters.md §1 rather than a defect: turning the last switch off while the
+amp was dark (Bluetooth headphones, §8) powers the amp **on**, because the plug
+is only ever allowed off while this controller demonstrably owns it.
 
-**The card is optimistic and takes the truth back.** It posts, holds the new
-value until the panel's own 5-second poll reports it, and reverts on a failed
+**The card is optimistic and takes the truth back.** It posts both values, holds
+them until the panel's own 5-second poll reports them, and reverts on a failed
 write — the same shape as §6's pending category.
 
 ## 8. The amp follows the audio output too
@@ -474,17 +535,27 @@ in the UI (§4.7).
   (rate limit boundary at 29/30 s, the coalescing cases, unavailable, the gate)
   and for the guard's exclusion set.
 
-### The switch and the audio output (§7, §8)
+### The switches and the audio output (§7, §8)
 
-- The amp row draws one small "Automate state" reading and checkbox under its
-  watts, and no other row draws one; with no `ampPowerControl` config the card
-  draws none at all.
-- Ticking it posts `/api/power/amp-automation`; the new value shows at once and
-  a failed write reverts to the server's.
-- With the switch off, the Apple TV changing state issues **no** command, the
-  plug returns to the guard on that tick, and the amp is left powered (the
-  golden rule).
-- With the switch on and `audioOutput` configured: an awake Apple TV playing
+- The amp row draws two small checkboxes, "Auto On" and "Auto Off", side by side
+  under its watts, and no other row draws either; with no `ampPowerControl`
+  config the card draws none at all, and "Automate state" is gone.
+- Tapping one posts **both** to `/api/power/amp-automation`; the new pair shows
+  at once and a failed write reverts to the server's. A body missing either
+  value, or carrying a value that is not a boolean, is a 400 rather than a merge.
+- With both off, the Apple TV changing state issues **no** command, the plug
+  returns to the guard on that tick, and the amp is left powered (the golden
+  rule).
+- With Auto On off only: an Apple TV asking for the amp while the plug reads off
+  issues **no** command, and the controller still holds the plug so the guard
+  cannot switch it on either; ten minutes of an unreadable Apple TV releases
+  nothing and switches nothing on (§4.4). With Auto Off off only: an Apple TV
+  going to sleep leaves the amp on.
+- A state file carrying the old `automationEnabled: true` behaves as both
+  directions on, `automationEnabled: false` as both off, and a direction stored
+  as anything but a boolean is ignored rather than read as truthy; the first tap
+  rewrites the pair explicitly.
+- With the switches on and `audioOutput` configured: an awake Apple TV playing
   through its own speakers powers the amp, and the same Apple TV routing audio
   elsewhere switches the amp off even though its power state never changed.
 - The bridge's entity reading `unavailable` is no opinion: the amp follows the
