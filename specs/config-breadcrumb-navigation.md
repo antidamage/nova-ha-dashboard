@@ -34,8 +34,9 @@ Confirmed shape (interview, 2026-09-10):
 - **History**: folding/unfolding an accordion replaces the current history
   entry (matches today's category-switch behaviour) — no extra back-stack
   entries per fold.
-- **Visible breadcrumb**: floating, top-centre, minimal, integrated with the
-  existing config-page chrome. Clicking a crumb scrolls to that section
+- **Visible breadcrumb**: in the page flow just below the category menu,
+  minimal, integrated with the existing config-page chrome. Clicking a crumb
+  scrolls to that section
   without collapsing anything below it or shortening the trail — pure
   navigation, never a state mutation.
 
@@ -221,14 +222,16 @@ New component, e.g. `app/components/ConfigBreadcrumb.tsx`, mounted in
 `ConfigWorkspace` above `#config-category-content`. Rendered only when a
 category is active (hidden on the plain category grid).
 
-- `position: fixed`, top-centre — same pattern as the existing fixed-top
-  elements in `app/globals.css` (reload button / avatar header, ~lines
-  2455-2500): `top: calc(Npx + env(safe-area-inset-top, 0px))`,
-  `left: 50%`, `transform: translateX(-50%)`.
-- Visually minimal: dark panel matching `config-page-button`/
-  `config-category-*` styling (neutral-950/70 background, neutral-700
-  border, small uppercase labels), `›` (ChevronRight, already imported
-  elsewhere) between crumbs.
+- In the page's own flow, directly below the category menu
+  (`.config-category-nav`), spanning the width of the centred config column —
+  not a floating overlay. Same dark-panel language as the menu and
+  `config-page-button` (neutral-950/70 background, neutral-700 border, clipped
+  top-right corner), crumbs left-aligned with `›` (ChevronRight) between them.
+  The shallow state (category only, nothing unfolded) fades the row out rather
+  than unmounting it, so its slot in the flow is held and opening the first
+  accordion never shifts the page.
+- Visually minimal: small uppercase labels, `›` (ChevronRight, already
+  imported elsewhere) between crumbs.
 - Overflow: reuse `useHorizontalDragScroll` (already used for
   `config-category-nav`) since Phonoscope chains can reach 5 segments.
 - Each crumb is a plain `<button>` that looks up the still-open DOM element

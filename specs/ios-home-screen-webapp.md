@@ -49,8 +49,8 @@ not the standalone web app, because iOS still owns the strip.
 - `--nova-status-bar-clearance` on `:root` is the single source for "how far
   down the page has to start". It is `env(safe-area-inset-top, 0px)` by
   default, and every top consumer reads the token rather than the raw inset:
-  the shell's trailing padding rule, the config links, the mini clock/date, the
-  config breadcrumb, and the sticky header strip.
+  the shell's trailing padding rule, the config links, the mini clock/date,
+  and the sticky header strip.
 - `.dashboard-shell { padding-top: calc(1.25rem + var(--nova-status-bar-clearance)) !important }`
   sits in the trailing safe-area rule, after every breakpoint block — the 640px
   and tablet blocks set the whole `padding` shorthand with `!important` and

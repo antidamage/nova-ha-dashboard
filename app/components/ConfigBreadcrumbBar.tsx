@@ -1,10 +1,11 @@
 "use client";
 
-// Floating, top-centre breadcrumb trail for the config page. Purely a "where
-// am I / jump to" readout over the same open-accordion chain ConfigWorkspace
-// already computes to keep the URL in sync (see configBreadcrumb.ts) — this
-// component never opens, closes, or otherwise mutates any accordion's state.
-// A crumb's click handler calls scrollToAccordionId() and nothing else.
+// Breadcrumb trail for the config page, sitting in the page's own flow just
+// under the category menu. Purely a "where am I / jump to" readout over the
+// same open-accordion chain ConfigWorkspace already computes to keep the URL in
+// sync (see configBreadcrumb.ts) — this component never opens, closes, or
+// otherwise mutates any accordion's state. A crumb's click handler calls
+// scrollToAccordionId() and nothing else.
 
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
