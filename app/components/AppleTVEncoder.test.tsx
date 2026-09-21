@@ -43,16 +43,26 @@ describe("the Apple TV dial", () => {
     expect(screen.getByRole("slider").getAttribute("aria-valuetext")).toBe("volume 42 percent, unmuted");
   });
 
-  it("paints its ring in the blue-green, with the level's gradient shift", () => {
+  it("paints its ring in the blue-green, top to bottom, with the level's shift", () => {
     const { container } = render(
       <AppleTVEncoder muted={false} volume={60} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
     );
     const root = container.querySelector<HTMLElement>(".apple-tv-encoder");
-    expect(root?.style.getPropertyValue("--re-ring-paint")).toContain("conic-gradient");
-    // The shift runs 90° at rest to 270° at full: at 60% it is 198°.
-    expect(root?.style.getPropertyValue("--re-ring-paint")).toContain("198.00deg");
+    const paint = root?.style.getPropertyValue("--re-ring-paint") ?? "";
+    // The dials' usual direction, never the angular sweep this shipped with.
+    expect(paint.startsWith("linear-gradient(180deg")).toBe(true);
+    expect(paint).not.toContain("conic-gradient");
+    // The boundary runs 40% at rest to 64% at full: at 60% it is 54.40%.
+    expect(paint).toContain("54.40%");
     // volumeColour(60): 20% from the blue-green toward the pale mint.
     expect(root?.style.getPropertyValue("--re-color")).toBe("rgb(47, 209, 174)");
+    // And the glow reads that same colour: a malformed one is dropped by the
+    // browser, which is how this dial lost its glow layer while every sibling
+    // kept theirs.
+    const glow = root?.style.getPropertyValue("--re-glow") ?? "";
+    expect(glow).not.toContain("NaN");
+    // size 200 (the dial's default): blur 200*0.12*0.6, spread 200*0.012*0.6.
+    expect(glow).toBe("0 0 14.4px 1.4px rgba(47, 209, 174, 0.372)");
   });
 
   it("lights the volume mode, and the mute mode while muted", () => {
@@ -94,6 +104,36 @@ describe("the Apple TV dial", () => {
     const last = onVolumeChange.mock.calls.at(-1)?.[0] as number;
     expect(last).toBeGreaterThan(40);
     expect(last).toBeLessThanOrEqual(51);
+  });
+
+  it("carries every shading layer the other dials' knobs carry", () => {
+    const { container } = render(
+      <AppleTVEncoder muted={false} volume={40} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
+    );
+    // The same stack of layers every RotaryEncoder dial is built from — the
+    // recessed bezel, the sunken channel and its shading, the lip, the embossed
+    // unlock band with its glass, lit layer and specular streaks, the knob, its
+    // rotor and the index on it. A dial that skipped one of these would read as
+    // a different component (Adeline, 2026-09-22).
+    const layers = [
+      "rotary-encoder-outer-bevel",
+      "rotary-encoder-glow",
+      "rotary-encoder-ring",
+      "rotary-encoder-ring-shade",
+      "rotary-encoder-inner-bevel",
+      "rotary-encoder-unlock-ring",
+      "rotary-encoder-unlock-glass",
+      "rotary-encoder-unlock-lit",
+      "rotary-encoder-unlock-shift",
+      "rotary-encoder-unlock-spec",
+      "rotary-encoder-knob",
+      "rotary-encoder-rotor",
+      "rotary-encoder-index",
+      "rotary-encoder-spec",
+    ];
+    for (const layer of layers) {
+      expect(container.querySelectorAll(`.${layer}`).length, layer).toBe(1);
+    }
   });
 
   it("is still blue-green at rest, at the deep end of the family", () => {

@@ -62,9 +62,11 @@ test("Quick Access carries an Apple TV dial: blue-green, reading the volume", as
   await expect(segment.locator(".apple-tv-encoder-level")).toHaveText("40%");
   await expect(segment.locator(".apple-tv-encoder-mode")).toHaveText("VOLUME");
 
-  // The ring is the blue-green gradient, not a flat colour.
+  // The ring is the blue-green gradient, top to bottom like every other dial's,
+  // and never an angular sweep.
   const paint = await segment.locator(".apple-tv-encoder").evaluate((node) => (node as HTMLElement).style.getPropertyValue("--re-ring-paint"));
-  expect(paint).toContain("conic-gradient(from 0deg");
+  expect(paint).toContain("linear-gradient(180deg");
+  expect(paint).not.toContain("conic-gradient");
   expect(paint).toContain("#1fc9a6");
   expect(paint).toContain("#6ef0cf");
   await expect(segment.locator(".rotary-encoder-led[data-lit='true']").first()).toHaveAttribute("data-channel", "volume");
