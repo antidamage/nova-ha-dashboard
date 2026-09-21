@@ -359,7 +359,7 @@ no switches, like every other part of this feature.
 |---|---|---|
 | on | on | follows the Apple TV in both directions — the behaviour of §1–§6 throughout |
 | on | off | is switched **on** when the Apple TV asks for it and **never switched off** by this automation; it stays on until someone switches it off by hand |
-| off | on | is switched **off** when the Apple TV stops asking and **never switched on** by this automation; it stays off — including after a manual switch-on that this automation would otherwise correct — until someone switches it on |
+| off | on | is switched **off** when the Apple TV stops asking and **never switched on** by this automation; the amp stays off until someone switches it on |
 | off | off | is not touched at all: the controller is inert, ownership released, and the plug back with the guard |
 
 A direction that is switched off is not commanded *in that direction* — not even
@@ -367,6 +367,19 @@ to undo a manual flip, so the amp stays wherever the household last put it. The
 level-triggered property of §4.5 is unchanged: the controller still only ever
 asks what the plug should be and whether it is that, it just may not be entitled
 to move it the way it would.
+
+Two consequences of that pairing are worth stating, because both are what she
+would expect from the switch she left on:
+
+- **Auto On off, Auto Off on.** A manual switch-on stands while the Apple TV is
+  awake — the controller only moves the plug *towards* what it wants, and it
+  wants the amp on then. While the Apple TV is asleep it wants the amp off, so a
+  manual switch-on is switched back off within the interval, exactly as §4.5
+  already describes for a manual flip. Untick Auto Off for a period where the
+  amp should stay on regardless of the television.
+- **Auto On on, Auto Off off.** The amp is switched on whenever the Apple TV
+  asks, and then left alone: it survives the Apple TV going to sleep, the audio
+  moving to Bluetooth headphones (§8), and a manual switch-off.
 
 **State, not config.** `data/power/state.json` →
 `ampPowerControl.{autoOn, autoOff, updatedAt}`, written by
