@@ -421,6 +421,12 @@ The states are config (`audioOutput.onStates` / `offStates`, defaulting to
 `["on"]` / `["off"]`), so a bridge that reports names rather than a flag needs a
 config edit, not a code change.
 
+That first row is doing real work, and the first live reading is why it has to:
+an Apple TV reporting `off` to HA still answers MRP in network standby and still
+lists its local output, so the bridge reports `on` — correctly, that is what the
+device said — while the amp stays off because the power state is consulted
+first. The bridge reports the audio route; the power gate lives here.
+
 ### 8.3 A dead bridge is never "off"
 
 `unavailable`, `unknown`, a missing entity, or a state this household has not
