@@ -107,6 +107,7 @@
    (Adeline, 2026-09-12). The climate segments already read top-to-bottom, so
    with these two the whole card does. */
 .quick-segment-lights,
+.quick-segment-appletv,
 .quick-segment-weather {
   flex-direction: column;
   flex-wrap: nowrap;
@@ -148,7 +149,8 @@
   /* The climate knobs' title arcs make their boxes taller than the dial; the
      untitled lighting dial takes the same box (`--quick-dial-box`), so dials
      sharing a line sit on one centre line. */
-  .quick-segment-lights .rotary-encoder {
+  .quick-segment-lights .rotary-encoder,
+  .quick-segment-appletv .rotary-encoder {
     height: var(--quick-dial-box, auto);
   }
 
@@ -157,13 +159,15 @@
   }
 
   .quick-segment-lights,
+  .quick-segment-appletv,
   .quick-climate {
     flex: 0 0 var(--quick-dial-slot, auto);
     width: var(--quick-dial-slot, auto);
     max-width: 100%;
   }
 
-  .quick-segment-lights {
+  .quick-segment-lights,
+  .quick-segment-appletv {
     border-color: transparent;
     background: none;
     padding: 0;

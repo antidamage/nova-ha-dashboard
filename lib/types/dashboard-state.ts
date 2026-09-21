@@ -28,6 +28,14 @@ export type DashboardPreferences = {
    * correct. Unset = hard limits. See specs/temperature-encoder.md.
    */
   climateTargetRange?: { min: number; max: number };
+  /**
+   * The amplifier the Apple TV plays through (Adeline, 2026-09-22): the Apple
+   * Music playlists its dial's preset buttons offer, in order. The dial is the
+   * IR emitter's placeholder, so this is the whole of what is stored — its
+   * volume and mute state have no endpoint yet and live in the client for the
+   * session. Unset = the three shipped playlists (lib/apple-tv/playlists.ts).
+   */
+  appleTV?: { playlists?: string[]; updatedAt?: string };
   theme?: Record<string, unknown>;
   themeUpdatedAt?: string;
   themeLibrary?: Record<string, unknown>;

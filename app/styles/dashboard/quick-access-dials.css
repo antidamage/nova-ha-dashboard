@@ -1,0 +1,65 @@
+/* Quick Access' dials: two lines, and each dial's preset row hugging it.
+
+   The card's first line is the lighting dial and the amplifier dial, the second
+   the two climate dials, and the weather keeps the line after them (Adeline,
+   2026-09-22). This extends quick-access.css, which stays the file for the card
+   itself; the dial segments' own treatments (the column direction, the portrait
+   slot, the dropped border) are in that file's lists beside the climate ones. */
+
+/* Landscape and the phone: the pair is one flex row, so its two segments split
+   the width between them however wide the card is. */
+.quick-dial-line {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quick-dial-line > .quick-segment {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* The break that ends the first line. It does nothing until portrait needs it
+   (below). */
+.quick-dial-break {
+  display: none;
+}
+
+/* Each dial's preset row takes back the air a titled dial's box keeps under its
+   knob (`--quick-dial-pull`, set by QuickAccessCard from the dial's own
+   geometry), so the buttons sit just under the dial they belong to instead of a
+   knob-slack below it. A long playlist list wraps rather than overflows. */
+.quick-segment-lights .quick-button-pair,
+.quick-segment-appletv .quick-button-pair {
+  min-height: var(--quick-preset-band);
+  margin-block-start: calc(-1 * var(--quick-dial-pull, 0px));
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Portrait: the pair dissolves so the two dials are siblings of the climate
+   dials and take the row's slots, and the break forces the climate dials onto
+   the line below them (Adeline, 2026-09-22: "lights and amp, then both climate
+   dials"). Keyed on the orientation, like quick-access.css's own portrait
+   block — a portrait screen here is wider than the 920px container query. */
+@media (aspect-ratio <= 1) {
+  .quick-dial-line {
+    display: contents;
+  }
+
+  .quick-dial-break {
+    display: block;
+    flex: 0 0 100%;
+    height: 0;
+  }
+
+  /* A phone too narrow for two dials at even the smallest size gives each of
+     them the same slot a climate dial takes, so they stack — one dial a line —
+     rather than overlapping each other. */
+  .quick-access-row[data-quick-pair="stacked"] .quick-dial-line > .quick-segment {
+    flex: 0 0 var(--quick-dial-slot, auto);
+    max-width: 100%;
+  }
+}

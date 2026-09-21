@@ -260,8 +260,9 @@ nothing drawn it would only swallow taps on whatever the empty annulus covers.
   Fresh Air switch and the heater's humidity line are gone (Adeline). The
   `ModuleSlot` extension points stay *(decided)*. The legacy
   `PanelHeaterControl` is unchanged.
-- **Quick Access** — a 100px knob alone; the written title above it is gone,
-  replaced by the knob's own title arc (Adeline, 2026-09-12). See
+- **Quick Access** — the knobs share the card's second line, under the lighting
+  and Apple TV dials (Adeline, 2026-09-22); the written title above each is
+  gone, replaced by the knob's own title arc (Adeline, 2026-09-12). See
   `specs/quick-access-card.md`.
 
 ## Done means

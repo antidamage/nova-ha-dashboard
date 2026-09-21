@@ -1,0 +1,197 @@
+/* The amplifier dial — the IR emitter's placeholder (specs/apple-tv-volume.md)
+   — its playlist presets, the Lounge's pair of dials, and the playlist list. */
+
+/* ── The dial ───────────────────────────────────────────────────────────────
+   Built on RotaryEncoder. The volume percent sits on the face where the
+   climate knob keeps its target, the mode word below the lights, and the name
+   curves over the top. The ring is the blue-green `volumeRingPaint` draws. */
+.apple-tv-encoder .rotary-encoder-dial > .rotary-encoder-label.apple-tv-encoder-level {
+  font-size: clamp(14px, calc(var(--re-size) * 0.11), 24px);
+  letter-spacing: 0.04em;
+  text-indent: 0.04em;
+  text-transform: none;
+}
+
+.apple-tv-encoder .rotary-encoder-dial > .rotary-encoder-channel.apple-tv-encoder-mode {
+  letter-spacing: 0.06em;
+  text-indent: 0.06em;
+}
+
+/* ── The playlist presets ───────────────────────────────────────────────────
+   Icon-only on both surfaces, and for the same reason: the names are long
+   ("Sword Smoke & Temple Drums" is one of the three shipped), so a button
+   carries its playlist as its accessible label and its name in a tooltip,
+   while the chosen one is the only one that changes appearance. */
+.quick-segment-appletv .apple-tv-presets,
+.zone-amplifier-controls .apple-tv-presets {
+  justify-content: center;
+}
+
+/* The panel's row, in the panel's own button height: three equal columns,
+   whatever the number of playlists. */
+.dashboard-shell .zone-lighting-presets.apple-tv-presets {
+  display: grid;
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+/* A note carries the button: with no written name under it, it can be a size
+   larger than the lighting presets' glyphs. */
+.dashboard-shell .zone-lighting-presets.apple-tv-presets svg {
+  width: 26px;
+  height: 26px;
+}
+
+.dashboard-shell .zone-lighting-presets.apple-tv-presets button[data-preset-active="true"] {
+  border-color: var(--cyber-highlight);
+  background: color-mix(in srgb, var(--cyber-highlight) 18%, var(--cyber-panel)) !important;
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+.dashboard-shell .zone-lighting-presets.apple-tv-presets button[data-preset-active="true"] svg {
+  color: var(--cyber-title-on-highlight) !important;
+}
+
+/* ── The Lounge's pair of dials ─────────────────────────────────────────────
+   The room's lights and its music side by side, half size each (Adeline,
+   2026-09-22). The pair is centred in the panel's default area as one unit,
+   with the two dials aligned along their tops: their preset blocks are
+   different heights (four lighting presets against three playlists), and
+   centring each dial on its own would sit them at two different heights. */
+.zone-dial-pair {
+  display: flex;
+  min-height: 100%;
+  width: 100%;
+  /* Never wider than a preset row: two dials a whole panel apart read as two
+     lone controls rather than one room's pair. */
+  max-width: 420px;
+  margin-inline: auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: center;
+  justify-content: center;
+  gap: 0 20px;
+}
+
+.zone-dial-pair > .zone-lighting-controls,
+.dashboard-home .zone-panel[data-lighting-zone] .zone-dial-pair > .zone-lighting-controls {
+  /* Even halves, and content-height rows, so a preset row that wraps to a
+     second line grows the container rather than spilling out of the band and
+     over the divider. Landscape holds a lone lighting dial's container at a
+     420px minimum (responsive/landscape.css); in the pair each container is
+     half the pair, so that minimum is lifted — without the second selector,
+     which outranks the pair rule above it, both containers stay 420px wide and
+     the pair wraps into a column. */
+  flex: 1 1 0;
+  grid-template-rows: auto auto;
+  align-content: center;
+  min-width: 0;
+}
+
+/* The lighting dial's wrapper keeps 12px of padding above and below it, which
+   the amplifier dial has none of. With both in the pair, that padding would
+   hold the two knobs on different centre lines — so the pair drops it. */
+.zone-dial-pair .zone-color-encoder {
+  padding-block: 0;
+}
+
+.zone-dial-pair .zone-lighting-presets:not(.apple-tv-presets) {
+  /* Half the panel's width: two columns, so each preset keeps its written
+     name instead of being squeezed into a 45px cell. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ── The playlist list, in the Lounge's Advanced section ──────────────────── */
+.apple-tv-playlists {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+}
+
+.apple-tv-playlists-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-shell .apple-tv-playlists-title {
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-display);
+  font-size: 0.95rem;
+  font-weight: var(--cyber-display-weight, 700);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.apple-tv-playlists-hint,
+.apple-tv-playlists-count {
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.apple-tv-playlists-count {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.apple-tv-playlists-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apple-tv-playlist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.apple-tv-playlist-input {
+  min-width: 0;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.06);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.8rem;
+}
+
+.apple-tv-playlist-input:focus-visible {
+  outline: 2px solid var(--cyber-highlight);
+  outline-offset: -2px;
+}
+
+.apple-tv-playlist-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.apple-tv-playlists .apple-tv-playlist-actions button,
+.apple-tv-playlists .apple-tv-playlists-footer button {
+  height: 40px;
+  min-width: 40px;
+  padding: 0 8px;
+  font-size: 0.7rem;
+}
+
+.apple-tv-playlists-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.apple-tv-playlists-error {
+  color: var(--cyber-highlight);
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+}
