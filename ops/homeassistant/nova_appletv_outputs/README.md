@@ -68,7 +68,9 @@ recorder, and are readable through `/api/states`.
    ```
 
    `on` while it plays through the television's own speakers, `off` while the
-   audio is on Bluetooth headphones, `unavailable` while it is asleep.
+   audio is on Bluetooth headphones. Asleep it is still `on` — MRP answers in
+   network standby — and `unavailable` means Home Assistant holds no connection
+   to the device at all.
 
 ## Remove
 
