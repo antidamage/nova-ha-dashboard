@@ -32,3 +32,13 @@ AUDIO_OUTPUT_SUFFIX = "audio_output"
 
 # The domain each suffix is published under.
 ENTITY_DOMAINS = {TV_SPEAKERS_SUFFIX: "binary_sensor", AUDIO_OUTPUT_SUFFIX: "sensor"}
+
+# tvOS labels the Apple TV's own local output "TV Speakers", and it is the name
+# Adeline used when she asked for this. The identifier match is the primary one
+# (the Apple TV reports the local output as itself); this label is matched as a
+# second name for the same thing, and a household that sees a different spelling
+# adds it to `tv_speakers_names` rather than waiting for a code change.
+DEFAULT_TV_SPEAKERS_NAMES = ("tv speakers",)
+
+# Configuration key, a bare `nova_appletv_outputs:` otherwise.
+CONF_TV_SPEAKERS_NAMES = "tv_speakers_names"

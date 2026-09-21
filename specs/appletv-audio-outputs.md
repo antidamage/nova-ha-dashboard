@@ -66,6 +66,18 @@ spelled the television's own output more than one way. Home Assistant's
 disambiguating title suffix (`Home Theatre (1485)`) is stripped before the name
 comparison.
 
+The local output's other name is matched too: tvOS calls it **"TV Speakers"**,
+which is the name Adeline used when she asked for this, so that label is a
+matched name by default and further spellings go in the `tv_speakers_names`
+option of the `configuration.yaml` key — a household seeing a third spelling
+adds it there rather than waiting for a code change. `sensor.<apple tv>_audio_output`
+publishes `own_identifiers` and `own_names` so what was matched — and what would
+have to change — is readable from Home Assistant itself.
+
+Reads as three independent chances to recognise the Apple TV's own output:
+identifier, its own name, or the local output's label. A miss on all three is
+the tail risk of §6.
+
 ## 3. The verdict
 
 `outputs.verdict_from(devices, own_ids, own_names)`:
@@ -84,8 +96,9 @@ existed. It can never silence the amplifier by failing.
 
 ## 4. How it is wired
 
-- `async_setup` from a bare `nova_appletv_outputs:` key in `configuration.yaml`
-  — the component carries no config of its own.
+- `async_setup` from a `nova_appletv_outputs:` key in `configuration.yaml`; the
+  key takes one option, `tv_speakers_names` (default `["TV Speakers"]`), the
+  labels that count as the Apple TV's own output.
 - For every `apple_tv` config entry: a read at setup, and a
   dispatcher listener on that entry's `apple_tv_connected_<unique_id>` /
   `apple_tv_disconnected_<unique_id>` (`SIGNAL_CONNECTED` from

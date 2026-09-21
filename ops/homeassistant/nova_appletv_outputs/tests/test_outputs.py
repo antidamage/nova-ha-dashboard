@@ -71,6 +71,17 @@ class VerdictTest(unittest.TestCase):
         # ways, and Home Assistant's own name for the device carries a suffix.
         self.assertEqual(self.verdict([ReportedOutput("AA:BB:CC:DD:EE:FF", "home theatre")]).tv_speakers, "on")
 
+    def test_the_local_outputs_own_label_matches_too(self):
+        # tvOS calls the local output "TV Speakers", and that is the name
+        # Adeline used. It is matched like one of the Apple TV's own names.
+        names = outputs.own_names("Home Theatre (1485)", "Home Theatre", "TV Speakers")
+
+        self.assertIn("tv speakers", names)
+        self.assertEqual(
+            outputs.verdict_from([ReportedOutput("AA:BB:CC:DD:EE:FF", "TV Speakers")], set(), names).tv_speakers,
+            "on",
+        )
+
     def test_another_output_switches_the_amp_off(self):
         # The use case Adeline named: Bluetooth headphones.
         verdict = self.verdict([ReportedOutput("AA:BB:CC:DD:EE:FF", "Addie's AirPods Pro")])
