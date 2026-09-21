@@ -26,7 +26,7 @@ Two plain states per Apple TV, named off the media player's own object id
 
 | Entity | States |
 |---|---|
-| `binary_sensor.<apple tv>_tv_speakers` | `on` the Apple TV's own output is active and nothing else is; `off` something else is — Bluetooth headphones, a HomePod, an AirPlay receiver; `unavailable` there is no live connection to read |
+| `binary_sensor.<apple tv>_tv_speakers` | `on` the Apple TV's own output is active and nothing else is; `off` something else is — Bluetooth headphones, a HomePod, an AirPlay receiver; `unavailable` there is no live connection to read (an HA restart, or the device off the network — *not* merely asleep, which MRP answers in) |
 | `sensor.<apple tv>_audio_output` | the active outputs by name, `unknown` when there are none |
 
 Both carry `active_outputs` (what pyatv reported), `apple_tv` and `source`.
@@ -68,7 +68,9 @@ recorder, and are readable through `/api/states`.
    ```
 
    `on` while it plays through the television's own speakers, `off` while the
-   audio is on Bluetooth headphones, `unavailable` while it is asleep.
+   audio is on Bluetooth headphones. Asleep it is still `on` — MRP answers in
+   network standby — and `unavailable` means Home Assistant holds no connection
+   to the device at all.
 
 ## Remove
 

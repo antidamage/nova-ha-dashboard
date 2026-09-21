@@ -79,6 +79,25 @@ Reads as three independent chances to recognise the Apple TV's own output:
 identifier, its own name, or the local output's label. A miss on all three is
 the tail risk of §6.
 
+**Observed on this house's Apple TV, 2026-09-22** (the first live reading, taken
+while the device reported `off` to HA — MRP answers in network standby, so the
+list is readable even then):
+
+```
+active_outputs = [{"identifier": "94020663-50DB-442B-9355-78C9DDCA0C94",
+                   "name": "Home Theatre"}]
+verdict        = on
+```
+
+The reading confirms the identification. The Apple TV reports its own local
+output under **the UID spelling** of its identifier —
+`94020663-50DB-442B-9355-78C9DDCA0C94`, one of the three spellings the config
+entry already stores — so the identifier branch of `is_own_output()` matches it.
+Its name matches too, so this shows the identifier branch is sufficient rather
+than that it is the branch that fired alone. Nothing beyond the local output was
+reported in that reading, which is why the headphones row (§3) still needs an
+observation with Bluetooth audio connected before it can be called verified.
+
 ## 3. The verdict
 
 `outputs.verdict_from(devices, own_ids, own_names)`:
@@ -92,9 +111,12 @@ the tail risk of §6.
 
 `unavailable` is the important row. The dashboard treats anything that is not
 `on` or `off` as no opinion (`amp-appletv-power.md` §8.3), so a bridge that
-cannot read — HA restarting, the Apple TV asleep, MRP down — leaves the
+cannot read — HA restarting, MRP down, the Apple TV off the network — leaves the
 amplifier following the Apple TV's power state, exactly as it did before this
-existed. It can never silence the amplifier by failing.
+existed. It can never silence the amplifier by failing. An Apple TV that is
+merely *asleep* is not this case: it answers in network standby and reports `on`
+(§2), and the dashboard is what keeps the amp off, because the power state is
+consulted before the audio route.
 
 ## 4. How it is wired
 
@@ -137,7 +159,12 @@ curl -s -H "Authorization: Bearer $HA_TOKEN" "$HA_URL/api/states/sensor.home_the
 ```
 
 `on` while it plays through the television's own speakers, `off` while the audio
-is on Bluetooth headphones, `unavailable` while it is asleep.
+is on Bluetooth headphones — and **not** `unavailable` merely because the Apple
+TV is asleep: MRP answers in network standby and still lists the local output, so
+the bridge reports `on` and the *dashboard* is what decides the amp should be off
+(the Apple TV's power state comes first in `amp-appletv-power.md` §8.2).
+`unavailable` means HA holds no connection at all: an HA restart, an Apple TV off
+the network, or an `apple_tv` entry that failed to load.
 
 Remove by deleting the directory, dropping the key, and restarting. The
 dashboard's `audioOutput` config block is optional, so a removal with no config
@@ -161,7 +188,9 @@ not an optional extra.
 
 - With the Apple TV awake and playing through its own output,
   `binary_sensor.<apple tv>_tv_speakers` is `on`; with Bluetooth headphones
-  connected it is `off`; asleep it is `unavailable`.
+  connected it is `off`. **Asleep it is still `on`** — MRP answers in standby —
+  and the amp stays off because the dashboard consults the power state first.
+  `unavailable` means HA holds no connection at all.
 - `sensor.<apple tv>_audio_output` names what the device reported, and its
   history is enough to diagnose a misclassification.
 - With the amp's `audioOutput` block configured: the amp is on for the first
@@ -169,7 +198,7 @@ not an optional extra.
   across the two.
 - With the block absent, nothing in the dashboard reads these entities and the
   amp behaves exactly as `amp-appletv-power.md` §1–§6 describe.
-- `python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/tests`
+- `python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/tests`
   passes, inside the HA container as well as outside it.
 - Home Assistant starts with the component installed, its own `apple_tv`
   integration unaffected — volume updates on `media_player.home_theatre` still
