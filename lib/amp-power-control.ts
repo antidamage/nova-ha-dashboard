@@ -1,4 +1,5 @@
 import type { AmpPowerControlConfig } from "./config-schema";
+import { desiredFromStates, switchStateOf, type AmpSwitchState } from "./amp-inputs";
 import { readDashboardConfigSync } from "./dashboard-config";
 import { callService, haRest } from "./ha";
 import { readActiveFloatingCategoryId } from "./power";
@@ -24,7 +25,7 @@ import type { HaState } from "./types";
  * specs/power-meters.md §1 requires of the meter guard.
  */
 
-export type AmpSwitchState = "on" | "off";
+export type { AmpSwitchState } from "./amp-inputs";
 
 export type AmpAction =
   /** Nothing to do, or nothing we are entitled to do. */
@@ -82,35 +83,6 @@ export function decideAmpAction(input: AmpDecisionInput): AmpAction {
     return { type: "wait" };
   }
   return { type: "command", state: input.desired };
-}
-
-/** Desired amp state from the media player's state string (§1.1). */
-export function desiredFromSource(
-  state: string | undefined,
-  offStates: readonly string[],
-): AmpSwitchState | null {
-  if (!state || state === "unavailable" || state === "unknown") {
-    return null;
-  }
-  return offStates.includes(state) ? "off" : "on";
-}
-
-/**
- * The plug, as one state. Twins are the same socket, so any id reading `on`
- * means the socket is on; `off` only when something says so and nothing
- * contradicts it (lib/ha/twins.ts).
- */
-export function switchStateOf(
-  entityIds: readonly string[],
-  statesById: Map<string, HaState>,
-): AmpSwitchState | null {
-  let sawOff = false;
-  for (const entityId of entityIds) {
-    const state = statesById.get(entityId)?.state;
-    if (state === "on") return "on";
-    if (state === "off") sawOff = true;
-  }
-  return sawOff ? "off" : null;
 }
 
 function ampConfig(): AmpPowerControlConfig | null {
@@ -208,9 +180,7 @@ async function tickUnsettled() {
     }
   }
   const statesById = new Map(states.map((state) => [state.entity_id, state]));
-  const desired = armed
-    ? desiredFromSource(statesById.get(config.sourceEntityId)?.state, config.offStates)
-    : null;
+  const desired = armed ? desiredFromStates(config, statesById) : null;
 
   const now = Date.now();
   if (armed && desired === null) {
