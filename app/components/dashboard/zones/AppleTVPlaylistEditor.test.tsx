@@ -87,9 +87,10 @@ describe("the Apple TV playlist editor", () => {
     renderEditor();
     await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
     const second = screen.getAllByRole("textbox")[1];
-    // A double space, a tab and a 60+ character tail all survive a raw
-    // comparison but collapse to the same name in the list's own normalisation
-    // — the guard has to compare what the list stores.
+    // An internal double space and a tab survive a raw comparison but collapse
+    // to the same name under the list's own normalisation, which is why the
+    // guard has to compare what the list stores (leading and trailing spaces
+    // are already trimmed into `name` before it is compared).
     fireEvent.focus(second);
     fireEvent.change(second, { target: { value: "  Excellent  " } });
     fireEvent.blur(second);
@@ -105,7 +106,7 @@ describe("the Apple TV playlist editor", () => {
     expect(appleTVAmpState().playlists).toEqual(DEFAULT_PLAYLISTS);
   });
 
-  it("clears the alert once the field is put back or the row is emptied", async () => {
+  it("clears the alert once the field is put back", async () => {
     stubHost();
     renderEditor();
     await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
@@ -121,6 +122,24 @@ describe("the Apple TV playlist editor", () => {
     fireEvent.change(second, { target: { value: DEFAULT_PLAYLISTS[1] } });
     fireEvent.blur(second);
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("clears the alert when the row is emptied instead", async () => {
+    const host = stubHost();
+    renderEditor();
+    await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
+    const second = screen.getAllByRole("textbox")[1];
+    fireEvent.focus(second);
+    fireEvent.change(second, { target: { value: "Cool" } });
+    fireEvent.blur(second);
+    expect(await screen.findByRole("alert")).toBeTruthy();
+
+    fireEvent.focus(second);
+    fireEvent.change(second, { target: { value: "   " } });
+    fireEvent.blur(second);
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    await waitFor(() => expect(host.writes).toHaveLength(1));
+    expect(host.writes[0]).toEqual([DEFAULT_PLAYLISTS[0], DEFAULT_PLAYLISTS[2]]);
   });
 
   it("treats an emptied row as a removal rather than storing a blank", async () => {
