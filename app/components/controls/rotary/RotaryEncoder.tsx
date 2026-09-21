@@ -64,6 +64,7 @@ import {
   titlePath,
 } from "./geometry-model";
 import { dragStep, fractionOf, valueAt } from "./ring-drag-model";
+import { glidesOnStep } from "./ring-glide-model";
 import type { RingPress, RotaryEncoderProps, RotaryEncoderRing } from "./types";
 import { useFaceTopFit } from "./useFaceTopFit";
 import { useKnobSkin } from "./useKnobSkin";
@@ -418,6 +419,16 @@ export function RotaryEncoder({
   };
   /** The ring's own arc, in degrees: a shortened ring glides at the same rate. */
   const ringSweep = (ring: RotaryEncoderRing) => endOf(shown.indexOf(ring)) - ARC_START;
+  /**
+   * Whether this ring is a discrete control — coarse enough that its thumb
+   * should glide — rather than a slider that merely rounds a continuous value.
+   * The timer rings are the reason the question is asked: they step by minutes
+   * across hours and are dragged by eye (`RING_GLIDE_MIN_STEP_SHARE`).
+   */
+  const ringGlides = (ring: RotaryEncoderRing) => {
+    const [min, max] = ringRange(ring);
+    return glidesOnStep(ringStep(ring), min, max, ring.glide);
+  };
 
   const setRing = (ring: RotaryEncoderRing, next: number) => {
     const [min, max] = ringRange(ring);
@@ -426,7 +437,7 @@ export function RotaryEncoder({
     // Aimed before the value moves, from where the thumb is drawn right now: a
     // drag that passed several stops aims at the furthest one, and the stops it
     // passed are never queued behind it.
-    if (ringStep(ring)) glide.aim(ring.id, ringDrawn(ring), ringSweep(ring));
+    if (ringGlides(ring)) glide.aim(ring.id, ringDrawn(ring), ringSweep(ring));
     ringLiveRef.current[ring.id] = bounded;
     rerender((count) => count + 1);
     noteInput();

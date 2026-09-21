@@ -61,7 +61,7 @@ function expected(size: number, rings: number) {
 }
 
 test.describe("ColorEncoder demo", () => {
-  test("draws 0–5 rings with the dial dead centre and the label above the lights", async ({ page }) => {
+  test("draws 0–5 rings with the dial dead centre, its name arced over the knob and the caption under the lights", async ({ page }) => {
     const console = watchConsole(page);
     await openDemo(page);
     for (const rings of [0, 1, 2, 3, 4, 5]) {
@@ -75,16 +75,40 @@ test.describe("ColorEncoder demo", () => {
 
       // The dial's name is its **title arc**, over the knob and outside it
       // (specs/color-encoder.md, "The title arcs over the knob"), and a
-      // ColorEncoder dial carries no face-top text — so the old symmetric
-      // measurement (a face-top label as far above the lights as the caption is
-      // below them) no longer describes the control. What is true, and what
-      // this checks, is where each piece sits: the name over the knob, the
-      // caption under the lights, both in the caption's own font.
+      // ColorEncoder dial carries no face-top text. So this measures where the
+      // name actually sits — on its own radius, outside the knob's rim — rather
+      // than only that it is above the knob: a title parked on the knob face as
+      // a plain label would satisfy an ordering alone.
       const name = await box(root.locator(".rotary-encoder-title"));
       const leds = await box(root.locator(".rotary-encoder-leds"));
       const caption = await box(root.locator(".rotary-encoder-channel"));
       expect(name.y + name.height).toBeLessThanOrEqual(knob.y);
       expect(caption.y).toBeGreaterThanOrEqual(leds.y + leds.height);
+
+      const title = await root.evaluate((element) => {
+        const svg = element.querySelector<SVGSVGElement>("svg.rotary-encoder-title-arc");
+        const text = svg?.querySelector<SVGTextElement>(".rotary-encoder-title");
+        if (!svg || !text) return null;
+        const centre = svg.viewBox.baseVal.width / 2;
+        const glyphs: { radius: number; angle: number }[] = [];
+        for (let index = 0; index < text.getNumberOfChars(); index += 1) {
+          const extent = text.getExtentOfChar(index);
+          const x = extent.x + extent.width / 2 - centre;
+          const y = extent.y + extent.height / 2 - centre;
+          glyphs.push({ radius: Math.hypot(x, y), angle: (Math.atan2(x, -y) * 180) / Math.PI });
+        }
+        return { glyphs, font: Number.parseFloat(getComputedStyle(text).fontSize) };
+      });
+      expect(title).not.toBeNull();
+      expect(title!.glyphs.length).toBeGreaterThan(0);
+      // TITLE_CLEARANCE_SHARE each side of the caption, over DIAL_RADIUS_SHARE.
+      const titleRadius = 200 * 0.657 + 200 * 0.02 + title!.font / 2;
+      for (const glyph of title!.glyphs) {
+        expect(Math.abs(glyph.radius - titleRadius)).toBeLessThanOrEqual(title!.font * 0.25 + 1);
+        expect(glyph.radius).toBeGreaterThan(100);
+        expect(Math.abs(glyph.angle)).toBeLessThan(135);
+      }
+
       const sizes = await root.evaluate((element) => {
         const read = (selector: string) => getComputedStyle(element.querySelector(selector)!).fontSize;
         return [read(".rotary-encoder-title"), read(".rotary-encoder-channel")];
@@ -173,9 +197,12 @@ test.describe("ColorEncoder demo", () => {
     for (let angle = 10; angle <= 120; angle += 10) await page.mouse.move(...point(angle));
     const high = Number(await outer.getAttribute("aria-valuenow"));
     expect(high).toBeGreaterThan(90);
-    // On into the gap and out the far side: pinned at the top, no jump.
-    for (const angle of [150, 180, 210, 240]) await page.mouse.move(...point(angle));
-    expect(Number(await outer.getAttribute("aria-valuenow"))).toBe(100);
+    // On into the gap and out the far side: pinned at the top from the first
+    // degree of gap onward, and still pinned at every step through it.
+    for (const angle of [150, 180, 210, 240]) {
+      await page.mouse.move(...point(angle));
+      expect(Number(await outer.getAttribute("aria-valuenow"))).toBe(100);
+    }
     await page.mouse.up();
     expect(await inner.getAttribute("aria-valuenow")).toBe(innerBefore);
     await shot(root, "dragged");
@@ -198,6 +225,15 @@ test.describe("ColorEncoder demo", () => {
     // ramp is layered over it, on top — so this looks for it anywhere in the
     // value rather than at the front.
     for (const led of fills) expect(led.image.includes('url("data:image/png')).toBe(led.lit);
+    // And the ramp must stay ON TOP of it: the PNG is only there to keep auto
+    // dark mode's hands off the element, so a stack with the raster first would
+    // paint the PNG's near-white instead of the light's colour — the failure the
+    // layer order exists to prevent (app/styles/controls/rotary-leds.css).
+    for (const led of fills.filter((item) => item.lit)) {
+      const ramp = led.image.indexOf("linear-gradient");
+      expect(ramp).toBeGreaterThanOrEqual(0);
+      expect(ramp).toBeLessThan(led.image.indexOf('url("data:image/png'));
+    }
 
     // A disabled control dims each ring once, to 45%, not 45% of 45%.
     const opacity = await dial(page, "disabled").evaluate((element) => {

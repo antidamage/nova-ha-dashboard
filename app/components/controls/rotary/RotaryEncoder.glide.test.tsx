@@ -1,97 +1,30 @@
-import { act, fireEvent, render } from "@testing-library/react";
-import { useState } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type RotaryEncoderRing } from "../../RotaryEncoder";
-import { ARC_END, ARC_START, fractionAt, ringGeometry } from "../../rotaryEncoderGeometry";
-import { RING_GLIDE_DEG_PER_SEC } from "./constants";
-import { Dial, at, useDialHarness } from "./RotaryEncoder.fixtures";
+import { fireEvent, render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { at, useDialHarness } from "./RotaryEncoder.fixtures";
+import {
+  DRY,
+  FAN,
+  FRAME_TRAVEL,
+  SteppedDial,
+  advance,
+  angleOf,
+  dragTo,
+  drawnFraction,
+  radius,
+  ringsSvg,
+  useGlideClock,
+} from "./RotaryEncoder.glide.fixtures";
 
 useDialHarness();
+useGlideClock();
 
 /**
- * A stepping ring is drawn from where its thumb has *reached*, not from where
- * its value was sent (specs/color-encoder.md, "A step glides, it never snaps").
- * These read the drawn fraction back out of the thumb's own path, so they
- * measure what the eye sees rather than what the ring was handed.
- *
- * The ring throughout is the aircon's Manual Mode ring: four stops, cool → dry →
- * fan → heat, a third of the arc apart.
+ * How a step glides: the thumb is drawn from where it has *reached*, not where
+ * its value was sent, and closes the gap at one speed
+ * (specs/color-encoder.md, "A step glides, it never snaps"). Which rings glide
+ * at all is the neighbouring suite's subject.
  */
-const geometry = ringGeometry(200, 1);
-const radius = geometry.radii[0];
-const half = geometry.thumbHalfAngle[0];
-const sweep = ARC_END - ARC_START;
-/** Where a stop sits, as the angle to press at: 0 is cool, 1 is heat. */
-const angleOf = (fraction: number) => ARC_START + half + fraction * (ARC_END - ARC_START - 2 * half);
-
-const DRY = 1 / 3;
-const FAN = 2 / 3;
-/** How far the thumb gets in one 60Hz frame, as a fraction of the arc. */
-const FRAME_TRAVEL = (RING_GLIDE_DEG_PER_SEC / sweep) * 0.016;
-
-function ringsSvg(container: HTMLElement) {
-  const svg = container.querySelector("svg.rotary-encoder-rings");
-  if (!svg) throw new Error("no rings drawn");
-  return svg;
-}
-
-/** The fraction the thumb is actually drawn at, from its arc's two ends. */
-function drawnFraction(container: HTMLElement) {
-  const path = ringsSvg(container).querySelector(".rotary-encoder-thumb-body");
-  const numbers = (path?.getAttribute("d") ?? "").match(/-?[\d.]+/g)?.map(Number);
-  if (!numbers || numbers.length < 9) throw new Error(`no thumb arc: ${path?.getAttribute("d")}`);
-  const centre = geometry.footprint / 2;
-  const angleOfPoint = (x: number, y: number) => (Math.atan2(x - centre, -(y - centre)) * 180) / Math.PI;
-  const middle = (angleOfPoint(numbers[0], numbers[1]) + angleOfPoint(numbers[7], numbers[8])) / 2;
-  return fractionAt(middle, half, ARC_END);
-}
-
-/** Runs the glide's clock: a frame per 16ms, the first of which only starts it. */
-function advance(ms: number) {
-  act(() => {
-    vi.advanceTimersByTime(ms);
-  });
-}
-
-/** A controlled stepping ring that echoes what it is given, as the knobs do. */
-function SteppedDial({ onChange, kind, step }: { onChange: (value: number) => void; kind?: "selector"; step?: number }) {
-  const [value, setValue] = useState(0);
-  const ring: RotaryEncoderRing = {
-    id: "mode",
-    label: "Mode",
-    kind,
-    value,
-    min: 0,
-    max: 3,
-    step,
-    valueText: (live) => `${Math.round(live)}`,
-    valueTextWidest: "3",
-    onChange: (next) => {
-      onChange(next);
-      setValue(next);
-    },
-  };
-  return <Dial rings={[ring]} />;
-}
-
-/** Presses at the start of the arc and drags to `fraction` in one sample. */
-function dragTo(container: HTMLElement, fraction: number) {
-  const svg = ringsSvg(container);
-  fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, angleOf(0)) });
-  if (fraction !== 0) fireEvent.pointerMove(svg, { buttons: 1, pointerId: 1, ...at(radius, angleOf(fraction)) });
-  return svg;
-}
-
 describe("a stepping ring's glide", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    window.localStorage.clear();
-  });
-
-  afterEach(() => {
-    window.localStorage.clear();
-  });
-
   it("eases its thumb to the next stop instead of snapping to it", () => {
     const onChange = vi.fn();
     const { container } = render(<SteppedDial kind="selector" step={1} onChange={onChange} />);
