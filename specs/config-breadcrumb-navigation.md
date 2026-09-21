@@ -218,7 +218,7 @@ deployed to GitHub Pages (`antidamage.github.io/nova-ha-dashboard/config/`)
 
 ## Breadcrumb UI
 
-New component, e.g. `app/components/ConfigBreadcrumb.tsx`, mounted in
+New component, `app/components/ConfigBreadcrumbBar.tsx`, mounted in
 `ConfigWorkspace` above `#config-category-content`. Rendered only when a
 category is active (hidden on the plain category grid).
 

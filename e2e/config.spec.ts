@@ -34,15 +34,31 @@ test.describe("configuration workspace", () => {
     await expect(trail).toBeVisible();
     // In the page's own flow, not a floating overlay pinned to the viewport.
     await expect(trail).not.toHaveCSS("position", "fixed");
-    // Measure from the top of the page: opening an accordion scrolls it into view.
-    await page.evaluate(() => window.scrollTo(0, 0));
+    // "Just below the menu" is structural: the trail is the menu's next sibling,
+    // not merely some element further down the page.
+    await expect(page.locator(".config-category-nav + .config-breadcrumb")).toHaveCount(1);
 
-    const menu = (await page.locator(".config-category-nav").boundingBox())!;
-    const trailBox = (await trail.boundingBox())!;
-    const column = (await page.locator(".config-layout").boundingBox())!;
-    expect(trailBox.y, "trail starts below the menu").toBeGreaterThanOrEqual(menu.y + menu.height);
-    expect(trailBox.x, "trail spans the config column").toBeGreaterThanOrEqual(column.x - 0.5);
-    expect(trailBox.x + trailBox.width).toBeLessThanOrEqual(column.x + column.width + 0.5);
+    // One page-side read, in document coordinates: opening an accordion schedules
+    // its own smooth scroll-into-view, so viewport boxes read across that scroll
+    // could measure two different frames.
+    const boxes = await page.evaluate(() => {
+      const box = (selector: string) => {
+        const el = document.querySelector(selector);
+        if (!el) throw new Error(`no ${selector} on the config page`);
+        const rect = el.getBoundingClientRect();
+        return { top: rect.top + window.scrollY, left: rect.left, width: rect.width, height: rect.height };
+      };
+      const menu = box(".config-category-nav");
+      return { menuBottom: menu.top + menu.height, trail: box(".config-breadcrumb"), column: box(".config-layout") };
+    });
+
+    // Directly below: flush against the menu's bottom edge, within one grid gap.
+    const gap = boxes.trail.top - boxes.menuBottom;
+    expect(gap, "the trail sits directly under the menu").toBeGreaterThanOrEqual(0);
+    expect(gap, "the trail sits directly under the menu").toBeLessThanOrEqual(40);
+    // And it spans the config column rather than the whole viewport.
+    expect(boxes.trail.left, "trail starts at the column's left edge").toBeCloseTo(boxes.column.left, 0);
+    expect(boxes.trail.width, "trail spans the config column").toBeCloseTo(boxes.column.width, 0);
   });
 
   test("expands the import/export section", async ({ page }) => {
