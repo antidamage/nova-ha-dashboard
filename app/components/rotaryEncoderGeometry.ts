@@ -23,6 +23,7 @@ export type { RingDrag, RingGeometry } from "./controls/rotary/types";
 export {
   arcPath,
   captionFont,
+  dialPresetPull,
   fractionAt,
   gapLength,
   gapSpan,
