@@ -42,21 +42,27 @@ export function volumeLevelText(volume: number) {
 }
 
 /**
- * The ring's paint. A conic gradient runs clockwise from 12 o'clock, the dial's
- * own convention; it carries the same three blue-greens at every level, with
- * the pale stop's angle opening up as the volume rises — the usual subtle
- * gradient shift, and a quiet read of the level under the knob.
+ * The ring's paint: the dials' usual colour gradient, **top to bottom**
+ * (`180deg`), the same direction every other ring in the app takes — the band
+ * lands brightest at 12 o'clock and deepest at 6, with the knob's own shading
+ * over it (`rotary-knob-face.css`, "Sunken shading over the ring";
+ * `rotary-unlock-ring.css` for the same convention written out). Never a conic
+ * or radial sweep: the dials must not vary from each other.
+ *
+ * It carries the same three blue-greens at every level, and the pale band's
+ * share grows with the volume — the usual subtle gradient shift, and a quiet
+ * read of the level under the knob.
  */
 export function volumeRingPaint(volume: number, _size: number) {
   const level = clamp(clampVolume(volume) / VOLUME_MAX, 0, 1);
-  // The gradient never collapses onto one colour: even at zero the shift is a
-  // quarter turn.
-  const shift = 90 + 180 * level;
+  // The pale-to-blue-green boundary moves down the band as the level rises, and
+  // never reaches an end: even at rest the gradient is a gradient.
+  const mid = 40 + 24 * level;
   return [
-    "conic-gradient(from 0deg",
-    `${VOLUME_RING_DEEP} 0deg`,
-    `${VOLUME_RING_MID} ${shift.toFixed(2)}deg`,
-    `${VOLUME_RING_PALE} 360deg)`,
+    "linear-gradient(180deg",
+    `${VOLUME_RING_PALE} 2%`,
+    `${VOLUME_RING_MID} ${mid.toFixed(2)}%`,
+    `${VOLUME_RING_DEEP} 100%)`,
   ].join(", ");
 }
 
@@ -70,11 +76,17 @@ export function volumeColour(volume: number) {
 /**
  * The ring's glow: the colour dial's full-glow figures, scaled by the level and
  * gone entirely while muted — a muted amplifier is not lighting anything up.
+ *
+ * The channels come straight off `volumeColour`, which is already an `rgb()`
+ * string, exactly as the temperature knob's glow reads its own colour. Running
+ * that through `hexToRgb` produced `rgba(NaN, …)`, which the browser drops — so
+ * the dial had no glow at all while every sibling had one (Adeline,
+ * 2026-09-22: "these components should never vary from each other").
  */
 export function volumeGlow(volume: number, size: number, muted: boolean) {
   const level = clamp(clampVolume(volume) / VOLUME_MAX, 0, 1);
   if (muted || level <= 0) return "0 0 0 rgba(0, 0, 0, 0)";
-  const rgb = hexToRgb(volumeColour(volume)).join(", ");
+  const rgb = volumeColour(volume).replace(/rgba?\(|\)/g, "");
   return `0 0 ${(size * 0.12 * level).toFixed(1)}px ${(size * 0.012 * level).toFixed(1)}px rgba(${rgb}, ${(0.62 * level).toFixed(3)})`;
 }
 
