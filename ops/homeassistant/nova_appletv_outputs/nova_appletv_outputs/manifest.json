@@ -1,0 +1,11 @@
+{
+  "domain": "nova_appletv_outputs",
+  "name": "Nova Apple TV Audio Outputs",
+  "version": "1.0.0",
+  "documentation": "nova-ha-dashboard/specs/appletv-audio-outputs.md",
+  "issue_tracker": "nova-ha-dashboard/specs/appletv-audio-outputs.md",
+  "codeowners": ["@antidamage"],
+  "after_dependencies": ["apple_tv"],
+  "integration_type": "service",
+  "iot_class": "local_polling"
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { AudioLines, CookingPot, Monitor, Plug, Tv, WashingMachine } from "lucide-react";
+import { AudioLines, Check, CookingPot, Monitor, Plug, Tv, WashingMachine } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { PowerFloatingMeterSummary } from "../../../../lib/power";
@@ -32,6 +32,10 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
   /** The category a tap has chosen but not yet confirmed (specs/amp-appletv-power.md §6). */
   const [proposed, setProposed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The amp's automation switch, optimistic until the server reports it back (§7). */
+  const [automationOverride, setAutomationOverride] = useState<boolean | null>(null);
+
+  const ampControl = summary.ampControl;
 
   // Drop the optimistic choice as soon as the server reports it, so a failed
   // move falls back to the truth rather than sticking on screen.
@@ -40,6 +44,29 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
       setPending(null);
     }
   }, [pending, summary.activeCategoryId]);
+
+  // Same for the automation switch: the panel's own poll is the truth.
+  useEffect(() => {
+    if (automationOverride !== null && ampControl?.enabled === automationOverride) {
+      setAutomationOverride(null);
+    }
+  }, [automationOverride, ampControl]);
+
+  const toggleAutomation = async (enabled: boolean) => {
+    setAutomationOverride(enabled);
+    try {
+      const response = await fetch("/api/power/amp-automation", {
+        body: JSON.stringify({ enabled }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      if (!response.ok) {
+        setAutomationOverride(null);
+      }
+    } catch {
+      setAutomationOverride(null);
+    }
+  };
 
   const activeId = pending ?? summary.activeCategoryId ?? summary.categories[0]?.id ?? "";
 
@@ -138,9 +165,17 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
                   {category.confidence === "measured" ? "" : ` / ${category.measuredHours}h seen`}
                 </p>
               </div>
-              <p className="text-right text-xs font-black tabular-nums text-neutral-100">
-                {formatWatts(category.watts)}
-              </p>
+              <div className="grid justify-items-end gap-1">
+                <p className="text-right text-xs font-black tabular-nums text-neutral-100">
+                  {formatWatts(category.watts)}
+                </p>
+                {ampControl?.categoryId === category.id ? (
+                  <AutomationToggle
+                    checked={automationOverride ?? ampControl.enabled}
+                    onChange={toggleAutomation}
+                  />
+                ) : null}
+              </div>
             </div>
           );
         })}
@@ -154,5 +189,44 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
         open={proposed !== null}
       />
     </section>
+  );
+}
+
+/**
+ * The amp row's "Automate state" switch — whether the amp follows the Apple TV
+ * at all (specs/amp-appletv-power.md §7).
+ *
+ * It annotates a reading rather than being a setting of its own, so it is the
+ * compact checkbox the config surfaces already use for exactly that job: a
+ * visually-hidden input over an 18px box, under a 9px muted tag
+ * (`.cyber-mini-checkbox`, `.rect-envelope-tag`, `RandomTargetToggle`). Not
+ * `CheckboxRow`, which is a full-width row for a page of settings.
+ */
+function AutomationToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className="grid cursor-pointer justify-items-end gap-1"
+      title="Follow the Apple TV's power and audio output while the meter is on the amp"
+    >
+      <span className="rect-envelope-tag" aria-hidden="true">
+        Automate state
+      </span>
+      <input
+        type="checkbox"
+        className="cyber-mini-checkbox-input"
+        checked={checked}
+        aria-label="Automate state"
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="cyber-mini-checkbox" aria-hidden="true">
+        <Check className="h-3 w-3" strokeWidth={3.5} />
+      </span>
+    </label>
   );
 }
