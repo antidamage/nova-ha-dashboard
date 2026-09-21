@@ -20,6 +20,31 @@ test.describe("configuration workspace", () => {
     expectNoConsoleErrors(console);
   });
 
+  test("keeps the section trail in the flow, directly below the category menu", async ({ page }) => {
+    await gotoConfig(page);
+    await page.getByRole("button", { name: /Appearance & Dashboard/ }).click();
+
+    const header = page.locator("#appearance").getByRole("button", { name: "Theme & Experience" });
+    await expect(async () => {
+      await header.click();
+      await expect(header).toHaveAttribute("aria-expanded", "true");
+    }).toPass({ timeout: 15_000 });
+
+    const trail = page.getByRole("navigation", { name: "Configuration section path" });
+    await expect(trail).toBeVisible();
+    // In the page's own flow, not a floating overlay pinned to the viewport.
+    await expect(trail).not.toHaveCSS("position", "fixed");
+    // Measure from the top of the page: opening an accordion scrolls it into view.
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    const menu = (await page.locator(".config-category-nav").boundingBox())!;
+    const trailBox = (await trail.boundingBox())!;
+    const column = (await page.locator(".config-layout").boundingBox())!;
+    expect(trailBox.y, "trail starts below the menu").toBeGreaterThanOrEqual(menu.y + menu.height);
+    expect(trailBox.x, "trail spans the config column").toBeGreaterThanOrEqual(column.x - 0.5);
+    expect(trailBox.x + trailBox.width).toBeLessThanOrEqual(column.x + column.width + 0.5);
+  });
+
   test("expands the import/export section", async ({ page }) => {
     await gotoConfig(page);
     await page.getByRole("button", { name: /System & Data/ }).click();
