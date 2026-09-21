@@ -67,7 +67,8 @@ convention that came with it.
 | [aircon-auto-control.md](aircon-auto-control.md) | Lounge aircon Auto and Manual thermostats |
 | [bedroom-heater-control-integrity.md](bedroom-heater-control-integrity.md) | Heater command integrity and its route gates |
 | [power-meters.md](power-meters.md) | Metered power, washing machine and floating meter |
-| [amp-appletv-power.md](amp-appletv-power.md) | The amp's own meter category, and its power following the Apple TV |
+| [amp-appletv-power.md](amp-appletv-power.md) | The amp's own meter category, its power following the Apple TV, the "Automate state" switch and the audio-output condition |
+| [appletv-audio-outputs.md](appletv-audio-outputs.md) | The HA-side bridge that publishes which speakers the Apple TV is playing through |
 | [outside-weather-and-map.md](outside-weather-and-map.md) | Outside panel, weather and map |
 | [outside-card.md](outside-card.md) · [weather-refresh.md](weather-refresh.md) | Narrower siblings of the above |
 | [router-and-network-panel.md](router-and-network-panel.md) | Router and network panel |

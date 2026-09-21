@@ -1,12 +1,15 @@
 import type { AmpPowerControlConfig } from "./config-schema";
+import { desiredFromStates, switchStateOf, type AmpSwitchState } from "./amp-inputs";
 import { readDashboardConfigSync } from "./dashboard-config";
 import { callService, haRest } from "./ha";
-import { readActiveFloatingCategoryId } from "./power";
+import { readActiveFloatingCategoryId, readAmpAutomationEnabled } from "./power";
 import type { HaState } from "./types";
 
 /**
  * The amp follows the Apple TV — while, and only while, the floating meter is
- * measuring the amp. See specs/amp-appletv-power.md.
+ * measuring the amp and the Grid panel's "Automate state" switch is on. What it
+ * follows is the Apple TV's power and audio output (§7, §8).
+ * See specs/amp-appletv-power.md.
  *
  * Adeline, 2026-09-19: "ensure that state changes NEVER occur more frequently
  * than once every 30 seconds, queue and space out any secondary changes […]
@@ -24,7 +27,7 @@ import type { HaState } from "./types";
  * specs/power-meters.md §1 requires of the meter guard.
  */
 
-export type AmpSwitchState = "on" | "off";
+export type { AmpSwitchState } from "./amp-inputs";
 
 export type AmpAction =
   /** Nothing to do, or nothing we are entitled to do. */
@@ -36,7 +39,10 @@ export type AmpAction =
   | { type: "command"; state: AmpSwitchState };
 
 export type AmpDecisionInput = {
-  /** The floating meter's active category is this controller's category. */
+  /**
+   * Allowed to act: the meter is on this controller's category (§4.2) **and**
+   * the panel's "Automate state" switch is on (§7).
+   */
   armed: boolean;
   /** Are we currently holding the plug (and keeping the guard off it)? */
   owned: boolean;
@@ -82,35 +88,6 @@ export function decideAmpAction(input: AmpDecisionInput): AmpAction {
     return { type: "wait" };
   }
   return { type: "command", state: input.desired };
-}
-
-/** Desired amp state from the media player's state string (§1.1). */
-export function desiredFromSource(
-  state: string | undefined,
-  offStates: readonly string[],
-): AmpSwitchState | null {
-  if (!state || state === "unavailable" || state === "unknown") {
-    return null;
-  }
-  return offStates.includes(state) ? "off" : "on";
-}
-
-/**
- * The plug, as one state. Twins are the same socket, so any id reading `on`
- * means the socket is on; `off` only when something says so and nothing
- * contradicts it (lib/ha/twins.ts).
- */
-export function switchStateOf(
-  entityIds: readonly string[],
-  statesById: Map<string, HaState>,
-): AmpSwitchState | null {
-  let sawOff = false;
-  for (const entityId of entityIds) {
-    const state = statesById.get(entityId)?.state;
-    if (state === "on") return "on";
-    if (state === "off") sawOff = true;
-  }
-  return sawOff ? "off" : null;
 }
 
 function ampConfig(): AmpPowerControlConfig | null {
@@ -185,6 +162,14 @@ async function tick() {
   }
 }
 
+/** Why the plug is being put down, for the log line (§4.7). */
+function releaseReason(categorySelected: boolean, automationEnabled: boolean) {
+  if (!automationEnabled) {
+    return '"Automate state" is switched off';
+  }
+  return categorySelected ? "Apple TV unreadable" : "another category selected";
+}
+
 async function tickUnsettled() {
   const config = ampConfig();
   if (!config) {
@@ -194,7 +179,11 @@ async function tickUnsettled() {
     return;
   }
 
-  const armed = (await readActiveFloatingCategoryId()) === config.categoryId;
+  const categorySelected = (await readActiveFloatingCategoryId()) === config.categoryId;
+  // The Grid panel's "Automate state" checkbox (§7): off, this loop is as inert
+  // as it is under another category — no command, and the guard gets the plug.
+  const automationEnabled = await readAmpAutomationEnabled();
+  const armed = categorySelected && automationEnabled;
 
   let states: HaState[] = [];
   if (armed) {
@@ -208,9 +197,7 @@ async function tickUnsettled() {
     }
   }
   const statesById = new Map(states.map((state) => [state.entity_id, state]));
-  const desired = armed
-    ? desiredFromSource(statesById.get(config.sourceEntityId)?.state, config.offStates)
-    : null;
+  const desired = armed ? desiredFromStates(config, statesById) : null;
 
   const now = Date.now();
   if (armed && desired === null) {
@@ -234,7 +221,7 @@ async function tickUnsettled() {
 
   if (action.type === "release") {
     if (desired === null && armed) staleHeld = true;
-    await release(config.switchEntityIds, armed ? "Apple TV unreadable" : "another category selected");
+    await release(config.switchEntityIds, releaseReason(categorySelected, automationEnabled));
     return;
   }
 

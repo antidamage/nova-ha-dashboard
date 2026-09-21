@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PowerFloatingMeterSummary } from "../../../../lib/power";
 import { FloatingMeterCard } from "./FloatingMeterCard";
@@ -86,5 +86,79 @@ describe("FloatingMeterCard", () => {
 
     expect(screen.queryByText("Move the floating meter?")).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The amp's "Automate state" switch (specs/amp-appletv-power.md §7): whether
+ * the amp follows the Apple TV at all, drawn under the amp's own reading.
+ */
+describe("FloatingMeterCard — Automate state", () => {
+  const withAmpControl = (enabled: boolean) =>
+    ({
+      ...summary,
+      ampControl: { categoryId: "amp", enabled },
+    }) as unknown as PowerFloatingMeterSummary;
+
+  // Scoped to a row: the category label also appears in the dropdown's trigger,
+  // so a bare text query matches twice.
+  const rowOf = (label: string) =>
+    Array.from(document.querySelectorAll<HTMLElement>(".power-meter-row")).find((row) => {
+      try {
+        return Boolean(within(row).getByText(label));
+      } catch {
+        return false;
+      }
+    });
+
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("draws one switch, under the amp's reading and no other row's", () => {
+    render(<FloatingMeterCard summary={withAmpControl(true)} />);
+
+    const box = screen.getByLabelText("Automate state");
+    expect(rowOf("Amp")?.contains(box)).toBe(true);
+    expect(rowOf("Home Entertainment")?.contains(box)).toBe(false);
+    expect(screen.getAllByLabelText("Automate state")).toHaveLength(1);
+  });
+
+  it("draws nothing when this household has no amp controller", () => {
+    render(<FloatingMeterCard summary={summary} />);
+
+    expect(screen.queryByLabelText("Automate state")).toBeNull();
+  });
+
+  it("shows the switch the server reports", () => {
+    render(<FloatingMeterCard summary={withAmpControl(false)} />);
+
+    expect((screen.getByLabelText("Automate state") as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("sends the switch to the server when it is tapped", async () => {
+    render(<FloatingMeterCard summary={withAmpControl(true)} />);
+    fireEvent.click(screen.getByLabelText("Automate state"));
+
+    await vi.waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/power/amp-automation",
+        expect.objectContaining({ body: JSON.stringify({ enabled: false }), method: "POST" }),
+      ),
+    );
+  });
+
+  it("takes the truth back when the write fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
+    render(<FloatingMeterCard summary={withAmpControl(true)} />);
+    fireEvent.click(screen.getByLabelText("Automate state"));
+
+    await vi.waitFor(() =>
+      expect((screen.getByLabelText("Automate state") as HTMLInputElement).checked).toBe(true),
+    );
   });
 });

@@ -110,6 +110,18 @@ const AmpPowerControlSchema = z.object({
   pollIntervalSeconds: z.number().positive().default(5),
   /** Unavailable for this long means force the plug on and stand down (§4.4). */
   staleRestoreSeconds: z.number().positive().default(600),
+  /**
+   * The Apple TV's audio output (§8, specs/appletv-audio-outputs.md). Absent
+   * means the amp follows the Apple TV's power state alone.
+   */
+  audioOutput: z
+    .object({
+      entityId: entityIdSchema,
+      /** The states that mean the amp is worth powering, and that it is not. */
+      onStates: z.array(z.string().min(1)).min(1).default(["on"]),
+      offStates: z.array(z.string().min(1)).min(1).default(["off"]),
+    })
+    .optional(),
 });
 export type AmpPowerControlConfig = z.infer<typeof AmpPowerControlSchema>;
 export { AmpPowerControlSchema };
