@@ -451,18 +451,27 @@ Rings share the dial's pointer surface.
 
 ### A step glides, it never snaps
 
-Adeline, 2026-09-21. A ring whose value steps — a stepped slider, or a selector
-— draws its thumb from the fraction it has **reached**, not the one its value
-was sent to, and closes the gap at one fixed rate: `RING_GLIDE_DEG_PER_SEC`,
+Adeline, 2026-09-21. A ring whose step is *coarse* — a discrete slider, or a
+selector — draws its thumb from the fraction it has **reached**, not the one its
+value was sent to, and closes the gap at one fixed rate: `RING_GLIDE_DEG_PER_SEC`,
 720°, of the ring's own arc per second (`constants.ts`, `ring-glide-model.ts`,
 `useRingGlide.ts`). The **value** still snaps to its step at once, on the sample
 the press produced it; only the drawing lags behind it.
 
 - **One speed, so a long step is visibly long.** A step is a distance and the
   speed is constant, so the size of the step is what decides how long it takes:
-  on a full 270° arc a quarter turn takes 375ms, and the aircon Mode ring's 90°
-  stop 125ms, so cool → heat (three stops) reads as three times the move that
-  cool → dry does.
+  the aircon Mode ring's 90° stop takes 125ms, and the whole 270° arc 375ms — so
+  cool → heat (three stops) reads as three times the move cool → dry does. (The
+  thumb travels the arc *inset* by half its own length, so what is drawn is about
+  4% quicker than those figures: 360ms for a full sweep, 120ms for the Mode
+  ring's stop.)
+- **Only a coarse step glides.** `step` alone is not the test, because a slider
+  can carry one purely to round a continuous value: the sleep-timer rings step by
+  2 minutes across eight hours and `TimerEncoder`'s duration ring by 0.001 of a
+  fraction, and both are dragged by eye and must track the finger exactly. A ring
+  glides when its step is at least `RING_GLIDE_MIN_STEP_SHARE` (1/30) of its range,
+  and a caller settles any disagreement per ring with `glide`. That keeps the
+  Mode and Fan rings — 1 of 3, 1 of 6 — and takes every rounding-only step out.
 - **The furthest step is the target.** The thumb chases whatever the ring's
   value is *now*, re-read on every frame — a drag that crosses three stops in
   one sample aims at the third, and the stops it passed are never queued behind
@@ -471,8 +480,10 @@ the press produced it; only the drawing lags behind it.
   back while the thumb catches up.
 - **A release lets a travel finish** rather than cutting it short, so a quick
   flick to a far stop is still seen to happen.
-- **A ring with no step is never aimed at**, and still follows the pointer
-  exactly — no lag is added to a continuous slider.
+- **A ring the caller moves for it snaps.** The glide is what a *gesture* earns:
+  a value that arrives from anywhere else — Home Assistant, another dial sharing
+  it, a preference load — is drawn where it lands, unless a travel happens to be
+  in flight, in which case that travel simply chases the new value.
 - **Full lite snaps**, as every other eased control on the surface does
   (`useLiteMode`; specs/experience-modes.md).
 

@@ -99,3 +99,21 @@ export const TOGGLE_FADE_MS = 500;
  * `ring-glide-model.ts` and `useRingGlide.ts`.
  */
 export const RING_GLIDE_DEG_PER_SEC = 720;
+
+/**
+ * How coarse a `step` has to be for its ring to glide at all, as a share of the
+ * ring's range.
+ *
+ * A `step` is not the same thing as a discrete control. The sleep-timer rings
+ * round to 2 minutes across an eight-hour range — 0.4% of it — and
+ * `TimerEncoder`'s duration ring to 0.001 of a 0–1 fraction; both are dragged by
+ * eye and have to track the finger exactly. Gliding them would cap the thumb at
+ * the same 720°/s and leave the readout running ahead of it for the whole
+ * gesture, which is a regression at a 1° step and buys nothing (Adeline,
+ * 2026-09-21, reviewing the first version of this ruling on any step at all).
+ *
+ * 1/30 keeps the aircon Mode ring (1 of 3 stops) and its Fan ring (1 of 6) inside
+ * and puts every rounding-only step outside. A caller that disagrees can say so
+ * per ring with `glide`.
+ */
+export const RING_GLIDE_MIN_STEP_SHARE = 1 / 30;

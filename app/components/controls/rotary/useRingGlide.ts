@@ -63,7 +63,17 @@ export function useRingGlide(live: () => Record<string, number>): RingGlide {
     let travelling = false;
     for (const [id, travel] of Object.entries(travels.current)) {
       const target = targets[id];
-      if (target === undefined) {
+      // A ring the caller no longer reports, or one whose value has gone
+      // non-finite, has nothing left to chase: dropping the entry is what keeps
+      // the loop from re-scheduling for ever (a NaN never equals itself, so it
+      // would otherwise never arrive).
+      if (target === undefined || !Number.isFinite(target)) {
+        delete travels.current[id];
+        moved = true;
+        continue;
+      }
+      if (!Number.isFinite(travel.drawn)) {
+        travel.drawn = target;
         delete travels.current[id];
         moved = true;
         continue;
@@ -88,7 +98,9 @@ export function useRingGlide(live: () => Record<string, number>): RingGlide {
   }, []);
 
   const aim = useCallback((id: string, from: number, sweep: number) => {
-    if (lite) return;
+    // Never start from a non-finite drawing position: it could not be advanced
+    // towards anything, and the entry would never clear.
+    if (lite || !Number.isFinite(from)) return;
     const travel = travels.current[id];
     if (travel) {
       travel.sweep = sweep;
@@ -101,10 +113,13 @@ export function useRingGlide(live: () => Record<string, number>): RingGlide {
   const reading = useCallback((id: string) => travels.current[id]?.drawn ?? null, []);
 
   // Full lite never animates, and a ring already travelling may not keep going.
+  // Re-rendering matters: the flip's own render still saw the travelling thumb,
+  // and nothing else would draw it from its value until some later render.
   useEffect(() => {
     if (!lite) return;
     travels.current = {};
     stop();
+    rerender((count) => count + 1);
   }, [lite, stop]);
 
   useEffect(() => () => stop(), [stop]);
