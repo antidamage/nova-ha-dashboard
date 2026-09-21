@@ -55,8 +55,18 @@ export function decideAmpAction(input: AmpDecisionInput): AmpAction {
     // `unavailable` is not `off` — the same discipline the meter guard applies
     // to an off-network plug. But a dead integration must not be able to leave
     // the amp switched off forever, so after staleRestoreMs we put it down (§4.4).
+    //
+    // Putting it down forces the plug **on** — the always-on rule of
+    // specs/power-meters.md §1, and the guard would do it anyway — so this is
+    // the one path where the restore itself is a switch-on, and "Auto On" off
+    // refuses it (§7). There is nothing left for §4.4 to protect in that case:
+    // the household asked for the amp not to be switched on, so a dead
+    // integration leaving it off is the instruction rather than a fault, and the
+    // controller keeps holding the plug instead.
     const stale = input.msUnavailable !== null && input.msUnavailable >= input.staleRestoreMs;
-    return stale && input.owned && !input.staleHeld ? { type: "release" } : { type: "none" };
+    return stale && input.owned && !input.staleHeld && input.autoOn
+      ? { type: "release" }
+      : { type: "none" };
   }
 
   // Compared against what the switch ACTUALLY reads, not against what we last

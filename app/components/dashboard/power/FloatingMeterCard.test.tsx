@@ -174,4 +174,22 @@ describe("FloatingMeterCard — Auto On and Auto Off", () => {
     );
     expect((screen.getByLabelText("Auto On") as HTMLInputElement).checked).toBe(true);
   });
+
+  it("does not let a slow failure undo a newer tap", async () => {
+    const settle: Array<(value: unknown) => void> = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise((resolve) => settle.push(resolve))));
+    render(<FloatingMeterCard summary={withAmpControl(true, true)} />);
+
+    fireEvent.click(screen.getByLabelText("Auto Off"));
+    fireEvent.click(screen.getByLabelText("Auto On"));
+    // The first write fails after the second was made: the household's latest
+    // tap stands rather than being snapped back to the server's old pair.
+    settle[0]({ ok: false, json: async () => ({}) });
+    settle[1]({ ok: true, json: async () => ({}) });
+
+    await vi.waitFor(() =>
+      expect((screen.getByLabelText("Auto On") as HTMLInputElement).checked).toBe(false),
+    );
+    expect((screen.getByLabelText("Auto Off") as HTMLInputElement).checked).toBe(false);
+  });
 });

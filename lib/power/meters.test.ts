@@ -43,4 +43,16 @@ describe("ampAutomation", () => {
       autoOn: false,
     });
   });
+
+  it("ignores a direction that is not a boolean", () => {
+    // A hand-edited file: "false" is truthy, so it must not count as a value —
+    // the legacy answer (or on) applies instead.
+    expect(ampAutomation(state({ autoOff: "false", autoOn: false, updatedAt: "x" }))).toEqual({
+      autoOff: true,
+      autoOn: false,
+    });
+    expect(
+      ampAutomation(state({ autoOff: 0, autoOn: "no", automationEnabled: false, updatedAt: "x" })),
+    ).toEqual({ autoOff: false, autoOn: false });
+  });
 });

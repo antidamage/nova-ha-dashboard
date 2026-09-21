@@ -206,6 +206,11 @@ controller treats the source as dead: it forces the plug **on** (as §4.3) and
 stays inert until the entity reads live again. A dead `apple_tv` integration
 must not be able to leave the amp switched off indefinitely.
 
+**Unless "Auto On" is switched off** (§7). That restore *is* a switch-on, and the
+one switch that refuses switch-ons refuses it: the controller keeps holding the
+plug, the amp stays off, and a dead integration leaving it off is the household's
+instruction rather than a fault.
+
 The ten-minute window is long enough that an HA restart — which takes the
 entity unavailable for a minute or two — does not flap the amp.
 
@@ -372,11 +377,12 @@ Two consequences of that pairing are worth stating, because both are what she
 would expect from the switch she left on:
 
 - **Auto On off, Auto Off on.** A manual switch-on stands while the Apple TV is
-  awake — the controller only moves the plug *towards* what it wants, and it
-  wants the amp on then. While the Apple TV is asleep it wants the amp off, so a
-  manual switch-on is switched back off within the interval, exactly as §4.5
-  already describes for a manual flip. Untick Auto Off for a period where the
-  amp should stay on regardless of the television.
+  awake *and asking for the amp* — the controller only moves the plug *towards*
+  what it wants, and it wants the amp on then. Whenever it wants the amp off
+  instead — the Apple TV asleep, or its audio routed elsewhere (§8) — a manual
+  switch-on is switched back off within the interval, exactly as §4.5 already
+  describes for a manual flip. Untick Auto Off for a period where the amp should
+  stay on regardless of the television.
 - **Auto On on, Auto Off off.** The amp is switched on whenever the Apple TV
   asks, and then left alone: it survives the Apple TV going to sleep, the audio
   moving to Bluetooth headphones (§8), and a manual switch-off.
@@ -395,11 +401,22 @@ deploy.
 **Absent means both on.** That is what the feature did before the switches
 existed, so a state file written by an older build keeps its meaning.
 
+**Where the switches stop.** They govern what this controller does *while it is
+holding the plug*. Every path that puts the plug down — §4.3's release when the
+category moves away, and the release when the config is removed — hands it to the
+meter guard, whose golden rule of power-meters.md §1 is that these plugs are
+never off: the plug is switched on, and with the meter no longer measuring the
+amp there is no amp instruction left to honour. §4.4's stale restore is the one
+force-on that *is* refused by a switch, because §4.4's protection only has
+meaning while the automation is allowed to switch the amp on at all.
+
 **The one switch these replaced.** `ampPowerControl.automationEnabled` is read
 and no longer written: it said one thing about both directions, so it is read as
-one answer for both. A file carrying it and a file carrying neither behave
-identically — both directions on — and the first tap of either checkbox writes
-both directions explicitly, dropping the legacy key.
+one answer for both. A file carrying `automationEnabled: true`, and a file
+carrying neither, behave identically — both directions on — while
+`automationEnabled: false` reads as both off, which is exactly what it meant. The
+first tap of either checkbox writes both directions explicitly, dropping the
+legacy key.
 
 **The gate.** The switches are a second condition on §4.2's gate:
 
@@ -524,17 +541,20 @@ in the UI (§4.7).
   under its watts, and no other row draws either; with no `ampPowerControl`
   config the card draws none at all, and "Automate state" is gone.
 - Tapping one posts **both** to `/api/power/amp-automation`; the new pair shows
-  at once and a failed write reverts to the server's. A body missing either value
-  is a 400.
+  at once and a failed write reverts to the server's. A body missing either
+  value, or carrying a value that is not a boolean, is a 400 rather than a merge.
 - With both off, the Apple TV changing state issues **no** command, the plug
   returns to the guard on that tick, and the amp is left powered (the golden
   rule).
 - With Auto On off only: an Apple TV asking for the amp while the plug reads off
   issues **no** command, and the controller still holds the plug so the guard
-  cannot switch it on either. With Auto Off off only: an Apple TV going to sleep
-  leaves the amp on.
-- A state file carrying the old `automationEnabled` behaves as both directions
-  on; the first tap rewrites it as an explicit pair.
+  cannot switch it on either; ten minutes of an unreadable Apple TV releases
+  nothing and switches nothing on (§4.4). With Auto Off off only: an Apple TV
+  going to sleep leaves the amp on.
+- A state file carrying the old `automationEnabled: true` behaves as both
+  directions on, `automationEnabled: false` as both off, and a direction stored
+  as anything but a boolean is ignored rather than read as truthy; the first tap
+  rewrites the pair explicitly.
 - With the switches on and `audioOutput` configured: an awake Apple TV playing
   through its own speakers powers the amp, and the same Apple TV routing audio
   elsewhere switches the amp off even though its power state never changed.
