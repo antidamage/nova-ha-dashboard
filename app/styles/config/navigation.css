@@ -3,7 +3,7 @@
 /* "Where am I" trail, sitting in the page's own flow directly under the
    category menu (.config-category-nav) rather than floating over the page —
    same dark-panel language as .config-page-button/.config-category-button.
-   Purely a jump-to readout: crumbs are plain buttons, see ConfigBreadcrumb.tsx. */
+   Purely a jump-to readout: crumbs are plain buttons, see ConfigBreadcrumbBar.tsx. */
 .config-breadcrumb {
   display: flex;
   align-items: center;
