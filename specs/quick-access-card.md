@@ -260,7 +260,7 @@ and the dial sizes in `quick-access/dial-model.ts`.
 - **Each preset row hugs its dial.** A titled dial's box reserves the title's
   band above *and* below the knob; the row takes the lower half back, which is
   what had been holding the buttons a knob-slack away from the dial that owns
-  them (23px → 8px here, 58px → ~14px in a panel). See
+  them (23px → 8px here, a 200px panel dial 58px → 20px). See
   [dial-preset-band.md](dial-preset-band.md).
 
 ## Reuse
