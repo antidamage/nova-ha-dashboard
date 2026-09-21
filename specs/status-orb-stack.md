@@ -389,9 +389,10 @@ rules."
   position in the stack.
 - **The unlock ring comes with it** (Adeline, 2026-09-20). The indicator mounts
   the encoder's embossed glass band too, so the orb's rim shows the same locked →
-  tap → lit cycle the climate knob does: dark glass while closed, lit in the LED
-  colour with its faint glow while the stack is open (specs/color-encoder.md,
-  "The embossed unlock ring"). Because the indicator is hidden while the stack is
+  tap → lit cycle the climate knob does: dark glass while closed, lit in the
+  theme's own Unlock Ring colour with its faint glow while the stack is open
+  (specs/color-encoder.md, "The embossed unlock ring" and "The unlock ring's
+  colour"). Because the indicator is hidden while the stack is
   closed, the orb face carries the locked band itself —
   `lib/orb-modules/tech.unlock.ts` draws it in the module's unit space, on the
   rim between the dome and the status channel.

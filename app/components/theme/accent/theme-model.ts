@@ -82,6 +82,9 @@ export function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | n
   }) ? undefined : mapValue?.water;
   const roadsValue = mapValue?.roads ?? mapValue?.majorRoads ?? mapValue?.minorRoads;
   const background = normalizeColor(value?.background, DEFAULT_THEME.background);
+  // The unlock ring's fallback is the LED colour, not a fixed white: a theme
+  // saved before the slot existed has to light its band exactly as it did.
+  const ledColor = normalizeColor(value?.ledColor, DEFAULT_THEME.ledColor);
   const titleColors = {
     dark: normalizeColor(value?.titleColors?.dark, DEFAULT_THEME.titleColors.dark),
     light: normalizeColor(value?.titleColors?.light, DEFAULT_THEME.titleColors.light),
@@ -125,7 +128,8 @@ export function normalizeTheme(value: Partial<DeviceTheme & ThemeColorValue> | n
       radarHigh: normalizeColor(mapValue?.radarHigh, DEFAULT_THEME.map.radarHigh),
     },
     knobSkin: normalizeKnobSkin(value?.knobSkin),
-    ledColor: normalizeColor(value?.ledColor, DEFAULT_THEME.ledColor),
+    ledColor,
+    unlockRingColor: normalizeColor(value?.unlockRingColor, ledColor),
     mapBuildingOpacity: normalizeMapBuildingOpacity(value?.mapBuildingOpacity),
     mapLabelSize: normalizeMapLabelSize(value?.mapLabelSize),
     mapSatellite: value?.mapSatellite !== false,

@@ -1,6 +1,7 @@
 /* RotaryEncoder's embossed unlock ring: the thin band of polished glass between
-   the knob's lip and the colour ring. Dark glass normally; lit in the LED
-   colour, with a faint glow of the same colour, while the dial is unlocked
+   the knob's lip and the colour ring. Dark glass normally; lit in the theme's
+   own Unlock Ring colour — which follows the LED colour until it is given one
+   of its own — with a faint glow of the same colour, while the dial is unlocked
    (specs/color-encoder.md, "The embossed unlock ring").
 
    It is embossed rather than sunken, so its light comes from the band's own
@@ -16,14 +17,14 @@
 .rotary-encoder-unlock-ring {
   width: var(--re-ring-outer);
   height: var(--re-ring-outer);
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 0 rgb(var(--re-led-on-rgb, 255 255 255) / 0));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 0 rgb(var(--re-unlock-on-rgb, 255 255 255) / 0));
   transition: filter 450ms ease;
 }
 
 .rotary-encoder[data-locked="false"] .rotary-encoder-unlock-ring {
   /* Same two shadows, so the transition has something to interpolate: the
-     second one opens up into the LED's glow. */
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 max(3px, calc(var(--re-unlock) * 0.8)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.55));
+     second one opens up into the ring's glow. */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 max(3px, calc(var(--re-unlock) * 0.8)) rgb(var(--re-unlock-on-rgb, 255 255 255) / 0.55));
 }
 
 /* Every layer is masked to the unlock ring's band. */
@@ -54,9 +55,9 @@
   opacity: 0;
   transition: opacity 450ms ease;
   background: linear-gradient(180deg,
-    color-mix(in srgb, var(--re-led-on) 74%, #fff 26%) 5%,
-    var(--re-led-on) 46%,
-    color-mix(in srgb, var(--re-led-on) 88%, #000 12%));
+    color-mix(in srgb, var(--re-unlock-on) 74%, #fff 26%) 5%,
+    var(--re-unlock-on) 46%,
+    color-mix(in srgb, var(--re-unlock-on) 88%, #000 12%));
 }
 
 .rotary-encoder[data-locked="false"] .rotary-encoder-unlock-lit {
@@ -70,7 +71,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: var(--re-led-on);
+  background: var(--re-unlock-on);
   filter: hue-rotate(5deg) brightness(0.9);
   -webkit-mask: linear-gradient(180deg, transparent 38%, #000 96%);
   mask: linear-gradient(180deg, transparent 38%, #000 96%);

@@ -139,12 +139,15 @@ band of polished glass that lights while it is unlocked.
 - **Locked**, the band is dark glass: a 180° wash, brightest at 12 o'clock and
   darkest at 6, with two specular streaks crossing it on the diagonal. The
   reflections sit **above** the lit layer, so they go on reading once it lights.
-- **Unlocked**, the LED colour fades in over **450ms** (out again on lock, same
-  duration) as a second layer in `--re-led-on`, masked to the same band. Its
-  inner colour runs light at the top to the LED colour at the middle, and the
+- **Unlocked**, the band's own colour fades in over **450ms** (out again on lock,
+  same duration) as a second layer in `--re-unlock-on`, masked to the same band.
+  Its inner colour runs light at the top to that colour at the middle, and the
   bottom half is turned **5° of hue** so the light has somewhere to go.
-- **The glow** is a `drop-shadow` on the band in the LED colour, opening up from
+- **The glow** is a `drop-shadow` on the band in the same colour, opening up from
   nothing when it lights — faint, at `55%` alpha and `max(3px, 80% of --re-unlock)`.
+- **Its colour is a slot of its own**, *Unlock Ring*, beside the LEDs in Theme
+  Colours (Adeline, 2026-09-21) — see "The unlock ring's colour" below. Only the
+  lit band takes it: the locked glass is achromatic and stays that way.
 - **Light skin**: smoked glass rather than black, keeping more of its
   reflections, as the light treatment's other shading does.
 - **Locked, and nothing else**: the colour ring, the bevel and the knob face do
@@ -599,6 +602,8 @@ colour knobs, the temperature knobs, anything later.
 - Edited in Theme Colours as one more `ColorWidget` beside Accent, Highlight,
   Background, Borders and Orb Shadow, and it travels with the `themeColours`
   section for copy/paste.
+- The embossed unlock ring's band is **not** lit by this slot any more; it has its
+  own, immediately below this one — see "The unlock ring's colour".
 - `applyDeviceTheme` publishes it on the root as `--nova-led-color` (a ready
   `rgb()`) and `--nova-led-rgb` (raw channels — the glow needs an alpha of its
   own). `.rotary-encoder` reads them into `--re-led-on` and `--re-led-on-rgb`,
@@ -621,6 +626,40 @@ dark mode rewriting the element's background. In practice the page-wide
 `color-scheme: dark` opt-out below is what actually holds — with it the flag
 leaves the page alone entirely — so the PNG is a second line of defence for any
 build where that opt-out is lost.
+
+### The unlock ring's colour
+
+Adeline, 2026-09-21: *"make the new lock-unlock ring its own parameterised colour
+inside colour theme settings (right next to the LED colour picker"*. The band lit
+in the LED colour only because there was no other colour to light it in; it has
+one of its own now, so the glass can carry a colour the lights do not share.
+
+- Stored as `unlockRingColor` on `DeviceTheme`, a normal `ThemeColorValue`, per
+  theme variant like the other colours.
+- Edited in Theme Colours as one more `ColorWidget` **immediately after LED
+  Lights**, and it travels with the `themeColours` section for copy/paste.
+- **A theme that has never stored it normalises to its LED colour**, cursor and
+  intensity included, rather than to a fixed white. The band has always followed
+  the lights, so that is the only fallback that leaves every saved theme lighting
+  exactly as it did; `normalizeTheme` reads the theme's own `ledColor` into it for
+  that reason. Both shipped defaults carry **white at full intensity**, matching
+  the lights' own default. A stored value is kept and is independent from then on
+  — which is the point of the slot.
+- `applyDeviceTheme` publishes it on the root as `--nova-unlock-ring-color` (a
+  ready `rgb()`) and `--nova-unlock-ring-rgb` (raw channels, for the glow's own
+  alpha). `.rotary-encoder` reads them into `--re-unlock-on` and
+  `--re-unlock-on-rgb`, falling back to `--re-led-on` / `--re-led-on-rgb`, so a
+  dial rendered before the theme applies is lit by the lights' colour rather than
+  something dark.
+- **Nothing on the band reads the LED colour**: the lit layer, its 5° bottom shift
+  and the glow all take this one. `unlockRingGeometry.test.ts` asserts it, and
+  that the LED variable is gone from the band's stylesheet.
+- The **status orb** follows the slot too. `OrbDialIndicator` mounts the encoder's
+  lit layers inside a `.rotary-encoder` root, so the orb's band and a knob's are
+  one surface reading one property. The module's own dark glass
+  (`lib/orb-modules/tech.unlock.ts`) is achromatic either way and does not change.
+- The rest of the band is untouched: the locked glass, the reflections, the 450ms
+  fade and the light skin's smoked glass all stay as they are.
 
 ### Surviving Brave's auto dark mode
 
@@ -974,6 +1013,9 @@ deleted, along with its exports, README row and showcase card. Adeline,
   travel. `RingedColorEncoder`, its CSS and its spec are gone, with the demo
   page at `/color-encoder-rings` running on `ColorEncoder`.
 - The map slots carry the rings listed above and no sliders under the dial.
+- The embossed unlock ring has a colour slot of its own, right beside the LED
+  Lights picker, and a theme that has never set one still lights its band in that
+  theme's LED colour, cursor and intensity included.
 - The index points at the active channel's value per the angle rules above,
   re-points with a sweep on a channel change, and tracks 1:1 while dragging.
 - **Sweep smoke test** (Adeline, 2026-09-11), in a real browser against the

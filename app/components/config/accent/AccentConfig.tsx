@@ -234,8 +234,8 @@ export function AccentConfig({
       setTheme({ ...theme, clockColor: value }, options);
       return;
     }
-    if (slot === "ledColor") {
-      setTheme({ ...theme, ledColor: value }, options);
+    if (slot === "ledColor" || slot === "unlockRingColor") {
+      setTheme({ ...theme, [slot]: value }, options);
       return;
     }
     if (isTitleConfigSlot(slot)) {

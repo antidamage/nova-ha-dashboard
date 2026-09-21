@@ -926,8 +926,9 @@ export function RotaryEncoder({
         <span className="rotary-encoder-ring-shade" aria-hidden />
         <span className="rotary-encoder-inner-bevel" aria-hidden />
         {/* The embossed unlock ring: dark polished glass round the knob's lip,
-            inside the colour ring, lit in the LED colour while the dial is
-            unlocked (specs/color-encoder.md, "The embossed unlock ring"). */}
+            inside the colour ring, lit in the theme's unlock-ring colour while
+            the dial is unlocked (specs/color-encoder.md, "The embossed unlock
+            ring"). */}
         <span className="rotary-encoder-unlock-ring" aria-hidden>
           <span className="rotary-encoder-unlock-glass" />
           <span className="rotary-encoder-unlock-lit">
