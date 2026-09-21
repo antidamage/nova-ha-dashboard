@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { decideAmpAction, type AmpDecisionInput } from "./amp-decision";
 
-/** Armed, holding the plug, Apple TV on, plug on, nothing outstanding. */
+/** Armed, holding the plug, Apple TV on, plug on, both directions allowed. */
 const SETTLED: AmpDecisionInput = {
   actual: "on",
   armed: true,
+  autoOff: true,
+  autoOn: true,
   desired: "on",
   minIntervalMs: 30_000,
   msSinceLastCommand: null,
@@ -15,6 +17,44 @@ const SETTLED: AmpDecisionInput = {
 };
 
 const decide = (overrides: Partial<AmpDecisionInput>) => decideAmpAction({ ...SETTLED, ...overrides });
+
+describe("decideAmpAction — the two switches", () => {
+  it("does not switch the amp on with Auto On off", () => {
+    // The direction is not allowed, and that includes undoing a manual flip:
+    // the amp stays wherever the household last put it (§7).
+    expect(decide({ actual: "off", autoOn: false, desired: "on", msSinceLastCommand: 60_000 })).toEqual({
+      type: "none",
+    });
+  });
+
+  it("does not switch it off with Auto Off off", () => {
+    expect(decide({ actual: "on", autoOff: false, desired: "off", msSinceLastCommand: 60_000 })).toEqual({
+      type: "none",
+    });
+  });
+
+  it("still moves in the direction that is switched on", () => {
+    expect(decide({ actual: "off", autoOn: true, autoOff: false, desired: "on" })).toEqual({
+      type: "command",
+      state: "on",
+    });
+    expect(decide({ actual: "on", autoOn: false, autoOff: true, desired: "off" })).toEqual({
+      type: "command",
+      state: "off",
+    });
+  });
+
+  it("does not let a disallowed direction eat the rate limit", () => {
+    // A refused direction returns before the interval is considered, so it
+    // cannot make the *other* direction wait.
+    expect(decide({ actual: "off", autoOn: false, desired: "on", msSinceLastCommand: 1_000 })).toEqual({
+      type: "none",
+    });
+    expect(decide({ actual: "on", autoOff: false, desired: "off", msSinceLastCommand: 1_000 })).toEqual({
+      type: "none",
+    });
+  });
+});
 
 describe("decideAmpAction — the gate", () => {
   it("does nothing at all under another category", () => {

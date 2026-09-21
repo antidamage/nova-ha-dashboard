@@ -17,7 +17,8 @@ const config = {
 };
 
 let activeCategoryId = "amp";
-let automationEnabled = true;
+/** The panel's two switches (§7), as the mock hands them to the loop. */
+let switches = { autoOff: true, autoOn: true };
 
 /** Hoisted so the assertions still see them after `vi.resetModules()`. */
 const callServiceMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
@@ -32,7 +33,7 @@ vi.mock("./ha", () => ({
 }));
 vi.mock("./power", () => ({
   readActiveFloatingCategoryId: () => Promise.resolve(activeCategoryId),
-  readAmpAutomationEnabled: () => Promise.resolve(automationEnabled),
+  readAmpAutomation: () => Promise.resolve(switches),
 }));
 
 async function freshModule() {
@@ -40,12 +41,18 @@ async function freshModule() {
   return import("./amp-power-control");
 }
 
+/** What the loop reads from HA on a tick: the Apple TV and the plug. */
+function haStates(entries: Record<string, string>) {
+  return Object.entries(entries).map(([entity_id, state]) => ({ attributes: {}, entity_id, state }));
+}
+
 describe("amp control ownership", () => {
   beforeEach(() => {
     activeCategoryId = "amp";
-    automationEnabled = true;
+    switches = { autoOff: true, autoOn: true };
     callServiceMock.mockClear();
     haRestMock.mockClear();
+    haRestMock.mockResolvedValue([]);
   });
 
   afterEach(async () => {
@@ -83,16 +90,39 @@ describe("amp control ownership", () => {
     await vi.waitFor(() => expect([...ampControlledEntityIds()]).toEqual([]));
   });
 
-  it("lets the plug go, and never reads the Apple TV, with the switch off", async () => {
-    // The Grid panel's "Automate state" checkbox (§7). Off, the controller is
-    // as inert as it is under another category: no command of any kind, and the
+  it("lets the plug go, and never reads the Apple TV, with both switches off", async () => {
+    // The Grid panel's two checkboxes (§7). Both off, the controller is as
+    // inert as it is under another category: no command of any kind, and the
     // guard has the plug back within the tick.
-    automationEnabled = false;
+    switches = { autoOff: false, autoOn: false };
     const { ampControlledEntityIds, startAmpPowerControl } = await freshModule();
     startAmpPowerControl();
 
     await vi.waitFor(() => expect([...ampControlledEntityIds()]).toEqual([]));
     expect(haRestMock).not.toHaveBeenCalled();
+    expect(callServiceMock).not.toHaveBeenCalled();
+  });
+
+  it("holds the plug but never switches the amp on with Auto On off", async () => {
+    // One direction on is still a controller: it manages the plug, so the guard
+    // stays off it — and the direction that is switched off is not commanded,
+    // even though the Apple TV is asking for it.
+    switches = { autoOff: true, autoOn: false };
+    haRestMock.mockResolvedValue(haStates({ "media_player.home_theatre": "playing", "switch.floating_meter": "off" }));
+    const { ampControlledEntityIds, startAmpPowerControl } = await freshModule();
+    startAmpPowerControl();
+
+    await vi.waitFor(() => expect([...ampControlledEntityIds()]).toEqual(config.switchEntityIds));
+    expect(callServiceMock).not.toHaveBeenCalled();
+  });
+
+  it("never switches the amp off with Auto Off off", async () => {
+    switches = { autoOff: false, autoOn: true };
+    haRestMock.mockResolvedValue(haStates({ "media_player.home_theatre": "off", "switch.floating_meter": "on" }));
+    const { ampControlledEntityIds, startAmpPowerControl } = await freshModule();
+    startAmpPowerControl();
+
+    await vi.waitFor(() => expect([...ampControlledEntityIds()]).toEqual(config.switchEntityIds));
     expect(callServiceMock).not.toHaveBeenCalled();
   });
 });

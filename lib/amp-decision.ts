@@ -21,9 +21,13 @@ export type AmpAction =
 export type AmpDecisionInput = {
   /**
    * Allowed to act: the meter is on this controller's category (§4.2) **and**
-   * the panel's "Automate state" switch is on (§7).
+   * at least one of the panel's two switches (§7) is on.
    */
   armed: boolean;
+  /** May this automation switch the amp **off**? (§7) */
+  autoOff: boolean;
+  /** May it switch the amp **on**? (§7) */
+  autoOn: boolean;
   /** Are we currently holding the plug (and keeping the guard off it)? */
   owned: boolean;
   /** What the Apple TV says the amp should be. Null: it cannot be seen. */
@@ -60,6 +64,14 @@ export function decideAmpAction(input: AmpDecisionInput): AmpAction {
   if (input.actual === null || input.actual === input.desired) {
     return { type: "none" };
   }
+
+  // The panel's two switches, one per direction (§7). A direction that is
+  // switched off is not commanded at all — not even to undo a manual flip, so
+  // the amp stays wherever the household last put it.
+  if (input.desired === "on" ? !input.autoOn : !input.autoOff) {
+    return { type: "none" };
+  }
+
   if (input.msSinceLastCommand !== null && input.msSinceLastCommand < input.minIntervalMs) {
     return { type: "wait" };
   }

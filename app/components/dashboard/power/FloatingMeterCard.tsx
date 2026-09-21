@@ -3,7 +3,7 @@
 import { AudioLines, Check, CookingPot, Monitor, Plug, Tv, WashingMachine } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useState } from "react";
-import type { PowerFloatingMeterSummary } from "../../../../lib/power";
+import type { AmpSwitches, PowerFloatingMeterSummary } from "../../../../lib/power";
 import type { FloatingMeterCategoryReading } from "../../../../lib/power/floating-meter";
 import { ConfigSelect } from "../../ConfigSelect";
 import { ConfirmDialog } from "../../ConfirmDialog";
@@ -32,10 +32,14 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
   /** The category a tap has chosen but not yet confirmed (specs/amp-appletv-power.md §6). */
   const [proposed, setProposed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** The amp's automation switch, optimistic until the server reports it back (§7). */
-  const [automationOverride, setAutomationOverride] = useState<boolean | null>(null);
+  /** The amp's two switches, optimistic until the server reports them back (§7). */
+  const [automation, setAutomation] = useState<AmpSwitches | null>(null);
 
   const ampControl = summary.ampControl;
+  const switches: AmpSwitches = automation ?? {
+    autoOff: ampControl?.autoOff ?? true,
+    autoOn: ampControl?.autoOn ?? true,
+  };
 
   // Drop the optimistic choice as soon as the server reports it, so a failed
   // move falls back to the truth rather than sticking on screen.
@@ -45,26 +49,31 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
     }
   }, [pending, summary.activeCategoryId]);
 
-  // Same for the automation switch: the panel's own poll is the truth.
+  // Same for the switches: the panel's own poll is the truth, and the override
+  // clears only once the server agrees on both of them.
   useEffect(() => {
-    if (automationOverride !== null && ampControl?.enabled === automationOverride) {
-      setAutomationOverride(null);
+    if (
+      automation &&
+      ampControl?.autoOff === automation.autoOff &&
+      ampControl?.autoOn === automation.autoOn
+    ) {
+      setAutomation(null);
     }
-  }, [automationOverride, ampControl]);
+  }, [automation, ampControl]);
 
-  const toggleAutomation = async (enabled: boolean) => {
-    setAutomationOverride(enabled);
+  const setAutomationSwitches = async (next: AmpSwitches) => {
+    setAutomation(next);
     try {
       const response = await fetch("/api/power/amp-automation", {
-        body: JSON.stringify({ enabled }),
+        body: JSON.stringify(next),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
       if (!response.ok) {
-        setAutomationOverride(null);
+        setAutomation(null);
       }
     } catch {
-      setAutomationOverride(null);
+      setAutomation(null);
     }
   };
 
@@ -170,10 +179,20 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
                   {formatWatts(category.watts)}
                 </p>
                 {ampControl?.categoryId === category.id ? (
-                  <AutomationToggle
-                    checked={automationOverride ?? ampControl.enabled}
-                    onChange={toggleAutomation}
-                  />
+                  <div className="flex items-end justify-end gap-3">
+                    <AutomationToggle
+                      checked={switches.autoOn}
+                      hint="The amp is switched on automatically when the Apple TV asks for it"
+                      label="Auto On"
+                      onChange={(checked) => setAutomationSwitches({ ...switches, autoOn: checked })}
+                    />
+                    <AutomationToggle
+                      checked={switches.autoOff}
+                      hint="The amp is switched off automatically when the Apple TV stops asking for it"
+                      label="Auto Off"
+                      onChange={(checked) => setAutomationSwitches({ ...switches, autoOff: checked })}
+                    />
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -193,8 +212,8 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
 }
 
 /**
- * The amp row's "Automate state" switch — whether the amp follows the Apple TV
- * at all (specs/amp-appletv-power.md §7).
+ * One of the amp row's two switches — may this automation switch the amp **on**,
+ * and may it switch it **off** (specs/amp-appletv-power.md §7).
  *
  * It annotates a reading rather than being a setting of its own, so it is the
  * compact checkbox the config surfaces already use for exactly that job: a
@@ -204,24 +223,25 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
  */
 function AutomationToggle({
   checked,
+  hint,
+  label,
   onChange,
 }: {
   checked: boolean;
+  hint: string;
+  label: string;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label
-      className="grid cursor-pointer justify-items-end gap-1"
-      title="Follow the Apple TV's power and audio output while the meter is on the amp"
-    >
+    <label className="grid cursor-pointer justify-items-end gap-1" title={hint}>
       <span className="rect-envelope-tag" aria-hidden="true">
-        Automate state
+        {label}
       </span>
       <input
         type="checkbox"
         className="cyber-mini-checkbox-input"
         checked={checked}
-        aria-label="Automate state"
+        aria-label={label}
         onChange={(event) => onChange(event.target.checked)}
       />
       <span className="cyber-mini-checkbox" aria-hidden="true">
