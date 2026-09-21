@@ -178,17 +178,19 @@ export async function readActiveFloatingCategoryId() {
 /**
  * The amp's two switches, as the Grid panel's checkboxes leave them (§7):
  * whether this automation may switch the amp on, and whether it may switch it
- * off. The directions are independent — on-but-never-off is a real pair.
+ * off. They are independent — on-but-never-off is a real pair.
  *
  * Neither stored is BOTH on, and `automationEnabled` — the single switch these
- * replaced — is read as what it meant: one answer for both directions. That is
- * what this feature did before the checkboxes existed, so a state file written
- * by an older build keeps its meaning instead of silently changing.
+ * replaced — is read as what it meant: one answer for both directions, so a
+ * state file written by an older build keeps its meaning.
  */
 export function ampAutomation(state: PowerState | undefined): AmpSwitches {
   const stored = state?.ampPowerControl;
   const legacy = stored?.automationEnabled ?? true;
-  return { autoOff: stored?.autoOff ?? legacy, autoOn: stored?.autoOn ?? legacy };
+  // Only a real boolean counts: a hand-edited "false" is truthy, and must not
+  // switch both directions on behind the household's back.
+  const direction = (value: boolean | undefined) => (typeof value === "boolean" ? value : legacy);
+  return { autoOff: direction(stored?.autoOff), autoOn: direction(stored?.autoOn) };
 }
 
 /** Read from disk: the controller asks this on every tick, beside the category. */
@@ -202,8 +204,7 @@ export async function readAmpAutomation(): Promise<AmpSwitches> {
 
 export function setAmpAutomation(switches: AmpSwitches) {
   // Inside the write queue, like the category above: the meter tick rewrites
-  // state.json every few seconds and would otherwise overwrite the switches
-  // with a stale read.
+  // this file every few seconds and would otherwise clobber the switches.
   return serializePower(() => setAmpAutomationUnlocked(switches));
 }
 

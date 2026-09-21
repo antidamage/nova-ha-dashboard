@@ -2,7 +2,7 @@
 
 import { AudioLines, Check, CookingPot, Monitor, Plug, Tv, WashingMachine } from "lucide-react";
 import type { ComponentType } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AmpSwitches, PowerFloatingMeterSummary } from "../../../../lib/power";
 import type { FloatingMeterCategoryReading } from "../../../../lib/power/floating-meter";
 import { ConfigSelect } from "../../ConfigSelect";
@@ -34,6 +34,12 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
   const [busy, setBusy] = useState(false);
   /** The amp's two switches, optimistic until the server reports them back (§7). */
   const [automation, setAutomation] = useState<AmpSwitches | null>(null);
+  /**
+   * The same override, updated with the *write* rather than with the render: two
+   * taps in quick succession are two writes in flight, and a slow failure must
+   * not clear the one that came after it.
+   */
+  const overrideRef = useRef<AmpSwitches | null>(null);
 
   const ampControl = summary.ampControl;
   const switches: AmpSwitches = automation ?? {
@@ -57,11 +63,13 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
       ampControl?.autoOff === automation.autoOff &&
       ampControl?.autoOn === automation.autoOn
     ) {
+      overrideRef.current = null;
       setAutomation(null);
     }
   }, [automation, ampControl]);
 
   const setAutomationSwitches = async (next: AmpSwitches) => {
+    overrideRef.current = next;
     setAutomation(next);
     try {
       const response = await fetch("/api/power/amp-automation", {
@@ -69,11 +77,15 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
-      if (!response.ok) {
+      if (!response.ok && sameSwitches(overrideRef.current, next)) {
+        overrideRef.current = null;
         setAutomation(null);
       }
     } catch {
-      setAutomation(null);
+      if (sameSwitches(overrideRef.current, next)) {
+        overrideRef.current = null;
+        setAutomation(null);
+      }
     }
   };
 
@@ -209,6 +221,11 @@ export function FloatingMeterCard({ summary }: { summary: PowerFloatingMeterSumm
       />
     </section>
   );
+}
+
+/** Whether an override still holds the pair a write carried. */
+function sameSwitches(current: AmpSwitches | null, written: AmpSwitches) {
+  return current !== null && current.autoOff === written.autoOff && current.autoOn === written.autoOn;
 }
 
 /**

@@ -145,6 +145,18 @@ describe("decideAmpAction — when the Apple TV cannot be seen", () => {
     expect(decide({ desired: null, actual: "off", msUnavailable: 600_000 })).toEqual({ type: "release" });
   });
 
+  it("holds the plug instead of restoring it with Auto On off", () => {
+    // Putting the plug down forces it on — the always-on rule — which is a
+    // switch-on, and "Auto On" off refuses it. The controller keeps holding the
+    // plug, so a dead integration cannot power the amp up behind the switch.
+    expect(decide({ autoOn: false, desired: null, actual: "off", msUnavailable: 600_000 })).toEqual({
+      type: "none",
+    });
+    expect(decide({ autoOn: false, desired: null, actual: "on", msUnavailable: 900_000 })).toEqual({
+      type: "none",
+    });
+  });
+
   it("releases only once, then waits for the Apple TV to come back", () => {
     expect(decide({ desired: null, actual: "on", msUnavailable: 900_000, staleHeld: true })).toEqual({
       type: "none",
