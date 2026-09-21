@@ -11,7 +11,8 @@ Task log `20260921T132638Z-7dbdef9d`. Consumer:
 
 | File | Holds |
 |---|---|
-| `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/__init__.py` | the bridge: one read per Apple TV, published as two states |
+| `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/__init__.py` | what HA loads: the config schema and setup |
+| `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/bridge.py` | the bridge: one read per Apple TV, published as two states |
 | `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/outputs.py` | the verdict table, pure |
 | `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/const.py` | the state vocabulary and the signals |
 | `ops/homeassistant/nova_appletv_outputs/tests/test_outputs.py` | the verdict table's tests, stdlib only |
