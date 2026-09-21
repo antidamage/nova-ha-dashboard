@@ -136,6 +136,26 @@ describe("the Apple TV dial", () => {
     }
   });
 
+  it("clamps its size once, so a dial drawn at the ceiling is not glowing past it", () => {
+    const reads = (size: number) => {
+      const { container, unmount } = render(
+        <AppleTVEncoder muted={false} volume={100} size={size} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
+      );
+      const root = container.querySelector<HTMLElement>(".apple-tv-encoder");
+      const read = {
+        resize: root?.style.getPropertyValue("--re-size"),
+        glow: root?.style.getPropertyValue("--re-glow"),
+      };
+      unmount();
+      return read;
+    };
+    const oversize = reads(260);
+    const atCeiling = reads(200);
+    expect(oversize).toEqual(atCeiling);
+    // And the glow really does scale with the dial it was drawn at: 200*0.12.
+    expect(atCeiling.glow).toBe("0 0 24.0px 2.4px rgba(110, 240, 207, 0.620)");
+  });
+
   it("is still blue-green at rest, at the deep end of the family", () => {
     const { container } = render(
       <AppleTVEncoder muted={false} volume={0} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
