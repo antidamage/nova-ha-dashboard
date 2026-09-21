@@ -93,6 +93,12 @@ export type PowerBaseLoadSummary = {
  */
 export type PowerFloatingMeterSummary = {
   activeCategoryId: string | null;
+  /**
+   * The amp's follow-the-Apple-TV automation, when this household configures
+   * one. Absent means the panel shows no switch at all, and the whole feature
+   * does not exist (specs/amp-appletv-power.md §7).
+   */
+  ampControl?: { categoryId: string; enabled: boolean };
   categories: FloatingMeterCategoryReading[];
   watts: number | null;
 };
@@ -176,7 +182,14 @@ type RateCheck = {
   warning?: string;
 };
 
+/** The amp controller's own switch, as the Grid panel's checkbox left it (§7). */
+export type AmpAutomationState = {
+  automationEnabled: boolean;
+  updatedAt: string;
+};
+
 export type PowerState = {
+  ampPowerControl?: AmpAutomationState;
   daily: Record<string, PowerBucket>;
   devices: Record<string, PersistedDeviceState>;
   /**

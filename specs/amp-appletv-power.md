@@ -21,9 +21,12 @@ that:
 | `lib/config-schema/power.ts` | `power.ampPowerControl`, the `amp` category icon |
 | `nova-household/dashboard-config.json` | the `amp` category and this house's control config |
 | `lib/amp-power-control.ts` | the decision, the rate limit, the loop |
+| `lib/amp-inputs.ts` | the decision's inputs: the Apple TV's power state and audio output, the plug's own |
 | `lib/power-meter-guard.ts` | stands down on entities the controller owns |
-| `lib/power/meters.ts` | `readActiveFloatingCategoryId()` |
-| `app/components/dashboard/power/FloatingMeterCard.tsx` | the confirmation dialog |
+| `lib/power/meters.ts` | `readActiveFloatingCategoryId()`, the automation switch |
+| `app/components/dashboard/power/FloatingMeterCard.tsx` | the confirmation dialog, the "Automate state" switch |
+| `app/api/power/amp-automation/route.ts` | writes the switch |
+| `ops/homeassistant/nova_appletv_outputs` | the audio-output bridge (§8) |
 | `instrumentation.ts` | starts the controller |
 
 ## 1. Where the Apple TV's power state comes from
@@ -327,6 +330,112 @@ something else. The dialog is cheap; the mistake is not. It is not optimistic:
 the pending selection is only sent after confirmation, so a cancel leaves the
 dropdown reading the truth.
 
+## 7. The "Automate state" switch
+
+Adeline, 2026-09-21: *"on the dashboard grid page, on the 'amp measured' power
+usage amount, add a small checkbox under it and inset reading 'Automate state'.
+if this is checked, it can use the current behaviour of turning on and off with
+the apple tv. if it's unchecked, it will not respond to appletv events."*
+
+**Where.** In `FloatingMeterCard`'s **amp row**, under that row's watts. It is
+the compact checkbox the config surfaces already use to annotate a reading —
+a visually-hidden input over an 18px box, under a 9px muted reading
+(`.cyber-mini-checkbox` + `.rect-envelope-tag`, as `RangeSliderControlPanel`'s
+`RandomTargetToggle` does). Not `CheckboxRow`, which is a full-width row for a
+page of settings, and not a native `<input>` raw.
+
+Only the amp row draws it, and only when `power.ampPowerControl` exists **and**
+its `categoryId` is one of the floating meter's categories. Absent config means
+no switch, like every other part of this feature.
+
+**State, not config.** `data/power/state.json` → `ampPowerControl.{automationEnabled,
+updatedAt}`, written by `POST /api/power/amp-automation { enabled }` inside the
+power write queue (the meter tick rewrites the same file every few seconds, so
+an unwritten read would be clobbered — the same reason §3.2's category takes the
+queue). It sits beside `floatingMeter.activeCategoryId` because it is runtime
+state that the loop reads on its next tick, not config, which arrives by deploy.
+
+**Absent means on.** A state file written before this switch existed, or a
+household that never touches it, keeps exactly the behaviour of §1–§6.
+
+**The gate.** The switch is a second condition on §4.2's gate:
+
+```
+armed = categorySelected && automationEnabled
+```
+
+Off, the controller is inert in precisely the way another category being
+selected makes it inert: no switching command of any kind, ownership released,
+and the plug handed back to the meter guard.
+
+**Switching it off restores the plug**, on §4.3's terms: the controller is
+putting down something it is no longer entitled to hold, so the restore is
+immediate and counts as a switching command — an on/off pair is still spaced by
+the interval. The consequence to expect, and it is the golden rule of
+power-meters.md §1 rather than a defect: turning the switch off while the amp
+was dark (Bluetooth headphones, §8) powers the amp **on**, because the plug is
+only ever allowed off while this controller demonstrably owns it.
+
+**The card is optimistic and takes the truth back.** It posts, holds the new
+value until the panel's own 5-second poll reports it, and reverts on a failed
+write — the same shape as §6's pending category.
+
+## 8. The amp follows the audio output too
+
+Adeline, 2026-09-21: *"when automated state is checked on, check the current
+audio device of the apple tv. if it's 'TV Speakers' or similar, turn the amp on.
+if it's anything else, turn the amp off. a common use-case is that I connect
+bluetooth headphones."*
+
+### 8.1 Where the value comes from
+
+Not from any entity Home Assistant publishes today. HA's `apple_tv` integration
+**receives** the Apple TV's output devices from pyatv and **drops them** —
+`media_player.py`'s `outputdevices_update` handler is empty, and no attribute
+carries it. §1's decision to read HA's entity rather than open a competing pyatv
+session still stands, so the value is produced by a small HA-side component of
+Nova's that reuses **HA's own** pyatv connection: `ops/homeassistant/nova_appletv_outputs`,
+whose contract is [appletv-audio-outputs.md](appletv-audio-outputs.md). Nova
+reads the entity id from `power.ampPowerControl.audioOutput.entityId`.
+
+Absent `audioOutput` config means the condition does not exist: §1–§6 unchanged,
+no entity read, no behaviour.
+
+### 8.2 The decision
+
+`lib/amp-inputs.ts`, beside `desiredFromSource()` so the loop itself only reads
+values and compares them:
+
+```ts
+combinedAmpDesired(power, audio)
+```
+
+| Apple TV (power) | Audio output | Desired amp |
+|---|---|---|
+| asleep / `off` | anything | **off** — an off Apple TV draws nothing through the amp |
+| awake | `onStates` (`"on"`) | **on** — playing through the TV's own speakers |
+| awake | `offStates` (`"off"`) | **off** — the audio has gone to Bluetooth headphones, a HomePod, an AirPlay receiver |
+| awake | unreadable | **on** — §1–§6's behaviour, which is the safe direction to be wrong in (§1.1) |
+
+The states are config (`audioOutput.onStates` / `offStates`, defaulting to
+`["on"]` / `["off"]`), so a bridge that reports names rather than a flag needs a
+config edit, not a code change.
+
+### 8.3 A dead bridge is never "off"
+
+`unavailable`, `unknown`, a missing entity, or a state this household has not
+classified is **no opinion**, never "off". A bridge that stops reporting must
+not be able to silence the amplifier: the worst it can do is leave the amp
+following the Apple TV's power state, exactly as it did before this section
+existed.
+
+### 8.4 The rate limit and the rest are unchanged
+
+The audio output only changes *what* is desired. Every rule of §4 still holds:
+one command per 30 seconds, level-triggered against what the plug actually
+reads, releasing the plug when the category or the switch changes, and silence
+in the UI (§4.7).
+
 ## Done means
 
 - The Grid panel lists four categories, Amp among them, and moving the meter to
@@ -353,3 +462,23 @@ dropdown reading the truth.
 - `npx vitest run` passes, including new tests for `decideAmpAction()`
   (rate limit boundary at 29/30 s, the coalescing cases, unavailable, the gate)
   and for the guard's exclusion set.
+
+### The switch and the audio output (§7, §8)
+
+- The amp row draws one small "Automate state" reading and checkbox under its
+  watts, and no other row draws one; with no `ampPowerControl` config the card
+  draws none at all.
+- Ticking it posts `/api/power/amp-automation`; the new value shows at once and
+  a failed write reverts to the server's.
+- With the switch off, the Apple TV changing state issues **no** command, the
+  plug returns to the guard on that tick, and the amp is left powered (the
+  golden rule).
+- With the switch on and `audioOutput` configured: an awake Apple TV playing
+  through its own speakers powers the amp, and the same Apple TV routing audio
+  elsewhere switches the amp off even though its power state never changed.
+- The bridge's entity reading `unavailable` is no opinion: the amp follows the
+  Apple TV's power state exactly as it did before §8 existed.
+- `npx vitest run` passes, including `lib/amp-inputs.test.ts` (the audio table,
+  the combined decision, absent config), the gate case in
+  `lib/amp-power-control-ownership.test.ts`, and the switch cases in
+  `FloatingMeterCard.test.tsx`.

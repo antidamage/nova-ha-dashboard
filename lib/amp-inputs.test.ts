@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { desiredFromSource, switchStateOf } from "./amp-inputs";
+import { combinedAmpDesired, desiredFromAudioOutput, desiredFromSource, desiredFromStates, switchStateOf } from "./amp-inputs";
+import type { AmpPowerControlConfig } from "./config-schema";
 import type { HaState } from "./types";
 
 function statesOf(entries: Record<string, string>) {
@@ -46,5 +47,110 @@ describe("switchStateOf", () => {
     expect(
       switchStateOf(ids, statesOf({ "switch.floating_meter": "off", "switch.tuya_mobile_floating_meter": "on" })),
     ).toBe("on");
+  });
+});
+
+describe("desiredFromAudioOutput", () => {
+  const config = { offStates: ["off"], onStates: ["on"] };
+
+  it("keeps the amp on while the Apple TV plays through the TV's speakers", () => {
+    expect(desiredFromAudioOutput("on", config)).toBe("on");
+  });
+
+  it("switches the amp off when the audio has gone somewhere else", () => {
+    // Bluetooth headphones: the use case Adeline named (§8).
+    expect(desiredFromAudioOutput("off", config)).toBe("off");
+  });
+
+  it("has no opinion when the bridge cannot be read", () => {
+    // A dead bridge must not be able to silence the amplifier (§8.3).
+    for (const state of ["unavailable", "unknown", "", undefined]) {
+      expect(desiredFromAudioOutput(state, config)).toBeNull();
+    }
+  });
+
+  it("has no opinion about a state nobody classified", () => {
+    expect(desiredFromAudioOutput("TV Speakers", config)).toBeNull();
+  });
+});
+
+describe("combinedAmpDesired", () => {
+  it("lets a sleeping Apple TV decide alone", () => {
+    expect(combinedAmpDesired("off", "on")).toBe("off");
+    expect(combinedAmpDesired("off", null)).toBe("off");
+  });
+
+  it("lets the audio route overrule the power state while it is awake", () => {
+    expect(combinedAmpDesired("on", "off")).toBe("off");
+    expect(combinedAmpDesired("on", "on")).toBe("on");
+  });
+
+  it("keeps the amp on when the route cannot be read", () => {
+    // The behaviour this house had before the route was consulted at all.
+    expect(combinedAmpDesired("on", null)).toBe("on");
+  });
+
+  it("has nothing to say when the Apple TV itself cannot be seen", () => {
+    expect(combinedAmpDesired(null, "off")).toBeNull();
+  });
+});
+
+describe("desiredFromStates", () => {
+  const config: AmpPowerControlConfig = {
+    audioOutput: {
+      entityId: "binary_sensor.home_theatre_tv_speakers",
+      offStates: ["off"],
+      onStates: ["on"],
+    },
+    categoryId: "amp",
+    minIntervalSeconds: 30,
+    offStates: ["off", "standby"],
+    pollIntervalSeconds: 5,
+    sourceEntityId: "media_player.home_theatre",
+    staleRestoreSeconds: 600,
+    switchEntityIds: ["switch.floating_meter"],
+  };
+
+  it("needs both: awake, and playing through the TV's speakers", () => {
+    expect(
+      desiredFromStates(
+        config,
+        statesOf({
+          "binary_sensor.home_theatre_tv_speakers": "on",
+          "media_player.home_theatre": "playing",
+        }),
+      ),
+    ).toBe("on");
+  });
+
+  it("switches the amp off when the Apple TV is awake and the audio has gone elsewhere", () => {
+    expect(
+      desiredFromStates(
+        config,
+        statesOf({
+          "binary_sensor.home_theatre_tv_speakers": "off",
+          "media_player.home_theatre": "playing",
+        }),
+      ),
+    ).toBe("off");
+  });
+
+  it("switches the amp off while the Apple TV sleeps, whatever the route says", () => {
+    expect(
+      desiredFromStates(
+        config,
+        statesOf({
+          "binary_sensor.home_theatre_tv_speakers": "on",
+          "media_player.home_theatre": "off",
+        }),
+      ),
+    ).toBe("off");
+  });
+
+  it("ignores the route entirely when no bridge is configured", () => {
+    // A generic install carries this code and neither the entity nor the
+    // behaviour (§8.1).
+    const { audioOutput: _noBridge, ...withoutBridge } = config;
+    expect(desiredFromStates(withoutBridge, statesOf({ "media_player.home_theatre": "playing" }))).toBe("on");
   });
 });

@@ -17,16 +17,22 @@ const config = {
 };
 
 let activeCategoryId = "amp";
+let automationEnabled = true;
+
+/** Hoisted so the assertions still see them after `vi.resetModules()`. */
+const callServiceMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const haRestMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 
 vi.mock("./dashboard-config", () => ({
   readDashboardConfigSync: () => ({ power: { ampPowerControl: config } }),
 }));
 vi.mock("./ha", () => ({
-  callService: vi.fn().mockResolvedValue(undefined),
-  haRest: vi.fn().mockResolvedValue([]),
+  callService: callServiceMock,
+  haRest: haRestMock,
 }));
 vi.mock("./power", () => ({
   readActiveFloatingCategoryId: () => Promise.resolve(activeCategoryId),
+  readAmpAutomationEnabled: () => Promise.resolve(automationEnabled),
 }));
 
 async function freshModule() {
@@ -37,6 +43,9 @@ async function freshModule() {
 describe("amp control ownership", () => {
   beforeEach(() => {
     activeCategoryId = "amp";
+    automationEnabled = true;
+    callServiceMock.mockClear();
+    haRestMock.mockClear();
   });
 
   afterEach(async () => {
@@ -72,5 +81,18 @@ describe("amp control ownership", () => {
     startAmpPowerControl();
 
     await vi.waitFor(() => expect([...ampControlledEntityIds()]).toEqual([]));
+  });
+
+  it("lets the plug go, and never reads the Apple TV, with the switch off", async () => {
+    // The Grid panel's "Automate state" checkbox (§7). Off, the controller is
+    // as inert as it is under another category: no command of any kind, and the
+    // guard has the plug back within the tick.
+    automationEnabled = false;
+    const { ampControlledEntityIds, startAmpPowerControl } = await freshModule();
+    startAmpPowerControl();
+
+    await vi.waitFor(() => expect([...ampControlledEntityIds()]).toEqual([]));
+    expect(haRestMock).not.toHaveBeenCalled();
+    expect(callServiceMock).not.toHaveBeenCalled();
   });
 });
