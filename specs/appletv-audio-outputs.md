@@ -15,7 +15,7 @@ Task log `20260921T132638Z-7dbdef9d`. Consumer:
 | `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/bridge.py` | the bridge: one read per Apple TV, published as two states |
 | `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/outputs.py` | the verdict table, pure |
 | `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/const.py` | the state vocabulary and the signals |
-| `ops/homeassistant/nova_appletv_outputs/tests/test_outputs.py` | the verdict table's tests, stdlib only |
+| `ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/tests/test_outputs.py` | the verdict table's tests, stdlib only |
 | `ops/homeassistant/nova_appletv_outputs/install.sh` | install, with a pre-flight import |
 | `.../README.md` | install, verify, remove |
 
@@ -87,7 +87,8 @@ the tail risk of §6.
 |---|---|---|
 | nothing at all | `unavailable` | not connected, or MRP is not up: **no opinion**, never `off` |
 | the Apple TV's own output, and nothing else | `on` | this is "TV Speakers" |
-| anything else active — alone or alongside | `off` | Bluetooth headphones, a HomePod, an AirPlay receiver |
+| something the device named or identified, alone or alongside | `off` | Bluetooth headphones, a HomePod, an AirPlay receiver |
+| an output with neither a name nor an identifier | `unavailable` | something is active, but not anything this bridge can call "something else" |
 
 `unavailable` is the important row. The dashboard treats anything that is not
 `on` or `off` as no opinion (`amp-appletv-power.md` §8.3), so a bridge that

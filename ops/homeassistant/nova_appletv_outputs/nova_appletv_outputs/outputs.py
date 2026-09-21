@@ -81,10 +81,13 @@ def verdict_from(
     |---------------------------------------------|---------------|
     | nothing at all — no live connection, or MRP | `unavailable` |
     | the Apple TV's own output, and nothing else | `on`          |
-    | anything else active                        | `off`         |
+    | something the device named or identified    | `off`         |
+    | an output with neither a name nor an id     | `unavailable` |
 
     `unavailable` is deliberately not `off`: a bridge that cannot read must
     never be able to silence the amplifier (specs/amp-appletv-power.md §8.3).
+    An entry carrying no name and no identifier is the same case — something is
+    active, but not anything this bridge can call "something else".
     """
     reported = list(devices or [])
     if not reported:
@@ -96,6 +99,12 @@ def verdict_from(
         }
         for device in reported
     ]
+    if any(not output["identifier"] and not output["name"] for output in active):
+        return Verdict(
+            tv_speakers=STATE_READ_UNAVAILABLE,
+            audio_output=STATE_READ_UNKNOWN,
+            active_outputs=active,
+        )
     names_reported = ", ".join(output["name"] or output["identifier"] for output in active)
     if all(is_own_output(device, own_ids, names) for device in reported):
         return Verdict(tv_speakers=STATE_ON, audio_output=names_reported, active_outputs=active)

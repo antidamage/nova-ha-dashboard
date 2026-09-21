@@ -1,6 +1,6 @@
 """The verdict table, with no Home Assistant in the way.
 
-    python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/tests
+    python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/tests
 
 `nova_appletv_outputs/__init__.py` needs Home Assistant, and the module under
 test does not — that is the point of keeping the verdict pure, so this file
@@ -8,6 +8,9 @@ runs on a stdlib python3 anywhere, and inside the HA container:
 
     docker exec homeassistant python3 -m unittest discover \
         -s /config/custom_components/nova_appletv_outputs/tests
+
+It travels with the package (`nova_appletv_outputs/tests/`) so that the copy
+`install.sh` makes is the copy this file runs in — the same path either side.
 """
 
 import importlib
@@ -16,7 +19,7 @@ import sys
 import types
 import unittest
 
-PACKAGE_DIR = pathlib.Path(__file__).resolve().parents[1] / "nova_appletv_outputs"
+PACKAGE_DIR = pathlib.Path(__file__).resolve().parents[1]
 
 # The package's own `__init__` imports Home Assistant; loading the directory as
 # a namespace package under an alias reaches the pure modules without it.
@@ -81,6 +84,15 @@ class VerdictTest(unittest.TestCase):
             outputs.verdict_from([ReportedOutput("AA:BB:CC:DD:EE:FF", "TV Speakers")], set(), names).tv_speakers,
             "on",
         )
+
+    def test_an_output_with_no_identity_is_not_something_else(self):
+        # Something is active that the device did not name or identify: that is
+        # not classifiable, so it is no opinion rather than "off", and the amp
+        # keeps following the Apple TV's power state.
+        verdict = self.verdict([ReportedOutput("", None)])
+
+        self.assertEqual(verdict.tv_speakers, "unavailable")
+        self.assertEqual(verdict.audio_output, "unknown")
 
     def test_another_output_switches_the_amp_off(self):
         # The use case Adeline named: Bluetooth headphones.
