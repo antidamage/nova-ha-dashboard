@@ -50,6 +50,13 @@ const INITIAL: AppleTVAmpSnapshot = {
 
 let snapshot: AppleTVAmpSnapshot = INITIAL;
 let loading: Promise<void> | null = null;
+/**
+ * Which save is current. Two saves can overlap — a blur-commit during a slow
+ * request — and the older one's answer must not land on top of the newer one's:
+ * without this, a failed first save would restore a list the second save has
+ * already replaced.
+ */
+let saveGeneration = 0;
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<AppleTVAmpSnapshot>) {
@@ -117,6 +124,7 @@ function subscribe(listener: () => void) {
 export function resetAppleTVAmpForTest() {
   snapshot = INITIAL;
   loading = null;
+  saveGeneration = 0;
 }
 
 export function useAppleTVAmp() {
@@ -131,6 +139,8 @@ export function useAppleTVAmp() {
     // request fails, so a rollback that reads it back republishes the list the
     // host rejected — the buttons would show presets that were never stored.
     const previous = snapshot.playlists;
+    const generation = (saveGeneration += 1);
+    const superseded = () => generation !== saveGeneration;
     publish({ playlists, saving: true });
     try {
       if (DEMO_MODE) {
@@ -145,12 +155,14 @@ export function useAppleTVAmp() {
       const payload = await response.json().catch(() => ({})) as { error?: string; playlists?: unknown };
       if (!response.ok) throw new Error(payload.error ?? "Could not save the playlists");
       // Read back rather than trusting the echo: the host normalises the list.
-      publish({ playlists: storedPlaylists(payload.playlists ?? playlists) });
+      if (!superseded()) publish({ playlists: storedPlaylists(payload.playlists ?? playlists) });
     } catch (cause) {
-      publish({ playlists: previous });
+      // A later save owns the list now: its answer, not this failure's, is the
+      // one to keep.
+      if (!superseded()) publish({ playlists: previous });
       setError(cause instanceof Error ? cause.message : "Could not save the playlists");
     } finally {
-      publish({ saving: false });
+      if (!superseded()) publish({ saving: false });
     }
   }, []);
 

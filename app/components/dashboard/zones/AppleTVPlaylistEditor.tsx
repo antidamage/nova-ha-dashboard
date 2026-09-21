@@ -16,7 +16,7 @@
  */
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { MAX_PLAYLISTS } from "../../../../lib/apple-tv/playlists";
+import { MAX_PLAYLISTS, cleanPlaylistName } from "../../../../lib/apple-tv/playlists";
 import { IconButton } from "../IconButton";
 import { useAppleTVAmp } from "../appleTVAmpClient";
 
@@ -34,22 +34,34 @@ export function AppleTVPlaylistEditor() {
   }, [amp.playlists]);
 
   /**
-   * Commit one row's name. A name another row already carries is refused rather
-   * than saved: `cleanPlaylists` drops duplicates, so storing it would make the
-   * other row disappear with no explanation (Adeline's list is short and typed
-   * by hand, which is exactly how a duplicate happens).
+   * Commit one row's name.
+   *
+   * A name another row already carries is refused rather than saved, and the
+   * comparison is made on `cleanPlaylistName` — the same normalisation the list
+   * itself de-duplicates with. Comparing the raw strings instead would let a
+   * double-spaced or over-long paste through the guard and straight into the
+   * drop: the other row would vanish with no message, which is the defect this
+   * guard exists to prevent.
+   *
+   * An emptied row is a removal: the list stores no blanks, so letting it save
+   * would drop the row on the way in anyway — this just says so.
    */
   const commit = (index: number) => {
     const name = (draft[index] ?? "").trim();
     setDirty(null);
+    setError(null);
     if (name === (amp.playlists[index] ?? "").trim()) return;
-    const duplicate = draft.some((entry, at) => at !== index && entry.trim().toLowerCase() === name.toLowerCase());
+    const key = cleanPlaylistName(name).toLowerCase();
+    if (!key) {
+      amp.removePlaylist(index);
+      return;
+    }
+    const duplicate = draft.some((entry, at) => at !== index && cleanPlaylistName(entry).toLowerCase() === key);
     if (duplicate) {
       setError(`"${name}" is already in the list`);
       setDraft(amp.playlists);
       return;
     }
-    setError(null);
     amp.renamePlaylist(index, name);
   };
 

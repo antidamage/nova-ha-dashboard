@@ -114,7 +114,12 @@ for (const phone of PHONES) {
     // opens no floating ring layer that could run off the screen (2026-09-22
     // independent review).
     for (const segment of [".quick-segment-lights", ".quick-segment-appletv"]) {
-      await tap(page.locator(`${segment} .rotary-encoder-dial`));
+      const dial = page.locator(`${segment} .rotary-encoder-dial`);
+      const lit = await dial.getAttribute("data-led");
+      await tap(dial);
+      // The tap landed — neither dial tucks itself away, so its lights cycle —
+      // so "no ring layer" is a reading, not a missed press.
+      await expect(dial).not.toHaveAttribute("data-led", lit ?? "");
       await expect(page.locator(".rotary-encoder-ring-layer")).toHaveCount(0);
     }
 
@@ -161,10 +166,12 @@ test("portrait: a full playlist list wraps its row without moving the pair", asy
   await expect(dials(page)).toHaveCount(4);
   const ampRow = page.locator(".quick-segment-appletv .quick-button-pair");
   await expect(ampRow.getByRole("button")).toHaveCount(6);
-  const [ampRowBox, lightsRowBox] = await Promise.all([
-    ampRow.boundingBox(),
-    page.locator(".quick-segment-lights .quick-button-pair").boundingBox(),
-  ]);
+  const lightsRow = page.locator(".quick-segment-lights .quick-button-pair");
+  await expect(lightsRow.getByRole("button"), "the lights keep their three presets").toHaveCount(3);
+  const [ampRowBox, lightsRowBox] = await Promise.all([ampRow.boundingBox(), lightsRow.boundingBox()]);
+  // The lights' three 44px buttons stay on one line, so the comparison has a
+  // floor: it fails if either row collapses.
+  expect(lightsRowBox!.height, "the lights' row is one button line").toBeLessThanOrEqual(48);
   expect(ampRowBox!.height, "six playlists wrap to a second line").toBeGreaterThan(lightsRowBox!.height * 1.5);
 
   // The dials still share one centre line: the wrap grows the tile downwards

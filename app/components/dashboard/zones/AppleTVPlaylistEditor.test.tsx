@@ -1,5 +1,5 @@
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PLAYLISTS } from "../../../../lib/apple-tv/playlists";
 import { AppleTVPlaylistEditor } from "./AppleTVPlaylistEditor";
@@ -80,6 +80,90 @@ describe("the Apple TV playlist editor", () => {
     // read-back.
     await waitFor(() => expect((screen.getAllByRole("textbox")[1] as HTMLInputElement).value).toBe(DEFAULT_PLAYLISTS[1]));
     expect(appleTVAmpState().playlists).toEqual(DEFAULT_PLAYLISTS);
+  });
+
+  it("refuses a duplicate the list would only see after its own normalisation", async () => {
+    const host = stubHost();
+    renderEditor();
+    await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
+    const second = screen.getAllByRole("textbox")[1];
+    // A double space, a tab and a 60+ character tail all survive a raw
+    // comparison but collapse to the same name in the list's own normalisation
+    // — the guard has to compare what the list stores.
+    fireEvent.focus(second);
+    fireEvent.change(second, { target: { value: "  Excellent  " } });
+    fireEvent.blur(second);
+    expect(await screen.findByRole("alert")).toHaveTextContent("is already in the list");
+    expect(host.writes).toHaveLength(0);
+
+    const third = screen.getAllByRole("textbox")[2];
+    fireEvent.focus(third);
+    fireEvent.change(third, { target: { value: `Sword   Smoke &\tTemple Drums` } });
+    fireEvent.blur(third);
+    expect(await screen.findByRole("alert")).toHaveTextContent("is already in the list");
+    expect(host.writes).toHaveLength(0);
+    expect(appleTVAmpState().playlists).toEqual(DEFAULT_PLAYLISTS);
+  });
+
+  it("clears the alert once the field is put back or the row is emptied", async () => {
+    stubHost();
+    renderEditor();
+    await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
+    const second = screen.getAllByRole("textbox")[1];
+    fireEvent.focus(second);
+    fireEvent.change(second, { target: { value: "Cool" } });
+    fireEvent.blur(second);
+    expect(await screen.findByRole("alert")).toBeTruthy();
+
+    // Putting the stored name back is a no-op commit, and must not leave the
+    // message about a name that is no longer anywhere in the list.
+    fireEvent.focus(second);
+    fireEvent.change(second, { target: { value: DEFAULT_PLAYLISTS[1] } });
+    fireEvent.blur(second);
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("treats an emptied row as a removal rather than storing a blank", async () => {
+    const host = stubHost();
+    renderEditor();
+    await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
+    const first = screen.getAllByRole("textbox")[0];
+    fireEvent.focus(first);
+    fireEvent.change(first, { target: { value: "   " } });
+    fireEvent.blur(first);
+    await waitFor(() => expect(host.writes).toHaveLength(1));
+    expect(host.writes[0]).toEqual([DEFAULT_PLAYLISTS[1], DEFAULT_PLAYLISTS[2]]);
+  });
+
+  it("keeps a later save's list when an earlier one fails", async () => {
+    const pending: Array<(value: unknown) => void> = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: { method?: string }) => {
+      if (init?.method === "PUT") return new Promise((resolve) => pending.push(resolve));
+      return { ok: true, json: async () => ({ playlists: DEFAULT_PLAYLISTS }) };
+    }));
+    renderEditor();
+    await waitFor(() => expect(screen.getAllByRole("textbox")).toHaveLength(3));
+
+    // Two renames, both in flight: the second save owns the list.
+    const [first, second] = screen.getAllByRole("textbox");
+    fireEvent.focus(first);
+    fireEvent.change(first, { target: { value: "First rename" } });
+    fireEvent.blur(first);
+    await waitFor(() => expect(pending).toHaveLength(1));
+    fireEvent.focus(second);
+    fireEvent.change(second, { target: { value: "Second rename" } });
+    fireEvent.blur(second);
+    await waitFor(() => expect(pending).toHaveLength(2));
+
+    await act(async () => {
+      pending[1]({ ok: true, json: async () => ({ playlists: ["First rename", "Second rename", DEFAULT_PLAYLISTS[2]] }) });
+    });
+    await act(async () => {
+      pending[0]({ ok: false, status: 500, json: async () => ({ error: "nope" }) });
+    });
+
+    // The failed earlier save must not restore a list the later one replaced.
+    expect(appleTVAmpState().playlists).toEqual(["First rename", "Second rename", DEFAULT_PLAYLISTS[2]]);
   });
 
   it("adds a new playlist, and stops at the list's six", async () => {
