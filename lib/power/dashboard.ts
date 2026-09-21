@@ -33,7 +33,7 @@ export function buildDashboard(
   const rate = currentRate(now);
   const day = state.daily[keys.today] ?? { costNzd: 0, kwh: 0 };
   const ytd = sumBuckets(state, keys.yearStart, keys.today);
-  const floatingMeter = buildFloatingMeterSummary(state.floatingMeter, now);
+  const floatingMeter = buildFloatingMeterSummary(state, now);
   const washingMachine = buildWashingMachineSummary(washing, now);
   const baseLoad = modeledCurrentBaseLoad(
     now,

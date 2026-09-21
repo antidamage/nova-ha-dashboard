@@ -16,7 +16,7 @@ import {
   serializePower,
   writeJsonAtomic,
 } from "./store";
-import type { PowerFloatingMeterSummary, PowerState } from "./types";
+import type { AmpAutomationState, PowerFloatingMeterSummary, PowerState } from "./types";
 
 /**
  * The metering plugs. Both features are optional and self-contained: each
@@ -175,25 +175,72 @@ export async function readActiveFloatingCategoryId() {
   return activeFloatingCategoryId(persisted.floatingMeter);
 }
 
+/**
+ * The amp's follow-the-Apple-TV switch, as the Grid panel's "Automate state"
+ * checkbox leaves it (§7).
+ *
+ * Absent is ON. That is what this feature did before the checkbox existed, and
+ * a state file written by an older build must not silently stop the amp
+ * following the Apple TV.
+ */
+export function ampAutomationEnabled(state: PowerState | undefined): boolean {
+  return state?.ampPowerControl?.automationEnabled ?? true;
+}
+
+/** Read from disk: the controller asks this on every tick, beside the category. */
+export async function readAmpAutomationEnabled(): Promise<boolean> {
+  if (!powerConfig().ampPowerControl) {
+    return true;
+  }
+  const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
+  return ampAutomationEnabled(persisted);
+}
+
+export function setAmpAutomationEnabled(enabled: boolean) {
+  // Inside the write queue, like the category above: the meter tick rewrites
+  // state.json every few seconds and would otherwise overwrite the switch with
+  // a stale read.
+  return serializePower(() => setAmpAutomationEnabledUnlocked(enabled));
+}
+
+async function setAmpAutomationEnabledUnlocked(enabled: boolean): Promise<AmpAutomationState> {
+  const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
+  const state = { ...blankState(), ...persisted };
+  state.ampPowerControl = { automationEnabled: enabled, updatedAt: new Date().toISOString() };
+  await writeJsonAtomic(POWER_STATE_PATH, state);
+  return state.ampPowerControl;
+}
+
 export function buildFloatingMeterSummary(
-  state: FloatingMeterState | undefined,
+  state: PowerState | undefined,
   now: Date,
 ): PowerFloatingMeterSummary | undefined {
-  const config = powerConfig().floatingMeter;
+  const power = powerConfig();
+  const config = power.floatingMeter;
   if (!config) {
     return undefined;
   }
+  const persisted = state?.floatingMeter;
   const resolved: FloatingMeterState = {
     ...blankFloatingMeterState(),
-    ...state,
-    activeCategoryId: activeFloatingCategoryId(state),
+    ...persisted,
+    activeCategoryId: activeFloatingCategoryId(persisted),
   };
   const parts = localParts(now);
   const activeWatts = resolved.activeCategoryId
     ? resolved.categories[resolved.activeCategoryId]?.lastWatts ?? null
     : null;
+  // The checkbox belongs to the amp's own row, and only to it: no amp category,
+  // or a controller aimed at a category this meter does not have, means no
+  // switch to draw (§7).
+  const amp = power.ampPowerControl;
+  const ampControl =
+    amp && config.categories.some((category) => category.id === amp.categoryId)
+      ? { categoryId: amp.categoryId, enabled: ampAutomationEnabled(state) }
+      : undefined;
   return {
     activeCategoryId: resolved.activeCategoryId,
+    ...(ampControl ? { ampControl } : {}),
     categories: floatingMeterReadings(config, resolved, {
       activeWatts,
       hourOfDay: parts.hour.toString().padStart(2, "0"),
