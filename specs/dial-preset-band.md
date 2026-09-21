@@ -31,11 +31,11 @@ row keeps its place in the band and takes that air back:
   way, beside `--quick-dial-slot`.
 - Measured in Chromium at 1920x1080, dial circle to preset row: a lighting
   panel 58px → 20px, the Lounge's halved pair (100px dials, pull 14px) 8px,
-  Quick Access 23px → 8px.
-  The panel figure is not simply "slack + gap − pull": the 8px the row gap lost
-  moves the dial's box 8px down with it (below), so the two effects do not
-  cancel — 58 = 12px of `1fr` row slack + 24px gap + 22px of air under the knob,
-  and 20 = 12 + 8 gap − 22 pull + the 22px the lowered box adds back.
+  Quick Access 23px → 8px. The panel figure is not simply "air + gap − pull":
+  the same change that halves the row gap also lowers the dial's box 8px (below),
+  and the row starts at the band rather than centred in it, so the three effects
+  do not add up as separate terms — the numbers above are the measurements, not a
+  derivation.
 - Dial centres move 8px down, together: the row gap went 24px → 8px, and the
   dial is centred in the row above the band. Every panel shifts by the same 8px,
   which is what keeps them aligned with each other.

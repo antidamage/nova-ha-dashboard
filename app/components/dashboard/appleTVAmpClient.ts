@@ -159,8 +159,10 @@ export function useAppleTVAmp() {
     } catch (cause) {
       // A later save owns the list now: its answer, not this failure's, is the
       // one to keep.
-      if (!superseded()) publish({ playlists: previous });
-      setError(cause instanceof Error ? cause.message : "Could not save the playlists");
+      if (!superseded()) {
+        publish({ playlists: previous });
+        setError(cause instanceof Error ? cause.message : "Could not save the playlists");
+      }
     } finally {
       if (!superseded()) publish({ saving: false });
     }
