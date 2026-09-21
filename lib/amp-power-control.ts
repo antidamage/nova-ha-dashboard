@@ -3,14 +3,14 @@ import { decideAmpAction } from "./amp-decision";
 import { desiredFromStates, switchStateOf, type AmpSwitchState } from "./amp-inputs";
 import { readDashboardConfigSync } from "./dashboard-config";
 import { callService, haRest } from "./ha";
-import { readActiveFloatingCategoryId, readAmpAutomationEnabled } from "./power";
+import { readActiveFloatingCategoryId, readAmpAutomation } from "./power";
 import type { HaState } from "./types";
 
 /**
  * The amp follows the Apple TV — while, and only while, the floating meter is
- * measuring the amp and the Grid panel's "Automate state" switch is on. What it
- * follows is the Apple TV's power and audio output (§7, §8).
- * See specs/amp-appletv-power.md.
+ * measuring the amp and the Grid panel's two switches (§7) allow the direction
+ * it would move in. What it follows is the Apple TV's power and audio output
+ * (§8). See specs/amp-appletv-power.md.
  *
  * Adeline, 2026-09-19: "ensure that state changes NEVER occur more frequently
  * than once every 30 seconds, queue and space out any secondary changes […]
@@ -105,9 +105,9 @@ async function tick() {
 }
 
 /** Why the plug is being put down, for the log line (§4.7). */
-function releaseReason(categorySelected: boolean, automationEnabled: boolean) {
-  if (!automationEnabled) {
-    return '"Automate state" is switched off';
+function releaseReason(categorySelected: boolean, autoOff: boolean, autoOn: boolean) {
+  if (!autoOn && !autoOff) {
+    return '"Auto On" and "Auto Off" are both switched off';
   }
   return categorySelected ? "Apple TV unreadable" : "another category selected";
 }
@@ -122,10 +122,12 @@ async function tickUnsettled() {
   }
 
   const categorySelected = (await readActiveFloatingCategoryId()) === config.categoryId;
-  // The Grid panel's "Automate state" checkbox (§7): off, this loop is as inert
-  // as it is under another category — no command, and the guard gets the plug.
-  const automationEnabled = await readAmpAutomationEnabled();
-  const armed = categorySelected && automationEnabled;
+  // The Grid panel's two checkboxes (§7): off in both directions, this loop is
+  // as inert as it is under another category — no command, and the guard gets
+  // the plug. One direction on and the controller manages the plug in that
+  // direction only, holding it while it does.
+  const { autoOff, autoOn } = await readAmpAutomation();
+  const armed = categorySelected && (autoOn || autoOff);
 
   let states: HaState[] = [];
   if (armed) {
@@ -152,6 +154,8 @@ async function tickUnsettled() {
   const action = decideAmpAction({
     actual: switchStateOf(config.switchEntityIds, statesById),
     armed,
+    autoOff,
+    autoOn,
     desired,
     minIntervalMs: config.minIntervalSeconds * 1000,
     msSinceLastCommand: lastCommandAt === null ? null : now - lastCommandAt,
@@ -163,7 +167,7 @@ async function tickUnsettled() {
 
   if (action.type === "release") {
     if (desired === null && armed) staleHeld = true;
-    await release(config.switchEntityIds, releaseReason(categorySelected, automationEnabled));
+    await release(config.switchEntityIds, releaseReason(categorySelected, autoOff, autoOn));
     return;
   }
 

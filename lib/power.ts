@@ -24,6 +24,8 @@
  *   power/history-repair.ts   floating-meter reattribution, wash rebuild
  */
 export type {
+  AmpControlSummary,
+  AmpSwitches,
   PowerAccountUsagePoint,
   PowerBackgroundEstimatePoint,
   PowerBaseLoadSummary,
@@ -39,8 +41,8 @@ export type {
 } from "./power/types";
 export {
   readActiveFloatingCategoryId,
-  readAmpAutomationEnabled,
-  setAmpAutomationEnabled,
+  readAmpAutomation,
+  setAmpAutomation,
   setFloatingMeterCategory,
 } from "./power/meters";
 export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle } from "./power/washing";

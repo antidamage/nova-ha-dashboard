@@ -16,7 +16,7 @@ import {
   serializePower,
   writeJsonAtomic,
 } from "./store";
-import type { AmpAutomationState, PowerFloatingMeterSummary, PowerState } from "./types";
+import type { AmpAutomationState, AmpSwitches, PowerFloatingMeterSummary, PowerState } from "./types";
 
 /**
  * The metering plugs. Both features are optional and self-contained: each
@@ -176,37 +176,43 @@ export async function readActiveFloatingCategoryId() {
 }
 
 /**
- * The amp's follow-the-Apple-TV switch, as the Grid panel's "Automate state"
- * checkbox leaves it (§7).
+ * The amp's two switches, as the Grid panel's checkboxes leave them (§7):
+ * whether this automation may switch the amp on, and whether it may switch it
+ * off. The directions are independent — on-but-never-off is a real pair.
  *
- * Absent is ON. That is what this feature did before the checkbox existed, and
- * a state file written by an older build must not silently stop the amp
- * following the Apple TV.
+ * Neither stored is BOTH on, and `automationEnabled` — the single switch these
+ * replaced — is read as what it meant: one answer for both directions. That is
+ * what this feature did before the checkboxes existed, so a state file written
+ * by an older build keeps its meaning instead of silently changing.
  */
-export function ampAutomationEnabled(state: PowerState | undefined): boolean {
-  return state?.ampPowerControl?.automationEnabled ?? true;
+export function ampAutomation(state: PowerState | undefined): AmpSwitches {
+  const stored = state?.ampPowerControl;
+  const legacy = stored?.automationEnabled ?? true;
+  return { autoOff: stored?.autoOff ?? legacy, autoOn: stored?.autoOn ?? legacy };
 }
 
 /** Read from disk: the controller asks this on every tick, beside the category. */
-export async function readAmpAutomationEnabled(): Promise<boolean> {
+export async function readAmpAutomation(): Promise<AmpSwitches> {
   if (!powerConfig().ampPowerControl) {
-    return true;
+    return { autoOff: true, autoOn: true };
   }
   const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
-  return ampAutomationEnabled(persisted);
+  return ampAutomation(persisted);
 }
 
-export function setAmpAutomationEnabled(enabled: boolean) {
+export function setAmpAutomation(switches: AmpSwitches) {
   // Inside the write queue, like the category above: the meter tick rewrites
-  // state.json every few seconds and would otherwise overwrite the switch with
-  // a stale read.
-  return serializePower(() => setAmpAutomationEnabledUnlocked(enabled));
+  // state.json every few seconds and would otherwise overwrite the switches
+  // with a stale read.
+  return serializePower(() => setAmpAutomationUnlocked(switches));
 }
 
-async function setAmpAutomationEnabledUnlocked(enabled: boolean): Promise<AmpAutomationState> {
+async function setAmpAutomationUnlocked(switches: AmpSwitches): Promise<AmpAutomationState> {
   const persisted = await readJson<PowerState>(POWER_STATE_PATH, blankState());
   const state = { ...blankState(), ...persisted };
-  state.ampPowerControl = { automationEnabled: enabled, updatedAt: new Date().toISOString() };
+  // Written whole, which also drops the legacy key: what the panel shows and
+  // what the file says cannot drift apart.
+  state.ampPowerControl = { ...switches, updatedAt: new Date().toISOString() };
   await writeJsonAtomic(POWER_STATE_PATH, state);
   return state.ampPowerControl;
 }
@@ -230,13 +236,13 @@ export function buildFloatingMeterSummary(
   const activeWatts = resolved.activeCategoryId
     ? resolved.categories[resolved.activeCategoryId]?.lastWatts ?? null
     : null;
-  // The checkbox belongs to the amp's own row, and only to it: no amp category,
-  // or a controller aimed at a category this meter does not have, means no
-  // switch to draw (§7).
+  // The checkboxes belong to the amp's own row, and only to it: no amp
+  // category, or a controller aimed at a category this meter does not have,
+  // means no switches to draw (§7).
   const amp = power.ampPowerControl;
   const ampControl =
     amp && config.categories.some((category) => category.id === amp.categoryId)
-      ? { categoryId: amp.categoryId, enabled: ampAutomationEnabled(state) }
+      ? { ...ampAutomation(state), categoryId: amp.categoryId }
       : undefined;
   return {
     activeCategoryId: resolved.activeCategoryId,
