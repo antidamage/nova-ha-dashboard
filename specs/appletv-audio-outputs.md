@@ -89,13 +89,14 @@ active_outputs = [{"identifier": "94020663-50DB-442B-9355-78C9DDCA0C94",
 verdict        = on
 ```
 
-Both halves of the identification are confirmed by that: the Apple TV reports its
-own local output under **the UID spelling** of its identifier — one of the three
-the config entry already stores, so the identifier match is what fires, not the
-label fallback — and it reports it under its own name. Nothing beyond the local
-output was reported while the device was awake but idle, which is why the
-headphones row (§3) still needs an observation with Bluetooth audio connected
-before it can be called verified.
+The reading confirms the identification. The Apple TV reports its own local
+output under **the UID spelling** of its identifier —
+`94020663-50DB-442B-9355-78C9DDCA0C94`, one of the three spellings the config
+entry already stores — so the identifier branch of `is_own_output()` matches it.
+Its name matches too, so this shows the identifier branch is sufficient rather
+than that it is the branch that fired alone. Nothing beyond the local output was
+reported in that reading, which is why the headphones row (§3) still needs an
+observation with Bluetooth audio connected before it can be called verified.
 
 ## 3. The verdict
 
@@ -110,9 +111,12 @@ before it can be called verified.
 
 `unavailable` is the important row. The dashboard treats anything that is not
 `on` or `off` as no opinion (`amp-appletv-power.md` §8.3), so a bridge that
-cannot read — HA restarting, the Apple TV asleep, MRP down — leaves the
+cannot read — HA restarting, MRP down, the Apple TV off the network — leaves the
 amplifier following the Apple TV's power state, exactly as it did before this
-existed. It can never silence the amplifier by failing.
+existed. It can never silence the amplifier by failing. An Apple TV that is
+merely *asleep* is not this case: it answers in network standby and reports `on`
+(§2), and the dashboard is what keeps the amp off, because the power state is
+consulted before the audio route.
 
 ## 4. How it is wired
 
@@ -184,7 +188,9 @@ not an optional extra.
 
 - With the Apple TV awake and playing through its own output,
   `binary_sensor.<apple tv>_tv_speakers` is `on`; with Bluetooth headphones
-  connected it is `off`; asleep it is `unavailable`.
+  connected it is `off`. **Asleep it is still `on`** — MRP answers in standby —
+  and the amp stays off because the dashboard consults the power state first.
+  `unavailable` means HA holds no connection at all.
 - `sensor.<apple tv>_audio_output` names what the device reported, and its
   history is enough to diagnose a misclassification.
 - With the amp's `audioOutput` block configured: the amp is on for the first
@@ -192,7 +198,7 @@ not an optional extra.
   across the two.
 - With the block absent, nothing in the dashboard reads these entities and the
   amp behaves exactly as `amp-appletv-power.md` §1–§6 describe.
-- `python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/tests`
+- `python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/tests`
   passes, inside the HA container as well as outside it.
 - Home Assistant starts with the component installed, its own `apple_tv`
   integration unaffected — volume updates on `media_player.home_theatre` still
