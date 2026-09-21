@@ -81,7 +81,12 @@ Two mounts, the way every Nova knob has a Quick Access one and a panel one:
   on one centre line, and the playlist editor lists the three playlists in the
   panel's Advanced section under House Party.
 - Adding a playlist adds a preset button on both mounts; removing one takes it
-  away; the list survives a reload.
+  away; the list survives a reload. A name another row already carries is
+  refused with a message rather than saved — the list drops duplicates on the
+  way in, so storing one would make the other row vanish unexplained — and each
+  new row is named uniquely, so two "Add playlist" clicks add two rows.
+- A save that fails leaves the dial and the editor showing the list the host
+  still has, not the one it rejected.
 - Unit tests: `lib/apple-tv/playlists.test.ts`,
   `app/components/appleTVEncoderModel.test.ts`, `AppleTVEncoder.test.tsx`,
   `appleTVPresets.test.tsx`. e2e: `e2e/apple-tv-dial.spec.ts`.

@@ -126,6 +126,11 @@ export function useAppleTVAmp() {
 
   const save = useCallback(async (playlists: string[]) => {
     setError(null);
+    // The list the caller is rolling back to. Publishing the optimistic list
+    // first means `snapshot.playlists` is already the NEW one by the time the
+    // request fails, so a rollback that reads it back republishes the list the
+    // host rejected — the buttons would show presets that were never stored.
+    const previous = snapshot.playlists;
     publish({ playlists, saving: true });
     try {
       if (DEMO_MODE) {
@@ -142,7 +147,7 @@ export function useAppleTVAmp() {
       // Read back rather than trusting the echo: the host normalises the list.
       publish({ playlists: storedPlaylists(payload.playlists ?? playlists) });
     } catch (cause) {
-      publish({ playlists: snapshot.playlists });
+      publish({ playlists: previous });
       setError(cause instanceof Error ? cause.message : "Could not save the playlists");
     } finally {
       publish({ saving: false });

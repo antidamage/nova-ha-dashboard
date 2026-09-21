@@ -34,10 +34,13 @@
   grid-row: 2;
 }
 
-/* The preset row hugs its dial. It keeps its place in the band, so dial centres
-   stay lined up across panels — what the band is for — and only the row itself
-   moves, by the air the dial's box keeps under the knob. Containers with an
-   empty band (the climate knobs, the timer) have nothing to move. */
+/* The preset row hugs its dial. The band still holds it, so every panel's dial
+   keeps the same relationship to its own presets — the row moves up by the air
+   the dial's box keeps under its knob, and the narrower row gap moves every
+   panel's dial centre 8px down together, which is what keeps them lined up.
+   Containers with an empty band (the climate knobs, the timer) have nothing to
+   move. An untitled dial's box has no air under it, so its row's remaining
+   distance is the centring of the row above, not the title band. */
 .zone-lighting-controls > .zone-lighting-presets,
 .zone-lighting-controls > .quick-button-pair,
 .outside-light-controls > .quick-button-pair {

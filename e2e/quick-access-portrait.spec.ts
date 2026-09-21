@@ -109,6 +109,15 @@ for (const phone of PHONES) {
 
     await expectRingsOnScreen(page, phone.width);
 
+    // The pair's dials carry no rings at all, which is why they take half the
+    // row rather than a slot sized for the widest knob's ring reach: tapping one
+    // opens no floating ring layer that could run off the screen (2026-09-22
+    // independent review).
+    for (const segment of [".quick-segment-lights", ".quick-segment-appletv"]) {
+      await tap(page.locator(`${segment} .rotary-encoder-dial`));
+      await expect(page.locator(".rotary-encoder-ring-layer")).toHaveCount(0);
+    }
+
     if (SHOTS) {
       fs.mkdirSync(SHOTS, { recursive: true });
       await page.locator(".quick-access").screenshot({ path: path.join(SHOTS, `quick-access-portrait-${phone.name}.png`) });
@@ -138,6 +147,31 @@ test("portrait: each dial's preset row hugs it", async ({ page }) => {
     expect(entry.gap, `${entry.segment}: preset row below the dial`).toBeLessThanOrEqual(12);
     expect(entry.gap, `${entry.segment}: preset row not over the dial`).toBeGreaterThanOrEqual(0);
   }
+});
+
+test("portrait: a full playlist list wraps its row without moving the pair", async ({ page }) => {
+  await page.setViewportSize({ width: 440, height: 956 });
+  // The demo store is where a deviceless dashboard keeps the amplifier's state
+  // (appleTVAmpClient). Six is the most the list may hold, and six 44px buttons
+  // do not fit a phone's half-row: the row wraps to two lines.
+  await page.addInitScript((playlists) => {
+    window.sessionStorage.setItem("nova.dashboard.demoAppleTVAmp.v1", JSON.stringify({ playlists }));
+  }, ["Excellent", "Sword Smoke & Temple Drums", "Cool", "Four", "Five", "Six"]);
+  await gotoDashboard(page);
+  await expect(dials(page)).toHaveCount(4);
+  const ampRow = page.locator(".quick-segment-appletv .quick-button-pair");
+  await expect(ampRow.getByRole("button")).toHaveCount(6);
+  const [ampRowBox, lightsRowBox] = await Promise.all([
+    ampRow.boundingBox(),
+    page.locator(".quick-segment-lights .quick-button-pair").boundingBox(),
+  ]);
+  expect(ampRowBox!.height, "six playlists wrap to a second line").toBeGreaterThan(lightsRowBox!.height * 1.5);
+
+  // The dials still share one centre line: the wrap grows the tile downwards
+  // rather than pushing the knob off it.
+  const [lights, amp] = await places(page);
+  expect(Math.abs(lights.y - amp.y), "the pair stays on one line").toBeLessThanOrEqual(2);
+  expect(lights.size).toBeCloseTo(amp.size, 0);
 });
 
 test("portrait narrow phone: dials shrink to fit, not below 100px", async ({ page }) => {

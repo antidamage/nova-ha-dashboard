@@ -25,6 +25,7 @@ export function AppleTVPlaylistEditor() {
   const [draft, setDraft] = useState<string[]>(amp.playlists);
   const focused = useRef(false);
   const [dirty, setDirty] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // The store's answer replaces the draft — but never under a focused field, or
   // a save's reply would rewrite the name mid-edit.
@@ -32,11 +33,39 @@ export function AppleTVPlaylistEditor() {
     if (!focused.current) setDraft(amp.playlists);
   }, [amp.playlists]);
 
+  /**
+   * Commit one row's name. A name another row already carries is refused rather
+   * than saved: `cleanPlaylists` drops duplicates, so storing it would make the
+   * other row disappear with no explanation (Adeline's list is short and typed
+   * by hand, which is exactly how a duplicate happens).
+   */
   const commit = (index: number) => {
     const name = (draft[index] ?? "").trim();
     setDirty(null);
     if (name === (amp.playlists[index] ?? "").trim()) return;
+    const duplicate = draft.some((entry, at) => at !== index && entry.trim().toLowerCase() === name.toLowerCase());
+    if (duplicate) {
+      setError(`"${name}" is already in the list`);
+      setDraft(amp.playlists);
+      return;
+    }
+    setError(null);
     amp.renamePlaylist(index, name);
+  };
+
+  /**
+   * The name a new row starts with, unique among the rows on screen: two adds in
+   * a row would otherwise both be "New playlist", and the list drops the
+   * duplicate on the way in — the second click would look like it did nothing.
+   */
+  const newName = () => {
+    const taken = new Set(draft.map((entry) => entry.trim().toLowerCase()));
+    if (!taken.has("new playlist")) return "New playlist";
+    for (let index = 2; index <= MAX_PLAYLISTS + 1; index += 1) {
+      const candidate = `New playlist ${index}`;
+      if (!taken.has(candidate.toLowerCase())) return candidate;
+    }
+    return `New playlist ${Math.round(performance.now())}`;
   };
 
   /** One save for the whole list, whichever way it changed. */
@@ -95,7 +124,7 @@ export function AppleTVPlaylistEditor() {
         <IconButton
           label="Add playlist"
           disabled={draft.length >= MAX_PLAYLISTS || amp.saving}
-          onClick={() => amp.addPlaylist("New playlist")}
+          onClick={() => amp.addPlaylist(newName())}
         >
           <Plus aria-hidden="true" className="h-5 w-5" /><span>Add playlist</span>
         </IconButton>
@@ -105,7 +134,9 @@ export function AppleTVPlaylistEditor() {
           {amp.saving ? " · saving" : ""}
         </span>
       </div>
-      {amp.error ? <p className="apple-tv-playlists-error" role="alert">{amp.error}</p> : null}
+      {(error ?? amp.error)
+        ? <p className="apple-tv-playlists-error" role="alert">{error ?? amp.error}</p>
+        : null}
     </section>
   );
 }

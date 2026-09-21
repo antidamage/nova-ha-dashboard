@@ -19,17 +19,23 @@ wrappers: ColorEncoder, TemperatureEncoder, TimerEncoder).
 | Quick Access (lights and Apple TV segments, climate knobs) | `--quick-preset-band` 44px (quick button height) | 8px |
 
 **The row hugs its dial (Adeline, 2026-09-22).** A titled dial's box reserves
-the title's band above *and* below the knob — the lower half was empty air, and
-it is what held each preset row a whole knob-slack below the dial that owns it.
-The row keeps its place in the band, so dial centres stay lined up across panels
-(what the band is for), and takes that air back:
+the title's band above *and* below the knob — the band below is empty air, and it
+is what held each preset row a whole knob-slack below the dial that owns it. The
+row keeps its place in the band and takes that air back:
 
 - `--dial-preset-pull` 22px, the air under a 200px dial's knob, applied as a
   negative `margin-block-start` with `align-self: start` on the row.
   `dialPresetPull(size)` computes it from the dial's own geometry, and the
-  Lounge's halved pair publishes its own.
+  Lounge's halved pair publishes its own (14px at its 100px dials).
 - Quick Access publishes `--quick-dial-pull` from `QuickAccessCard` the same
-  way, beside `--quick-dial-slot`; the gap above a row there went 23px → 8px.
+  way, beside `--quick-dial-slot`.
+- Measured in Chromium at 1920x1080, dial circle to preset row: a lighting
+  panel 58px → 20px, the Lounge's halved pair 8px, Quick Access 23px → 8px. An
+  untitled dial (the Outside light) keeps 42px: its box has no air under it, so
+  what is left is the 1fr row centring it, which this change does not touch.
+- Dial centres move 8px down, together: the row gap went 24px → 8px, and the
+  dial is centred in the row above the band. Every panel shifts by the same 8px,
+  which is what keeps them aligned with each other.
 - A container whose band is empty (the climate knobs, the timer) has nothing to
   move, so its dial does not shift either.
 
