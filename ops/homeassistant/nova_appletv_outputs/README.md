@@ -45,7 +45,7 @@ recorder, and are readable through `/api/states`.
 1. Copy the component into Home Assistant's config directory:
 
    ```sh
-   sudo ops/homeassistant/nova_appletv_outputs/install.sh
+   sudo bash ops/homeassistant/nova_appletv_outputs/install.sh
    ```
 
 2. Add the key to `configuration.yaml` (it takes one optional list):
@@ -82,7 +82,7 @@ the amp follows the Apple TV's power state exactly as it did before.
 The verdict is a pure module, so it runs anywhere:
 
 ```sh
-python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/tests
+python3 -m unittest discover -s ops/homeassistant/nova_appletv_outputs/nova_appletv_outputs/tests
 ```
 
 ## Known tail risk

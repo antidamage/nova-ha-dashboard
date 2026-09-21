@@ -69,6 +69,21 @@ describe("desiredFromAudioOutput", () => {
     }
   });
 
+  it("cannot be talked into reading a dead bridge as off", () => {
+    // §8.3 is a property of this code, not of the shipped offStates: naming
+    // "unavailable" there is not a way to make an unreadable bridge switch the
+    // amplifier off.
+    const hostile = { offStates: ["off", "unavailable", "unknown"], onStates: ["on"] };
+    for (const state of ["unavailable", "unknown", ""]) {
+      expect(desiredFromAudioOutput(state, hostile)).toBeNull();
+    }
+  });
+
+  it("resolves a state both lists name to on", () => {
+    // The safe direction when a household edits the two lists into an overlap.
+    expect(desiredFromAudioOutput("on", { offStates: ["on"], onStates: ["on"] })).toBe("on");
+  });
+
   it("has no opinion about a state nobody classified", () => {
     expect(desiredFromAudioOutput("TV Speakers", config)).toBeNull();
   });

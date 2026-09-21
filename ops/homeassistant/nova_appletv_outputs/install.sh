@@ -37,21 +37,21 @@ esac
 rm -rf "$TARGET"
 mkdir -p "$TARGET"
 cp -a "$SOURCE_DIR/nova_appletv_outputs/." "$TARGET/"
-rm -rf "$TARGET/__pycache__"
+find "$TARGET" -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 echo "Installed $TARGET"
 
 if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -qx homeassistant; then
     # An import inside the running container is the pre-flight the restart
-    # deserves: it fails loudly here rather than silently in HA's log.
+    # deserves: it fails loudly here rather than silently in HA's log. The tests
+    # run in the installed copy, not the repo's — the copy is what will load.
     docker exec homeassistant python3 -c "
 import sys
 sys.path.insert(0, '/config/custom_components')
 import nova_appletv_outputs
 print('imports inside Home Assistant:', nova_appletv_outputs.DOMAIN)
 "
-    docker exec homeassistant python3 -m unittest discover \
-        -s /config/custom_components/nova_appletv_outputs/tests
+    docker exec homeassistant python3 -m unittest discover -s /config/custom_components/nova_appletv_outputs/tests
 fi
 
 echo

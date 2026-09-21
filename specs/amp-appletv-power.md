@@ -365,7 +365,7 @@ armed = categorySelected && automationEnabled
 ```
 
 Off, the controller is inert in precisely the way another category being
-selected makes it inert: no switching command of any kind, ownership released,
+selected makes it inert: no switching command of its own, ownership released,
 and the plug handed back to the meter guard.
 
 **Switching it off restores the plug**, on §4.3's terms: the controller is
@@ -428,6 +428,11 @@ classified is **no opinion**, never "off". A bridge that stops reporting must
 not be able to silence the amplifier: the worst it can do is leave the amp
 following the Apple TV's power state, exactly as it did before this section
 existed.
+
+That is a property of `desiredFromAudioOutput()`, not of the shipped config:
+`unavailable`, `unknown` and the empty state are reserved, so listing one of
+them in `audioOutput.offStates` does not make it mean off. A state both lists
+name resolves to on.
 
 ### 8.4 The rate limit and the rest are unchanged
 

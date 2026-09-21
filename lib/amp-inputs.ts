@@ -33,20 +33,29 @@ export type AmpAudioConfig = {
 };
 
 /**
+ * States that never carry an opinion, whatever config says.
+ *
+ * §8.3 — a dead bridge must not be able to silence the amplifier — is a
+ * property of this code, not of the shipped `offStates`: listing `unavailable`
+ * there is not a way to make an unreadable bridge switch the amp off.
+ */
+const NO_OPINION_STATES = new Set(["", "unavailable", "unknown"]);
+
+/**
  * The audio-output condition (§8.2): the amp is worth powering while the Apple
  * TV is playing through the TV's own speakers, and pointless while it plays
  * anywhere else — Bluetooth headphones, a HomePod, an AirPlay receiver.
  *
- * A value this household has not classified — `unavailable`, `unknown`, a
- * missing entity, a name the bridge has not reported before — is **no opinion**,
- * never "off". A dead bridge must not be able to silence the amplifier, which
- * is the same safe direction to be wrong in that §1.1 chose for the off-states.
+ * A value that is neither listed nor reported at all (`unavailable`, `unknown`,
+ * a missing entity, a name the bridge has not reported before) is **no opinion**,
+ * never "off". A state both lists name resolves to "on", which is the safe
+ * direction when a household edits the two lists into an overlap.
  */
 export function desiredFromAudioOutput(
   state: string | undefined,
   config: AmpAudioConfig,
 ): AmpAudioSignal {
-  if (!state) {
+  if (!state || NO_OPINION_STATES.has(state)) {
     return null;
   }
   if (config.onStates.includes(state)) {
