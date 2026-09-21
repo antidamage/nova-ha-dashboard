@@ -79,6 +79,11 @@ export function AppleTVEncoder({
   onLockChange,
 }: AppleTVEncoderProps) {
   const level = clampVolume(volume);
+  /* Clamped once, and used everywhere below: the base clamps whatever it is
+     given into `--re-size`, so a dial handed a size outside the contract would
+     otherwise draw at the clamp while its glow scaled for the size it was given
+     — a halo wider than the knob. The climate knob clamps the same way. */
+  const dialSize = Math.max(APPLE_TV_ENCODER_MIN_SIZE, Math.min(APPLE_TV_ENCODER_MAX_SIZE, Math.round(size)));
   /* The lit light is the mode, and the mode is what mute is: entering the mute
      light mutes, and cycling back to volume unmutes. One source of truth, so a
      tap on the lights and a change from anywhere else can never disagree. */
@@ -91,21 +96,21 @@ export function AppleTVEncoder({
       ariaLabel={ariaLabel}
       ariaValueText={`volume ${level} percent, ${muted ? "muted" : "unmuted"}`}
       color={volumeColour(level)}
-      ringPaint={volumeRingPaint(level, size)}
+      ringPaint={volumeRingPaint(level, dialSize)}
       disabled={disabled}
       title={title}
       faceTop={volumeLevelText(level)}
       faceTopClassName="apple-tv-encoder-level"
       faceBottom={muted ? "MUTED" : "VOLUME"}
       faceBottomClassName="apple-tv-encoder-mode"
-      glow={volumeGlow(level, size, muted)}
+      glow={volumeGlow(level, dialSize, muted)}
       knobSkin={knobSkin}
       leds={APPLE_TV_MODES}
       activeLed={mode}
       onActiveLedChange={(id) => onMuteChange(id === "mute")}
       minSize={APPLE_TV_ENCODER_MIN_SIZE}
       range={{ min: VOLUME_MIN, max: VOLUME_MAX, step: VOLUME_STEP }}
-      size={size}
+      size={dialSize}
       tuckAfterMs={tuckAfterMs}
       onLockChange={onLockChange}
       value={level}

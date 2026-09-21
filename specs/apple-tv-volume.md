@@ -19,10 +19,21 @@ and used to fine-tune the layout. It sends nothing.
   them. Entering the mute light mutes and cycling back to volume unmutes, so one
   piece of state (`muted`) is the whole of it: the lit light, the face word, the
   ring's glow and what a caller is told can never disagree.
-- **The ring is blue-green** (`#0e7f7a` → `#1fc9a6` → `#6ef0cf`) with the usual
-  subtle gradient shift: a conic gradient from 12 o'clock whose pale stop opens
-  from a quarter turn to three quarters as the volume rises. The level alone
-  decides the fill colour and the glow; a muted amp's glow is out entirely.
+- **The ring is blue-green** (`#0e7f7a` → `#1fc9a6` → `#6ef0cf`) and its colour
+  gradient runs **top to bottom** (`180deg`), the direction every other dial's
+  ring takes — brightest at 12 o'clock, deepest at 6, with the knob's own sunken
+  shading over it (`rotary-knob-face.css`; the unlock band writes the same
+  convention out in `rotary-unlock-ring.css`). It is never a conic or radial
+  sweep: the dials must not vary from each other (Adeline, 2026-09-22). The pale
+  band's share grows with the volume — the usual subtle gradient shift — and one
+  test pins the direction so it cannot drift back. The level alone decides the
+  fill colour and the glow; a muted amp's glow is out entirely.
+- **The glow is the same glow every dial has**: keyed to the dial's own colour
+  and scaled by the level, gone while muted. *Corrected 2026-09-22:* it shipped
+  reading that colour back through the hex parser, which produced `rgba(NaN, …)`
+  — a value a browser drops — so this dial had no glow at all while every
+  sibling had one. Both the model's tests and the dial's now reject a malformed
+  glow, and the model test compares its channels with `volumeColour`.
 - 50–200px, the colour knob's own floor and ceiling; the title arc, the
   light/dark knob skin and tuck-away all come from the base.
 
