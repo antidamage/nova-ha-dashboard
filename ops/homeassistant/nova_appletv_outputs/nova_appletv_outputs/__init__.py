@@ -51,6 +51,8 @@ from homeassistant.util import slugify
 from .const import (
     APPLE_TV_DOMAIN,
     AUDIO_OUTPUT_SUFFIX,
+    CONF_TV_SPEAKERS_NAMES,
+    DEFAULT_TV_SPEAKERS_NAMES,
     DOMAIN,
     ENTITY_DOMAINS,
     POLL_SECONDS,
@@ -63,14 +65,26 @@ from .outputs import Verdict, own_identifiers, own_names, verdict_from
 _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema(
-    {DOMAIN: vol.Schema({}, extra=vol.ALLOW_EXTRA)},
+    {
+        DOMAIN: vol.Schema(
+            {
+                vol.Optional(
+                    CONF_TV_SPEAKERS_NAMES, default=list(DEFAULT_TV_SPEAKERS_NAMES)
+                ): cv.ensure_list,
+            },
+            extra=vol.ALLOW_EXTRA,
+        )
+    },
     extra=vol.ALLOW_EXTRA,
 )
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Set up the bridge. One read per Apple TV, on HA's own connection."""
-    bridge = AppleTVOutputsBridge(hass)
+    options = (config.get(DOMAIN) or {})
+    bridge = AppleTVOutputsBridge(
+        hass, [str(name) for name in options.get(CONF_TV_SPEAKERS_NAMES, DEFAULT_TV_SPEAKERS_NAMES)]
+    )
     hass.data[DOMAIN] = bridge
     bridge.async_start()
     return True
@@ -79,8 +93,9 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 class AppleTVOutputsBridge:
     """Reads each Apple TV's active outputs and publishes the verdict."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, tv_speakers_names: list[str]) -> None:
         self.hass = hass
+        self._tv_speakers_names = tv_speakers_names
         self._cancel: list[CALLBACK_TYPE] = []
         self._watched: dict[str, ConfigEntry] = {}
 
@@ -137,7 +152,8 @@ class AppleTVOutputsBridge:
     @callback
     def _async_publish(self, entry: ConfigEntry, _atv: Any = None) -> None:
         """Publish both states for one Apple TV. Called on connect and on tick."""
-        verdict = self._read(entry)
+        own_ids, names = self._own_identities(entry)
+        verdict = self._read(entry, own_ids, names)
         shared = {
             "active_outputs": verdict.active_outputs,
             "apple_tv": entry.title,
@@ -155,14 +171,35 @@ class AppleTVOutputsBridge:
         self._set(
             self._entity_id(entry, AUDIO_OUTPUT_SUFFIX),
             verdict.audio_output,
-            {**shared, "friendly_name": f"{self._label(entry)} audio output"},
+            {
+                **shared,
+                "friendly_name": f"{self._label(entry)} audio output",
+                # What the Apple TV's own output was matched against. Publishing
+                # it is the diagnosis a misclassification needs: the identifier
+                # and the name are exactly what would have to change.
+                "own_identifiers": sorted(own_ids),
+                "own_names": sorted(names),
+            },
         )
 
     @callback
     def _set(self, entity_id: str, state: str, attributes: dict[str, Any]) -> None:
         self.hass.states.async_set(entity_id, state, attributes)
 
-    def _read(self, entry: ConfigEntry) -> Verdict:
+    def _own_identities(self, entry: ConfigEntry) -> tuple[set[str], set[str]]:
+        """
+        What the Apple TV's own output looks like when it reports itself.
+
+        The identifiers are the config entry's — Home Assistant already stores
+        every spelling of them — and the names are the Apple TV's own plus the
+        labels tvOS puts on its local output.
+        """
+        return (
+            own_identifiers(entry.unique_id, entry.data.get("identifiers")),
+            own_names(entry.title, entry.data.get("name"), *self._tv_speakers_names),
+        )
+
+    def _read(self, entry: ConfigEntry, own_ids: set[str], names: set[str]) -> Verdict:
         """What HA's live connection reports, or nothing at all."""
         atv = getattr(getattr(entry, "runtime_data", None), "atv", None)
         devices: list[Any] = []
@@ -171,11 +208,7 @@ class AppleTVOutputsBridge:
                 devices = list(atv.audio.output_devices)
             except Exception:  # noqa: BLE001 — pyatv raises per protocol; none of it is fatal
                 _LOGGER.debug("Reading %s's audio outputs failed", entry.title, exc_info=True)
-        return verdict_from(
-            devices,
-            own_identifiers(entry.unique_id, entry.data.get("identifiers")),
-            own_names(entry.title, entry.data.get("name")),
-        )
+        return verdict_from(devices, own_ids, names)
 
     def _entity_id(self, entry: ConfigEntry, suffix: str) -> str:
         return f"{ENTITY_DOMAINS[suffix]}.{self._slug(entry)}_{suffix}"

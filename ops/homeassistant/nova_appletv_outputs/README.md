@@ -48,10 +48,14 @@ recorder, and are readable through `/api/states`.
    sudo ops/homeassistant/nova_appletv_outputs/install.sh
    ```
 
-2. Add the key to `configuration.yaml` (a bare key — it takes no options):
+2. Add the key to `configuration.yaml` (it takes one optional list):
 
    ```yaml
    nova_appletv_outputs:
+     # Names tvOS may report the Apple TV's local output under. "TV Speakers"
+     # is matched by default; add a spelling here rather than waiting for a
+     # code change.
+     tv_speakers_names: ["TV Speakers"]
    ```
 
 3. Restart Home Assistant.
