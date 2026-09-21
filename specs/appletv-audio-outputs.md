@@ -79,6 +79,24 @@ Reads as three independent chances to recognise the Apple TV's own output:
 identifier, its own name, or the local output's label. A miss on all three is
 the tail risk of §6.
 
+**Observed on this house's Apple TV, 2026-09-22** (the first live reading, taken
+while the device reported `off` to HA — MRP answers in network standby, so the
+list is readable even then):
+
+```
+active_outputs = [{"identifier": "94020663-50DB-442B-9355-78C9DDCA0C94",
+                   "name": "Home Theatre"}]
+verdict        = on
+```
+
+Both halves of the identification are confirmed by that: the Apple TV reports its
+own local output under **the UID spelling** of its identifier — one of the three
+the config entry already stores, so the identifier match is what fires, not the
+label fallback — and it reports it under its own name. Nothing beyond the local
+output was reported while the device was awake but idle, which is why the
+headphones row (§3) still needs an observation with Bluetooth audio connected
+before it can be called verified.
+
 ## 3. The verdict
 
 `outputs.verdict_from(devices, own_ids, own_names)`:
@@ -137,7 +155,12 @@ curl -s -H "Authorization: Bearer $HA_TOKEN" "$HA_URL/api/states/sensor.home_the
 ```
 
 `on` while it plays through the television's own speakers, `off` while the audio
-is on Bluetooth headphones, `unavailable` while it is asleep.
+is on Bluetooth headphones — and **not** `unavailable` merely because the Apple
+TV is asleep: MRP answers in network standby and still lists the local output, so
+the bridge reports `on` and the *dashboard* is what decides the amp should be off
+(the Apple TV's power state comes first in `amp-appletv-power.md` §8.2).
+`unavailable` means HA holds no connection at all: an HA restart, an Apple TV off
+the network, or an `apple_tv` entry that failed to load.
 
 Remove by deleting the directory, dropping the key, and restarting. The
 dashboard's `audioOutput` config block is optional, so a removal with no config
