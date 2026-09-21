@@ -15,8 +15,36 @@ wrappers: ColorEncoder, TemperatureEncoder, TimerEncoder).
 
 | Surface | Band | Gap above band |
 |---|---|---|
-| Panels (zone lighting, outside light, climate cards, timer) | `--dial-preset-band` 80px (zone preset grid: 68px buttons + 5px padding + 1px border per side) | `--dial-preset-gap` 24px |
-| Quick Access (lights segment, climate knobs) | `--quick-preset-band` 44px (quick button height) | 8px |
+| Panels (zone lighting, outside light, climate cards, timer) | `--dial-preset-band` 80px (zone preset grid: 68px buttons + 5px padding + 1px border per side) | `--dial-preset-gap` 8px |
+| Quick Access (lights and Apple TV segments, climate knobs) | `--quick-preset-band` 44px (quick button height) | 8px |
+
+**The row hugs its dial (Adeline, 2026-09-22).** A titled dial's box reserves
+the title's band above *and* below the knob — the band below is empty air, and it
+is what held each preset row a whole knob-slack below the dial that owns it. The
+row keeps its place in the band and takes that air back:
+
+- `--dial-preset-pull` 22px, the air under a 200px dial's knob, applied as a
+  negative `margin-block-start` with `align-self: start` on the row.
+  `dialPresetPull(size)` computes it from the dial's own geometry, and the
+  Lounge's halved pair publishes its own (14px at its 100px dials).
+- Quick Access publishes `--quick-dial-pull` from `QuickAccessCard` the same
+  way, beside `--quick-dial-slot`.
+- Measured in Chromium at 1920x1080, dial circle to preset row: a lighting
+  panel 58px → 20px, the Lounge's halved pair (100px dials, pull 14px) 8px,
+  Quick Access 23px → 8px. The panel figure is not simply "air + gap − pull":
+  the same change that halves the row gap also lowers the dial's box 8px (below),
+  and the row starts at the band rather than centred in it, so the three effects
+  do not add up as separate terms — the numbers above are the measurements, not a
+  derivation.
+- Dial centres move 8px down, together: the row gap went 24px → 8px, and the
+  dial is centred in the row above the band. Every panel shifts by the same 8px,
+  which is what keeps them aligned with each other.
+- An **untitled** dial (the Outside light) has no title band to give back, so the
+  pull moves its row up into air the dial's box never had: 42px remain, all of it
+  the `1fr` row centring a 131px dial in a tall panel. Shortening that is a
+  different change (the dial is centred in the space above the band on purpose).
+- A container whose band is empty (the climate knobs, the timer) has nothing to
+  move, so its dial does not shift either.
 
 ## Same rules for lights, timers and climate
 

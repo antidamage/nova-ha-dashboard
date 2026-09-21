@@ -73,6 +73,7 @@ convention that came with it.
 | [outside-card.md](outside-card.md) · [weather-refresh.md](weather-refresh.md) | Narrower siblings of the above |
 | [router-and-network-panel.md](router-and-network-panel.md) | Router and network panel |
 | [quick-access-card.md](quick-access-card.md) | The one-line home card |
+| [apple-tv-volume.md](apple-tv-volume.md) | The amplifier dial (IR-emitter placeholder) |
 | [tasks-panel.md](tasks-panel.md) · [icloud-sync.md](icloud-sync.md) | Tasks and reminder sync |
 | [status-orb-stack.md](status-orb-stack.md) | Status orb priority, timer and washing ETA |
 | [discord-bot-module.md](discord-bot-module.md) | Discord module |

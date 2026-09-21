@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type {
   DashboardPreferences,
   ClimateControlState,
@@ -11,8 +11,12 @@ import type {
   WeatherStatus,
 } from "../../../../lib/types";
 import type { EntityActionInput } from "../../../../lib/aircon-control";
+import { AppleTVEncoder } from "../../AppleTVEncoder";
+import { PanelAppleTVPresets } from "../appleTVPresets";
+import { dialPresetPull } from "../../rotaryEncoderGeometry";
 import { BedroomTemperaturePanel, LoungeEnvironmentPanel } from "../EnvironmentPanels";
 import { AdvancedFold } from "../AdvancedFold";
+import { AppleTVPlaylistEditor } from "./AppleTVPlaylistEditor";
 import { IconButton } from "../IconButton";
 import { ZoneLightEvents } from "./ZoneLightEvents";
 import { ZoneRulePresetRow } from "../zoneLightRulesClient";
@@ -38,9 +42,17 @@ import {
   type SpectrumValue,
 } from "../lighting";
 import { useRemoteSetting } from "../useRemoteSetting";
+import { useAppleTVAmp } from "../appleTVAmpClient";
 import { HousePartyControl } from "./HousePartyControl";
 import { ZoneColorEncoder } from "./ZoneColorEncoder";
 import { brightnessPctConverged, spectrumValuesEqual } from "./zone-model";
+
+/**
+ * The Lounge's two dials: half the 200px dial a lighting zone shows on its own
+ * (Adeline, 2026-09-22), so the amplifier dial fits beside it. 100px is the
+ * temperature knob's own floor and comfortably inside the colour dial's 50–200.
+ */
+export const LOUNGE_PAIR_DIAL_SIZE = 100;
 
 export function ZoneControls({
   bedroomHeater,
@@ -166,6 +178,42 @@ export function ZoneControls({
   );
 
   const adaptivePresetLabel = adaptiveCandlelightLabel(sun);
+  const amp = useAppleTVAmp();
+  // The dial's preset row takes back the air under a titled dial's box, so it
+  // sits just under the knob (specs/dial-preset-band.md).
+  const pairStyle = {
+    "--dial-preset-pull": `${dialPresetPull(LOUNGE_PAIR_DIAL_SIZE).toFixed(2)}px`,
+  } as CSSProperties;
+
+  /**
+   * The zone's lighting dial and its preset row. Sized by the caller: a zone on
+   * its own gives the dial the panel's 200px, and the Lounge halves it to make
+   * room for the amplifier dial beside it.
+   */
+  const lightingControls = (size?: number, style?: CSSProperties) => (
+    <div className="zone-lighting-controls" style={style}>
+      <ZoneColorEncoder
+        brightness={brightness}
+        colorEnabled={hasActiveLights}
+        disabled={!hasLightDevices}
+        knobSkin={knobSkin}
+        size={size}
+        spectrum={spectrum}
+        zoneId={zone.id}
+        onBrightnessChange={setLocalBrightness}
+        onBrightnessCommit={(value) => onZoneAction("brightness", { brightnessPct: value })}
+        onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
+        onSpectrumChange={rememberSpectrum}
+      />
+      <ZoneRulePresetRow
+        adaptiveLabel={adaptivePresetLabel}
+        hasLightDevices={hasLightDevices}
+        hasSwitches={zone.counts.switch > 0}
+        handlers={{ applyPreset: applyPresetAction, setLocalBrightness, rememberSpectrum, onZoneAction }}
+        zoneId={zone.id}
+      />
+    </div>
+  );
 
   return (
     <section data-lighting-zone={lightingZone || undefined} className="zone-panel relative flex min-h-[620px] flex-col border border-neutral-700 bg-neutral-950/70 p-5 shadow-2xl">
@@ -216,6 +264,10 @@ export function ZoneControls({
                     onToggle={toggleHouseParty}
                   />
                   <div className="zone-advanced-rest">
+                    {/* The dial's preset buttons play these playlists, and the
+                        Lounge is where the dial is mounted beside the lights
+                        (Adeline, 2026-09-22). */}
+                    {loungeZone ? <AppleTVPlaylistEditor /> : null}
                     {bedroomZone ? <BedroomTemperaturePanel temperature={bedroomTemperature ?? null} /> : null}
                     {loungeZone ? <LoungeEnvironmentPanel environment={loungeEnvironment ?? null} /> : null}
                     <ZoneLightEvents
@@ -226,27 +278,28 @@ export function ZoneControls({
                 </div>
               }
             >
-              <div className="zone-lighting-controls">
-                <ZoneColorEncoder
-                  brightness={brightness}
-                  colorEnabled={hasActiveLights}
-                  disabled={!hasLightDevices}
-                  knobSkin={knobSkin}
-                  spectrum={spectrum}
-                  zoneId={zone.id}
-                  onBrightnessChange={setLocalBrightness}
-                  onBrightnessCommit={(value) => onZoneAction("brightness", { brightnessPct: value })}
-                  onColorCommit={(rgb, brightnessPct, cursor) => onZoneAction("color", { rgb, brightnessPct, cursor })}
-                  onSpectrumChange={rememberSpectrum}
-                />
-                <ZoneRulePresetRow
-                  adaptiveLabel={adaptivePresetLabel}
-                  hasLightDevices={hasLightDevices}
-                  hasSwitches={zone.counts.switch > 0}
-                  handlers={{ applyPreset: applyPresetAction, setLocalBrightness, rememberSpectrum, onZoneAction }}
-                  zoneId={zone.id}
-                />
-              </div>
+              {loungeZone
+                ? (
+                  /* The Lounge mounts the same amplifier dial beside its
+                     lighting dial — the room's lights and its music at once —
+                     so both are halved and sit as a pair (Adeline, 2026-09-22). */
+                  <div className="zone-dial-pair" style={pairStyle}>
+                    {lightingControls(LOUNGE_PAIR_DIAL_SIZE, pairStyle)}
+                    <div className="zone-lighting-controls zone-amplifier-controls" style={pairStyle}>
+                      <AppleTVEncoder
+                        ariaLabel="Apple TV volume"
+                        knobSkin={knobSkin}
+                        muted={amp.muted}
+                        size={LOUNGE_PAIR_DIAL_SIZE}
+                        volume={amp.volume}
+                        onMuteChange={amp.setMuted}
+                        onVolumeChange={amp.setVolume}
+                      />
+                      <PanelAppleTVPresets />
+                    </div>
+                  </div>
+                )
+                : lightingControls()}
             </AdvancedFold>
           )}
         </div>

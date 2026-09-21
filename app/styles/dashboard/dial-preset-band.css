@@ -7,7 +7,13 @@
    5px padding + 1px border, each side); Quick Access uses its 44px buttons. */
 :root {
   --dial-preset-band: 80px;
-  --dial-preset-gap: 24px;
+  --dial-preset-gap: 8px;
+  /* The air under a titled dial's knob: its box reserves the title's band above
+     AND below the knob, and the lower half is what held each preset row a
+     button's height away from the dial it belongs to (Adeline, 2026-09-22).
+     `dialPresetPull(size)` is this number for a 200px dial; the Lounge's halved
+     pair publishes its own. */
+  --dial-preset-pull: 22px;
   --quick-preset-band: 44px;
 }
 
@@ -26,6 +32,20 @@
 .timer-encoder-panel::after {
   content: "";
   grid-row: 2;
+}
+
+/* The preset row hugs its dial. The band still holds it, so every panel's dial
+   keeps the same relationship to its own presets — the row moves up by the air
+   the dial's box keeps under its knob, and the narrower row gap moves every
+   panel's dial centre 8px down together, which is what keeps them lined up.
+   Containers with an empty band (the climate knobs, the timer) have nothing to
+   move. An untitled dial's box has no air under it, so its row's remaining
+   distance is the centring of the row above, not the title band. */
+.zone-lighting-controls > .zone-lighting-presets,
+.zone-lighting-controls > .quick-button-pair,
+.outside-light-controls > .quick-button-pair {
+  align-self: start;
+  margin-block-start: calc(-1 * var(--dial-preset-pull, 0px));
 }
 
 /* One padding for every dial container: 20px above the dial's box (the zone

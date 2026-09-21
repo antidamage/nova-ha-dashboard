@@ -61,6 +61,8 @@
 @import "./styles/controls/rotary-title-arc.css";
 @import "./styles/controls/temperature-encoder.css";
 @import "./styles/dashboard/quick-access.css";
+@import "./styles/dashboard/quick-access-dials.css";
+@import "./styles/dashboard/apple-tv-dial.css";
 @import "./styles/dashboard/lighting-tint.css";
 @import "./styles/dashboard/advanced-fold.css";
 @import "./styles/dashboard/zone-light-events.css";

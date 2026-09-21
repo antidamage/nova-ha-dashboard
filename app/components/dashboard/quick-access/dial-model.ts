@@ -34,13 +34,30 @@ export function quickDialSlot(size: number) {
 }
 
 /**
+ * How wide the card's first line is at `size`: the lighting dial and the
+ * amplifier dial, side by side. Neither carries rings, so a dial's share of the
+ * line is the titled box it lays out in; the line itself has no column gap in
+ * portrait, which is the only layout that measures it.
+ */
+export function quickPairWidth(size: number) {
+  return 2 * ringGeometry(size, 0, true).titleFootprint;
+}
+
+/** Whether those two dials fit on one line at `size`, inside `width`. */
+export function quickPairFits(size: number, width: number) {
+  return quickPairWidth(size) <= width;
+}
+
+/**
  * The largest dial size, from the usual 133px down to the temperature knob's
- * 100px floor, whose rings still fit `width`. Below the floor the dials stay at
+ * 100px floor, that the card can hold: a climate knob's rings must fit `width`,
+ * and — since 2026-09-22, the lighting and amplifier dials share the card's
+ * first line — the pair must fit it too. Below the floor the dials stay at
  * 100px rather than stop reading as knobs (Adeline, 2026-09-14).
  */
 export function quickDialSizeFor(width: number) {
   for (let size = QUICK_TEMPERATURE_SIZE; size > TEMPERATURE_ENCODER_MIN_SIZE; size -= 1) {
-    if (quickDialSlot(size) <= width) return size;
+    if (quickDialSlot(size) <= width && quickPairFits(size, width)) return size;
   }
   return TEMPERATURE_ENCODER_MIN_SIZE;
 }

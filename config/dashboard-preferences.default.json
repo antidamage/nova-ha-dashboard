@@ -10,6 +10,13 @@
     "autoMode": true,
     "offTimerEndsAt": null
   },
+  "appleTV": {
+    "playlists": [
+      "Excellent",
+      "Sword Smoke & Temple Drums",
+      "Cool"
+    ]
+  },
   "theme": {
     "selection": "dark",
     "themes": {

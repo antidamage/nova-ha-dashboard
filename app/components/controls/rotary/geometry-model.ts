@@ -90,6 +90,22 @@ export function ringGeometry(size: number, count: number, titled = false): RingG
   };
 }
 
+/**
+ * The air under a titled dial's knob.
+ *
+ * A dial with a title reserves the title's band between the knob and its rings,
+ * and the box it lays out in is the whole footprint — which repeats that band
+ * above AND below the knob, since the knob is centred in it. The band below is
+ * empty space between the knob and whatever the caller puts underneath, and it
+ * is what held each preset row away from the dial that owns it (Adeline,
+ * 2026-09-22). A caller that mounts presets takes it back as a negative margin;
+ * see specs/dial-preset-band.md.
+ */
+export function dialPresetPull(size: number) {
+  const geometry = ringGeometry(size, 0, true);
+  return (geometry.titleFootprint - size * 2 * DIAL_RADIUS_SHARE) / 2;
+}
+
 /** Clockwise degrees from 12 o'clock, in (-180, 180]. */
 export function pointerAngle(dx: number, dy: number) {
   return (Math.atan2(dx, -dy) * 180) / Math.PI;

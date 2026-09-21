@@ -10,12 +10,13 @@ import type {
   SunStatus,
   WeatherStatus,
 } from "../../../../lib/types";
-import { ringGeometry } from "../../rotaryEncoderGeometry";
+import { dialPresetPull, ringGeometry } from "../../rotaryEncoderGeometry";
 import { useClimateCardTitles, type EntityActionsHandler } from "../climateCommands";
 import { climateDevicesForZone, type BedroomHeaterDevices } from "../shared";
 import type { ZoneActionHandler } from "../useZoneLighting";
 import { quickDialSlot } from "./dial-model";
 import { useQuickDialSize } from "./useQuickDialSize";
+import { QuickAppleTVSegment } from "./QuickAppleTVSegment";
 import { QuickLightsSegment } from "./QuickLightsSegment";
 import { QuickAirconSegment, QuickHeaterSegment } from "./QuickClimateSegments";
 import { QuickWeatherSegment } from "./QuickWeatherSegment";
@@ -56,19 +57,31 @@ export function QuickAccessCard({
   const { aircon, freshAirSwitch, quietSwitch, turboSwitch } = climateDevicesForZone(climateZone);
   const heaterSwitch = bedroomHeater?.switchEntity;
   const rowRef = useRef<HTMLDivElement>(null);
-  const dialSize = useQuickDialSize(rowRef);
+  const { pair, size: dialSize } = useQuickDialSize(rowRef);
   // Consumed only by the portrait CSS; see globals.css, "Portrait only".
   const rowStyle = {
     "--quick-dial-slot": `${quickDialSlot(dialSize).toFixed(2)}px`,
     "--quick-dial-box": `${ringGeometry(dialSize, 0, true).titleFootprint.toFixed(2)}px`,
+    // The air under a titled dial's box: its preset row takes it back, so a
+    // dial's buttons sit just under it rather than a whole knob-slack away
+    // (specs/dial-preset-band.md).
+    "--quick-dial-pull": `${dialPresetPull(dialSize).toFixed(2)}px`,
   } as CSSProperties;
 
   return (
     <section className="quick-access" aria-label="Quick Access" data-card-id="quick-access">
-      <div ref={rowRef} className="quick-access-row" style={rowStyle}>
-        {homeZone ? (
-          <QuickLightsSegment knobSkin={knobSkin} size={dialSize} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
-        ) : null}
+      <div ref={rowRef} className="quick-access-row" data-quick-pair={pair} style={rowStyle}>
+        {/* The card's first line: the two dials that are not climate, each with
+            its own preset row under it. */}
+        <div className="quick-dial-line">
+          {homeZone ? (
+            <QuickLightsSegment knobSkin={knobSkin} size={dialSize} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
+          ) : null}
+          <QuickAppleTVSegment knobSkin={knobSkin} size={dialSize} />
+        </div>
+        {/* Portrait: a zero-height full-width cell, so the climate dials take
+            the line below the pair instead of joining it. */}
+        <span className="quick-dial-break" aria-hidden="true" />
         {aircon || (bedroomHeater && heaterSwitch) ? (
           <div className="quick-climate-row">
             {aircon ? (

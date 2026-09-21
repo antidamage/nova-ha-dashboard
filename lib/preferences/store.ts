@@ -142,6 +142,17 @@ export async function mergeDashboardPreferences(next: DashboardPreferences) {
       };
     }
 
+    // A new preference sub-object needs its own branch here: the top-level
+    // spread below would replace the whole object, so a request that sets only
+    // the playlists would drop the round-trip stamp beside them.
+    if (next.appleTV) {
+      merged.appleTV = {
+        ...(current.appleTV ?? {}),
+        ...withoutUndefined(next.appleTV as Record<string, unknown>),
+        updatedAt: new Date().toISOString(),
+      } as DashboardPreferences["appleTV"];
+    }
+
     if (next.watchface) {
       merged.watchface = {
         ...(current.watchface ?? {}),

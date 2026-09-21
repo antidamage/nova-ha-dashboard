@@ -52,8 +52,12 @@ request was executed directly).
   when its controls wrap on a phone — and
   the lighting segment now always does, since its 84px dial is 104px across and
   its presets sit beneath it (2026-09-12).
-- **Portrait: one centred, wrapping row of dials (Adeline, 2026-09-14;
-  replaces the 2026-09-12 equal-thirds line).** Home lighting, Lounge aircon,
+- **Superseded 2026-09-22 (Adeline): the dials are two lines, not one row** —
+  see "Round: two dial lines, and the Apple TV" below. Everything in this
+  bullet still holds per line: the slots, the shared size and the shrink-to-fit
+  rule.
+- ~~Portrait: one centred, wrapping row of dials (Adeline, 2026-09-14;
+  replaces the 2026-09-12 equal-thirds line).~~ Home lighting, Lounge aircon,
   Bedroom heater, in that order. Three across, evenly spread, when they fit;
   fewer per line when they don't; on a phone one per line, centred. Weather
   keeps the line after the dials to itself.
@@ -228,6 +232,37 @@ From `DashboardState.weather`:
   of their own (`.quick-weather-readings`, so a column layout does not put each
   reading on its own line).
 
+## Round: two dial lines, and the Apple TV (Adeline, 2026-09-22)
+
+The card's dials are **two lines**: the lighting dial and the amplifier dial
+share the first, the two climate dials keep the line below them, and the weather
+follows on its own. The layout lives in `app/styles/dashboard/quick-access-dials.css`
+and the dial sizes in `quick-access/dial-model.ts`.
+
+- **The amplifier dial** is its own segment, `QuickAppleTVSegment`, built like
+  the lights one: the dial and its preset row under it, the tile border dropped
+  in portrait. It is the placeholder for the IR emitter that will drive the
+  amp's volume and power — see [apple-tv-volume.md](apple-tv-volume.md) — and
+  its three preset buttons are the Apple TV's playlists.
+- **The pair is one flex line** (`.quick-dial-line`) in landscape and on a
+  phone, and it **dissolves** (`display: contents`) in portrait, so the two
+  dials take the row's slots as siblings of the climate dials. A zero-height
+  full-width `.quick-dial-break` between the pair and the climate row is what
+  ends the first line: "lights and amp, then both climate dials on the next
+  line" (Adeline).
+- **The pair has to fit, not only one climate knob's rings.** `quickDialSizeFor`
+  now requires both: the widest knob's ring slot inside the row's width, *and*
+  the pair's two dial boxes inside it. A phone too narrow for two dials at even
+  the 100px floor stacks them one a line instead of letting their rings
+  overlap (`data-quick-pair="stacked"`). Measured in Chromium: 1080px keeps
+  133px with two dials per line, 440px shrinks to 123px, 375px sits on the
+  100px floor, 300px stacks.
+- **Each preset row hugs its dial.** A titled dial's box reserves the title's
+  band above *and* below the knob; the row takes the lower half back, which is
+  what had been holding the buttons a knob-slack away from the dial that owns
+  them (23px → 8px here, a 200px panel dial 58px → 20px). See
+  [dial-preset-band.md](dial-preset-band.md).
+
 ## Reuse
 
 - `QuickAccessCard` — `app/components/dashboard/QuickAccessCard.tsx`. Props
@@ -251,8 +286,12 @@ From `DashboardState.weather`:
   alone; night rules and per-light overrides visibly apply (server path).
 - Auto / Off / target on each climate segment behave exactly as the full
   card's controls do, and both stay in agreement when both are on screen.
+- The dials are two lines in every layout: the lighting dial and the Apple TV
+  dial on the first, the two climate dials on the next, each line centred, and
+  the pair never overlapping (2026-09-22).
 - Existing unit tests pass (`npm run test:unit`, `npm run test:aircon`),
-  `tsc`/`next build` clean, new unit tests for the state-label helpers.
+  `tsc`/`next build` clean, new unit tests for the state-label helpers, the
+  dial sizes and the pair fit.
 - Visual review passed by adversarial reviewers against real renders at
   wide landscape, iPad portrait and phone widths, in the demo harness.
 - Deployed with `deploy-nova-stack.ps1` through the task log.
