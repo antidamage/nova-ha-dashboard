@@ -137,12 +137,13 @@ class AppleTVOutputsBridge:
 
     def _log_change(self, entry: ConfigEntry, verdict: Verdict) -> None:
         """
-        One line per change, with what was reported.
+        One line per change, naming the outputs the Apple TV reported.
 
         Nothing is surfaced in the UI — the same silence specs/power-meters.md §1
-        requires of the meter guard — but this verdict is the whole input to
-        whether the amplifier is powered, so the log is where a misclassification
-        is diagnosable after the fact (specs/appletv-audio-outputs.md §6).
+        requires of the meter guard. At INFO this needs the household to raise
+        the level for this component (`custom_components.nova_appletv_outputs`);
+        Home Assistant's root logger is WARNING by default, which is why the
+        published states, not this line, are the trail §6 relies on.
         """
         if self._published.get(entry.entry_id) == verdict.tv_speakers:
             return
