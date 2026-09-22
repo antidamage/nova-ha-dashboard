@@ -55,10 +55,12 @@ describe("wash blocks", () => {
 
   it("keeps the day for a span with no width inside it, which a fall-back hour can produce", () => {
     // Two instants an hour apart either side of a daylight-saving fall-back read as
-    // the same local wall time (02:30 NZDT and 02:30 NZST on 5 Apr 2026), so a
-    // one-hour wash there is a span of no width to this walk. The day read still
-    // holds the cycle — its overlap test is `from < day end && to > day start`,
-    // true for from == to inside the day — so that day must stay steppable.
+    // the same local wall time (02:30 NZDT and 02:30 NZST on 5 Apr 2026), and the
+    // caller converts both with localWallMs (lib/power/calendar.ts), so a one-hour
+    // wash there arrives at this walk as a span of no width — the value below is
+    // what that conversion hands it. The day read still holds the cycle: its
+    // overlap test is `from < day end && to > day start`, true for from == to
+    // inside the day. So that day must stay steppable.
     expect(blockStartsForSpan(wall("2026-04-05T02:30:00"), wall("2026-04-05T02:30:00"))).toEqual([
       wall("2026-04-05T00:00:00"),
     ]);
