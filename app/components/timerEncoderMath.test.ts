@@ -1,10 +1,23 @@
 import { expect, it } from "vitest";
-import { snapTimerMinutes, timerFractionToMinutes, timerMinutesToFraction } from "./timerEncoderMath";
+import { TIMER_DIAL_STEP, TIMER_MIN_TURN_FRACTION, snapTimerMinutes, timerFractionToMinutes, timerMinutesToFraction } from "./timerEncoderMath";
 it("uses the approved detents and logarithmic endpoints", () => {
   expect(timerFractionToMinutes(0)).toBe(0);
   expect(timerFractionToMinutes(1)).toBe(480);
   for (const minutes of [1, 10, 60, 120, 240, 480]) expect(timerFractionToMinutes(timerMinutesToFraction(minutes))).toBe(minutes);
   expect(timerMinutesToFraction(10)).toBeGreaterThan(.4);
+});
+it("keeps the smallest duration a turn reaches above Off, in both directions", () => {
+  // 20 s is the floor of the turn: it sits one step above the bottom, and Off is
+  // the bottom itself, so a duration never reads Off on the way up.
+  expect(timerMinutesToFraction(1 / 3)).toBe(0.001);
+  expect(timerFractionToMinutes(timerMinutesToFraction(1 / 3))).toBe(1 / 3);
+  expect(timerMinutesToFraction(0.25)).toBe(0.001);
+  expect(timerFractionToMinutes(0)).toBe(0);
+  // The floor only works while it is a whole step of the dial's own grid, above
+  // the bottom: change the step and this fails rather than the dial going quiet.
+  expect(TIMER_MIN_TURN_FRACTION).toBeGreaterThan(0);
+  expect(TIMER_MIN_TURN_FRACTION % TIMER_DIAL_STEP).toBe(0);
+  expect(timerMinutesToFraction(1 / 3)).toBe(TIMER_MIN_TURN_FRACTION);
 });
 it("snaps to a graduated step: 5s under 1m, 10s to 5m, 30s to 10m, 1m to 30m, 5m to 60m, 10m above", () => {
   expect(snapTimerMinutes(0)).toBe(0);

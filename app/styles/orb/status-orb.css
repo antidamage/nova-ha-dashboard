@@ -23,6 +23,17 @@
 .timer-encoder-face { color:rgba(255,255,255,.46); font-weight:700; }
 .rotary-encoder[data-mode="light"] .timer-encoder-face { color:rgba(0,0,0,.46); }
 
+/* The reading doubles as the exact-minutes field's keyboard door: an empty
+   button stacked on the reading's own grid cell, sized to the icon's box. It
+   exists for Tab and Enter — a press anywhere on it is the knob's own press, and
+   reaches the panel's tap handler by bubbling. */
+.timer-encoder-face > * { grid-area:1 / 1; }
+.timer-encoder-field { width:1em; height:1em; padding:0; border:0; background:none; pointer-events:auto; }
+/* The ring goes on the reading, not on the button over it: the button is not
+   positioned, and a non-positioned element's outline paints under the knob's
+   own layers, so it never appeared. The reading is positioned, so it does. */
+.timer-encoder-face:has(.timer-encoder-field:focus-visible) .orb-event-readout { outline:2px solid var(--cyber-accent, rgb(60, 220, 240)); outline-offset:3px; border-radius:12px; }
+
 /* Status orb stack dial (specs/status-orb-stack.md, Round 2). */
 .orb-event-text { font-size: calc(1em * var(--orb-text-fit, 1)); white-space: nowrap; }
 .orb-stack-viewport {
