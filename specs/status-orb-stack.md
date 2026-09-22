@@ -256,13 +256,14 @@ format each entry's module follows.
 
 **Washing entry**
 - Active while a wash claimed by the **primary user** is running, and after it completes until acknowledged.
-- Config: `dashboard.people` gains a `primary` flag (exactly one); the dashboard serves that user. Wash heuristics are the primary user's (`autoAttribution`).
-- ETA: count down to the primary's typical wash duration (new config `typicalMinutes`, Adeline 66). Once exceeded, show elapsed overrun counting up (e.g. `+0:07`) — no re-guess.
+- Config: `dashboard.people` gains a `primary` flag (exactly one); the dashboard serves that user, and only that user's claim starts the wash's timer.
+- Countdown: the wash's own timer, the same periods the timer entry above shows (specs/power-meters.md, "The wash's timer"). It is the wash's timer that is extended while the machine still draws and finished when the machine stops, so the two entries can never disagree — and a wash nobody claimed has neither.
 - On completion: orb flashes; orb tap acknowledges the wash (same effect as acknowledging its reminder).
 - **If the stack contains a washing entry, the temporary wash reminder icon is not displayed.** The Discord message stays. The wash is silent however the stack is configured: its notification is the household timer the claim starts (specs/power-meters.md, "The wash's timer") and the timer's own entry is what repeats a sound, as below.
 
 **Timer**
 - One timer, server-side household state: every screen's orb and set-timer control show the same countdown; completion handled server-side so Discord fires with no screen open.
+- A timer may be **driver-completed** (`autoComplete: false`): the washing machine's timer is, and its clock never ends it. Its own period running out leaves the ring empty and the text at `0:00` until whatever drives it finishes it — the machine stops, or the household cancels the timer. That is what stops a screen flashing "Done" for a wash that is still running.
 - Timer holds its own position in the priority list (`timer` entry).
 - Range: logarithmic: a turn reaches 20 s (where the logarithmic turn bottoms out, the detent above Off; `timerEncoderMath`'s own steps below 1 min are 5 s) up to 8 h, and turning down from there reads Off. Detents: 5 s steps under 1 min, 10 s to 5 min, 30 s to 10 min, 1 min to 30 min, 5 min to 60, 10 min above. Exact entry is `NumericEntryPopover`, opened by a tap on the dial or by Tab to the reading and Enter; it reaches the sub-20 s values a turn cannot.
 - Icon list is **user-defined** in config (pick + order glyphs via `ReminderIconPicker`).
@@ -299,8 +300,8 @@ Adeline, 2026-09-22: the chime half of that is the **timer's** now. A wash is
 notified by the household timer its claim starts (specs/power-meters.md, "The
 wash's timer"), so a wash never chimes itself — it flashes, it is acknowledged by
 a tap, and what sounds is the timer's own entry, under this rule, on the timer's
-own chime. A wash whose claim set no timer (another person's wash, or one claimed
-after its typical length) is silent.
+own chime. A wash whose claim set no timer — another person's wash, or one whose
+timer has already finished — is silent.
 
 The other plan proposals are the implementation defaults: minute divisions
 1 to 10, 5 to 60, 10 to 120, 15 to 240, 30 to 480; five-second idle start;
@@ -331,9 +332,11 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 
 ### Entry kinds and states
 
-- **Countdowns** are `timer`, `washing` (ETA / overrun) and `rain-arriving`
-  (minutes until rain). They are interchangeable: among running countdowns, the
-  **shortest remaining** shows first. A washing overrun (`+0:07`) counts as zero
+- **Countdowns** are `timer`, `washing` and `rain-arriving` (minutes until
+  rain). They are interchangeable: among running countdowns, the **shortest
+  remaining** shows first. The washing entry counts the wash's own timer, the
+  same one the timer entry shows, so the two agree to the second; a wash whose
+  driver-completed timer is past its period but not yet finished counts as zero
   remaining. A countdown's row position in config does not order it.
 - Every other entry is **non-countdown** and has a state evaluated each tick:
   - `off`: not in the stack at all.

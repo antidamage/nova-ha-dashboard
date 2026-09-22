@@ -75,7 +75,7 @@ export async function sampleMetersUnlocked(): Promise<void> {
   if (config.washingMachine) {
     const energyKwh = counterDeltaKwh(state, statesById, config.washingMachine.energySensorEntityId, now, config.timing.maxIntegrationHours,
       meterReading(statesById, config.washingMachine) !== null);
-    washing = recordWashingMachineTick(
+    washing = await recordWashingMachineTick(
       { ...blankWashingMachineState(), ...persistedWashing },
       statesById,
       now,

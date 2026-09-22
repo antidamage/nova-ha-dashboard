@@ -109,7 +109,7 @@ export function WashTimeline({
                 const person = personOf(cycle.id, cycle.person);
                 const label = people.find((candidate) => candidate.id === person)?.label ?? "Unassigned";
                 const { left, width } = washPlacement(cycle, block);
-                // A pattern guess is hatched until someone taps it (§5.2).
+                // A default attribution is hatched until someone taps it (§5.2).
                 const guessed = person !== null && !isPending(cycle.id) && cycle.attribution?.source === "auto";
                 const color = personColor(people, person);
                 const curve = cycle.curve ?? [];

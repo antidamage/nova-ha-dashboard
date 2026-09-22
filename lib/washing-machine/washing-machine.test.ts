@@ -1,10 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
+  beginWashTimer,
   blankWashingMachineState,
   monthTotals,
   pruneWashingMachineCycles,
+  type WashingMachineState,
 } from "../washing-machine";
-import { replay } from "./washing-machine.fixtures";
+import { CONFIG, REPLAY_START_MS, replay } from "./washing-machine.fixtures";
+
+const MINUTE = 60_000;
+
+/** A wash already under way, claimed by Addie, with her timer started. */
+function claimed(): WashingMachineState {
+  const startedAt = new Date(REPLAY_START_MS).toISOString();
+  return {
+    cycles: [],
+    open: {
+      aboveSince: startedAt, attribution: { at: startedAt, source: "manual" }, belowSince: null, costNzd: 0,
+      kwh: 0.2, lastSampleAt: startedAt, lastWatts: 300, person: "addie", startedAt,
+      timer: beginWashTimer(startedAt, CONFIG.timer),
+    },
+    version: 1,
+  };
+}
+
+const ALERT = { discord: true, drying: { daylightHours: 3, hours: 4, maxRainMm: 0.1, maxRainChancePct: 30 }, enabled: true, personId: "addie" };
 
 describe("washing-machine cycle detection", () => {
   it("detects one cycle from a whole wash", () => {
@@ -88,6 +108,74 @@ describe("washing-machine cycle detection", () => {
 
     expect(state.cycles).toEqual([]);
     expect(state.open?.kwh ?? 0).toBe(0);
+  });
+});
+
+describe("the wash's timer while the cycle runs", () => {
+  it("extends while the machine keeps drawing, then finishes on a quiet tail", () => {
+    // 80 minutes of washing takes the first 70-minute period and one extension;
+    // the quiet tail finishes it well before the five-minute close window.
+    const state = replay([[300, 80], [0, 3]], claimed());
+
+    expect(state.open?.timer?.extensions).toBe(2);
+    expect(state.open?.timer?.completedAt).not.toBeNull();
+    expect(state.cycles).toEqual([]);
+  });
+
+  it("finishes the timer on the machine's own quiet, not the alert's", () => {
+    // No completion alert is configured at all, and the timer still finishes:
+    // it is the wash's notification, not the reminder pipeline's.
+    const state = replay([[300, 20], [0, 3]], claimed());
+
+    expect(state.open?.timer?.extensions).toBe(0);
+    expect(state.open?.timer?.completedAt).not.toBeNull();
+    expect(state.open?.completion).toBeUndefined();
+  });
+
+  it("does not finish a timer for a machine that is still drawing", () => {
+    const state = replay([[300, 20]], claimed());
+
+    expect(state.open?.timer?.completedAt).toBeNull();
+    expect(state.open?.timer?.extensions).toBe(0);
+  });
+});
+
+describe("an unclaimed wash", () => {
+  const WASH = [[1, 10], [400, 45], [1, 20]] as Array<[number, number]>;
+
+  it("closes as the household's other person, announced to nobody", () => {
+    const state = replay(WASH, blankWashingMachineState(), { ...CONFIG, completionAlert: ALERT, unclaimedPersonId: "tonya" });
+
+    expect(state.cycles[0].person).toBe("tonya");
+    expect(state.cycles[0].attribution).toEqual({ at: expect.any(String), source: "auto" });
+    expect(state.cycles[0].completion?.person).toBe("tonya");
+    // The completion is not the alert person's, so nothing goes out.
+    expect(state.cycles[0].completion?.discord).toBe(false);
+  });
+
+  it("stays unassigned when the household names nobody", () => {
+    const state = replay(WASH, blankWashingMachineState(), { ...CONFIG, completionAlert: ALERT });
+
+    expect(state.cycles[0].person).toBeNull();
+  });
+});
+
+describe("a claimed wash", () => {
+  it("keeps its claimer past the close, and the unclaimed person is never applied", () => {
+    const state = replay([[300, 20], [1, 10]], claimed(), { ...CONFIG, unclaimedPersonId: "tonya" });
+
+    expect(state.cycles[0].person).toBe("addie");
+    expect(state.cycles[0].attribution).toEqual({ at: expect.any(String), source: "manual" });
+  });
+
+  it("records a completion as hers and announces it", () => {
+    const state = replay([[300, 20], [0, 6]], claimed(), { ...CONFIG, completionAlert: ALERT });
+
+    expect(state.cycles[0].completion?.person).toBe("addie");
+    expect(state.cycles[0].completion?.discord).toBe(true);
+    // The wash's timer finished at the same edge as the completion, which is
+    // after the drop it is timed from and before the cycle closes.
+    expect(Date.parse(state.cycles[0].completion!.at)).toBeGreaterThan(Date.parse(state.cycles[0].endedAt));
   });
 });
 

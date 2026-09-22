@@ -205,7 +205,7 @@ export type OrbInfoSources = {
   now: number;
   orbTimer?: OrbTimer | null;
   events?: Record<string, OrbModuleOutput>;
-  washing?: { primaryPersonId?: string; etaAt?: string | null; open: { startedAt: string | null; person?: string | null; completion?: unknown } | null } | null;
+  washing?: { primaryPersonId?: string; open: { startedAt: string | null; person?: string | null; completion?: unknown; timer?: { endsAt: string; completedAt: string | null } | null } | null } | null;
   washTasks?: Array<{ id: string; start: string; dismissedAt?: string; alertDismissedAt?: string; moduleData?: Record<string, unknown> }>;
 
   watchface: {

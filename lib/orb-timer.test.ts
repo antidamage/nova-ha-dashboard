@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 vi.mock("./dashboard-events", () => ({ publishOrbTimer: vi.fn() }));
 vi.mock("./modules/runtime/hooks", () => ({ emitModuleEvent: vi.fn(), hasEventHandlers: () => true }));
 import { emitModuleEvent } from "./modules/runtime/hooks";
-import { setOrbTimer, tickOrbTimer, readOrbTimer, dismissOrbTimer, claimOrbTimerSound } from "./orb-timer";
+import { cancelOrbTimer, claimOrbTimerSound, completeOrbTimerAt, dismissOrbTimer, extendOrbTimer, readOrbTimer, setOrbTimer, tickOrbTimer } from "./orb-timer";
+import { timerSoundSlot } from "./orb-timer-model";
 let directory: string;
 beforeEach(async () => {
   directory = await mkdtemp(path.join(tmpdir(), "nova-orb-test-"));
@@ -43,5 +44,48 @@ describe("persistent server timer", () => {
     vi.setSystemTime(second.endsAt); await dismissOrbTimer(second.id);
     expect(emitModuleEvent).toHaveBeenCalledTimes(2);
     expect((await readOrbTimer())?.completedAt).toBe(second.endsAt);
+  });
+});
+describe("a timer its driver ends", () => {
+  it("is never completed by its own clock, and cannot be dismissed early", async () => {
+    const timer = (await setOrbTimer(60000, "tshirt", "Wash clothes", { autoComplete: false }))!;
+    vi.setSystemTime(timer.endsAt); await tickOrbTimer(); await tickOrbTimer();
+    expect(emitModuleEvent).not.toHaveBeenCalled();
+    expect((await readOrbTimer())?.completedAt).toBeNull();
+    await dismissOrbTimer(timer.id);
+    expect((await readOrbTimer())?.dismissedAt).toBeNull();
+  });
+  it("grows by the extension and keeps the id every screen already has", async () => {
+    const timer = (await setOrbTimer(60000, "tshirt", "Wash clothes", { autoComplete: false }))!;
+    const grown = await extendOrbTimer(timer.id, timer.endsAt + 600000);
+    expect(grown?.id).toBe(timer.id);
+    expect(grown?.endsAt).toBe(timer.endsAt + 600000);
+    expect(grown?.durationMs).toBe(660000);
+    expect(await extendOrbTimer("a-timer-that-is-not-this-one", timer.endsAt + 60000)).toBeNull();
+  });
+  it("completes and chimes at the moment its driver decided", async () => {
+    const timer = (await setOrbTimer(3600000, "tshirt", "Wash clothes", { autoComplete: false }))!;
+    const finishedAt = timer.startedAt + 2700000;
+    vi.setSystemTime(finishedAt); await completeOrbTimerAt(timer.id, finishedAt);
+    expect((await readOrbTimer())?.completedAt).toBe(finishedAt);
+    expect(emitModuleEvent).toHaveBeenCalledTimes(1);
+    expect(timerSoundSlot(await readOrbTimer(), finishedAt)).toBe(0);
+    await completeOrbTimerAt(timer.id, finishedAt);
+    expect(emitModuleEvent).toHaveBeenCalledTimes(1);
+  });
+  it("is taken off every screen silently when it is cancelled", async () => {
+    const timer = (await setOrbTimer(60000, "tshirt", "Wash clothes", { autoComplete: false }))!;
+    expect(await cancelOrbTimer(timer.id)).toBe(true);
+    expect(await readOrbTimer()).toBeNull();
+    expect(emitModuleEvent).not.toHaveBeenCalled();
+    expect(await cancelOrbTimer(timer.id)).toBe(false);
+  });
+  it("completes an ordinary timer stored before the wash's timer existed", async () => {
+    // A file written by an older build carries no `autoComplete`.
+    await writeFile(process.env.NOVA_ORB_TIMER_FILE!, JSON.stringify({ notified: false, soundSlot: -1, timer: {
+      completedAt: null, dismissedAt: null, durationMs: 60000, endsAt: 60000, icon: "timer", id: "legacy", label: "Egg", startedAt: 0,
+    } }), "utf8");
+    vi.setSystemTime(60000); await tickOrbTimer();
+    expect((await readOrbTimer())?.completedAt).toBe(60000);
   });
 });

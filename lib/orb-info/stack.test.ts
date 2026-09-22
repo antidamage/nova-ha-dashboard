@@ -81,12 +81,22 @@ describe("priority stack", () => {
   });
 });
 
-it("wash counts down, overruns and stays gone after acknowledgement", () => {
+it("wash counts the wash's own timer down and stays gone after acknowledgement", () => {
   const sources: OrbInfoSources = { now: 66000, watchface: null, novaLoad: null, power: null, dashboardState: null, tasks: null,
-    washing: { primaryPersonId: "primary", etaAt: new Date(73000).toISOString(), open: { person: "primary", startedAt: new Date(0).toISOString() } } };
+    washing: { primaryPersonId: "primary", open: { person: "primary", startedAt: new Date(0).toISOString(),
+      timer: { completedAt: null, endsAt: new Date(73000).toISOString() } } } };
   const wash = orbModuleById("washing");
   expect(wash.read(sources).text).toBe("0:07");
-  sources.now = 80000; expect(wash.read(sources).text).toBe("+0:07");
+  // An extension while the machine is still drawing is the same countdown,
+  // longer — never an overrun (§4.5).
+  sources.washing!.open!.timer!.endsAt = new Date(136000).toISOString();
+  expect(wash.read(sources).text).toBe("1:10");
+  // Past its period with the machine still running, both entries sit at 0:00:
+  // nothing counts up while the wash is unfinished.
+  sources.washing!.open!.timer!.endsAt = new Date(65000).toISOString();
+  expect(wash.read(sources).text).toBe("0:00");
+  // A wash nobody claimed has no timer, so it has no entry at all.
+  expect(wash.read({ ...sources, washing: { primaryPersonId: "primary", open: { person: null, startedAt: new Date(0).toISOString() } } }).active).toBe(false);
   sources.washing!.open!.completion = { at: new Date(80000).toISOString() };
   sources.washTasks = [{ id: "wash-test", start: new Date(80000).toISOString(), moduleData: { "washing-machine": { phase: "active" } } }];
   expect(wash.read(sources).dismiss?.id).toBe("wash-test");

@@ -77,27 +77,15 @@ const CONFIG: WashingMachineConfig = {
   startSustainedSeconds: 120,
   endWatts: 5,
   endQuietSeconds: 300,
-  typicalMinutes: 66,
   minCycleKwh: 0.02,
+  timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 5 },
   completionAlert: {
     enabled: true,
     personId: "addie",
-    zeroWatts: 0,
-    quietSeconds: 60,
-    maxSampleGapSeconds: 90,
     discord: true,
     drying: { hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 },
   },
-  autoAttribution: {
-    enabled: true,
-    personId: "addie",
-    standardMinMinutes: 1,
-    standardMaxMinutes: 500,
-    minDaysSinceLast: 0,
-    consecutiveMaxGapMinutes: 60,
-    spinMaxMinutes: 15,
-    spinMaxGapMinutes: 30,
-  },
+  unclaimedPersonId: "tonya",
 };
 
 const T0 = Date.parse("2026-09-14T20:00:00Z");

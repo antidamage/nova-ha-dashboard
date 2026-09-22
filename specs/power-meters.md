@@ -1,8 +1,8 @@
 # Metered power: Washing Machine and Floating Meter
 
 Adeline, 2026-09-14. Plan codename `we-now-how-two-lazy-lemur`. Task log
-`20260914T042058Z-5db7a382`. §4.5 pattern attribution and §4.6 power traces:
-plan codename `we-want-to-try-shimmering-sutton`, task log
+`20260914T042058Z-5db7a382`. The attribution rules (then §4.5) and §4.6
+power traces: plan codename `we-want-to-try-shimmering-sutton`, task log
 `20260914T094859Z-f28f5fd9`, same day.
 
 Two energy-monitoring smart plugs joined the LAN. They are the first real
@@ -283,7 +283,9 @@ temp-file-then-rename as the power state:
 {
   "version": 1,
   "open": { "startedAt": "<iso>", "kwh": 0, "costNzd": 0, "lastSampleAt": "<iso>",
-            "aboveSince": "<iso>|null", "belowSince": "<iso>|null" },
+            "aboveSince": "<iso>|null", "belowSince": "<iso>|null",
+            "timer": { "startedAt": "<iso>", "endsAt": "<iso>", "extensions": 0,
+                       "completedAt": "<iso>|null", "orbTimerId": "<uuid>|null" } },
   "cycles": [
     { "id": "<iso>-<short>", "startedAt": "<iso>", "endedAt": "<iso>",
       "kwh": 0.62, "costNzd": 0.18, "person": "addie" }
@@ -321,8 +323,17 @@ People come from household config, never product source —
 - With no people configured, the attribution UI is absent and only the monthly
   total renders. The product stays generic.
 
-A tap records `attribution: { source: "manual", at }` on the cycle. Pattern
-attribution (§4.5) never changes a cycle whose source is `manual`.
+A tap records `attribution: { source: "manual", at }` on the cycle. The
+unclaimed default (§4.5) never overrides one.
+
+A wash nobody **claims** belongs to the household's other person:
+`power.washingMachine.unclaimedPersonId` (for this household, Tonya). Nobody
+claimed it, so it is not evidence about the primary person, and the rule-based
+guess that used to fill that gap is gone. The default is applied at the
+completion edge, and again at close for a wash whose completion was never
+captured, with `attribution: { source: "auto" }` — a default is not a tap, and
+the block is hatched like any other guess. With no such person configured the
+wash closes **Unassigned**, which is what a household of one wants.
 
 ### 4.4 The month
 
@@ -330,79 +341,85 @@ attribution (§4.5) never changes a cycle whose source is `manual`.
 billing cycle the rest of the panel uses. A shared cost is split by the month
 people actually live in.
 
-### 4.5 Pattern attribution
+### 4.5 The wash's timer
 
-Adeline's description of the household's habits, as rules. This is a first
-version; a re-review around **2026-10-05** will use the traces in §4.6 to build
-better per-person profiles.
+The wash's notification is the household's **one** timer, driven by the machine.
+Adeline, 2026-09-23: *"I guess it's like a user timer but it's not… if I claim
+it, begin a timer with the estimated remaining time. the first period for this is
+1 hr 10 minutes… at the end of the timer, if the washing machine is still drawing
+power to do a wash, extend the timer by 10 minutes… if the washing machine stops
+drawing power for 2 minutes (or is so low that it's probably just alerting)
+finish the timer and play the timer notification sound."*
 
-- Adeline usually runs a standard wash: about an hour, up to 1.5 hours, most
-  often 1:06.
-- Tonya often runs shorter washes (18–45 min), sometimes followed by a spin.
-- A standard wash when Adeline has not washed in 5–6 days is very likely hers.
-- A standard wash straight after hers is usually also hers. A gap of more than
-  an hour, or a shorter cycle straight after, usually means someone else.
-- A spin straight after one of her washes is hers.
-- When unsure, leave the wash Unassigned.
+- A wash **starts** the timer when it is **claimed**: the tap on the running wash
+  block that attributes it to the **primary** person. An unclaimed wash starts
+  nothing and is notified by nothing.
+- The timer's **first period** is `timer.firstPeriodMinutes`, measured from the
+  claim.
+- When a period ends with the machine **still drawing power to do a wash** — above
+  `timer.stopWatts` — the timer is extended by `timer.extendMinutes`, and so on
+  until the machine stops. A period whose end is more than one extension in the
+  past (the app was down, the meter was unreachable) is anchored to the present
+  rather than replayed: nobody was watching those periods.
+- The timer **finishes** once the meter has read at or below `timer.stopWatts` for
+  longer than `timer.stopSeconds` of observed sample time — the same window, and
+  the same moment, the completion record is captured at, so the chime and the
+  notification describe one event.
+- Nothing but the machine ends it. The household timer it drives is published as a
+  **driver-completed** timer (`autoComplete: false`), so no screen can flash
+  "Done" or chime at the end of a period while the wash is still running.
+- Everything else about it is the household timer's own machinery, unchanged: the
+  countdown ring, the chime, the 30 s repeat, the orb flash, the tap that
+  dismisses it on every screen and its Discord message.
+- The icon and label are the household's **first configured timer icon** (for
+  Adeline, a t-shirt glyph labelled "Wash clothes"); a household that has
+  configured none gets the default `Countdown` icon — the same fallback the timer
+  control uses.
+- It is the household's single timer, so a claim **replaces** a countdown already
+  running. If the household replaces it with a timer of their own mid-wash, the
+  wash stops driving it and never takes it back; the wash's own countdown then
+  continues on the orb's washing entry alone.
+- A tap that takes the wash off the primary person (**unclaiming**) releases an
+  unfinished timer silently. One that has already finished is left alone: it is
+  an alert waiting to be acknowledged, and the wash ending is not an
+  acknowledgement.
+- A wash whose `completion` has already been captured starts no timer: between
+  the completion edge and the cycle closing (§4.1's `endQuietSeconds`) the
+  finished wash is still tappable, and a countdown for a wash that is done must
+  not replace the household's timer.
+
+The open cycle carries the wash's own timer —
+`{ startedAt, endsAt, extensions, completedAt, orbTimerId }` — and the household
+timer is a mirror of it. `orbTimerId` is what makes the wash the owner of that one
+timer and of nobody else's: a tick extends, finishes or releases only the timer it
+set.
 
 Config, household data only (`nova-household/dashboard-config.json`):
 
 ```jsonc
 "washingMachine": {
-  "autoAttribution": {
-    "enabled": true,
-    "personId": "addie",
-    "standardMinMinutes": 55,
-    "standardMaxMinutes": 95,
-    "minDaysSinceLast": 5,
-    "consecutiveMaxGapMinutes": 60,
-    "spinMaxMinutes": 15,
-    "spinMaxGapMinutes": 30
+  "unclaimedPersonId": "tonya",
+  "timer": {
+    "firstPeriodMinutes": 70,
+    "extendMinutes": 10,
+    "stopWatts": 5,
+    "stopSeconds": 120,
+    "maxSampleGapSeconds": 90
   }
 }
 ```
 
-Absent or `enabled: false` means no automatic attribution.
+**If the meter never reports again** the timer waits where it is, showing `0:00`
+on the orb: nothing has told it the machine stopped, and a timer that guessed
+would be the false "done" this rule exists to remove. The household can cancel it
+from the set-timer control, or set a timer of their own.
 
-**Terms.** Duration is `endedAt − startedAt`. A *person wash* is any stored
-cycle whose `person` is `personId`, manual or auto. The *preceding cycle* is the
-stored cycle with the latest `endedAt` at or before this cycle's `startedAt`.
-
-**Rules**, first match wins. The only possible result is `personId`:
-
-| Rule | Condition |
-|---|---|
-| `day-gap` | duration within `[standardMin, standardMax]` minutes AND the latest person wash ended ≥ `minDaysSinceLast` days before this start |
-| `consecutive` | duration within the standard band AND the preceding cycle is a person wash AND this starts ≤ `consecutiveMaxGapMinutes` after it ended |
-| `spin` | duration ≤ `spinMaxMinutes` AND the preceding cycle is a person wash AND this starts ≤ `spinMaxGapMinutes` after it ended |
-
-Bounds are inclusive. No match → **Unassigned**. The rules never assign anyone
-else: a short cycle or a long gap after a person wash is "probably not her", not
-"certainly Tonya", so it stays Unassigned.
-
-With no person wash on record, `day-gap` fires only when the store's oldest
-cycle started ≥ `minDaysSinceLast` days before this one. Missing history is not
-evidence that she has not washed.
-
-**When the rules run.**
-
-1. **At the completion edge** — the moment §"Claimed-wash completion alerts"
-   decides the wash is done, before its `completion` record is captured. If the
-   open cycle has no person, the rules run with duration = `zeroSince −
-   startedAt`. A match sets `person` and `attribution: { source: "auto", rule,
-   at }` first, so the completion is captured as hers and the existing alert
-   fires in full: the flashing icon, Discord and the drying recommendation. It
-   does **not** gain a sound — the wash's chime is the timer a claim starts, and
-   an unclaimed wash was never claimed.
-2. **At close** — with the final `endedAt`. A cycle with no attribution is
-   evaluated (covers a disabled alert or a completion that never fired). A cycle
-   whose attribution is `auto` is re-evaluated; if no rule holds any more it
-   reverts to Unassigned and its `attribution` is removed. An alert that has
-   already fired is not retracted.
-3. **Never** on a cycle whose attribution is `manual`, and never retroactively:
-   cycles stored before this shipped are not re-evaluated.
-
-A spin attributed to her alerts like any of her washes.
+**What this replaced.** Until 2026-09-23 an unclaimed wash was *guessed* at from
+its duration and the gap since the primary person's last wash (`autoAttribution`:
+`day-gap`, `consecutive`, `spin`), and a fixed `typicalMinutes` (66) ETA on the
+orb's washing entry stood in for a timer. Both are gone: the claim is the signal
+(§4.3's unclaimed person is what a wash nobody claimed becomes), and the countdown
+is this timer's, on the timer entry and on the washing entry alike.
 
 ### 4.6 Power traces
 
@@ -420,13 +437,14 @@ from rather than totals.
   `data/power/washing-machine-traces/<cycleId>.json`:
 
   ```jsonc
-  { "cycleId": "…", "person": "addie", "attribution": { "source": "auto", "rule": "day-gap", "at": "…" },
+  { "cycleId": "…", "person": "addie", "attribution": { "source": "manual", "at": "…" },
     "startedAt": "…", "endedAt": "…", "kwh": 0.62, "points": [[0, 212.4], [30, 380.0]] }
   ```
 
   A cycle discarded under `minCycleKwh` writes no trace.
-- Every attribution change — tap or rule — rewrites the trace file's `person`
-  and `attribution`, so the curve is always logged against the current person.
+- Every attribution change — a tap, or the unclaimed default — rewrites the
+  trace file's `person` and `attribution`, so the curve is always logged against
+  the current person.
 - Trace files are pruned with their cycles (400 days).
 - Traces are recorded for every wash, assigned or not, so a later tap still has
   a curve.
@@ -520,8 +538,10 @@ republishing.
 ### Claimed-wash completion alerts
 
 An optional `power.washingMachine.completionAlert` household setting names the eligible
-person, zero-power threshold, quiet duration, report freshness limit, Discord delivery and
-drying thresholds. There are no config-page controls.
+person, Discord delivery and drying thresholds. There are no config-page controls. The
+zero-power threshold, the quiet duration and the report freshness limit are no longer
+its: §4.5's stop rule is what "the machine has stopped" means, for the timer and for this
+record alike.
 
 It names no sound. The wash sounds nothing of its own: its notification is an ordinary
 household timer, started by the claim ("The wash's timer" below), so the chime, the orb
@@ -531,8 +551,8 @@ countdown uses. The uploaded MP3, the washing-machine audio and chime routes and
 read by anything.
 
 Claiming the live graph's wash creates a session-linked temporary reminder. It waits
-silently until a confirmed wash exceeding `minCycleKwh` has zero power observed across
-strictly more than the configured quiet duration.
+silently until a confirmed wash exceeding `minCycleKwh` has been quiet — at or below
+§4.5's `stopWatts` — for strictly more than its `stopSeconds`.
 
 That window is measured in **observed sample time** — the meter tick's own clock,
 the same one §4.1's close timer uses. It has to be: the plugs report **on change**,
@@ -552,50 +572,18 @@ would backdate the window to a moment nobody was watching — but it is not grou
 for discarding the window either: the value it carries is still the meter's last
 word. Such a window starts with the sample that observed it, so a cached zero can
 never complete a wash on the first tick after a restart. A reading above
-`zeroWatts`, a sample gap beyond `maxSampleGapSeconds`, or no reading at all
-resets the timer.
+`stopWatts`, a sample gap beyond `maxSampleGapSeconds`, or no reading at all
+resets the window.
 
 Completion ownership is captured at the edge, so historical
 attribution cannot create alerts. Acknowledging removes the temporary icon; the task
 record retains acknowledgement to prevent replay. Active and historical claim writes
 share the power sampler's write queue.
 
-### The wash's timer
-
-Adeline, 2026-09-22: *"when the washing machine module starts a timer, it should be
-exactly the same as if the user set a timer… when I CLAIM the wash it should look at how
-long it's been running for, how long my normal wash runs for (1 hr 6 minutes) and set up
-a user timer for the remainder."*
-
-Claiming the running wash sets the household's **one** timer — the same `/api/orb-timer`
-state the set-timer control writes and every screen reads — for what is left of the
-primary person's typical wash: a claim 20 minutes into a 66-minute typical wash sets 46
-minutes. The countdown ring, the chime, the repeat, the orb flash, the tap that dismisses
-it and the timer's Discord message are all the timer's own machinery, unchanged.
-
-- Set by the tap that claims the wash, never by the wash opening. An unclaimed wash has
-  no ETA entry in the orb either, so it starts nothing and is notified by nothing.
-- Only a claim that lands on the **primary** person starts one; another person's tap is a
-  claim, not this timer.
-- The icon and label are the household's own **first configured timer icon** (for Adeline,
-  a t-shirt glyph labelled "Wash clothes"); a household that has configured none gets the
-  default `Countdown` icon — the same fallback the timer control uses.
-- A wash already past its typical length sets nothing, and a timer already running is left
-  exactly as it is.
-- A wash whose `completion` has already been captured sets nothing either: there is a
-  window between the completion edge and the cycle closing (§4.1's `endQuietSeconds`) in
-  which the finished wash is still tappable, and a countdown for a wash that is already
-  done must not replace the household's timer.
-- It is the household's single timer, so claiming a wash **replaces** a countdown already
-  running. That is what "exactly as if the household set a timer" means, and it is the one
-  consequence to know about.
-- The figure is the same `typicalMinutes` the orb's wash entry counts down, and the same
-  primary person supplies both.
-
 The completion flashes the icon — it sounds nothing itself, the timer the claim
-started is what chimes — and emits the existing `reminder.due` event with the completion
-text and `discord-bot.onDue` enabled on that event. No device-specific Discord hook or module
-update is needed. The stored reminder's ordinary echo stays disabled so only the
+started is what chimes (§4.5) — and emits the existing `reminder.due` event with the
+completion text and `discord-bot.onDue` enabled on that event. No device-specific Discord
+hook or module update is needed. The stored reminder's ordinary echo stays disabled so only the
 enriched completion notification is announced. The Discord module queues one combined
 completion/drying message, deduplicated by wash ID and original completion time. Its
 generic reminder echo is disabled. The hourly HA forecast is assessed against the
@@ -624,17 +612,27 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 - `npx vitest run` passes, including new tests for the guard decision, the
   fallback ladder, and the cycle-detection boundaries.
 
-### Pattern attribution and traces
+### The wash's timer and traces
 
-- Rule boundaries are tested: 54/55 and 95/96 min standard band; 4.9/5 days;
-  60/61 min consecutive gap; 15/16 min spin; 30/31 min spin gap.
-- A manual claim is never changed by a rule.
-- An unclaimed ~66-minute wash 6 days after her last wash captures its
-  completion as hers (alert fires) and closes as auto `day-gap`.
-- A 12-minute spin straight after it also alerts and closes as auto `spin`.
-- A 30-minute cycle straight after her wash stays Unassigned.
-- With under 5 days of history and no wash of hers, a standard wash stays
-  Unassigned.
+- Period boundaries are tested: a period that runs out with the machine still
+  drawing extends by `extendMinutes` and counts the extension; a period that runs
+  out with the machine quiet does not; a stalled period anchors to the present.
+- A timer that has finished is never extended, and its finish time is recorded
+  once.
+- A claimed wash's timer is started for `firstPeriodMinutes` from the claim, and
+  is published to the household timer as `autoComplete: false`.
+- The meter tick extends the running timer while the machine draws, and finishes
+  it at the machine's quiet — before the period it was counting would have run
+  out.
+- A tap that takes the wash off the primary person releases an unfinished timer
+  silently; a timer that has already finished is left for the household to
+  acknowledge.
+- A wash whose `completion` has already been captured starts no timer.
+- An unclaimed wash closes as `unclaimedPersonId` with `attribution.source` of
+  `auto`, and its completion (when there is one) is announced to nobody. With no
+  unclaimed person configured it closes Unassigned.
+- A claimed wash is never re-assigned by the unclaimed default, and its
+  completion is announced when the alert person claimed it.
 - A closed wash has a trace file whose `person` follows a later tap.
 - Blocks show their curve and auto blocks are hatched, without overflow at
   kiosk portrait and landscape.
@@ -642,11 +640,12 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 ## Status orb wash entry
 
 See [status-orb-stack.md](status-orb-stack.md). Exactly one household person is
-primary; that person supplies wash attribution and typical duration (Adeline:
-66 minutes). A configured washing orb entry suppresses the temporary wash icon; the
-entry flashes on completion and is acknowledged by a tap, and it never chimes — the
-timer the claim started is what sounds ("The wash's timer"). Without the entry, keep
-the temporary icon, which is likewise silent. Discord completion behaviour is
+primary; the wash's timer is that person's claim (§4.5). A configured washing orb
+entry counts down the wash's timer — the same periods the timer entry shows — and
+suppresses the temporary wash icon; the entry flashes on completion and is
+acknowledged by a tap, and it never chimes — the timer the claim started is what
+sounds. Without the entry, keep the temporary icon, which is likewise silent, and
+the timer entry carries the countdown alone. Discord completion behaviour is
 unchanged.
 
 ## 7. Round 2: polling, cycle floor and data repair (Adeline, 2026-09-15)
