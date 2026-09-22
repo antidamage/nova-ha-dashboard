@@ -9,7 +9,7 @@ import { useWashHistory } from "./useWashHistory";
 import { personColor, washStep } from "./wash-timeline";
 
 /**
- * The washing machine's card: a 12-hour block of washes (WashTimeline) that can
+ * The washing machine's card: a local day of washes (WashTimeline) that can
  * be stepped back through the machine's stored history, the attribution a tap on
  * a block performs, and the month's sub-totals.
  *
@@ -25,7 +25,7 @@ export function WashingMachineCard({
   summary: PowerWashingMachineSummary;
 }) {
   const [pending, setPending] = useState<Record<string, string | null>>({});
-  // The block on show. `null` is the newest block, which follows the poll.
+  // The day on show. `null` is the newest day, which follows the poll.
   const [cursor, setCursor] = useState<number | null>(null);
   const { blocks, error, history } = useWashHistory({ blockMs: cursor });
   const viewed = history?.cycles;

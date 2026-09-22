@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { WashHistory } from "../../../../../lib/power";
 
-/** How often the block on show is read again while the card is on screen. */
+/** How often the day on show is read again while the card is on screen. */
 export const WASH_REFRESH_MS = 10_000;
 
 async function fetchWashHistory(blockMs: number | null): Promise<WashHistory> {
@@ -15,13 +15,14 @@ async function fetchWashHistory(blockMs: number | null): Promise<WashHistory> {
 }
 
 /**
- * The wash graph's data: the block index the buttons step through, and one block.
+ * The wash graph's data: the index of the days the buttons step through, and the
+ * day on show.
  *
- * The block on show is re-read on its own timer, so a wash starting or running
- * comes forward by itself, and so does the newest block when the graph is stepped
+ * The day on show is re-read on its own timer, so a wash starting or running
+ * comes forward by itself, and so does the newest day when the graph is stepped
  * forward onto it — a snapshot taken before stepping away can predate an
- * attribution made since. Only the newest block's reply is kept as the follow
- * state; a block stepped back to is read into `viewed` and stays where it was put.
+ * attribution made since. Only the newest day's reply is kept as the follow
+ * state; a day stepped back to is read into `viewed` and stays where it was put.
  * Each read carries its own sequence, so a slow reply cannot overwrite a newer
  * one. See specs/power-meters.md 5.2.
  */

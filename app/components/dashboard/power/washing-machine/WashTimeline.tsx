@@ -1,16 +1,27 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PowerWashingMachineSummary, WashBlock, WashGraphCycle } from "../../../../../lib/power";
 import { MomentaryFeedbackButton } from "../../../MomentaryFeedbackButton";
 import { classNames } from "../../shared";
 import { GRAPH_HEIGHT, GRAPH_WIDTH } from "../meters-model";
-import { personColor, washPlacement, washStep } from "./wash-timeline";
+import {
+  personColor,
+  WASH_LABEL_ROW_PX,
+  washLabelPlacement,
+  washPlacement,
+  washStep,
+} from "./wash-timeline";
 
 /**
- * The wash graph: one 12-hour block of washes, with a step button either side of
- * its own date and start/end times. Blocks are placed across the block's width,
- * each one a button that claims or reassigns the wash it holds.
+ * The wash graph: one local day of washes, with a step button either side of its
+ * own date. Blocks are placed across the day, each one a button that claims or
+ * reassigns the wash it holds, and each one labelled underneath with the time it
+ * started and how long it ran.
+ *
+ * The day's own start and end times are deliberately not drawn: the axis runs
+ * midnight to midnight, and the times worth reading on it are the washes' own.
  *
  * The card above owns the data (useWashHistory) and the attribution; this file
  * draws what it is handed. See specs/power-meters.md 5.2.
@@ -42,47 +53,52 @@ export function WashTimeline({
   const peak = Math.max(0.01, ...cycles.map((cycle) => cycle.kwh));
   const earlier = washStep(blocks, cursor, -1) !== undefined;
   const later = washStep(blocks, cursor, 1) !== undefined;
+  // One row is reserved before the first reply arrives, so the graph does not
+  // jump when its labels land.
+  const placed = block ? washLabelPlacement(cycles, block) : null;
+  const labelRows = placed?.rows ?? 1;
+  const labels = placed?.labels ?? [];
 
   return (
     <>
-      {/* The block's own bounds, above the graph: start time left, date centred,
-          end time right, in the panel's small uppercase. The step buttons sit
-          outside them, and skip the blocks that hold no wash. */}
+      {/* The day's own date, above the graph, in the panel's small uppercase. The
+          step buttons sit outside it and skip the days that hold no wash. */}
       <div className="power-wash-nav mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
         <MomentaryFeedbackButton
           type="button"
-          aria-label="Earlier 12-hour block with washes"
+          aria-label="Earlier day with washes"
           className="power-wash-step"
           disabled={!earlier}
           onClick={() => onStep(-1)}
-          title="Earlier 12-hour block"
+          title="Earlier day with washes"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </MomentaryFeedbackButton>
-        <div className="power-wash-window grid grid-cols-3 items-center gap-2 text-xs font-black uppercase">
-          <span className="text-neutral-400">{block?.startLabel ?? "--"}</span>
+        <div className="power-wash-window grid items-center text-xs font-black uppercase">
           <span className="text-center text-neutral-100">{block?.dateLabel ?? (error ? "Wash history unavailable" : "--")}</span>
-          <span className="text-right text-neutral-400">{block?.endLabel ?? "--"}</span>
         </div>
         <MomentaryFeedbackButton
           type="button"
-          aria-label="Later 12-hour block with washes"
+          aria-label="Later day with washes"
           className="power-wash-step"
           disabled={!later}
           onClick={() => onStep(1)}
-          title="Later 12-hour block"
+          title="Later day with washes"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </MomentaryFeedbackButton>
       </div>
 
-      <div className="power-wash-graph relative border border-neutral-800 bg-neutral-900/60">
+      <div
+        className="power-wash-graph relative border border-neutral-800 bg-neutral-900/60"
+        style={{ "--wash-label-rows": labelRows, "--wash-label-row": `${WASH_LABEL_ROW_PX}px` } as CSSProperties}
+      >
         <svg className="power-wash-svg" viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
           <path className="power-curve-grid" d={`M 0 10 H ${GRAPH_WIDTH} M 0 20 H ${GRAPH_WIDTH} M 0 30 H ${GRAPH_WIDTH}`} />
         </svg>
         <div className="power-wash-blocks">
           {cycles.length === 0 ? (
-            <p className="power-wash-empty text-xs font-black uppercase text-neutral-600">No washes in this 12-hour block</p>
+            <p className="power-wash-empty text-xs font-black uppercase text-neutral-600">No washes on this day</p>
           ) : null}
           {block
             ? cycles.map((cycle) => {
@@ -94,13 +110,14 @@ export function WashTimeline({
                 const color = personColor(people, person);
                 const curve = cycle.curve ?? [];
                 const curvePeak = Math.max(1, ...curve);
+                const ran = cycle.startLabel && cycle.durationLabel ? `${cycle.startLabel}, ${cycle.durationLabel}` : null;
                 return (
                   // A plain button: the shared press flash painted a cyan box over the
                   // block and hid the new person colour for half a second (§7.6).
                   <button
                     key={cycle.id}
                     type="button"
-                    aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${guessed ? " (guessed)" : ""}. Tap to claim or reassign.`}
+                    aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${guessed ? " (guessed)" : ""}${ran ? `, started ${ran}` : ""}. Tap to claim or reassign.`}
                     className={classNames("power-wash-block", guessed && "is-guessed")}
                     onClick={() => onClaim(cycle.id, person)}
                     style={{
@@ -110,7 +127,7 @@ export function WashTimeline({
                       left: `${left}%`,
                       width: `${width}%`,
                     }}
-                    title={`${cycle.active ? "Active — " : ""}${label}${guessed ? " (guessed)" : ""} / ${cycle.kwh.toFixed(2)} kWh`}
+                    title={`${cycle.active ? "Active — " : ""}${label}${guessed ? " (guessed)" : ""} / ${cycle.kwh.toFixed(2)} kWh${ran ? ` / ${ran}` : ""}`}
                   >
                     {curve.length > 1 ? (
                       <svg className="power-wash-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -125,6 +142,20 @@ export function WashTimeline({
                 );
               })
             : null}
+        </div>
+        {/* Each wash's own start time and duration, under the block it belongs to. */}
+        <div className="power-wash-labels">
+          {labels.map(({ across, cycle, row }) =>
+            cycle.startLabel && cycle.durationLabel ? (
+              <span
+                key={cycle.id}
+                className="power-wash-label"
+                style={{ "--wash-label-row-index": row, left: `${across}%` } as CSSProperties}
+              >
+                {cycle.startLabel} · {cycle.durationLabel}
+              </span>
+            ) : null,
+          )}
         </div>
       </div>
 

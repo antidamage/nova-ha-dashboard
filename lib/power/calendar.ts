@@ -152,7 +152,7 @@ export function localHourEndMs(hourKey: string) {
 
 /**
  * The local wall-clock value of an instant: a local date-time written as epoch
- * ms. A 12-hour block is then plain arithmetic on that value, and the result
+ * ms. A day block is then plain arithmetic on that value, and the result
  * converts back with `localInstantMs` (lib/washing-machine/history-model.ts).
  */
 export function localWallMs(date: Date) {

@@ -295,9 +295,10 @@ Telemetry:
 - `GET /api/router`: return router status with no-store headers.
 - `GET /api/power`: ensure power monitor is running, sample now, return power
   dashboard data with no-store headers.
-- `GET /api/power/washing-machine?block=<epoch ms>`: return one 12-hour block of
-  the wash graph — the block index, that block's date and start/end labels, and
-  its washes with their curves. Without `block`, the newest block holding a wash.
+- `GET /api/power/washing-machine?block=<epoch ms>`: return one local day of the
+  wash graph — the day index, that day's local date, and its washes with their
+  start/duration labels and curves. Without `block`, the newest day holding a
+  wash.
 - `POST /api/power/washing-machine { cycleId } | { active: true }`: cycle that
   wash's attribution onward.
 - `GET /api/nova-load`: return host load metrics.

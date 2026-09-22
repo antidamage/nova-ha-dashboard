@@ -9,9 +9,9 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * One 12-hour block of the wash graph, plus every block that holds a wash so the
- * graph's buttons can skip the empty ones. `?block=<epoch ms>` names the block
- * to read; without it the newest block holding a wash is read.
+ * One local day of the wash graph, plus every day that holds a wash so the
+ * graph's buttons can skip the empty ones. `?block=<epoch ms>` names the day
+ * to read; without it the newest day holding a wash is read.
  * See specs/power-meters.md §5.2.
  */
 export async function GET(request: Request) {
