@@ -5,16 +5,10 @@ import { readDashboardPreferences } from "../../../../lib/preferences";
 import { attributeControl } from "../../../../lib/control-attribution";
 import { writePlayCommand } from "../../../../lib/appletv-command";
 import { storedPlaylists, type AppleTVPlaylist, type AppleTVRepeatMode } from "../../../../lib/apple-tv/playlists";
+import { NOVA_TV_APP } from "../../../../lib/apple-tv/apps";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-/**
- * Our own app on the television (`nova-appletv-dashboard`), which is the only
- * place in this house with a MusicKit session. Launched by bundle id rather
- * than by the name it happens to have in the app list.
- */
-const NOVA_TV_APP = "nz.co.skull.NovaAppleTVDashboard";
 
 /** How long a sleeping Apple TV gets to wake before the rest of the sequence. */
 const WAKE_TIMEOUT_MS = 20_000;
