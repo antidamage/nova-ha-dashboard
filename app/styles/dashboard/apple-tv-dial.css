@@ -227,6 +227,13 @@
   gap: 12px;
 }
 
+/* The Apple TV's own answer about the last press: the app's words, so a preset
+   whose name matches no library playlist says so instead of playing nothing
+   silently. */
+.apple-tv-playlists-last-play-failed {
+  color: var(--cyber-highlight);
+}
+
 .apple-tv-playlists-error {
   color: var(--cyber-highlight);
   font-family: var(--cyber-mono);

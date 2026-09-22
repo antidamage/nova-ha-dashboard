@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import { attributeControl } from "../../../lib/control-attribution";
 import { MAX_PLAYLISTS, cleanPlaylistName, cleanPlaylists, storedPlaylists } from "../../../lib/apple-tv/playlists";
+import { readPlayResult } from "../../../lib/appletv-command";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +27,12 @@ export const runtime = "nodejs";
  */
 export async function GET() {
   const preferences = await readDashboardPreferences();
-  return NextResponse.json({ playlists: storedPlaylists(preferences.appleTV?.playlists) });
+  return NextResponse.json({
+    // The last outcome the Apple TV's app reported for a preset press, so the
+    // editor can say why a press played nothing (specs/apple-tv-volume.md §Play).
+    lastPlay: await readPlayResult(),
+    playlists: storedPlaylists(preferences.appleTV?.playlists),
+  });
 }
 
 export async function PUT(request: Request) {
