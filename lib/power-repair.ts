@@ -173,7 +173,7 @@ export function replayWashingHistory(options: {
           : [],
       });
     }
-    const anchor = state.open?.startedAt ?? state.open?.aboveSince ?? null;
+    const anchor = state.open?.startedAt ?? state.open?.wokeAt ?? state.open?.aboveSince ?? null;
     trace = anchor ? { anchor, points: trace.anchor === anchor ? trace.points : [] } : { anchor: null, points: [] };
     if (anchor) trace.points.push([Math.round(at / 1000), Math.round(watts * 10) / 10]);
   }

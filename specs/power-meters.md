@@ -252,21 +252,65 @@ and from the modelled daily base:
   "entityIds": ["switch.washing_machine"],
   "startWatts": 15,
   "startSustainedSeconds": 120,
-  "endWatts": 5,
-  "endQuietSeconds": 300,
+  "endWatts": 2,
+  "endQuietSeconds": 180,
   "minCycleKwh": 0.05
 }
 ```
 
 Detection runs on the existing power sample tick, off the same HA state read.
 
+**The three bands the plug actually reads.** Nine days of the fixed plug's own
+history were read back on 2026-09-23, and they separate cleanly:
+
+| reading | what the machine is doing |
+|---|---|
+| `0 W`, exactly | off: a finished load, and every minute until the next one |
+| `4-5 W` | awake and paused: a soak, a drain, a lit panel |
+| `15-700 W` | running: fill, tumble, spin |
+
+`endWatts` sits *below* the pause floor and `startWatts` above it, and that is
+what the two numbers are for: neither threshold then has to be defended by a
+long window. The pair is a bet on the machine's own idle draw, and it is worth
+naming: a machine that sits at 2 W or more with nothing running is in the dead
+band, so no cycle of it could ever close — `endWatts` belongs above that draw and
+below the wash's own pause floor, and on this plug the two are nine days apart
+(0.0 W against 4.0 W). Two measured failures set them:
+
+- **A soak is not an end.** Every mid-cycle pause in those nine days held
+  4.0-4.9 W — seven of them inside a single wash, the longest 4.6 minutes. At
+  `endWatts: 5` each of those was silence, and only `endQuietSeconds: 300` kept
+  a wash from splitting in two; a pause of 5.5 minutes would have split it.
+- **A few quiet minutes between loads is not one wash.** On 2026-09-23 one load
+  stopped at 0 W and the next woke 3m48s later. Under 5 W / 300 s the two ran
+  together as one 2h11m cycle, because the long window that protected the
+  second load's fill pauses also swallowed the gap between them. At 2 W / 180 s
+  the first load closes at its own drop and the second opens on its wake.
+- `endQuietSeconds` stays longer than the wash's own timer's quiet
+  (`timer.stopSeconds`): the timer is what finishes the wash and notifies about
+  it, and the close is the storage edge that follows. A close window no longer
+  than the timer's would tear the wash down — and its timer with it — on the
+  same tick, before the wash was ever finished.
 - A cycle **opens** when the meter has stayed above `startWatts` for
-  `startSustainedSeconds`. The cycle's `startedAt` is when the rise began, not
-  when it was confirmed.
+  `startSustainedSeconds`. The cycle's `startedAt` is **when the machine woke** —
+  the first reading above the off floor — not when the drum's first sustained
+  burst confirmed it: the fill's own pauses drop back under `startWatts`, so the
+  wash was dated from the second burst — on 2026-09-23's morning the second load
+  woke at 09:10:12 and was dated 09:15:30, 5m18s late. That wake is abandoned
+  once the machine has spent longer below `startWatts` *in one pause* than the
+  rise a wash itself takes — a fill that dips several times is still a fill — and
+  a sample gap longer than the timer's limit abandons it too, since the wake
+  belongs to a stretch nobody observed. Past either, the wash that follows is
+  dated from its own drum.
+  A wake is armed by the meter drawing above the off floor — the load starting,
+  or the plug coming back after a stretch nobody observed — and never while the
+  one before it stands, so a plug left drawing in the dead band cannot start a
+  fresh wake every tick, and the count of time below `startWatts` begins with
+  the pause rather than with the wake, so no wake inherits the count of the one
+  before it.
 - A cycle **closes** when the meter has stayed below `endWatts` for
   `endQuietSeconds`. `endedAt` is when it dropped, not when the quiet window
-  expired. Five minutes of quiet means a mid-cycle soak or drain pause never
-  splits one wash into two.
+  expired.
 - A closed cycle below `minCycleKwh` is **discarded** — that is the machine's
   standby panel or a door-open blip, not a wash.
 - Energy is integrated the way `samplePowerUnlocked()` integrates everything
@@ -284,6 +328,7 @@ temp-file-then-rename as the power state:
   "version": 1,
   "open": { "startedAt": "<iso>", "kwh": 0, "costNzd": 0, "lastSampleAt": "<iso>",
             "aboveSince": "<iso>|null", "belowSince": "<iso>|null",
+            "wokeAt": "<iso>|null", "belowStartSeconds": 0,
             "timer": { "startedAt": "<iso>", "endsAt": "<iso>", "extensions": 0,
                        "completedAt": "<iso>|null", "orbTimerId": "<uuid>|null" } },
   "cycles": [
@@ -431,9 +476,10 @@ from rather than totals.
   (offset from `startedAt`, whole seconds; watts to one decimal) to
   `data/power/washing-machine-traces/open.json`, a sidecar so the main store is
   not rewritten with a growing array each tick. Samples taken while the rise
-  was being confirmed are kept from `aboveSince`, so the curve starts at the
-  rise. The sidecar carries the open cycle's `startedAt`; one that does not
-  match the open cycle is discarded.
+  was being confirmed are kept from the cycle's own start — `wokeAt` until it
+  is confirmed, `startedAt` after — so the curve begins where the cycle does.
+  The sidecar carries the open cycle's `startedAt`; one that does not match the
+  open cycle is discarded.
 - At close, the trace is written to
   `data/power/washing-machine-traces/<cycleId>.json`:
 
@@ -605,7 +651,8 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
   of measurement it reports `high` and its own hour-of-day profile.
 - The grid total does not jump when the meter moves between categories.
 - A wash produces exactly one cycle block; a short standby blip produces none;
-  a pause mid-wash does not split it.
+  a pause mid-wash does not split it, and two loads a few minutes apart produce
+  two blocks rather than one long one.
 - Tapping a block cycles Unassigned -> Addie -> Tonya -> Unassigned and the
   sub-totals follow.
 - The month total is the calendar month in `Pacific/Auckland`.

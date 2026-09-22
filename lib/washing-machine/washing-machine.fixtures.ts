@@ -25,6 +25,14 @@ export const SAMPLE_SECONDS = 30;
 export const REPLAY_START_MS = Date.parse("2026-09-14T08:00:00.000Z");
 
 /**
+ * The thresholds the fixed plug is actually metered at: the off floor sits
+ * below the 4-5 W a wash's own pauses draw, and the quiet window outlasts the
+ * wash's own timer. See specs/power-meters.md §4.1, which records the nine days
+ * of trace these numbers were read off.
+ */
+export const METERED_CONFIG: WashingMachineConfig = { ...CONFIG, endWatts: 2, endQuietSeconds: 180 };
+
+/**
  * Replay a watt trace at a fixed sample interval, the way the power monitor
  * ticks. Each entry is [watts, minutes].
  */
