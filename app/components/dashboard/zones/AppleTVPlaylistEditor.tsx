@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { MAX_PLAYLISTS, cleanPlaylistName, type AppleTVPlaylist } from "../../../../lib/apple-tv/playlists";
 import { IconButton } from "../IconButton";
 import { useAppleTVAmp } from "../appleTVAmpClient";
+import { AppleTVLastPlay } from "../appleTVLastPlay";
 import { PresetIconMark } from "../appleTVPresetIcon";
 import { AppleTVPresetIconPicker } from "../appleTVPresetIconPicker";
 import { AppleTVPlaybackControls } from "./AppleTVPlaybackControls";
@@ -183,6 +184,7 @@ export function AppleTVPlaylistEditor() {
       {(error ?? amp.error)
         ? <p className="apple-tv-playlists-error" role="alert">{error ?? amp.error}</p>
         : null}
+      {amp.lastPlay ? <AppleTVLastPlay result={amp.lastPlay} /> : null}
       {iconTarget ? (
         <AppleTVPresetIconPicker
           icon={iconTarget.icon}

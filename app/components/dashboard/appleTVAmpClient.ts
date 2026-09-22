@@ -29,6 +29,7 @@ import {
   type AppleTVPlaylist,
 } from "../../../lib/apple-tv/playlists";
 import { VOLUME_MAX, clampVolume } from "../appleTVEncoderModel";
+import { readPlayResult, type AppleTVPlayResult } from "./appleTVPlayResult";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 const DEMO_KEY = "nova.dashboard.demoAppleTVAmp.v1";
@@ -40,6 +41,8 @@ export const PLACEHOLDER_VOLUME = 40;
 
 export type AppleTVAmpSnapshot = {
   playlists: AppleTVPlaylist[];
+  /** What the Apple TV's app last reported doing with a press, when it has. */
+  lastPlay: AppleTVPlayResult | null;
   volume: number;
   muted: boolean;
   loaded: boolean;
@@ -49,6 +52,7 @@ export type AppleTVAmpSnapshot = {
 
 const INITIAL: AppleTVAmpSnapshot = {
   playlists: storedPlaylists(undefined),
+  lastPlay: null,
   volume: PLACEHOLDER_VOLUME,
   muted: false,
   loaded: false,
@@ -107,8 +111,8 @@ async function load() {
   try {
     const response = await fetch(API);
     if (!response.ok) throw new Error("Could not read the playlists");
-    const body = await response.json() as { playlists?: unknown };
-    publish({ playlists: storedPlaylists(body.playlists), loaded: true, error: null });
+    const body = await response.json() as { lastPlay?: unknown; playlists?: unknown };
+    publish({ playlists: storedPlaylists(body.playlists), lastPlay: readPlayResult(body.lastPlay), loaded: true, error: null });
   } catch (cause) {
     publish({ error: cause instanceof Error ? cause.message : "Could not read the playlists" });
   }

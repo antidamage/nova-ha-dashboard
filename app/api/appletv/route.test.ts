@@ -19,6 +19,10 @@ vi.mock("../../../lib/preferences", () => ({
 
 vi.mock("../../../lib/control-attribution", () => ({ attributeControl: vi.fn(async () => undefined) }));
 
+vi.mock("../../../lib/appletv-command", () => ({
+  readPlayResult: vi.fn(async () => ({ at: "2026-09-22T00:00:00.000Z", id: 5, name: "Snake", played: false, reason: "NO PLAYLIST NAMED SNAKE" })),
+}));
+
 const { GET, PUT } = await import("./route");
 const { mergeDashboardPreferences } = await import("../../../lib/preferences");
 const { attributeControl } = await import("../../../lib/control-attribution");
@@ -40,6 +44,18 @@ describe("/api/appletv", () => {
     const payload = await (await GET()).json();
     expect(payload.playlists.map((preset: { name: string }) => preset.name)).toEqual(DEFAULT_PLAYLISTS);
     expect(payload.playlists[0]).toEqual(plain(DEFAULT_PLAYLISTS[0]));
+  });
+
+  it("carries the app's last outcome beside the list, so the editor can say why a press played nothing", async () => {
+    const payload = await (await GET()).json();
+
+    expect(payload.lastPlay).toEqual({
+      at: "2026-09-22T00:00:00.000Z",
+      id: 5,
+      name: "Snake",
+      played: false,
+      reason: "NO PLAYLIST NAMED SNAKE",
+    });
   });
 
   it("reads a list written before icons and playback types existed", async () => {

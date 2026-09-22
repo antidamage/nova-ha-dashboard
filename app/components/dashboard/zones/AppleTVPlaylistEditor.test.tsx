@@ -9,7 +9,7 @@ import { appleTVAmpState, resetAppleTVAmpForTest } from "../appleTVAmpClient";
 const names = (presets: AppleTVPlaylist[]) => presets.map((preset) => preset.name);
 
 /** The host's answer to `/api/appletv`, with the write it was given. */
-function stubHost(options: { failWrites?: boolean } = {}) {
+function stubHost(options: { failWrites?: boolean; lastPlay?: unknown } = {}) {
   const writes: AppleTVPlaylist[][] = [];
   const fetchMock = vi.fn(async (_url: string, init?: { method?: string; body?: string }) => {
     if (init?.method === "PUT") {
@@ -18,7 +18,7 @@ function stubHost(options: { failWrites?: boolean } = {}) {
       writes.push(body.playlists);
       return { ok: true, json: async () => ({ playlists: body.playlists }) };
     }
-    return { ok: true, json: async () => ({ playlists: DEFAULT_PLAYLISTS }) };
+    return { ok: true, json: async () => ({ lastPlay: options.lastPlay ?? null, playlists: DEFAULT_PLAYLISTS }) };
   });
   vi.stubGlobal("fetch", fetchMock);
   return { writes, fetchMock };
@@ -143,6 +143,24 @@ describe("the Apple TV playlist editor", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     await waitFor(() => expect(host.writes).toHaveLength(1));
     expect(names(host.writes[0])).toEqual([DEFAULT_PLAYLISTS[0], DEFAULT_PLAYLISTS[2]]);
+  });
+
+  it("says what the Apple TV's app did with the last press, in the app's own words", async () => {
+    stubHost({
+      lastPlay: { at: "2026-09-22T00:00:00.000Z", id: 1, name: "Snake", played: false, reason: "NO PLAYLIST NAMED SNAKE" },
+    });
+    renderEditor();
+
+    // A preset whose name matches no library playlist is why a press played
+    // nothing, and this is the only place that says so.
+    expect(await screen.findByText("Last press: NO PLAYLIST NAMED SNAKE")).toBeTruthy();
+  });
+
+  it("says a press played when it did", async () => {
+    stubHost({ lastPlay: { at: "2026-09-22T00:00:00.000Z", id: 1, name: "Excellent", played: true } });
+    renderEditor();
+
+    expect(await screen.findByText("Last press: playing Excellent")).toBeTruthy();
   });
 
   it("treats an emptied row as a removal rather than storing a blank", async () => {

@@ -3,17 +3,18 @@ import { readDashboardConfig } from "../../../../lib/dashboard-config";
 import { callService, haRest } from "../../../../lib/ha/client";
 import { readDashboardPreferences } from "../../../../lib/preferences";
 import { attributeControl } from "../../../../lib/control-attribution";
-import { storedPlaylists, type AppleTVRepeatMode } from "../../../../lib/apple-tv/playlists";
+import { writePlayCommand } from "../../../../lib/appletv-command";
+import { storedPlaylists, type AppleTVPlaylist, type AppleTVRepeatMode } from "../../../../lib/apple-tv/playlists";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * The Music app's bundle id, which is how it is launched without depending on
- * the name the app list happens to use ("Music" in this house's HA, and
- * something else wherever the television is set to another language).
+ * Our own app on the television (`nova-appletv-dashboard`), which is the only
+ * place in this house with a MusicKit session. Launched by bundle id rather
+ * than by the name it happens to have in the app list.
  */
-const MUSIC_APP = "com.apple.TVMusic";
+const NOVA_TV_APP = "nz.co.skull.NovaAppleTVDashboard";
 
 /** How long a sleeping Apple TV gets to wake before the rest of the sequence. */
 const WAKE_TIMEOUT_MS = 20_000;
@@ -30,15 +31,19 @@ const REPEAT_STATE: Record<AppleTVRepeatMode, "off" | "all"> = { off: "off", all
  * Play one of the dial's presets on the Apple TV (Adeline, 2026-09-22) — the
  * one-shot event a preset button fires.
  *
- * It wakes the television, brings the Music app forward, applies the preset's
- * shuffle and repeat, and starts playback. **It cannot choose the playlist**:
- * HA's `apple_tv` integration is pyatv, which drives the Music app's transport
- * and reads its metadata but has no view of the library, and the Music app
- * registers no URL scheme to deep-link into a playlist — both the `https://`
- * and the `music://` form were sent to the real device and did nothing. So the
- * press resumes what Music has queued, wearing the preset's own settings, and
- * the routes that would make the playlist itself selectable are named in
- * `specs/apple-tv-volume.md`.
+ * It wakes the television, brings **our own app** forward, and leaves it a play
+ * command (`lib/appletv-command.ts`). That app is what plays the named
+ * playlist: it holds the MusicKit session, so it resolves the preset's name
+ * against the Apple Music library and starts it through `SystemMusicPlayer` —
+ * which is the Music app's own player, so playback carries on with our app in
+ * the background and the phonoscope can visualise it.
+ *
+ * The dashboard cannot do that step itself, and the measurement is in
+ * `specs/apple-tv-volume.md`: HA's `apple_tv` integration is pyatv, transport
+ * and metadata with no view of the library, and the Music app answers no URL
+ * scheme to deep-link into a playlist. So nothing here starts "whatever was
+ * loaded" — when the app cannot find the playlist it plays nothing and says so,
+ * because the wrong music is worse than silence.
  *
  * The entity comes from the household config's amp control
  * (`power.ampPowerControl.sourceEntityId`) rather than from this file: the
@@ -74,36 +79,44 @@ export async function POST(request: Request) {
     await callService("media_player", "play_media", {
       entity_id: entityId,
       media_content_type: "app",
-      media_content_id: MUSIC_APP,
+      media_content_id: NOVA_TV_APP,
     });
-    await callService("media_player", "shuffle_set", { entity_id: entityId, shuffle: preset.shuffle });
-    await callService("media_player", "repeat_set", { entity_id: entityId, repeat: REPEAT_STATE[preset.repeat] });
-    await callService("media_player", "media_play", { entity_id: entityId });
+    // Written after the launch, so the app is on screen and polling before the
+    // command exists to be missed.
+    const command = await writePlayCommand({ name: preset.name, repeat: preset.repeat, shuffle: preset.shuffle });
+    await applyPlaybackModes(entityId, preset);
+
+    void attributeControl(request, {
+      service: "system",
+      event: "apple-tv-play",
+      summary: `Apple TV preset ${preset.name} requested`,
+      detail: {
+        route: "/api/appletv/play",
+        entity: entityId,
+        preset: preset.name,
+        shuffle: preset.shuffle,
+        repeat: preset.repeat,
+        command: command.id,
+      },
+    });
+    return NextResponse.json({
+      entity: entityId,
+      name: preset.name,
+      shuffle: preset.shuffle,
+      repeat: preset.repeat,
+      command: command.id,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Could not play the preset" },
       { status: 502 },
     );
   }
-
-  void attributeControl(request, {
-    service: "system",
-    event: "apple-tv-play",
-    summary: `Apple TV preset ${preset.name} played`,
-    detail: {
-      route: "/api/appletv/play",
-      entity: entityId,
-      preset: preset.name,
-      shuffle: preset.shuffle,
-      repeat: preset.repeat,
-    },
-  });
-  return NextResponse.json({ entity: entityId, name: preset.name, shuffle: preset.shuffle, repeat: preset.repeat });
 }
 
 /**
  * Turn the television on, and wait for it: the Companion wake is a request, not
- * a state change, and launching an app into a still-sleeping device is lost
+ * a state change, and an app launched into a still-sleeping device is lost
  * silently. A device that is already awake costs one read.
  */
 async function wake(entityId: string) {
@@ -122,4 +135,24 @@ async function wake(entityId: string) {
   }
   // Not awake within the window: the sequence that follows is still worth
   // attempting, so this is not an error — the app launch simply may not land.
+}
+
+/**
+ * The Music app's shuffle and repeat, which the television holds as playback
+ * modes rather than per-queue settings. Best effort on purpose: no queue exists
+ * yet at the moment of the press — the app is still resolving the playlist —
+ * and a refusal here must not be reported as a failed press.
+ */
+async function applyPlaybackModes(entityId: string, preset: AppleTVPlaylist) {
+  const calls: Array<[string, Record<string, unknown>]> = [
+    ["shuffle_set", { entity_id: entityId, shuffle: preset.shuffle }],
+    ["repeat_set", { entity_id: entityId, repeat: REPEAT_STATE[preset.repeat] }],
+  ];
+  for (const [service, data] of calls) {
+    try {
+      await callService("media_player", service, data);
+    } catch (error) {
+      console.warn("[nova-dashboard] Apple TV playback mode not applied", { service, error });
+    }
+  }
 }
