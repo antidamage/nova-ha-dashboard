@@ -95,6 +95,41 @@ test.describe("theme", () => {
     expect(painted.band).toContain("rgb(0, 0, 255)");
     expect(painted.light).toContain("rgb(255, 0, 0)");
   });
+
+  test("folds This Device above Theme Library, collapsed, and opens from its own path", async ({ page }) => {
+    await gotoConfig(page);
+    await waitForThemeEditor(page);
+
+    // Scoped to the accordion: the breadcrumb renders a button of the same name.
+    const thisDevice = page.locator("#this-device").getByRole("button", { name: "This Device" });
+    // Collapsed by default, and collapsed means the body is not rendered at all
+    // - the device controls are absent, not merely scrolled out of sight.
+    await expect(thisDevice).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByRole("switch", { name: "Show Status Orb", exact: true })).toHaveCount(0);
+    // The accordion header is the section's only title: the block's own heading
+    // is gone, so the fold never renders the name twice.
+    await expect(page.getByRole("heading", { name: "This Device" })).toHaveCount(0);
+
+    // Above the Theme Library block, which stays outside the fold.
+    const library = page.getByRole("heading", { name: "Theme Library" });
+    await expect(library).toBeVisible();
+    const foldBox = await thisDevice.boundingBox();
+    const libraryBox = await library.boundingBox();
+    expect(foldBox?.y ?? -1).toBeLessThan(libraryBox?.y ?? -1);
+
+    // The section's own path reopens it from a cold load: the id is the slug the
+    // breadcrumb queue matches (specs/config-breadcrumb-navigation.md).
+    //
+    // Only the fold is asserted here. On a cold two-level deep link the URL
+    // rewrite and the trail run off a one-render-stale chain: the accordion
+    // opens, but the path can settle at /appearance/ with two crumbs and stay
+    // there. That desync is pre-existing and identical for the theme-settings
+    // path, so it is not this test's to pin; the fold opening is.
+    await page.goto("/config/appearance-dashboard/appearance/this-device/", { waitUntil: "domcontentloaded" });
+    await expect(thisDevice).toHaveAttribute("aria-expanded", "true", { timeout: 20_000 });
+    await expect(page.getByRole("switch", { name: "Show Status Orb", exact: true })).toBeVisible();
+    await expect(page.getByRole("switch", { name: "Auto Fullscreen", exact: true })).toBeVisible();
+  });
 });
 
 // Theme Settings, then Theme Colours: the two levels the colour dials sit under.

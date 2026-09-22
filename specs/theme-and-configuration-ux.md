@@ -28,9 +28,10 @@ Storage:
   strips a legacy `autoFullscreenOnLoad` field from incoming theme payloads.
 - The experience mode (§31) is likewise a standalone per-device setting, never
   part of a theme. It is four independent feature toggles — status orb,
-  background, camera, and world map. The `/config` "This Device" section
-  exposes them as four checkboxes ("Show Status Orb", "Show Background", "Show
-  Camera", "Show World Map"); the first-run modal offers the two coarse
+  background, camera, and world map. The `/config` "This Device" accordion
+  (collapsed by default, above the Theme Library block) exposes them as four
+  switches ("Show Status Orb", "Show Background", "Show Camera", "Show World
+  Map"); the first-run modal offers the two coarse
   choices (Full Experience = all on, Lite = all off). Toggling any of them
   settles the first-run choice, so the chooser modal never appears afterwards
   on that device.
@@ -208,6 +209,12 @@ Config page:
 - Dark and Light tabs sit below Theme selection and switch which theme variant
   is being edited. The Theme Settings accordion is rendered inside the active
   tab, and any theme write saves the full dark/light theme set.
+- Above the Theme Library block, "Theme & Experience" folds this device's own
+  controls into a **This Device** sub-accordion (`id="this-device"`), collapsed
+  by default: the browser voice input group, Auto Fullscreen, the four
+  experience-mode switches plus the status-orb info switch, and Lighting Tint
+  Follows. The Theme Library block
+  and the Design selector below it stay outside the fold and always visible.
 - The remaining top-level sections are ordered as Theme Settings, Climate
   Controls, Hardware Assistant, Secrets, and Config Import/Export.
 - Theme Settings contains collapsed sub-accordions ordered as Theme Colours,

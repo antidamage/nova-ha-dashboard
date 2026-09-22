@@ -65,12 +65,16 @@ categories.
 (`id="user-data"`).
 
 **Inside `AccentConfig`'s "Theme & Experience" (`id="appearance"`) —
-`app/components/AccentConfig.tsx` — currently MISSING `id` (title-derived
-persistKey only), one level deep then two:**
-- `"Theme Settings"` (line ~2055) — one level deep
-  - `"Theme Colours"` (~2056), `"Fonts"` (~2092), `"Status Orb"` (~2142),
-    `"Background"` (~2156), `"Map"` (~2193), `"Reminders"` (~2231),
-    `"Sound"` (~2249) — two levels deep, siblings of each other
+`app/components/config/accent/AccentConfig.tsx`, the component this plan's
+former single `app/components/AccentConfig.tsx` was split into — one level deep
+then two. Every accordion here now carries an explicit `id`, so this subtree no
+longer relies on the title-derived persistKey:**
+- `this-device` ("This Device" — the per-device controls and Lighting Tint
+  Follows, collapsed by default) and `theme-settings` ("Theme Settings") — one
+  level deep, siblings of each other
+  - `theme-colours`, `fonts`, `status-orb`, `background`, `map`,
+    `theme-reminders`, `sound` — two levels deep, siblings of each other
+    (all inside `theme-settings`)
 
 **Phonoscope subtree** (`PhonoscopeConfig` → `id="phonoscope"` →
 `ControlSettingsPanel` + `ColorThemeLibrary`) — static siblings one level

@@ -25,9 +25,10 @@ export function ThisDeviceSection({
   statusOrbInfoVisible: ReturnType<typeof useStatusOrbInfoSetting>[0];
   setStatusOrbInfoVisible: ReturnType<typeof useStatusOrbInfoSetting>[1];
 }) {
+  // The section title lives on the wrapping ConfigAccordion ("This Device",
+  // id="this-device" in AccentConfig), so the body opens on the first control.
   return (
           <div className="grid gap-3">
-            <h2 className="theme-display-label zone-title-bar">This Device</h2>
             <VoiceInputDeviceGroup agentName={agentName} />
             <SwitchRow
               checked={autoFullscreen}
