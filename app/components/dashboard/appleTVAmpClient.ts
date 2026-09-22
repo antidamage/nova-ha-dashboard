@@ -196,10 +196,11 @@ export function useAppleTVAmp() {
      * would read as "this is what is playing", which this store cannot know
      * (Adeline, 2026-09-22).
      *
-     * `/api/appletv/play` wakes the Apple TV, brings the Music app forward,
-     * applies the preset's shuffle and repeat, and starts playback. The demo
-     * build calls nothing: it has no Apple TV behind `/api`, the same way its
-     * list is kept in sessionStorage.
+     * `/api/appletv/play` wakes the Apple TV, brings **our own app** forward and
+     * leaves it the playlist's name, which that app resolves against the Apple
+     * Music library and plays (`specs/apple-tv-volume.md` §Play). The demo build
+     * calls nothing: it has no Apple TV behind `/api`, the same way its list is
+     * kept in sessionStorage.
      */
     playPreset: (index: number) => {
       if (!snapshot.playlists[index] || DEMO_MODE) return;

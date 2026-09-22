@@ -239,11 +239,12 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
   refused with a message rather than saved — the list drops duplicates on the
   way in, so storing one would make the other row vanish unexplained — and each
   new row is named uniquely, so two "Add playlist" clicks add two rows.
-- **Pressing a preset fires its play event and marks nothing**: the Apple TV
-  wakes if it is asleep, the Music app comes forward, the preset's shuffle and
-  repeat are applied, playback starts, and no button is left `aria-pressed`.
-  Which *playlist* plays is the one part the channel cannot do — §Play has the
-  measurement and the three routes that would change it.
+- **Pressing a preset plays the playlist it names, and marks nothing**: the
+  Apple TV wakes if it is asleep, our own app comes forward, and it resolves the
+  preset's name against the Apple Music library and starts that playlist through
+  `SystemMusicPlayer`, with the preset's shuffle and repeat applied. No button is
+  left `aria-pressed`. A name that matches no library playlist plays nothing and
+  says so (§Play), rather than falling back to whatever was loaded.
 - A press that fails reports why (the route's message lands in the store's error,
   which the editor shows), and a preset position that has no preset is refused
   rather than playing something else.
