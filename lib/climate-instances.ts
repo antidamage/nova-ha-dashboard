@@ -3,6 +3,7 @@ import type {
   ClimateHeaterInstanceConfig,
   DashboardConfig,
 } from "./config-schema";
+import { climateInstancesFromPresets, hasStoredPresets } from "./control-modules/stored";
 
 /**
  * Which climate devices this installation has.
@@ -23,6 +24,17 @@ export type HeaterInstance = ClimateHeaterInstanceConfig & { kind: "heater" };
 export type ClimateInstance = AirconInstance | HeaterInstance;
 
 /**
+ * A saved control preset IS the device declaration once one exists, so the
+ * preset list wins outright over both the instance arrays and the legacy
+ * single-device blocks — including when it declares none, because "this home
+ * has no air conditioner" is an answer and not an absence
+ * (specs/control-modules.md). See `lib/control-modules/stored.ts`.
+ */
+function storedClimate(config: DashboardConfig): ClimateInstance[] | null {
+  return hasStoredPresets(config) ? climateInstancesFromPresets(config) : null;
+}
+
+/**
  * Instance ids for a home that has not declared any, derived from the legacy
  * single-device config. These are deliberately the same keys the control state
  * and preferences have always used, so an existing installation carries its
@@ -37,6 +49,11 @@ function hasAny(list: readonly string[] | undefined) {
 }
 
 export function airconInstances(config: DashboardConfig): AirconInstance[] {
+  const stored = storedClimate(config);
+  if (stored) {
+    return stored.filter((instance): instance is AirconInstance => instance.kind === "aircon");
+  }
+
   const declared = config.dashboard.climate.airconUnits;
   if (declared.length) {
     return declared.map((unit) => ({ ...unit, kind: "aircon" }));
@@ -57,6 +74,11 @@ export function airconInstances(config: DashboardConfig): AirconInstance[] {
 }
 
 export function heaterInstances(config: DashboardConfig): HeaterInstance[] {
+  const stored = storedClimate(config);
+  if (stored) {
+    return stored.filter((instance): instance is HeaterInstance => instance.kind === "heater");
+  }
+
   const declared = config.dashboard.climate.heaters;
   if (declared.length) {
     return declared.map((heater) => ({ ...heater, kind: "heater" }));

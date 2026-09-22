@@ -4,6 +4,7 @@ import {
   AIRCON_OFF_TIMER_INCREMENT_MINUTES_MIN,
 } from "../aircon-config";
 import { NovaAvatarConfigSchema } from "./appearance";
+import { ControlsConfigSchema } from "./controls";
 import { DoorbellConfigSchema } from "./doorbell";
 import { LightingEntityPresetSchema, LightingIntensityThresholdSchema, ZoneLightEventSchema, ZoneLightRuleSchema } from "./lighting";
 import {
@@ -263,6 +264,13 @@ export const DashboardConfigSchema = z.object({
         heaters: z.array(ClimateHeaterInstanceSchema).default([]),
       })
       .default({ airconUnits: [], heaters: [] }),
+    /**
+     * The control presets and the slots they sit in
+     * (specs/control-modules.md). Empty derives the whole set from the blocks
+     * above and the special zones, so an install that has never opened the
+     * Devices tab behaves exactly as it did before this block existed.
+     */
+    controls: ControlsConfigSchema,
     // The original panel heater died in August 2026 and was replaced by the
     // bedroom heater above. Its card is retained but hidden; set this true to
     // bring it back if an equivalent unit is installed.

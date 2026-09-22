@@ -9,6 +9,7 @@ import { useDeviceTheme, type ThemeVariant } from "./accentColor";
 import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
 import { ClockPanel } from "./dashboard/ClockPanel";
 import { ClimateCommandsProvider } from "./dashboard/ClimateCommandsProvider";
+import { useQuickAccessItems } from "./dashboard/quick-access/useQuickAccessItems";
 import { QuickAccessCard } from "./dashboard/QuickAccessCard";
 import { ReminderIconBar } from "./dashboard/ReminderIconBar";
 import { ZoneControls } from "./dashboard/ZoneControls";
@@ -73,6 +74,7 @@ export function Dashboard() {
   const [toast, setToast] = useState<string | null>(null);
   const { selectedZone, selectedZoneId, selectZone } = useDashboardSelection(data);
   const zoneTree = useMemo(() => buildZoneTree(data), [data]);
+  const quickItems = useQuickAccessItems(data, zoneTree.climate);
   const loungeEnvironment = useMemo(() => findLoungeEnvironment(data), [data]);
   const bedroomHeaterConfig = useBedroomHeaterConfig();
   const bedroomHeater = useMemo(
@@ -219,19 +221,12 @@ export function Dashboard() {
             </div>
 
             <QuickAccessCard
-              bedroomHeater={bedroomHeater}
-              climateControl={data?.climateControl}
-              climateZone={zoneTree.climate}
-              homeZone={zoneTree.inside}
+              items={quickItems}
               knobSkin={theme.knobSkin}
-              preferences={data?.preferences}
-              spectrumCursor={zoneTree.inside ? data?.spectrumCursors?.[zoneTree.inside.id] : undefined}
               sun={data?.sun}
               weather={data?.weather}
               onEntityActions={applyEntityActions}
-              onHomeZoneAction={(action, body) =>
-                zoneTree.inside ? applyZoneActionFor(zoneTree.inside, action, body) : Promise.resolve()
-              }
+              onZoneAction={(zone, action, body) => applyZoneActionFor(zone, action, body)}
               onNotice={setToast}
             />
 

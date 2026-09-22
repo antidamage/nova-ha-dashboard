@@ -21,6 +21,8 @@ import type { ModuleStateContext, ModuleStatus } from "./modules/types";
 import { buildRouterStatus } from "./modules/router/module";
 import { buildSunStatus, buildWeatherStatus } from "./modules/weather/module";
 import { normalizedOrbInfoPreferences } from "./orb-info/preferences";
+import { effectiveControls } from "./control-modules/presets";
+import { allControlModules } from "./control-modules/registry";
 import { readDashboardPreferences } from "./preferences";
 import { withComputedWatchfacePreferences } from "./watchface-preferences";
 import { climateControlState } from "./climate-control";
@@ -159,6 +161,12 @@ export async function buildDashboardState(): Promise<DashboardState> {
     sun: buildSunStatus(states, config),
     weather: await buildWeatherStatus(states, warnings, config),
     preferences,
+    // What the dashboard's controls are, resolved: the stored presets, or the
+    // set derived from the rest of this config (specs/control-modules.md). The
+    // module registry travels with them so the client resolves a preset against
+    // the same list the server did, installed packages included.
+    controls: effectiveControls(config),
+    controlModules: allControlModules(),
     climateControl: await climateControlState(),
     warnings,
     haHealth: context.haHealth,

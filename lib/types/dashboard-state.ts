@@ -1,6 +1,7 @@
 import type { AppleTVPlaylist } from "../apple-tv/playlists";
 import type { OrbInfoPreferences } from "../orb-info/types";
 import type { AgentPreferences, DesignPreferences, LayoutPreferences, RouterStatus, SunStatus, UpdatePreferences, WatchfacePreferences, WeatherStatus } from "./status";
+import type { ControlModule, ControlsConfig } from "../control-modules/types";
 import type { AirconPreferences, BedroomHeaterPreferences, ClimateControlState, PanelHeaterPreferences } from "./climate";
 import type { DashboardEntity, DashboardZone, HaDomain, HaHealth } from "./ha";
 import type { DashboardLightingConfig, LightingPreferences, SpectrumCursor } from "./lighting";
@@ -93,6 +94,14 @@ export type DashboardState = {
   weather: WeatherStatus | null;
   preferences: DashboardPreferences;
   /** Server-owned thermostat and device-ownership state. */
+  /**
+   * The dashboard's control presets and the slots they sit in, already resolved
+   * against the stored configuration or the derivation from it
+   * (specs/control-modules.md).
+   */
+  controls: ControlsConfig;
+  /** Every device type this build can draw: shipped modules plus installed ones. */
+  controlModules: ControlModule[];
   climateControl: ClimateControlState;
   warnings: string[];
   /** HA snapshot freshness. Absent/`ok` = trust the snapshot; `degraded` = holding

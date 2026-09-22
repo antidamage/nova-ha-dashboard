@@ -12,6 +12,8 @@ import {
   DEMO_THEME_LIBRARY_STORAGE_KEY,
   DEMO_THEME_STORAGE_KEY,
 } from "./constants";
+import { CONTROL_MODULES } from "../control-modules/catalogue";
+import { effectiveControls } from "../control-modules/presets";
 import { demoDashboardConfig } from "./fixtures-model";
 import type { DemoThemeEnvelope, DemoThemeLibrary } from "./types";
 import type { DashboardConfig } from "../config-schema";
@@ -22,15 +24,22 @@ export function demoConfigBootstrapScript(
   defaultTheme: DemoThemeEnvelope = { theme: null, updatedAt: null },
   defaultThemeLibrary: DemoThemeLibrary = null,
 ) {
+  const demoConfig = demoDashboardConfig(defaultConfig);
   const bootstrap = {
     changeEvent: DEMO_CONFIG_CHANGE_EVENT,
-    defaultConfig: demoDashboardConfig(defaultConfig),
+    defaultConfig: demoConfig,
     defaultTheme,
     defaultThemeLibrary,
     providerBase,
     storageKey: DEMO_CONFIG_STORAGE_KEY,
     themeStorageKey: DEMO_THEME_STORAGE_KEY,
     themeLibraryStorageKey: DEMO_THEME_LIBRARY_STORAGE_KEY,
+    // The demo has no dashboard server, so its control presets and its module
+    // registry are computed here, once, and handed to the page as data. Without
+    // them the demo's Quick Access card would render nothing at all and its
+    // Devices tab would be an empty section — see specs/control-modules.md.
+    controls: effectiveControls(demoConfig),
+    modules: CONTROL_MODULES,
   };
 
   return `
@@ -39,6 +48,8 @@ export function demoConfigBootstrapScript(
   var DEFAULT_CONFIG = bootstrap.defaultConfig;
   var DEFAULT_THEME = bootstrap.defaultTheme;
   var DEFAULT_THEME_LIBRARY = bootstrap.defaultThemeLibrary;
+  var DEFAULT_CONTROLS = bootstrap.controls;
+  var DEFAULT_MODULES = bootstrap.modules;
   var nativeFetch = window.fetch.bind(window);
   var providerPromise = null;
   var memoryConfig = null;
@@ -246,6 +257,8 @@ export function demoConfigBootstrapScript(
   function clientConfig(config) {
     var dashboard = config.dashboard || {};
     return {
+      controlModules: DEFAULT_MODULES,
+      controls: demoControls(),
       dashboard: {
         defaultZoneId: dashboard.defaultZoneId,
         aircon: dashboard.aircon,
@@ -258,6 +271,34 @@ export function demoConfigBootstrapScript(
       },
       mapWeather: config.mapWeather,
       theme: config.theme,
+    };
+  }
+
+  // The demo's presets: the stored ones when a visitor has changed them, else the
+  // derivation computed from the demo config on the server.
+  function demoControls() {
+    var dashboard = readDemoConfig().dashboard || {};
+    var stored = dashboard.controls;
+    if (stored && isRecord(stored) && stored.configured === true) {
+      return stored;
+    }
+    return DEFAULT_CONTROLS;
+  }
+
+  // The Devices tab in the demo. Read-only in spirit — a visitor's edits live in
+  // this tab's memory and never leave the page — but the shapes match what
+  // /api/control-modules returns for real, so the tab behaves identically.
+  function controlModulesResponse() {
+    return {
+      controls: demoControls(),
+      entities: [],
+      installErrors: [],
+      installedIds: [],
+      modules: DEFAULT_MODULES,
+      problems: [],
+      // The same question the real route asks, answered the same way.
+      derived: (readDemoConfig().dashboard || {}).controls?.configured !== true,
+      rooms: [{ id: "everything", name: "Home", detail: "Every light except the ones config excludes" }],
     };
   }
 
@@ -378,6 +419,30 @@ export function demoConfigBootstrapScript(
     if (pathname === "/api/config/client" && method === "GET") {
       return jsonResponse(clientConfig(readDemoConfig()));
     }
+    if (pathname === "/api/control-modules" && method === "GET") {
+      return jsonResponse(controlModulesResponse());
+    }
+    if (pathname === "/api/control-modules" && method === "PUT") {
+      // Persisted into the demo config so the tab survives a reload, exactly as
+      // the demo's other settings do.
+      return requestBodyText(input, init).then(function (text) {
+        try {
+          var body = JSON.parse(text || "{}");
+          var submitted = body.controls || body;
+          if (!isRecord(submitted) || !Array.isArray(submitted.presets) || !Array.isArray(submitted.slots)) {
+            return jsonResponse({ error: "That is not a control configuration" }, 400);
+          }
+          var next = clone(readDemoConfig());
+          next.dashboard = next.dashboard || {};
+          next.dashboard.controls = submitted;
+          next.dashboard.controls.configured = true;
+          persistConfig(next);
+          return jsonResponse({ controls: next.dashboard.controls, derived: false, problems: [] });
+        } catch (error) {
+          return jsonResponse({ error: "Could not read that configuration" }, 400);
+        }
+      });
+    }
     if (pathname === "/api/config" && method === "GET") {
       return readConfigResponse();
     }
@@ -447,6 +512,24 @@ export function demoConfigBootstrapScript(
       return providerBody.then(function (body) {
         return provider.handleRequest(parsed.pathname + parsed.search, {
           method: requestMethod(input, init), body: body,
+        });
+      }).then(function (response) {
+        // The dummy provider is a separate project and knows nothing about the
+        // dashboard's control presets, so its state arrives without them. Merging
+        // them here is what keeps the demo's Quick Access card complete on its
+        // FIRST payload rather than popping in a fetch later
+        // (specs/control-modules.md).
+        if (parsed.pathname !== "/api/state" || !response || !response.ok) {
+          return response;
+        }
+        return response.clone().json().then(function (state) {
+          if (isRecord(state)) {
+            if (!state.controls) state.controls = demoControls();
+            if (!state.controlModules) state.controlModules = DEFAULT_MODULES;
+          }
+          return jsonResponse(state);
+        }).catch(function () {
+          return response;
         });
       });
     });

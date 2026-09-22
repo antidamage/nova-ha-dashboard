@@ -23,6 +23,7 @@ export function HeaterKnob({
   humidity,
   preferences,
   preferredRange,
+  showTimerRing = true,
   size = 200,
   switchEntity,
   temperature,
@@ -32,6 +33,8 @@ export function HeaterKnob({
   humidity?: number | null;
   preferences?: BedroomHeaterPreferences;
   preferredRange?: TargetRange;
+  /** Off drops the ring while leaving the ring stack's radii untouched. */
+  showTimerRing?: boolean;
   size?: number;
   switchEntity: DashboardEntity;
   temperature: number | null;
@@ -63,7 +66,7 @@ export function HeaterKnob({
       valueText: (value) => timerValueText(Math.round(value)),
       valueTextWidest: TIMER_VALUE_WIDEST,
       // Off has nothing to time (specs/temperature-encoder.md).
-      hidden: heater.displayedMode === "off",
+      hidden: heater.displayedMode === "off" || !showTimerRing,
       disabled: unavailable,
       onChange: () => undefined,
       onCommit: (value) => {
