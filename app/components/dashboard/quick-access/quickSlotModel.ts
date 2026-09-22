@@ -148,7 +148,7 @@ function climateItem(
     title: resolved.preset.name,
   };
   if (variant === "heater") {
-    const heater = heaterDevices(resolved.preset, data, climateZone);
+    const heater = heaterDevices(resolved.preset, data, climateZone, features);
     if (!heater) {
       return null;
     }

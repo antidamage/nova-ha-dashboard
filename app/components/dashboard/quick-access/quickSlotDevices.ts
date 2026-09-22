@@ -79,13 +79,21 @@ export function airconDevices(
 export function heaterDevices(
   preset: ControlPreset,
   data: DashboardState | null,
-  climateZone?: DashboardZone | null,
+  climateZone: DashboardZone | null | undefined,
+  /**
+   * The preset's features, ALREADY resolved against its module
+   * (`resolveFeatures`). Passed in rather than read off `preset.features` here:
+   * reading the raw map was a second gate, so a feature the resolver had dropped
+   * as inapplicable could still be honoured by this one, and "one gate" stopped
+   * being true.
+   */
+  features: Record<string, boolean> = {},
 ): QuickHeaterDevices | undefined {
   // "Grouped room sensors" is the switch that decides whether this preset reads
   // the room from its configured list at all. Off means the appliance's own
   // reading — which a bare switch does not have — so the knob shows no room
   // temperature rather than quietly reading a sensor the owner switched off.
-  const grouped = preset.features?.["grouped-room-sensors"] !== false;
+  const grouped = features["grouped-room-sensors"] !== false;
   const devices = bedroomHeaterDevices(data, {
     humidityEntityIds: grouped ? preset.binding.humidityEntityIds : [],
     switchEntityIds: preset.binding.switchEntityIds,

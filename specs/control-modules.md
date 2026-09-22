@@ -238,10 +238,12 @@ rejected and nothing could travel between dashboards at all.
 `library.test.ts` round-trips a package through it rather than trusting the two
 halves to agree.
 
-and it is validated against the shipped vocabulary before a byte is written
+It is validated against the shipped vocabulary before a byte is written
 (`lib/control-modules/library.ts`): every behaviour id must exist, every declared
-driver must exist, an installed module may not claim a shipped module's id, and a
-**control module must name a renderer this build ships**.
+driver must exist — on the module AND on each of its features, where a feature may
+also only gate on a variant that module declares — an installed module may not
+claim a shipped module's id, no id may be empty, and a **control module must name
+a renderer this build ships**.
 
 That last limit is the honest boundary of this change, and it is a refusal rather
 than a warning: a renderer is compiled into the dashboard, so a package cannot
@@ -288,6 +290,12 @@ Named here rather than discovered later:
   Lounge knob in its zone panel and the Lounge knob on this card can differ in
   which rings they show until the zone panels are modular too. The two agree on
   what they command, because both go through the same command hooks.
+- **A package's feature switches are limited to the ids the shipped renderers
+  read.** A renderer names its features literally, so a package can choose which
+  of the SHIPPED features a device type offers — and gate them on drivers and
+  variants — but a feature id this build has never heard of would install into a
+  switch that does nothing. A new *kind* of feature is product code.
+
 - **A binding field is chosen from the registry, not typed.** An entity that Home
   Assistant reports but that is absent from its entity registry — a template
   sensor with no `unique_id`, say — cannot be bound to a NEW preset from the

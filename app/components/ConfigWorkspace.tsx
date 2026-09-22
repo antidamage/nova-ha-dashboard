@@ -131,10 +131,11 @@ export function ConfigWorkspace({
             ) : null}
             {activeCategory === "devices" ? (
               <>
+                {/* Ours first; the three that were already here keep their order. */}
                 <ControlsConfig />
-                <CameraConfig />
                 <ManagedComputersConfig />
                 <WaveshareWatchfaceConfig initialSettings={initialWatchface} />
+                <CameraConfig />
               </>
             ) : null}
             {activeCategory === "modules" ? <ModulesConfig /> : null}

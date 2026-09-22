@@ -173,7 +173,7 @@ export function presetProblems(presets: readonly ControlPreset[], modules: reado
       continue;
     }
     if (ids.has(preset.id)) {
-      problems.push({ presetId: preset.id, field: "moduleId", message: "Two presets share this id; one of them is invisible", severity: "error" });
+      problems.push({ presetId: preset.id, field: "id", message: "Two presets share this id; one of them is invisible", severity: "error" });
     }
     ids.add(preset.id);
 

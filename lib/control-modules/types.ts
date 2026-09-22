@@ -184,7 +184,7 @@ export type ControlsConfig = {
  */
 export type PresetProblem = {
   presetId: string;
-  field: ControlModuleFieldId | "moduleId" | "driverId" | "variant" | "roomId";
+  field: ControlModuleFieldId | "moduleId" | "driverId" | "variant" | "roomId" | "id";
   message: string;
   severity: "error" | "warning";
 };
