@@ -223,9 +223,10 @@ export function useAppleTVAmp() {
       const generation = (muteGeneration += 1);
       setError(null);
       void sendAmpMute(snapshot.volume, muted).then((message) => {
-        if (!message) return;
-        // A later tap owns the reading now: this failure is not its answer.
-        if (generation === muteGeneration) publish({ muted: !muted });
+        // A later tap owns both the reading and the error line now: its answer,
+        // not this failure's, is the one to keep.
+        if (!message || generation !== muteGeneration) return;
+        publish({ muted: !muted });
         setError(message);
       });
     },

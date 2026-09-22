@@ -87,5 +87,8 @@ describe("the dial's mute", () => {
     });
 
     expect(appleTVAmpState().muted).toBe(false);
+    // And no error for a state the dial has already left: the later tap's
+    // answer is the one that stands.
+    expect(result.current.error).toBeNull();
   });
 });
