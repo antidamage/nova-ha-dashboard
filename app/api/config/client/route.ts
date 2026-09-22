@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { effectiveControls } from "../../../../lib/control-modules/presets";
+import { allControlModules } from "../../../../lib/control-modules/registry";
 import { readDashboardConfig } from "../../../../lib/dashboard-config";
 import { projectLightingRules } from "../../../../lib/zone-light-rules";
 
@@ -7,6 +9,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const config = await readDashboardConfig();
   return NextResponse.json({
+    // The dashboard's controls, resolved, and the registry they resolve
+    // against. Delivered here as well as with the live state because a client
+    // that only has a state payload can still place a control: the demo shim and
+    // any provider that predates this block carry the config payload, not the
+    // state's copy. See specs/control-modules.md.
+    controls: effectiveControls(config),
+    controlModules: allControlModules(),
     dashboard: {
       defaultZoneId: config.dashboard.defaultZoneId,
       aircon: config.dashboard.aircon,

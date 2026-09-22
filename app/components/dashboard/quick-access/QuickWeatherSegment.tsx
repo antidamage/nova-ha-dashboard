@@ -34,8 +34,17 @@ export function weatherIcon(condition: string | undefined): LucideIcon {
 }
 
 /** Outside: condition, temperature, feels-like and UV. */
-export function QuickWeatherSegment({ weather }: { weather: WeatherStatus | null | undefined }) {
+export function QuickWeatherSegment({
+  features = {},
+  weather,
+}: {
+  /** The preset's feature switches: a reading can be left off the row. */
+  features?: Record<string, boolean>;
+  weather: WeatherStatus | null | undefined;
+}) {
   const Icon = weatherIcon(weather?.condition);
+  const showFeelsLike = features["feels-like"] !== false;
+  const showUv = features["uv"] !== false;
 
   return (
     <QuickSegment className="quick-segment-weather" label="Outside weather">
@@ -53,17 +62,21 @@ export function QuickWeatherSegment({ weather }: { weather: WeatherStatus | null
             {weather?.temperature == null ? null : <span className="quick-access-degree">&deg;</span>}
           </span>
         </div>
-        <div className="quick-current">
-          <span className="quick-stepper-caption">Feels</span>
-          <span className="quick-current-number">
-            {formatWeatherNumber(weather?.feelsLike ?? null, 1)}
-            {weather?.feelsLike == null ? null : <span className="quick-access-degree">&deg;</span>}
-          </span>
-        </div>
-        <div className="quick-current">
-          <span className="quick-stepper-caption">UV</span>
-          <span className="quick-current-number">{formatWeatherNumber(weather?.uvIndex ?? null, 1)}</span>
-        </div>
+        {showFeelsLike ? (
+          <div className="quick-current">
+            <span className="quick-stepper-caption">Feels</span>
+            <span className="quick-current-number">
+              {formatWeatherNumber(weather?.feelsLike ?? null, 1)}
+              {weather?.feelsLike == null ? null : <span className="quick-access-degree">&deg;</span>}
+            </span>
+          </div>
+        ) : null}
+        {showUv ? (
+          <div className="quick-current">
+            <span className="quick-stepper-caption">UV</span>
+            <span className="quick-current-number">{formatWeatherNumber(weather?.uvIndex ?? null, 1)}</span>
+          </div>
+        ) : null}
       </div>
     </QuickSegment>
   );

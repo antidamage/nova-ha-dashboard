@@ -43,6 +43,7 @@ const AgentNameConfig = dynamic(() => import("./AgentNameConfig").then((module) 
 const ClimateConfig = dynamic(() => import("./ClimateConfig").then((module) => module.ClimateConfig));
 const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((module) => module.AppleTvSwipeConfig));
 const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
+const ControlsConfig = dynamic(() => import("./ControlsConfig").then((module) => module.ControlsConfig));
 const StatusOrbInfoConfig = dynamic(() => import("./StatusOrbInfoConfig").then((module) => module.StatusOrbInfoConfig));
 const HistoryPanel = dynamic(() => import("./HistoryPanel").then((module) => module.HistoryPanel));
 const ManagedComputersConfig = dynamic(() => import("./ManagedComputersConfig").then((module) => module.ManagedComputersConfig));
@@ -130,9 +131,10 @@ export function ConfigWorkspace({
             ) : null}
             {activeCategory === "devices" ? (
               <>
+                <ControlsConfig />
+                <CameraConfig />
                 <ManagedComputersConfig />
                 <WaveshareWatchfaceConfig initialSettings={initialWatchface} />
-                <CameraConfig />
               </>
             ) : null}
             {activeCategory === "modules" ? <ModulesConfig /> : null}

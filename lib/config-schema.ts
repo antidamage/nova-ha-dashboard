@@ -28,6 +28,8 @@ export type {
   DashboardConfigV1,
 } from "./config-schema/dashboard-config";
 
+export type { ControlPresetConfig, ControlSlotConfig } from "./config-schema/controls";
+
 export type {
   ConfigImportResult,
   ConfigValidationIssue,

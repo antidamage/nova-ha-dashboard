@@ -1,98 +1,79 @@
 "use client";
 
-import type {
-  AirconPreferences,
-  BedroomHeaterPreferences,
-  ClimateControlState,
-  DashboardEntity,
-} from "../../../../lib/types";
+import type { DashboardEntity } from "../../../../lib/types";
 import { AirconKnob, HeaterKnob } from "../ClimateKnobs";
 import type { EntityActionsHandler } from "../climateCommands";
-import type { BedroomHeaterDevices } from "../shared";
+import type { QuickAirconItem, QuickHeaterItem } from "./quickSlotModel";
 import { QUICK_TEMPERATURE_SIZE } from "./dial-model";
 import { QuickClimate } from "./QuickSegment";
 
 /**
- * The climate segments' stepper, current-temperature readout and Auto/Off pair
- * are gone: the temperature knob carries all three (Adeline, 2026-09-12,
- * specs/temperature-encoder.md).
+ * The climate segments: a resolved Quick Access climate item drawn as the
+ * temperature knob its preset asked for.
+ *
+ * The module decides the SHAPE (a climate knob, an air conditioner or a
+ * heater); the driver decides what the knob can reach. Gating the auxiliary
+ * switches and the timer ring on the preset's own feature switches is what makes
+ * "assign this control to another heating device" mean something — an aircon
+ * preset pointed at a unit with no Quiet switch simply has no Quiet ring.
+ *
+ * The stepper, the state word and the Auto/Off pair are not here: the knob
+ * carries all three (specs/temperature-encoder.md).
  */
 
-/**
- * The lounge air conditioner: the room's name and a 100px temperature knob
- * (Adeline, 2026-09-12). The stepper, the state word and the Auto/Off buttons
- * are all on the knob now — see specs/temperature-encoder.md. Its rings float
- * over the page, so the tile is only as tall as the knob.
- */
 export function QuickAirconSegment({
-  climateControl,
-  entity,
-  freshAirSwitch,
-  preferences,
-  preferredRange,
-  quietSwitch,
+  item,
   size = QUICK_TEMPERATURE_SIZE,
-  title,
-  turboSwitch,
   onEntityActions,
 }: {
-  climateControl?: ClimateControlState;
-  entity: DashboardEntity;
-  freshAirSwitch?: DashboardEntity;
-  preferences?: AirconPreferences;
-  preferredRange?: { min: number; max: number };
-  quietSwitch?: DashboardEntity;
+  item: QuickAirconItem;
   /** Knob diameter; the card shrinks it to fit a narrow portrait screen. */
   size?: number;
-  title: string;
-  turboSwitch?: DashboardEntity;
   onEntityActions: EntityActionsHandler;
 }) {
+  const auxiliary = item.features["quiet-turbo-fresh-air"] !== false;
   return (
-    <QuickClimate label={`${title} air conditioner`}>
+    <QuickClimate label={`${item.title} air conditioner`}>
       <AirconKnob
-        climateControl={climateControl?.lounge}
-        entity={entity}
-        freshAirSwitch={freshAirSwitch}
-        preferences={preferences}
-        preferredRange={preferredRange}
-        quietSwitch={quietSwitch}
+        climateControl={item.climateControl}
+        entity={item.aircon.entity}
+        freshAirSwitch={auxiliary ? item.aircon.freshAirSwitch : undefined}
+        preferences={item.preferences}
+        preferredRange={item.preferredRange}
+        quietSwitch={auxiliary ? item.aircon.quietSwitch : undefined}
+        showFanRing={item.features["fan-ring"] !== false}
+        showTimerRing={item.features["off-timer"] !== false}
         size={size}
-        title={title}
-        turboSwitch={turboSwitch}
+        title={item.title}
+        turboSwitch={auxiliary ? item.aircon.turboSwitch : undefined}
         onEntityActions={onEntityActions}
       />
     </QuickClimate>
   );
 }
 
-/** The bedroom heater: the room's name and a 100px temperature knob. */
 export function QuickHeaterSegment({
-  devices,
-  preferences,
-  preferredRange,
+  item,
   size = QUICK_TEMPERATURE_SIZE,
-  title,
   onNotice,
 }: {
-  devices: BedroomHeaterDevices & { switchEntity: DashboardEntity };
-  preferences?: BedroomHeaterPreferences;
-  preferredRange?: { min: number; max: number };
+  item: QuickHeaterItem;
   /** Knob diameter; the card shrinks it to fit a narrow portrait screen. */
   size?: number;
-  title: string;
   onNotice?: (message: string) => void;
 }) {
+  const humidity = item.features["humidity-readout"] === false ? null : item.heater.humidity ?? null;
   return (
-    <QuickClimate label={`${title} heater`}>
+    <QuickClimate label={`${item.title} heater`}>
       <HeaterKnob
-        humidity={devices.humidity}
-        preferences={preferences}
-        preferredRange={preferredRange}
+        humidity={humidity}
+        preferences={item.preferences}
+        preferredRange={item.preferredRange}
+        showTimerRing={item.features["off-timer"] !== false}
         size={size}
-        switchEntity={devices.switchEntity}
-        temperature={devices.temperature ?? null}
-        title={title}
+        switchEntity={item.heater.switchEntity as DashboardEntity}
+        temperature={item.heater.temperature}
+        title={item.title}
         onNotice={onNotice}
       />
     </QuickClimate>

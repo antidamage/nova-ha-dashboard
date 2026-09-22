@@ -53,6 +53,7 @@
 @import "./styles/overlays/modal.css";
 @import "./styles/phonoscope/solo.css";
 @import "./styles/config/modules.css";
+@import "./styles/config/devices.css";
 @import "./styles/controls/rotary-encoder.css";
 @import "./styles/controls/rotary-knob-face.css";
 @import "./styles/controls/rotary-unlock-ring.css";

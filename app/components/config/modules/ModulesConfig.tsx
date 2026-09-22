@@ -1,19 +1,28 @@
 "use client";
 
-import { Blocks, Upload } from "lucide-react";
+import { Blocks, Package, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfigAccordion } from "../../ConfigControls";
 import { MomentaryFeedbackButton } from "../../MomentaryFeedbackButton";
 import type { ModuleSummary } from "../../../../lib/modules/runtime/types";
+import { DeviceModules } from "./DeviceModules";
 import { ModuleRow } from "./ModuleRow";
 
 /**
- * The Modules tab (`specs/module-system.md` §6).
+ * The Modules tab (specs/control-modules.md, specs/module-system.md).
  *
- * The per-module form is generated from the manifest's config schema and uses
- * only the shared controls in `nova-ha-dashboard/CLAUDE.md` — no raw inputs and
- * no JSON textarea. Module config is deliberately not text-editable: export and
- * import are the transfer mechanism, and they strip secret values.
+ * Two kinds of module, and they are genuinely different things rather than two
+ * spellings of one:
+ *
+ *   Device modules   a device type — what a device is and how it is driven.
+ *                    Declarative, installed from a JSON package, configured as
+ *                    presets on the Devices tab.
+ *   Installable      a module with its own CODE, which hooks into the dashboard
+ *   modules          through slots, interceptors and events. Installed from a
+ *                    ZIP and built with esbuild.
+ *
+ * Both are listed here because this is the tab people look in for "modules", and
+ * the panel headings are what keep them apart.
  */
 
 export function ModulesConfig() {
@@ -70,37 +79,57 @@ export function ModulesConfig() {
       <div className="panel-corner panel-corner-right" />
 
       <div className="grid gap-4">
-        {modules.length ? (
-          modules.map((module) => (
-            <ModuleRow key={module.id} module={module} onChanged={refresh} />
-          ))
-        ) : (
-          <p className="text-sm font-black uppercase text-neutral-400">No modules installed.</p>
-        )}
+        <section className="module-group">
+          <h3 className="module-group-title">Device modules</h3>
+          <DeviceModules />
+        </section>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <MomentaryFeedbackButton
-            type="button"
-            className="module-row-action module-row-action-wide"
-            disabled={installing}
-            onClick={() => packageRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" /> {installing ? "Installing" : "Install a module"}
-          </MomentaryFeedbackButton>
-          <input
-            ref={packageRef}
-            className="hidden"
-            type="file"
-            accept="application/zip,.zip"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) {
-                void install(file);
-              }
-            }}
-          />
-        </div>
+        <ConfigAccordion
+          id="installable-modules"
+          title="Installable modules"
+          icon={<Package className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
+          className="module-group config-accordion-nested"
+          defaultOpen={false}
+        >
+          <div className="grid gap-4">
+            <p className="device-intro">
+              Modules that carry their own code, and hook into the dashboard through slots, interceptors and events.
+              A device module above describes a device type; this one runs.
+            </p>
+
+            {modules.length ? (
+              modules.map((module) => (
+                <ModuleRow key={module.id} module={module} onChanged={refresh} />
+              ))
+            ) : (
+              <p className="text-sm font-black uppercase text-neutral-400">No code modules installed.</p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <MomentaryFeedbackButton
+                type="button"
+                className="module-row-action module-row-action-wide"
+                disabled={installing}
+                onClick={() => packageRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" /> {installing ? "Installing" : "Install a module"}
+              </MomentaryFeedbackButton>
+              <input
+                ref={packageRef}
+                className="hidden"
+                type="file"
+                accept="application/zip,.zip"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) {
+                    void install(file);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </ConfigAccordion>
 
         {message ? <p className="text-sm font-black uppercase text-cyan-200">{message}</p> : null}
       </div>

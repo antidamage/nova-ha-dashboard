@@ -16,6 +16,18 @@ export async function register() {
   if (process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true") {
     return;
   }
+  // Device modules: the shipped catalogue plus anything installed under
+  // data/control-modules/ (specs/control-modules.md). Read once here so the
+  // first dashboard poll already knows about them.
+  try {
+    const { refreshInstalledModules } = await import("@/lib/control-modules/registry");
+    for (const error of await refreshInstalledModules()) {
+      console.error("[control-modules] ignored an installed package:", error);
+    }
+  } catch (error) {
+    console.error("[control-modules] failed to read installed packages", error);
+  }
+
   const { startUpdateScheduler } = await import("@/lib/update-scheduler");
   startUpdateScheduler();
 

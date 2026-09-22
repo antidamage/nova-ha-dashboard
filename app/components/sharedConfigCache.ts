@@ -1,6 +1,8 @@
 "use client";
 
-import type { ConfigImportResult, SecretSetupStatus } from "../../lib/config-schema";
+import { DashboardConfigSchema, type ConfigImportResult, type SecretSetupStatus } from "../../lib/config-schema";
+import { CONTROL_MODULES } from "../../lib/control-modules/catalogue";
+import { effectiveControls } from "../../lib/control-modules/presets";
 
 export const SHARED_CONFIG_STORAGE_KEY = "nova.dashboard.sharedConfig.v1";
 export const SHARED_CONFIG_CHANGE_EVENT = "nova-shared-config-change";
@@ -71,7 +73,15 @@ export function clientConfigFromDashboardConfig(config: unknown) {
     return null;
   }
 
+  // Derived with the schema itself rather than the server's validator: this
+  // module runs in the browser, where `lib/dashboard-config` (and its `fs`) must
+  // not be pulled in. A payload that will not parse still seeds every other field
+  // as it always has and simply carries no controls, which the fetch corrects.
+  const parsed = DashboardConfigSchema.safeParse(config);
+
   return {
+    controls: parsed.success ? effectiveControls(parsed.data) : undefined,
+    controlModules: CONTROL_MODULES,
     dashboard: {
       aircon: dashboard.aircon,
       avatar: dashboard.avatar,

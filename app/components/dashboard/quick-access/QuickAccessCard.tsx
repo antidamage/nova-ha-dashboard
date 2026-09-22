@@ -1,61 +1,60 @@
 "use client";
 
-import { useRef, type CSSProperties } from "react";
-import type {
-  AirconPreferences,
-  BedroomHeaterPreferences,
-  ClimateControlState,
-  DashboardZone,
-  SpectrumCursor,
-  SunStatus,
-  WeatherStatus,
-} from "../../../../lib/types";
+import { useRef, type CSSProperties, type ReactNode } from "react";
+import type { DashboardZone, SunStatus, WeatherStatus } from "../../../../lib/types";
 import { dialPresetPull, ringGeometry } from "../../rotaryEncoderGeometry";
-import { useClimateCardTitles, type EntityActionsHandler } from "../climateCommands";
-import { climateDevicesForZone, type BedroomHeaterDevices } from "../shared";
-import type { ZoneActionHandler } from "../useZoneLighting";
-import { quickDialSlot } from "./dial-model";
-import { useQuickDialSize } from "./useQuickDialSize";
+import type { EntityActionsHandler } from "../climateCommands";
 import { QuickAppleTVSegment } from "./QuickAppleTVSegment";
-import { QuickLightsSegment } from "./QuickLightsSegment";
+import { quickDialSlot } from "./dial-model";
+import type { QuickItem } from "./quickSlotModel";
 import { QuickAirconSegment, QuickHeaterSegment } from "./QuickClimateSegments";
+import { QuickLightsSegment } from "./QuickLightsSegment";
 import { QuickWeatherSegment } from "./QuickWeatherSegment";
+import { useQuickDialSize } from "./useQuickDialSize";
+
+/**
+ * Quick Access: the one-line home card, now built from configuration
+ * (specs/control-modules.md).
+ *
+ * The card owns layout and nothing else. Every control it shows arrives as a
+ * resolved item carrying the device it drives, the room it serves, its own
+ * feature switches and the row it belongs to, so a preset placed here is drawn
+ * by its module's renderer rather than by a branch in this file. The card still
+ * takes props only and reads no globals, so another surface can mount it or any
+ * one segment.
+ *
+ * Three rows, because that is what the stylesheet is built on: the first dial
+ * line (the room's lights and the amplifier, side by side), the climate knobs,
+ * and the readings. A module declares its row; slot order decides position
+ * within one. The derived slot order produces exactly the DOM this card had
+ * before it was configurable.
+ */
 
 export type QuickAccessCardProps = {
-  bedroomHeater?: BedroomHeaterDevices;
-  climateControl?: ClimateControlState;
-  /** The climate zone, which holds the air conditioner and its switches. */
-  climateZone?: DashboardZone | null;
-  /** The Home zone (`everything`): every light except those excluded in config. */
-  homeZone?: DashboardZone | null;
+  items: QuickItem[];
   /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
   knobSkin?: "auto" | "dark" | "light";
-  preferences?: { aircon?: AirconPreferences; bedroomHeater?: BedroomHeaterPreferences; climateTargetRange?: { min: number; max: number } };
-  spectrumCursor?: SpectrumCursor;
   sun?: SunStatus | null;
   weather?: WeatherStatus | null;
   onEntityActions: EntityActionsHandler;
-  onHomeZoneAction: ZoneActionHandler;
+  /**
+   * A zone action from a lighting slot, bound to THAT slot's room. The card
+   * passes the zone rather than closing over one: a lighting module placed in
+   * any room must act on the room it was placed in.
+   */
+  onZoneAction: (zone: DashboardZone, action: string, body?: Record<string, unknown>) => Promise<void>;
   onNotice?: (message: string) => void;
 };
 
 export function QuickAccessCard({
-  bedroomHeater,
-  climateControl,
-  climateZone,
-  homeZone,
+  items,
   knobSkin,
-  preferences,
-  spectrumCursor,
   sun,
   weather,
   onEntityActions,
-  onHomeZoneAction,
+  onZoneAction,
   onNotice,
 }: QuickAccessCardProps) {
-  const titles = useClimateCardTitles();
-  const { aircon, freshAirSwitch, quietSwitch, turboSwitch } = climateDevicesForZone(climateZone);
-  const heaterSwitch = bedroomHeater?.switchEntity;
   const rowRef = useRef<HTMLDivElement>(null);
   const { pair, size: dialSize } = useQuickDialSize(rowRef);
   // Consumed only by the portrait CSS; see globals.css, "Portrait only".
@@ -68,49 +67,51 @@ export function QuickAccessCard({
     "--quick-dial-pull": `${dialPresetPull(dialSize).toFixed(2)}px`,
   } as CSSProperties;
 
+  const render = (item: QuickItem): ReactNode => {
+    if (item.kind === "lighting") {
+      return (
+        <QuickLightsSegment
+          key={item.key}
+          knobSkin={knobSkin}
+          item={item}
+          size={dialSize}
+          sun={sun}
+          onZoneAction={(action, body) => onZoneAction(item.zone, action, body)}
+        />
+      );
+    }
+    if (item.kind === "amplifier") {
+      return <QuickAppleTVSegment key={item.key} knobSkin={knobSkin} size={dialSize} />;
+    }
+    if (item.kind === "climate") {
+      return item.variant === "heater" ? (
+        <QuickHeaterSegment item={item} key={item.key} size={dialSize} onNotice={onNotice} />
+      ) : (
+        <QuickAirconSegment item={item} key={item.key} size={dialSize} onEntityActions={onEntityActions} />
+      );
+    }
+    return <QuickWeatherSegment key={item.key} features={item.features} weather={weather} />;
+  };
+
+  const inRegion = (region: QuickItem["region"]) => items.filter((item) => item.region === region);
+  const dials = inRegion("dial-line");
+  const climate = inRegion("climate");
+  const readings = inRegion("readings");
+
   return (
     <section className="quick-access" aria-label="Quick Access" data-card-id="quick-access">
       <div ref={rowRef} className="quick-access-row" data-quick-pair={pair} style={rowStyle}>
-        {/* The card's first line: the two dials that are not climate, each with
-            its own preset row under it. */}
-        <div className="quick-dial-line">
-          {homeZone ? (
-            <QuickLightsSegment knobSkin={knobSkin} size={dialSize} spectrumCursor={spectrumCursor} sun={sun} zone={homeZone} onZoneAction={onHomeZoneAction} />
-          ) : null}
-          <QuickAppleTVSegment knobSkin={knobSkin} size={dialSize} />
-        </div>
+        {/* The card's first line: the dials that are not climate, each with its
+            own preset row under it. Rendered only when a slot claims it, so a
+            card with no lighting or amplifier module keeps its old shape. */}
+        {dials.length ? <div className="quick-dial-line">{dials.map(render)}</div> : null}
         {/* Portrait: a zero-height full-width cell, so the climate dials take
             the line below the pair instead of joining it. */}
         <span className="quick-dial-break" aria-hidden="true" />
-        {aircon || (bedroomHeater && heaterSwitch) ? (
-          <div className="quick-climate-row">
-            {aircon ? (
-              <QuickAirconSegment
-                climateControl={climateControl}
-                entity={aircon}
-                freshAirSwitch={freshAirSwitch}
-                preferences={preferences?.aircon}
-                preferredRange={preferences?.climateTargetRange}
-                quietSwitch={quietSwitch}
-                size={dialSize}
-                title={titles.aircon}
-                turboSwitch={turboSwitch}
-                onEntityActions={onEntityActions}
-              />
-            ) : null}
-            {bedroomHeater && heaterSwitch ? (
-              <QuickHeaterSegment
-                devices={{ ...bedroomHeater, switchEntity: heaterSwitch }}
-                preferences={preferences?.bedroomHeater}
-                preferredRange={preferences?.climateTargetRange}
-                size={dialSize}
-                title={titles.heater}
-                onNotice={onNotice}
-              />
-            ) : null}
-          </div>
+        {climate.length ? (
+          <div className="quick-climate-row">{climate.map(render)}</div>
         ) : null}
-        <QuickWeatherSegment weather={weather} />
+        {readings.map(render)}
       </div>
     </section>
   );

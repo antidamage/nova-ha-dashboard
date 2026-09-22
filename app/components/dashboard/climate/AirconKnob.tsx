@@ -49,6 +49,8 @@ export function AirconKnob({
   preferences,
   preferredRange,
   quietSwitch,
+  showFanRing = true,
+  showTimerRing = true,
   size = 200,
   title,
   turboSwitch,
@@ -60,6 +62,9 @@ export function AirconKnob({
   preferences?: AirconPreferences;
   preferredRange?: TargetRange;
   quietSwitch?: DashboardEntity;
+  /** Off drops the ring while leaving the ring stack's radii untouched. */
+  showFanRing?: boolean;
+  showTimerRing?: boolean;
   size?: number;
   title: string;
   turboSwitch?: DashboardEntity;
@@ -139,7 +144,7 @@ export function AirconKnob({
       step: 1,
       valueText: (value) => fanStepText(AIRCON_FAN_STEPS[Math.round(value)] ?? "medium"),
       valueTextWidest: FAN_VALUE_WIDEST,
-      hidden: !manual,
+      hidden: !manual || !showFanRing,
       disabled: aircon.entityUnavailable,
       onChange: () => undefined,
       onCommit: (value) => {
@@ -172,7 +177,7 @@ export function AirconKnob({
       step: TIMER_STEP_MINUTES,
       valueText: (value) => timerValueText(Math.round(value)),
       valueTextWidest: TIMER_VALUE_WIDEST,
-      hidden: off,
+      hidden: off || !showTimerRing,
       disabled: aircon.entityUnavailable,
       onChange: () => undefined,
       onCommit: (value) => {
