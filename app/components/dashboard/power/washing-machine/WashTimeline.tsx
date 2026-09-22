@@ -93,10 +93,14 @@ export function WashTimeline({
         className="power-wash-graph relative border border-neutral-800 bg-neutral-900/60"
         style={{ "--wash-label-rows": labelRows, "--wash-label-row": `${WASH_LABEL_ROW_PX}px` } as CSSProperties}
       >
-        <svg className="power-wash-svg" viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
-          <path className="power-curve-grid" d={`M 0 10 H ${GRAPH_WIDTH} M 0 20 H ${GRAPH_WIDTH} M 0 30 H ${GRAPH_WIDTH}`} />
-        </svg>
+        {/* The grid fills the plot area rather than the whole card's graph box,
+            because that box grows by a row per label row the day needs; an SVG is
+            a replaced element, so it is sized by its own width/height and never by
+            insets. It sits first inside the plot area, behind the bars. */}
         <div className="power-wash-blocks">
+          <svg className="power-wash-svg" viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`} preserveAspectRatio="none" aria-hidden="true">
+            <path className="power-curve-grid" d={`M 0 10 H ${GRAPH_WIDTH} M 0 20 H ${GRAPH_WIDTH} M 0 30 H ${GRAPH_WIDTH}`} />
+          </svg>
           {cycles.length === 0 ? (
             <p className="power-wash-empty text-xs font-black uppercase text-neutral-600">No washes on this day</p>
           ) : null}

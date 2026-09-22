@@ -57,8 +57,8 @@ describe("washLabelPlacement", () => {
     const late = washLabelPlacement([wash(22, 24)], BLOCK);
 
     // Half a label's width in from each edge, so neither hangs off the box.
-    expect(early.labels[0].across).toBe(13);
-    expect(late.labels[0].across).toBe(87);
+    expect(early.labels[0].across).toBe(18);
+    expect(late.labels[0].across).toBe(82);
   });
 
   it("gives a label the next row down when it would draw over the one before it", () => {

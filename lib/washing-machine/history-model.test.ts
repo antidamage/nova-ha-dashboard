@@ -41,8 +41,27 @@ describe("wash blocks", () => {
     ]);
   });
 
-  it("gives a span the wrong way round no block, which is what a block read gives it too", () => {
-    expect(blockStartsForSpan(wall("2026-09-23T13:00:00"), wall("2026-09-23T11:00:00"))).toEqual([]);
+  it("keeps a same-day span the wrong way round in its own day, which is what a block read gives it too", () => {
+    // The read's overlap test is true for it, so the step list must hold its day:
+    // dropping it here would hide a wash the day on screen still returns.
+    expect(blockStartsForSpan(wall("2026-09-23T13:00:00"), wall("2026-09-23T11:00:00"))).toEqual([
+      wall("2026-09-23T00:00:00"),
+    ]);
+  });
+
+  it("keeps nothing for a span that ends before the day it starts in", () => {
+    expect(blockStartsForSpan(wall("2026-09-23T13:00:00"), wall("2026-09-22T11:00:00"))).toEqual([]);
+  });
+
+  it("keeps the day for a span with no width inside it, which a fall-back hour can produce", () => {
+    // Two instants an hour apart either side of a daylight-saving fall-back read as
+    // the same local wall time (02:30 NZDT and 02:30 NZST on 5 Apr 2026), so a
+    // one-hour wash there is a span of no width to this walk. The day read still
+    // holds the cycle — its overlap test is `from < day end && to > day start`,
+    // true for from == to inside the day — so that day must stay steppable.
+    expect(blockStartsForSpan(wall("2026-04-05T02:30:00"), wall("2026-04-05T02:30:00"))).toEqual([
+      wall("2026-04-05T00:00:00"),
+    ]);
   });
 
   it("keeps a span that ends exactly on midnight out of the day starting there", () => {
@@ -55,8 +74,8 @@ describe("wash blocks", () => {
     expect(blockStartsForSpan(wall("2026-09-23T00:00:00"), wall("2026-09-23T01:00:00"))).toEqual([
       wall("2026-09-23T00:00:00"),
     ]);
-    // No width at all is no overlap either: a zero-length cycle is in no day, in
-    // the index as well as in the read.
+    // A span with no width right at a boundary starts in no day: the day that
+    // begins there needs a strict overlap, and midnight-on-midnight is not one.
     expect(blockStartsForSpan(wall("2026-09-23T00:00:00"), wall("2026-09-23T00:00:00"))).toEqual([]);
   });
 
