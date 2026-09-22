@@ -332,7 +332,7 @@ claimed it, so it is not evidence about the primary person, and the rule-based
 guess that used to fill that gap is gone. The default is applied at the
 completion edge, and again at close for a wash whose completion was never
 captured, with `attribution: { source: "auto" }` — a default is not a tap, and
-the block is hatched like any other guess. With no such person configured the
+the block is hatched for it. With no such person configured the
 wash closes **Unassigned**, which is what a household of one wants.
 
 ### 4.4 The month
@@ -383,10 +383,11 @@ finish the timer and play the timer notification sound."*
   unfinished timer silently. One that has already finished is left alone: it is
   an alert waiting to be acknowledged, and the wash ending is not an
   acknowledgement.
-- A wash whose `completion` has already been captured starts no timer: between
-  the completion edge and the cycle closing (§4.1's `endQuietSeconds`) the
-  finished wash is still tappable, and a countdown for a wash that is done must
-  not replace the household's timer.
+- A wash whose `completion` has already been captured — or whose own timer has
+  already completed — starts no timer: between that edge and the cycle closing
+  (§4.1's `endQuietSeconds`) the finished wash is still tappable, and a countdown
+  for a wash that is done must not replace the alert standing on the household's
+  screen.
 
 The open cycle carries the wash's own timer —
 `{ startedAt, endsAt, extensions, completedAt, orbTimerId }` — and the household
@@ -627,7 +628,8 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 - A tap that takes the wash off the primary person releases an unfinished timer
   silently; a timer that has already finished is left for the household to
   acknowledge.
-- A wash whose `completion` has already been captured starts no timer.
+- A wash whose `completion` has already been captured, or whose own timer has
+  already completed, starts no timer.
 - An unclaimed wash closes as `unclaimedPersonId` with `attribution.source` of
   `auto`, and its completion (when there is one) is announced to nobody. With no
   unclaimed person configured it closes Unassigned.

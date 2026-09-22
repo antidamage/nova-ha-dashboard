@@ -314,8 +314,10 @@ preserve sibling entries, including duplicate modules; legacy moduleId settings
 migrate to one row. Timer set, adjust, silent cancel, countdown, completion,
 shared dismissal and server-side Discord delivery all work. Full ring begins
 at twelve, remaining arc runs clockwise from twelve, and its endpoint recedes
-counter-clockwise; completed rings disappear. Primary-user wash ETA becomes
-an elapsed overrun after the configured typical duration without re-guessing.
+counter-clockwise; completed rings disappear. A wash the primary user claims
+counts down on the household timer its claim starts, and its washing entry reads
+`0:00` past that period rather than counting up (specs/power-meters.md, "The
+wash's timer"). Another person's claim starts nothing.
 Orb taps dismiss displayed completion alerts before push-to-talk. Apple TV
 supports display and dismissal, with no timer-setting UI.
 
