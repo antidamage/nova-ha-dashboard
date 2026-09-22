@@ -212,9 +212,15 @@ Config page:
 - Above the Theme Library block, "Theme & Experience" folds this device's own
   controls into a **This Device** sub-accordion (`id="this-device"`), collapsed
   by default: the browser voice input group, Auto Fullscreen, the four
-  experience-mode switches plus the status-orb info switch, and Lighting Tint
-  Follows. The Theme Library block
-  and the Design selector below it stay outside the fold and always visible.
+  experience-mode switches plus the status-orb info switch, Lighting Tint
+  Follows, and Follow visualiser when active. That last row is the only
+  host-wide setting in the fold — it lives in the shared theme config, not in
+  this device's storage, so it reads the same on every dashboard. The Theme
+  Library block and the Design selector below it stay outside the fold and
+  always visible. That row's error line (its load or write failure) is rendered
+  in the Theme Library block beside the theme library's own error, never inside
+  the fold: a fold that starts collapsed must not be able to hide a failed
+  shared-config read.
 - The remaining top-level sections are ordered as Theme Settings, Climate
   Controls, Hardware Assistant, Secrets, and Config Import/Export.
 - Theme Settings contains collapsed sub-accordions ordered as Theme Colours,

@@ -69,8 +69,9 @@ categories.
 former single `app/components/AccentConfig.tsx` was split into — one level deep
 then two. Every accordion here now carries an explicit `id`, so this subtree no
 longer relies on the title-derived persistKey:**
-- `this-device` ("This Device" — the per-device controls and Lighting Tint
-  Follows, collapsed by default) and `theme-settings` ("Theme Settings") — one
+- `this-device` ("This Device" — the per-device controls plus Lighting Tint
+  Follows and the host-wide follow-visualiser switch, collapsed by default) and
+  `theme-settings` ("Theme Settings") — one
   level deep, siblings of each other
   - `theme-colours`, `fonts`, `status-orb`, `background`, `map`,
     `theme-reminders`, `sound` — two levels deep, siblings of each other

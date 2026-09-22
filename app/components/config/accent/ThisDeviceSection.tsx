@@ -14,6 +14,8 @@ export function ThisDeviceSection({
   setAutoFullscreen,
   experienceFeatures,
   setExperienceFeature,
+  followVisualizerWhenActive,
+  onFollowVisualizerChange,
   statusOrbInfoVisible,
   setStatusOrbInfoVisible,
 }: {
@@ -22,6 +24,13 @@ export function ThisDeviceSection({
   setAutoFullscreen: ReturnType<typeof useAutoFullscreenSetting>[1];
   experienceFeatures: ReturnType<typeof useExperienceFeatures>[0];
   setExperienceFeature: ReturnType<typeof useExperienceFeatures>[1];
+  /**
+   * Host-wide setting (shared theme config), not a per-device one. Its
+   * load/write error is drawn by AccentConfig, outside this fold: a collapsed
+   * fold would hide a failed shared-config load.
+   */
+  followVisualizerWhenActive: boolean;
+  onFollowVisualizerChange: (checked: boolean) => void;
   statusOrbInfoVisible: ReturnType<typeof useStatusOrbInfoSetting>[0];
   setStatusOrbInfoVisible: ReturnType<typeof useStatusOrbInfoSetting>[1];
 }) {
@@ -87,6 +96,16 @@ export function ThisDeviceSection({
               onChange={(checked) => setExperienceFeature("worldMap", checked)}
             />
             <LightingTintZoneSelect />
+            <SwitchRow
+              checked={followVisualizerWhenActive}
+              label="Follow visualiser when active"
+              detail={
+                followVisualizerWhenActive
+                  ? "Dashboard colours temporarily blend into the active visualiser theme"
+                  : "Dashboard colours remain on the selected theme"
+              }
+              onChange={onFollowVisualizerChange}
+            />
           </div>
   );
 }
