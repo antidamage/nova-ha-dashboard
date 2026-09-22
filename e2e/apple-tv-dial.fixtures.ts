@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { opened, pull, settled } from "./advanced-fold.fixtures";
+import { opened, pull, settled, toBoundary } from "./advanced-fold.fixtures";
 import { selectZone } from "./helpers";
 
 /**
@@ -82,6 +82,7 @@ export async function openAdvanced(page: Page) {
   const fold = loungePanel(page).locator(".advanced-fold").first();
   const editor = loungePanel(page).locator(".apple-tv-playlists");
   await settled(fold);
+  await toBoundary(page, fold);
   await pull(page, fold, 200);
   await opened(fold);
   await expect(editor).toBeVisible();
