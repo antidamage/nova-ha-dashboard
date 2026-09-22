@@ -60,11 +60,13 @@ export async function POST(request: Request) {
     );
   }
 
+  // Answered from the request, not from the level: unmuting at a reading of zero
+  // is a legitimate thing to ask for, and it is not the same as muting.
   void attributeControl(request, {
     service: "system",
     event: "apple-tv-mute",
-    summary: percent === 0 ? "Apple TV muted" : `Apple TV unmuted at ${percent}%`,
-    detail: { route: "/api/appletv/mute", entity: entityId, muted: percent === 0, level: percent },
+    summary: record.muted ? "Apple TV muted" : `Apple TV unmuted at ${percent}%`,
+    detail: { route: "/api/appletv/mute", entity: entityId, muted: record.muted, level: percent },
   });
-  return NextResponse.json({ entity: entityId, level: percent, muted: percent === 0 });
+  return NextResponse.json({ entity: entityId, level: percent, muted: record.muted });
 }

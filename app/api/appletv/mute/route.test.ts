@@ -52,6 +52,19 @@ describe("/api/appletv/mute", () => {
     expect(attributeControl).toHaveBeenCalledTimes(1);
   });
 
+  it("answers from the request, not from the level: unmuting at zero is not muting", async () => {
+    // A dial reading of zero is a legitimate thing to unmute at, and the answer
+    // must not tell the caller it is muted.
+    const response = await POST(mute({ level: 0, muted: false }));
+
+    expect(await response.json()).toEqual({ entity: "media_player.home_theatre", level: 0, muted: false });
+    expect(host.calls).toHaveLength(1);
+    // attributeControl(request, attribution) — the line is the second argument.
+    const attributed = (attributeControl as unknown as { mock: { calls: Array<[unknown, { detail: { muted: boolean }; summary: string }]> } }).mock.calls[0][1];
+    expect(attributed.detail.muted).toBe(false);
+    expect(attributed.summary).toContain("unmuted");
+  });
+
   it("rounds a fractional reading, which is what the dial can hold", async () => {
     await POST(mute({ level: 41.6, muted: false }));
 

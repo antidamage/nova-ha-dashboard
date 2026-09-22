@@ -191,11 +191,12 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
 
 ## What is not wired yet
 
-- **The volume and the mute state are placeholders.** They live in one page store
-  (`app/components/dashboard/appleTVAmpClient.ts`) so the two mounts on screen
-  at once agree — the way the climate knobs share one command instance — and
-  nothing is stored on the host: the dial's reading and its mute are the
-  amplifier's own, and the IR emitter that will drive them has no endpoint.
+- **The volume reading is a placeholder.** It lives in one page store
+  (`app/components/dashboard/appleTVAmpClient.ts`) so the two mounts on screen at
+  once agree — the way the climate knobs share one command instance — and nothing
+  is stored on the host: the amplifier's own volume is the IR emitter's job, and
+  that endpoint does not exist. (The *mute*, which used to be a placeholder
+  beside it, is wired — the bullet below.)
 - **The mute is the Apple TV's, wired as `volume_set`.** The Apple TV reports
   `SetVolume` and `VolumeUp`/`VolumeDown` and **no** `VolumeMute`, and nothing
   reads its level back (`volume_level` is absent, so the `Volume` feature is
