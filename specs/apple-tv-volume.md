@@ -1,9 +1,11 @@
 # The Apple TV (amplifier) dial
 
 Adeline, 2026-09-22. **Placeholder for the IR emitter** that will control the
-amplifier's volume and power state. The hardware endpoint and the emitter's own
-design do not exist yet, so the dial is built now, mounted where it will live,
-and used to fine-tune the layout. It sends nothing.
+amplifier's volume and power state. That endpoint and the emitter's own design
+do not exist yet, so the dial is built now, mounted where it will live, and used
+to fine-tune the layout: **its volume and mute send nothing**. Its **preset
+buttons do** — see §Play for the five commands a press sends, and for the one
+thing the channel cannot do.
 
 ## The control
 
@@ -61,14 +63,57 @@ Two mounts, the way every Nova knob has a Quick Access one and a panel one:
   surface, and why the playback type has nowhere else to be read on them.
 - **A press is one shot** (Adeline, 2026-09-22): it fires the preset's play
   event and lights nothing. The store holds no "chosen" preset, because a button
-  left lit reads as *this is what is playing now* — an answer only the amplifier
-  could give, and the emitter has no endpoint yet. What a press does do is hand
-  the preset, whole, to the play seam
-  (`setAppleTVPlayHandler`, `app/components/dashboard/appleTVAmpClient.ts`).
+  left lit reads as *this is what is playing now* — an answer only the Apple TV
+  could give, and one nothing reads back yet (see §Play, below).
 - **The list is typed in, not fetched**: the Apple TV exposes no playlist list
   to the dashboard, so there are no favourites to read either and a drop-down
   would be a list of nothing. When an endpoint that can read the library lands,
   this becomes a `ConfigSelect` over it and the free-text rows go.
+
+## Play: what a press actually does
+
+Adeline, 2026-09-22: *"if I hit a preset, will it turn on the apple tv and start
+playing the playlist? Let's make that work."* — and it does what the channel
+allows, which is everything except choosing **which** playlist.
+
+`POST /api/appletv/play` (`app/api/appletv/play/route.ts`) takes the preset's
+position, reads the stored list for it, and then commands Home Assistant:
+
+1. `media_player.turn_on` — only when the entity reads `off`/`standby`, then it
+   **waits** for the device to be awake (the Companion wake is a request, not a
+   state change, and an app launched into a sleeping device is lost silently).
+2. `media_player.play_media` with `app` / `com.apple.TVMusic` — brings the Music
+   app forward. The bundle id, not the name, so a television set to another
+   language still launches the right app.
+3. `media_player.shuffle_set` and `media_player.repeat_set` from the preset —
+   `endless` asks for repeat-all, because pyatv knows only off/all/track and has
+   no endless mode to request.
+4. `media_player.media_play` — start.
+
+**The playlist itself cannot be chosen, and this is measured, not assumed.** HA's
+`apple_tv` integration is pyatv: it drives the Music app's transport and reads
+its metadata, and it has no view of the library. The one deep-link route that
+exists — the Companion `_launchApp` with a URL, which HA's `play_media` reaches
+by passing `media_content_type: "url"` — was tried against the real television
+with both an `https://music.apple.com/…/playlist/…` link and its `music://`
+form, and neither did anything (`media_player.home_theatre` stayed `paused` on
+the same item, no app or title change). The Music app registers no URL scheme to
+deep-link into a playlist, so the press resumes what Music has queued and wears
+the preset's settings on it.
+
+The entity comes from the household config's `power.ampPowerControl.sourceEntityId`,
+the same one the amp controller follows; product code names no device.
+
+The three routes that would make the playlist itself selectable:
+
+| Route | What it takes |
+|---|---|
+| A tvOS app of ours (the `Nova TV` app is already on the set) | MusicKit playback of a playlist — worth a spike, since it needs a command channel and a Swift build, and tvOS MusicKit has availability gaps |
+| Music Assistant with the Apple Music provider | an install plus MusicKit developer/user tokens, and a player to receive it |
+| Spotify instead of Apple Music | the Apple TV is a Spotify Connect target, so `media_player.play_media` with a playlist URI does the job |
+
+Until one of those is chosen, a preset is "turn the Apple TV on and start Music",
+not "play *this* playlist".
 - **The three shipped presets** are `Excellent`, `Sword Smoke & Temple Drums`
   and `Cool` (`lib/apple-tv/playlists.ts`), stored in `dashboard.appleTV.playlists`
   and edited in the Lounge panel's Advanced section, under House Party. At most
@@ -124,19 +169,29 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
 
 ## What is not wired yet
 
-- The volume, the mute state and the play event are **placeholders**: no command
-  is sent and nothing about them is stored on the host. The volume and mute live
-  in one page store (`app/components/dashboard/appleTVAmpClient.ts`) so the two
-  mounts on screen at once agree — the way the climate knobs share one command
-  instance — and a registered `setAppleTVPlayHandler` is where a preset's play
-  event goes; the app registers none, so a press sends nothing.
-  `e2e/apple-tv-dial.spec.ts` asserts that pressing the dial's lights, turning
-  it and pressing a preset all send no write.
+- **The volume and the mute state are placeholders.** They live in one page store
+  (`app/components/dashboard/appleTVAmpClient.ts`) so the two mounts on screen
+  at once agree — the way the climate knobs share one command instance — and
+  nothing is stored on the host: the dial's reading and its mute are the
+  amplifier's own, and the IR emitter that will drive them has no endpoint.
+- **The mute is left alone on purpose, and this is the measurement.** The Apple
+  TV reports `SetVolume` and `VolumeUp`/`VolumeDown`, and it reports **no
+  `VolumeMute`** — so the Apple TV cannot be asked to mute. It can be asked to
+  set a level, but nothing reads the level back (`volume_level` is absent, so
+  the `Volume` feature is unsupported), which leaves an unmute with no honest
+  value to restore: it would be the dashboard's remembered number, not the
+  amplifier's, and the amplifier would jump to it. Adeline's instruction was
+  *"it can be the apple TV that mutes, if possible; if not leave mute state for
+  now"*, so it is left, and this is the why. A `volume_set(0)` mute is a
+  one-line follow-up if she would rather have a mute that cannot restore.
+- The demo build **sends nothing** for a press: it has no television behind
+  `/api`, the same way its list is kept in sessionStorage, and
+  `e2e/apple-tv-dial.spec.ts` asserts that turning the dial or pressing a preset
+  writes nothing there. The command path itself is what
+  `app/api/appletv/play/route.test.ts` covers, and what the released build was
+  verified against the real Apple TV with.
 - The preset list *is* stored, because it is configuration rather than device
   state: `GET`/`PUT /api/appletv`, through the dashboard's own preferences.
-- When the emitter's endpoint exists, this becomes a real command path: the play
-  seam grows a `fetch`, and the dial, its ring, its presets and their icons stay
-  as they are.
 
 ## Done means
 
@@ -152,9 +207,14 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
   refused with a message rather than saved — the list drops duplicates on the
   way in, so storing one would make the other row vanish unexplained — and each
   new row is named uniquely, so two "Add playlist" clicks add two rows.
-- **Pressing a preset fires its play event and marks nothing**; the event carries
-  the preset whole, icon and playback type included, and no button is left
-  `aria-pressed`.
+- **Pressing a preset fires its play event and marks nothing**: the Apple TV
+  wakes if it is asleep, the Music app comes forward, the preset's shuffle and
+  repeat are applied, playback starts, and no button is left `aria-pressed`.
+  Which *playlist* plays is the one part the channel cannot do — §Play has the
+  measurement and the three routes that would change it.
+- A press that fails reports why (the route's message lands in the store's error,
+  which the editor shows), and a preset position that has no preset is refused
+  rather than playing something else.
 - **Each preset's button wears the icon the editor gave it**, and the note until
   one is chosen; choosing the note in the picker takes an icon back off. Renaming
   a preset keeps both its icon and its playback type.
@@ -167,6 +227,8 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
   `lib/apple-tv/preset-icons.test.ts`, `appleTVEncoderModel.test.ts`,
   `AppleTVEncoder.test.tsx`, `appleTVPresets.test.tsx`,
   `appleTVPresetIcon.test.tsx`, `app/api/appletv/route.test.ts`,
+  `app/api/appletv/play/route.test.ts` (the press: the wake, the app launch, the
+  preset's shuffle and repeat, the refusals),
   `zones/AppleTVPlaylistEditor.test.tsx`,
   `zones/AppleTVPlaylistEditorSaves.test.tsx`,
   `zones/AppleTVPlaylistEditorControls.test.tsx`.

@@ -5,12 +5,16 @@
  * preset list, and the API call that saves it.
  *
  * The volume and the mute state are **placeholders** (Adeline, 2026-09-22).
- * The IR emitter that will drive the amplifier has no endpoint yet, so nothing
- * here sends a command and nothing is persisted on the host beyond the preset
- * list: the volume lives in this store for the session, which is enough for the
- * dial to behave like a dial — and for the two mounts on screen at once (Quick
- * Access and the Lounge panel) to agree, the way the climate knobs share one
- * command instance.
+ * The IR emitter that will drive the amplifier has no endpoint yet, so neither
+ * sends a command and neither is persisted on the host: they live in this store
+ * for the session, which is enough for the dial to behave like a dial — and for
+ * the two mounts on screen at once (Quick Access and the Lounge panel) to agree,
+ * the way the climate knobs share one command instance.
+ *
+ * A preset press is the one thing here that **does** command: `/api/appletv/play`
+ * wakes the Apple TV and starts the Music app with the preset's settings on it
+ * (specs/apple-tv-volume.md §Play). The list itself is stored on the host,
+ * because it is configuration rather than device state.
  *
  * Demo mode keeps everything in sessionStorage: the e2e harness runs the
  * dashboard with no host behind `/api`, exactly as the lighting rules client
@@ -29,6 +33,7 @@ import { VOLUME_MAX, clampVolume } from "../appleTVEncoderModel";
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 const DEMO_KEY = "nova.dashboard.demoAppleTVAmp.v1";
 const API = "/api/appletv";
+const PLAY = "/api/appletv/play";
 
 /** Where the placeholder volume starts: mid-scale, so the ring reads. */
 export const PLACEHOLDER_VOLUME = 40;
@@ -61,22 +66,6 @@ let loading: Promise<void> | null = null;
  */
 let saveGeneration = 0;
 const listeners = new Set<() => void>();
-
-type AppleTVPlayHandler = (playlist: AppleTVPlaylist) => void;
-
-/**
- * Where a preset's play event goes.
- *
- * The emitter that will play the playlist has no endpoint yet, so the app
- * registers nothing today and pressing a preset sends nothing anywhere. This is
- * the one seam the command will be wired into, and what a test registers to
- * prove a press fires an event rather than selecting something.
- */
-let playHandler: AppleTVPlayHandler | null = null;
-
-export function setAppleTVPlayHandler(handler: AppleTVPlayHandler | null) {
-  playHandler = handler;
-}
 
 function publish(next: Partial<AppleTVAmpSnapshot>) {
   snapshot = { ...snapshot, ...next };
@@ -143,7 +132,6 @@ export function resetAppleTVAmpForTest() {
   snapshot = INITIAL;
   loading = null;
   saveGeneration = 0;
-  playHandler = null;
 }
 
 export function useAppleTVAmp() {
@@ -213,10 +201,26 @@ export function useAppleTVAmp() {
      * not a choice of state, so nothing stays selected — a preset left lit
      * would read as "this is what is playing", which this store cannot know
      * (Adeline, 2026-09-22).
+     *
+     * `/api/appletv/play` wakes the Apple TV, brings the Music app forward,
+     * applies the preset's shuffle and repeat, and starts playback. The demo
+     * build calls nothing: it has no Apple TV behind `/api`, the same way its
+     * list is kept in sessionStorage.
      */
     playPreset: (index: number) => {
-      const playlist = snapshot.playlists[index];
-      if (playlist) playHandler?.(playlist);
+      if (!snapshot.playlists[index] || DEMO_MODE) return;
+      setError(null);
+      void fetch(PLAY, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ index }),
+      })
+        .then(async (response) => {
+          if (response.ok) return;
+          const payload = await response.json().catch(() => ({})) as { error?: string };
+          setError(payload.error ?? "Could not play the preset");
+        })
+        .catch(() => setError("Could not play the preset"));
     },
     setMuted: (muted: boolean) => {
       publish({ muted });
