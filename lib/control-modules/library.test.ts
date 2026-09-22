@@ -115,6 +115,9 @@ describe("parseModulePackage", () => {
       packageFor({
         features: [{ default: true, detail: "Show the fan step ring", id: "fan-ring", label: "Fan ring", variantIds: ["aircon"] }],
         id: "gated-control",
+        // A feature may only gate on a variant its own module declares, which
+        // `parseModulePackage` now refuses by name — so the fixture declares it.
+        variants: [{ detail: "Cooling", id: "aircon", label: "Air conditioner" }],
       }),
       context(),
     );
@@ -137,6 +140,26 @@ describe("parseModulePackage", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toContain("levitation");
+    }
+  });
+
+  it("refuses a feature gated on hardware this build does not have", () => {
+    const driver = parseModulePackage(
+      packageFor({ features: [{ default: true, detail: "", driverIds: ["not-a-driver"], id: "fan-ring", label: "Fan ring" }] }),
+      context(),
+    );
+    expect(driver.ok).toBe(false);
+    if (!driver.ok) {
+      expect(driver.error).toBe("feature fan-ring needs an unknown driver module: not-a-driver");
+    }
+
+    const variant = parseModulePackage(
+      packageFor({ features: [{ default: true, detail: "", id: "fan-ring", label: "Fan ring", variantIds: ["hologram"] }] }),
+      context(),
+    );
+    expect(variant.ok).toBe(false);
+    if (!variant.ok) {
+      expect(variant.error).toBe("feature fan-ring needs a variant this module does not have: hologram");
     }
   });
 

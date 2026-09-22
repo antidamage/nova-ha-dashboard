@@ -16,9 +16,13 @@ import { CONTROL_MODULE_FIELD_IDS, SHIPPED_RENDERER_IDS, type ControlModule } fr
  * names a renderer this build ships. A module cannot bring its own drawing —
  * that is the installable module system's job (`specs/module-system.md`), where
  * a package carries real code — and a control-modules package that could not be
- * drawn would be a device type nothing could render. What a package CAN do is
- * define a new device type: its name, its settings, its behaviours, its feature
- * switches, and the driver it defaults to.
+ * drawing would be a device type nothing could render. What a package CAN do is
+ * define a new device type: its name, its settings, its behaviours, the driver it
+ * defaults to, and which of the SHIPPED features it offers — a renderer reads a
+ * fixed set of feature ids, so a feature id this build does not know would switch
+ * nothing. Feature ids are therefore not validated against a catalogue here: the
+ * control that draws the preset is the only thing that can say which ids it
+ * reads, and the module it belongs to is where that list lives.
  */
 
 const SLUG = /^[a-z][a-z0-9-]{1,38}$/;
@@ -42,7 +46,7 @@ const LeafSchema = z
     driverIds: z.array(z.string().max(60)).max(12).optional(),
     id: z.string().min(1).max(40),
     label: z.string().min(1).max(80),
-    variantIds: z.array(z.string().max(40)).max(6).optional(),
+    variantIds: z.array(z.string().min(1).max(40)).max(6).optional(),
   })
   .strict();
 
@@ -74,7 +78,7 @@ export const ModulePackageSchema = z
       variants: z
         .array(
           z
-            .object({ detail: z.string().max(300).default(""), id: z.string().max(40), label: z.string().max(80) })
+            .object({ detail: z.string().max(300).default(""), id: z.string().min(1).max(40), label: z.string().min(1).max(80) })
             .strict(),
         )
         .max(6)
@@ -123,6 +127,22 @@ export function parseModulePackage(
   const unknownDriver = module.driverIds.find((id) => !known.moduleIds.has(id) && !known.builtInIds.has(id));
   if (unknownDriver) {
     return { ok: false, error: `unknown driver module: ${unknownDriver}` };
+  }
+  // A FEATURE's own gates get the same treatment. Without this a package could
+  // gate a feature on a driver this build does not have, install cleanly, and
+  // then grey the row out for ever with a raw id as the reason — no error, no
+  // way to clear it, because the missing module cannot be un-missing.
+  for (const feature of module.features) {
+    const unknownFeatureDriver = (feature.driverIds ?? []).find((id) => !known.moduleIds.has(id) && !known.builtInIds.has(id));
+    if (unknownFeatureDriver) {
+      return { ok: false, error: `feature ${feature.id} needs an unknown driver module: ${unknownFeatureDriver}` };
+    }
+    const unknownVariant = (feature.variantIds ?? []).find(
+      (id) => !module.variants.some((variant) => variant.id === id),
+    );
+    if (unknownVariant) {
+      return { ok: false, error: `feature ${feature.id} needs a variant this module does not have: ${unknownVariant}` };
+    }
   }
   if (module.layer === "control" && !module.renderer) {
     return { ok: false, error: "a control module must name a renderer this build ships" };
