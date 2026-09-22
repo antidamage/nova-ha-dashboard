@@ -9,12 +9,21 @@ const DEMO_TOOLTIPS_ENABLED = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 
 export function IconButton({
   children,
+  demoTooltip,
   label,
   onClick,
   disabled,
   variant = "cyan",
 }: {
   children: ReactNode;
+  /**
+   * Demo mode's stand-in tooltip, for a button that is not a lighting preset.
+   * The demo build has no Radix tooltip and renders these data attributes
+   * instead, and the default copy below describes applying a light preset —
+   * true of every caller this was written for, and not of the playlist
+   * editor's icon chooser.
+   */
+  demoTooltip?: { text: string; title: string };
   label: string;
   onClick: () => void;
   disabled?: boolean;
@@ -26,8 +35,8 @@ export function IconButton({
     yellow: "border-yellow-300/60 bg-yellow-300/10 text-yellow-100 hover:bg-yellow-300/20",
     white: "border-neutral-200/70 bg-neutral-100/10 text-neutral-100 hover:bg-neutral-100/20",
   };
-  const demoTooltipTitle = label.startsWith("On: ") ? "On" : label;
-  const demoTooltipText = label === "Off" ? "Turn selected lights off." : "Apply this light preset.";
+  const demoTooltipTitle = demoTooltip?.title ?? (label.startsWith("On: ") ? "On" : label);
+  const demoTooltipText = demoTooltip?.text ?? (label === "Off" ? "Turn selected lights off." : "Apply this light preset.");
   const button = (
     <MomentaryFeedbackButton
       type="button"

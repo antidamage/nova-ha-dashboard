@@ -2,11 +2,11 @@
 
 /**
  * The amplifier dial's page store: one shared value pair for every mount, the
- * playlist list, and the API call that saves it.
+ * preset list, and the API call that saves it.
  *
  * The volume and the mute state are **placeholders** (Adeline, 2026-09-22).
  * The IR emitter that will drive the amplifier has no endpoint yet, so nothing
- * here sends a command and nothing is persisted on the host beyond the playlist
+ * here sends a command and nothing is persisted on the host beyond the preset
  * list: the volume lives in this store for the session, which is enough for the
  * dial to behave like a dial — and for the two mounts on screen at once (Quick
  * Access and the Lounge panel) to agree, the way the climate knobs share one
@@ -17,7 +17,13 @@
  * does.
  */
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { DEFAULT_PLAYLISTS, MAX_PLAYLISTS, cleanPlaylists, storedPlaylists } from "../../../lib/apple-tv/playlists";
+import {
+  MAX_PLAYLISTS,
+  cleanPlaylistEntry,
+  cleanPlaylists,
+  storedPlaylists,
+  type AppleTVPlaylist,
+} from "../../../lib/apple-tv/playlists";
 import { VOLUME_MAX, clampVolume } from "../appleTVEncoderModel";
 
 const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
@@ -28,21 +34,18 @@ const API = "/api/appletv";
 export const PLACEHOLDER_VOLUME = 40;
 
 export type AppleTVAmpSnapshot = {
-  playlists: string[];
+  playlists: AppleTVPlaylist[];
   volume: number;
   muted: boolean;
-  /** The playlist a preset button last chose, or null for none. */
-  presetIndex: number | null;
   loaded: boolean;
   saving: boolean;
   error: string | null;
 };
 
 const INITIAL: AppleTVAmpSnapshot = {
-  playlists: [...DEFAULT_PLAYLISTS],
+  playlists: storedPlaylists(undefined),
   volume: PLACEHOLDER_VOLUME,
   muted: false,
-  presetIndex: null,
   loaded: false,
   saving: false,
   error: null,
@@ -58,6 +61,22 @@ let loading: Promise<void> | null = null;
  */
 let saveGeneration = 0;
 const listeners = new Set<() => void>();
+
+type AppleTVPlayHandler = (playlist: AppleTVPlaylist) => void;
+
+/**
+ * Where a preset's play event goes.
+ *
+ * The emitter that will play the playlist has no endpoint yet, so the app
+ * registers nothing today and pressing a preset sends nothing anywhere. This is
+ * the one seam the command will be wired into, and what a test registers to
+ * prove a press fires an event rather than selecting something.
+ */
+let playHandler: AppleTVPlayHandler | null = null;
+
+export function setAppleTVPlayHandler(handler: AppleTVPlayHandler | null) {
+  playHandler = handler;
+}
 
 function publish(next: Partial<AppleTVAmpSnapshot>) {
   snapshot = { ...snapshot, ...next };
@@ -91,7 +110,6 @@ async function load() {
       playlists: storedPlaylists(stored.playlists),
       volume: clampVolume(stored.volume ?? PLACEHOLDER_VOLUME),
       muted: stored.muted === true,
-      presetIndex: typeof stored.presetIndex === "number" ? stored.presetIndex : null,
       loaded: true,
       error: null,
     });
@@ -120,11 +138,12 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** Resets the page store; tests only. */
+/** Resets the page store, and the play seam with it; tests only. */
 export function resetAppleTVAmpForTest() {
   snapshot = INITIAL;
   loading = null;
   saveGeneration = 0;
+  playHandler = null;
 }
 
 export function useAppleTVAmp() {
@@ -132,7 +151,7 @@ export function useAppleTVAmp() {
   const [error, setError] = useState<string | null>(null);
   useEffect(ensureLoaded, []);
 
-  const save = useCallback(async (playlists: string[]) => {
+  const save = useCallback(async (playlists: AppleTVPlaylist[]) => {
     setError(null);
     // The list the caller is rolling back to. Publishing the optimistic list
     // first means `snapshot.playlists` is already the NEW one by the time the
@@ -169,24 +188,35 @@ export function useAppleTVAmp() {
   }, []);
 
   /** One action for every edit: the list is always written whole. */
-  const setPlaylists = useCallback((names: string[]) => {
-    void save(cleanPlaylists(names.slice(0, MAX_PLAYLISTS)));
+  const setPlaylists = useCallback((presets: AppleTVPlaylist[]) => {
+    void save(cleanPlaylists(presets.slice(0, MAX_PLAYLISTS)));
   }, [save]);
 
   return useMemo(() => ({
     ...state,
     error: error ?? state.error,
     setPlaylists,
-    addPlaylist: (name: string) =>
-      setPlaylists([...snapshot.playlists.slice(0, MAX_PLAYLISTS), name]),
+    addPlaylist: (name: string) => {
+      const preset = cleanPlaylistEntry(name);
+      if (preset) setPlaylists([...snapshot.playlists.slice(0, MAX_PLAYLISTS), preset]);
+    },
     removePlaylist: (index: number) =>
       setPlaylists(snapshot.playlists.filter((_, at) => at !== index)),
+    /** A rename keeps the preset's own icon and playback type. */
     renamePlaylist: (index: number, name: string) =>
-      setPlaylists(snapshot.playlists.map((entry, at) => (at === index ? name : entry))),
-    /** Placeholder: mark a preset as chosen. No Apple Music call yet. */
-    choosePreset: (index: number | null) => {
-      publish({ presetIndex: index });
-      writeDemo({ presetIndex: index });
+      setPlaylists(snapshot.playlists.map((entry, at) => (at === index ? { ...entry, name } : entry))),
+    /** The icon a preset's button wears, and the way it plays: one write each. */
+    updatePreset: (index: number, patch: Partial<Omit<AppleTVPlaylist, "name">>) =>
+      setPlaylists(snapshot.playlists.map((entry, at) => (at === index ? { ...entry, ...patch } : entry))),
+    /**
+     * Fire a preset's play event. One shot by design: the button is a command,
+     * not a choice of state, so nothing stays selected — a preset left lit
+     * would read as "this is what is playing", which this store cannot know
+     * (Adeline, 2026-09-22).
+     */
+    playPreset: (index: number) => {
+      const playlist = snapshot.playlists[index];
+      if (playlist) playHandler?.(playlist);
     },
     setMuted: (muted: boolean) => {
       publish({ muted });

@@ -1,3 +1,4 @@
+import type { AppleTVPlaylist } from "../apple-tv/playlists";
 import type { OrbInfoPreferences } from "../orb-info/types";
 import type { AgentPreferences, DesignPreferences, LayoutPreferences, RouterStatus, SunStatus, UpdatePreferences, WatchfacePreferences, WeatherStatus } from "./status";
 import type { AirconPreferences, BedroomHeaterPreferences, ClimateControlState, PanelHeaterPreferences } from "./climate";
@@ -30,12 +31,15 @@ export type DashboardPreferences = {
   climateTargetRange?: { min: number; max: number };
   /**
    * The amplifier the Apple TV plays through (Adeline, 2026-09-22): the Apple
-   * Music playlists its dial's preset buttons offer, in order. The dial is the
-   * IR emitter's placeholder, so this is the whole of what is stored — its
-   * volume and mute state have no endpoint yet and live in the client for the
-   * session. Unset = the three shipped playlists (lib/apple-tv/playlists.ts).
+   * Music playlists its dial's preset buttons offer, in order — each with the
+   * icon its button wears and the way it is to be played. A list written before
+   * those existed holds bare names and is read as presets with nothing set. The
+   * dial is the IR emitter's placeholder, so this is the whole of what is
+   * stored: its volume and mute state have no endpoint yet and live in the
+   * client for the session. Unset = the three shipped playlists
+   * (lib/apple-tv/playlists.ts).
    */
-  appleTV?: { playlists?: string[]; updatedAt?: string };
+  appleTV?: { playlists?: AppleTVPlaylist[]; updatedAt?: string };
   theme?: Record<string, unknown>;
   themeUpdatedAt?: string;
   themeLibrary?: Record<string, unknown>;

@@ -1,25 +1,34 @@
 "use client";
 
 /**
- * The amplifier dial's playlist presets: one button per playlist, on both
+ * The amplifier dial's playlist presets: one button per preset, on both
  * surfaces the dial is mounted (Adeline, 2026-09-22).
  *
  * The playlist names are long — "Sword Smoke & Temple Drums" is the second of
- * the three shipped ones — so every button carries its name as its accessible
- * label and its visual identity as the note glyph: the chosen one is the only
- * one that changes appearance. Nothing is sent anywhere yet; pressing one marks
- * it, which is what the layout has to be judged on until the IR emitter's
- * endpoint exists.
+ * the three shipped ones — so every button carries its name and its playback
+ * type as its accessible label and its identity as the icon the editor gave it,
+ * the note until one is chosen.
+ *
+ * **A press is one shot** (Adeline, 2026-09-22): it fires the preset's play
+ * event and lights nothing. The store holds no "chosen" preset any more,
+ * because a button left lit would read as "this is what is playing now" — an
+ * answer only the amplifier could give, and the emitter that will drive it has
+ * no endpoint yet.
  */
-import { Music } from "lucide-react";
+import {
+  playlistModeWords,
+  type AppleTVPlaylist,
+} from "../../../lib/apple-tv/playlists";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
+import { presetIconComponent, PresetIconMark } from "./appleTVPresetIcon";
 import { classNames } from "./shared";
 import { useAppleTVAmp } from "./appleTVAmpClient";
 import { QuickButton } from "./quick-access/QuickSegment";
 
 /** What a preset is called out loud and in a tooltip. */
-function presetLabel(name: string) {
-  return `Play ${name} on the Apple TV`;
+function presetLabel(playlist: AppleTVPlaylist) {
+  const words = playlistModeWords(playlist);
+  return `Play ${playlist.name} on the Apple TV${words.length ? ` (${words.join(", ")})` : ""}`;
 }
 
 /** Quick Access: the dial's presets as the card's square icon buttons. */
@@ -28,15 +37,13 @@ export function QuickAppleTVPresets({ className }: { className?: string }) {
   if (!amp.playlists.length) return null;
   return (
     <div className={classNames("quick-button-pair apple-tv-presets", className)} role="group" aria-label="Apple TV playlists">
-      {amp.playlists.map((name, index) => (
+      {amp.playlists.map((playlist, index) => (
         <QuickButton
-          key={`${name}-${index}`}
-          active={amp.presetIndex === index}
-          icon={Music}
+          key={`${playlist.name}-${index}`}
+          icon={presetIconComponent(playlist.icon)}
           iconOnly
-          label={presetLabel(name)}
-          pressed={amp.presetIndex === index}
-          onClick={() => amp.choosePreset(index)}
+          label={presetLabel(playlist)}
+          onClick={() => amp.playPreset(index)}
         />
       ))}
     </div>
@@ -58,16 +65,15 @@ export function PanelAppleTVPresets({ className }: { className?: string }) {
       role="group"
       aria-label="Apple TV playlists"
     >
-      {amp.playlists.map((name, index) => (
+      {amp.playlists.map((playlist, index) => (
         <MomentaryFeedbackButton
-          key={`${name}-${index}`}
+          key={`${playlist.name}-${index}`}
           type="button"
-          aria-label={presetLabel(name)}
-          aria-pressed={amp.presetIndex === index}
-          data-preset-active={amp.presetIndex === index ? "true" : undefined}
-          onClick={() => amp.choosePreset(index)}
+          aria-label={presetLabel(playlist)}
+          data-preset-icon={playlist.icon ?? "note"}
+          onClick={() => amp.playPreset(index)}
         >
-          <Music aria-hidden="true" />
+          <PresetIconMark icon={playlist.icon} />
         </MomentaryFeedbackButton>
       ))}
     </div>

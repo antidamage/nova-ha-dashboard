@@ -1,57 +1,20 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { DEFAULT_PLAYLISTS } from "../lib/apple-tv/playlists";
-import { gotoDashboard, selectZone } from "./helpers";
+import { ampDial, loungePanel, openLounge, quickAmp, tap } from "./apple-tv-dial.fixtures";
+import { gotoDashboard } from "./helpers";
 
 // specs/apple-tv-volume.md: the amplifier dial — the IR emitter's placeholder
 // (Adeline, 2026-09-22). It turns the volume, cycling its two lights toggles
 // mute, its ring is blue-green, and its preset buttons are the Apple TV's
 // playlists. The Lounge panel mounts the same dial beside its lighting dial,
-// and the playlist list lives in that panel's Advanced section, under House
-// Party. Nothing is sent anywhere yet: the amplifier has no endpoint.
-
-function quickAmp(page: Page) {
-  return page.locator(".quick-access .quick-segment-appletv");
-}
-
-function ampDial(page: Page) {
-  return quickAmp(page).locator(".rotary-encoder-dial");
-}
-
-/**
- * Open the Lounge's zone panel.
- *
- * The demo's zones arrive with the first state poll, so the button is not in
- * the DOM when the dashboard's shell is: wait for it, then let `selectZone`
- * open whichever accordion group holds it. The panel's own heading is the gate
- * — the previous zone's panel is still on screen until the click takes.
- */
-async function openLounge(page: Page) {
-  await expect(page.locator(".zones-panel").getByRole("button", { name: /^Lounge$/i }).first())
-    .toBeAttached({ timeout: 30_000 });
-  await selectZone(page, /^Lounge$/i);
-  await expect(loungePanel(page).locator(".zone-dial-pair")).toHaveCount(1, { timeout: 30_000 });
-}
-
-/**
- * The Lounge's own zone panel. More than one panel is mounted at once in
- * landscape (the selected zone's and the climate zone's), so every Lounge
- * lookup is scoped to the panel whose heading names it.
- */
-function loungePanel(page: Page) {
-  return page.locator(".zone-panel")
-    .filter({ has: page.locator(".zone-panel-title", { hasText: /^Lounge$/i }) })
-    .first();
-}
-
-async function tap(target: ReturnType<Page["locator"]>) {
-  await target.scrollIntoViewIfNeeded();
-  const box = await target.boundingBox();
-  if (!box) throw new Error("no box to tap");
-  await target.page().mouse.move(box.x + box.width / 2, box.y + box.height * 0.65);
-  await target.page().mouse.down();
-  await target.page().waitForTimeout(140);
-  await target.page().mouse.up();
-}
+// and the playlist list itself is edited in that panel's Advanced section —
+// which apple-tv-playlists.spec.ts covers. Nothing is sent anywhere yet: the
+// amplifier has no endpoint.
+//
+// Opening the Lounge panel settles a heavy layout before anything can be read
+// or pressed, so the ceiling is the repo's 120 s for a surface spec rather than
+// the config's 45 s (advanced-fold, lighting-rules, reminders-editor).
+test.describe.configure({ timeout: 120_000 });
 
 test("Quick Access carries an Apple TV dial: blue-green, reading the volume", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -102,7 +65,7 @@ test("cycling the dial's modes toggles mute, and the volume turns", async ({ pag
   await expect(segment.locator(".apple-tv-encoder-level")).not.toHaveText("40%");
 });
 
-test("its preset buttons are the Apple TV's playlists, marked as they are chosen", async ({ page }) => {
+test("its preset buttons are the Apple TV's playlists, and a press lights nothing", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoDashboard(page);
   const presets = quickAmp(page).locator(".apple-tv-presets");
@@ -111,10 +74,12 @@ test("its preset buttons are the Apple TV's playlists, marked as they are chosen
     await expect(presets.getByRole("button", { name: `Play ${name} on the Apple TV` })).toBeVisible();
   }
 
-  const second = presets.getByRole("button", { name: `Play ${DEFAULT_PLAYLISTS[1]} on the Apple TV` });
-  await second.click();
-  await expect(second).toHaveAttribute("aria-pressed", "true");
-  await expect(presets.getByRole("button", { name: `Play ${DEFAULT_PLAYLISTS[0]} on the Apple TV` })).toHaveAttribute("aria-pressed", "false");
+  // One shot (Adeline, 2026-09-22): the press fires the preset's play event and
+  // stays dark — a lit button would read as "this is what is playing".
+  await presets.getByRole("button", { name: `Play ${DEFAULT_PLAYLISTS[1]} on the Apple TV` }).click();
+  await page.waitForTimeout(200);
+  await expect(presets.locator("button[aria-pressed='true']")).toHaveCount(0);
+  await expect(presets.locator("button.quick-button-active")).toHaveCount(0);
 });
 
 test("the dial and its presets send nothing: the amplifier has no endpoint yet", async ({ page }) => {
@@ -154,38 +119,4 @@ test("the Lounge panel mounts the same dial beside its lighting dial", async ({ 
   // three playlists.
   await expect(pair.locator(".zone-lighting-presets:not(.apple-tv-presets) button")).toHaveCount(4);
   await expect(pair.locator(".apple-tv-presets button")).toHaveCount(3);
-});
-
-test("the Lounge's Advanced section lists the playlists, under House Party", async ({ page }) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await gotoDashboard(page);
-  await openLounge(page);
-
-  // Pull the fold open: a landscape fold takes four quarter-weighted notches.
-  const fold = loungePanel(page).locator(".advanced-fold").first();
-  const box = await fold.boundingBox();
-  if (!box) throw new Error("no fold box");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  for (let notch = 0; notch < 8; notch += 1) {
-    await page.mouse.wheel(0, 120);
-    await page.waitForTimeout(60);
-  }
-
-  const editor = loungePanel(page).locator(".apple-tv-playlists");
-  await expect(editor).toBeVisible();
-  await expect(editor.getByRole("heading", { name: "Apple TV playlists" })).toBeVisible();
-  const rows = editor.locator(".apple-tv-playlist-input");
-  await expect(rows).toHaveCount(3);
-  for (const [index, name] of DEFAULT_PLAYLISTS.entries()) {
-    await expect(rows.nth(index)).toHaveValue(name);
-  }
-  // House Party owns the row above it, and the editor sits beneath it.
-  const party = loungePanel(page).locator(".zone-party-control");
-  const [partyBox, editorBox] = await Promise.all([party.boundingBox(), editor.boundingBox()]);
-  expect(editorBox!.y).toBeGreaterThan(partyBox!.y);
-
-  // A new playlist joins the dial's preset row as well: one list, two mounts.
-  await editor.getByRole("button", { name: "Add playlist" }).click();
-  await expect(editor.locator(".apple-tv-playlist-input")).toHaveCount(4);
-  await expect(loungePanel(page).locator(".zone-amplifier-controls .apple-tv-presets button")).toHaveCount(4);
 });
