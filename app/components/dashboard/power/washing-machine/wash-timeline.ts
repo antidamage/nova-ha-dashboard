@@ -11,9 +11,15 @@ export const MIN_WASH_BLOCK_PERCENT = 14;
 
 /**
  * How much of the graph one start-and-duration label needs, so its row can be
- * decided without measuring text. Percentages are of the block on show.
+ * decided without measuring text. Percentages are of the day on show.
+ *
+ * Measured on the live card: `3:04 PM · 1h 13m` is 69 px wide on a 264 px strip
+ * (26%). A wider theme face fits fewer characters per pixel, so the reservation
+ * covers the longest label the format can produce instead — about 95 px on the
+ * narrowest strip the card reaches (~250 px at a 300 px card). The cost is a row
+ * only where two washes are more than about eight hours apart.
  */
-export const WASH_LABEL_WIDTH_PERCENT = 26;
+export const WASH_LABEL_WIDTH_PERCENT = 36;
 
 /** How tall one row of wash labels is, in px. The graph reserves a row each. */
 export const WASH_LABEL_ROW_PX = 15;

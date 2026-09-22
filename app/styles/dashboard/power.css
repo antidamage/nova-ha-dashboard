@@ -241,6 +241,9 @@
   min-width: 0;
 }
 
+/* The grid: the plot area's own width and height, since it lives inside the plot
+   area — an SVG is a replaced element, so left/right/top/bottom alone would leave
+   it at its intrinsic size instead of filling anything. */
 .power-wash-svg {
   display: block;
   height: 100%;

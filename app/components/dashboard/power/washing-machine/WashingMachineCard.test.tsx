@@ -144,6 +144,17 @@ describe("WashingMachineCard", () => {
     expect(document.querySelector(".power-wash-block .power-wash-label")).toBeNull();
   });
 
+  it("draws the grid inside the plot area, so it cannot run across the label rows", async () => {
+    open();
+    await screen.findByText("Sat 19 Sep 2026");
+
+    // The graph box grows a row per label row the day needs (84px + 15px each). An
+    // SVG is a replaced element — sized by its own width/height, never by insets —
+    // so the grid lives in the plot area, whose box does not include the label rows.
+    expect(document.querySelectorAll(".power-wash-blocks > .power-wash-svg")).toHaveLength(1);
+    expect(document.querySelectorAll(".power-wash-graph > .power-wash-svg")).toHaveLength(0);
+  });
+
   it("cannot step later than the newest day, and can step back from it", async () => {
     open();
     await screen.findByText("Sat 19 Sep 2026");

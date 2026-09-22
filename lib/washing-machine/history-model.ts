@@ -41,15 +41,20 @@ export function washDurationLabel(durationMs: number) {
  * overlaps (`start < day end && end > day start`), so a span that ends exactly on
  * midnight belongs to the day it ends in, and not to the one starting there —
  * which is what keeps the step list free of days with no data in them, and a step
- * never lands on an empty day. A span with no width touches nothing, for the same
- * reason: the strict overlap above is false for it.
+ * never lands on an empty day.
+ *
+ * A span with no width, or one the wrong way round, keeps the day it starts in
+ * when it starts inside that day: the read's own overlap test is true for it too,
+ * so the step list and the day on screen agree. Rejecting a zero-width span here
+ * instead took the day out of the step list while the read still held its wash — a
+ * wash starting inside the hour a daylight-saving change repeats collapses to one
+ * wall value and became impossible to step to.
  *
  * Capped because the span comes from stored state: an open cycle whose machine
  * sat above the start threshold for weeks would otherwise emit a block per day
  * since it began.
  */
 export function blockStartsForSpan(startWallMs: number, endWallMs: number, cap = 800) {
-  if (!(startWallMs < endWallMs)) return [];
   const starts: number[] = [];
   for (let at = blockStartWallMs(startWallMs); at < endWallMs && starts.length < cap; at += WASH_BLOCK_MS) {
     starts.push(at);
