@@ -192,7 +192,7 @@ export async function recordWashTrace(
     }
   }
 
-  const anchor = washing.open?.startedAt ?? washing.open?.aboveSince ?? null;
+  const anchor = washing.open?.startedAt ?? washing.open?.wokeAt ?? washing.open?.aboveSince ?? null;
   if (!anchor) {
     runningWashCurve = undefined;
     if (open.anchor || open.points.length > 0) await writeJsonAtomic(WASH_OPEN_TRACE_PATH, { anchor: null, points: [] });

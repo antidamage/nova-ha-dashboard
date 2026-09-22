@@ -1,4 +1,5 @@
 import type { WashingMachineConfig } from "../config-schema";
+import { accumulateWashEnergy, creditWashEnergy } from "./energy-model";
 import { advanceWashTimer, completeWashTimer } from "./timer-model";
 import type { WashingMachineCycle, WashingMachineOpenCycle, WashingMachineState } from "./types";
 
@@ -62,28 +63,33 @@ export function recordWashingMachineSample(
     startedAt: null,
   };
 
-  function add(kwh: number) {
-    open.kwh += kwh;
-    open.costNzd += kwh * costPerKwh;
+  /**
+   * Arm a wake: a fresh record (the meter leaving the off floor) or a rise above
+   * `startWatts` (`byRise`). A wake the machine has outlived is not re-armed in
+   * the dead band, and every arming starts the below-start count from zero.
+   */
+  function armWake(byRise: boolean) {
+    if (open.startedAt) return;
+    const stands = open.wokeAt !== undefined && open.wokeAt !== null;
+    const outlived = open.wokeAt === null;
+    if (stands || (outlived && !byRise)) return;
+    open.wokeAt = at;
+    delete open.belowStartSeconds;
   }
 
-  // Integrate the PREVIOUS reading over the interval it actually stood for,
-  // as the rest of the power integrator does. Only a running cycle
-  // accumulates; standby draw between washes is not a wash.
-  const counterKwh = options.energyKwh !== undefined && Number.isFinite(options.energyKwh) && options.energyKwh >= 0
-    ? options.energyKwh
-    : undefined;
-  if (open.startedAt && counterKwh !== undefined) {
-    add(counterKwh);
-  } else if (open.startedAt && elapsedHours > 0) {
-    add((open.lastWatts * elapsedHours) / 1000);
-  } else if (!open.startedAt && counterKwh !== undefined && open.aboveSince) {
-    open.preStartKwh = (open.preStartKwh ?? 0) + counterKwh;
-  }
+  accumulateWashEnergy(open, { costPerKwh, elapsedHours, energyKwh: options.energyKwh });
   const gap = seconds(open.lastSampleAt, at);
   const alert = config.completionAlert;
   const stop = config.timer;
-  if (alert?.enabled && (gap > stop.maxSampleGapSeconds || gap < 0)) open.belowSince = null;
+  // A gap the ticks cannot span is no evidence about a quiet window, for the
+  // close timer or for the completion alike: both restart from the next sample.
+  if (gap > stop.maxSampleGapSeconds || gap < 0) open.belowSince = null;
+  // Nor about a wake: the gap may hold a whole wash nobody saw.
+  if ((gap > stop.maxSampleGapSeconds || elapsedHours <= 0) && !open.startedAt && open.wokeAt) {
+    open.wokeAt = null;
+    delete open.preStartKwh;
+    delete open.belowStartSeconds;
+  }
   // The window that says "the machine has stopped" is watched while either the
   // wash's timer or the completion record still needs it, and both settle on the
   // same edge so the timer's chime and the notification describe one moment.
@@ -130,34 +136,40 @@ export function recordWashingMachineSample(
     if (step.extended) open.timer = step.timer;
   }
   open.lastSampleAt = at;
-  const previousWatts = open.lastWatts;
   open.lastWatts = watts;
 
   if (watts > config.startWatts) {
     open.belowSince = null;
-    open.aboveSince ??= at;
-    if (!open.startedAt && seconds(open.aboveSince, at) >= config.startSustainedSeconds) {
-      // startedAt is when the rise began, not when it was confirmed, so the
-      // first two minutes of a wash are not lost from its total — and neither
-      // is the energy it drew over them, credited here at the rate it has been
-      // running at since.
-      open.startedAt = open.aboveSince;
-      if (counterKwh !== undefined) {
-        // This tick's delta was already folded into preStartKwh above.
-        add(open.preStartKwh ?? 0);
-      } else {
-        add((previousWatts * seconds(open.aboveSince, at)) / 3_600_000);
+    if (!open.startedAt) {
+      // The machine leaves the off floor before the drum turns — the door, the
+      // panel, the fill — and the fill's own pauses drop back under startWatts,
+      // so the rise alone cannot date the wash. The wake can: see startedAt.
+      armWake(true);
+      delete open.belowStartSeconds;
+      open.aboveSince ??= at;
+      if (seconds(open.aboveSince, at) >= config.startSustainedSeconds) {
+        // startedAt is when the machine woke, not when the drum's second burst
+        // confirmed it, so the fill and the first agitation stay in the cycle's
+        // total — and so does the energy they drew, accumulated tick by tick
+        // since the wake rather than estimated backwards from the last reading.
+        open.startedAt = open.wokeAt ?? open.aboveSince;
+        creditWashEnergy(open, open.preStartKwh ?? 0, costPerKwh);
+        delete open.preStartKwh;
+        delete open.wokeAt;
       }
-      delete open.preStartKwh;
     }
     return { ...state, open };
   }
 
   if (watts < config.endWatts) {
+    // The off floor: a finished load, or nothing running. Only a reading this
+    // low is silence — a wash's own pauses draw more (specs/power-meters.md).
     open.aboveSince = null;
+    delete open.wokeAt;
+    delete open.preStartKwh;
+    delete open.belowStartSeconds;
     if (!open.startedAt) {
-      // Idle, with nothing pending. Keep no open record rather than carrying a
-      // quiet-timer that describes no wash.
+      // Off, with nothing pending: no record rather than a quiet timer for no wash.
       return { ...state, open: null };
     }
     open.belowSince ??= at;
@@ -183,10 +195,25 @@ export function recordWashingMachineSample(
     return { ...state, open };
   }
 
-  // In the dead band between the two thresholds — a wash idling between phases,
-  // or a machine sitting with its panel lit. Neither timer advances: this is
-  // neither evidence a wash has begun nor evidence one has finished.
+  // The dead band: a wash soaking or draining, or a machine sitting with its
+  // panel lit. Neither detection timer advances — this is neither evidence a
+  // wash has begun nor evidence one has finished, and the measured pauses run
+  // long (§4.1). A pending wake survives a pause shorter than the rise a wash
+  // itself takes, counted per pause, so a fill that dips several times is still
+  // a fill; a wake the machine has outlived stays `null` rather than re-arming.
   open.aboveSince = null;
   open.belowSince = null;
-  return { ...state, open: open.startedAt ? open : null };
+  if (!open.startedAt) {
+    armWake(false);
+    // `undefined` means the count was cleared: that sample was not in this pause.
+    const counted = open.belowStartSeconds;
+    open.belowStartSeconds = counted === undefined ? 0 : counted + Math.max(0, gap);
+    if (open.wokeAt && open.belowStartSeconds > config.startSustainedSeconds) {
+      open.wokeAt = null;
+      delete open.preStartKwh;
+    }
+  }
+  // The record is kept while the meter is above the off floor (dropping it here
+  // is what re-armed the wake every few minutes); the off floor above ends it.
+  return { ...state, open };
 }

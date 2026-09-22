@@ -59,6 +59,22 @@ export type WashingMachineOpenCycle = {
   lastWatts: number;
   /** Set once the rise has been sustained long enough to count as a wash. */
   startedAt: string | null;
+  /**
+   * When the meter last started drawing above the off floor with no cycle
+   * running — the door, the panel, the fill. A cycle's `startedAt` is this
+   * rather than the drum's first confirmed burst (specs/power-meters.md §4.1).
+   * Armed once per such rise and never re-armed while it stands, so a plug left
+   * drawing in the dead band cannot start a fresh wake every tick. `null` means
+   * this wake was abandoned; the next rise arms a new one, with its own count.
+   */
+  wokeAt?: string | null;
+  /**
+   * Observed seconds the meter has spent at or below `startWatts` in the pause
+   * since it was last above it — a rise above `startWatts` clears it. Once one
+   * pause outlasts `startSustainedSeconds` the wake is abandoned: it was a
+   * machine left awake, not the fill of a wash (§4.1).
+   */
+  belowStartSeconds?: number;
   /** Counter energy drawn while the rise was being confirmed (§7.3). */
   preStartKwh?: number;
 };

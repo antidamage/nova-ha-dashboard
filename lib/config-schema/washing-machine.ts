@@ -55,8 +55,13 @@ const WashingMachineConfigSchema = z.object({
   entityIds: z.array(entityIdSchema).min(1),
   startWatts: z.number().nonnegative().default(15),
   startSustainedSeconds: z.number().positive().default(120),
-  endWatts: z.number().nonnegative().default(5),
-  endQuietSeconds: z.number().positive().default(300),
+  /** The off floor, under what a wash's own pauses draw (§4.1). */
+  endWatts: z.number().nonnegative().default(2),
+  /**
+   * Longer than the wash's own timer's quiet (`timer.stopSeconds`), so the
+   * timer always finishes the wash before the block closes (§4.1).
+   */
+  endQuietSeconds: z.number().positive().default(180),
   minCycleKwh: z.number().nonnegative().default(0.05),
   /** The wash's timer: the claim's countdown and the machine's own stop rule. */
   timer: WashTimerConfigSchema.default({
