@@ -87,7 +87,8 @@ position, reads the stored list for it, and then:
    a state change, and an app launched into a sleeping device is lost silently).
 2. `media_player.play_media` with `app` / `nz.co.skull.NovaAppleTVDashboard` —
    brings **our own app** forward, by bundle id rather than by the name it
-   happens to have in the app list.
+   happens to have in the app list. Both bundle ids live in
+   `lib/apple-tv/apps.ts`.
 3. Leaves it a **play command** (`lib/appletv-command.ts`, stored at
    `data/appletv-command.json`), written *after* the launch so the app is on
    screen and polling before the command exists to be missed.
@@ -103,9 +104,54 @@ position, reads the stored list for it, and then:
 `GET /api/appletv/command` every two seconds, skips any command id it has already
 run (kept in `UserDefaults`, so a relaunch does not replay a press), resolves the
 preset's **name** against her Apple Music library (`MusicLibraryRequest<Playlist>`,
-matched case- and accent-insensitively) and starts it with `SystemMusicPlayer` —
-the Music app's own player, so playback carries on after our app leaves the
-screen and the phonoscope keeps visualising it.
+matched case- and accent-insensitively) and plays **that playlist** through
+`SystemMusicPlayer` — the Music app's own player, so what plays is the playlist
+rather than a queue of loose songs, playback carries on after our app leaves the
+screen, and the phonoscope keeps visualising it.
+
+**Shuffle starts somewhere in the playlist, not at its first song** (Adeline,
+2026-09-22). Queuing the playlist takes the entry playback begins on, so a preset
+with its shuffle switch on starts on a **random entry** and an unshuffled one
+starts on the first — the switch's promise is honoured at the moment it matters,
+rather than only by the Music app's own shuffle mode.
+
+**The modes are set on the queue the app has just assigned** — shuffle from the
+preset's switch, repeat from its playback type — *before* playback starts, rather
+than only by the dashboard's best-effort `shuffle_set` / `repeat_set`: a looping
+preset would otherwise loop only while that fire-and-forget Home Assistant call
+succeeded, and assigning a fresh queue can itself reset the modes. The mapping
+fails **closed**, as the dashboard's own normalisation does — only the two values
+it actually writes (`all`, `infinite`) loop, anything else plays the playlist once
+rather than looping it on a misspelling, and a record carrying no `repeat` key at
+all still plays, its absence meaning play once rather than "do nothing".
+`infinite` maps to repeat-all because the television has no endless mode, the
+same instruction `REPEAT_STATE` gives pyatv. MusicKit's `SystemMusicPlayer` has
+no shuffle or repeat setting, so the modes go through MediaPlayer's
+`MPMusicPlayerController.systemMusicPlayer`.
+
+**And the screen belongs to Apple Music, not to our app.** Once the app reports
+that playback started, `POST /api/appletv/command/result` brings the Music app
+forward, so the television shows Apple Music playing the playlist with our app
+behind it. The app is the launcher — the only thing that can turn a name into a
+playlist — not the surface (Adeline, 2026-09-22: *"I don't wanna play them
+through the app, can we play them through normal apple music on apple tv?"*).
+
+**Unverified on the device, and it is worth watching the first time:** that the
+app reports playback as started *before* the Music app is launched, so the
+television is already playing when the screen changes, and that bringing the
+Music app forward does not disturb the queue the app just set (both drive the
+same system player, but that is reasoning rather than a measurement — the set was
+in use while this was written), and that the modes set through
+`MPMusicPlayerController.systemMusicPlayer` reach the player actually running
+MusicKit's queue: two different objects, tied only by Apple's documentation that
+both control the Music app, with nothing in the app that could notice if they
+did not. And that a report only moves the screen for the press it belongs to:
+the forward is sent for every successful report, including one a later press has
+already superseded, so pressing again while the first press is still reporting
+can bring the Music app forward while the newer command waits for our app to poll
+- and a backgrounded app is free to be suspended, which delays that press and
+drops it once its window expires. The guard, if this reproduces: skip the forward
+when a newer command has already been written.
 
 **A name that matches no playlist plays nothing.** The wrong music is worse than
 silence, so there is no fallback to "whatever was loaded": the app reports
