@@ -4,12 +4,17 @@
  * The amplifier dial's page store: one shared value pair for every mount, the
  * preset list, and the API call that saves it.
  *
- * The volume and the mute state are **placeholders** (Adeline, 2026-09-22).
- * The IR emitter that will drive the amplifier has no endpoint yet, so neither
- * sends a command and neither is persisted on the host: they live in this store
- * for the session, which is enough for the dial to behave like a dial — and for
- * the two mounts on screen at once (Quick Access and the Lounge panel) to agree,
- * the way the climate knobs share one command instance.
+ * The **volume reading is a placeholder** (Adeline, 2026-09-22): the IR emitter
+ * that will drive the amplifier has no endpoint yet, so the number lives in this
+ * store for the session and is not persisted on the host. That is enough for the
+ * dial to behave like a dial — and for the two mounts on screen at once (Quick
+ * Access and the Lounge panel) to agree, the way the climate knobs share one
+ * command instance.
+ *
+ * The **mute does command**, and so does a preset press: the Apple TV has no
+ * mute of its own, so muting is `volume_set 0` and unmuting is the reading this
+ * store is holding, and a press hands the playlist's name to our own app on the
+ * television (`specs/apple-tv-volume.md` §Play and §The dial's mute).
  *
  * A preset press is the one thing here that **does** command: `/api/appletv/play`
  * wakes the Apple TV and starts the Music app with the preset's settings on it
@@ -29,12 +34,11 @@ import {
   type AppleTVPlaylist,
 } from "../../../lib/apple-tv/playlists";
 import { VOLUME_MAX, clampVolume } from "../appleTVEncoderModel";
+import { DEMO_MODE, readDemoAmpState, writeDemoAmpState } from "./appleTVAmpDemo";
+import { sendAmpMute, sendPresetPlay } from "./appleTVAmpCommands";
 import { readPlayResult, type AppleTVPlayResult } from "./appleTVPlayResult";
 
-const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
-const DEMO_KEY = "nova.dashboard.demoAppleTVAmp.v1";
 const API = "/api/appletv";
-const PLAY = "/api/appletv/play";
 
 /** Where the placeholder volume starts: mid-scale, so the ring reads. */
 export const PLACEHOLDER_VOLUME = 40;
@@ -69,6 +73,11 @@ let loading: Promise<void> | null = null;
  * already replaced.
  */
 let saveGeneration = 0;
+/**
+ * Which mute is current, the way `saveGeneration` tracks saves: two taps in
+ * flight mean the first one's failure must not flip a dial the second one owns.
+ */
+let muteGeneration = 0;
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<AppleTVAmpSnapshot>) {
@@ -76,29 +85,9 @@ function publish(next: Partial<AppleTVAmpSnapshot>) {
   listeners.forEach((listener) => listener());
 }
 
-function readDemo(): Partial<AppleTVAmpSnapshot> {
-  try {
-    const raw = window.sessionStorage.getItem(DEMO_KEY);
-    const parsed = raw ? JSON.parse(raw) as Partial<AppleTVAmpSnapshot> : null;
-    if (parsed) return parsed;
-  } catch {
-    // An unreadable demo store starts at the shipped defaults.
-  }
-  return {};
-}
-
-function writeDemo(next: Partial<AppleTVAmpSnapshot>) {
-  try {
-    const current = readDemo();
-    window.sessionStorage.setItem(DEMO_KEY, JSON.stringify({ ...current, ...next }));
-  } catch {
-    // Demo persistence is best effort.
-  }
-}
-
 async function load() {
   if (DEMO_MODE) {
-    const stored = readDemo();
+    const stored = readDemoAmpState<AppleTVAmpSnapshot>();
     publish({
       playlists: storedPlaylists(stored.playlists),
       volume: clampVolume(stored.volume ?? PLACEHOLDER_VOLUME),
@@ -136,6 +125,7 @@ export function resetAppleTVAmpForTest() {
   snapshot = INITIAL;
   loading = null;
   saveGeneration = 0;
+  muteGeneration = 0;
 }
 
 export function useAppleTVAmp() {
@@ -155,7 +145,7 @@ export function useAppleTVAmp() {
     publish({ playlists, saving: true });
     try {
       if (DEMO_MODE) {
-        writeDemo({ playlists });
+        writeDemoAmpState<AppleTVAmpSnapshot>({ playlists });
         return;
       }
       const response = await fetch(API, {
@@ -214,26 +204,34 @@ export function useAppleTVAmp() {
     playPreset: (index: number) => {
       if (!snapshot.playlists[index] || DEMO_MODE) return;
       setError(null);
-      void fetch(PLAY, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ index }),
-      })
-        .then(async (response) => {
-          if (response.ok) return;
-          const payload = await response.json().catch(() => ({})) as { error?: string };
-          setError(payload.error ?? "Could not play the preset");
-        })
-        .catch(() => setError("Could not play the preset"));
+      void sendPresetPlay(index).then((message) => {
+        if (message) setError(message);
+      });
     },
+    /**
+     * The dial's mute, through the Apple TV: it has no mute of its own, so this
+     * is `volume_set 0` and, coming back, the level this dial is holding
+     * (specs/apple-tv-volume.md). The reading flips at once and rolls back if
+     * the television refuses, so the light never claims a mute that is not
+     * there. The demo build sends nothing, as with a press.
+     */
     setMuted: (muted: boolean) => {
       publish({ muted });
-      writeDemo({ muted });
+      writeDemoAmpState<AppleTVAmpSnapshot>({ muted });
+      if (DEMO_MODE) return;
+      const generation = (muteGeneration += 1);
+      setError(null);
+      void sendAmpMute(snapshot.volume, muted).then((message) => {
+        if (!message) return;
+        // A later tap owns the reading now: this failure is not its answer.
+        if (generation === muteGeneration) publish({ muted: !muted });
+        setError(message);
+      });
     },
     setVolume: (volume: number) => {
       const next = clampVolume(Math.max(0, Math.min(VOLUME_MAX, volume)));
       publish({ volume: next });
-      writeDemo({ volume: next });
+      writeDemoAmpState<AppleTVAmpSnapshot>({ volume: next });
     },
   }), [error, save, setPlaylists, state]);
 }

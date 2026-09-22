@@ -3,9 +3,11 @@
 Adeline, 2026-09-22. **Placeholder for the IR emitter** that will control the
 amplifier's volume and power state. That endpoint and the emitter's own design
 do not exist yet, so the dial is built now, mounted where it will live, and used
-to fine-tune the layout: **its volume and mute send nothing**. Its **preset
-buttons do** — see §Play for the five commands a press sends, and for the one
-thing the channel cannot do.
+to fine-tune the layout. Its **volume reading sends nothing** — that stays a
+placeholder until the emitter exists — while its **mute** goes to the Apple TV
+(§The dial's mute) and its **preset buttons** hand the playlist's name to our own
+app on the television (§Play, which also says the one thing that channel cannot
+do).
 
 ## The control
 
@@ -194,15 +196,25 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
   at once agree — the way the climate knobs share one command instance — and
   nothing is stored on the host: the dial's reading and its mute are the
   amplifier's own, and the IR emitter that will drive them has no endpoint.
-- **The mute and the volume are the next piece, with the measurement settled.**
-  The Apple TV reports `SetVolume` and `VolumeUp`/`VolumeDown` and **no
-  `VolumeMute`**, and nothing reads the level back (`volume_level` is absent, so
-  the `Volume` feature is unsupported). Asked which way to go, Adeline chose
-  (2026-09-22): mute as `volume_set(0)` with the unmute restoring the
-  **dashboard's** remembered level, accepting that the number restored is the
-  dashboard's rather than the amplifier's. Until that lands the dial's reading
-  and its mute are still the page store's, and the IR emitter remains the
-  alternative for the amplifier's own volume.
+- **The mute is the Apple TV's, wired as `volume_set`.** The Apple TV reports
+  `SetVolume` and `VolumeUp`/`VolumeDown` and **no** `VolumeMute`, and nothing
+  reads its level back (`volume_level` is absent, so the `Volume` feature is
+  unsupported). Asked which way to go, Adeline chose (2026-09-22): mute as
+  `volume_set 0`, and unmute restoring the level **the dial is holding** —
+  accepting that the number restored is the dashboard's rather than the
+  amplifier's, because there is no other honest number to read.
+
+  `POST /api/appletv/mute` takes `{ muted, level }`, `level` being the dial's
+  0–100 reading, so the light and the reading can never disagree about what was
+  asked for. The reading flips at once and rolls back if the television refuses
+  — a later tap keeps its own answer rather than being undone by an earlier
+  failure — which is what `appleTVAmpMute.test.tsx` pins.
+
+  **The dial's volume reading is still the page store's**, and the amplifier's own
+  volume remains the IR emitter's job; whether the Apple TV's *own* volume
+  reaches this amplifier (over CEC, or its IR blaster) has not been exercised on
+  the device — the first mute tells, and the spec will say which it turned out to
+  be.
 - The demo build **sends nothing** for a press: it has no television behind
   `/api`, the same way its list is kept in sessionStorage, and
   `e2e/apple-tv-dial.spec.ts` asserts that turning the dial or pressing a preset
@@ -248,7 +260,9 @@ Adeline, 2026-09-22: a playback type per preset, chosen in the editor.
   `AppleTVEncoder.test.tsx`, `appleTVPresets.test.tsx`,
   `appleTVPresetIcon.test.tsx`, `app/api/appletv/route.test.ts`,
   `app/api/appletv/play/route.test.ts` (the press: the wake, the app launch,
-  the command left behind, the refusals), `app/api/appletv/command/route.test.ts`
+  the command left behind, the refusals), `app/api/appletv/mute/route.test.ts`
+  and `appleTVAmpMute.test.tsx` (the mute and the dial's side of it),
+  `app/api/appletv/command/route.test.ts`
   and `command/result/route.test.ts` (the handover and the app's answer),
   `lib/appletv-command.test.ts` (the record, its ids and its window),
   `appleTVPlayResult.test.ts` (the editor's reader),
