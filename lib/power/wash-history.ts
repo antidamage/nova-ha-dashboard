@@ -1,38 +1,36 @@
-// The wash graph's 12-hour blocks in the household's own timezone: the block an
-// instant falls in, the blocks that hold a wash, and one block's washes with the
-// curve each is drawn from. See specs/power-meters.md 5.2.
+// The wash graph's day blocks in the household's own timezone: the day an
+// instant falls in, the days that hold a wash, and one day's washes with the
+// labels and curve each is drawn with. See specs/power-meters.md 5.2.
 import path from "path";
 import { cycleId, downsampleTrace, type WashingMachineState } from "../washing-machine";
-import { blockStartWallMs, blockStartsForSpan, WASH_BLOCK_MS } from "../washing-machine/history-model";
+import {
+  blockStartWallMs,
+  blockStartsForSpan,
+  wallClockLabel,
+  washDurationLabel,
+  WASH_BLOCK_MS,
+} from "../washing-machine/history-model";
 import { localInstantMs, localParts, localWallMs, monthNames } from "./calendar";
 import { readJson, WASH_TRACE_DIR } from "./store";
 import type { OpenWashTrace, WashBlock, WashGraphCycle, WashHistory, WashTraceFile } from "./types";
 
 const OPEN_TRACE_PATH = path.join(WASH_TRACE_DIR, "open.json");
 
-function clockLabel(hour24: number) {
-  const hour = ((hour24 % 24) + 24) % 24;
-  return `${hour % 12 === 0 ? 12 : hour % 12}:00 ${hour < 12 ? "AM" : "PM"}`;
-}
-
-/** The 12-hour block an instant falls in, labelled in the household's timezone. */
+/** The local day an instant falls in, labelled in the household's timezone. */
 export function washBlockOf(atMs: number): WashBlock {
   const startWall = blockStartWallMs(localWallMs(new Date(atMs)));
-  const startMs = localInstantMs(startWall);
-  const parts = localParts(new Date(startMs));
+  const parts = localParts(new Date(localInstantMs(startWall)));
   return {
     dateLabel: `${parts.weekday} ${Number(parts.day)} ${monthNames[parts.month - 1]} ${parts.year}`,
-    endLabel: clockLabel(startWall / 3_600_000 + 12),
     endMs: localInstantMs(startWall + WASH_BLOCK_MS),
-    startLabel: clockLabel(startWall / 3_600_000),
-    startMs,
+    startMs: localInstantMs(startWall),
   };
 }
 
 /**
- * Every 12-hour block holding a wash, oldest first — the graph's step list, so
- * the buttons skip the blocks with no data in them. A wash counts in every block
- * it runs across, which is why one that starts at 11:50 shows in both.
+ * Every local day holding a wash, oldest first — the graph's step list, so the
+ * buttons skip the days with no data in them. A wash counts in every day it runs
+ * across, which is why one that starts at 11:50 PM shows in both.
  */
 export function washBlockStarts(state: WashingMachineState, now: Date) {
   const starts = new Set<number>();
@@ -60,7 +58,21 @@ async function readCurve(cycle: WashGraphCycle) {
   return downsampleTrace(trace?.points ?? []);
 }
 
-/** The washes of one block: every closed cycle it touches, plus the open one. */
+/**
+ * The labels drawn under one wash's block: when it started locally, and how long
+ * it ran. Its own instants, not the block's, so a wash that runs over midnight
+ * reads the same in both days.
+ */
+function washLabels(cycle: WashGraphCycle) {
+  const from = Date.parse(cycle.startedAt);
+  const to = Date.parse(cycle.endedAt);
+  return {
+    durationLabel: washDurationLabel(to - from),
+    startLabel: wallClockLabel(localWallMs(new Date(from))),
+  };
+}
+
+/** The washes of one day: every closed cycle it touches, plus the open one. */
 async function readWashBlock(state: WashingMachineState, block: WashBlock, now: Date) {
   const touches = (from: number, to: number) => from < block.endMs && to > block.startMs;
   const cycles: WashGraphCycle[] = state.cycles.filter((cycle) =>
@@ -81,16 +93,16 @@ async function readWashBlock(state: WashingMachineState, block: WashBlock, now: 
   }
   const ordered = cycles.sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt));
   return Promise.all(
-    ordered.map(async (cycle) => ({ ...cycle, curve: await readCurve(cycle) })),
+    ordered.map(async (cycle) => ({ ...cycle, ...washLabels(cycle), curve: await readCurve(cycle) })),
   );
 }
 
 /**
- * One block of the graph, with the index to step through.
+ * One day of the graph, with the index to step through.
  *
- * `atMs` names the block to read; without it the newest block holding a wash is
+ * `atMs` names the day to read; without it the newest day holding a wash is
  * read, which is what the graph shows until it is stepped back. With no washes at
- * all that is the block holding now, so the graph still labels itself.
+ * all that is the day holding now, so the graph still labels itself.
  */
 export async function buildWashHistory(
   state: WashingMachineState,

@@ -204,7 +204,7 @@ export async function recordWashTrace(
   runningWashCurve = downsampleTrace(points);
 }
 
-/** Load curves for the washes the 12-hour graph can show; the rest stay on disk. */
+/** Curves for the washes that ended in the last 12 hours; the rest stay on disk. */
 export async function loadRecentWashCurves(washing: WashingMachineState, now: Date) {
   const since = now.getTime() - 12 * 3_600_000;
   for (const cycle of washing.cycles) {

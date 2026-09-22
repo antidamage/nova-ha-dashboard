@@ -196,14 +196,16 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyber-highlight) 40%, transparent);
 }
 
-/* The month of washes. Blocks are absolutely placed on a day axis, so the
-   container owns the height and the SVG behind it only draws the grid. */
+/* The day of washes. Blocks are absolutely placed on a day axis, so the
+   container owns the height and the SVG behind it only draws the grid. The
+   height carries the label rows underneath, which the component sizes (its own
+   WASH_LABEL_ROW_PX is the single source of the row height). */
 .power-wash-graph {
-  height: 84px;
+  height: calc(84px + var(--wash-label-rows, 0) * var(--wash-label-row, 0px));
   position: relative;
 }
 
-/* The block's date and its start/end times, with a step button either side. */
+/* The day on show, with a step button either side of its own date. */
 .power-wash-step {
   align-items: center;
   background: rgb(10 10 10 / 0.62);
@@ -246,8 +248,31 @@
 }
 
 .power-wash-blocks {
-  inset: 6px 8px;
+  /* The bottom inset leaves the label rows their space, so a block's height
+     still reads as its kWh against the tallest wash of the day. */
+  inset: 6px 8px calc(var(--wash-label-rows, 0) * var(--wash-label-row, 0px) + 4px);
   position: absolute;
+}
+
+/* One row per wash label that would otherwise draw over its neighbour. */
+.power-wash-labels {
+  bottom: 0;
+  height: calc(var(--wash-label-rows, 0) * var(--wash-label-row, 0px));
+  inset-inline: 8px;
+  position: absolute;
+}
+
+/* A wash's own start time and duration, centred under its block and kept inside
+   the graph by the placement maths rather than by clipping. */
+.power-wash-label {
+  bottom: calc(var(--wash-label-row, 0px) * var(--wash-label-row-index, 0));
+  color: var(--cyber-muted);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1.2;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
 }
 
 .power-wash-empty {
@@ -264,7 +289,7 @@
      kiosk, and every block here exists to be tapped. */
   min-width: 14px;
   position: absolute;
-  /* The 12-hour timeline supplies the left edge and duration as width. */
+  /* The day timeline supplies the left edge and duration as width. */
   transform: none;
   /* No background transition: a tap shows the new person at once (§7.6). */
   transition: height 160ms ease;

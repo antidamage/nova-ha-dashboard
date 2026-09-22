@@ -4,49 +4,63 @@ import type { PowerWashingMachineSummary, WashBlock, WashGraphCycle, WashHistory
 import { WashingMachineCard } from "./WashingMachineCard";
 
 /**
- * The wash graph steps back through 12-hour blocks, skipping the ones with no
- * data in them, and labels the block on show with its own date and start/end
- * times (specs/power-meters.md §5.2). Every block here is one the store holds a
- * wash in; a block the household did not wash in is absent from `blocks`, which
- * is why a single press lands two blocks back.
+ * The wash graph steps back through local days, skipping the ones with no data in
+ * them, and labels the day on show with its own date — never with the visible
+ * range's start and end times, which are the day's own bounds and read as noise on
+ * a midnight-to-midnight axis. Each wash carries its own start time and duration,
+ * drawn under its block (specs/power-meters.md §5.2). Every day here is one the
+ * store holds a wash in; a day the household did not wash in is absent from
+ * `blocks`, which is why a single press lands two days back.
  */
 
 const HOUR = 3_600_000;
-const OLD = Date.parse("2026-09-17T12:00:00.000Z");
-const NEWEST = Date.parse("2026-09-19T00:00:00.000Z");
+const OLD = Date.parse("2026-09-16T12:00:00.000Z");
+const NEWEST = Date.parse("2026-09-18T12:00:00.000Z");
 
-/** Oldest first, and with no block between them: 18 Sep is a day off. */
+/** Oldest first, and with no day between them: 18 Sep is a day off. */
 const BLOCKS = [OLD, NEWEST];
 
-const block = (startMs: number, dateLabel: string, startLabel: string, endLabel: string): WashBlock => ({
+/** One local day, midnight to midnight. */
+const block = (startMs: number, dateLabel: string): WashBlock => ({
   dateLabel,
-  endLabel,
-  endMs: startMs + 12 * HOUR,
-  startLabel,
+  endMs: startMs + 24 * HOUR,
   startMs,
 });
 
-const wash = (startMs: number, kwh: number, person: string | null): WashGraphCycle => ({
+const wash = (
+  startMs: number,
+  kwh: number,
+  person: string | null,
+  startLabel: string,
+  durationLabel: string,
+): WashGraphCycle => ({
   attribution: { at: "2026-09-19T01:00:00.000Z", source: "manual" },
   costNzd: kwh * 0.28,
   curve: [90, 380, 210, 0],
+  durationLabel,
   endedAt: new Date(startMs + 1.5 * HOUR).toISOString(),
   id: `${startMs}`,
   kwh,
   person,
+  startLabel,
   startedAt: new Date(startMs).toISOString(),
 });
 
 const HISTORY: Record<string, WashHistory> = {
   newest: {
     blocks: BLOCKS,
-    cycles: [wash(NEWEST + 2 * HOUR, 0.62, "addie")],
-    window: block(NEWEST, "Sat 19 Sep 2026", "12:00 PM", "12:00 AM"),
+    // Two loads an hour and a half apart, which is what this household's own days
+    // look like: at any card width their labels would draw over each other.
+    cycles: [
+      wash(NEWEST + 2 * HOUR, 0.62, "addie", "2:00 AM", "1h 30m"),
+      wash(NEWEST + 3.5 * HOUR, 0.44, "tonya", "3:30 AM", "45m"),
+    ],
+    window: block(NEWEST, "Sat 19 Sep 2026"),
   },
   oldest: {
     blocks: BLOCKS,
-    cycles: [wash(OLD + 1 * HOUR, 0.09, "addie")],
-    window: block(OLD, "Thu 17 Sep 2026", "12:00 PM", "12:00 AM"),
+    cycles: [wash(OLD + 1 * HOUR, 0.09, "addie", "1:00 AM", "1h 30m")],
+    window: block(OLD, "Thu 17 Sep 2026"),
   },
 };
 
@@ -91,19 +105,46 @@ afterEach(() => {
 
 describe("WashingMachineCard", () => {
   const open = () => render(<WashingMachineCard displayMode="credits" summary={summary} />);
-  const earlier = () => screen.getByRole("button", { name: "Earlier 12-hour block with washes" });
-  const later = () => screen.getByRole("button", { name: "Later 12-hour block with washes" });
+  const earlier = () => screen.getByRole("button", { name: "Earlier day with washes" });
+  const later = () => screen.getByRole("button", { name: "Later day with washes" });
 
-  it("labels the newest block with its own date and start/end times", async () => {
+  it("labels the day on show with its own date, not with the range's start and end times", async () => {
     open();
 
     expect(await screen.findByText("Sat 19 Sep 2026")).toBeTruthy();
-    expect(screen.getByText("12:00 PM")).toBeTruthy();
-    expect(screen.getByText("12:00 AM")).toBeTruthy();
     expect(screen.getByRole("button", { name: /0.62 kWh wash, Addie/ })).toBeTruthy();
+    // The day's own bounds are midnight to midnight, so they are not drawn: only
+    // the washes on it say anything about time.
+    expect(screen.queryByText("12:00 AM")).toBeNull();
+    expect(screen.queryByText("12:00 PM")).toBeNull();
   });
 
-  it("cannot step later than the newest block, and can step back from it", async () => {
+  it("labels each wash under its block with its own start time and duration", async () => {
+    open();
+
+    expect(await screen.findByText("2:00 AM · 1h 30m")).toBeTruthy();
+    // The button says the same thing for anyone who cannot read the label.
+    expect(screen.getByRole("button", { name: /started 2:00 AM, 1h 30m/ })).toBeTruthy();
+  });
+
+  it("puts the labels in their own strip under the blocks, on the rows they need", async () => {
+    open();
+    await screen.findByText("Sat 19 Sep 2026");
+
+    // The graph reserves a row of its own per label that would otherwise draw over
+    // another: two washes an hour and a half apart need two.
+    const graph = document.querySelector<HTMLElement>(".power-wash-graph");
+    const labels = [...document.querySelectorAll<HTMLElement>(".power-wash-label")];
+    expect(graph?.style.getPropertyValue("--wash-label-rows")).toBe("2");
+    expect(labels.map((label) => label.textContent)).toEqual(["2:00 AM · 1h 30m", "3:30 AM · 45m"]);
+    expect(labels.map((label) => label.style.getPropertyValue("--wash-label-row-index"))).toEqual(["0", "1"]);
+    // Under the graph, beside the blocks — never inside the button that claims the
+    // wash, whose own background a label would sit on top of.
+    expect(labels.every((label) => label.parentElement?.className === "power-wash-labels")).toBe(true);
+    expect(document.querySelector(".power-wash-block .power-wash-label")).toBeNull();
+  });
+
+  it("cannot step later than the newest day, and can step back from it", async () => {
     open();
     await screen.findByText("Sat 19 Sep 2026");
 
@@ -111,7 +152,7 @@ describe("WashingMachineCard", () => {
     expect((later() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("steps to the previous block holding a wash, skipping the one between them", async () => {
+  it("steps to the previous day holding a wash, skipping the one between them", async () => {
     open();
     await screen.findByText("Sat 19 Sep 2026");
 
@@ -120,9 +161,10 @@ describe("WashingMachineCard", () => {
     expect(await screen.findByText("Thu 17 Sep 2026")).toBeTruthy();
     expect(requestedBlocks).toEqual([null, OLD]);
     expect(screen.getByRole("button", { name: /0.09 kWh wash, Addie/ })).toBeTruthy();
+    expect(await screen.findByText("1:00 AM · 1h 30m")).toBeTruthy();
   });
 
-  it("steps forward again to the newest block, which follows the poll", async () => {
+  it("steps forward again to the newest day, which follows the poll", async () => {
     open();
     await screen.findByText("Sat 19 Sep 2026");
     fireEvent.click(earlier());
@@ -135,7 +177,7 @@ describe("WashingMachineCard", () => {
     expect((later() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("attributes a wash two blocks back, not just the one being run", async () => {
+  it("attributes a wash two days back, not just the one being run", async () => {
     open();
     await screen.findByText("Sat 19 Sep 2026");
     fireEvent.click(earlier());
@@ -149,7 +191,7 @@ describe("WashingMachineCard", () => {
     expect(post).toEqual({ cycleId: `${OLD + 1 * HOUR}` });
   });
 
-  it("holds a tap on a wash the polled summary does not carry, until that block's own read echoes it", async () => {
+  it("holds a tap on a wash the polled summary does not carry, until that day's own read echoes it", async () => {
     const { rerender } = open();
     await screen.findByText("Sat 19 Sep 2026");
     fireEvent.click(earlier());
@@ -168,17 +210,13 @@ describe("WashingMachineCard", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
-        json: async () => ({
-          blocks: [],
-          cycles: [],
-          window: block(Date.now(), "Sat 19 Sep 2026", "12:00 PM", "12:00 AM"),
-        }),
+        json: async () => ({ blocks: [], cycles: [], window: block(Date.now(), "Sat 19 Sep 2026") }),
         ok: true,
       })),
     );
     open();
 
-    expect(await screen.findByText("No washes in this 12-hour block")).toBeTruthy();
+    expect(await screen.findByText("No washes on this day")).toBeTruthy();
     expect((earlier() as HTMLButtonElement).disabled).toBe(true);
     expect((later() as HTMLButtonElement).disabled).toBe(true);
   });

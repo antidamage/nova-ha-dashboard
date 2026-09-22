@@ -17,7 +17,7 @@
  *   power/floating-meter.ts   the floating meter's pure model
  *   power/meters.ts           plug readings; floating-meter tick and summary
  *   power/washing.ts          washing-machine tick, attribution, summary
- *   power/wash-history.ts     the wash graph's 12-hour blocks
+ *   power/wash-history.ts     the wash graph's day blocks
  *   power/dashboard.ts        buildDashboard
  *   power/ha-publish.ts       MQTT discovery and state publishing
  *   power/meter-sampling.ts   the metering plugs' tick

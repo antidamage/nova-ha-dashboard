@@ -9,6 +9,15 @@ import type { PowerWashingMachineSummary, WashBlock, WashGraphCycle } from "../.
  */
 export const MIN_WASH_BLOCK_PERCENT = 14;
 
+/**
+ * How much of the graph one start-and-duration label needs, so its row can be
+ * decided without measuring text. Percentages are of the block on show.
+ */
+export const WASH_LABEL_WIDTH_PERCENT = 26;
+
+/** How tall one row of wash labels is, in px. The graph reserves a row each. */
+export const WASH_LABEL_ROW_PX = 15;
+
 /** Percentages are style strings, so they are settled here rather than in the DOM. */
 function percent(value: number) {
   return Number(value.toFixed(3));
@@ -30,6 +39,30 @@ export function washPlacement(cycle: WashGraphCycle, window: WashBlock) {
   const end = ((Date.parse(cycle.endedAt) - window.startMs) / span) * 100;
   const width = Math.min(100, Math.max(MIN_WASH_BLOCK_PERCENT, end - start));
   return { left: percent(Math.max(0, Math.min(start, 100 - width))), width: percent(width) };
+}
+
+/**
+ * Where each wash's own label sits under the graph: how far across, and which row.
+ *
+ * A label is centred on the block it belongs to and kept inside the graph's own
+ * edges. Rows are handed out left to right, so two washes close together — two
+ * loads an hour apart, which is ordinary here — do not draw over each other: a
+ * label that would overlap the last one already on a row drops to the next row
+ * down. The blocks are laid out in the order they are given.
+ */
+export function washLabelPlacement(cycles: WashGraphCycle[], window: WashBlock) {
+  const half = WASH_LABEL_WIDTH_PERCENT / 2;
+  // The right-hand edge of the last label placed on each row.
+  const rowEdges: number[] = [];
+  const labels = cycles.map((cycle) => {
+    const { left, width } = washPlacement(cycle, window);
+    const across = Math.max(half, Math.min(left + width / 2, 100 - half));
+    let row = rowEdges.findIndex((edge) => across - half >= edge);
+    if (row === -1) row = rowEdges.length;
+    rowEdges[row] = across + half;
+    return { across: percent(across), cycle, row };
+  });
+  return { labels, rows: Math.max(1, rowEdges.length) };
 }
 
 /**
