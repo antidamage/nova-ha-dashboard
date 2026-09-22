@@ -2,7 +2,7 @@
 import type { PowershopAccountMetadata } from "../powershop-usage";
 import { localFormatter, powerConfig } from "./store";
 
-const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function localParts(date: Date) {
   const parts = Object.fromEntries(localFormatter().formatToParts(date).map((part) => [part.type, part.value]));
@@ -148,4 +148,30 @@ export function localHourEndMs(hourKey: string) {
     utc -= shown - wall;
   }
   return utc + 3_600_000;
+}
+
+/**
+ * The local wall-clock value of an instant: a local date-time written as epoch
+ * ms. A 12-hour block is then plain arithmetic on that value, and the result
+ * converts back with `localInstantMs` (lib/washing-machine/history-model.ts).
+ */
+export function localWallMs(date: Date) {
+  const parts = localParts(date);
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+}
+
+/**
+ * The instant a local wall-clock value occurs at, in power.timeZone.
+ *
+ * `localHourEndMs` above resolves hour keys with the same two passes and this is
+ * the general form of it: two passes settle the offset either side of a
+ * daylight-saving change.
+ */
+export function localInstantMs(wallMs: number) {
+  let utc = wallMs;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const parts = localParts(new Date(utc));
+    utc -= Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - wallMs;
+  }
+  return utc;
 }
