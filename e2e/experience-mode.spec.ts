@@ -3,15 +3,24 @@ import { gotoConfig, gotoDashboard, neutralizeTaskAlerts, seedExperienceMode } f
 
 async function openThemeExperience(page: Parameters<typeof gotoConfig>[0]) {
   const category = page.getByRole("button", { name: /Appearance & Dashboard/ });
-  const section = page.getByRole("button", { name: "Theme & Experience" });
-  const target = page.getByRole("checkbox", { name: /^Show Status Orb (?!Info)/ });
+  // Both triggers are scoped to their own accordion: the breadcrumb renders a
+  // button of the same name once the section is open (numeric-entry.spec.ts).
+  const section = page.locator("#appearance").getByRole("button", { name: "Theme & Experience" });
+  const thisDevice = page.locator("#this-device").getByRole("button", { name: "This Device" });
+  const target = page.getByRole("switch", { name: "Show Status Orb", exact: true });
   await expect(async () => {
     if (!(await section.isVisible())) {
       await category.click();
     }
     await expect(section).toBeVisible({ timeout: 2_000 });
-    if (!(await target.isVisible())) {
+    // The feature switches live in the "This Device" accordion, which starts
+    // collapsed.
+    if (!(await thisDevice.isVisible())) {
       await section.click();
+    }
+    await expect(thisDevice).toBeVisible({ timeout: 2_000 });
+    if (!(await target.isVisible())) {
+      await thisDevice.click();
     }
     await expect(target).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 15_000 });
@@ -71,17 +80,19 @@ test.describe("experience mode", () => {
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
   });
 
-  test("config checkboxes toggle each heavy feature independently and live", async ({ page }) => {
+  test("config switches toggle each heavy feature independently and live", async ({ page }) => {
     await gotoConfig(page);
     await openThemeExperience(page);
 
-    const orb = page.getByRole("checkbox", { name: /^Show Status Orb (?!Info)/ });
-    const background = page.getByRole("checkbox", { name: "Show Background" });
-    const camera = page.getByRole("checkbox", { name: "Show Camera" });
-    const worldMap = page.getByRole("checkbox", { name: "Show World Map" });
-    for (const checkbox of [orb, background, camera, worldMap]) {
-      await expect(checkbox).toBeVisible();
-      await expect(checkbox).toHaveAttribute("aria-checked", "true");
+    // These rows are SlideSwitches, not checkboxes: role="switch" with
+    // aria-checked, the label as the accessible name (specs/slide-switch.md).
+    const orb = page.getByRole("switch", { name: "Show Status Orb", exact: true });
+    const background = page.getByRole("switch", { name: "Show Background" });
+    const camera = page.getByRole("switch", { name: "Show Camera" });
+    const worldMap = page.getByRole("switch", { name: "Show World Map" });
+    for (const control of [orb, background, camera, worldMap]) {
+      await expect(control).toBeVisible();
+      await expect(control).toHaveAttribute("aria-checked", "true");
     }
 
     // Turning off just the background is granular: the orb stays, and the
@@ -100,9 +111,9 @@ test.describe("experience mode", () => {
     // Turning the remaining three off as well lands the device in full lite.
     await gotoConfig(page);
     await openThemeExperience(page);
-    await page.getByRole("checkbox", { name: /^Show Status Orb (?!Info)/ }).click();
-    await page.getByRole("checkbox", { name: "Show Camera" }).click();
-    await page.getByRole("checkbox", { name: "Show World Map" }).click();
+    await page.getByRole("switch", { name: "Show Status Orb", exact: true }).click();
+    await page.getByRole("switch", { name: "Show Camera" }).click();
+    await page.getByRole("switch", { name: "Show World Map" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-nova-lite", "");
 
     await page.goto("/", { waitUntil: "domcontentloaded" });

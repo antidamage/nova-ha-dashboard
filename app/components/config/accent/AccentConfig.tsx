@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, Bell, CircleDot, Clipboard, Copy, Image as ImageIcon, Map as MapIcon, Palette, SlidersHorizontal, Type, Volume2 } from "lucide-react";
+import { ArrowLeftRight, Bell, CircleDot, Clipboard, Copy, Image as ImageIcon, Map as MapIcon, Monitor, Palette, SlidersHorizontal, Type, Volume2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   MAP_BUILDING_OPACITY_MAX,
@@ -642,15 +642,22 @@ export function AccentConfig({
         <div className="panel-corner panel-corner-left" />
         <div className="panel-corner panel-corner-right" />
         <div className="grid gap-4">
-          <ThisDeviceSection
-            agentName={agentName}
-            autoFullscreen={autoFullscreen}
-            setAutoFullscreen={setAutoFullscreen}
-            experienceFeatures={experienceFeatures}
-            setExperienceFeature={setExperienceFeature}
-            statusOrbInfoVisible={statusOrbInfoVisible}
-            setStatusOrbInfoVisible={setStatusOrbInfoVisible}
-          />
+          <ConfigAccordion
+            id="this-device"
+            title="This Device"
+            icon={<Monitor className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
+            className="config-sub-accordion"
+          >
+            <ThisDeviceSection
+              agentName={agentName}
+              autoFullscreen={autoFullscreen}
+              setAutoFullscreen={setAutoFullscreen}
+              experienceFeatures={experienceFeatures}
+              setExperienceFeature={setExperienceFeature}
+              statusOrbInfoVisible={statusOrbInfoVisible}
+              setStatusOrbInfoVisible={setStatusOrbInfoVisible}
+            />
+          </ConfigAccordion>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
             <SwitchRow

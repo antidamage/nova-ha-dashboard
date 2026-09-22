@@ -52,11 +52,12 @@ must declare its lite behavior.
 
 ### Config surface
 
-- The `/config` "This Device" section (§21) exposes the four features as four
-  `CheckboxRow`s: "Show Status Orb", "Show Background", "Show Camera", "Show
-  World Map". Each toggles just its feature via `setExperienceFeature`, which
-  also settles an undecided device, and applies live — no reload. The
-  first-run modal's Lite/Full Experience buttons write all four at once.
+- The `/config` "This Device" accordion (§21) — collapsed by default —
+  exposes the four features as four `SwitchRow`s: "Show Status Orb", "Show
+  Background", "Show Camera", "Show World Map". Each toggles just its feature
+  via `setExperienceFeature`, which also settles an undecided device, and
+  applies live — no reload. The first-run modal's Lite/Full Experience buttons
+  write all four at once.
 
 ### Behavior by feature (when its toggle is off)
 

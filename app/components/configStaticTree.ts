@@ -30,6 +30,7 @@ export const STATIC_ACCORDION_PATHS: Record<ConfigCategoryId, StaticAccordionPat
   ],
   "appearance-dashboard": [
     ["appearance"],
+    ["appearance", "this-device"],
     ["appearance", "theme-settings"],
     ["appearance", "theme-settings", "theme-colours"],
     ["appearance", "theme-settings", "fonts"],
