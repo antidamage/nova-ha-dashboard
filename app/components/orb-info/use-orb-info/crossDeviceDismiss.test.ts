@@ -15,7 +15,7 @@ describe("a dismissal broadcast from another screen", () => {
   });
   it("clears a completed wash without waiting for the task list push", () => {
     const tasks = [{ id: "wash", name: "Wash", start: new Date(0).toISOString(), createdAt: "", source: "local",
-      moduleData: { "washing-machine": { phase: "active", sessionId: "s", soundFile: "" } } } as unknown as Task];
+      moduleData: { "washing-machine": { phase: "active", sessionId: "s" } } } as unknown as Task];
     const read = (list: Task[]) => orbModuleById("washing").read({ ...base, tasks: null, now: 1000, washTasks: list, washing: null });
     expect(read(tasks)).toMatchObject({ alert: true, dismiss: { kind: "washing", id: "wash" } });
     expect(read(applyTaskDismissal(tasks, "wash")).active).toBe(false);

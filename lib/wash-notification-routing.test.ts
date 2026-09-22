@@ -6,7 +6,7 @@ vi.mock("./modules/runtime/hooks", () => ({ emitModuleEvent: mocks.emit }));
 vi.mock("./tasks", () => ({ readTasks: async () => [], syncWashReminder: mocks.sync }));
 vi.mock("./ha/client", () => ({ callServiceWithResponse: mocks.forecast }));
 vi.mock("./dashboard-config", () => ({ readDashboardConfigSync: () => ({
-  power: { washingMachine: { completionAlert: { enabled: true, personId: "owner", soundFile: "done.mp3" } } },
+  power: { washingMachine: { completionAlert: { enabled: true, personId: "owner" } } },
   dashboard: { people: [{ id: "owner", label: "Owner" }] },
   homeAssistant: { weatherEntityId: "weather.test", sunEntityId: "sun.sun" },
 }) }));
@@ -16,7 +16,7 @@ function completed(person: string | null = "owner"): WashingMachineState {
   const at = new Date().toISOString();
   return { version: 1, open: null, cycles: [{
     id: "test-session", startedAt: at, endedAt: at, person, kwh: 0.3, costNzd: 0.1,
-    completion: { at, person, soundFile: "done.mp3", discord: true,
+    completion: { at, person, discord: true,
       recommendation: "Hang it outside: Yes — a dry four-hour window is forecast." },
   }] };
 }

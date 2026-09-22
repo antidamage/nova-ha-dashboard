@@ -3,7 +3,6 @@ import { ORB_TEST_SCRATCH } from "./orb-test-env";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { readTasks } from "../lib/tasks";
 import * as dismissRoute from "../app/api/tasks/[id]/dismiss/route";
-import * as washChimeRoute from "../app/api/power/washing-machine/chime/route";
 import "../lib/dashboard-events";
 import { gotoDashboard } from "./helpers";
 
@@ -102,25 +101,17 @@ async function attach(page: Page, backend: Backend) {
       const response = await dismissRoute.POST(new Request(`http://local${url}`, { method: "POST", body: "{}" }), { params: Promise.resolve({ id: decodeURIComponent(dismiss[1]) }) });
       return { status: response.status, json: await response.json() };
     }
-    if (pathname === "/api/power/washing-machine/chime") {
-      const response = await washChimeRoute.POST(new Request(`http://local${url}`, { method: "POST", body }));
-      return { status: response.status, json: await response.json() };
-    }
     return null;
   });
   // Demo mode installs its own fetch and EventSource; wrap them as they are
-  // assigned. Media playback is recorded rather than decoded.
+  // assigned.
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
     const sources: Array<{ dispatchEvent: (event: unknown) => void }> = [];
-    const media: Array<{ src: string; action: string }> = [];
     w.__orbSources = sources;
-    w.__orbMedia = media;
-    HTMLMediaElement.prototype.play = function play(this: HTMLMediaElement) { media.push({ src: this.src, action: "play" }); return Promise.resolve(); };
-    HTMLMediaElement.prototype.pause = function pause(this: HTMLMediaElement) { media.push({ src: this.src, action: "pause" }); };
     let fetchImpl = window.fetch;
     let EventSourceImpl: unknown = window.EventSource;
-    const handled = /^\/api\/(orb-info|orb-timer|watchface|tasks|power\/washing-machine\/chime)/;
+    const handled = /^\/api\/(orb-info|orb-timer|watchface|tasks)/;
     const wrappedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, location.href);
       if (url.origin === location.origin && handled.test(url.pathname.replace(/\/$/, ""))) {
@@ -144,7 +135,6 @@ async function attach(page: Page, backend: Backend) {
 const orb = (page: Page) => page.locator(".nova-avatar-host[data-orb-dial]").first();
 const readout = (page: Page) => orb(page).locator(".nova-avatar-gym-counter");
 const shot = async (page: Page, name: string) => page.screenshot({ path: `${SHOTS}/${name}.png`, clip: (await orb(page).boundingBox())! });
-const media = (page: Page) => page.evaluate(() => (window as unknown as { __orbMedia: Array<{ src: string; action: string }> }).__orbMedia);
 
 function ringPoint(box: { x: number; y: number; width: number; height: number }, deg: number): [number, number] {
   const r = box.width * 0.42;
@@ -276,28 +266,20 @@ test.describe("status orb dial", () => {
     }
   });
 
-  test("a completed wash dismissed on one screen clears and silences the other", async ({ browser }) => {
+  test("a completed wash dismissed on one screen clears on the other through the real server", async ({ browser }) => {
+    // The wash sounds nothing of its own: its notification is an ordinary
+    // household timer, set when the wash is claimed (specs/power-meters.md,
+    // "The wash's timer"). What is left on this surface is the alert itself.
     seedTasks([{ id: "wash-done", name: "Washing machine", start: new Date(Date.now() - 20_000).toISOString(), createdAt: new Date().toISOString(), source: "local",
-      moduleData: { "washing-machine": { sessionId: "s1", phase: "active", soundFile: "chime.mp3" }, "discord-bot": { onDue: false, onComplete: false } } }]);
+      moduleData: { "washing-machine": { sessionId: "s1", phase: "active" }, "discord-bot": { onDue: false, onComplete: false } } }]);
     const backend = backendFor(Date.now(), null);
     backend.entries = [{ id: "wash", moduleId: "washing", enabled: true }, { id: "clock", moduleId: "clock", enabled: true }];
     const unsubscribe = realTaskEvents(backend);
     const { contexts, pages } = await twoPages(browser, backend);
     try {
       for (const page of pages) await expect(readout(page)).toHaveAttribute("data-nova-orb-info-module", "washing");
-      // One screen claims this chime slot server-side and plays it.
-      const played = async (index: number) => (await media(pages[index])).some((entry) => entry.action === "play" && entry.src.includes("wash-done"));
-      const playingIndex = async () => (await played(0) ? 0 : (await played(1) ? 1 : -1));
-      await expect.poll(playingIndex, { timeout: 20_000 }).toBeGreaterThanOrEqual(0);
-      const playing = await playingIndex();
-      const other = pages[1 - playing];
-      // Not asserted: that only one screen ever plays. The claim is per 30 s
-      // chime slot, so a slot boundary crossing mid-test legitimately lets the
-      // other screen claim the next one.
-      // Dismiss on the screen that is NOT playing: the playing one must stop.
-      await orb(other).click();
+      await orb(pages[1]).click();
       for (const page of pages) await expect(readout(page)).not.toHaveAttribute("data-nova-orb-info-module", "washing", { timeout: 8_000 });
-      await expect.poll(async () => (await media(pages[playing])).some((entry) => entry.action === "pause" && entry.src.includes("wash-done")), { timeout: 3_000 }).toBe(true);
       expect((await readTasks()).find((task) => task.id === "wash-done")?.alertDismissedAt).toBeTruthy();
     } finally {
       unsubscribe();

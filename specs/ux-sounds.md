@@ -212,9 +212,12 @@ Nothing is silently dropped in the process:
   `Audio()` element. An element constructed minutes after the last gesture is
   subject to the browser's autoplay policy and was refused silently: a completed
   timer claimed the chime slot (`soundSlot` advanced server-side) and then made
-  no sound on any screen. Observed 2026-09-16 on the live host. The
-  washing-machine announcement stays on an `Audio` element; it is per-occurrence
-  TTS, not a library clip.
+  no sound on any screen. Observed 2026-09-16 on the live host.
+- A completed wash makes no sound of its own, and has no element to exempt:
+  its notification is an ordinary household timer, set by the claim
+  (specs/power-meters.md, "The wash's timer"), so a wash chimes through this very
+  path because it *is* a timer. The washing-machine MP3, its claim route and its
+  `Audio` element are gone with it.
 
 ## Config UI
 

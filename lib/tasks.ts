@@ -17,7 +17,6 @@
 export { parseTaskCsv } from "./parse-task-csv";
 export type { ParseTaskCsvError, ParseTaskCsvResult } from "./parse-task-csv";
 export {
-  claimWashChime,
   completedTaskUndoDeadline,
   completeTask,
   dismissTaskAlert,

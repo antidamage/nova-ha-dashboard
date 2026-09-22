@@ -6,7 +6,7 @@ import { dryingRecommendation } from "./wash-drying";
 const at = Date.parse("2026-09-14T00:00:00Z");
 const drying = { hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 };
 const config: WashingMachineConfig = { powerSensorEntityId: "sensor.test", entityIds: ["switch.test"], startWatts: 15, startSustainedSeconds: 120, endWatts: 5, endQuietSeconds: 300, minCycleKwh: 0.05, typicalMinutes: 66,
-  completionAlert: { enabled: true, personId: "owner", soundFile: "done.mp3", quietSeconds: 60, zeroWatts: 0, maxSampleGapSeconds: 90, discord: true, drying } };
+  completionAlert: { enabled: true, personId: "owner", quietSeconds: 60, zeroWatts: 0, maxSampleGapSeconds: 90, discord: true, drying } };
 function running(person: string | null = "owner", kwh = 0.2): WashingMachineState {
   return { version: 1, cycles: [], open: { person, kwh, costNzd: 0.1, startedAt: new Date(at - 600000).toISOString(), aboveSince: null, belowSince: null, lastSampleAt: new Date(at - 30000).toISOString(), lastWatts: 200 } };
 }
@@ -37,11 +37,30 @@ describe("wash completion", () => {
     for (let s = 30; s <= 120; s += 30) state = sample(state, s);
     expect(state.open?.completion).toBeUndefined();
   });
-  it("does not advance on repeated reads of a cached zero report", () => {
-    let state = running();
-    for (let s = 0; s <= 90; s += 30) state = recordWashingMachineSample(state, {
-      config, at: new Date(at + s * 1000).toISOString(), reportedAt: new Date(at).toISOString(), watts: 0, costPerKwh: 0.3, elapsedHours: 30 / 3600,
+  it("captures a completion from a report-on-change meter whose report time freezes at the drop", () => {
+    // The live Tuya cloud bridge writes the entity only when its value changes,
+    // so `last_reported` stays at the instant the machine dropped to zero and
+    // never advances again. On 2026-09-22 a claimed wash (01:35:30Z-02:31:29Z)
+    // was observed ending at 0 W every 10s and no alert ever fired, because the
+    // quiet window was measured from the report time to the same report time.
+    const tick = (state: WashingMachineState, seconds: number) => recordWashingMachineSample(state, {
+      config, at: new Date(at + seconds * 1000).toISOString(), reportedAt: new Date(at).toISOString(),
+      watts: 0, costPerKwh: 0.3, elapsedHours: 10 / 3600,
     });
+    let state = running();
+    for (let s = 0; s <= 60; s += 10) { state = tick(state, s); expect(state.open?.completion).toBeUndefined(); }
+    state = tick(state, 70);
+    expect(state.open?.completion?.person).toBe("owner");
+  });
+  it("does not backdate the quiet window onto a report that had already gone stale", () => {
+    // An old cached zero is not evidence the machine finished just now: the
+    // window starts with the sample that observed it, so a stale report can
+    // never complete a wash on the first tick after a restart or a re-connect.
+    const state = recordWashingMachineSample(running(), {
+      config, at: new Date(at).toISOString(), reportedAt: new Date(at - 600_000).toISOString(),
+      watts: 0, costPerKwh: 0.3, elapsedHours: 10 / 3600,
+    });
+    expect(state.open?.zeroSince).toBe(new Date(at).toISOString());
     expect(state.open?.completion).toBeUndefined();
   });
   it("captures ownership at the completion edge, including unclaimed washes", () => {

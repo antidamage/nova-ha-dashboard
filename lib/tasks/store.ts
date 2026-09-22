@@ -1,17 +1,14 @@
 // Sole owner of the task package's module state and disk I/O: the data path,
-// the write queue, the wash-chime claim queue and the in-process undo journal.
+// the write queue and the in-process undo journal.
 // dismissTaskAlert and completeTask live here too, so that this is the only
 // file in the package importing lib/dashboard-events (a second importer would
 // add a second edge to the existing dashboard-events <-> tasks import cycle).
-import { readDashboardPreferences } from "../preferences";
-import { resolveOrbEntries } from "../orb-info/preferences";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { publishTaskDismiss, publishTasks } from "../dashboard-events";
 import { reconcileReminderIcons } from "../reminder-icon-hook";
 import { emitModuleEvent } from "../modules/runtime/hooks";
 import type { Task } from "../types";
-import { washReminder } from "../wash-reminder";
 import { normalizedTask, validatedParsedTask } from "./normalize-model";
 import { alertSessionKey, refreshedRepeatingTask, rescheduledFollowers, sortTasks } from "./schedule-model";
 import type { TaskFile, TaskUndoRecord } from "./types";
@@ -97,32 +94,6 @@ export async function readTasks(): Promise<Task[]> {
   }
 
   return nextTasks;
-}
-
-// Claims run strictly in call order. The preferences read used to happen before
-// the claim joined the task write queue, so two concurrent claims could enter
-// that queue in either order and the later caller could win the chime.
-export let washChimeClaimQueue: Promise<unknown> = Promise.resolve();
-
-export function claimWashChime(id: string): Promise<boolean> {
-  const run = washChimeClaimQueue.then(() => claimWashChimeInOrder(id));
-  washChimeClaimQueue = run.catch(() => undefined);
-  return run;
-}
-
-export async function claimWashChimeInOrder(id: string): Promise<boolean> {
-  const preferences = await readDashboardPreferences();
-  const repeat = resolveOrbEntries(preferences.orbInfo).some((entry) => entry.moduleId === "washing");
-  return mutateTasks((tasks) => {
-    const task = tasks.find((candidate) => candidate.id === id);
-    if (!task || washReminder(task)?.phase !== "active" || task.dismissedAt || task.alertDismissedAt) return { tasks, result: false };
-    const session = alertSessionKey(task);
-    const elapsed = Date.now() - Date.parse(task.start);
-    const slot = Math.floor(elapsed / 30_000);
-    const claim = repeat ? `${session}:orb:${slot}` : session;
-    if (elapsed < 0 || (repeat && elapsed >= 300_000) || task.alertChimedFor === claim || (!repeat && task.alertChimedFor?.startsWith(session))) return { tasks, result: false };
-    return { tasks: tasks.map((candidate) => candidate.id === id ? { ...candidate, alertChimedFor: claim } : candidate), result: true };
-  });
 }
 
 export async function writeTasks(tasks: Task[]): Promise<void> {
