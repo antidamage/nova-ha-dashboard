@@ -17,18 +17,19 @@
  *   washing-machine/types.ts              cycle, open-cycle, state, totals shapes
  *   washing-machine/cycle-model.ts        recordWashingMachineSample: detection,
  *                                         integration, completion capture
- *   washing-machine/attribution-model.ts  pattern rules that guess a wash's person
+ *   washing-machine/timer-model.ts        the wash's timer: periods, extensions,
+ *                                         the stop that finishes it
  *   washing-machine/totals-model.ts       sparkline, pruning, month totals, person cycling
  */
 export type {
-  AutoAttributionConfig,
   WashAttribution,
   WashCompletion,
   WashingMachineCycle,
   WashingMachineOpenCycle,
   WashingMachineState,
   WashingMachineTotals,
-  WashRule,
+  WashTimer,
+  WashTimerConfig,
 } from "./washing-machine/types";
 export {
   blankWashingMachineState,
@@ -36,7 +37,7 @@ export {
   recordWashingMachineSample,
   WASHING_MACHINE_HISTORY_DAYS,
 } from "./washing-machine/cycle-model";
-export { autoAttributeCycle, settleAutoAttribution } from "./washing-machine/attribution-model";
+export { advanceWashTimer, beginWashTimer, completeWashTimer } from "./washing-machine/timer-model";
 export {
   cyclesInMonth,
   downsampleTrace,

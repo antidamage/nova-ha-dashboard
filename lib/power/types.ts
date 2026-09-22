@@ -112,8 +112,6 @@ export type PowerFloatingMeterSummary = {
 
 export type PowerWashingMachineSummary = {
   primaryPersonId?: string;
-  typicalMinutes?: number;
-  etaAt?: string | null;
   running?: { attribution?: WashAttribution; curve?: number[]; id: string; person: string | null; kwh: number };
   /** `curve` is the wash's watts downsampled to at most 48 points (§4.6). */
   cycles: Array<WashingMachineCycle & { curve?: number[] }>;

@@ -5,8 +5,9 @@ import { dryingRecommendation } from "./wash-drying";
 
 const at = Date.parse("2026-09-14T00:00:00Z");
 const drying = { hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 };
-const config: WashingMachineConfig = { powerSensorEntityId: "sensor.test", entityIds: ["switch.test"], startWatts: 15, startSustainedSeconds: 120, endWatts: 5, endQuietSeconds: 300, minCycleKwh: 0.05, typicalMinutes: 66,
-  completionAlert: { enabled: true, personId: "owner", quietSeconds: 60, zeroWatts: 0, maxSampleGapSeconds: 90, discord: true, drying } };
+const config: WashingMachineConfig = { powerSensorEntityId: "sensor.test", entityIds: ["switch.test"], startWatts: 15, startSustainedSeconds: 120, endWatts: 5, endQuietSeconds: 300, minCycleKwh: 0.05,
+  timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 5 },
+  completionAlert: { enabled: true, personId: "owner", discord: true, drying } };
 function running(person: string | null = "owner", kwh = 0.2): WashingMachineState {
   return { version: 1, cycles: [], open: { person, kwh, costNzd: 0.1, startedAt: new Date(at - 600000).toISOString(), aboveSince: null, belowSince: null, lastSampleAt: new Date(at - 30000).toISOString(), lastWatts: 200 } };
 }
@@ -14,19 +15,23 @@ function sample(state: WashingMachineState, seconds: number, watts = 0) {
   return recordWashingMachineSample(state, { config, at: new Date(at + seconds * 1000).toISOString(), watts, costPerKwh: 0.3, elapsedHours: 30 / 3600 });
 }
 describe("wash completion", () => {
-  it("requires strictly more than a minute and preserves one occurrence through closure", () => {
+  it("requires strictly more than the quiet window and preserves one occurrence through closure", () => {
+    // The window is the wash's stop rule: at or below `stopWatts` for more than
+    // `stopSeconds` of observed sample time (specs/power-meters.md §4.5).
     let state = sample(running(), 0);
-    state = sample(state, 30); state = sample(state, 60);
+    state = sample(state, 30); state = sample(state, 60); state = sample(state, 120);
     expect(state.open?.completion).toBeUndefined();
-    state = sample(state, 90);
+    state = sample(state, 150);
     const completion = state.open?.completion;
     expect(completion?.discord).toBe(true);
-    for (let s = 120; s <= 300; s += 30) state = sample(state, s);
+    for (let s = 180; s <= 300; s += 30) state = sample(state, s);
     expect(state.cycles[0].completion).toEqual(completion);
     expect(state.cycles[0].person).toBe("owner");
   });
-  it("resets for a positive reading or a monitoring gap", () => {
-    let state = sample(running(), 0); state = sample(state, 30, 2); state = sample(state, 60); state = sample(state, 90);
+  it("resets for a reading above the quiet threshold or a monitoring gap", () => {
+    // 8 W is the machine's panel, not a wash and not quiet either: it is above
+    // the stop threshold, so it resets the window the way a live wash does.
+    let state = sample(running(), 0); state = sample(state, 30, 8); state = sample(state, 60); state = sample(state, 90);
     expect(state.open?.completion).toBeUndefined();
     state = sample(state, 200);
     expect(state.open?.zeroSince).toBe(new Date(at + 200000).toISOString());
@@ -48,8 +53,8 @@ describe("wash completion", () => {
       watts: 0, costPerKwh: 0.3, elapsedHours: 10 / 3600,
     });
     let state = running();
-    for (let s = 0; s <= 60; s += 10) { state = tick(state, s); expect(state.open?.completion).toBeUndefined(); }
-    state = tick(state, 70);
+    for (let s = 0; s <= 120; s += 10) { state = tick(state, s); expect(state.open?.completion).toBeUndefined(); }
+    state = tick(state, 130);
     expect(state.open?.completion?.person).toBe("owner");
   });
   it("does not backdate the quiet window onto a report that had already gone stale", () => {
@@ -65,9 +70,11 @@ describe("wash completion", () => {
   });
   it("captures ownership at the completion edge, including unclaimed washes", () => {
     let state = sample(running(null), 0);
-    for (let s = 30; s <= 90; s += 30) state = sample(state, s);
+    for (let s = 30; s <= 150; s += 30) state = sample(state, s);
+    // The completion was recorded with nobody's name on the wash; a claim that
+    // lands afterwards cannot write itself into an alert that already fired.
     state.open!.person = "owner";
-    state = sample(state, 120);
+    state = sample(state, 180);
     expect(state.open?.completion?.person).toBeNull();
     expect(state.open?.completion?.discord).toBe(false);
   });

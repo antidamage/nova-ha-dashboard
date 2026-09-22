@@ -15,18 +15,25 @@ export const CONFIG: WashingMachineConfig = {
   startSustainedSeconds: 120,
   endWatts: 5,
   endQuietSeconds: 300,
-  typicalMinutes: 66,
   minCycleKwh: 0.05,
+  timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 5 },
 };
 
 export const SAMPLE_SECONDS = 30;
+
+/** The trace harness's own clock, so a seeded open wash can be timed to it. */
+export const REPLAY_START_MS = Date.parse("2026-09-14T08:00:00.000Z");
 
 /**
  * Replay a watt trace at a fixed sample interval, the way the power monitor
  * ticks. Each entry is [watts, minutes].
  */
-export function replay(trace: Array<[number, number]>, state: WashingMachineState = blankWashingMachineState()) {
-  let at = new Date("2026-09-14T08:00:00.000Z").getTime();
+export function replay(
+  trace: Array<[number, number]>,
+  state: WashingMachineState = blankWashingMachineState(),
+  config: WashingMachineConfig = CONFIG,
+) {
+  let at = REPLAY_START_MS;
   let next = state;
   for (const [watts, minutes] of trace) {
     const ticks = (minutes * 60) / SAMPLE_SECONDS;
@@ -34,7 +41,7 @@ export function replay(trace: Array<[number, number]>, state: WashingMachineStat
       at += SAMPLE_SECONDS * 1000;
       next = recordWashingMachineSample(next, {
         at: new Date(at).toISOString(),
-        config: CONFIG,
+        config,
         costPerKwh: 0.3,
         elapsedHours: SAMPLE_SECONDS / 3600,
         watts,

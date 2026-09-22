@@ -119,8 +119,8 @@ export type RebuiltWash = { cycle: WashingMachineCycle; points: Array<[number, n
  * config, ticking at the meter interval with each reading held until the next
  * one — which is how the live tick sees a report-on-change stream.
  *
- * Replay never alerts and never guesses a person: completion alerts and
- * pattern attribution are stripped, because neither may act retroactively
+ * Replay never alerts and never assigns a person: completion alerts and the
+ * unclaimed person are stripped, because neither may act retroactively
  * (§4.5, "Claimed-wash completion alerts").
  */
 export function replayWashingHistory(options: {
@@ -134,7 +134,7 @@ export function replayWashingHistory(options: {
 }): RebuiltWash[] {
   const { costPerKwhAt, fromMs, maxIntegrationHours, points, toMs } = options;
   const tickMs = Math.max(1, options.tickSeconds) * 1000;
-  const config: WashingMachineConfig = { ...options.config, autoAttribution: undefined, completionAlert: undefined };
+  const config: WashingMachineConfig = { ...options.config, completionAlert: undefined, unclaimedPersonId: undefined };
   let state: WashingMachineState = blankWashingMachineState();
   let trace: { anchor: string | null; points: Array<[number, number]> } = { anchor: null, points: [] };
   let lastTickMs: number | null = null;

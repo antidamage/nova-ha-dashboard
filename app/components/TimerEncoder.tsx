@@ -6,7 +6,7 @@ import { TAP_MAX_MS, TAP_MOVE_THRESHOLD_PX } from "./sliderTapGesture";
 import { useOrbTimer } from "./orb-info/useOrbTimer";
 import { useOrbSettings } from "./orb-info/useOrbSettings";
 import { OrbEventReadout } from "./orb-info/OrbEventReadout";
-import { countdownText, timerRemaining } from "../../lib/orb-timer-model";
+import { countdownText, timerIsDone, timerRemaining } from "../../lib/orb-timer-model";
 import { timerIconCode } from "../../lib/orb-timer-settings";
 import { TIMER_DIAL_STEP, TIMER_MAX_MINUTES, timerFractionToMinutes, timerMinutesToFraction } from "./timerEncoderMath";
 import { playUxSound } from "./dashboard/controlSound";
@@ -92,7 +92,11 @@ export function TimerEncoder() {
     onPointerCancel: () => { press.current = null; },
   };
   const icon = locked && active ? active.icon : timerIconCode(icons[stop].glyph);
-  const done = active && (active.completedAt !== null || active.endsAt <= now);
+  // A timer whose end belongs to its driver — the wash's — is done when that
+  // driver says so, never when its own period runs out
+  // (specs/power-meters.md, "The wash's timer"): the control shows the same
+  // countdown the orb's timer entry does.
+  const done = active !== null && timerIsDone(active, now);
   const readout = locked && active ? done ? "Done" : countdownText(timerRemaining(active, now)) : minutes ? countdownText(minutes * 60_000) : "Off";
   /**
    * The reading is also the field's keyboard door: an empty, transparent button

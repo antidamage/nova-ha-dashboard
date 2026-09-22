@@ -1,4 +1,4 @@
-import { countdownText, timerRemaining } from "../orb-timer-model";
+import { countdownText, timerIsDone, timerRemaining } from "../orb-timer-model";
 import { DEFAULT_ORB_DISPLAY } from "./format";
 import {
   ORB_MODULE_OUTPUT_EMPTY,
@@ -65,13 +65,22 @@ function hoursUntil(iso: string | null, now: number): number | null {
 
 export const ORB_INFO_MODULES: OrbModule[] = [
   {
-    id: "washing", label: "Washing", group: "household", detail: "Primary user's wash ETA and completion",
+    id: "washing", label: "Washing", group: "household", detail: "Primary user's wash countdown and completion",
     baseUnit: "none", sources: ["power", "tasks", "clock"], supportedFormats: ["text"], defaultDisplay: display({ format: "text" }),
     read: ({ washing, washTasks, now }) => {
       const task = washTasks?.find((task) => !task.dismissedAt && !task.alertDismissedAt && (task.moduleData?.["washing-machine"] as { phase?: string })?.phase === "active");
       if (task) return output({ status: "ok", active: true, icon: "washing-machine", text: "Done", alert: true, alertAt: Date.parse(task.start) || 0, dismiss: { kind: "washing", id: task.id } });
-      if (washing?.open?.completion || !washing?.primaryPersonId || washing.open?.person !== washing.primaryPersonId || !washing.etaAt) return output({ active: false });
-      const remaining = Date.parse(washing.etaAt) - now;
+      // The countdown is the wash's own timer, the same periods the household
+      // timer entry counts. A wash with no timer — one nobody claimed — has no
+      // orb entry at all: it is the other person's, and it notifies nobody
+      // (specs/power-meters.md, "The wash's timer").
+      const open = washing?.open;
+      if (!open?.timer || open.completion || open.person !== washing?.primaryPersonId) return output({ active: false });
+      if (open.timer.completedAt !== null) return output({ active: false });
+      // Past its period with the machine still running is not an overrun: the
+      // timer entry reads 0:00, and this one must read the same thing.
+      const remaining = Math.max(0, Date.parse(open.timer.endsAt) - now);
+      if (!Number.isFinite(remaining)) return output({ active: false });
       return output({ status: "ok", active: true, icon: "washing-machine", text: countdownText(remaining), remainingMs: Math.max(0, remaining) });
     },
   },
@@ -92,7 +101,10 @@ export const ORB_INFO_MODULES: OrbModule[] = [
     defaultDisplay: display({ format: "text" }),
     read: ({ orbTimer: timer, now }) => {
       if (!timer || timer.dismissedAt !== null) return output({ active: false });
-      const done = timer.completedAt !== null || now >= timer.endsAt;
+      // A timer whose end belongs to its driver — the wash's — is done when
+      // that driver says so, never when its own clock runs out
+      // (specs/power-meters.md, "The wash's timer").
+      const done = timerIsDone(timer, now);
       return output({ active: true, status: "ok", icon: timer.icon, text: done ? "Done" : countdownText(timerRemaining(timer, now)),
         alert: done, remainingMs: timerRemaining(timer, now),
         ...(done ? { alertAt: timer.completedAt ?? timer.endsAt, dismiss: { kind: "timer" as const, id: timer.id } } : { countdownFraction: timerRemaining(timer, now) / timer.durationMs }) });

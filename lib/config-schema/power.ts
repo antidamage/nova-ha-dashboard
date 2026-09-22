@@ -126,58 +126,10 @@ const AmpPowerControlSchema = z.object({
 export type AmpPowerControlConfig = z.infer<typeof AmpPowerControlSchema>;
 export { AmpPowerControlSchema };
 
-/**
- * Cycle detection for a washing machine on a metering plug. Every threshold is
- * config so a different machine is a config edit. See specs/power-meters.md §4.
- */
-const WashingMachineConfigSchema = z.object({
-  powerSensorEntityId: entityIdSchema,
-  /**
-   * Read when `powerSensorEntityId` is unavailable — a cloud twin behind a
-   * local sensor (specs/power-meters.md §7.2).
-   */
-  fallbackPowerSensorEntityId: entityIdSchema.optional(),
-  /**
-   * A cumulative kWh counter on the same plug (total_increasing, never a
-   * per-interval increment). When set, energy comes from the
-   * counter's delta and power only drives detection (§7.3).
-   */
-  energySensorEntityId: entityIdSchema.optional(),
-  entityIds: z.array(entityIdSchema).min(1),
-  startWatts: z.number().nonnegative().default(15),
-  startSustainedSeconds: z.number().positive().default(120),
-  endWatts: z.number().nonnegative().default(5),
-  endQuietSeconds: z.number().positive().default(300),
-  minCycleKwh: z.number().nonnegative().default(0.05),
-  completionAlert: z.object({
-    enabled: z.boolean().default(false),
-    personId: z.string().min(1),
-    zeroWatts: z.number().nonnegative().default(0),
-    quietSeconds: z.number().positive().default(60),
-    maxSampleGapSeconds: z.number().positive().default(90),
-    discord: z.boolean().default(false),
-    drying: z.object({
-      hours: z.number().int().min(1).max(12).default(4),
-      daylightHours: z.number().nonnegative().default(3),
-      maxRainMm: z.number().nonnegative().default(0.1),
-      maxRainChancePct: z.number().min(0).max(100).default(30),
-    }).default({ hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 }),
-  }).optional(),
-  /** Rule-based guess at one person's washes. See specs/power-meters.md §4.5. */
-  typicalMinutes: z.number().positive().max(480).default(66),
-  autoAttribution: z.object({
-    enabled: z.boolean().default(false),
-    personId: z.string().min(1),
-    standardMinMinutes: z.number().positive().default(55),
-    standardMaxMinutes: z.number().positive().default(95),
-    minDaysSinceLast: z.number().positive().default(5),
-    consecutiveMaxGapMinutes: z.number().nonnegative().default(60),
-    spinMaxMinutes: z.number().positive().default(15),
-    spinMaxGapMinutes: z.number().nonnegative().default(30),
-  }).optional(),
-});
-export type WashingMachineConfig = z.infer<typeof WashingMachineConfigSchema>;
-export { WashingMachineConfigSchema };
+// The wash's config moved to its own domain file at the size cap; see
+// lib/config-schema/washing-machine.ts.
+export { WashingMachineConfigSchema, WashTimerConfigSchema } from "./washing-machine";
+export type { WashingMachineConfig, WashTimerConfig } from "./washing-machine";
 
 /**
  * A person in this household, for attributing shared consumption. Personal

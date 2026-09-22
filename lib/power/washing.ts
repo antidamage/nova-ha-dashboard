@@ -16,7 +16,7 @@ import {
 } from "../washing-machine";
 import { localMonthKey } from "./calendar";
 import { meterReading } from "./meters";
-import { startWashEtaTimer } from "./wash-eta-timer";
+import { setWashTimer, syncWashTimer } from "./wash-timer";
 import {
   powerConfig,
   readJson,
@@ -30,14 +30,14 @@ import {
 import { buildWashHistory } from "./wash-history";
 import type { PowerWashingMachineSummary, WashTraceFile } from "./types";
 
-export function recordWashingMachineTick(
+export async function recordWashingMachineTick(
   persisted: WashingMachineState,
   statesById: Map<string, HaState>,
   now: Date,
   integrationHours: number,
   costPerKwh: number,
   energyKwh?: number,
-): WashingMachineState | null {
+): Promise<WashingMachineState | null> {
   const config = powerConfig().washingMachine;
   if (!config) {
     return null;
@@ -50,6 +50,7 @@ export function recordWashingMachineTick(
     if (persisted.open) { persisted.open.zeroSince = null; persisted.open.belowSince = null; }
     return persisted;
   }
+  const beforeTimer = persisted.open?.timer;
   const next = recordWashingMachineSample(persisted, {
     at: now.toISOString(),
     config,
@@ -59,6 +60,10 @@ export function recordWashingMachineTick(
     watts,
     reportedAt: reading?.reportedAt ?? "invalid",
   });
+  // The wash's timer drives the household's: whatever this tick did to it —
+  // extended it, finished it, or removed it with the wash — reaches the timer
+  // every screen reads (specs/power-meters.md, "The wash's timer").
+  await syncWashTimer(beforeTimer, next.open?.timer);
   const cutoff = new Date(now.getTime() - WASHING_MACHINE_HISTORY_DAYS * 86_400_000).toISOString();
   return pruneWashingMachineCycles(next, cutoff);
 }
@@ -77,16 +82,21 @@ async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   const state = { ...blankWashingMachineState(), ...persisted };
   const index = state.cycles.findIndex((cycle) => cycle.id === cycleId);
   const personIds = (readDashboardConfigSync().dashboard.people ?? []).map((person) => person.id);
-  // A tap is a manual claim, including a tap back to unassigned: pattern
-  // attribution never overrides it (§4.5).
+  // A tap is a manual claim, including a tap back to unassigned: the unclaimed
+  // default never overrides it (§4.3).
   const attribution: WashAttribution = { at: new Date().toISOString(), source: "manual" };
   if (state.open?.startedAt && washingCycleId(state.open.startedAt) === cycleId) {
     state.open.person = nextPerson(state.open.person ?? null, personIds);
     state.open.attribution = attribution;
-    // A claim by the primary person starts the household timer for the rest of
-    // her typical wash, so the wash is notified exactly as a user-set timer is
+    // The wash's timer belongs to the primary person: this tap starts it, and a
+    // tap that takes the wash off her cancels it, silently
     // (specs/power-meters.md, "The wash's timer").
-    await startWashEtaTimer(state.open, new Date());
+    const timer = await setWashTimer(state.open, new Date());
+    // A timer that has already finished keeps its record — the alert it raised is
+    // still on the household's screen, and a tap must not start a second one for
+    // a wash that has been notified. An unfinished one goes with the claim.
+    if (timer) state.open.timer = timer;
+    else if (state.open.timer?.completedAt === null) delete state.open.timer;
     await reconcileWashCompletion(state, new Map());
     await writeJsonAtomic(WASHING_MACHINE_PATH, state);
     return state.open;
@@ -128,8 +138,6 @@ export function buildWashingMachineSummary(
   const cycles = state.cycles.filter((cycle) => localMonthKey(new Date(cycle.endedAt)) === monthKey);
   return {
     primaryPersonId: people.find((person) => person.primary)?.id,
-    typicalMinutes: config.typicalMinutes,
-    etaAt: state.open?.startedAt ? new Date(Date.parse(state.open.startedAt) + config.typicalMinutes * 60_000).toISOString() : null,
     cycles: cycles.map((cycle) => (washCurves.has(cycle.id) ? { ...cycle, curve: washCurves.get(cycle.id) } : cycle)),
     ...(state.open?.startedAt ? { running: {
       ...(state.open.attribution ? { attribution: state.open.attribution } : {}),
