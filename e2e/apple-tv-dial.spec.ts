@@ -82,7 +82,7 @@ test("its preset buttons are the Apple TV's playlists, and a press lights nothin
   await expect(presets.locator("button.quick-button-active")).toHaveCount(0);
 });
 
-test("the dial and its presets send nothing: the amplifier has no endpoint yet", async ({ page }) => {
+test("the demo build sends nothing when the dial or a preset is used", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   const writes: string[] = [];
   page.on("request", (request) => {
@@ -92,6 +92,10 @@ test("the dial and its presets send nothing: the amplifier has no endpoint yet",
   await tap(ampDial(page));
   await quickAmp(page).locator(".apple-tv-presets button").first().click();
   await page.waitForTimeout(400);
+  // A press *does* command the Apple TV in a real build — /api/appletv/play
+  // wakes it and starts the Music app. The demo has no television behind /api,
+  // so the store sends nothing there, which is what this stands on: the demo
+  // pages stay side-effect free. specs/apple-tv-volume.md.
   expect(writes).toEqual([]);
 });
 
