@@ -109,8 +109,9 @@ export function WashTimeline({
                 const person = personOf(cycle.id, cycle.person);
                 const label = people.find((candidate) => candidate.id === person)?.label ?? "Unassigned";
                 const { left, width } = washPlacement(cycle, block);
-                // A default attribution is hatched until someone taps it (§5.2).
-                const guessed = person !== null && !isPending(cycle.id) && cycle.attribution?.source === "auto";
+                // The unclaimed default is hatched until someone taps it (§5.2):
+                // it is nobody's tap, so it reads as a default rather than a name.
+                const byDefault = person !== null && !isPending(cycle.id) && cycle.attribution?.source === "auto";
                 const color = personColor(people, person);
                 const curve = cycle.curve ?? [];
                 const curvePeak = Math.max(1, ...curve);
@@ -121,17 +122,17 @@ export function WashTimeline({
                   <button
                     key={cycle.id}
                     type="button"
-                    aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${guessed ? " (guessed)" : ""}${ran ? `, started ${ran}` : ""}. Tap to claim or reassign.`}
-                    className={classNames("power-wash-block", guessed && "is-guessed")}
+                    aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${byDefault ? " (default)" : ""}${ran ? `, started ${ran}` : ""}. Tap to claim or reassign.`}
+                    className={classNames("power-wash-block", byDefault && "is-default")}
                     onClick={() => onClaim(cycle.id, person)}
                     style={{
-                      background: guessed ? `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px), rgb(10 10 10 / 0.35)` : color,
-                      borderColor: guessed ? color : undefined,
+                      background: byDefault ? `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px), rgb(10 10 10 / 0.35)` : color,
+                      borderColor: byDefault ? color : undefined,
                       height: `${Math.max(14, (cycle.kwh / peak) * 100)}%`,
                       left: `${left}%`,
                       width: `${width}%`,
                     }}
-                    title={`${cycle.active ? "Active — " : ""}${label}${guessed ? " (guessed)" : ""} / ${cycle.kwh.toFixed(2)} kWh${ran ? ` / ${ran}` : ""}`}
+                    title={`${cycle.active ? "Active — " : ""}${label}${byDefault ? " (default)" : ""} / ${cycle.kwh.toFixed(2)} kWh${ran ? ` / ${ran}` : ""}`}
                   >
                     {curve.length > 1 ? (
                       <svg className="power-wash-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
