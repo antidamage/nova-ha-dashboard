@@ -105,9 +105,9 @@ export const RING_GLIDE_DEG_PER_SEC = 720;
  * ring's range.
  *
  * A `step` is not the same thing as a discrete control. The sleep-timer rings
- * round to 2 minutes across an eight-hour range — 0.4% of it — and
- * `TimerEncoder`'s duration ring to 0.001 of a 0–1 fraction; both are dragged by
- * eye and have to track the finger exactly. Gliding them would cap the thumb at
+ * round to 2 minutes across an eight-hour range — 0.4% of it — which is
+ * rounding rather than a set of stops. A ring like that is dragged by eye and has
+ * to track the finger exactly. Gliding them would cap the thumb at
  * the same 720°/s and leave the readout running ahead of it for the whole
  * gesture, which is a regression at a 1° step and buys nothing (Adeline,
  * 2026-09-21, reviewing the first version of this ruling on any step at all).

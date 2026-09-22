@@ -264,18 +264,18 @@ format each entry's module follows.
 **Timer**
 - One timer, server-side household state: every screen's orb and set-timer control show the same countdown; completion handled server-side so Discord fires with no screen open.
 - Timer holds its own position in the priority list (`timer` entry).
-- Range: logarithmic ring, 1 min → 8 h. Steps: 1-min to 10 min, then coarser even divisions switching at major points (proposal to record: 5 min to 60, 10 min to 2 h, 15 min to 4 h, 30 min to 8 h). Below 1 min = Off. Ring value tap opens `NumericEntryPopover` for exact entry.
+- Range: logarithmic: a turn reaches 20 s (where the logarithmic turn bottoms out, the detent above Off; `timerEncoderMath`'s own steps below 1 min are 5 s) up to 8 h, and turning down from there reads Off. Detents: 5 s steps under 1 min, 10 s to 5 min, 30 s to 10 min, 1 min to 30 min, 5 min to 60, 10 min above. Exact entry is `NumericEntryPopover`, opened by a tap on the dial or by Tab to the reading and Enter; it reaches the sub-20 s values a turn cannot.
 - Icon list is **user-defined** in config (pick + order glyphs via `ReminderIconPicker`).
 - Completion: sound plays **every 30 s for 5 min, then silent**, orb still in alert mode. Tapping the orb on any device dismisses it everywhere (sound stops everywhere).
 - Sound chosen in the **theme** from a dropdown. Preload: the six MP3s in `D:\Downloads\Windows Sounds\` (Chime, Magical, Motion tracker, Retro boop, Soft boop, Tink) — ignore the WAVs.
 - Discord on completion: names the icon's timer type and the duration, e.g. "Egg timer finished — 6 min".
-- Dragging the timer ring to zero cancels: removed from orb, **no** sound, **no** Discord.
+- Dragging the timer to zero cancels: removed from orb, **no** sound, **no** Discord.
 
 **Set-timer control (RotaryEncoder variant, `TimerEncoder`)**
 - Location: System → Reminders sub-panel, **above** the reminder lists. Today/Upcoming lists move into that panel's `AdvancedFold` advanced area. Nothing else from reminders goes on the orb.
-- Flow: tap to activate (unlock) → drag knob to step through icons (selected icon in the centre) → drag the outer timer slider ring past Off → de-focus (or idle timeout) starts it. Any non-zero value starts on de-focus.
+- Flow: tap to activate (unlock) → drag the knob to set the duration (the minutes show in the middle as it turns, on the same logarithmic detents the ring used to carry; a tap on the open knob types an exact number) → drag the outer ring to the icon you want (the glyph in the middle changes; the ring carries no reading of its own, only its `Icon` label) → de-focus (or idle timeout) starts it. Any non-zero value starts on de-focus.
 - While running: control is locked and counts down itself — remaining time on the face and the same counter-clockwise alert-colour ring around its icon.
-- Tap the control (not the orb) to unlock and show the timer ring again for adjusting/cancelling.
+- Tap the control (not the orb) to unlock and set the duration or the icon again, or cancel by turning it to Off.
 - Apple TV: displays the stack incl. timer/wash; **no timer setting on Apple TV** yet.
 
 **New event entries** (params with these defaults)
