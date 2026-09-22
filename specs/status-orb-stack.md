@@ -259,7 +259,7 @@ format each entry's module follows.
 - Config: `dashboard.people` gains a `primary` flag (exactly one); the dashboard serves that user. Wash heuristics are the primary user's (`autoAttribution`).
 - ETA: count down to the primary's typical wash duration (new config `typicalMinutes`, Adeline 66). Once exceeded, show elapsed overrun counting up (e.g. `+0:07`) — no re-guess.
 - On completion: orb flashes; orb tap acknowledges the wash (same effect as acknowledging its reminder).
-- **If the stack contains a washing entry, the temporary wash reminder icon is not displayed.** Existing wash sound choice and Discord message stay; orb-backed sound repeats as specified below.
+- **If the stack contains a washing entry, the temporary wash reminder icon is not displayed.** The Discord message stays. The wash is silent however the stack is configured: its notification is the household timer the claim starts (specs/power-meters.md, "The wash's timer") and the timer's own entry is what repeats a sound, as below.
 
 **Timer**
 - One timer, server-side household state: every screen's orb and set-timer control show the same countdown; completion handled server-side so Discord fires with no screen open.
@@ -294,6 +294,13 @@ acknowledges the occurrence on every screen. Suppress that occurrence's temporar
 reminder icon. If no corresponding orb entry is selected, show the temporary
 task icon and chime once. A higher-priority entry temporarily hiding an event
 does not mean the event is unconfigured. Cancellation is always silent.
+
+Adeline, 2026-09-22: the chime half of that is the **timer's** now. A wash is
+notified by the household timer its claim starts (specs/power-meters.md, "The
+wash's timer"), so a wash never chimes itself — it flashes, it is acknowledged by
+a tap, and what sounds is the timer's own entry, under this rule, on the timer's
+own chime. A wash whose claim set no timer (another person's wash, or one claimed
+after its typical length) is silent.
 
 The other plan proposals are the implementation defaults: minute divisions
 1 to 10, 5 to 60, 10 to 120, 15 to 240, 30 to 480; five-second idle start;

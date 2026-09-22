@@ -76,11 +76,25 @@ export function recordWashingMachineSample(
   if (alert?.enabled && open.startedAt && !open.completion) {
     const reportedAt = options.reportedAt ?? at;
     const age = seconds(reportedAt, at);
+    // The metering plugs report on change: once the machine settles at zero the
+    // integration stops writing that entity, so `last_reported` freezes at the
+    // instant of the drop and never moves again (measured on the live Tuya
+    // cloud bridge 2026-09-22 — frozen at the drop for 26 minutes at 0 W, with
+    // `homeassistant.update_entity` every 30 s not moving it either). A report
+    // old enough to be stale therefore cannot anchor the quiet window — that
+    // would backdate it to a moment nobody was watching — but it is not
+    // grounds for discarding the window: the value it carries is still the
+    // meter's last word. Waiting for the timestamp to advance meant the window
+    // could never elapse and no wash ever alerted. The window is measured in
+    // observed sample time, the same clock the close timer below uses, and each
+    // tick that observes zero power extends it.
     const fresh = Number.isFinite(age) && age >= -5 && age <= alert.maxSampleGapSeconds;
-    if (!fresh || gap < 0 || gap > alert.maxSampleGapSeconds || elapsedHours <= 0 || watts > alert.zeroWatts) open.zeroSince = null;
-    if (fresh && watts <= alert.zeroWatts) {
-      open.zeroSince ??= reportedAt;
-      if (open.kwh >= config.minCycleKwh && seconds(open.zeroSince, reportedAt) > alert.quietSeconds) {
+    if (gap < 0 || gap > alert.maxSampleGapSeconds || elapsedHours <= 0 || watts > alert.zeroWatts) open.zeroSince = null;
+    if (watts <= alert.zeroWatts) {
+      // A fresh report says when the drop actually happened; a stale one only
+      // says the zero is standing now, so the window starts at this sample.
+      open.zeroSince ??= fresh ? reportedAt : at;
+      if (open.kwh >= config.minCycleKwh && seconds(open.zeroSince, at) > alert.quietSeconds) {
         // Guess the owner before capturing the finish, so an unclaimed wash
         // that matches the pattern still gets its alert (§4.5).
         const rules = config.autoAttribution;
@@ -92,8 +106,7 @@ export function recordWashingMachineSample(
           }
         }
         // Record even an unclaimed finish: a later claim must never backfill an alert.
-        open.completion = { at, person: open.person ?? null, soundFile: alert.soundFile,
-          discord: alert.discord && open.person === alert.personId };
+        open.completion = { at, person: open.person ?? null, discord: alert.discord && open.person === alert.personId };
       }
     }
   }

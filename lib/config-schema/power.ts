@@ -152,7 +152,6 @@ const WashingMachineConfigSchema = z.object({
   completionAlert: z.object({
     enabled: z.boolean().default(false),
     personId: z.string().min(1),
-    soundFile: z.string().regex(/^[a-zA-Z0-9_-]+\.mp3$/),
     zeroWatts: z.number().nonnegative().default(0),
     quietSeconds: z.number().positive().default(60),
     maxSampleGapSeconds: z.number().positive().default(90),

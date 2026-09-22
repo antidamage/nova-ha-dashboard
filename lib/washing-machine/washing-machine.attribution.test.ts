@@ -98,7 +98,7 @@ describe("pattern attribution through the sampler", () => {
   const ALERT_CONFIG: WashingMachineConfig = {
     ...CONFIG,
     completionAlert: {
-      enabled: true, personId: "addie", soundFile: "done.mp3", zeroWatts: 0, quietSeconds: 60,
+      enabled: true, personId: "addie", zeroWatts: 0, quietSeconds: 60,
       maxSampleGapSeconds: 90, discord: true,
       drying: { hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 },
     },

@@ -33,7 +33,7 @@ export async function reconcileWashCompletion(state: WashingMachineState, states
     if (!finish && (!open?.startedAt || session.id !== cycleId(open.startedAt))) continue;
     const person = config.dashboard.people.find((person) => person.id === alert.personId);
     await syncWashReminder(id, `${person?.label ?? "Claimed"} washing machine`, finish?.at ?? session.startedAt, {
-      sessionId: session.id, phase: finish ? "active" : "waiting", soundFile: finish?.soundFile ?? alert.soundFile,
+      sessionId: session.id, phase: finish ? "active" : "waiting",
     });
     if (!finish?.discord) continue;
     // Only recent events are re-emitted; the Discord module owns persisted delivery deduplication.

@@ -82,7 +82,6 @@ const CONFIG: WashingMachineConfig = {
   completionAlert: {
     enabled: true,
     personId: "addie",
-    soundFile: "done.mp3",
     zeroWatts: 0,
     quietSeconds: 60,
     maxSampleGapSeconds: 90,

@@ -45,7 +45,7 @@ export type WashingMachineState = {
   version: 1;
 };
 
-export type WashCompletion = { at: string; person: string | null; soundFile: string; discord: boolean; recommendation?: string };
+export type WashCompletion = { at: string; person: string | null; discord: boolean; recommendation?: string };
 
 export type WashingMachineTotals = {
   costNzd: number;

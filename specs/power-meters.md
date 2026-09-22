@@ -391,8 +391,9 @@ evidence that she has not washed.
    open cycle has no person, the rules run with duration = `zeroSince −
    startedAt`. A match sets `person` and `attribution: { source: "auto", rule,
    at }` first, so the completion is captured as hers and the existing alert
-   fires in full: sound, reminder icon, Discord and the drying recommendation.
-   This is how an unclaimed wash of hers still plays the sound.
+   fires in full: the flashing icon, Discord and the drying recommendation. It
+   does **not** gain a sound — the wash's chime is the timer a claim starts, and
+   an unclaimed wash was never claimed.
 2. **At close** — with the final `endedAt`. A cycle with no attribution is
    evaluated (covers a disabled alert or a completion that never fired). A cycle
    whose attribution is `auto` is re-evaluated; if no rule holds any more it
@@ -511,22 +512,81 @@ republishing.
 ### Claimed-wash completion alerts
 
 An optional `power.washingMachine.completionAlert` household setting names the eligible
-person, MP3 file, zero-power threshold, quiet duration, report freshness limit, Discord
-delivery and drying thresholds. There are no config-page controls. Audio is stored in
-`data/household-audio` (or `NOVA_HOUSEHOLD_AUDIO_DIR`) and served by the washing-machine
-audio route; deployment preserves it.
+person, zero-power threshold, quiet duration, report freshness limit, Discord delivery and
+drying thresholds. There are no config-page controls.
+
+It names no sound. The wash sounds nothing of its own: its notification is an ordinary
+household timer, started by the claim ("The wash's timer" below), so the chime, the orb
+flash and the tap that dismisses it are the timer's — the same proven path every other
+countdown uses. The uploaded MP3, the washing-machine audio and chime routes and the
+`Audio` element that played it are gone; the clip left in `data/household-audio` is not
+read by anything.
 
 Claiming the live graph's wash creates a session-linked temporary reminder. It waits
-silently until a confirmed wash exceeding `minCycleKwh` has fresh zero-power reports
-spanning strictly more than the configured quiet duration. Missing reports and sampling
-gaps reset that timer. Completion ownership is captured at the edge, so historical
+silently until a confirmed wash exceeding `minCycleKwh` has zero power observed across
+strictly more than the configured quiet duration.
+
+That window is measured in **observed sample time** — the meter tick's own clock,
+the same one §4.1's close timer uses. It has to be: the plugs report **on change**,
+so once the machine settles at zero the integration stops writing the entity and
+`last_reported` freezes at the instant of the drop and never moves again
+(`homeassistant.update_entity` does not move it either — §7.2's cloud refresh is
+not a heartbeat, measured 2026-09-22 with both plugs 26 and 43 minutes stale). A
+window measured from a timestamp that never advances can never elapse, and the
+first live wash under this rule — a claimed 56-minute wash that finished at
+`2026-09-22T02:31:29Z` — was observed ending at 0 W by every metre tick and
+alerted nobody; the same wash replays to a completion 61 s after the drop under
+the rule below.
+
+A report fresh enough to trust says *when* the drop happened and anchors the
+window there. One already older than `maxSampleGapSeconds` cannot anchor it — that
+would backdate the window to a moment nobody was watching — but it is not grounds
+for discarding the window either: the value it carries is still the meter's last
+word. Such a window starts with the sample that observed it, so a cached zero can
+never complete a wash on the first tick after a restart. A reading above
+`zeroWatts`, a sample gap beyond `maxSampleGapSeconds`, or no reading at all
+resets the timer.
+
+Completion ownership is captured at the edge, so historical
 attribution cannot create alerts. Acknowledging removes the temporary icon; the task
 record retains acknowledgement to prevent replay. Active and historical claim writes
 share the power sampler's write queue.
 
-The completion activates the icon, plays its entire custom sound once across web
-screens, and emits the existing `reminder.due` event with the completion text and
-`discord-bot.onDue` enabled on that event. No device-specific Discord hook or module
+### The wash's timer
+
+Adeline, 2026-09-22: *"when the washing machine module starts a timer, it should be
+exactly the same as if the user set a timer… when I CLAIM the wash it should look at how
+long it's been running for, how long my normal wash runs for (1 hr 6 minutes) and set up
+a user timer for the remainder."*
+
+Claiming the running wash sets the household's **one** timer — the same `/api/orb-timer`
+state the set-timer control writes and every screen reads — for what is left of the
+primary person's typical wash: a claim 20 minutes into a 66-minute typical wash sets 46
+minutes. The countdown ring, the chime, the repeat, the orb flash, the tap that dismisses
+it and the timer's Discord message are all the timer's own machinery, unchanged.
+
+- Set by the tap that claims the wash, never by the wash opening. An unclaimed wash has
+  no ETA entry in the orb either, so it starts nothing and is notified by nothing.
+- Only a claim that lands on the **primary** person starts one; another person's tap is a
+  claim, not this timer.
+- The icon and label are the household's own **first configured timer icon** (for Adeline,
+  a t-shirt glyph labelled "Wash clothes"); a household that has configured none gets the
+  default `Countdown` icon — the same fallback the timer control uses.
+- A wash already past its typical length sets nothing, and a timer already running is left
+  exactly as it is.
+- A wash whose `completion` has already been captured sets nothing either: there is a
+  window between the completion edge and the cycle closing (§4.1's `endQuietSeconds`) in
+  which the finished wash is still tappable, and a countdown for a wash that is already
+  done must not replace the household's timer.
+- It is the household's single timer, so claiming a wash **replaces** a countdown already
+  running. That is what "exactly as if the household set a timer" means, and it is the one
+  consequence to know about.
+- The figure is the same `typicalMinutes` the orb's wash entry counts down, and the same
+  primary person supplies both.
+
+The completion flashes the icon — it sounds nothing itself, the timer the claim
+started is what chimes — and emits the existing `reminder.due` event with the completion
+text and `discord-bot.onDue` enabled on that event. No device-specific Discord hook or module
 update is needed. The stored reminder's ordinary echo stays disabled so only the
 enriched completion notification is announced. The Discord module queues one combined
 completion/drying message, deduplicated by wash ID and original completion time. Its
@@ -575,10 +635,11 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 
 See [status-orb-stack.md](status-orb-stack.md). Exactly one household person is
 primary; that person supplies wash attribution and typical duration (Adeline:
-66 minutes). A configured washing orb entry suppresses the temporary wash icon
-and repeats the completion chime every 30 seconds for five minutes, then stays
-silently alert until acknowledged. Without that entry, keep the temporary icon
-and play the chime once. Discord completion behaviour is unchanged.
+66 minutes). A configured washing orb entry suppresses the temporary wash icon; the
+entry flashes on completion and is acknowledged by a tap, and it never chimes — the
+timer the claim started is what sounds ("The wash's timer"). Without the entry, keep
+the temporary icon, which is likewise silent. Discord completion behaviour is
+unchanged.
 
 ## 7. Round 2: polling, cycle floor and data repair (Adeline, 2026-09-15)
 
@@ -609,6 +670,10 @@ Plan `we-ve-separated-the-landscape-s-ancient-parnas` round 2, task log
 2. **Cloud refresh, 30 s.** If the LAN is blocked (AP isolation), Nova calls
    `homeassistant.update_entity` on each plug's cloud power entity every 30 s.
    If the bridge ignores that, record it and keep the report-on-change stream.
+   **It ignores it** (measured 2026-09-22: both plugs' `last_reported` sat 26 and
+   43 minutes behind, at their last *change*), so nothing may treat that
+   timestamp as a heartbeat — see the completion alert, which had to stop
+   measuring its quiet window against it.
 - Whichever applies is household config: `power.meterPolling:
   { intervalMs, refreshEntityIds[] }`. Product code names no entity.
 

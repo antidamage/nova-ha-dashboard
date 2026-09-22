@@ -383,7 +383,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
 
   return (
     <>
-      <OrbCompletionAudio tasks={tasks} />
+      <OrbCompletionAudio />
       {bannersEnabled ? <CurrentTaskBar task={hasWashing && activeTask && washReminder(activeTask) ? null : activeTask} /> : null}
 
       {bannersEnabled && alert && !(hasWashing && washAlertId) ? (

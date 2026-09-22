@@ -16,6 +16,7 @@ import {
 } from "../washing-machine";
 import { localMonthKey } from "./calendar";
 import { meterReading } from "./meters";
+import { startWashEtaTimer } from "./wash-eta-timer";
 import {
   powerConfig,
   readJson,
@@ -82,6 +83,10 @@ async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   if (state.open?.startedAt && washingCycleId(state.open.startedAt) === cycleId) {
     state.open.person = nextPerson(state.open.person ?? null, personIds);
     state.open.attribution = attribution;
+    // A claim by the primary person starts the household timer for the rest of
+    // her typical wash, so the wash is notified exactly as a user-set timer is
+    // (specs/power-meters.md, "The wash's timer").
+    await startWashEtaTimer(state.open, new Date());
     await reconcileWashCompletion(state, new Map());
     await writeJsonAtomic(WASHING_MACHINE_PATH, state);
     return state.open;
