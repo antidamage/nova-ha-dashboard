@@ -17,6 +17,7 @@
  *   power/floating-meter.ts   the floating meter's pure model
  *   power/meters.ts           plug readings; floating-meter tick and summary
  *   power/washing.ts          washing-machine tick, attribution, summary
+ *   power/wash-history.ts     the wash graph's 12-hour blocks
  *   power/dashboard.ts        buildDashboard
  *   power/ha-publish.ts       MQTT discovery and state publishing
  *   power/meter-sampling.ts   the metering plugs' tick
@@ -38,6 +39,9 @@ export type {
   PowerPoint,
   PowerRatePoint,
   PowerWashingMachineSummary,
+  WashBlock,
+  WashGraphCycle,
+  WashHistory,
 } from "./power/types";
 export {
   readActiveFloatingCategoryId,
@@ -45,6 +49,6 @@ export {
   setAmpAutomation,
   setFloatingMeterCategory,
 } from "./power/meters";
-export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle } from "./power/washing";
+export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle, readWashHistory } from "./power/washing";
 export { reattributeFloatingMeterHistory, rebuildWashingMachineHistory } from "./power/history-repair";
 export { ensurePowerMonitorStarted, sampleMetersNow, samplePowerNow } from "./power/sampling";

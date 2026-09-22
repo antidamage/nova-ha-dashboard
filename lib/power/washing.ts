@@ -26,6 +26,7 @@ import {
   WASHING_MACHINE_PATH,
   writeJsonAtomic,
 } from "./store";
+import { buildWashHistory } from "./wash-history";
 import type { PowerWashingMachineSummary, WashTraceFile } from "./types";
 
 export function recordWashingMachineTick(
@@ -136,6 +137,19 @@ export function buildWashingMachineSummary(
     totals: monthTotals(cycles, people.map((person) => person.id)),
     watts: state.open?.lastWatts ?? null,
   };
+}
+
+/**
+ * One 12-hour block of the wash graph, plus the blocks that hold a wash so the
+ * graph's buttons can skip the empty ones. `atMs` names the block; without it the
+ * newest block holding a wash is read. See specs/power-meters.md 5.2.
+ */
+export async function readWashHistory(atMs: number | null) {
+  if (!powerConfig().washingMachine) {
+    return null;
+  }
+  const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
+  return buildWashHistory({ ...blankWashingMachineState(), ...persisted }, atMs, new Date());
 }
 
 export function washReconcileSignature(state: WashingMachineState) {

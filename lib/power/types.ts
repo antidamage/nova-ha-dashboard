@@ -124,6 +124,35 @@ export type PowerWashingMachineSummary = {
   watts: number | null;
 };
 
+/**
+ * A 12-hour block of the wash graph: the instants it spans, and the date and
+ * start/end times the graph labels it with. The server owns the labels because
+ * the boundaries are local-time ones (specs/power-meters.md 5.2).
+ */
+export type WashBlock = {
+  startMs: number;
+  endMs: number;
+  /** The block's own local date, e.g. `Sat 19 Sep 2026`. */
+  dateLabel: string;
+  /** Its first and last local hour, e.g. `12:00 AM` and `12:00 PM`. */
+  startLabel: string;
+  endLabel: string;
+};
+
+/** One wash as the graph draws it: its span, its cost, and its watts curve. */
+export type WashGraphCycle = WashingMachineCycle & { active?: boolean; curve?: number[] };
+
+/**
+ * One block of wash history and the block index the graph steps through
+ * (`GET /api/power/washing-machine?block=`). `blocks` holds every 12-hour block
+ * that has a wash in it, oldest first, so the graph can skip the empty ones.
+ */
+export type WashHistory = {
+  blocks: number[];
+  cycles: WashGraphCycle[];
+  window: WashBlock;
+};
+
 export type PowerDashboard = {
   baseLoad: PowerBaseLoadSummary;
   floatingMeter?: PowerFloatingMeterSummary;

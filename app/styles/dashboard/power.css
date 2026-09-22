@@ -203,6 +203,42 @@
   position: relative;
 }
 
+/* The block's date and its start/end times, with a step button either side. */
+.power-wash-step {
+  align-items: center;
+  background: rgb(10 10 10 / 0.62);
+  border: 1px solid rgb(var(--cyber-line-rgb) / 0.34);
+  color: var(--cyber-line);
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
+  width: 28px;
+}
+
+.power-wash-step:hover:not(:disabled) {
+  border-color: var(--cyber-highlight);
+  color: var(--cyber-highlight);
+}
+
+.power-wash-step:disabled {
+  border-color: rgb(var(--cyber-line-rgb) / 0.14);
+  color: var(--cyber-muted);
+  cursor: not-allowed;
+}
+
+.power-wash-step:focus-visible {
+  outline: 2px solid var(--cyber-highlight);
+  outline-offset: 2px;
+}
+
+.power-wash-window {
+  line-height: 1.2;
+  min-width: 0;
+}
+
 .power-wash-svg {
   display: block;
   height: 100%;

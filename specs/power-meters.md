@@ -22,9 +22,10 @@ estimate for the other two keeps getting better.
 | `lib/power-meter-guard.ts` | the always-on guard loop |
 | `lib/power-floating-meter.ts` | per-category accumulation and the learned model |
 | `lib/washing-machine.ts` | cycle detection, the cycle store, attribution |
+| `lib/power/wash-history.ts` | the wash graph's 12-hour blocks: the window, the index, one block's washes and curves |
 | `lib/power.ts` | integration tick, base-load suppression, dashboard payload, MQTT publish |
 | `app/api/power/floating-meter/route.ts` | set the active category |
-| `app/api/power/washing-machine/route.ts` | attribute a cycle |
+| `app/api/power/washing-machine/route.ts` | attribute a cycle; read one 12-hour block of the graph |
 | `app/components/dashboard/PowerMeters.tsx` | both surfaces, mounted by `PowerPanel` |
 | `instrumentation.ts` | starts the guard |
 
@@ -439,7 +440,8 @@ Account usage curve, as one `power-meter-grid` row that stacks to one column at
 kiosk portrait width. They live in their own file, `PowerMeters.tsx`, mounted by
 one line in `PowerPanel` — the panel itself is under concurrent edit for the
 main/advanced split, so this feature keeps its footprint there to a mount.
-Styles go in `app/globals.css` beside the existing `.power-*` rules.
+Styles go in `app/styles/dashboard/power.css` beside the existing `.power-*`
+rules.
 
 ### 5.1 Floating Meter
 
@@ -452,19 +454,41 @@ Styles go in `app/globals.css` beside the existing `.power-*` rules.
 ### 5.2 Washing Machine
 
 - Header: title on the left, the calendar-month total on the right in the
-  panel's current display mode.
-- A small month graph, hand-rolled SVG in the house style of `CurveChart` —
-  this repo has no chart library and is not getting one. The x axis is the days
-  of the current month; each detected cycle is a block positioned on its day,
-  its height proportional to its kWh against the month's largest cycle, its fill
-  the assigned person's colour (neutral when unassigned). Blocks are buttons,
-  with a minimum touch width.
-- Under the graph, the sub-totals: Addie, Tonya, Unassigned.
+  panel's current display mode (the live watts instead, while a wash is running).
+- Above the graph, the block on show labels itself in the panel's small
+  uppercase: its start time on the left, its date in the centre, its end time on
+  the right, with a step button outside each of those ends.
+- The graph shows **one 12-hour block at a time**, hand-rolled SVG in the house
+  style of `CurveChart` — this repo has no chart library and is not getting one.
+  A block is half a local day in `power.timeZone`: 00:00–12:00 and 12:00–24:00.
+  Each wash in it is a block placed by its own clock times across the block's
+  width, its height proportional to its kWh against that block's largest wash,
+  its fill the assigned person's colour (neutral when unassigned). Blocks are
+  buttons, with a minimum touch width, and a wash that runs over a boundary
+  (11:50–12:40) is drawn clipped in both the blocks it touches.
+- The step buttons move to the previous and next block **that holds a wash**: the
+  index is built from the washes themselves, so a block the household did not
+  wash in is never landed on, and the newest such block is what the graph shows
+  by default. It re-reads itself every 10s (`useWashHistory`), so a wash starting
+  or running comes forward on its own at the meter tick's pace (§7.3), while a
+  block stepped back to is read once and stays where it was put.
+- Under the graph, the sub-totals: Addie, Tonya, Unassigned. These stay the
+  **calendar month's** (§4.4), as does the header, whichever block is on show.
 - Each block draws its own watts curve (§4.6) inside it, across the block's
   width, scaled to that wash's own peak. SVG line, no chart library.
 - An **auto-attributed** block (§4.5) has the person's colour as a **hatched**
   fill; a manual block is solid; Unassigned stays neutral. A tap cycles the
-  person as before and makes the attribution manual.
+  person as before and makes the attribution manual — on any wash the store still
+  holds, 400 days of them (§4.2), not only this month's.
+- The graph's own data is `GET /api/power/washing-machine`: without `?block` the
+  newest block holding a wash, with it (`<epoch ms>`) that block. The reply is
+  the block index, the block on show with the labels above, and each of its
+  washes with its curve read from its trace file (§4.6). It is deliberately
+  **not** part of the polled `/api/power` payload, whose `washingMachine.cycles`
+  stay this month's for the sub-totals: a year of washes with curves on every 5s
+  poll would be carried for nothing.
+- The old rolling twelve-hour x-axis, and the square-root time compaction that
+  went with it, are gone: a wash is placed linearly, at its own clock time.
 
 ## 6. Published back to Home Assistant
 
