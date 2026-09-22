@@ -106,6 +106,9 @@ test.describe("theme", () => {
     // - the device controls are absent, not merely scrolled out of sight.
     await expect(thisDevice).toHaveAttribute("aria-expanded", "false");
     await expect(page.getByRole("switch", { name: "Show Status Orb", exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("switch", { name: "Follow visualiser when active", exact: true }),
+    ).toHaveCount(0);
     // The accordion header is the section's only title: the block's own heading
     // is gone, so the fold never renders the name twice.
     await expect(page.getByRole("heading", { name: "This Device" })).toHaveCount(0);
@@ -129,6 +132,11 @@ test.describe("theme", () => {
     await expect(thisDevice).toHaveAttribute("aria-expanded", "true", { timeout: 20_000 });
     await expect(page.getByRole("switch", { name: "Show Status Orb", exact: true })).toBeVisible();
     await expect(page.getByRole("switch", { name: "Auto Fullscreen", exact: true })).toBeVisible();
+    // Moved in from the Theme Library block, so a regression that leaves it
+    // behind shows up here rather than only in the browser.
+    await expect(
+      page.getByRole("switch", { name: "Follow visualiser when active", exact: true }),
+    ).toBeVisible();
   });
 });
 

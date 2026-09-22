@@ -53,7 +53,6 @@ import { useThemeLibrary } from "../../themeLibrary";
 import { copyColorToClipboard, copySectionToClipboard, useThemeClipboard } from "../../themeClipboard";
 import { extractSection, mergeSection, type ThemeSectionKind } from "../../themeSections";
 import { useAgentName } from "../../AgentNameContext";
-import { SwitchRow } from "../../SlideSwitch";
 import {
   THEME_VARIANT_LABELS,
   TASK_GLOW_PREVIEW_MS,
@@ -654,22 +653,20 @@ export function AccentConfig({
               setAutoFullscreen={setAutoFullscreen}
               experienceFeatures={experienceFeatures}
               setExperienceFeature={setExperienceFeature}
+              followVisualizerWhenActive={followVisualizerWhenActive}
+              onFollowVisualizerChange={(checked) => void updateFollowVisualizerWhenActive(checked)}
               statusOrbInfoVisible={statusOrbInfoVisible}
               setStatusOrbInfoVisible={setStatusOrbInfoVisible}
             />
           </ConfigAccordion>
           <div className="grid gap-3">
             <h2 className="theme-display-label zone-title-bar">Theme Library</h2>
-            <SwitchRow
-              checked={followVisualizerWhenActive}
-              label="Follow visualiser when active"
-              detail={
-                followVisualizerWhenActive
-                  ? "Dashboard colours temporarily blend into the active visualiser theme"
-                  : "Dashboard colours remain on the selected theme"
-              }
-              onChange={(checked) => void updateFollowVisualizerWhenActive(checked)}
-            />
+            {/*
+              The follow-visualiser row now lives in the This Device fold above,
+              but its error stays out here with the rest of the shared-theme
+              surface: the fold is collapsed by default, and a failed
+              shared-config load has to be visible without opening it.
+            */}
             {followVisualizerError ? <p className="theme-library-error">{followVisualizerError}</p> : null}
             <ThemeLibraryControl
               activeId={library.library.activeId}
