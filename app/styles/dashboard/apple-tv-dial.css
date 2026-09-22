@@ -20,8 +20,10 @@
 /* ── The playlist presets ───────────────────────────────────────────────────
    Icon-only on both surfaces, and for the same reason: the names are long
    ("Sword Smoke & Temple Drums" is one of the three shipped), so a button
-   carries its playlist as its accessible label and its name in a tooltip,
-   while the chosen one is the only one that changes appearance. */
+   carries its playlist — and its playback type — as its accessible label,
+   while the glyph is the icon the editor gave it. A press is one shot: it
+   fires the play event and lights nothing, so no rule here paints a "chosen"
+   button. */
 .quick-segment-appletv .apple-tv-presets,
 .zone-amplifier-controls .apple-tv-presets {
   justify-content: center;
@@ -41,16 +43,6 @@
 .dashboard-shell .zone-lighting-presets.apple-tv-presets svg {
   width: 26px;
   height: 26px;
-}
-
-.dashboard-shell .zone-lighting-presets.apple-tv-presets button[data-preset-active="true"] {
-  border-color: var(--cyber-highlight);
-  background: color-mix(in srgb, var(--cyber-highlight) 18%, var(--cyber-panel)) !important;
-  color: var(--cyber-title-on-highlight) !important;
-}
-
-.dashboard-shell .zone-lighting-presets.apple-tv-presets button[data-preset-active="true"] svg {
-  color: var(--cyber-title-on-highlight) !important;
 }
 
 /* ── The Lounge's pair of dials ─────────────────────────────────────────────
@@ -147,9 +139,19 @@
   gap: 6px;
 }
 
+/* Two lines per preset: the icon, the name and the row's own actions on one,
+   the way it plays underneath. Six controls on one line do not fit a zone
+   panel's Advanced column, and the playback pair belongs under the name it
+   applies to. */
 .apple-tv-playlist-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apple-tv-playlist-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
 }
@@ -176,11 +178,46 @@
 }
 
 .apple-tv-playlists .apple-tv-playlist-actions button,
+.apple-tv-playlists .apple-tv-playlist-icon button,
 .apple-tv-playlists .apple-tv-playlists-footer button {
   height: 40px;
   min-width: 40px;
   padding: 0 8px;
   font-size: 0.7rem;
+}
+
+/* The row's playback pair, indented past the icon button so it sits under the
+   name it applies to. `.apple-tv-playlist-icon button` is 40px wide with an 8px
+   gap above it, hence the 48px. */
+.apple-tv-playlist-playback {
+  display: flex;
+  gap: 6px;
+  padding-left: 48px;
+}
+
+/* Quiet until asked for something: play once, in order, is what a playlist does
+   when nobody says otherwise, so only shuffle, loop and endless light up. */
+.apple-tv-playlists .apple-tv-playlist-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.06);
+  color: var(--cyber-muted);
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.apple-tv-playlists .apple-tv-playlist-mode[data-preset-shuffle="on"],
+.apple-tv-playlists .apple-tv-playlist-mode[data-preset-repeat="all"],
+.apple-tv-playlists .apple-tv-playlist-mode[data-preset-repeat="infinite"] {
+  border-color: var(--cyber-highlight);
+  background: color-mix(in srgb, var(--cyber-highlight) 16%, var(--cyber-panel));
+  color: var(--cyber-title-on-bg);
 }
 
 .apple-tv-playlists-footer {
