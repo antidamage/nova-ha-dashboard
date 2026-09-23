@@ -77,11 +77,33 @@
   margin-block: auto;
 }
 
-.config-top-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  width: 100%;
+/* ==== CONFIG PAGE HEADER (specs/config-page-header.md) =====================
+   Reload, Back and Log out are one fixed cluster at the top left of the config
+   page, in the order they are read, each in the shared .dashboard-config-link
+   box and icon-only. They are fixed to the viewport, so this row reserves the
+   band they occupy rather than containing their boxes — page content must
+   never start underneath them. The clearance term matches the `top` the
+   buttons themselves use, so on a standalone iOS device (where the status bar
+   pushes both down) the reserved band follows them. */
+.config-header-band-spacer {
+  min-height: calc(44px + var(--nova-status-bar-clearance));
+}
+
+/* The band's own stacking, against the orb shadow strip's 90. Two things make
+   this work, and both are needed:
+   - the trail and the two buttons live in `.config-header-band`, a direct child
+     of the shell, NOT inside `.config-layout`. background.css makes the column
+     `position: relative; z-index: 1`, which is a stacking context, and a z-index
+     inside one only orders its own siblings — so inside the column these 100/110
+     would still paint under the strip's 90, and did.
+   - the icons sit one step ABOVE the trail rather than level with it: they are
+     the page's only way out and back, the trail is later in the DOM, and at equal
+     z-index the trail took Log out's clicks (PR #43's first review round).
+   The icons also keep full opacity at every scroll position, so the dashboard's
+   `--nova-header-fade` fade-out does not reach them. */
+.config-shell .dashboard-config-link {
+  z-index: 110;
+  opacity: 1;
 }
 
 .config-page-button,
@@ -139,6 +161,21 @@
 .dashboard-reload-link {
   right: auto;
   left: calc(16px + env(safe-area-inset-left, 0px));
+}
+
+/* The config page's own two, continuing the same 44px + 8px step to the right
+   of Reload (specs/config-page-header.md). They have to be declared BELOW the
+   `.dashboard-config-link` rule above, which is what sets `right`: at equal
+   specificity the later declaration wins, and an element with both `left` and
+   `right` set stretches the whole way between them instead of being a square. */
+.dashboard-back-link {
+  right: auto;
+  left: calc(16px + 52px + env(safe-area-inset-left, 0px));
+}
+
+.dashboard-logout-link {
+  right: auto;
+  left: calc(16px + 104px + env(safe-area-inset-left, 0px));
 }
 
 .dashboard-theme-override-link {

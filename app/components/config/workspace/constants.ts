@@ -66,3 +66,9 @@ export const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
 };
 
 export const CONFIG_PATH_PREFIX = `${isDemoMode ? (process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH ?? "").replace(/\/$/, "") : ""}/config`;
+
+// How much page scroll brings the header fade strip fully in on /config
+// (useConfigHeaderFade). Shorter than the orb's own scale distance: the strip
+// here is only the shadow behind the fixed icon cluster, not the orb's shrink
+// animation, so it should be at full strength early in the scroll.
+export const CONFIG_HEADER_FADE_DISTANCE = 160;

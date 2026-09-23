@@ -52,3 +52,15 @@ existing colour-plus-opacity slot.
 
 **The default is black at the weight it has always had**, so no existing theme
 changes appearance when this ships.
+
+## On the config page
+
+`/config` mounts the same strip element, because the same shadow belongs under
+the config page's fixed header cluster (`specs/config-page-header.md`). That page
+has no status orb, so it carries its own driver rather than borrowing NovaAvatar's:
+`app/components/config/workspace/useConfigHeaderFade.ts` writes the same
+`--nova-header-fade` on `<html>`, `scrollY / 160`, and never touches
+`nova-header-controls-disabled` — the two rules that fade the header buttons out
+and drop their input are the orb's, and the config page's icons stay live at every
+scroll position. Its icons and breadcrumb are lifted above the strip's `z-index: 90`
+for the same reason.
