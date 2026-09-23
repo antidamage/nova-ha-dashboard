@@ -69,6 +69,19 @@ export async function recordWashingMachineTick(
 }
 
 /**
+ * Where a tap starts in the person order.
+ *
+ * A **default** attribution is not a claim — nobody made it — so a tap on one
+ * claims the wash from the top of the order, exactly as an unassigned wash does.
+ * Leaving it in the order meant a wash the household's default had picked up
+ * could only be claimed by tapping past it, and the first tap read as the wash
+ * being released (specs/power-meters.md 4.3).
+ */
+function tapFrom(cycle: { attribution?: WashAttribution; person?: string | null }) {
+  return cycle.attribution?.source === "auto" ? null : cycle.person ?? null;
+}
+
+/**
  * Attribute one wash to a person, or cycle it onward. Unassigned -> each
  * configured person in order -> unassigned. The caller sends the cycle id only;
  * the server owns the order so two screens cannot disagree about what comes
@@ -86,7 +99,7 @@ async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   // default never overrides it (§4.3).
   const attribution: WashAttribution = { at: new Date().toISOString(), source: "manual" };
   if (state.open?.startedAt && washingCycleId(state.open.startedAt) === cycleId) {
-    state.open.person = nextPerson(state.open.person ?? null, personIds);
+    state.open.person = nextPerson(tapFrom(state.open), personIds);
     state.open.attribution = attribution;
     // The wash's timer belongs to the primary person: this tap starts it, and a
     // tap that takes the wash off her cancels it, silently
@@ -104,7 +117,7 @@ async function attributeWashingMachineCycleUnlocked(cycleId: string) {
   if (index === -1) {
     return null;
   }
-  const cycle = { ...state.cycles[index], attribution, person: nextPerson(state.cycles[index].person, personIds) };
+  const cycle = { ...state.cycles[index], attribution, person: nextPerson(tapFrom(state.cycles[index]), personIds) };
   state.cycles = [...state.cycles.slice(0, index), cycle, ...state.cycles.slice(index + 1)];
   await writeJsonAtomic(WASHING_MACHINE_PATH, state);
   // The curve is logged against whoever the wash now belongs to.

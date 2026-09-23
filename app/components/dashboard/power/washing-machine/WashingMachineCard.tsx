@@ -30,22 +30,28 @@ export function WashingMachineCard({
   const { blocks, error, history } = useWashHistory({ blockMs: cursor });
   const viewed = history?.cycles;
 
-  // A pending attribution is dropped the moment the server agrees with it — and
-  // the polled summary is not the only server: it carries this calendar month's
-  // washes, while the graph steps back through 400 days, so a tap on a wash from
-  // an earlier month is echoed by that block's own read instead. Consulting the
-  // summary alone would drop the tap on the next poll and put the wash's old
-  // person back on screen until the graph re-read it.
+  // A pending attribution is dropped the moment the read the BLOCK RENDERS
+  // agrees with it — the graph's own copy, which is re-read every ten seconds.
+  //
+  // The polled summary is the fallback, for a cycle the graph does not hold at
+  // all: the summary carries this calendar month's washes while the graph steps
+  // back through 400 days, so a tap on a wash from an earlier month is echoed by
+  // that block's own read. Consulting the summary *first* was the defect: it is
+  // polled every five seconds, so it can agree with a tap while the block is still
+  // drawing its older copy, and dropping the pending then put the old person back
+  // on screen — after which the next tap walked on from a value the store did not
+  // have, and the two never met again.
   useEffect(() => {
     setPending((current) => {
       const next = Object.fromEntries(
         Object.entries(current).filter(([id, person]) => {
-          const cycle =
+          const rendered = viewed?.find((candidate) => candidate.id === id);
+          if (rendered) return rendered.person !== person;
+          const elsewhere =
             summary.running?.id === id
               ? summary.running
-              : summary.cycles.find((candidate) => candidate.id === id) ??
-                viewed?.find((candidate) => candidate.id === id);
-          return cycle ? cycle.person !== person : false;
+              : summary.cycles.find((candidate) => candidate.id === id);
+          return elsewhere ? elsewhere.person !== person : false;
         }),
       );
       return Object.keys(next).length === Object.keys(current).length ? current : next;
@@ -82,9 +88,13 @@ export function WashingMachineCard({
     if (target !== undefined) setCursor(target);
   };
 
-  const attribute = async (cycleId: string, current: string | null) => {
+  const attribute = async (cycleId: string, current: string | null, byDefault = false) => {
     const ids = summary.people.map((person) => person.id);
-    const index = current === null ? -1 : ids.indexOf(current);
+    // A default attribution is not a claim, so a tap starts at the top of the
+    // order exactly as an unassigned wash does (specs/power-meters.md 4.3) —
+    // which is also the value the server will write.
+    const from = byDefault ? null : current;
+    const index = from === null ? -1 : ids.indexOf(from);
     const next = ids.length === 0 ? null : index === -1 ? ids[0] : index === ids.length - 1 ? null : ids[index + 1];
     setPending((state) => ({ ...state, [cycleId]: next }));
     try {
