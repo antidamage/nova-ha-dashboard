@@ -6,6 +6,7 @@ import { SwitchRow } from "../../SlideSwitch";
 import type { NovaAvatarTheme } from "../theme-model/types";
 import type { OrbModule, OrbModuleSettingDecl } from "../../../../lib/orb-modules";
 import { choiceStops } from "./slot-model";
+import { orbKnobToneChoice } from "./knob-tone";
 
 /**
  * One orb module's own settings — the "Module options" group of the Status Orb
@@ -39,7 +40,12 @@ export function OrbModuleOptions({
   setTheme: (theme: NovaAvatarTheme) => void;
   previewTheme: (theme: NovaAvatarTheme) => void;
 }) {
-  const declarations = module.settings ?? [];
+  // The module's light/dark knob choice is hoisted out of this group and drawn
+  // beside the theme's own knob control (config/accent/OrbKnobToneControl), so
+  // the group keeps to the settings only this orb has. The rule for which
+  // setting that is lives next to the group's siblings in ./knob-tone.
+  const hoisted = orbKnobToneChoice(module);
+  const declarations = (module.settings ?? []).filter((decl) => decl.id !== hoisted?.id);
   if (declarations.length === 0) return null;
 
   const optionColor = appliedThemeRgb(theme.gradientOuter);

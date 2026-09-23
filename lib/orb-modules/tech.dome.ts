@@ -32,10 +32,18 @@ export const TECH_DOME_LAYERS: OrbLayer[] = [
   radius: 0.7610,
   gradientFrom: { x: 0, y: -0.1221, radius: 0 },
   gradientTo: { x: 0, y: -0.1221, radius: 0.8142 },
+  // Fixed paint, like the light dome below it, and for the same reason the
+  // knob's own CSS records (app/styles/controls/rotary-encoder.css, "The two
+  // skins each name their own face colour"): a treatment that inherits the page
+  // is not the treatment it was set to. These three stops are the knob's dark
+  // skin computed from its own `--re-tint: #191b20` — the same relationship
+  // `dome-light` has to the light skin's `#eceef1`. Reading them from the
+  // theme's gradient slots instead made this dome a WHITE knob on the light
+  // theme, so Dark and Light drew the same thing there.
   stops: [
-    { at: 0, color: { theme: "gradientCenter" } },
-    { at: 0.7, color: { theme: "gradientOuter" } },
-    { at: 1, color: { theme: "gradientOuter" } },
+    { at: 0, color: { hex: "#424448" } },
+    { at: 0.7, color: { hex: "#191b20" } },
+    { at: 1, color: { hex: "#131418" } },
   ],
 },
 {
