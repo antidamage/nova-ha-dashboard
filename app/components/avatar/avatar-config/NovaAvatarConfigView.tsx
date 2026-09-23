@@ -14,6 +14,7 @@ import { copyColorToClipboard, useThemeClipboard } from "../../themeClipboard";
 import { SwitchRow } from "../../SlideSwitch";
 import { AVATAR_SLOTS, GLASS_SLIDERS } from "./constants";
 import { OrbModuleSelect } from "./OrbModuleSelect";
+import { OrbModuleOptions } from "./OrbModuleOptions";
 import { PinnedOrbPreview } from "./PinnedOrbPreview";
 import { alertPulseRateText, opacityForSlot, readSlot } from "./slot-model";
 import type { AvatarSlotChoice, NovaAvatarConfigViewProps } from "./types";
@@ -83,47 +84,14 @@ export function NovaAvatarConfigView({
         <p className="nova-avatar-cfg-subtitle">Responsive host activity widget</p>
       </header>
 
-      {activeModule.settings && activeModule.settings.length > 0 ? (
-        <div className="nova-avatar-cfg-group">
-          <h3 className="nova-avatar-cfg-group-title">{activeModule.name} options</h3>
-          <div className="grid gap-3">
-            {activeModule.settings.map((decl) => {
-              const value = moduleSettingValues[decl.id];
-              // A setting declared as a single step from 0 to 1 is a choice,
-              // not a magnitude — give it the checkbox it actually is rather
-              // than a two-position slider.
-              if (decl.min === 0 && decl.max === 1 && decl.step === 1) {
-                return (
-                  <SwitchRow
-                    key={decl.id}
-                    checked={value >= 1}
-                    detail={decl.description}
-                    label={decl.label}
-                    onChange={(checked) => setTheme(moduleSettingTheme(decl.id, checked ? 1 : 0))}
-                  />
-                );
-              }
-              return (
-                <SliderControlPanel
-                  key={decl.id}
-                  ariaLabel={decl.description ? `${decl.label} — ${decl.description}` : `${activeModule.name} ${decl.label}`}
-                  ariaValueText={`${value}`}
-                  color={appliedThemeRgb(theme.gradientOuter)}
-                  intensity={100}
-                  label={decl.label}
-                  max={decl.max}
-                  min={decl.min}
-                  step={decl.step}
-                  value={value}
-                  valueText={`${value}`}
-                  onPreview={(next) => previewTheme(moduleSettingTheme(decl.id, next))}
-                  onCommit={(next) => setTheme(moduleSettingTheme(decl.id, next))}
-                />
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+      <OrbModuleOptions
+        module={activeModule}
+        setTheme={setTheme}
+        previewTheme={previewTheme}
+        settingTheme={moduleSettingTheme}
+        theme={theme}
+        values={moduleSettingValues}
+      />
 
       <div className="nova-avatar-cfg-group">
         <h3 className="nova-avatar-cfg-group-title">Alert pulse</h3>

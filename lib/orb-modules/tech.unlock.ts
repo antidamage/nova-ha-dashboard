@@ -35,7 +35,7 @@ export const UNLOCK_RING_WIDTH = UNLOCK_RING_OUTER - UNLOCK_RING_INNER;
 const GLASS_DARK: OrbLayer = {
   id: "unlock-glass-dark",
   type: "ring",
-  enabledWhen: { setting: "light", max: 0.5 },
+  enabledWhen: { setting: "knobThemeResolved", max: 0.5 },
   radius: UNLOCK_RING_RADIUS,
   width: UNLOCK_RING_WIDTH,
   color: { hex: "#000000", alpha: 0 },
@@ -55,7 +55,7 @@ const GLASS_DARK: OrbLayer = {
 const GLASS_LIGHT: OrbLayer = {
   id: "unlock-glass-light",
   type: "ring",
-  enabledWhen: { setting: "light", min: 0.5 },
+  enabledWhen: { setting: "knobThemeResolved", min: 0.5 },
   radius: UNLOCK_RING_RADIUS,
   width: UNLOCK_RING_WIDTH,
   color: { hex: "#000000", alpha: 0 },
@@ -79,7 +79,7 @@ const GLASS_LIGHT: OrbLayer = {
 const SPEC_DARK: OrbLayer = {
   id: "unlock-spec-dark",
   type: "ring",
-  enabledWhen: { setting: "light", max: 0.5 },
+  enabledWhen: { setting: "knobThemeResolved", max: 0.5 },
   radius: UNLOCK_RING_RADIUS,
   width: UNLOCK_RING_WIDTH,
   color: { hex: "#000000", alpha: 0 },
@@ -100,7 +100,7 @@ const SPEC_DARK: OrbLayer = {
 const SPEC_LIGHT: OrbLayer = {
   id: "unlock-spec-light",
   type: "ring",
-  enabledWhen: { setting: "light", min: 0.5 },
+  enabledWhen: { setting: "knobThemeResolved", min: 0.5 },
   radius: UNLOCK_RING_RADIUS,
   width: UNLOCK_RING_WIDTH,
   color: { hex: "#000000", alpha: 0 },

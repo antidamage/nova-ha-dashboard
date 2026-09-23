@@ -5,6 +5,8 @@ import type { OrbModule } from "../../../../lib/orb-modules";
 import type { useOrbInfo } from "../../orb-info/useOrbInfo";
 import { createOrbRenderer } from "../orb-renderer/renderer";
 import type { OrbRenderer } from "../orb-renderer/types";
+import { resolveKnobTreatment, type ResolvedKnobTreatment } from "../../theme/accent/knob-skin-model";
+import type { DeviceTheme } from "../../theme/accent/types";
 import type { NovaAvatarTheme } from "../theme-model/types";
 
 /** Per-frame inputs the poll and the draw loop read without restarting. */
@@ -15,6 +17,7 @@ export function useOrbFrameRefs({
   forceVisible,
   conversationActive,
   orbModule,
+  deviceTheme,
 }: {
   orbInfo: ReturnType<typeof useOrbInfo>;
   forceGymAlert: boolean;
@@ -22,6 +25,12 @@ export function useOrbFrameRefs({
   forceVisible: boolean;
   conversationActive: boolean;
   orbModule: OrbModule;
+  /**
+   * The device theme, which carries the knob skin the avatar theme does not.
+   * A module setting left on `auto` resolves through it, so the orb's knob and
+   * the dials beside it agree.
+   */
+  deviceTheme: DeviceTheme;
 }) {
   // Read by the load poll without making the hook a dependency of that effect
   // (which would tear the 2s poll down and rebuild it on every readout change).
@@ -33,6 +42,10 @@ export function useOrbFrameRefs({
   const gymAlertActiveRef = useRef(forceGymAlert);
   const themeRef = useRef<NovaAvatarTheme>(theme);
   themeRef.current = theme;
+  // The device's own knob treatment, kept beside the avatar theme because the
+  // avatar theme does not carry it (it is a device setting, not an orb one).
+  const knobTreatmentRef = useRef<ResolvedKnobTreatment>("dark");
+  knobTreatmentRef.current = resolveKnobTreatment(deviceTheme.knobSkin, deviceTheme);
   // Read by the draw loop each frame without retriggering the effect.
   const speechEnabledRef = useRef(!forceVisible);
   speechEnabledRef.current = !forceVisible;
@@ -55,6 +68,7 @@ export function useOrbFrameRefs({
     currentLoadRef,
     gymAlertActiveRef,
     themeRef,
+    knobTreatmentRef,
     speechEnabledRef,
     voicePinRef,
     rendererRef,

@@ -35,5 +35,23 @@ in `types.ts` and `layer-types.ts`, normalisation in `layer-model.ts` and
 - Layers render in array order; per-layer extras: `opacity`, `clip` (confine
   to the orb disc), `glow`, and `pulse` (opacity oscillation, optionally
   `alertOnly`).
+- **Settings** — `settings: [{ id, label, description?, min, max, step,
+  default }]` are the per-module knobs shown in the Status Orb config. A layer
+  binds one with `{ "setting": "<id>" }`, and gates on one with
+  `"enabledWhen": { "setting": "<id>", "min"/"max": <n> }` — how a module ships
+  two treatments of one surface and lets a setting choose. A declaration that
+  also lists **`options`** is a CHOICE: it renders as a named-stop slider,
+  labelled with the stops rather than the number, and one of its stops may be
+  `"auto"`, which defers to the device theme. Layers gate a choice on
+  `<id>Resolved`, not `<id>`: that id carries the light/dark flag the choice
+  resolved to (1 = light, 0 = dark) once `auto` has been answered, so a gate
+  never has to know the slider's order.
+- **Setting history** — `settingMigrations: [{ to, from, bands }]` keeps an
+  owner's choice when a setting is renamed or retyped. `from` lists the ids an
+  earlier version stored it under, and `bands` maps a stored value onto one of
+  the setting's own stops, the last band whose `min` the value reaches winning
+  (`[{ "min": 0, "name": "Dark" }, { "min": 1, "name": "Light" }]` is a
+  boolean's two ends). Today's value always wins; history only fills a gap, and
+  a band naming a stop the setting no longer declares leaves it at its default.
 
 `aurora.json` in this directory is a working example to copy from.

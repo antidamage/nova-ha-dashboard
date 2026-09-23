@@ -17,11 +17,13 @@ import {
   BUILTIN_ORB_MODULES,
   normalizeOrbModule,
   resolveOrbModule,
+  type OrbAutoOptionResolver,
   type OrbModule,
   type OrbPalette,
 } from "../../lib/orb-modules";
 import { appliedThemeRgb } from "./accentColor";
 import type { NovaAvatarTheme } from "./avatarThemeModel";
+import type { ResolvedKnobTreatment } from "./theme/accent/knob-skin-model";
 
 /** Dispatched on window whenever the module cache changes. */
 const ORB_MODULES_CHANGE_EVENT = "nova-orb-modules-change";
@@ -139,5 +141,34 @@ export function buildOrbPalette(theme: NovaAvatarTheme): OrbPalette {
       alpha: Math.max(0, Math.min(1, theme.gymNumberOpacity / 100)),
     },
     innerShadow: { rgb: [0, 0, 0], alpha: theme.innerShadowOpacity },
+  };
+}
+
+/**
+ * The `auto` resolver a module's choice settings are given for a frame: the
+ * orb's own knob treatment when the device leaves it to decide.
+ *
+ * A module's choice setting offering an `auto` stop defers to the device, and
+ * the device's answer is the knob skin it is already drawing every dial in
+ * (`resolveKnobTreatment`), so the orb's knob and the climate dials beside it
+ * never disagree. This is what makes `knobTheme: "auto"` mean something: the
+ * module's gates then see a concrete light or dark and draw that stack.
+ *
+ * The stop is matched CASE-INSENSITIVELY, exactly as `resolveOrbChoiceValue`
+ * and the migration's band lookup do it: the stops are user-facing labels, so
+ * a module writes "Dark" where the treatment is "dark". Matching exactly here
+ * was a real defect - every shipped choice names its stops in title case, so
+ * the lookup missed, `auto` fell through to the first concrete stop, and Auto
+ * painted the pale knob on every theme.
+ *
+ * The value returned is an OPTION INDEX, because that is what
+ * `resolveOrbChoiceTreatment` reads it as. A module that names neither stop
+ * gets no answer, so the setting falls back to its declared default rather
+ * than to an index that would name an unrelated stop.
+ */
+export function orbAutoOptionResolver(treatment: ResolvedKnobTreatment): OrbAutoOptionResolver {
+  return (setting) => {
+    const index = setting.options?.findIndex((option) => option.toLowerCase() === treatment) ?? -1;
+    return index >= 0 ? index : undefined;
   };
 }

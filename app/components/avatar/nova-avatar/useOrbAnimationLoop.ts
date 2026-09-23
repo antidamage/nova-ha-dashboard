@@ -6,10 +6,11 @@ import { type RefObject, useEffect } from "react";
 import { resolveOrbModuleSettings } from "../../../../lib/orb-modules";
 import { arePageUpdatesPaused } from "../../dashboard/pageUpdatePause";
 import { sampleVoiceSpeechEnvelope } from "../../dashboard/voiceSpeech";
-import { buildOrbPalette } from "../../orbModules";
+import { buildOrbPalette, orbAutoOptionResolver } from "../../orbModules";
 import type { OrbRenderer } from "../orb-renderer/types";
 import { alertPulseScale } from "../theme-model/theme-model";
 import type { NovaAvatarTheme } from "../theme-model/types";
+import type { ResolvedKnobTreatment } from "../../theme/accent/knob-skin-model";
 import { LOAD_EASE, ORB_RADIUS_FRACTION } from "./avatar-model";
 
 export function useOrbAnimationLoop({
@@ -25,6 +26,7 @@ export function useOrbAnimationLoop({
   rendererRef,
   gymAlertActiveRef,
   themeRef,
+  knobTreatmentRef,
   speechEnabledRef,
 }: {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -39,6 +41,7 @@ export function useOrbAnimationLoop({
   rendererRef: RefObject<OrbRenderer | null>;
   gymAlertActiveRef: RefObject<boolean>;
   themeRef: RefObject<NovaAvatarTheme>;
+  knobTreatmentRef: RefObject<ResolvedKnobTreatment>;
   speechEnabledRef: RefObject<boolean>;
 }) {
   useEffect(() => {
@@ -107,6 +110,7 @@ export function useOrbAnimationLoop({
           settings: resolveOrbModuleSettings(
             renderer.module,
             themeRef.current.orbModuleSettings[renderer.module.id],
+            orbAutoOptionResolver(knobTreatmentRef.current),
           ),
         });
       }
