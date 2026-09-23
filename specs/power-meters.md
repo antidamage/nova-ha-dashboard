@@ -419,6 +419,12 @@ finish the timer and play the timer notification sound."*
   longer than `timer.stopSeconds` of observed sample time — the same window, and
   the same moment, the completion record is captured at, so the chime and the
   notification describe one event.
+- `timer.stopWatts` is the same floor as §4.1's `endWatts`, and for the same
+  reason: a wash's own soak and drain pauses read 4-5 W for minutes at a time, so
+  a timer threshold above them reads a machine that is still running a wash as
+  stopped, and finishes it — the false "done" this rule exists to remove. Both
+  thresholds sit under the pause floor, at the zero a finished load actually
+  reads.
 - Nothing but the machine ends it. The household timer it drives is published as a
   **driver-completed** timer (`autoComplete: false`), so no screen can flash
   "Done" or chime at the end of a period while the wash is still running.
@@ -457,7 +463,7 @@ Config, household data only (`nova-household/dashboard-config.json`):
   "timer": {
     "firstPeriodMinutes": 70,
     "extendMinutes": 10,
-    "stopWatts": 5,
+    "stopWatts": 2,
     "stopSeconds": 120,
     "maxSampleGapSeconds": 90
   }

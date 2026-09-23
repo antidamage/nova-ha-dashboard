@@ -18,11 +18,13 @@ const WashTimerConfigSchema = z.object({
   /** Added to the period for each extension. */
   extendMinutes: z.number().positive().max(60).default(10),
   /**
-   * At or below this the machine is not drawing power to do a wash — the
-   * machine's panel alerting is not a wash. This is the threshold the wash's
-   * timer and the completion record both read (§4.1).
+   * At or below this the machine is not drawing power to do a wash — it is off.
+   * The same floor as `endWatts` (§4.1): a wash's own soak and drain pauses read
+   * 4-5 W, so a threshold above them finishes a wash the machine is still
+   * running. This is the threshold the wash's timer and the completion record
+   * both read.
    */
-  stopWatts: z.number().nonnegative().default(5),
+  stopWatts: z.number().nonnegative().default(2),
   /** Quiet for strictly longer than this finishes the wash's timer. */
   stopSeconds: z.number().positive().default(120),
   /**
@@ -69,7 +71,7 @@ const WashingMachineConfigSchema = z.object({
     firstPeriodMinutes: 70,
     maxSampleGapSeconds: 90,
     stopSeconds: 120,
-    stopWatts: 5,
+    stopWatts: 2,
   }),
   /**
    * The person an unclaimed wash belongs to: nobody claimed it, so it was not

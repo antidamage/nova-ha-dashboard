@@ -16,7 +16,7 @@ export const CONFIG: WashingMachineConfig = {
   endWatts: 5,
   endQuietSeconds: 300,
   minCycleKwh: 0.05,
-  timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 5 },
+  timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 2 },
 };
 
 export const SAMPLE_SECONDS = 30;

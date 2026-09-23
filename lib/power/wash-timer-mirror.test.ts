@@ -67,6 +67,24 @@ describe("the wash's timer on the meter tick", () => {
     expect(readWash(data).open?.completion).toBeUndefined();
   });
 
+  it("does not finish a wash the machine is only soaking through", async () => {
+    const { data, washing, timerFile } = await claimed();
+
+    // Five minutes of the machine's own soak/drain draw — 4-5 W, measured
+    // (specs/power-meters.md §4.1) — well inside the first period. The drum is
+    // between phases, not idling, so nothing finishes: not the timer, not the
+    // wash.
+    let at = NOW + 10 * MINUTE;
+    for (let i = 0; i < 10; i += 1) {
+      at += 30_000;
+      await tick(washing, data, at, 4.3);
+    }
+
+    expect(readTimer(timerFile)!.completedAt).toBeNull();
+    expect(readWash(data).open?.timer?.completedAt ?? null).toBeNull();
+    expect(readWash(data).cycles).toEqual([]);
+  });
+
   it("leaves a timer the household set itself alone", async () => {
     // They replaced the wash's timer with one of their own mid-wash: the wash
     // stops driving it and never takes it back.
