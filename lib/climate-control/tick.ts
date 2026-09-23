@@ -44,6 +44,9 @@ const STOP_REASONS: Record<string, string> = {
   "target-reached": "the room reached its target",
   "sensor-lost": "the room sensor stopped reporting",
   "timer-expired": "its off timer expired",
+  // Manual stopping a unit that was running the direction the room no longer
+  // needs. The request stays latched and the next tick starts the other way.
+  "wrong-direction": "it was running the direction the room no longer needed",
 };
 
 /**

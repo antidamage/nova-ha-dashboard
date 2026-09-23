@@ -86,8 +86,22 @@ export const dashboardConfigMock = () => {
  * The Gree reports its own return-air temperature, and that is the control
  * sensor. `sensorAgeMinutes` past AUTONOMOUS_CLIMATE_INPUT_MAX_AGE_MS (30) is how
  * a lost sensor looks: the attribute is still there, nothing has reported it.
+ *
+ * `quiet` adds the aircon's quiet-mode switch to the world. It matters because a
+ * name-matched companion switch resolves to the same instance as the unit, which
+ * is how a `turn_off` aimed at it used to be read as the owner choosing Off.
  */
-export function setWorld({ acState = "off", roomTemperature = 22, sensorAgeMinutes = 0 } = {}) {
+export function setWorld({
+  acState = "off",
+  roomTemperature = 22,
+  quiet,
+  sensorAgeMinutes = 0,
+}: {
+  acState?: string;
+  roomTemperature?: number;
+  quiet?: "on" | "off";
+  sensorAgeMinutes?: number;
+} = {}) {
   const at = new Date(Date.now() - sensorAgeMinutes * 60_000).toISOString();
   world.states = [
     {
@@ -95,7 +109,7 @@ export function setWorld({ acState = "off", roomTemperature = 22, sensorAgeMinut
       state: acState,
       attributes: {
         friendly_name: "Air Conditioner",
-        hvac_modes: ["off", "heat", "cool", "fan_only"],
+        hvac_modes: ["auto", "cool", "dry", "fan_only", "heat", "off"],
         fan_modes: ["low", "medium", "high"],
         min_temp: 16,
         temperature: 21,
@@ -109,6 +123,14 @@ export function setWorld({ acState = "off", roomTemperature = 22, sensorAgeMinut
       attributes: {},
       last_changed: at, last_updated: at, last_reported: at,
     },
+    ...(quiet
+      ? [{
+          entity_id: "switch.ac_quiet_mode",
+          state: quiet,
+          attributes: { friendly_name: "Air Conditioner Quiet mode" },
+          last_changed: at, last_updated: at, last_reported: at,
+        }]
+      : []),
   ];
 }
 
@@ -149,7 +171,12 @@ export async function lounge(control: Controller) {
 
 export const hvacCalls = (mode: string) =>
   world.calls.filter((call) => call.service === "set_hvac_mode" && call.data.hvac_mode === mode);
-export const offCalls = () => world.calls.filter((call) => call.service === "turn_off");
+/**
+ * The unit's own stop. Scoped to the climate entity on purpose: a `turn_off` to
+ * one of the aircon's companion switches (its quiet mode) is switching a fan
+ * setting off, not stopping the unit, and counting it here would hide that.
+ */
+export const offCalls = () => world.calls.filter((call) => call.domain === "climate" && call.service === "turn_off");
 
 /** Pressing Manual on the card: a direction plus the remembered settings. */
 export async function pressManual(control: Controller, direction: "heat" | "cool" = "heat") {
@@ -160,4 +187,71 @@ export async function pressManual(control: Controller, direction: "heat" | "cool
     data: { hvac_mode: direction },
     remember: { aircon: { autoMode: false, hvacMode: direction } },
   });
+}
+
+/**
+ * Choosing a fan step by hand, in the shape the card really sends it: the
+ * `remember` rides the LAST action the press produced, and when the unit's fan
+ * mode already matches the step there is no `set_fan_mode` to carry it — so it
+ * lands on the quiet switch's `turn_off` (`airconFanStepActions`,
+ * `lib/aircon-control/action-model.ts`).
+ */
+export async function pressCardFanStep(control: Controller) {
+  await control.handleLegacyClimateAction({
+    entityId: "switch.ac_quiet_mode",
+    domain: "switch",
+    service: "turn_off",
+    remember: { aircon: { autoMode: false, fanMode: "low", quietMode: false, turboMode: false } },
+  });
+}
+
+/**
+ * Pressing Manual on the card the way `useAirconCommands.setOn` sends it: the
+ * direction the card chose, the setpoint, the quiet switch's housekeeping, then
+ * the fan step. Each action is its own request, exactly as `/api/entity`
+ * receives them.
+ *
+ * It takes the direction as an argument because a stale one is a real input —
+ * a client can dictate cool in a room that needs heat, and the server has to
+ * survive it.
+ */
+export async function pressCardManual(
+  control: Controller,
+  { direction, temperature }: { direction: "heat" | "cool" | "auto"; temperature?: number },
+) {
+  const actions = [
+    {
+      entityId: "climate.ac",
+      domain: "climate" as const,
+      service: "set_hvac_mode",
+      data: { hvac_mode: direction },
+      remember: { aircon: { autoMode: false, hvacMode: direction } },
+    },
+    ...(typeof temperature === "number"
+      ? [{
+          entityId: "climate.ac",
+          domain: "climate" as const,
+          service: "set_temperature",
+          data: { temperature },
+          remember: { aircon: { autoMode: false, temperature } },
+        }]
+      : []),
+    {
+      entityId: "switch.ac_quiet_mode",
+      domain: "switch" as const,
+      service: "turn_off",
+      remember: { aircon: { quietMode: false } },
+    },
+    {
+      entityId: "climate.ac",
+      domain: "climate" as const,
+      service: "set_fan_mode",
+      data: { fan_mode: "high" },
+      remember: { aircon: { autoMode: false, fanMode: "high" } },
+    },
+  ];
+
+  for (const action of actions) {
+    await control.handleLegacyClimateAction(action);
+  }
 }

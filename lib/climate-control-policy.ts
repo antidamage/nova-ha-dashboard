@@ -1,4 +1,26 @@
 import type { ClimateControlOwner } from "./types";
+import {
+  actuatorChangeIsExternal,
+  climateActionReclaimsOwnership,
+  poweredActuatorRecoveryIsExternal,
+} from "./climate-control-policy/device-ownership-model";
+
+/**
+ * Shared climate rules. The device-ownership rules moved into
+ * `lib/climate-control-policy/` on 2026-09-24 and are re-exported here, so every
+ * caller's import path stays as it was (specs/agent-token-footprint.md §3.3).
+ *
+ *   climate-control-policy/device-ownership-model.ts  who owns the actuator, and
+ *                                                     who may take it back
+ *
+ * The rest of this file is the commanded-state display rule, the Manual
+ * thermostat's tick and the sensor models those two read.
+ */
+export {
+  actuatorChangeIsExternal,
+  climateActionReclaimsOwnership,
+  poweredActuatorRecoveryIsExternal,
+};
 
 export type ManualAirconDirection = "heat" | "cool";
 
@@ -42,45 +64,6 @@ export function resolveCommandedState<T extends string>(input: {
   // The command plainly did not land. Stop showing an intent that never became true.
   if (now - intent.sentAt >= (input.timeoutMs ?? COMMANDED_STATE_TIMEOUT_MS)) return settled;
   return { display: intent.value, intent };
-}
-
-export function climateActionReclaimsOwnership(input: {
-  room: "lounge" | "bedroom";
-  service: string;
-  autoMode?: boolean;
-}) {
-  return input.service === "turn_on" ||
-    input.service === "turn_off" ||
-    input.service === "set_hvac_mode" ||
-    (input.room === "lounge" && input.autoMode === true);
-}
-
-export function actuatorChangeIsExternal(input: {
-  previousSignature: string | null;
-  currentSignature: string | null;
-  commandSettleUntil: number;
-  now: number;
-}) {
-  return input.previousSignature !== null &&
-    input.currentSignature !== null &&
-    input.previousSignature !== input.currentSignature &&
-    input.now > input.commandSettleUntil;
-}
-
-export function poweredActuatorRecoveryIsExternal(input: {
-  wasAvailable: boolean | null;
-  currentSignature: string | null;
-  commandSettleUntil: number;
-  now: number;
-}) {
-  if (input.wasAvailable !== false || input.currentSignature === null || input.now <= input.commandSettleUntil) {
-    return false;
-  }
-  try {
-    return JSON.parse(input.currentSignature).power !== "off";
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -164,6 +147,13 @@ export function settlingTrendSupportsSameDirectionRestart(input: {
 
 export function planManualAirconTick(input: {
   direction: ManualAirconDirection;
+  /**
+   * The direction the unit is physically running, when it is on. A stop is the
+   * running direction arriving at its target, never the wanted one: heating a room
+   * past its target stops rather than flipping to cooling, and a unit running the
+   * direction the room contradicts has not arrived at anything the owner asked for.
+   */
+  runningDirection?: ManualAirconDirection | null;
   isOn: boolean;
   /**
    * The owner moved the target and it has not been acted on yet. Manual has the
@@ -191,8 +181,9 @@ export function planManualAirconTick(input: {
   sensorResolutionC: number;
   resumeDriftC: number;
 }) {
+  const arrivalDirection = input.isOn ? input.runningDirection ?? input.direction : input.direction;
   const reachedTarget = input.rawTemperature !== null &&
-    (input.direction === "heat"
+    (arrivalDirection === "heat"
       ? input.rawTemperature >= input.targetTemperature
       : input.rawTemperature <= input.targetTemperature);
   // No fresh reading: nothing says when to stop, so do not keep running on a

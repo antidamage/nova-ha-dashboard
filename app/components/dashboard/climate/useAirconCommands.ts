@@ -15,6 +15,7 @@ import {
   airconFanStep,
   airconFanStepActions,
   airconModeSupported,
+  airconUserModeIntent,
   buildAirconAutoActions,
   climateTargetTemperature,
   isAirconMode,
@@ -266,13 +267,25 @@ export function useAirconCommands({
   const setOn = () => {
     if (!entity) return Promise.resolve();
     const actions: EntityActionInput[] = [];
-    const preferredMode = isAirconMode(airconSettings.hvacMode) ? airconSettings.hvacMode : undefined;
-    const hvacMode =
-      preferredMode && airconModeSupported(supportedModes, preferredMode)
-        ? preferredMode
-        : supportedModes.find((mode) => !["off", "unavailable", "unknown"].includes(mode));
+    // The room picks the direction, exactly as the server loop does
+    // (lib/climate-control/manual-direction-model.ts): below the target heats,
+    // above it cools. The remembered hvacMode is only the answer when the room
+    // cannot give one — it is not the owner's dictation, because Nova's own Auto
+    // leg writes it. Reading it as the dictation is what sent `set_hvac_mode:
+    // cool` at a 21 degree room with a 27 degree target on 2026-09-24, which the
+    // loop answered 41 ms later with a turn_off at "target reached": two beeps
+    // and a unit that never ran.
+    const rememberedMode = isAirconMode(airconSettings.hvacMode) ? airconSettings.hvacMode : undefined;
+    const targetTemperature = airconSettings.temperature;
+    const wantedMode = typeof targetTemperature === "number"
+      ? airconUserModeIntent(targetTemperature, airconAutoMeasuredTemperature(entity)) ?? rememberedMode
+      : rememberedMode;
+    // Never the first supported mode as a stand-in: this unit lists "auto" first,
+    // which is not a direction Manual can run, and left Manual with nothing to
+    // start. No direction is a bare turn_on, which is honest.
+    const hvacMode = wantedMode && airconModeSupported(supportedModes, wantedMode) ? wantedMode : undefined;
 
-    commandControl({ power: "manual", mode: isAirconMode(hvacMode) ? hvacMode : null });
+    commandControl({ power: "manual", mode: hvacMode ?? null });
 
     if (hvacMode) {
       actions.push({
@@ -296,7 +309,11 @@ export function useAirconCommands({
       });
     }
 
-    if (quietSwitch) {
+    // Only when the switch is actually the other way. The switch IS the unit's
+    // quiet/turbo setting, but the command is an IR beep on a unit that beeps for
+    // every one of them, and a turn_off aimed at a companion switch is what used
+    // to be read as the owner choosing Off (2026-09-24).
+    if (quietSwitch && (quietSwitch.state === "on") !== airconSettings.quietMode) {
       actions.push({
         entityId: quietSwitch.entity_id,
         domain: "switch",
@@ -305,7 +322,7 @@ export function useAirconCommands({
       });
     }
 
-    if (turboSwitch) {
+    if (turboSwitch && (turboSwitch.state === "on") !== airconSettings.turboMode) {
       actions.push({
         entityId: turboSwitch.entity_id,
         domain: "switch",
