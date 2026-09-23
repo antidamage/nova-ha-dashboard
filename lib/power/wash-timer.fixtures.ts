@@ -22,7 +22,7 @@ export const HOUSEHOLD = {
     washingMachine: {
       entityIds: ["switch.washing_machine"],
       powerSensorEntityId: "sensor.washing_machine_power",
-      timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 5 },
+      timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 2 },
     },
   },
 };

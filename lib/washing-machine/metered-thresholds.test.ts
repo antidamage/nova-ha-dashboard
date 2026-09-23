@@ -8,14 +8,20 @@ import { WashingMachineConfigSchema } from "../config-schema/washing-machine";
 import { METERED_CONFIG, replay } from "./washing-machine.fixtures";
 
 describe("the close window and the wash's own timer", () => {
-  it("outlasts the timer's own quiet, so the timer finishes the wash first", () => {
+  it("keeps both floors under the pause floor, and both windows in order", () => {
     // The timer is the notification edge; the close is the storage edge that
     // follows it. A window no longer than `timer.stopSeconds` tears the wash
     // down - and its timer with it - on the same tick, before it was finished,
     // which is what the timer's mirror tests catch.
+    //
+    // And both floors are the machine being off, not the machine pausing: a
+    // wash's own soak and drain pauses read 4-5 W (§4.1), so a threshold above
+    // them calls a running wash stopped.
     const shipped = WashingMachineConfigSchema.parse({ entityIds: ["switch.washing_machine"], powerSensorEntityId: "sensor.washing_machine_power" });
 
     expect(shipped.endQuietSeconds).toBeGreaterThan(shipped.timer.stopSeconds);
+    expect(shipped.timer.stopWatts).toBeLessThanOrEqual(shipped.endWatts);
+    expect(shipped.endWatts).toBeLessThan(4);
   });
 });
 
