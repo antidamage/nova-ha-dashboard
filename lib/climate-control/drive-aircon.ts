@@ -1,6 +1,7 @@
 import {
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
+  climateTargetTemperature,
   isClimateEntityOn,
 } from "../aircon-control";
 import { firstState, freshSensorValue, planDryEmulationTick } from "../aircon-dry";
@@ -24,6 +25,7 @@ import {
 import { emitClimateControllerWrite } from "./attribution";
 import { executeActions, observeActuator, stopAndCancel } from "./commands";
 import { driveManualAircon } from "./drive-aircon-manual";
+import { airconTickDirection } from "./aircon-direction-model";
 
 /** What driving one instance produced, for building its public state after. */
 export type AirconTickResult = {
@@ -86,11 +88,23 @@ export async function driveAircon(
     manualDirection: room.manualDirection,
     unitOn: Boolean(aircon && isClimateEntityOn(aircon)),
   });
-  const direction = mode === "manual" && room.manualDirection
-    ? room.manualDirection
-    : aircon && ["heat", "cool", "dry", "fan_only"].includes(aircon.state)
+  // The direction the unit is physically running. A stop is judged against this
+  // and never against the wanted direction: heating a room past its target must
+  // stop rather than flip to cooling (specs/aircon-auto-control.md §6).
+  const runningDirection = aircon && ["heat", "cool", "dry", "fan_only"].includes(aircon.state)
     ? (aircon.state as Direction)
-    : (prefs?.hvacMode as Direction | undefined) ?? null;
+    : null;
+  const targetTemperature = prefs?.temperature ?? (aircon ? climateTargetTemperature(aircon) : undefined) ?? null;
+  const seated = mode === "manual" ? room.manualDirection : null;
+  const direction = airconTickDirection({
+    filteredTemperature,
+    mode,
+    preferences: prefs,
+    rawTemperature,
+    running: runningDirection,
+    seated,
+    target: targetTemperature,
+  });
   const external = room.owner === "external";
   let forcedOff = false;
   let restingNow = false;
@@ -185,6 +199,8 @@ export async function driveAircon(
         prefs,
         rawTemperature,
         room,
+        runningDirection: runningDirection === "heat" || runningDirection === "cool" ? runningDirection : null,
+        targetTemperature,
         unit,
       });
     }

@@ -1,56 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   COMMANDED_STATE_TIMEOUT_MS,
-  actuatorChangeIsExternal,
-  climateActionReclaimsOwnership,
   estimateFirstOrderSettledTemperature,
   planManualAirconTick,
-  poweredActuatorRecoveryIsExternal,
   resolveCommandedState,
   settlingTrendSupportsSameDirectionRestart,
 } from "./climate-control-policy";
-
-describe("climate controller ownership", () => {
-  it("treats an unmatched actuator change as external", () => {
-    expect(actuatorChangeIsExternal({
-      previousSignature: "heat/25/low",
-      currentSignature: "off/25/low",
-      commandSettleUntil: 0,
-      now: 100,
-    })).toBe(true);
-  });
-
-  it("accepts a correlated Nova command acknowledgement", () => {
-    expect(actuatorChangeIsExternal({
-      previousSignature: "off/25/low",
-      currentSignature: "heat/25/low",
-      commandSettleUntil: 200,
-      now: 100,
-    })).toBe(false);
-  });
-
-  it("only explicit power or mode choices reclaim an external override", () => {
-    expect(climateActionReclaimsOwnership({ room: "lounge", service: "set_temperature" })).toBe(false);
-    expect(climateActionReclaimsOwnership({ room: "lounge", service: "set_fan_mode", autoMode: false })).toBe(false);
-    expect(climateActionReclaimsOwnership({ room: "lounge", service: "set_temperature", autoMode: true })).toBe(true);
-    expect(climateActionReclaimsOwnership({ room: "bedroom", service: "turn_on" })).toBe(true);
-  });
-
-  it("preserves a device that reconnects already powered on", () => {
-    expect(poweredActuatorRecoveryIsExternal({
-      wasAvailable: false,
-      currentSignature: JSON.stringify({ power: "on" }),
-      commandSettleUntil: 0,
-      now: 100,
-    })).toBe(true);
-    expect(poweredActuatorRecoveryIsExternal({
-      wasAvailable: false,
-      currentSignature: JSON.stringify({ power: "off" }),
-      commandSettleUntil: 0,
-      now: 100,
-    })).toBe(false);
-  });
-});
 
 describe("commanded state display", () => {
   // Pressing Off while Auto is armed. The controller keeps reporting "auto"

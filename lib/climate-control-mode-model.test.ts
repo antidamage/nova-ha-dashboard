@@ -29,7 +29,7 @@ describe("airconControlMode", () => {
 });
 
 const intent = (input: Partial<Parameters<typeof airconLegacyActionIntent>[0]>) =>
-  airconLegacyActionIntent({ service: "turn_on", storedMode: null, storedDirection: null, ...input });
+  airconLegacyActionIntent({ service: "turn_on", speaksForTheUnit: true, storedMode: null, storedDirection: null, ...input });
 
 describe("airconLegacyActionIntent", () => {
   test("choosing Heat by hand selects Manual and seats the direction", () => {
@@ -66,6 +66,54 @@ describe("airconLegacyActionIntent", () => {
   test("a turn_off from anyone else is Off", () => {
     expect(intent({ service: "turn_off", storedMode: "manual", storedDirection: "heat" }))
       .toEqual({ mode: "off", manualDirection: null });
+  });
+
+  test("a companion switch's turn_off says nothing about the mode", () => {
+    // The aircon's quiet-mode switch resolves to the same instance by name, so a
+    // Manual press's own fan-setting housekeeping used to read as the owner
+    // choosing Off — and the Manual she had just pressed went out on its own
+    // (Adeline, 2026-09-24: "user selected mode should never be unset by any
+    // process, ever").
+    expect(intent({
+      service: "turn_off",
+      speaksForTheUnit: false,
+      storedMode: "manual",
+      storedDirection: "heat",
+    })).toEqual({ mode: null, manualDirection: "heat" });
+  });
+
+  test("a fan step by hand whose remember rides a companion switch leaves Auto, not Off", () => {
+    // The real caller's shape: setFanStep's `remember` rides the LAST action, and
+    // when the unit's fan mode already matches the step there is no set_fan_mode
+    // to carry it — so it lands on the quiet switch's turn_off
+    // (airconFanStepActions, lib/aircon-control/action-model.ts). It must leave
+    // Auto for Manual, and must never be read as the owner choosing Off.
+    expect(intent({
+      service: "turn_off",
+      speaksForTheUnit: false,
+      remembered: { autoMode: false, fanMode: "low", quietMode: false, turboMode: false },
+      storedMode: "auto",
+      storedDirection: null,
+      unitState: "heat",
+    })).toEqual({ mode: "manual", manualDirection: "heat" });
+  });
+
+  test("the card's Off press still ends the mode", () => {
+    expect(intent({
+      service: "turn_off",
+      remembered: { autoMode: false, offTimerEndsAt: null },
+      storedMode: "manual",
+      storedDirection: "heat",
+    })).toEqual({ mode: "off", manualDirection: null });
+  });
+
+  test("a companion switch's turn_on cannot select a mode either", () => {
+    expect(intent({
+      service: "turn_on",
+      speaksForTheUnit: false,
+      storedMode: null,
+      storedDirection: null,
+    })).toEqual({ mode: null, manualDirection: null });
   });
 
   test("a fan or setpoint change carrying autoMode:false leaves Auto for Manual", () => {

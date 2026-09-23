@@ -69,10 +69,21 @@ export async function handleLegacyClimateAction(action: {
   const room = instance.id;
   const isAircon = instance.kind === "aircon";
   const aircon = isAircon ? airconEntityFor(states, instance) : undefined;
+  /**
+   * Whether this action is aimed at the instance's own device: the aircon's
+   * climate entity, or the heater's switch. A companion control that merely
+   * resolved to the same instance — the aircon's quiet, fresh-air and xtra-fan
+   * switches, matched by name below — is not the unit, and must not speak for the
+   * owner's mode (see action-intent-model.ts).
+   */
+  const speaksForTheUnit = isAircon
+    ? Boolean(aircon && aircon.entity_id === action.entityId)
+    : Boolean(heaterMatch);
   const reclaims = climateActionReclaimsOwnership({
     room: isAircon ? "lounge" : "bedroom",
     service: action.service,
     autoMode: action.remember?.aircon?.autoMode,
+    speaksForTheUnit,
   });
   if (reclaims) await claimClimateControl(room);
   else await loadPersisted();
@@ -91,6 +102,7 @@ export async function handleLegacyClimateAction(action: {
       hvacMode: action.data?.hvac_mode,
       remembered: action.remember?.aircon,
       unitState: aircon?.state,
+      speaksForTheUnit,
       storedMode: state.mode,
       storedDirection: state.manualDirection,
     });

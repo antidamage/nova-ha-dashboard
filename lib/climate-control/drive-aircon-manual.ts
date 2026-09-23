@@ -24,6 +24,9 @@ import type { PersistedRoom } from "./types";
  * settling rules as Auto. It never changes the selected mode; the caller reports
  * `restingNow` as a phase, not as Off.
  *
+ * The direction it starts on comes from the room (manual-direction-model.ts), so
+ * a unit off with the room away from its target is always driven toward it.
+ *
  * Returns whether this tick rested the unit.
  */
 export async function driveManualAircon({
@@ -34,18 +37,24 @@ export async function driveManualAircon({
   prefs,
   rawTemperature,
   room,
+  runningDirection,
+  targetTemperature,
   unit,
 }: {
   aircon: DashboardEntity;
+  /** The direction the room asks for: what an off unit starts on. */
   direction: "heat" | "cool";
   filteredTemperature: number | null;
   now: number;
   prefs?: AirconPreferences;
   rawTemperature: number | null;
   room: PersistedRoom;
+  /** The direction the unit is physically running, or null when it is off. */
+  runningDirection: "heat" | "cool" | null;
+  targetTemperature: number | null;
   unit: AirconInstance;
 }): Promise<boolean> {
-  const target = prefs?.temperature ?? Number(aircon.attributes.temperature);
+  const target = targetTemperature ?? prefs?.temperature ?? Number(aircon.attributes.temperature);
   pruneStarts(room, now);
   // Latch a target the owner moved, exactly as Auto does. Read as a number
   // rather than against null so a state file written before this field existed
@@ -72,6 +81,7 @@ export async function driveManualAircon({
   const decision = Number.isFinite(target)
     ? planManualAirconTick({
         direction,
+        runningDirection,
         isOn: isClimateEntityOn(aircon),
         userRequested,
         blindStartAllowed,
@@ -89,27 +99,37 @@ export async function driveManualAircon({
       })
     : "hold";
   // Every outcome above is an answer once a request is latched — driving already,
-  // started now, or the target is met — so none of them defer it. A blind start is
-  // the exception: the latch is what is keeping the unit running, and clearing it
+  // started now, or the target is met — so none of them defer it. Two exceptions.
+  //
+  // A blind start: the latch is what is keeping the unit running, and clearing it
   // would stop the unit on the very next tick.
-  if (userRequested && !blindStartAllowed) room.manualUserRequestAt = null;
+  //
+  // A stop of a unit running the direction the room contradicts. That arrival is
+  // not the owner's target being met — the room is still away from it — so the
+  // request stays latched and the next tick starts the direction the room needs
+  // instead of waiting out a dwell for a request it had already thrown away.
+  const stoppedWrongDirection = !blind && decision === "stop" &&
+    runningDirection !== null && runningDirection !== direction;
+  if (userRequested && !blindStartAllowed && !stoppedWrongDirection) room.manualUserRequestAt = null;
 
   if (decision === "stop") {
     room.lastTransitionAt = now;
     room.settlingFromTemperature = rawTemperature;
-    room.lastStopReason = blind ? "sensor-unavailable" : "target-reached";
-    if (blind) {
+    room.lastStopReason = blind
+      ? "sensor-unavailable"
+      : stoppedWrongDirection ? "wrong-direction" : "target-reached";
+    if (blind || stoppedWrongDirection) {
       // Nova switching her unit off with nobody asking: explainable after the
-      // fact, and Manual stays selected (specs/aircon-auto-control.md §5.2).
+      // fact, and Manual stays selected (specs/aircon-auto-control.md §5.2, §5.3).
       emitClimateControllerWrite({
         instanceId: unit.id,
-        reason: "sensor-unavailable",
+        reason: room.lastStopReason,
         modeBefore: "manual",
         modeAfter: "manual",
         target: Number.isFinite(target) ? target : undefined,
-        sensorTemperature: null,
+        sensorTemperature: blind ? null : rawTemperature,
         sensorAgeSeconds: null,
-        sensorUnusableReason: "stale-or-non-numeric",
+        sensorUnusableReason: blind ? "stale-or-non-numeric" : null,
       });
     }
     await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
