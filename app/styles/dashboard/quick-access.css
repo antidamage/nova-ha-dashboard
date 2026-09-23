@@ -5,9 +5,10 @@
    a highlight rail on the left and a name tab on the top edge keep it apart
    from the panels below.
 
-   One line needs ~1480px of card. Below that the segments form a 2×2 grid,
-   and on a phone they stack with each tile's controls wrapping inside it.
-   Segments always move as whole tiles — never a horizontal scrollbar. */
+   How many controls share a line, and how wide each one is, is measured from
+   the card's own width (specs/quick-access-card.md, "The layout slots"); the
+   stylesheet only says how a slot's content is arranged inside it. Segments
+   always move as whole slots — never a horizontal scrollbar. */
 .quick-access {
   position: relative;
   min-width: 0;
@@ -37,146 +38,67 @@
   text-transform: uppercase;
 }
 
-.quick-access-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 8px;
-  min-width: 0;
-}
-
 .quick-segment {
   display: flex;
-  flex: 1 1 100%;
-  flex-wrap: wrap;
   min-width: 0;
   min-height: 84px;
+  flex-direction: column;
   align-items: center;
+  /* Top-aligned (Adeline, 2026-09-23): a slot is as tall as its line's tallest
+     control, and the control sits at the top of its own space rather than
+     floating in the middle of it. The dial, its title arc and its preset row
+     then start at the same height in every slot on the line. */
   justify-content: flex-start;
-  /* Not space-between: with only 2-4 clusters per tile that scattered them
-     across a wide tile and read as leftover space. Everything packs left, the
-     buttons beside the control they belong to (Adeline, 2026-09-11). */
-  gap: 8px 14px;
+  gap: 8px;
   border: 1px solid var(--cyber-border-dim);
   background: rgb(var(--cyber-line-rgb) / 0.045);
   padding: 6px 8px;
 }
 
-@container (min-width: 920px) {
-  .quick-segment {
-    flex-basis: calc(50% - 4px);
-    flex-wrap: nowrap;
-  }
-}
-
-@container (min-width: 1480px) {
-  .quick-access-row {
-    flex-wrap: nowrap;
-  }
-
-  .quick-segment {
-    flex: 1 1 auto;
-  }
-}
-
 /* The climate knobs are not tiles. A 100px knob's dial is 124px across, half
    again as tall as a tile's row, so boxing each one made it spill past its own
-   border and collide with the tile below. They sit inline instead, each under
-   its own label, in both layouts (Adeline, 2026-09-12). Their rings float over
-   the page and take no space here. */
-.quick-climate-row {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 8px 18px;
-  min-width: 0;
-}
-
+   border and collide with the tile below. Each knob takes the same slot a tile
+   does and sits inline in it, under its own title arc (Adeline, 2026-09-12).
+   Its rings float over the page and take no space here. */
 .quick-climate {
   display: flex;
   min-width: 0;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 4px;
 }
 
-/* Lighting and weather stack instead of running across: the dial or the icon
-   and its title centred, the presets or the readings centred beneath them
-   (Adeline, 2026-09-12). The climate segments already read top-to-bottom, so
-   with these two the whole card does. */
-.quick-segment-lights,
-.quick-segment-appletv,
-.quick-segment-weather {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
+/* Portrait only. Landscape sizes every slot to a dial's titled box, because its
+   rings are free to float over the neighbouring slots and the card has no width
+   to reserve their reach for each one. Portrait has to keep them on screen, so
+   a slot there reserves the widest knob's rings (`quickDialSlot`,
+   specs/quick-access-card.md): a knob's layout box is only its dial, but the
+   Lounge knob's four rings are ~295px across a 165px dial at 133px, and a line
+   of them at dial-width slots would run its outer rings off the screen edge.
+   When even one such slot is wider than the card, QuickAccessCard shrinks every
+   dial together (floor 100px, the temperature knob's minimum), which is what
+   decides the column count here.
 
-/* Portrait only (Adeline, 2026-09-14): the three dials are one centred,
-   wrapping row — three across when they fit, fewer per line when they don't,
-   one per line on a phone. Keyed on the orientation, not on a container width:
-   a portrait screen here is wider than the 920px container query, which is why
-   an earlier version hung off that query and never fired.
-
-   Each dial sits in a slot as wide as the widest knob's rings
-   (`--quick-dial-slot`, set by QuickAccessCard from ringGeometry). A knob's
-   layout box is only its dial, but its floating rings reach well past it — the
-   Lounge knob's four rings are ~295px across a 165px dial at 133px — so a slot
-   sized to the dial let the rings run off the screen edge. Slots reserve the
-   reach; neighbouring slots may still overlap a ring vertically, which is fine.
-   When even one slot is wider than the card, QuickAccessCard shrinks every
-   dial together (floor 100px, the temperature knob's minimum).
-
-   The climate row dissolves (`display: contents`) so all three dials wrap as
-   siblings: as a nested flex box it sat beside the lighting dial and wrapped
-   inside itself, stacking the two climate knobs in a column to its right.
-
-   The lighting segment gives up its tile border so the three read as one row
-   rather than a box beside two bare knobs. Weather keeps the next line to
-   itself. Landscape is untouched and keeps every rule above. */
+   Keyed on the orientation, not on a container width: a portrait screen here is
+   wider than any container query the card carries, which is why an earlier
+   version hung off one and never fired. */
 @media (aspect-ratio <= 1) {
-  .quick-access-row {
-    flex-wrap: wrap;
-    align-items: flex-start;
-    justify-content: space-evenly;
-    column-gap: 0;
-  }
-
   /* The climate knobs' title arcs make their boxes taller than the dial; the
-     untitled lighting dial takes the same box (`--quick-dial-box`), so dials
-     sharing a line sit on one centre line. */
+     untitled lighting and amplifier dials take the same box
+     (`--quick-dial-box`), so every dial on a line sits on one centre line. */
   .quick-segment-lights .rotary-encoder,
   .quick-segment-appletv .rotary-encoder {
     height: var(--quick-dial-box, auto);
   }
 
-  .quick-climate-row {
-    display: contents;
-  }
-
-  .quick-segment-lights,
-  .quick-segment-appletv,
-  .quick-climate {
-    flex: 0 0 var(--quick-dial-slot, auto);
-    width: var(--quick-dial-slot, auto);
-    max-width: 100%;
-  }
-
+  /* The two dials that keep their tile chrome in landscape give it up here, so
+     the dial lines read as dials rather than as boxes beside bare knobs. */
   .quick-segment-lights,
   .quick-segment-appletv {
     border-color: transparent;
     background: none;
     padding: 0;
-  }
-
-  /* Beats the 920px container query's half-width basis, so weather never
-     climbs onto the dials' line. */
-  .quick-segment-weather {
-    flex-basis: 100%;
   }
 }
 

@@ -166,17 +166,20 @@ Editing a preset updates every slot showing it, deleting a preset takes its slot
 with it, and a slot whose preset or module is gone renders **nothing** rather than
 an empty control, because an empty control is a permanent hole on the card.
 
-The card is three rows, because that is the layout its stylesheet is built on, and
-a module declares which one it occupies (`region`; the renderer's default is only
-a fallback, so a module that says "climate" is not drawn on the dial line because
-of the shape its renderer happens to draw):
+The card is three lines, because that is the reading order its stylesheet is built
+on, and a module declares which one it belongs to (`region`; the renderer's
+default is only a fallback, so a module that says "climate" is not drawn on the
+dial line because of the shape its renderer happens to draw):
 
-- `dial-line` — the first line, side by side: the room's lights, the amplifier.
-- `climate` — the climate knobs, wrapped in `.quick-climate-row`.
+- `dial-line` — the first line: the room's lights, the amplifier.
+- `climate` — the climate knobs.
 - `readings` — the trailing readings.
 
-Slot order decides position **within** a row. A module that invented a fourth row
-would need a matching stylesheet; saying so here is better than a card that
+Slot order decides position **within** a line, and every slot is the same width
+whatever it draws — the card measures one slot width, fills each line with as
+many slots as fit, and top-aligns the control inside its slot
+(specs/quick-access-card.md, "The layout slots"). A module that invented a fourth
+line would need a matching stylesheet; saying so here is better than a card that
 silently stacks wrong.
 
 ## The config page

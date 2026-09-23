@@ -18,8 +18,9 @@ export function QuickSegment({ children, className, label }: { children: ReactNo
 /**
  * A climate knob, and no tile around it. The knob's dial is 124px across where a
  * tile's row is 84px, so boxing one made it overflow its own border and collide
- * with the tile below in the landscape grid. The two climate knobs sit inline in
- * `quick-climate-row` instead (Adeline, 2026-09-12).
+ * with the tile below. Each knob takes one of the card's slots instead, with no
+ * chrome of its own (Adeline, 2026-09-12; the slot itself is
+ * specs/quick-access-card.md, "The layout slots").
  *
  * The written name above each knob is gone: the knob carries its own title arc
  * now (Adeline, 2026-09-12, specs/color-encoder.md). The group's aria-label

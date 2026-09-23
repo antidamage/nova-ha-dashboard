@@ -4,11 +4,12 @@ import path from "path";
 import { gotoDashboard } from "./helpers";
 
 // specs/quick-access-card.md, portrait (Adeline, 2026-09-14, revised
-// 2026-09-22): the card's dials are two lines — the lighting dial and the
-// amplifier dial on the first, the two climate dials on the next — centred and
-// wrapping inside each line, one dial a line on a phone too narrow even for the
-// pair. No dial's rings may run off the screen edge, and below one slot's width
-// every dial shrinks together, floor 100px.
+// 2026-09-23): the card's dials are lines of slots and every slot is the same
+// width, centred in the line it is on. A line holds as many slots as the card's
+// width allows at the width a slot must have for a knob's rings to stay on
+// screen, so a phone holds one slot a line and a tablet two. No dial's rings
+// may run off the screen edge, and below one slot's width every dial shrinks
+// together, floor 100px.
 // QUICK_ACCESS_SHOTS=<dir> keeps a screenshot of the card at each viewport.
 
 const SHOTS = process.env.QUICK_ACCESS_SHOTS;
@@ -27,18 +28,69 @@ function dials(page: Page) {
   );
 }
 
-/** One deliberate tap, the gesture that untucks a temperature knob. */
+/**
+ * Wait until the card's own measured layout has stopped moving. The slots and
+ * the dial sizes are derived from the card's width a frame or two after the
+ * controls arrive, so a measurement — or a press — taken on the first frame the
+ * dials exist can land on a dial that is still moving, which turns a tap into a
+ * missed press.
+ */
+async function settleCard(page: Page) {
+  await page.waitForFunction(() => {
+    const dial = document.querySelector(".quick-access .rotary-encoder-dial");
+    if (!dial) return false;
+    const box = dial.getBoundingClientRect();
+    const key = `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.width)}`;
+    const holder = window as unknown as { __novaQuickDial?: string };
+    const same = holder.__novaQuickDial === key;
+    holder.__novaQuickDial = key;
+    return same;
+  });
+}
+
+/**
+ * One deliberate tap, the gesture that untucks a temperature knob.
+ *
+ * A tucked knob opens only on a press the page measures as lasting between
+ * UNLOCK_MIN_MS and TAP_MAX_MS (60-400ms, controls/rotary/constants.ts): a
+ * brush or a held press deliberately does not. A renderer busy with a loaded
+ * suite can deliver the press and the release back to back and measure under a
+ * millisecond, so 250ms is held — comfortably inside the window — and
+ * {@link openRings} taps again rather than reading a mis-measured press as the
+ * knob refusing to open.
+ */
+const TAP_HOLD_MS = 250;
+
 async function tap(target: Locator) {
   await target.scrollIntoViewIfNeeded();
+  await settleCard(target.page());
   const box = await target.boundingBox();
   if (!box) throw new Error("no box to tap");
   await target.page().mouse.move(box.x + box.width / 2, box.y + box.height * 0.2);
   await target.page().mouse.down();
-  await target.page().waitForTimeout(150);
+  await target.page().waitForTimeout(TAP_HOLD_MS);
   await target.page().mouse.up();
 }
 
+/** Tap a tucked knob until its ring layer is up; throws if it never opens. */
+async function openRings(page: Page, target: Locator, what: string) {
+  const layer = page.locator(".rotary-encoder-ring-layer");
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await tap(target);
+    try {
+      // The layer mounts a frame after the unlock, so wait for it rather than
+      // counting it on the frame the press ended.
+      await layer.waitFor({ state: "attached", timeout: 1500 });
+      return layer;
+    } catch {
+      await page.waitForTimeout(400);
+    }
+  }
+  throw new Error(`${what}: the ring layer never opened after three taps`);
+}
+
 async function places(page: Page) {
+  await settleCard(page);
   return dials(page).evaluateAll((nodes) => nodes.map((node) => {
     const box = node.getBoundingClientRect();
     return { x: box.left + box.width / 2, y: box.top + box.height / 2, size: box.width, left: box.left, right: box.right };
@@ -51,9 +103,7 @@ async function expectRingsOnScreen(page: Page, width: number) {
   const count = await knobs.count();
   expect(count).toBe(2);
   for (let index = 0; index < count; index += 1) {
-    await tap(knobs.nth(index));
-    const layer = page.locator(".rotary-encoder-ring-layer");
-    await expect(layer).toHaveCount(1);
+    const layer = await openRings(page, knobs.nth(index), `knob ${index}`);
     // Let the layer pin itself to the dial's rect on the next frame.
     await page.waitForTimeout(100);
     const box = await layer.evaluate((node) => {
@@ -154,11 +204,12 @@ test("portrait: each dial's preset row hugs it", async ({ page }) => {
   }
 });
 
-test("portrait: a full playlist list wraps its row without moving the pair", async ({ page }) => {
-  await page.setViewportSize({ width: 440, height: 956 });
+test("portrait: a full playlist list wraps its own slot without moving the dial", async ({ page }) => {
+  // 300px wide: a slot is one line's whole width there, and six 44px playlist
+  // buttons do not fit one slot, so the row wraps to a second line.
+  await page.setViewportSize({ width: 300, height: 640 });
   // The demo store is where a deviceless dashboard keeps the amplifier's state
-  // (appleTVAmpClient). Six is the most the list may hold, and six 44px buttons
-  // do not fit a phone's half-row: the row wraps to two lines.
+  // (appleTVAmpClient). Six is the most the list may hold.
   await page.addInitScript((playlists) => {
     window.sessionStorage.setItem("nova.dashboard.demoAppleTVAmp.v1", JSON.stringify({ playlists }));
   }, ["Excellent", "Sword Smoke & Temple Drums", "Cool", "Four", "Five", "Six"]);
@@ -174,10 +225,21 @@ test("portrait: a full playlist list wraps its row without moving the pair", asy
   expect(lightsRowBox!.height, "the lights' row is one button line").toBeLessThanOrEqual(48);
   expect(ampRowBox!.height, "six playlists wrap to a second line").toBeGreaterThan(lightsRowBox!.height * 1.5);
 
-  // The dials still share one centre line: the wrap grows the tile downwards
-  // rather than pushing the knob off it.
+  // Both dials start at the top of their own slot: the extra playlist line
+  // grows the amplifier's slot downwards rather than moving its dial
+  // (Adeline, 2026-09-23 — content aligns to the top of its space).
+  const tops = await page.evaluate(() => [".quick-segment-lights", ".quick-segment-appletv"].map((selector) => {
+    const segment = document.querySelector(`.quick-access ${selector}`);
+    const dial = segment?.querySelector(".rotary-encoder-dial");
+    if (!segment || !dial) throw new Error(`no dial in ${selector}`);
+    return Math.round(dial.getBoundingClientRect().top - segment.getBoundingClientRect().top);
+  }));
+  expect(Math.abs(tops[0] - tops[1]), "both dials sit at the top of their slot").toBeLessThanOrEqual(2);
+
   const [lights, amp] = await places(page);
-  expect(Math.abs(lights.y - amp.y), "the pair stays on one line").toBeLessThanOrEqual(2);
+  // A phone gives each slot the whole line, so the amplifier's slot is the one
+  // below the lights'.
+  expect(amp.y, "the amplifier takes the slot below").toBeGreaterThan(lights.y);
   expect(lights.size).toBeCloseTo(amp.size, 0);
 });
 

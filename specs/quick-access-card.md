@@ -28,79 +28,81 @@ request was executed directly).
 - Nova Classic design only *(decided)*. The Plain design reuses `ZoneControls`
   but has its own chrome; it does not get the card in this change.
 
-## Single line
+## The layout slots
 
-- One row of four segments, left to right: **Lights · Lounge · Bedroom ·
-  Outside**. Each segment is its own bordered tile with a gap between, rather
-  than a shared hairline divider *(decided)* — tiles are what wrap cleanly when
-  the row breaks, and they match the boxed zone buttons below.
-- Within a tile, everything clusters from the left: the buttons sit beside
-  the control they belong to — the lights dial, the climate stepper — not
-  pinned to the tile's right edge. Adeline, 2026-09-11 (previously pinned
-  right); any spare width is left over at the right.
-- Measured natural widths (demo, all four segments): lights ~340px, aircon
-  ~442px, heater ~423px, outside ~313px — about 1,575px with gaps. With 44px
-  touch targets that does not fit a tablet, so the row has three layouts,
-  chosen by container query on the card's own width *(decided)*:
-  - **≥1480px card** (1920px kiosk, desktop): one line, no wrapping.
-  - **920–1479px** (iPad landscape): 2×2 grid of whole tiles.
-  - **<920px** (portrait, phone): one tile per row; a tile's own controls
-    may wrap to a second line inside it.
-  Never a horizontal scrollbar, never a segment cut in half.
+Adeline, 2026-09-23, rewrote how the card lays out the modules placed in it:
+
+> tidy up the layout slots the modules go into by making them all the same size
+> and evenly spaced and distributed... controls placed in this area should align
+> to the top of their individual space, and otherwise flow like a centre-aligned
+> grid. once items have flowed into the minimum allowable space, they should
+> scale up a bit to fit the available area, but with some proportional spacing
+> in between.
+
+- **One slot width for the whole card.** Every module placed on the card — a
+  lighting dial, the amplifier dial, a climate knob, the readings tile — takes
+  one slot, and every slot is the same width. Before this each slot was sized
+  to its own content: the ring-less pair took half a line each, a climate knob
+  reserved its rings' reach, the readings tile took the whole width. Three lines
+  could hold three different slot widths, and nothing lined up with anything.
+- **Lines, then slots.** The card is still a stack of lines — the dial line, the
+  climate knobs, the readings — because that is the reading order a module
+  declares (`region`: `dial-line`, `climate`, `readings`). Slot order decides
+  position within a line. Each line is a centred, wrapping row of equal slots,
+  and a module still never invents a fourth line: that would need a matching
+  stylesheet (specs/control-modules.md).
+- **The width, the gap and the dial size are measured, not styled.**
+  `useQuickSlotLayout` reads the card's own width (ResizeObserver) and
+  `quickSlotLayout` in `quick-access/dial-model.ts` returns one slot width, the
+  gap between slots and the dial size. A slot is at least the widest thing
+  placed in it needs; the card then puts as many slots on a line as that
+  minimum allows; the slots take the rest of the width between them, so a full
+  line reaches both edges of the card and a short line (the readings, and every
+  line on a phone) is centred.
+- **The gap is a share of a slot** — `QUICK_SLOT_GAP_RATIO` (5%), floor
+  `QUICK_SLOT_GAP_MIN` (8px), ceiling `QUICK_SLOT_GAP_MAX` (28px) — so a slot
+  that has been scaled up to fill its line takes its spacing up with it instead
+  of the card reading as wide slots with pinched gaps. The lines are spaced by
+  that same measure, so the gap inside a row and the gap between rows agree.
+- **The minimum is a knob's rings in portrait, a dial's box in landscape.**
+  Portrait must keep a knob's floating rings on screen, so its slot reserves the
+  widest knob's ring reach (`quickDialSlot`, `ringGeometry(size, 4, true)`);
+  landscape's rings are free to float over the page, so its slot only has to
+  hold the dial's titled box (`quickDialBox`). That is why a landscape line fits
+  two slots where a phone fits one.
+- **Content is top-aligned in its slot, and centred across it.** A slot is as
+  tall as its line's tallest control, and the dial, its title arc and its preset
+  row start at the same height in every slot on the line — before this, a control
+  sat in the middle of whatever box its line happened to give it. Across the slot
+  a control is **centred** (Adeline, 2026-09-23): the width a slot has beyond its
+  control is shared equally either side of it, never left over at the right,
+  which is what the old left-packed tile did (~~everything clusters from the
+  left, any spare width is left over at the right~~, Adeline 2026-09-11,
+  superseded). The readings tile is not a control and keeps its own
+  arrangement.
+- **What one width costs, stated plainly.** A ring-bearing knob's portrait slot
+  is ~300px at 133px, more than half a 375px card, so **a phone holds one slot a
+  line** and the card is five lines tall there — the lights, the amplifier, each
+  climate knob and the readings tile, one under the other, all the same size. A
+  1080px portrait screen and the kiosk hold two. The readings tile is one slot
+  like any other, so it no longer stretches across the card: it is centred in a
+  line of its own.
+- **Checked by `e2e/quick-access-slots.spec.ts`** at 1920×1080, 1080×1920,
+  820×1180, 440×956 and 375×812: one width for every slot, the rows filled edge
+  to edge, a short row centred, the columns of one row directly above the next,
+  an even gap, top-aligned content, and the gap growing with the slots.
 - Tile height is 84px, set by the original colour encoder footprint (a 56px
   dial is 74px across, the unlock ring's 1.314 ×). A tile only grows past that
-  when its controls wrap on a phone — and
-  the lighting segment now always does, since its 84px dial is 104px across and
-  its presets sit beneath it (2026-09-12).
-- **Superseded 2026-09-22 (Adeline): the dials are two lines, not one row** —
-  see "Round: two dial lines, and the Apple TV" below. Everything in this
-  bullet still holds per line: the slots, the shared size and the shrink-to-fit
-  rule.
-- ~~Portrait: one centred, wrapping row of dials (Adeline, 2026-09-14;
-  replaces the 2026-09-12 equal-thirds line).~~ Home lighting, Lounge aircon,
-  Bedroom heater, in that order. Three across, evenly spread, when they fit;
-  fewer per line when they don't; on a phone one per line, centred. Weather
-  keeps the line after the dials to itself.
-  - **Rings stay on screen.** A knob's layout box is only its dial, but its
-    floating rings reach well past it: at 133px the aircon's four rings are
-    ~295px across a ~165px dial. Every dial gets a slot as wide as the widest
-    knob's rings — `ringGeometry(size, 4, true).footprint`, passed as
-    `--quick-dial-slot` — so no ring can cross the card's edge. Equal slots
-    also make a shared line spread evenly. Rings may overlap a neighbouring
-    dial above or below; that is allowed.
-  - **Scale down, floor 100px.** When the card is narrower than one slot, all
-    three dials shrink together to the largest size whose slot fits
-    (`quickDialSizeFor`, re-measured by ResizeObserver). The floor is the
-    temperature knob's 100px minimum; landscape always stays at 133px.
-    Measured in Chromium: a 440px viewport keeps 133px; a 300px viewport
-    shrinks.
-  - **One centre line.** The climate knobs' title arcs make their boxes
-    taller than the dial, so the untitled lighting dial takes the same box
-    (`--quick-dial-box`, the title footprint) and dials sharing a line line up.
-  - **The climate row dissolves** (`display: contents`) so the three dials
-    wrap as siblings. As a nested flex box it sat beside the lighting dial and
-    wrapped inside itself, stacking the two climate knobs in a column on the
-    right — the sideways triangle seen on an iPhone Pro Max.
-  - The lighting segment gives up its tile border, background and padding so
-    the three read as one row rather than a box beside two bare knobs.
-  - **Keyed on `@media (aspect-ratio <= 1)`, not on a container width.** A
-    portrait screen here is wider than the 920px container query, so an
-    earlier version hung off that query never fired. Landscape keeps every
-    rule above it, unchanged.
-  - Checked by `e2e/quick-access-portrait.spec.ts` at 440×956, 375×812,
-    300×640 and 1080×1920: centring, one per line, equal sizes, the 100px
-    floor, and each climate knob's opened ring layer inside the viewport.
+  when its controls wrap — the lighting segment always does, since its dial's
+  box is 104px across and its presets sit beneath it (2026-09-12).
+- ~~One row of four segments, left to right: **Lights · Lounge · Bedroom ·
+  Outside**, measured natural widths of ~1,575px with gaps, and three layouts
+  chosen by container query on the card's own width (>=1480px one line,
+  920-1479px 2×2, <920px one tile per row).~~ Superseded twice: the dials became
+  two lines on 2026-09-22, and the lines became measured rows of equal slots on
+  2026-09-23. "Never a horizontal scrollbar, never a segment cut in half" still
+  holds — the measured slot width is what enforces it now.
 
-- **The climate knobs are not tiles (Adeline, 2026-09-12, later the same day).**
-  A 133px knob's dial is about 165px across — twice as tall as a tile's row —
-  so a boxed one spilled past its own border and overlapped the tile below in
-  the landscape grid, tucked or not. Both knobs sit inline in one
-  `quick-climate-row`, each under its own label, with no border or background
-  of their own. Same arrangement in landscape and portrait. Their rings float
-  over the page and take no layout space.
-- The landscape grid sizes its rows `minmax(max(84px, min-content), 1fr)`: a
-  bare `84px` minimum replaces the automatic content-based one, which is what
-  let a taller row overflow its track in the first place.
 - A segment whose device is absent in this home is **not rendered** (same rule
   as `ClimateControls`: no empty card for a room the home does not have).
 
@@ -244,19 +246,19 @@ and the dial sizes in `quick-access/dial-model.ts`.
   in portrait. It is the placeholder for the IR emitter that will drive the
   amp's volume and power — see [apple-tv-volume.md](apple-tv-volume.md) — and
   its three preset buttons are the Apple TV's playlists.
-- **The pair is one flex line** (`.quick-dial-line`) in landscape and on a
-  phone, and it **dissolves** (`display: contents`) in portrait, so the two
-  dials take the row's slots as siblings of the climate dials. A zero-height
-  full-width `.quick-dial-break` between the pair and the climate row is what
-  ends the first line: "lights and amp, then both climate dials on the next
-  line" (Adeline).
-- **The pair has to fit, not only one climate knob's rings.** `quickDialSizeFor`
-  now requires both: the widest knob's ring slot inside the row's width, *and*
-  the pair's two dial boxes inside it. A phone too narrow for two dials at even
-  the 100px floor stacks them one a line instead of letting their rings
-  overlap (`data-quick-pair="stacked"`). Measured in Chromium: 1080px keeps
-  133px with two dials per line, 440px shrinks to 123px, 375px sits on the
-  100px floor, 300px stacks.
+- **The dial line holds the lighting dial and the amplifier dial.** Both are
+  ring-less, so nothing there needs the portrait ring reserve; both are still
+  one slot wide, like every other module on the card.
+- **A slot holds a dial's box, or its rings in portrait.** `quickDialSizeFor`
+  only has to fit the widest knob's ring slot inside the card now that every
+  slot is the same width and a line never forces two dials to share it: a phone
+  whose card cannot hold two ring-safe slots puts one slot on a line instead of
+  shrinking the dials to fit two. A 375px viewport keeps 133px dials and one
+  slot a line; a 300px one shrinks them (to ~106px on the demo's row, measured in
+  Chromium). `e2e/quick-access-portrait.spec.ts` asserts the rule the figure comes
+  from — the dials shrink together but never below the temperature knob's 100px
+  floor — rather than the figure, which moves with the card's padding.
+
 - **Each preset row hugs its dial.** A titled dial's box reserves the title's
   band above *and* below the knob; the row takes the lower half back, which is
   what had been holding the buttons a knob-slack away from the dial that owns
@@ -286,12 +288,12 @@ and the dial sizes in `quick-access/dial-model.ts`.
   alone; night rules and per-light overrides visibly apply (server path).
 - Auto / Off / target on each climate segment behave exactly as the full
   card's controls do, and both stay in agreement when both are on screen.
-- The dials are two lines in every layout: the lighting dial and the Apple TV
-  dial on the first, the two climate dials on the next, each line centred, and
-  the pair never overlapping (2026-09-22).
+- Every slot on the card is the same width, the rows are filled and centred,
+  the columns of one row sit directly above the next, and each control starts at
+  the top of its own slot (2026-09-23).
 - Existing unit tests pass (`npm run test:unit`, `npm run test:aircon`),
-  `tsc`/`next build` clean, new unit tests for the state-label helpers, the
-  dial sizes and the pair fit.
+  `tsc`/`next build` clean, and new unit tests cover the slot width, the gap and
+  the dial sizes (`quick-access/dial-model.test.ts`).
 - Visual review passed by adversarial reviewers against real renders at
   wide landscape, iPad portrait and phone widths, in the demo harness.
 - Deployed with `deploy-nova-stack.ps1` through the task log.

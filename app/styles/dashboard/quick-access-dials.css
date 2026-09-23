@@ -1,30 +1,62 @@
-/* Quick Access' dials: two lines, and each dial's preset row hugging it.
+/* Quick Access' layout slots (specs/quick-access-card.md): one width for every
+   slot a module can be placed in, the gap between them, and the preset row that
+   belongs under each dial. This extends quick-access.css, which stays the file
+   for the card itself and its segments. */
 
-   The card's first line is the lighting dial and the amplifier dial, the second
-   the two climate dials, and the weather keeps the line after them (Adeline,
-   2026-09-22). This extends quick-access.css, which stays the file for the card
-   itself; the dial segments' own treatments (the column direction, the portrait
-   slot, the dropped border) are in that file's lists beside the climate ones. */
-
-/* Landscape and the phone: the pair is one flex row, so its two segments split
-   the width between them however wide the card is. */
-.quick-dial-line {
+/* The card is a stack of lines: the dial line (the room's lights and the
+   amplifier), the climate knobs, the readings. */
+.quick-access-row {
   display: flex;
-  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--quick-slot-gap, 8px);
+  min-width: 0;
+}
+
+/* One line, and every module placed on the card takes ONE slot in it, whatever
+   it draws — a lighting dial, an amplifier dial, a climate knob, a readings
+   tile. All the slots are the same width (`--quick-slot`, measured by the card
+   from its own width) and they fill the line they are on: as many as fit at
+   that width, centred, so a line holding one slot sits it in the middle of the
+   card and a line holding two spreads them to the edges. Content is top-aligned
+   in its slot (see .quick-segment) rather than centred in it, so the controls
+   on a line start together.
+
+   Adeline, 2026-09-23: "making them all the same size and evenly spaced and
+   distributed... align to the top of their individual space, and otherwise flow
+   like a centre-aligned grid... once items have flowed into the minimum
+   allowable space, they should scale up a bit to fit the available area, but
+   with some proportional spacing in between." Before this, each slot was sized
+   to its own content — the ring-less pair took half the line each, a knob
+   reserved its rings' reach, the readings tile took the whole width — so no
+   two slots on the card agreed and nothing lined up. */
+.quick-line {
+  display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--quick-slot-gap, 8px);
   min-width: 0;
 }
 
-.quick-dial-line > .quick-segment {
-  flex: 1 1 0;
+.quick-line > .quick-segment,
+.quick-line > .quick-climate {
+  /* Shrink is left available purely as a safety net: the measured width can
+     never exceed the line by more than a hundredth of a pixel, and a slot that
+     silently squeezes by that much is invisible where a slot that wrapped onto
+     a line of its own would not be. */
+  flex: 0 1 var(--quick-slot, auto);
+  width: var(--quick-slot, auto);
   min-width: 0;
-}
-
-/* The break that ends the first line. It does nothing until portrait needs it
-   (below). */
-.quick-dial-break {
-  display: none;
+  max-width: 100%;
+  /* A control is centred in its slot (Adeline, 2026-09-23): the dial, its title
+     arc and its preset row all sit on the slot's centre line, and any width the
+     slot has beyond the control is shared equally either side of it rather than
+     left over at the right, which is what the old left-packed tile did. The
+     vertical stays top-aligned — a control starts at the top of its own space
+     (see .quick-segment). Stated here, on the slot itself, so it is a property
+     of every module placed on the card rather than of the four classes that
+     happen to be placed today; `e2e/quick-access-slots.spec.ts` asserts it. */
+  align-items: center;
 }
 
 /* Each dial's preset row takes back the air a titled dial's box keeps under its
@@ -37,29 +69,4 @@
   margin-block-start: calc(-1 * var(--quick-dial-pull, 0px));
   flex-wrap: wrap;
   justify-content: center;
-}
-
-/* Portrait: the pair dissolves so the two dials are siblings of the climate
-   dials and take the row's slots, and the break forces the climate dials onto
-   the line below them (Adeline, 2026-09-22: "lights and amp, then both climate
-   dials"). Keyed on the orientation, like quick-access.css's own portrait
-   block — a portrait screen here is wider than the 920px container query. */
-@media (aspect-ratio <= 1) {
-  .quick-dial-line {
-    display: contents;
-  }
-
-  .quick-dial-break {
-    display: block;
-    flex: 0 0 100%;
-    height: 0;
-  }
-
-  /* A phone too narrow for two dials at even the smallest size gives each of
-     them the same slot a climate dial takes, so they stack — one dial a line —
-     rather than overlapping each other. */
-  .quick-access-row[data-quick-pair="stacked"] .quick-dial-line > .quick-segment {
-    flex: 0 0 var(--quick-dial-slot, auto);
-    max-width: 100%;
-  }
 }
