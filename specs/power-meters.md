@@ -361,8 +361,11 @@ People come from household config, never product source —
 ```
 
 - Tapping a cycle block cycles its `person`: **Unassigned -> Addie -> Tonya ->
-  Unassigned**, following config order. Optimistic in the UI, no modal, no
-  confirm — a mis-tap is fixed by tapping again.
+  Unassigned**, following config order. A block whose attribution is a *default*
+  (§ below) is treated as Unassigned by a tap, so one tap claims it for the first
+  configured person rather than walking through the person the default picked.
+  Optimistic in the UI, no modal, no confirm — a mis-tap is fixed by tapping
+  again.
 - Sub-totals are shown for each configured person plus Unassigned, in both kWh
   and cost, following the panel's existing credits/kWh `displayMode` toggle.
 - With no people configured, the attribution UI is absent and only the monthly
@@ -375,10 +378,16 @@ A wash nobody **claims** belongs to the household's other person:
 `power.washingMachine.unclaimedPersonId` (for this household, Tonya). Nobody
 claimed it, so it is not evidence about the primary person, and the rule-based
 guess that used to fill that gap is gone. The default is applied at the
-completion edge, and again at close for a wash whose completion was never
-captured, with `attribution: { source: "auto" }` — a default is not a tap, and
-the block is hatched for it. With no such person configured the
-wash closes **Unassigned**, which is what a household of one wants.
+**close**, when the wash has actually finished, with `attribution: { source:
+"auto" }` — a default is not a tap, and the block is hatched for it. With no such
+person configured the wash closes **Unassigned**, which is what a household of
+one wants.
+
+It is deliberately **not** applied to a running wash. The completion edge is a
+*pause* — a soak or a drain longer than the stop window — not an end, so a wash
+whose machine is still going is nobody's to reassign. Reassigning one there made
+a panel the household was watching change hands by itself, and the tap it invited
+cycled on from an attribution nobody had made, landing on the wrong person.
 
 ### 4.4 The month
 

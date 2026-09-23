@@ -142,21 +142,47 @@ describe("the wash's timer while the cycle runs", () => {
 
 describe("an unclaimed wash", () => {
   const WASH = [[1, 10], [400, 45], [1, 20]] as Array<[number, number]>;
+  const CONFIGURED = { ...CONFIG, completionAlert: ALERT, unclaimedPersonId: "tonya" };
 
   it("closes as the household's other person, announced to nobody", () => {
-    const state = replay(WASH, blankWashingMachineState(), { ...CONFIG, completionAlert: ALERT, unclaimedPersonId: "tonya" });
+    const state = replay(WASH, blankWashingMachineState(), CONFIGURED);
 
     expect(state.cycles[0].person).toBe("tonya");
     expect(state.cycles[0].attribution).toEqual({ at: expect.any(String), source: "auto" });
-    expect(state.cycles[0].completion?.person).toBe("tonya");
-    // The completion is not the alert person's, so nothing goes out.
+    // The completion names whoever owned the wash at that edge — nobody — and is
+    // not the alert person's, so nothing goes out.
+    expect(state.cycles[0].completion?.person).toBeNull();
     expect(state.cycles[0].completion?.discord).toBe(false);
+  });
+
+  it("is left alone while it is still running, pause and all", () => {
+    // A soak longer than the stop window fires the completion edge — and the
+    // machine then carries on, so the wash is still nobody's to reassign. Only
+    // the close applies the household's default (specs/power-meters.md 4.3).
+    const midWash = replay([[1, 10], [400, 45], [0, 3]], blankWashingMachineState(), CONFIGURED);
+
+    expect(midWash.open?.completion).not.toBeUndefined();
+    expect(midWash.open?.person).toBeUndefined();
+    expect(midWash.open?.attribution).toBeUndefined();
+    expect(midWash.cycles).toEqual([]);
+
+    const closed = replay([[400, 5], [1, 10]], midWash, CONFIGURED);
+
+    expect(closed.cycles).toHaveLength(1);
+    expect(closed.cycles[0].person).toBe("tonya");
+    expect(closed.cycles[0].attribution?.source).toBe("auto");
   });
 
   it("stays unassigned when the household names nobody", () => {
     const state = replay(WASH, blankWashingMachineState(), { ...CONFIG, completionAlert: ALERT });
 
     expect(state.cycles[0].person).toBeNull();
+  });
+
+  it("is still nobody's while it runs, with no default configured either", () => {
+    const midWash = replay([[1, 10], [400, 45], [0, 3]], blankWashingMachineState(), { ...CONFIG, completionAlert: ALERT });
+
+    expect(midWash.open?.person).toBeUndefined();
   });
 });
 

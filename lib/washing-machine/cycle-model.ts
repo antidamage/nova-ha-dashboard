@@ -1,5 +1,6 @@
 import type { WashingMachineConfig } from "../config-schema";
 import { accumulateWashEnergy, creditWashEnergy } from "./energy-model";
+import { observeQuiet, seconds } from "./stop-window";
 import { advanceWashTimer, completeWashTimer } from "./timer-model";
 import type { WashingMachineCycle, WashingMachineOpenCycle, WashingMachineState } from "./types";
 
@@ -10,10 +11,6 @@ export function blankWashingMachineState(): WashingMachineState {
   return { cycles: [], open: null, version: 1 };
 }
 
-function seconds(from: string, to: string) {
-  return (new Date(to).getTime() - new Date(from).getTime()) / 1000;
-}
-
 export function cycleId(startedAt: string) {
   return `${startedAt.replace(/[:.]/g, "-")}`;
 }
@@ -22,6 +19,13 @@ export function cycleId(startedAt: string) {
  * A wash nobody claimed belongs to the household's other person: it is not
  * evidence about the primary person, and the guess that used to fill the gap is
  * gone — the claim is the signal (specs/power-meters.md, "The wash's timer").
+ *
+ * This runs at the CLOSE, when the wash has actually finished. It used to run at
+ * the completion edge as well, and that is a *pause*, not an end: a soak longer
+ * than the stop window fires it while the machine is still running, so the
+ * household's panel showed a wash it was watching change hands by itself — and
+ * the next tap, cycling on from an attribution nobody made, landed on the wrong
+ * person. A running wash is nobody's to reassign (§4.3).
  */
 function settleUnclaimed(cycle: WashingMachineCycle, config: WashingMachineConfig, at: string): WashingMachineCycle {
   if (cycle.person || !config.unclaimedPersonId) return cycle;
@@ -96,36 +100,19 @@ export function recordWashingMachineSample(
   const settled = Boolean(open.completion) && (open.timer === undefined || open.timer.completedAt !== null);
   const watching = Boolean(alert?.enabled) || Boolean(open.timer);
   if (watching && open.startedAt && !settled) {
-    const reportedAt = options.reportedAt ?? at;
-    const age = seconds(reportedAt, at);
-    // The metering plugs report on change: once the machine settles at its quiet
-    // draw the integration stops writing that entity, so `last_reported` freezes
-    // at the instant of the drop and never moves again (measured on the live
-    // Tuya cloud bridge 2026-09-22 — frozen at the drop for 26 minutes at 0 W,
-    // with `homeassistant.update_entity` every 30 s not moving it either). A
-    // report old enough to be stale therefore cannot anchor the quiet window —
-    // that would backdate it to a moment nobody was watching — but it is not
-    // grounds for discarding the window either: the value it carries is still
-    // the meter's last word. The window is measured in observed sample time, the
-    // same clock the close timer below uses, and each tick that observes the
-    // quiet draw extends it.
-    const fresh = Number.isFinite(age) && age >= -5 && age <= stop.maxSampleGapSeconds;
-    if (gap < 0 || gap > stop.maxSampleGapSeconds || elapsedHours <= 0 || watts > stop.stopWatts) open.zeroSince = null;
-    if (watts <= stop.stopWatts) {
-      // A fresh report says when the drop actually happened; a stale one only
-      // says the quiet draw is standing now, so the window starts at this sample.
-      open.zeroSince ??= fresh ? reportedAt : at;
-      if (open.kwh >= config.minCycleKwh && seconds(open.zeroSince, at) > stop.stopSeconds) {
-        if (open.timer) open.timer = completeWashTimer(open.timer, at);
-        // Record even an unclaimed finish: a later claim must never backfill an
-        // alert. An unclaimed wash carries the household's other person.
-        if (alert?.enabled && !open.completion) {
-          if (!open.person && config.unclaimedPersonId) {
-            open.person = config.unclaimedPersonId;
-            open.attribution = { at, source: "auto" };
-          }
-          open.completion = { at, person: open.person ?? null, discord: alert.discord && open.person === alert.personId };
-        }
+    const quiet = observeQuiet(open.zeroSince ?? null, {
+      at, elapsedHours, gap, kwh: open.kwh, minCycleKwh: config.minCycleKwh,
+      reportedAt: options.reportedAt ?? at, stop, watts,
+    });
+    open.zeroSince = quiet.zeroSince;
+    if (quiet.finished) {
+      if (open.timer) open.timer = completeWashTimer(open.timer, at);
+      // Record even an unclaimed finish: a later claim must never backfill an
+      // alert. The record names whoever owned the wash at this edge and nothing
+      // else — an unclaimed wash is still unclaimed while it is running, and the
+      // close is what applies the household's default (settleUnclaimed).
+      if (alert?.enabled && !open.completion) {
+        open.completion = { at, person: open.person ?? null, discord: alert.discord && open.person === alert.personId };
       }
     }
   }

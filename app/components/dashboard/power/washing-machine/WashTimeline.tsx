@@ -45,7 +45,7 @@ export function WashTimeline({
   error: string | null;
   /** True while a tap on this wash has not yet been echoed by the server. */
   isPending: (cycleId: string) => boolean;
-  onClaim: (cycleId: string, current: string | null) => void;
+  onClaim: (cycleId: string, current: string | null, byDefault?: boolean) => void;
   onStep: (direction: -1 | 1) => void;
   people: PowerWashingMachineSummary["people"];
   personOf: (cycleId: string, serverPerson: string | null) => string | null;
@@ -124,7 +124,7 @@ export function WashTimeline({
                     type="button"
                     aria-label={`${cycle.active ? "Active " : ""}${cycle.kwh.toFixed(2)} kWh wash, ${label}${byDefault ? " (default)" : ""}${ran ? `, started ${ran}` : ""}. Tap to claim or reassign.`}
                     className={classNames("power-wash-block", byDefault && "is-default")}
-                    onClick={() => onClaim(cycle.id, person)}
+                    onClick={() => onClaim(cycle.id, person, !isPending(cycle.id) && cycle.attribution?.source === "auto")}
                     style={{
                       background: byDefault ? `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px), rgb(10 10 10 / 0.35)` : color,
                       borderColor: byDefault ? color : undefined,
