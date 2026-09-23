@@ -175,11 +175,54 @@ describe("resolveOrbChoiceValue / resolveOrbChoiceTreatment", () => {
   });
 });
 
+describe("the Tech module's two knob treatments", () => {
+  /** Does this layer paint any part of itself from a theme slot? */
+  function usesThemeSlot(value: unknown): boolean {
+    if (Array.isArray(value)) return value.some(usesThemeSlot);
+    if (value && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      if (typeof record.theme === "string") return true;
+      return Object.values(record).some(usesThemeSlot);
+    }
+    return false;
+  }
+
+  it("paints a treatment from its own colours, never from the theme's", () => {
+    // A treatment that inherits the page is not the treatment it was set to.
+    // The dark dome read its stops from the theme's gradient slots, which on a
+    // LIGHT theme are white — so Dark drew a white knob there and Light and
+    // Dark were the same orb. The knob's own CSS had already fixed this class
+    // of bug by giving both skins a fixed face colour (see its "The two skins
+    // each name their own face colour" note); the orb's dark layers were left
+    // behind. This pins that no treatment layer goes back to a theme slot.
+    const treatmentLayers = TECH_MODULE.layers.filter(
+      (layer) => layer.enabledWhen?.setting === "knobThemeResolved",
+    );
+    expect(treatmentLayers.length).toBeGreaterThan(0);
+    expect(treatmentLayers.filter(usesThemeSlot).map((layer) => layer.id)).toEqual([]);
+  });
+
+  it("keeps both treatments equally able to draw on any theme", () => {
+    // Guards the other half: a pair must exist for each surface, so neither
+    // treatment can go missing and leave the other drawing on every theme.
+    const ids = TECH_MODULE.layers.map((layer) => layer.id ?? "");
+    const dark = ids.filter((id) => id.endsWith("-dark"));
+    const light = ids.filter((id) => id.endsWith("-light"));
+    expect(dark.length).toBe(light.length);
+    expect(dark.map((id) => id.replace(/-dark$/, "")).sort())
+      .toEqual(light.map((id) => id.replace(/-light$/, "")).sort());
+  });
+});
+
 describe("the Tech module's knob theme", () => {
   const decl = TECH_MODULE.settings![0];
 
   it("is a light/auto/dark choice, defaulting to auto", () => {
     expect(decl.id).toBe("knobTheme");
+    // The label is a light/dark selector's, not "Knob Theme" — that name
+    // belongs to the control that skins every dial, and this one sits directly
+    // beneath it (config/accent/OrbKnobToneControl).
+    expect(decl.label).toBe("Orb Knob Tone");
     expect(decl.options).toEqual(["Light", "Auto", "Dark"]);
     expect(decl.default).toBe(1);
   });

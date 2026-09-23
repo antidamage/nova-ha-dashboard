@@ -56,8 +56,8 @@ export const TECH_MODULE: OrbModule = {
   settings: [
     {
       id: "knobTheme",
-      label: "Knob Theme",
-      description: "Which light/dark treatment the orb's knob uses — Auto follows the theme",
+      label: "Orb Knob Tone",
+      description: "The orb knob's light or dark treatment — Auto follows the theme",
       min: 0,
       max: 2,
       step: 1,
@@ -79,7 +79,9 @@ export const TECH_MODULE: OrbModule = {
       id: "lip-dark",
       type: "disc",
       enabledWhen: { setting: "knobThemeResolved", max: 0.5 },
-      stops: [{ at: 0, color: { theme: "gradientOuter" } }],
+      // The knob's dark tint, mirroring `lip-light`'s #eceef1 — its own face
+      // colour rather than the page's, for the reason dome-dark records.
+      stops: [{ at: 0, color: { hex: "#191b20" } }],
     },
     {
       id: "lip-light",

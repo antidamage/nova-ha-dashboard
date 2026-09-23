@@ -74,6 +74,7 @@ import { BackgroundSection } from "./BackgroundSection";
 import { FontsSection } from "./FontsSection";
 import { KnobSkinControl } from "./KnobSkinControl";
 import { MapSection } from "./MapSection";
+import { OrbKnobToneControl } from "./OrbKnobToneControl";
 import { RemindersSection } from "./RemindersSection";
 import { SoundSection } from "./SoundSection";
 import { ThemeColoursSection } from "./ThemeColoursSection";
@@ -713,6 +714,13 @@ export function AccentConfig({
               value={theme.knobSkin}
               onPreview={(knobSkin) => setTheme({ ...theme, knobSkin }, { persist: false })}
               onCommit={(knobSkin) => setTheme({ ...theme, knobSkin })}
+            />
+            <OrbKnobToneControl
+              accentColor={accentRgb}
+              avatar={theme.avatar}
+              highlightColor={highlightRgb}
+              onPreview={(avatar) => updateStatusOrb(avatar, { persist: false })}
+              onCommit={updateStatusOrb}
             />
             <ConfigAccordion id="theme-settings" title="Theme Settings" icon={<SlidersHorizontal className="config-accordion-icon h-5 w-5" aria-hidden="true" />} className="config-sub-accordion">
           <ConfigAccordion
