@@ -188,4 +188,41 @@ export type OrbModuleSettingDecl = {
   step: number;
   /** Value used until the user saves an override. */
   default: number;
+  /**
+   * The named stops of a CHOICE setting, in slider order — the label for
+   * `min`, then each step up to `max`. A declaration with `options` is not a
+   * magnitude: the config UI renders it as a named-stop slider like the
+   * theme's knob-skin and text-tone pickers, and its labels are the option
+   * names rather than the number. Omitted for an ordinary numeric slider.
+   *
+   * One stop may be `"auto"`, which names no treatment of its own: it defers
+   * to the device theme, resolved at render time (see
+   * `resolveOrbModuleSettings`'s `autoOption`) into the value the module's
+   * gates actually test.
+   */
+  options?: string[];
+};
+
+/**
+ * One setting's stored history, so a setting this module renamed or retyped
+ * keeps the owner's choice instead of reverting to its default. Declarative
+ * on purpose: a module may arrive as a JSON file on the host, and a JSON
+ * document cannot carry the function that code would need.
+ */
+export type OrbModuleSettingMigration = {
+  /** The setting id this module declares today. */
+  to: string;
+  /** Earlier ids, most recent first. */
+  from: string[];
+  /**
+   * Which of the setting's own `options` a legacy value of `from` means, as
+   * bands: the LAST entry whose `min` the stored value reaches wins, so a
+   * boolean's two ends are two bands. The Tech knob's old boolean `light` was
+   * `"Dark"` at 0 and `"Light"` at 1, so its bands are
+   * `[{ min: 0, name: "Dark" }, { min: 1, name: "Light" }]`.
+   *
+   * A band naming a stop the setting no longer declares is ignored, which
+   * leaves that setting at its declared default rather than at a wrong stop.
+   */
+  bands: { min: number; name: string }[];
 };

@@ -2,7 +2,7 @@
 
 import { decimalStepGranularity } from "../slider-step";
 import { ORB_MODULE_FORMAT_VERSION } from "./constants";
-import type { OrbModuleSettingDecl } from "./types";
+import type { OrbModuleSettingDecl, OrbModuleSettingMigration } from "./types";
 import type { OrbLayer, OrbModule } from "./layer-types";
 import { clamp, clampedNum, isValidOrbModuleId, num, recordValue } from "./value-model";
 import { normalizeOrbLayer } from "./layer-model";
@@ -27,7 +27,28 @@ function normalizeOrbModuleSetting(value: unknown): OrbModuleSettingDecl | null 
   if (typeof v.description === "string" && v.description.trim().length > 0) {
     decl.description = v.description.trim().slice(0, 140);
   }
+  // A choice setting names every stop. Keep the labels only when there is one
+  // per step — a list that does not line up with min..max would label a stop
+  // with another stop's name, so it is dropped and the setting stays a
+  // magnitude rather than being silently mislabelled.
+  const options = normalizeOrbSettingOptions(v.options);
+  if (options && options.length === Math.round(span / decl.step) + 1 && options.length >= 2) {
+    decl.options = options;
+  }
   return decl;
+}
+
+/** The named stops of a choice setting; undefined when the list is unusable. */
+function normalizeOrbSettingOptions(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const options: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") return undefined;
+    const label = entry.trim();
+    if (label.length === 0 || label.length > 24) return undefined;
+    options.push(label);
+  }
+  return options.length > 0 ? options : undefined;
 }
 
 /**
@@ -76,5 +97,49 @@ export function normalizeOrbModule(value: unknown): OrbModule | null {
   if (settings.length > 0) {
     module.settings = settings;
   }
+  const migrations = normalizeOrbSettingMigrations(v.settingMigrations, settings);
+  if (migrations.length > 0) {
+    module.settingMigrations = migrations;
+  }
   return module;
+}
+
+/**
+ * Normalize a module's setting history. A migration that names no declared
+ * setting, carries no legacy ids, or offers no bands paints nothing and is
+ * dropped — a stale entry left behind by an earlier edit must not make the
+ * document unusable.
+ */
+function normalizeOrbSettingMigrations(
+  value: unknown,
+  settings: OrbModuleSettingDecl[],
+): OrbModuleSettingMigration[] {
+  const raw = Array.isArray(value) ? value : [];
+  const declared = new Set(settings.map((decl) => decl.id));
+  const migrations: OrbModuleSettingMigration[] = [];
+  for (const entry of raw) {
+    const v = recordValue(entry);
+    if (!v || !isValidOrbModuleId(v.to) || !declared.has(v.to)) continue;
+    const from = (Array.isArray(v.from) ? v.from : []).filter(isValidOrbModuleId);
+    const bands = normalizeOrbMigrationBands(v.bands);
+    if (from.length === 0 || bands.length === 0) continue;
+    migrations.push({ to: v.to, from, bands });
+  }
+  return migrations;
+}
+
+/** A migration's bands: a numeric floor and the stop name it maps to. */
+function normalizeOrbMigrationBands(value: unknown): OrbModuleSettingMigration["bands"] {
+  const raw = Array.isArray(value) ? value : [];
+  const bands: OrbModuleSettingMigration["bands"] = [];
+  for (const entry of raw) {
+    const v = recordValue(entry);
+    if (!v || !Number.isFinite(Number(v.min))) continue;
+    // A band names one of the setting's own stops; an empty name names
+    // nothing, and the band is dropped rather than migrating to a stop that
+    // cannot be looked up.
+    if (typeof v.name !== "string" || v.name.trim().length === 0) continue;
+    bands.push({ min: Number(v.min), name: v.name.trim() });
+  }
+  return bands.sort((a: OrbModuleSettingMigration["bands"][number], b: OrbModuleSettingMigration["bands"][number]) => a.min - b.min);
 }

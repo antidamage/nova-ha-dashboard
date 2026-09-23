@@ -10,6 +10,7 @@ import type {
   OrbLayerBase,
   OrbLinearGradient,
   OrbModuleSettingDecl,
+  OrbModuleSettingMigration,
   OrbPoint,
   OrbRingTurbulence,
   OrbTrack,
@@ -254,6 +255,9 @@ export type OrbModule = {
   alertPulsePeriod: number;
   /** User-tunable knobs this module exposes (absent = no extra config UI). */
   settings?: OrbModuleSettingDecl[];
+  /** This setting's stored history, so a rename or retype keeps the choice. */
+  settingMigrations?: OrbModuleSettingMigration[];
   /** Ordered draw stack, first layer at the bottom. */
   layers: OrbLayer[];
 };
+

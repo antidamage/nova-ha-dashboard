@@ -49,6 +49,7 @@ export type {
   OrbLayerPulse,
   OrbLinearGradient,
   OrbModuleSettingDecl,
+  OrbModuleSettingMigration,
   OrbPoint,
   OrbRingTurbulence,
   OrbSettingValue,
@@ -70,11 +71,18 @@ export type {
 export { isValidOrbModuleId } from "./orb-modules/value-model";
 export { normalizeOrbColorRef } from "./orb-modules/paint-model";
 export { normalizeOrbLayer } from "./orb-modules/layer-model";
+export { migrateOrbModuleSettings } from "./orb-modules/migration-model";
 export {
   orbLayerGateOpen,
+  orbOptionIndex,
+  orbOptionValue,
+  orbResolvedSettingId,
   orbSettingNumber,
+  resolveOrbChoiceTreatment,
+  resolveOrbChoiceValue,
   resolveOrbModuleSettings,
 } from "./orb-modules/settings-model";
+export type { OrbAutoOptionResolver } from "./orb-modules/settings-model";
 export { normalizeOrbModule } from "./orb-modules/module-model";
 export {
   BUILTIN_ORB_MODULE_MAP,

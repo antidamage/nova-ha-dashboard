@@ -1,6 +1,7 @@
 // Built-in Status Orb module "Tech". Registered in ./catalogue.
 
 import type { OrbModule } from "./layer-types";
+import { TECH_DOME_LAYERS } from "./tech.dome";
 import { TECH_UNLOCK_LAYERS } from "./tech.unlock";
 
 /**
@@ -37,11 +38,14 @@ import { TECH_UNLOCK_LAYERS } from "./tech.unlock";
  * inset shadow, at full strength, through the `gradient` and `innerShadow`
  * fields on a ring layer.
  *
- * The `light` setting is the knob's light/dark treatment (`knobSkin`), and it
- * carries the same design decision: light mode is a soft off-white dome with
+ * The `knobTheme` setting is the knob's light/dark treatment (`knobSkin`), and
+ * it carries the same design decision: light mode is a soft off-white dome with
  * its shading pulled back, not an inversion of the dark one. Paired layers are
  * gated on it with `enabledWhen`, so exactly one treatment of each surface
- * draws.
+ * draws. The gates name `knobThemeResolved` rather than `knobTheme` because the
+ * setting's `auto` stop defers to the device theme: the resolved id carries the
+ * light/dark flag once that choice has been made, in the 1 = light / 0 = dark
+ * sense the gates below are written in.
  */
 export const TECH_MODULE: OrbModule = {
   formatVersion: 1,
@@ -51,34 +55,43 @@ export const TECH_MODULE: OrbModule = {
   alertPulsePeriod: 1.1,
   settings: [
     {
-      id: "light",
-      label: "Light knob",
-      description: "The pale knob treatment instead of the dark one",
+      id: "knobTheme",
+      label: "Knob Theme",
+      description: "Which light/dark treatment the orb's knob uses — Auto follows the theme",
       min: 0,
-      max: 1,
+      max: 2,
       step: 1,
-      default: 0,
+      // Auto: the orb matches the rest of the dashboard's knobs unless it is
+      // asked for a specific treatment.
+      default: 1,
+      options: ["Light", "Auto", "Dark"],
     },
+  ],
+  // The knob treatment used to be a boolean `light` (1 = pale knob, 0 = dark).
+  // Themes saved before the choice landed store it under that id, so map each
+  // end onto the stop it always meant rather than letting the orb flip to Auto.
+  settingMigrations: [
+    { to: "knobTheme", from: ["light"], bands: [{ min: 0, name: "Dark" }, { min: 1, name: "Light" }] },
   ],
   layers: [
     // ---- Outer lip (--re-bevel): the body of the raised rim. ----
     {
       id: "lip-dark",
       type: "disc",
-      enabledWhen: { setting: "light", max: 0.5 },
+      enabledWhen: { setting: "knobThemeResolved", max: 0.5 },
       stops: [{ at: 0, color: { theme: "gradientOuter" } }],
     },
     {
       id: "lip-light",
       type: "disc",
-      enabledWhen: { setting: "light", min: 0.5 },
+      enabledWhen: { setting: "knobThemeResolved", min: 0.5 },
       stops: [{ at: 0, color: { hex: "#eceef1" } }],
     },
     // Its 160deg shading: dark down the top-left, a little light bottom-right.
     {
       id: "lip-shade-dark",
       type: "disc",
-      enabledWhen: { setting: "light", max: 0.5 },
+      enabledWhen: { setting: "knobThemeResolved", max: 0.5 },
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0.06 } },
         { at: 1, color: { hex: "#000000", alpha: 0.22 } },
@@ -87,7 +100,7 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "lip-shade-light",
       type: "disc",
-      enabledWhen: { setting: "light", min: 0.5 },
+      enabledWhen: { setting: "knobThemeResolved", min: 0.5 },
       stops: [
         { at: 0, color: { hex: "#000000", alpha: 0.02 } },
         { at: 1, color: { hex: "#000000", alpha: 0.07 } },
@@ -179,7 +192,7 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "channel-shade-dark",
       type: "ring",
-      enabledWhen: { setting: "light", max: 0.5 },
+      enabledWhen: { setting: "knobThemeResolved", max: 0.5 },
       radius: 0.8904,
       width: 0.1522,
       color: { hex: "#000000", alpha: 0 },
@@ -198,7 +211,7 @@ export const TECH_MODULE: OrbModule = {
     {
       id: "channel-shade-light",
       type: "ring",
-      enabledWhen: { setting: "light", min: 0.5 },
+      enabledWhen: { setting: "knobThemeResolved", min: 0.5 },
       radius: 0.8904,
       width: 0.1522,
       color: { hex: "#000000", alpha: 0 },
@@ -239,118 +252,9 @@ export const TECH_MODULE: OrbModule = {
     // that keep it reading as glass. The lit state is the indicator's
     // (./tech.unlock says why), so what the module draws is the locked band.
     ...TECH_UNLOCK_LAYERS,
-    // ---- Knob face (.rotary-encoder-knob): one fixed light from above-left.
-    // Base dome, then the highlight and the bounce, then the edge darkening.
-    {
-      id: "dome-dark",
-      type: "disc",
-      enabledWhen: { setting: "light", max: 0.5 },
-      radius: 0.7610,
-      gradientFrom: { x: 0, y: -0.1221, radius: 0 },
-      gradientTo: { x: 0, y: -0.1221, radius: 0.8142 },
-      stops: [
-        { at: 0, color: { theme: "gradientCenter" } },
-        { at: 0.7, color: { theme: "gradientOuter" } },
-        { at: 1, color: { theme: "gradientOuter" } },
-      ],
-    },
-    {
-      id: "dome-light",
-      type: "disc",
-      enabledWhen: { setting: "light", min: 0.5 },
-      radius: 0.7610,
-      gradientFrom: { x: 0, y: -0.1221, radius: 0 },
-      gradientTo: { x: 0, y: -0.1221, radius: 0.8142 },
-      stops: [
-        { at: 0, color: { hex: "#ffffff" } },
-        { at: 0.68, color: { hex: "#eceef1" } },
-        { at: 1, color: { hex: "#cbced4" } },
-      ],
-    },
-    {
-      id: "dome-highlight-dark",
-      type: "disc",
-      enabledWhen: { setting: "light", max: 0.5 },
-      center: { x: -0.2433, y: -0.3654 },
-      radius: 0.6627,
-      stops: [
-        { at: 0, color: { hex: "#ffffff", alpha: 0.16 } },
-        { at: 1, color: { hex: "#ffffff", alpha: 0 } },
-      ],
-    },
-    {
-      id: "dome-highlight-light",
-      type: "disc",
-      enabledWhen: { setting: "light", min: 0.5 },
-      center: { x: -0.2433, y: -0.3654 },
-      radius: 0.6627,
-      stops: [
-        { at: 0, color: { hex: "#ffffff", alpha: 0.6 } },
-        { at: 1, color: { hex: "#ffffff", alpha: 0 } },
-      ],
-    },
-    {
-      id: "dome-bounce-dark",
-      type: "disc",
-      enabledWhen: { setting: "light", max: 0.5 },
-      center: { x: 0.1827, y: 0.5785 },
-      radius: 0.6627,
-      stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.1 } },
-        { at: 1, color: { hex: "#000000", alpha: 0 } },
-      ],
-    },
-    {
-      id: "dome-bounce-light",
-      type: "disc",
-      enabledWhen: { setting: "light", min: 0.5 },
-      center: { x: 0.1827, y: 0.5785 },
-      radius: 0.6627,
-      stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0.05 } },
-        { at: 1, color: { hex: "#000000", alpha: 0 } },
-      ],
-    },
-    // The knob's inset edge shadow (inset 0 0 8% black) plus the base
-    // gradient's darkened last stop, as one ring of falloff at the dome edge.
-    {
-      id: "dome-edge-dark",
-      type: "disc",
-      enabledWhen: { setting: "light", max: 0.5 },
-      radius: 0.7610,
-      gradientFrom: { x: 0, y: 0, radius: 0.4260 },
-      gradientTo: { x: 0, y: 0, radius: 0.7610 },
-      stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0 } },
-        { at: 1, color: { hex: "#000000", alpha: 0.13 } },
-      ],
-    },
-    {
-      id: "dome-edge-light",
-      type: "disc",
-      enabledWhen: { setting: "light", min: 0.5 },
-      radius: 0.7610,
-      gradientFrom: { x: 0, y: 0, radius: 0.4260 },
-      gradientTo: { x: 0, y: 0, radius: 0.7610 },
-      stops: [
-        { at: 0, color: { hex: "#000000", alpha: 0 } },
-        { at: 1, color: { hex: "#000000", alpha: 0.05 } },
-      ],
-    },
-    // The dome's top lip catches the light, the way the inner bevel's inset
-    // highlight does on the knob.
-    {
-      id: "dome-lip",
-      type: "arc",
-      radius: 0.7555,
-      width: 0.0114,
-      from: 0.55,
-      to: 0.95,
-      stops: [
-        { at: 0, color: { hex: "#ffffff", alpha: 0 } },
-        { at: 0.5, color: { hex: "#ffffff", alpha: 0.12 } },
-        { at: 1, color: { hex: "#ffffff", alpha: 0 } },
-      ],
-    },
+    // ---- Knob face (.rotary-encoder-knob): the moulded dome, its
+    // highlight/bounce and its edge darkening, in ./tech.dome — the
+    // module's skin-gated knob treatment, factored out for its size.
+    ...TECH_DOME_LAYERS,
   ],
 };

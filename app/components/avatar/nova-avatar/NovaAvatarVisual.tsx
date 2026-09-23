@@ -93,10 +93,19 @@ export function NovaAvatarVisual({
     currentLoadRef,
     gymAlertActiveRef,
     themeRef,
+    knobTreatmentRef,
     speechEnabledRef,
     voicePinRef,
     rendererRef,
-  } = useOrbFrameRefs({ orbInfo, forceGymAlert, theme, forceVisible, conversationActive, orbModule });
+  } = useOrbFrameRefs({
+    orbInfo,
+    deviceTheme,
+    forceGymAlert,
+    theme,
+    forceVisible,
+    conversationActive,
+    orbModule,
+  });
 
   useNovaLoadPoll({ hidden, orbOptedOut, targetLoadRef, ingestNovaLoadRef });
 
@@ -119,6 +128,7 @@ export function NovaAvatarVisual({
     rendererRef,
     gymAlertActiveRef,
     themeRef,
+    knobTreatmentRef,
     speechEnabledRef,
   });
 

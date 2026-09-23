@@ -3,6 +3,7 @@
 import { type ThemeColorValue } from "../../accentColor";
 import { alertPulseScale } from "../theme-model/theme-model";
 import type { NovaAvatarTheme } from "../theme-model/types";
+import type { OrbModuleSettingDecl } from "../../../../lib/orb-modules";
 import type { AvatarSlot } from "./types";
 
 /**
@@ -38,4 +39,17 @@ export function opacityForSlot(theme: NovaAvatarTheme, slot: AvatarSlot) {
   if (slot === "gymNumber") return theme.gymNumberOpacity;
   const index = lineIndexForSlot(slot);
   return index === null ? null : theme.lineOpacities[index];
+}
+
+/**
+ * A choice setting's stops as the labelled slider wants them: one marker per
+ * option, at the value that option sits at, captioned with the option's own
+ * name. The stops are evenly spaced from `min` by `step`, which is the order
+ * the module declared its `options` in.
+ */
+export function choiceStops(decl: OrbModuleSettingDecl) {
+  return (decl.options ?? []).map((label, index) => ({
+    label,
+    value: decl.min + index * decl.step,
+  }));
 }
