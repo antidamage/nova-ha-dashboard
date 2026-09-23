@@ -28,7 +28,8 @@ row keeps its place in the band and takes that air back:
   `dialPresetPull(size)` computes it from the dial's own geometry, and the
   Lounge's halved pair publishes its own (14px at its 100px dials).
 - Quick Access publishes `--quick-dial-pull` from `QuickAccessCard` the same
-  way, beside `--quick-dial-slot`.
+  way, beside the measured `--quick-slot`
+  (specs/quick-access-card.md, "The layout slots").
 - Measured in Chromium at 1920x1080, dial circle to preset row: a lighting
   panel 58px → 20px, the Lounge's halved pair (100px dials, pull 14px) 8px,
   Quick Access 23px → 8px. The panel figure is not simply "air + gap − pull":

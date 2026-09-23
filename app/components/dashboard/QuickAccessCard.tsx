@@ -11,8 +11,8 @@
  */
 //
 // Facade. The body lives in ./quick-access/:
-//   dial-model.ts            dial sizes and the portrait slot maths
-//   useQuickDialSize.ts      portrait dial shrinking
+//   dial-model.ts            the slot width, the gap and the dial sizes
+//   useQuickSlotLayout.ts    measures the card and lays its slots out
 //   QuickSegment.tsx         shared tile parts (segment, climate wrapper, title, button)
 //   QuickLightsSegment.tsx   Home zone colour dial and rule presets
 //   QuickClimateSegments.tsx aircon and heater knobs

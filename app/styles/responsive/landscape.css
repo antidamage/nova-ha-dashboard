@@ -214,12 +214,6 @@ body,
   }
 
   .dashboard-home .quick-access-row {
-    display: grid;
-    /* An explicit 84px minimum replaces the automatic content-based one, so a
-       row whose content is taller — the climate knobs — used to overflow its
-       track and overlap the tile below. max() keeps the 84px floor for short
-       tiles while letting a taller one size to its content. */
-    grid-auto-rows: minmax(max(84px, min-content), 1fr);
     height: 100%;
   }
 
