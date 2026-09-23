@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import { useRef, type ReactNode, type RefObject } from "react";
 import type { SunThemeStatus, ThemeStorageValue } from "../../accentColor";
 import { ConfigBreadcrumb } from "../../ConfigBreadcrumbBar";
 import { ConfigPreviewBackground, ConfigPreviewBackgroundProvider } from "../../ConfigPreviewBackground";
@@ -9,6 +9,7 @@ import { UpdateBanner } from "../../UpdateBanner";
 import { ConfigCategoryNav } from "./ConfigCategoryNav";
 import { ConfigPageActions } from "./ConfigPageActions";
 import type { ConfigCategoryId } from "./types";
+import { useConfigBreadcrumbPin } from "./useConfigBreadcrumbPin";
 import { useConfigHeaderFade } from "./useConfigHeaderFade";
 
 // Page chrome for /config: themed preview background, the fixed header band
@@ -37,6 +38,22 @@ export function ConfigWorkspaceLayout({
   // This page has no status orb, so the strip's usual driver is absent —
   // specs/config-page-header.md.
   useConfigHeaderFade();
+  // The trail's row, for the resting/pinned handover below.
+  const trailSlotRef = useRef<HTMLDivElement | null>(null);
+  useConfigBreadcrumbPin(trailSlotRef);
+
+  // One readout, two homes: the column copy is the trail in its default position
+  // and the band copy is the pinned one, and CSS shows exactly one of them
+  // (`.config-shell[data-nova-trail=…]`, navigation.css). The copy that is hidden
+  // is what reserves the row's height, so nothing below the trail moves when it
+  // picks up.
+  const trail = (
+    <ConfigBreadcrumb
+      activeCategory={activeCategory}
+      categoryLabel={activeMeta?.label ?? null}
+      onSelectRoot={() => activeCategory && selectCategory(activeCategory)}
+    />
+  );
 
   return (
     <ConfigPreviewBackgroundProvider initialSun={initialSun} initialTheme={initialTheme}>
@@ -46,10 +63,10 @@ export function ConfigWorkspaceLayout({
             header band; the scroll handler above gives it its opacity. */}
         <div className="header-fade-strip" aria-hidden="true" />
         <ReloadButton />
-        {/* The header band: Back / Log out and the trail, as direct children of
-            the shell rather than of `.config-layout`. They have to stay out of
-            that column: background.css gives every other direct child of the
-            shell `position: relative; z-index: 1`, which makes the column a
+        {/* The header band: Back / Log out and the pinned trail, as direct
+            children of the shell rather than of `.config-layout`. They have to
+            stay out of that column: background.css gives every other direct child
+            of the shell `position: relative; z-index: 1`, which makes the column a
             stacking context — and a z-index inside one only orders its own
             siblings, so the whole column (trail and buttons included) would paint
             UNDER the strip, at 1, however high their own z-indexes went.
@@ -58,20 +75,21 @@ export function ConfigWorkspaceLayout({
           <nav aria-label="Configuration actions">
             <ConfigPageActions onBack={onBack} />
           </nav>
-          <ConfigBreadcrumb
-            activeCategory={activeCategory}
-            categoryLabel={activeMeta?.label ?? null}
-            onSelectRoot={() => activeCategory && selectCategory(activeCategory)}
-          />
+          {trail}
         </div>
         <div className={`config-layout mx-auto grid max-w-5xl gap-4 ${activeCategory ? "" : "config-layout-categories-closed"}`}>
-        {/* The band's space in the page column: the icons and the trail are fixed
-            to the viewport, so this row reserves their band rather than holding
-            their boxes, and no page content can start underneath them. */}
+        {/* The band's space in the page column: the icons and the pinned trail are
+            fixed to the viewport, so this row reserves their band rather than
+            holding their boxes, and no page content can start underneath them. */}
         <div className="config-header-band-spacer" aria-hidden="true" />
         <UpdateBanner context="config" />
 
         <ConfigCategoryNav activeCategory={activeCategory} categoryNavRef={categoryNavRef} selectCategory={selectCategory} />
+
+        {/* The trail's default position: its own row, under the category menu. */}
+        <div className="config-breadcrumb-slot" ref={trailSlotRef}>
+          {trail}
+        </div>
 
         {activeCategory ? (
           <div id="config-category-content" className="config-category-content grid gap-4" data-category={activeCategory}>

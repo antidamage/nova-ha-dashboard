@@ -1,11 +1,13 @@
 "use client";
 
-// Breadcrumb trail for the config page, sitting in the page's own flow just
-// under the category menu. Purely a "where am I / jump to" readout over the
-// same open-accordion chain ConfigWorkspace already computes to keep the URL in
-// sync (see configBreadcrumb.ts) — this component never opens, closes, or
-// otherwise mutates any accordion's state. A crumb's click handler calls
-// scrollToAccordionId() and nothing else.
+// Breadcrumb trail for the config page. One readout with two homes: it rests in
+// the page's own flow just under the category menu, and the header band's copy
+// takes over on the icon cluster's line once the page scrolls past that position
+// (useConfigBreadcrumbPin; specs/config-page-header.md). Purely a "where am I /
+// jump to" readout over the same open-accordion chain ConfigWorkspace already
+// computes to keep the URL in sync (see configBreadcrumb.ts) — this component
+// never opens, closes, or otherwise mutates any accordion's state. A crumb's
+// click handler calls scrollToAccordionId() and nothing else.
 
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -51,8 +53,18 @@ export function ConfigBreadcrumb({
         return;
       }
       pendingFrame = window.requestAnimationFrame(() => {
-        pendingFrame = 0;
+        // Two reads, not one. The open event is dispatched inside the click,
+        // BEFORE React commits the accordion's own `.config-accordion-open`
+        // class, and a section whose body suspends on a dynamic import can commit
+        // a frame later still — so a single read can land on a DOM that does not
+        // yet show the section that just opened, leaving the trail invisible
+        // until the next open or close. The second read costs nothing and catches
+        // that frame.
         readChain();
+        pendingFrame = window.requestAnimationFrame(() => {
+          pendingFrame = 0;
+          readChain();
+        });
       });
     };
     readChain();

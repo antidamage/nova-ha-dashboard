@@ -34,11 +34,11 @@ Confirmed shape (interview, 2026-09-10):
 - **History**: folding/unfolding an accordion replaces the current history
   entry (matches today's category-switch behaviour) — no extra back-stack
   entries per fold.
-- **Visible breadcrumb**: floating, top-centre, in the config page's fixed
-  header band beside the icon cluster (Adeline, 2026-09-23 — it is fixed again,
-  having sat in the page flow under the category menu, where it scrolled away
-  with the page), minimal, integrated with the existing config-page chrome.
-  Clicking a crumb scrolls to that section
+- **Visible breadcrumb**: it rests in the page flow just below the category menu,
+  and pins to the config page's fixed icon line once the page has scrolled past
+  that row (Adeline, 2026-09-23: it must not scroll away with the page, but its
+  rest position is its own row, not the top band), minimal, integrated with the
+  existing config-page chrome. Clicking a crumb scrolls to that section
   without collapsing anything below it or shortening the trail — pure
   navigation, never a state mutation.
 
@@ -229,25 +229,28 @@ New component, `app/components/ConfigBreadcrumbBar.tsx`, mounted in
 `ConfigWorkspace` above `#config-category-content`. Rendered only when a
 category is active (hidden on the plain category grid).
 
-- `position: fixed`, top-centre — the same fixed-top pattern as
-  `.dashboard-config-link` / `.dashboard-reload-link` (`top: calc(16px +
-  var(--nova-status-bar-clearance))`, `left: 50%`, `transform: translateX(-50%)`)
-  rather than a row in the config column. It shares the band with the fixed
-  Reload / Back / Log out cluster, inside `div.config-header-band` — a direct child
-  of the shell, so it is outside `.config-layout`'s `z-index: 1` stacking context
-  and really does paint in front of the theme's orb-shadow strip
-  (specs/config-page-header.md). Same dark-panel language as the menu and
-  `config-page-button` (neutral-950/70 background, neutral-700 border, clipped
-  top-right corner), crumbs `›` (ChevronRight)-separated. Being out of the flow,
-  the shallow state (category only, nothing unfolded) can fade the trail in and
-  out without shifting anything — which is why it fades rather than unmounting.
-  Its width is capped so it can never reach the fixed icon cluster sharing the
-  band: `max-width: calc(100vw - 360px - 2 x safe-area-left)`, which bounds a
-  centred trail's left edge at 180px against the cluster's 164px right edge, with
-  the trail scrolling internally for a longer chain. Below 480px, where that cap
-  would leave a sliver, it right-aligns in the band instead and takes the room
-  left of the icons, capped at `100vw - 196px` less both safe-area insets (the
-  cluster's own offset carries the left one).
+- **Two homes, one visible at a time.** At rest the trail is a row of the page
+  column directly under the category menu — its long-standing position, full column
+  width, in flow. Once the page has scrolled far enough that the row's top reaches
+  the fixed icon cluster's line, it pins: the copy in `div.config-header-band` takes
+  over at `top: calc(16px + var(--nova-status-bar-clearance))`, centred
+  (`left: 50%`, `transform: translateX(-50%)`), on the same line as Reload / Back /
+  Log out. The band is a direct child of the shell, so that copy is outside
+  `.config-layout`'s `z-index: 1` stacking context and really does paint in front of
+  the theme's orb-shadow strip (specs/config-page-header.md); the handover, the two
+  copies' sameness at the threshold and the row's kept height are all described
+  there too. Same dark-panel language as the menu and `config-page-button`
+  (neutral-950/70 background, neutral-700 border, clipped top-right corner), crumbs
+  `›` (ChevronRight)-separated. The shallow state (category only, nothing unfolded)
+  fades the trail rather than unmounting it, so nothing shifts when the first
+  accordion opens.
+  The pinned copy's width is capped so it can never reach the icon cluster beside
+  it: `max-width: calc(100vw - 360px - 2 x safe-area-left)`, which bounds a centred
+  trail's left edge at 180px against the cluster's 164px right edge, with the trail
+  scrolling internally for a longer chain. Below 480px, where that cap would leave a
+  sliver, it right-aligns in the band instead and takes the room left of the icons,
+  capped at `100vw - 196px` less both safe-area insets (the cluster's own offset
+  carries the left one). The resting copy keeps the column's full width.
 - Visually minimal: small uppercase labels, `›` (ChevronRight, already
   imported elsewhere) between crumbs.
 - Overflow: reuse `useHorizontalDragScroll` (already used for

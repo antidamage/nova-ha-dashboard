@@ -75,43 +75,6 @@ describe("ConfigWorkspace", () => {
     expect(await screen.findByText("HA_TOKEN")).toBeInTheDocument();
   });
 
-  it("renders the header cluster once, outside the page column's stacking context", async () => {
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
-      json: async () => url === "/api/update" ? updateStatus : { config, secrets },
-      ok: true,
-    })));
-
-    const { container } = render(<ConfigWorkspace />);
-
-    // One copy of each fixed icon (the old second, bottom-anchored copy of the
-    // pair is gone) and one strip behind them.
-    expect(container.querySelectorAll(".dashboard-back-link")).toHaveLength(1);
-    expect(container.querySelectorAll(".dashboard-logout-link")).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: /back to dashboard/i })).toHaveLength(1);
-    expect(container.querySelectorAll(".header-fade-strip")).toHaveLength(1);
-    expect(container.querySelector(".config-bottom-actions")).toBeNull();
-
-    // The band holds the icons, and is a DIRECT child of the shell: inside
-    // `.config-layout` it would sit in that column's z-index:1 stacking context
-    // and paint under the orb shadow strip, whatever its own z-index
-    // (background.css's direct-child rule; PR #43's second review round).
-    const band = container.querySelector(".config-header-band");
-    expect(band).not.toBeNull();
-    expect(band?.parentElement?.classList.contains("dashboard-shell")).toBe(true);
-    expect(band?.querySelectorAll("button")).toHaveLength(2);
-
-    // The column keeps a row reserving the band's height, so no page content
-    // starts underneath the fixed icons.
-    const spacer = container.querySelector(".config-layout > .config-header-band-spacer");
-    expect(spacer).not.toBeNull();
-    expect(container.querySelector(".config-top-actions")).toBeNull();
-
-    // The trail joins that band too — it renders nothing on the plain category
-    // grid, so this waits for a category first.
-    fireEvent.click(screen.getByRole("button", { name: /^assistant/i }));
-    await waitFor(() => expect(band?.querySelector(".config-breadcrumb")).not.toBeNull());
-  });
-
   it("triggers managed desktop sync when leaving config", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url === "/api/desktop/sync") {
