@@ -6,10 +6,41 @@ const viewportY = (locator: Locator) =>
   locator.evaluateAll((elements) => elements.map((element) => Math.round(element.getBoundingClientRect().y)));
 
 /**
- * Open a config accordion by id, retrying. The workspace re-renders when its
- * config finishes loading, which can reset a freshly toggled accordion — the
- * same reason the other cases in this file retry their opens.
+ * Which elements really receive a press at their own centre, with the orb-shadow
+ * strip made hit-testable. Hit-testing follows paint order, so this fails when
+ * anything is painted over them — where comparing computed `z-index` values
+ * cannot: a z-index only orders an element against its siblings inside its own
+ * stacking context, and the band sat under the strip while 110 > 90 read true.
+ *
+ * The injected style is taken back out afterwards, because a hit-testable strip
+ * would intercept clicks meant for the page behind it.
  */
+async function paintOrderAt(page: Page, selectors: string[]) {
+  await page.evaluate(() => {
+    if (document.querySelector("style[data-nova-probe]")) {
+      return;
+    }
+    const style = document.createElement("style");
+    style.dataset.novaProbe = "strip-hit-testable";
+    style.textContent = ".header-fade-strip { pointer-events: auto !important; }";
+    document.head.append(style);
+  });
+  const hits = await page.evaluate((list) => {
+    const hitIs = (selector: string) => {
+      const element = document.querySelector(selector);
+      if (!element) {
+        throw new Error(`no ${selector} on the config page`);
+      }
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return Boolean(hit && (hit === element || element.contains(hit)));
+    };
+    return Object.fromEntries(list.map((selector) => [selector, hitIs(selector)]));
+  }, selectors);
+  await page.evaluate(() => document.querySelector("style[data-nova-probe]")?.remove());
+  return hits;
+}
+
 async function openAccordion(page: Page, id: string) {
   const trigger = page.locator(`#${id} > .config-accordion-header > .config-accordion-trigger`);
   await expect(async () => {
@@ -39,101 +70,138 @@ test.describe("configuration workspace", () => {
     expectNoConsoleErrors(console);
   });
 
-  test("pins the header icons and the trail over the scroll shadow", async ({ page }) => {
+  test("keeps the header icons fixed, over the scroll shadow", async ({ page }) => {
     await gotoConfig(page);
     await page.getByRole("button", { name: /System & Data/ }).click();
     await page.getByRole("button", { name: "Updates", exact: true }).click();
-    await expect(page.locator(".config-breadcrumb")).toContainText("Updates");
+    // Two copies exist (resting and pinned); both read the same chain, and the
+    // resting one is the visible one at the top of the page.
+    await expect(page.locator(".config-breadcrumb-slot .config-breadcrumb")).toContainText("Updates");
 
-    // The three fixed icons, read as the row they are, plus the trail — which
-    // floats over the page now rather than sitting under the category menu.
     const icons = page.locator(".dashboard-reload-link, .dashboard-back-link, .dashboard-logout-link");
     await expect(icons).toHaveCount(3);
-    const trail = page.locator(".config-breadcrumb");
     const strip = page.locator(".header-fade-strip");
-    await expect(trail).toHaveCSS("position", "fixed");
 
     // How tall a category happens to be is not a test input: give the page
     // something to scroll whatever the panels measure.
     await page.evaluate(() => {
       document.body.style.minHeight = "3000px";
     });
-    // The section that just opened is scrolled into view on a deferred frame,
-    // so let that land before anchoring the page at the top.
-    await page.waitForTimeout(300);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    // Not exactly "0": Chrome's scroll anchoring can leave a pixel or two of
-    // scroll behind, which is a fraction of a percent of the strip's opacity.
+    // The page is anchored at the top for the rest measurement. Polling the
+    // opacity with the scroll re-applied inside it, rather than sleeping once and
+    // trusting it: opening the section schedules its own smooth scroll into view
+    // two frames later, and that can still move the page after our first
+    // scrollTo, which reads as a lit strip at the top of the page.
     const stripOpacity = () => strip.evaluate((element) => Number(getComputedStyle(element).opacity));
-    await expect.poll(stripOpacity).toBeLessThan(0.1);
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        return stripOpacity();
+      })
+      .toBeLessThan(0.1);
     const restingIcons = await viewportY(icons);
-    const restingTrail = await viewportY(trail);
 
     await page.evaluate(() => window.scrollTo(0, 600));
     await expect(strip).toHaveCSS("opacity", "1");
+    expect(await viewportY(icons), "the icons do not move with the page").toEqual(restingIcons);
 
-    // Fixed: neither the three icons nor the trail moved with the page.
-    expect(await viewportY(icons)).toEqual(restingIcons);
-    expect(await viewportY(trail)).toEqual(restingTrail);
-
-    // In front of the shadow — and that is paint order, not z-index numbers. A
-    // z-index only orders an element against its own siblings inside its stacking
-    // context, so comparing computed z-indexes across one proves nothing: 110 > 90
-    // read true here while the whole column, the icons and the trail with it, was
-    // painting UNDER the strip. Make the strip hit-testable (it is
-    // `pointer-events: none`) and ask which element is really at each one's
-    // centre — hit-testing follows paint order, so this fails when anything covers
-    // them.
-    await page.evaluate(() => {
-      const style = document.createElement("style");
-      style.dataset.novaProbe = "strip-hit-testable";
-      style.textContent = ".header-fade-strip { pointer-events: auto !important; }";
-      document.head.append(style);
+    // In front of the shadow: the icons, and the trail once it has pinned.
+    expect(
+      await paintOrderAt(page, [
+        ".dashboard-reload-link",
+        ".dashboard-back-link",
+        ".dashboard-logout-link",
+        ".config-header-band .config-breadcrumb",
+      ]),
+    ).toEqual({
+      ".dashboard-reload-link": true,
+      ".dashboard-back-link": true,
+      ".dashboard-logout-link": true,
+      ".config-header-band .config-breadcrumb": true,
     });
-    const painted = await page.evaluate(() => {
-      const hitIs = (selector: string) => {
-        const element = document.querySelector(selector);
-        if (!element) {
-          throw new Error(`no ${selector} on the config page`);
-        }
-        const rect = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        return Boolean(hit && (hit === element || element.contains(hit)));
-      };
-      return {
-        reload: hitIs(".dashboard-reload-link"),
-        back: hitIs(".dashboard-back-link"),
-        logout: hitIs(".dashboard-logout-link"),
-        trail: hitIs(".config-breadcrumb"),
-      };
-    });
-    expect(painted, "the band paints in front of the orb shadow strip").toEqual({
-      reload: true,
-      back: true,
-      logout: true,
-      trail: true,
-    });
-    // Take the probe back out: with the strip hit-testable it would intercept
-    // clicks meant for the page in the steps below.
-    await page.evaluate(() => document.querySelector("style[data-nova-probe]")?.remove());
 
     // ...and the reverse, so the shadow is tied to scroll position rather than
     // switched on once.
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await expect.poll(stripOpacity).toBeLessThan(0.1);
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        return stripOpacity();
+      })
+      .toBeLessThan(0.1);
+  });
 
-    // Narrow band: the trail shares this line with the icon cluster, and it has
-    // to stop clear of it whatever the chain's width. A three-crumb chain at
-    // 600px used to reach over Log out and take its clicks, because the trail is
-    // later in the DOM and both sat at the same z-index.
+  test("rests the trail in the page column, then pins it to the icon line", async ({ page }) => {
+    await gotoConfig(page);
+    await page.getByRole("button", { name: /System & Data/ }).click();
+    await page.getByRole("button", { name: "Updates", exact: true }).click();
+
+    const resting = page.locator(".config-breadcrumb-slot .config-breadcrumb");
+    const pinned = page.locator(".config-header-band .config-breadcrumb");
+    const slot = page.locator(".config-breadcrumb-slot");
+
+    // At rest it is the page's own trail, in its row under the category menu.
+    await expect(resting, "the trail rests in its own row").toContainText("Updates");
+    await expect(resting).toBeVisible();
+    // In flow (its own row), layered rather than pinned: `relative` gives it the
+    // z-index that keeps the shadow off it on the way up, and it is not `fixed`
+    // until the handover.
+    await expect(resting).toHaveCSS("position", "relative");
+    await expect(pinned, "nothing is pinned yet").toBeHidden();
+
+    await page.evaluate(() => {
+      document.body.style.minHeight = "3000px";
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const rowHeight = await slot.evaluate((element) => Math.round(element.getBoundingClientRect().height));
+    expect(rowHeight, "the trail's row has a height to give up").toBeGreaterThan(0);
+
+    // On the way up — before it pins — the resting copy is still in front of the
+    // shadow. It can only be, because the config column is deliberately not a
+    // stacking context (background.css excludes .config-layout; layout.css lifts
+    // the column's children and leaves the trail's slot unpositioned).
+    await page.evaluate(() => window.scrollTo(0, 120));
+    await expect(resting, "the trail is still resting on its way up").toBeVisible();
+    expect(
+      await paintOrderAt(page, [".config-breadcrumb-slot .config-breadcrumb"]),
+      "the resting trail is not washed by the shadow",
+    ).toEqual({ ".config-breadcrumb-slot .config-breadcrumb": true });
+
+    // Scrolled past its position: the trail picks up into the band, on the icon
+    // cluster's own line, and the resting copy goes invisible.
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect(pinned, "the trail has picked up into the band").toBeVisible();
+    await expect(resting).toBeHidden();
+    const lines = await page.evaluate(() => {
+      const top = (selector: string) => {
+        const element = document.querySelector(selector);
+        if (!element) throw new Error(`no ${selector} on the config page`);
+        return Math.round(element.getBoundingClientRect().top);
+      };
+      return { pinned: top(".config-header-band .config-breadcrumb"), reload: top(".dashboard-reload-link") };
+    });
+    expect(lines.pinned, "the pinned trail sits on the icon cluster's line").toBe(lines.reload);
+
+    // The row it came from keeps its height, so nothing below the trail moved.
+    expect(
+      await slot.evaluate((element) => Math.round(element.getBoundingClientRect().height)),
+      "the trail's row still measures what it did",
+    ).toBe(rowHeight);
+
+    // Narrow viewport: the pinned trail shares this line with the icon cluster
+    // and has to stop clear of it whatever the chain's width. A three-crumb chain
+    // at 600px used to reach over Log out and take its clicks, because the trail
+    // is later in the DOM.
     await page.setViewportSize({ width: 600, height: 800 });
     await page.getByRole("button", { name: /Voice & People/ }).click();
     await openAccordion(page, "user-data");
     await openAccordion(page, "face-enrolment");
-    await expect(trail).toContainText("Face Enrolment");
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect(pinned).toContainText("Face Enrolment");
+    await expect(pinned).toBeVisible();
 
     const band = await page.evaluate(() => {
-      const trailBox = document.querySelector(".config-breadcrumb")?.getBoundingClientRect();
+      const trailBox = document.querySelector(".config-header-band .config-breadcrumb")?.getBoundingClientRect();
       const logoutBox = document.querySelector(".dashboard-logout-link")?.getBoundingClientRect();
       if (!trailBox || !logoutBox) {
         throw new Error("the band's two occupants are not both mounted");
@@ -151,6 +219,12 @@ test.describe("configuration workspace", () => {
     expect(band.width, "the trail is capped rather than its content's width").toBeLessThan(300);
     expect(band.gap, "the trail stops clear of the icon cluster").toBeGreaterThan(0);
     expect(band.logoutHit, "Log out is the element at its own centre").toBe(true);
+
+    // Back at the top it rests again, exactly where it was.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(resting, "the trail is back in its row").toBeVisible();
+    await expect(pinned).toBeHidden();
   });
 
   test("expands the import/export section", async ({ page }) => {

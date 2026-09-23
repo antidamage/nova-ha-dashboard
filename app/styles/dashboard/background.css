@@ -104,12 +104,12 @@ html[data-nova-no-background] .dashboard-shell::after {
 }
 
 /* Lift the page's own content above the z-index:0 canvas — except the fixed
-   pieces, which carry their own stacking. `.config-header-band` is the config
-   page's header (Back / Log out and the breadcrumb trail): excluding it keeps
-   those at their own z-index in the SHELL's context, where they clear the
-   header fade strip's 90. Left in the list they would sit in a z-index:1
-   context instead, and the whole band would paint under the strip. */
-.dashboard-shell > *:not(.fluid-background):not(.dashboard-wallpaper-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date):not(.config-header-band) {
+   pieces, which carry their own stacking, and the config page's column
+   (`.config-layout`), which is left OUT of the lift so it is not a stacking
+   context: the breadcrumb trail inside it has to compete with the header fade
+   strip's 90 at the shell's level (specs/config-page-header.md). The column's own
+   children carry the lift instead — `app/styles/config/layout.css`. */
+.dashboard-shell > *:not(.fluid-background):not(.dashboard-wallpaper-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date):not(.config-header-band):not(.config-layout) {
   position: relative;
   z-index: 1;
 }

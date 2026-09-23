@@ -89,13 +89,43 @@
   min-height: calc(44px + var(--nova-status-bar-clearance));
 }
 
+/* The lift the shell's direct-child rule gives everything else (background.css),
+   moved one level down because `.config-layout` itself is excluded from that rule:
+   this column is not a stacking context, so the breadcrumb trail inside it — the
+   one that rests in this column before it pins — can carry a z-index of its own and
+   compete with the orb shadow strip's 90 at the shell's level.
+
+   The two lifted elements are NAMED rather than matched with `> *`, and that is not
+   tidiness: a blanket child rule is two classes deep, so it out-ranks the category
+   nav's own `position: sticky; top: …; z-index: 70` — one class — and turned the
+   strip into a `relative` box sitting 8px down the page (measured, PR #46's review).
+   The nav needs no lift because it already carries a z-index of its own, and the
+   trail's slot must stay unpositioned so nothing between the shell and the trail
+   creates a context. A new visible child of this column belongs in this list, or has
+   to declare its own stacking. */
+.config-layout > .update-banner,
+.config-layout > #config-category-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* The trail's row is empty until a category is open (the trail renders nothing on
+   the category grid), and an empty grid row still costs a pair of gaps — which
+   shifts the centred category strip. Take the row out of the grid while it holds
+   nothing. */
+.config-breadcrumb-slot:empty {
+  display: none;
+}
+
 /* The band's own stacking, against the orb shadow strip's 90. Two things make
    this work, and both are needed:
    - the trail and the two buttons live in `.config-header-band`, a direct child
-     of the shell, NOT inside `.config-layout`. background.css makes the column
-     `position: relative; z-index: 1`, which is a stacking context, and a z-index
-     inside one only orders its own siblings — so inside the column these 100/110
-     would still paint under the strip's 90, and did.
+     of the shell, NOT inside `.config-layout`. The shell's lift in background.css
+     used to make that column a stacking context (`position: relative;
+     z-index: 1`), and a z-index inside one only orders its own siblings — which is
+     why, with the band in the column, these 100/110 still painted under the
+     strip's 90. The column is excluded from that lift now, for the resting trail's
+     sake (see it and navigation.css); the band stays outside it regardless.
    - the icons sit one step ABOVE the trail rather than level with it: they are
      the page's only way out and back, the trail is later in the DOM, and at equal
      z-index the trail took Log out's clicks (PR #43's first review round).

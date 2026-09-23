@@ -32,27 +32,59 @@ column, plus a second fixed bottom-right copy so it was never a scroll away on a
 long category. A viewport-anchored cluster needs neither, so the second copy and
 its `.config-bottom-actions` rule are gone.
 
-## The band, and the row that reserves it
+## The band, and the trail's two homes
 
-The band's members are **direct children of the shell**, not of the page column:
-`ConfigWorkspaceLayout` renders them inside `div.config-header-band` beside the
-strip. That is structural, not tidiness. `background.css` gives every other direct
-child of `.dashboard-shell` `position: relative; z-index: 1`, which makes
-`.config-layout` a stacking context — and a `z-index` only orders an element
-against its siblings *inside its own context*. Left in the column, the trail's 100
-and the icons' 110 would be measured against each other while the whole column,
-them included, painted under the strip's 90 at the shell's level. Excluding the
-band from that rule (the way `.dashboard-config-link` already is, which is why the
-Reload button was never affected) is what puts them in the strip's own context.
+Two things live at the top of `/config`: the fixed icon cluster, and the breadcrumb
+trail once it has pinned. `ConfigWorkspaceLayout` renders both inside
+`div.config-header-band`, a **direct child of the shell** rather than of the page
+column. That is structural, not tidiness: the shell's lift in `background.css`
+originally applied to every direct child of `.dashboard-shell` including
+`.config-layout`, which made that column a stacking context — and a `z-index` only
+orders an element against its siblings *inside its own context*. Left in the column,
+the trail's 100 and the icons' 110 were measured against each other while the whole
+column, them included, painted under the strip's 90 at the shell's level. Excluding
+the band from that rule (the way `.dashboard-config-link` already is, which is why
+the Reload button was never affected) is what puts them in the strip's own context.
 
-The column keeps `div.config-header-band-spacer` in their place, and `layout.css`
-gives it `min-height: calc(44px + var(--nova-status-bar-clearance))` — the height
-of the box, with the same clearance term the buttons' own `top` uses, so on a
-standalone iOS device the reserved band follows them. Page content can therefore
-never start underneath the icons, which is why the row sits ahead of
-`UpdateBanner` in that column. It stays in flow rather than becoming an
-absolutely-positioned spacer, so the page's top rhythm is what it was when the
-buttons lived in it.
+The trail is one readout with two homes, and exactly one of them is ever visible:
+
+- **Resting**, in `div.config-breadcrumb-slot` — a row of the page column directly
+  under the category menu, which is where the trail sits at the top of the page.
+- **Pinned**, in the band on the icon cluster's own line, once the page has scrolled
+  far enough that the row's top has reached that line.
+  `useConfigBreadcrumbPin` writes `data-nova-trail` on the shell from those two
+  measured lines, and `navigation.css` decides which copy shows.
+
+The two copies are level at the moment of the handover — the resting copy's top is
+the row's top, which the threshold puts exactly on the cluster's line — so the
+switch has nothing to see. The copy that is hidden keeps the row's height, so
+nothing below the trail moves when it picks up. That, and sharing the line with the
+fixed icons instead of sliding under the page's own shadow, is the difference from
+a plain `position: sticky`.
+
+The resting copy is never washed by the shadow on its way up to the line, and that
+is why the config column is deliberately **not** a stacking context:
+`background.css` excludes `.config-layout` from its direct-child `z-index: 1` lift,
+and `layout.css` lifts the two elements in that column that need it — the update
+banner and `#config-category-content` — leaving the trail's slot unpositioned so
+nothing between the shell and the trail creates a context of its own. Shared a level
+with the strip, the resting trail's `z-index: 100` beats its 90; everything else in
+the column stays at 1, under the strip, exactly as before.
+
+Those two are named rather than matched with `> *`, and that matters: a blanket child
+rule is two classes deep, so it out-ranks the category nav's own `position: sticky;
+top: …; z-index: 70` — one class — and turns the strip into a `relative` box sitting
+8px down the page. The nav needs no lift (it carries its own z-index), and any new
+visible child of that column belongs in the list or has to declare its own stacking.
+The trail's row is also taken out of the grid while it is empty (`:empty`), so the
+category grid on a category-less page does not carry its pair of gaps.
+
+The column also keeps `div.config-header-band-spacer` ahead of `UpdateBanner`, with
+`min-height: calc(44px + var(--nova-status-bar-clearance))` — the height of the icon
+box, with the same clearance term the buttons' own `top` uses, so on a standalone
+iOS device the reserved band follows them, and page content can never start
+underneath the fixed icons. Both of those rows stay in flow, so the page's top
+rhythm is what it was when the buttons lived in the column.
 
 ## The orb shadow, and what is in front of it
 
@@ -108,16 +140,21 @@ icons, the trail and the shadow.
   buttons disable themselves.
 - The strip is invisible at scroll 0 and fades in with scrolling, reaching full
   strength at 160px, in the theme's colour and opacity.
-- The breadcrumb trail is fixed — it does not move with the page either — and
-  paints in front of the strip.
+- The breadcrumb trail rests in its own row in the page column at the top of the
+  page, exactly as before this change, and pins to the icon cluster's line once the
+  page has scrolled past that row — not moving with the page thereafter, and in
+  front of the strip.
+- Nothing below the trail moves when it picks up: the row it came from keeps its
+  height, and at the threshold the two copies are on the same line.
 - The trail never covers the icon cluster, at any viewport: its width is capped
   clear of it and the icons outrank it in the band, so Back and Log out stay
   readable and clickable with a trail showing.
-- Nothing in the page column starts underneath the icons at rest: the row's
-  reserved 44px band puts the category nav's top edge at 80px, clear of the
-  icons' bottom edge at 60px.
-- `e2e/config.spec.ts` covers those claims: the icons' and the trail's viewport y
-  are identical before and after a scroll, the trail's position is `fixed`, the
-  strip's opacity goes 0 → 1 → 0, the band paints in front of the strip (asserted
-  by hit-testing with the strip made hit-testable, not by reading `z-index`), and
-  the trail stops clear of the icon cluster at 600px.
+- Nothing in the page column starts underneath the icons at rest: the reserved 44px
+  band puts the category nav's top edge at 80px, clear of the icons' bottom edge at
+  60px.
+- `e2e/config.spec.ts` covers those claims: the icons' viewport y is identical
+  before and after a scroll, the trail's own case shows it resting in its row and
+  then pinned on the cluster's line with the row's height unchanged, the strip's
+  opacity goes 0 → 1 → 0, the band paints in front of the strip (asserted by
+  hit-testing with the strip made hit-testable, not by reading `z-index`), and the
+  pinned trail stops clear of the icon cluster at 600px.
