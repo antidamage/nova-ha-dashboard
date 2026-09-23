@@ -44,6 +44,7 @@ convention that came with it.
 | [landscape-layout.md](landscape-layout.md) · [portrait-layout.md](portrait-layout.md) | Per-orientation dashboard layout |
 | [advanced-fold.md](advanced-fold.md) · [header-fade.md](header-fade.md) · [panel-surface.md](panel-surface.md) | Shell details |
 | [config-breadcrumb-navigation.md](config-breadcrumb-navigation.md) | Config page URL trail |
+| [config-page-header.md](config-page-header.md) | Config page top bar: the fixed icon cluster and its scroll shadow |
 | [ios-home-screen-webapp.md](ios-home-screen-webapp.md) | Standalone iOS web-app behaviour: the status-bar strip |
 | [ios-overscroll.md](ios-overscroll.md) | Page overscroll, bounce and pull-to-refresh on iOS/iPadOS |
 

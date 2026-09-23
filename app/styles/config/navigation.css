@@ -1,14 +1,32 @@
 /* Config breadcrumb, import/export and the category navigation list. */
 
-/* "Where am I" trail, sitting in the page's own flow directly under the
-   category menu (.config-category-nav) rather than floating over the page —
-   same dark-panel language as .config-page-button/.config-category-button.
-   Purely a jump-to readout: crumbs are plain buttons, see ConfigBreadcrumbBar.tsx. */
+/* "Where am I" trail. It floats: fixed to the top of the viewport, centred in
+   the config page's header band beside the fixed Reload / Back / Log out
+   cluster, and above the theme's orb-shadow strip (specs/config-page-header.md).
+   Same fixed-top pattern as .dashboard-config-link/.dashboard-reload-link (top
+   offset + safe-area inset, centred instead of edge-anchored), same dark-panel
+   language as .config-page-button/.config-category-button. Purely a jump-to
+   readout: crumbs are plain buttons, see ConfigBreadcrumbBar.tsx. */
 .config-breadcrumb {
+  position: fixed !important;
+  top: calc(16px + var(--nova-status-bar-clearance));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
+  /* What keeps the centred trail off the icon cluster. The trail is a
+     shrink-to-fit fixed box, so its width follows the chain and is otherwise
+     unbounded: a three-crumb chain measured 334px and, centred, reached x=133 at
+     a 600px viewport — over the Log out button (120-164) — so the trail, later in
+     the DOM at the same z-index, took its clicks. Capping the width to
+     `100vw - 2 x cluster-right` bounds it to `min(content, 100vw - 360px)`, which
+     puts the left edge at 180px or more (the cluster ends at 164 + the left
+     safe-area inset, hence the doubled term), and the trail scrolls internally
+     for a longer chain. Below 480px wide it is a sliver, which is what the
+     right-aligned branch at the foot of this file is for. */
+  max-width: calc(100vw - 360px - 2 * env(safe-area-inset-left, 0px));
   overflow-x: auto;
   cursor: grab;
   border: 1px solid rgb(64 64 64);
@@ -21,9 +39,8 @@
 }
 
 /* Just the category, nothing unfolded yet — the trail has nothing to add
-   over the page header, so keep it out of the way until one level deep. The
-   fade (not a display:none) keeps the row's slot in the flow, so the first
-   accordion opening never shifts the page under the pointer. */
+   over the page header, so keep it out of the way until one level deep. It is
+   out of the page's flow, so fading it in and out shifts nothing. */
 .config-breadcrumb-shallow {
   opacity: 0;
   pointer-events: none;
@@ -177,5 +194,23 @@ button.config-breadcrumb-crumb:focus-visible {
 @media (max-width: 640px) {
   .config-category-nav {
     grid-auto-columns: minmax(165px, 78vw);
+  }
+}
+
+/* Narrower than the 480px below which the centred trail would be a sliver once
+   its width is capped clear of the icon cluster (Reload, Back and Log out are
+   44px boxes at 16/68/120, so the cluster's right edge is at 164px). The trail
+   moves to the right edge of the same band instead, where it has real room, and
+   still stops 16px clear of the icons. */
+@media (max-width: 479px) {
+  .config-breadcrumb {
+    left: auto;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    transform: none;
+    /* Both insets come off the cap, not just the right one: the icon cluster's
+       own left offset carries the left inset, so a device with one (a small
+       notched viewport in landscape) moves the cluster's right edge inwards and
+       the trail has to stop that much further out. */
+    max-width: calc(100vw - 196px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   }
 }
