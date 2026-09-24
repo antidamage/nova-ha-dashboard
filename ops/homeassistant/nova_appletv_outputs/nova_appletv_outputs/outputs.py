@@ -18,9 +18,10 @@ def normalise_identifier(value: object) -> str:
     """
     Hex only, lower case.
 
-    The same Apple TV is reported three ways — `96:02:06:63:50:DB`,
-    `94020663-50DB-442B-9355-78C9DDCA0C94` and `9602066350DB` are one device —
-    so an identifier match has to normalise before comparing.
+    One Apple TV is reported several ways — `02:00:5E:11:22:33`,
+    `02005e11-2233-4455-6677-8899aabbccdd` and `02005e112233` are one device, and
+    the values are synthetic — so an identifier match has to normalise before
+    comparing.
     """
     return re.sub(r"[^0-9a-f]", "", str(value or "").lower())
 

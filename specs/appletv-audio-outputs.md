@@ -59,9 +59,10 @@ recorded by the recorder, and readable from `/api/states` — which is where the
 dashboard reads them.
 
 **The identifier source is the config entry**, not a guess:
-`entry.data["identifiers"]` lists the Apple TV as `96:02:06:63:50:DB`,
-`94020663-50DB-442B-9355-78C9DDCA0C94` and `9602066350DB` — one device, three
-spellings — so identifiers are normalised (hex only, lower case) before
+`entry.data["identifiers"]` lists the Apple TV under several spellings of one
+identifier — `02:00:5E:11:22:33`, `02005e11-2233-4455-6677-8899aabbccdd` and
+`02005e112233` as examples, one device — so identifiers are normalised (hex
+only, lower case) before
 comparing, and the Apple TV's own name is the fallback match because tvOS has
 spelled the television's own output more than one way. Home Assistant's
 disambiguating title suffix (`Home Theatre (1485)`) is stripped before the name
@@ -81,18 +82,20 @@ the tail risk of §6.
 
 **Observed on this house's Apple TV, 2026-09-22** (the first live reading, taken
 while the device reported `off` to HA — MRP answers in network standby, so the
-list is readable even then):
+list is readable even then). The identifier in the block is the synthetic one
+used above, standing in for this house's real value; what it demonstrates is the
+shape of what the device reports:
 
 ```
-active_outputs = [{"identifier": "94020663-50DB-442B-9355-78C9DDCA0C94",
+active_outputs = [{"identifier": "02005e11-2233-4455-6677-8899aabbccdd",
                    "name": "Home Theatre"}]
 verdict        = on
 ```
 
 The reading confirms the identification. The Apple TV reports its own local
-output under **the UID spelling** of its identifier —
-`94020663-50DB-442B-9355-78C9DDCA0C94`, one of the three spellings the config
-entry already stores — so the identifier branch of `is_own_output()` matches it.
+output under **the UID spelling** of its identifier — the UID shape in the block
+above, one of the three spellings the config entry already stores — so the
+identifier branch of `is_own_output()` matches it.
 Its name matches too, so this shows the identifier branch is sufficient rather
 than that it is the branch that fired alone. Nothing beyond the local output was
 reported in that reading, which is why the headphones row (§3) still needs an

@@ -41,11 +41,11 @@ class ReportedOutput:
 
 
 class VerdictTest(unittest.TestCase):
-    """The Apple TV this bridge was written for, by its three identifiers."""
+    """The Apple TV, by its three identifiers (all values here are synthetic)."""
 
     OWN_IDS = outputs.own_identifiers(
-        "96:02:06:63:50:DB",
-        ["96:02:06:63:50:DB", "94020663-50DB-442B-9355-78C9DDCA0C94", "9602066350DB"],
+        "02:00:5E:11:22:33",
+        ["02:00:5E:11:22:33", "02005e11-2233-4455-6677-8899aabbccdd", "02005e112233"],
     )
     NAMES = outputs.own_names("Home Theatre (1485)", "Home Theatre (1485)")
 
@@ -60,13 +60,13 @@ class VerdictTest(unittest.TestCase):
             self.assertEqual(self.verdict(devices).audio_output, "unknown")
 
     def test_the_apple_tvs_own_output_is_tv_speakers(self):
-        verdict = self.verdict([ReportedOutput("96:02:06:63:50:DB", "Home Theatre")])
+        verdict = self.verdict([ReportedOutput("02:00:5E:11:22:33", "Home Theatre")])
 
         self.assertEqual(verdict.tv_speakers, "on")
         self.assertEqual(verdict.audio_output, "Home Theatre")
 
     def test_identifier_forms_all_match(self):
-        for identifier in ("96:02:06:63:50:DB", "94020663-50DB-442B-9355-78C9DDCA0C94", "9602066350DB"):
+        for identifier in ("02:00:5E:11:22:33", "02005e11-2233-4455-6677-8899aabbccdd", "02005e112233"):
             self.assertEqual(self.verdict([ReportedOutput(identifier)]).tv_speakers, "on")
 
     def test_the_name_matches_when_the_identifier_does_not(self):
@@ -104,7 +104,7 @@ class VerdictTest(unittest.TestCase):
     def test_the_apple_tv_alongside_another_output_is_off(self):
         verdict = self.verdict(
             [
-                ReportedOutput("96:02:06:63:50:DB", "Home Theatre"),
+                ReportedOutput("02:00:5E:11:22:33", "Home Theatre"),
                 ReportedOutput("AA:BB:CC:DD:EE:FF", "Living Room HomePod"),
             ]
         )
@@ -113,10 +113,10 @@ class VerdictTest(unittest.TestCase):
         self.assertEqual(verdict.audio_output, "Home Theatre, Living Room HomePod")
 
     def test_the_identifiers_are_normalised_before_comparing(self):
-        own = outputs.own_identifiers("9602066350DB", None)
+        own = outputs.own_identifiers("02005E112233", None)
 
-        self.assertEqual(own, {"9602066350db"})
-        self.assertTrue(outputs.is_own_output(ReportedOutput("96:02:06:63:50:db"), own, set()))
+        self.assertEqual(own, {"02005e112233"})
+        self.assertTrue(outputs.is_own_output(ReportedOutput("02:00:5e:11:22:33"), own, set()))
 
 
 class NameTest(unittest.TestCase):

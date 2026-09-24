@@ -35,7 +35,8 @@ that:
 Adeline asked for **pyatv**. Home Assistant's `apple_tv` integration *is*
 pyatv — it is the library's primary consumer — and it is **already configured
 on this house's HA** with Companion credentials paired against the Home Theatre
-Apple TV 4K (`94020663-50DB-442B-9355-78C9DDCA0C94`, 192.168.8.120, tvOS 26.6).
+Apple TV 4K (tvOS 26.6; its identifiers are household data and are deliberately
+not written into this repo).
 It owns three entities:
 
 ```
