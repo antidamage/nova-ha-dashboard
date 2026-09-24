@@ -239,11 +239,9 @@ category is active (hidden on the plain category grid).
   `.config-layout`'s `z-index: 1` stacking context and really does paint in front of
   the theme's orb-shadow strip (specs/config-page-header.md); the handover, the two
   copies' sameness at the threshold and the row's kept height are all described
-  there too. Same dark-panel language as the menu and `config-page-button`
-  (neutral-950/70 background, neutral-700 border, clipped top-right corner), crumbs
-  `›` (ChevronRight)-separated. The shallow state (category only, nothing unfolded)
-  fades the trail rather than unmounting it, so nothing shifts when the first
-  accordion opens.
+  there too. Crumbs are `›` (ChevronRight)-separated. The shallow state (category
+  only, nothing unfolded) fades the trail rather than unmounting it, so nothing
+  shifts when the first accordion opens.
   The pinned copy's width is capped so it can never reach the icon cluster beside
   it: `max-width: calc(100vw - 360px - 2 x safe-area-left)`, which bounds a centred
   trail's left edge at 180px against the cluster's 164px right edge, with the trail
@@ -251,6 +249,28 @@ category is active (hidden on the plain category grid).
   sliver, it right-aligns in the band instead and takes the room left of the icons,
   capped at `100vw - 196px` less both safe-area insets (the cluster's own offset
   carries the left one). The resting copy keeps the column's full width.
+  The chip is filled with the accent —
+  `rgb(var(--cyber-line-rgb) / 0.7)`, bordered with `--cyber-border-dim` — and the
+  text on it takes that fill's tone, `--cyber-title-on-line`. That is the theme's
+  text-tone rule (specs/slide-switch.md): a filled surface takes its own fill's tone
+  for anything written inside it, and only text on the page background takes
+  `--cyber-title-on-bg` — which is what these crumbs used on an accent-filled chip,
+  and why the trail's text read wrong. Measured on the owner's two variants, the
+  crumbs read 4.52:1 (dark) and 5.80:1 (light), against 1.36:1 for the old
+  pairing on the light variant (WCAG relative luminance, the chip composited as
+  accent at 0.7 over the page background).
+
+  Nothing interactive carries a dimmed tone: the root crumb is a button like the
+  others and reads at full tone, and only the aria-hidden chevrons take the dim mix
+  (`color-mix(in srgb, var(--cyber-title-on-line) 86%, var(--cyber-line))`, the
+  weight `--cyber-text-dim` uses; measured 3.83:1 / 4.19:1). Hover and focus keep
+  that same fill/tone pair — the only tone for this surface is the one already in
+  use, so the state is signalled by a brighter glow and an underline instead. A
+  colour change here is wrong even when it looks plausible: an accent patch on the
+  crumb measures 4.21:1 and a highlight patch 3.81:1 against 4.52:1 at rest, because
+  the theme's accent and highlight are independent colours that can sit on opposite
+  sides of the tone threshold. Every figure above is the resting copy, the one in the
+  page column, against the chip composited over the page background.
 - Visually minimal: small uppercase labels, `›` (ChevronRight, already
   imported elsewhere) between crumbs.
 - Overflow: reuse `useHorizontalDragScroll` (already used for
