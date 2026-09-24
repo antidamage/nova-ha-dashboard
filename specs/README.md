@@ -73,7 +73,7 @@ convention that came with it.
 | [outside-weather-and-map.md](outside-weather-and-map.md) | Outside panel, weather and map |
 | [outside-card.md](outside-card.md) · [weather-refresh.md](weather-refresh.md) | Narrower siblings of the above |
 | [router-and-network-panel.md](router-and-network-panel.md) | Router and network panel |
-| [quick-access-card.md](quick-access-card.md) | The one-line home card |
+| [quick-access-card.md](quick-access-card.md) | The home card and its slot grid |
 | [control-modules.md](control-modules.md) | Device modules, presets and the dashboard's control slots |
 | [apple-tv-volume.md](apple-tv-volume.md) | The amplifier dial (IR-emitter placeholder) |
 | [tasks-panel.md](tasks-panel.md) · [icloud-sync.md](icloud-sync.md) | Tasks and reminder sync |

@@ -86,17 +86,20 @@ function build(controls: ControlsConfig, state: DashboardState = STATE) {
 }
 
 describe("buildQuickAccessItems", () => {
-  it("reproduces the card's rows from the derived slot order", () => {
+  it("reproduces the card's grid order from the derived slot order", () => {
     const items = build({
       presets: [AIRCON, HEATER, LIGHTS, AMPLIFIER, OUTSIDE],
       slots: [slot("s1", "home-lights", "everything"), slot("s2", "amplifier"), slot("s3", "lounge"), slot("s4", "bedroom"), slot("s5", "outside")],
     });
-    expect(items.map((item) => `${item.region}:${item.kind}`)).toEqual([
-      "dial-line:lighting",
-      "dial-line:amplifier",
-      "climate:climate",
-      "climate:climate",
-      "readings:outside",
+    // The order the slots are configured in IS the order they take in the grid
+    // (Adeline, 2026-09-25): the dials, then the two climate knobs, then the
+    // readings. A module's declared region no longer places it.
+    expect(items.map((item) => item.kind)).toEqual([
+      "lighting",
+      "amplifier",
+      "climate",
+      "climate",
+      "outside",
     ]);
   });
 

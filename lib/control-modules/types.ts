@@ -29,10 +29,15 @@ export const SHIPPED_RENDERER_IDS = ["climate-knob", "lighting-dial", "amplifier
 export type ControlRendererId = (typeof SHIPPED_RENDERER_IDS)[number];
 
 /**
- * Which row of a surface a control occupies. The Quick Access card is three
- * rows — the first dial line, the climate knobs, the trailing readings — because
- * that is the layout its stylesheet is built on; a module says which row it
- * belongs to, and order decides position WITHIN a row.
+ * The reading order a control announces for the surface it is placed on: the
+ * dial line, the climate knobs, the trailing readings.
+ *
+ * It no longer decides a module's row. A panel is a grid of equal slots and the
+ * slot's own order is its position in it (Adeline, 2026-09-25;
+ * specs/control-modules.md, "Slots and the Quick Access row"), so a module's
+ * region is what it declares rather than what places it. The field stays because
+ * it is part of a module's definition and travels in a package — a package that
+ * carries it must still round-trip.
  */
 export type QuickRegion = "dial-line" | "climate" | "readings";
 
@@ -103,7 +108,7 @@ export type ControlModule = {
   layer: ControlLayer;
   /** The renderer that draws a preset of this module. Drivers have none. */
   renderer: ControlRendererId | null;
-  /** The row of the surface a placed preset occupies. Drivers have none. */
+  /** The reading order the module announces. Drivers have none. */
   region: QuickRegion | null;
   /** Present when a preset of this module must choose one. */
   variants: ControlVariant[];

@@ -2,7 +2,6 @@
 
 import { useRef, type CSSProperties, type ReactNode } from "react";
 import type { DashboardZone, SunStatus, WeatherStatus } from "../../../../lib/types";
-import type { QuickRegion } from "../../../../lib/control-modules/types";
 import { dialPresetPull, ringGeometry } from "../../rotaryEncoderGeometry";
 import type { EntityActionsHandler } from "../climateCommands";
 import { QuickAppleTVSegment } from "./QuickAppleTVSegment";
@@ -13,24 +12,23 @@ import { QuickWeatherSegment } from "./QuickWeatherSegment";
 import { useQuickSlotLayout } from "./useQuickSlotLayout";
 
 /**
- * Quick Access: the one-line home card, now built from configuration
+ * Quick Access: the home card, built from configuration
  * (specs/control-modules.md).
  *
  * The card owns layout and nothing else. Every control it shows arrives as a
  * resolved item carrying the device it drives, the room it serves, its own
- * feature switches and the line it belongs to, so a preset placed here is drawn
- * by its module's renderer rather than by a branch in this file. The card still
- * takes props only and reads no globals, so another surface can mount it or any
- * one segment.
+ * feature switches and the renderer that draws it, so a preset placed here is
+ * drawn by its module's renderer rather than by a branch in this file. The card
+ * still takes props only and reads no globals, so another surface can mount it or
+ * any one segment.
  *
- * Layout is one LINE per region, and one slot per module inside it. Every slot
- * on the card is the same width and they fill their line, so a card holding
- * three controls and a card holding six line up the same way; the width, the
- * gap and the dial size come from `useQuickSlotLayout` (specs/quick-access-card.md).
+ * Layout is one GRID of equal slots, one slot per module placed on the card, in
+ * the order the slots are configured in (Adeline, 2026-09-25). The arrangement —
+ * 2x2 for four slots, 3x2 for five, one line down a phone — and the size every
+ * dial on the card is drawn at come from `useQuickSlotLayout`, which measures the
+ * card's own box; the stylesheet only says how a slot's content sits in it
+ * (specs/quick-access-card.md).
  */
-
-/** The lines, in reading order. A module's region decides which one it joins. */
-const LINES: QuickRegion[] = ["dial-line", "climate", "readings"];
 
 export type QuickAccessCardProps = {
   items: QuickItem[];
@@ -58,24 +56,24 @@ export function QuickAccessCard({
   onNotice,
 }: QuickAccessCardProps) {
   const rowRef = useRef<HTMLDivElement>(null);
-  const lines = LINES.map((region) => ({ region, items: items.filter((item) => item.region === region) })).filter(
-    (line) => line.items.length > 0,
-  );
   const layout = useQuickSlotLayout(rowRef, {
+    count: items.length,
     dials: items.filter((item) => item.kind !== "outside").length,
     readings: items.filter((item) => item.kind === "outside").length,
-    widestLine: lines.reduce((most, line) => Math.max(most, line.items.length), 0),
   });
   const { size: dialSize } = layout;
   // Consumed by the stylesheet; see app/styles/dashboard/quick-access-dials.css.
   const rowStyle = {
     // Left UNSET until the card has measured itself. Writing a measured 0 would
-    // make the stylesheet's `var(--quick-slot, auto)` fallback unreachable and
-    // lay every slot out at zero width for the first painted frame, with the
-    // dials and their preset rows stacked on the line's centre (found in
-    // review). Unset, a slot sizes to its own content until the measurement
-    // lands a frame later.
+    // make the stylesheet's `var(--quick-slot, 0px)` fallback unreachable and lay
+    // every slot out at zero width for the first painted frame, with the dials
+    // and their preset rows stacked on the row's centre (found in review).
+    // Unset, a slot sizes to its own content until the measurement lands a frame
+    // later.
     ...(layout.slot > 0 ? { "--quick-slot": `${layout.slot.toFixed(2)}px` } : {}),
+    // How many columns the grid has. Written even before the first measurement
+    // (it is 1 then), so the stylesheet never has to guess.
+    "--quick-columns": `${Math.max(1, layout.columns)}`,
     "--quick-slot-gap": `${layout.gap}px`,
     "--quick-dial-box": `${ringGeometry(dialSize, 0, true).titleFootprint.toFixed(2)}px`,
     // The air under a titled dial's box: its preset row takes it back, so a
@@ -113,11 +111,7 @@ export function QuickAccessCard({
   return (
     <section className="quick-access" aria-label="Quick Access" data-card-id="quick-access">
       <div ref={rowRef} className="quick-access-row" style={rowStyle}>
-        {lines.map((line) => (
-          <div key={line.region} className={`quick-line quick-line-${line.region}`}>
-            {line.items.map(render)}
-          </div>
-        ))}
+        {items.map(render)}
       </div>
     </section>
   );

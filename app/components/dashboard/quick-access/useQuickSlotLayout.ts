@@ -3,34 +3,32 @@
 import { useEffect, useState, type RefObject } from "react";
 import { PORTRAIT_QUERY, quickSlotLayout, type QuickSlotLayout } from "./dial-model";
 
-/** What the card has placed, which is all the layout needs beyond its width. */
+/** What the card has placed, which is all the layout needs beyond its own box. */
 export type QuickSlotCounts = {
-  /** The most slots any one line holds. */
-  widestLine: number;
-  /** How many dials are placed. */
+  /** How many modules are placed — the number of slots, which decides the grid. */
+  count: number;
+  /** How many dials are placed, so a readings-only card reserves no dial box. */
   dials: number;
   /** How many readings tiles are placed. */
   readings: number;
 };
 
 /**
- * The card's slot layout, measured from the card itself
- * (specs/quick-access-card.md). One slot width for every module placed, as many
- * slots on a line as that width allows, and the gap between them — re-derived
- * whenever the card's width or the orientation changes, so the same rules hold
- * on a phone, a tablet and the kiosk.
+ * The card's grid, measured from the card itself (specs/quick-access-card.md).
  *
- * Portrait shrinks every dial together when the card is narrower than one slot,
- * so no ring runs off the screen. Landscape keeps the fixed 133px: its slots
- * need only a dial's box, and its rings are free to float over the page.
+ * The card is a grid of equal slots — one per module placed on it — and this
+ * feeds it the two things it cannot know from CSS: how wide it is, and, in
+ * landscape, how tall. Both are re-derived whenever the card resizes or the
+ * orientation flips, and the one dial size every dial on the card is drawn at
+ * comes out of the same answer.
  */
 export function useQuickSlotLayout(
   rowRef: RefObject<HTMLDivElement | null>,
   counts: QuickSlotCounts,
 ): QuickSlotLayout {
-  const { widestLine, dials, readings } = counts;
+  const { count, dials, readings } = counts;
   const [layout, setLayout] = useState<QuickSlotLayout>(() =>
-    quickSlotLayout({ dials, portrait: false, readings, widestLine, width: 0 }),
+    quickSlotLayout({ count, dials, height: 0, portrait: false, readings, width: 0 }),
   );
 
   useEffect(() => {
@@ -40,10 +38,16 @@ export function useQuickSlotLayout(
     const update = () => {
       setLayout(
         quickSlotLayout({
+          count,
           dials,
+          // Only a landscape card has a height of its own to divide: there the
+          // card is a column of the page's fixed column height and the rows split
+          // it between them (landscape.css). In portrait the card is as tall as
+          // its content, so a measured height describes the result of the dial
+          // size about to be chosen from it — a loop, and a jittering one.
+          height: portrait.matches ? 0 : row.clientHeight,
           portrait: portrait.matches,
           readings,
-          widestLine,
           width: row.clientWidth,
         }),
       );
@@ -56,7 +60,7 @@ export function useQuickSlotLayout(
       observer.disconnect();
       portrait.removeEventListener("change", update);
     };
-  }, [rowRef, widestLine, dials, readings]);
+  }, [rowRef, count, dials, readings]);
 
   return layout;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ControlModule, ControlsConfig, QuickRegion, ResolvedSlot } from "../../../../lib/control-modules/types";
+import type { ControlModule, ControlsConfig, ResolvedSlot } from "../../../../lib/control-modules/types";
 import type {
   BedroomHeaterPreferences,
   AirconPreferences,
@@ -21,29 +21,18 @@ function resolveFeaturesOf(resolved: ResolvedSlot): Record<string, boolean> {
 }
 
 /**
- * Which row of the card a slot occupies: the MODULE's own declaration, which is
- * what the Devices tab and the spec describe. The renderer's default is only a
- * fallback, so a module that says "climate" is not silently drawn on the dial
- * line because of the shape its renderer happens to draw.
- */
-function regionFor(resolved: ResolvedSlot): QuickRegion {
-  return resolved.module.region ?? DEFAULT_REGION[resolved.module.renderer ?? "climate-knob"];
-}
-
-const DEFAULT_REGION: Record<string, QuickRegion> = {
-  "amplifier-dial": "dial-line",
-  "climate-knob": "climate",
-  "lighting-dial": "dial-line",
-  "weather-readings": "readings",
-};
-
-/**
  * The Quick Access card, built from configuration (specs/control-modules.md).
  *
  * One slot in, one renderable item out. The DEVICE half — which entity is the
  * aircon, which switch is Fresh air, whether the room's sensor list is even read
  * — lives in `quickSlotDevices.ts`, so this file is the item model and the
  * renderer choice and nothing else.
+ *
+ * The items come out in the order the slots are configured in, which is the
+ * order they take in the card's grid (Adeline, 2026-09-25). A module's declared
+ * `region` no longer places it: the card is a grid of equal slots, not a stack of
+ * lines, so the 1x4/4x1/2x2 arrangement and the position in it are the slot's
+ * order and the room the panel has.
  *
  * Device resolution order, and why: an explicit id in the preset's binding wins,
  * then the room the preset serves, and only then the zone the installation files
@@ -57,13 +46,11 @@ export type QuickAmplifierItem = {
   kind: "amplifier";
   presetId: string;
   title: string;
-  region: QuickRegion;
 };
 
 export type QuickLightingItem = {
   key: string;
   kind: "lighting";
-  region: QuickRegion;
   presetId: string;
   title: string;
   roomId: string | null;
@@ -76,7 +63,6 @@ export type QuickLightingItem = {
 type QuickClimateCommon = {
   key: string;
   kind: "climate";
-  region: QuickRegion;
   presetId: string;
   title: string;
   roomId: string | null;
@@ -108,7 +94,6 @@ export type QuickClimateItem = QuickAirconItem | QuickHeaterItem;
 export type QuickOutsideItem = {
   key: string;
   kind: "outside";
-  region: QuickRegion;
   presetId: string;
   title: string;
   features: Record<string, boolean>;
@@ -143,7 +128,6 @@ function climateItem(
     kind: "climate" as const,
     preferredRange,
     presetId: resolved.preset.id,
-    region: regionFor(resolved),
     roomId: resolved.roomId,
     title: resolved.preset.name,
   };
@@ -171,7 +155,6 @@ function lightingItem(resolved: ResolvedSlot, data: DashboardState | null): Quic
     key: resolved.slot.id,
     kind: "lighting",
     presetId: resolved.preset.id,
-    region: regionFor(resolved),
     roomId: resolved.roomId,
     spectrumCursor: data?.spectrumCursors?.[zone.id],
     title: resolved.preset.name,
@@ -208,7 +191,6 @@ export function buildQuickAccessItems(input: QuickSlotInput): QuickItem[] {
         key: resolved.slot.id,
         kind: "amplifier",
         presetId: resolved.preset.id,
-        region: regionFor(resolved),
         title: resolved.preset.name,
       });
       continue;
@@ -219,7 +201,6 @@ export function buildQuickAccessItems(input: QuickSlotInput): QuickItem[] {
         key: resolved.slot.id,
         kind: "outside",
         presetId: resolved.preset.id,
-        region: regionFor(resolved),
         title: resolved.preset.name,
       });
     }

@@ -166,21 +166,25 @@ Editing a preset updates every slot showing it, deleting a preset takes its slot
 with it, and a slot whose preset or module is gone renders **nothing** rather than
 an empty control, because an empty control is a permanent hole on the card.
 
-The card is three lines, because that is the reading order its stylesheet is built
-on, and a module declares which one it belongs to (`region`; the renderer's
-default is only a fallback, so a module that says "climate" is not drawn on the
-dial line because of the shape its renderer happens to draw):
+A panel's slots are a GRID, not a stack of lines, and the slot's own order is its
+position in it. A module's declared `region` (`dial-line`, `climate`, `readings`)
+is the reading order it announces and no longer decides which row it lands on:
+nothing falls back to a renderer's default any more, because there are no rows to
+fall back to.
 
-- `dial-line` — the first line: the room's lights, the amplifier.
-- `climate` — the climate knobs.
-- `readings` — the trailing readings.
-
-Slot order decides position **within** a line, and every slot is the same width
-whatever it draws — the card measures one slot width, fills each line with as
-many slots as fit, and top-aligns the control inside its slot
-(specs/quick-access-card.md, "The layout slots"). A module that invented a fourth
-line would need a matching stylesheet; saying so here is better than a card that
-silently stacks wrong.
+- **The arrangement is the panel's own while the panel has room for it**, and the
+  rule is `app/components/dashboard/panelSlots.ts`
+  (`balancedColumns`/`panelSlotGrid`): the balanced grid — 2x2 for four slots,
+  3x2 for five — giving up a column at a time while a slot would come out
+  narrower than the panel's own minimum, down to a single line along the panel's
+  long axis.
+- **Every slot on a panel is the same size**, whatever it draws, and the slots
+  evenly subdivide the panel; a slot's content is centred across it and starts at
+  its top, and scales up or down to fit it. A panel with one component is the 1x1
+  case of the same rule (Adeline, 2026-09-25).
+- So the card the demo ships — five modules — is three columns of two, and the
+  four-module card is the 2x2 Adeline named. The worked example, with the
+  numbers, is specs/quick-access-card.md, "The layout slots".
 
 ## The config page
 
@@ -287,8 +291,8 @@ Named here rather than discovered later:
 - **No per-preset renderer code.** A control module names one of the four shipped
   renderers. Anything needing its own drawing needs the installable module system.
 - **Only Quick Access has slots.** `ControlSlot.surface` is a one-value union
-  today, so adding the zone panels is a new value plus the row they land in — not
-  a new model. The consequence worth knowing: a room's own Climate card still
+  today, so adding the zone panels is a new value plus the grid its slots land in
+  (above) — not a new model. The consequence worth knowing: a room's own Climate card still
   reads the config directly, so a preset's FEATURE switches do not reach it — the
   Lounge knob in its zone panel and the Lounge knob on this card can differ in
   which rings they show until the zone panels are modular too. The two agree on

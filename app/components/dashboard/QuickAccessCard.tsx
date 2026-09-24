@@ -20,7 +20,7 @@
 //   QuickAccessCard.tsx      the card itself
 // Climate knobs share one command-hook instance per room through
 // ClimateCommandsProvider (specs/quick-access-card.md); nothing here creates one.
-export { quickDialSizeFor, quickDialSlot } from "./quick-access/dial-model";
+export { quickDialSlot } from "./quick-access/dial-model";
 export { QuickLightsSegment } from "./quick-access/QuickLightsSegment";
 export { QuickAirconSegment, QuickHeaterSegment } from "./quick-access/QuickClimateSegments";
 export { QuickWeatherSegment, weatherIcon } from "./quick-access/QuickWeatherSegment";

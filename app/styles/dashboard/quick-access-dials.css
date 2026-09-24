@@ -1,62 +1,58 @@
-/* Quick Access' layout slots (specs/quick-access-card.md): one width for every
-   slot a module can be placed in, the gap between them, and the preset row that
-   belongs under each dial. This extends quick-access.css, which stays the file
-   for the card itself and its segments. */
+/* Quick Access' layout slots (specs/quick-access-card.md): the card is a grid of
+   equal slots — one per module placed on it — in a defined arrangement, and this
+   is where that arrangement is drawn. It extends quick-access.css, which stays
+   the file for the card itself and its segments. */
 
-/* The card is a stack of lines: the dial line (the room's lights and the
-   amplifier), the climate knobs, the readings. */
+/* The grid. One track per column, each at least the slot width the card measured
+   for itself (`--quick-slot`, set by QuickAccessCard a frame after paint), and
+   equal, so the slots subdivide the card's width evenly and a full row reaches
+   both edges. Which arrangement that is — 2x2 for four slots, 3x2 for five, one
+   column down a phone — is the layout's decision, not the stylesheet's
+   (`app/components/dashboard/panelSlots.ts`).
+
+   Adeline, 2026-09-25: "the panel will be defined as having (default in the case
+   of maximum room available) either 1x4, 4x1 or 2x2 slot arrangements. these
+   slots will evenly subdivide the space available." Before this the card was a
+   stack of lines — the dial line, the climate knobs, the readings — each holding
+   as many slots as fitted, so a slot's position said nothing about the slots
+   around it. */
 .quick-access-row {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(var(--quick-columns, 1), minmax(var(--quick-slot, 0px), 1fr));
   gap: var(--quick-slot-gap, 8px);
   min-width: 0;
 }
 
-/* One line, and every module placed on the card takes ONE slot in it, whatever
-   it draws — a lighting dial, an amplifier dial, a climate knob, a readings
-   tile. All the slots are the same width (`--quick-slot`, measured by the card
-   from its own width) and they fill the line they are on: as many as fit at
-   that width, centred, so a line holding one slot sits it in the middle of the
-   card and a line holding two spreads them to the edges. Content is top-aligned
-   in its slot (see .quick-segment) rather than centred in it, so the controls
-   on a line start together.
-
-   Adeline, 2026-09-23: "making them all the same size and evenly spaced and
-   distributed... align to the top of their individual space, and otherwise flow
-   like a centre-aligned grid... once items have flowed into the minimum
-   allowable space, they should scale up a bit to fit the available area, but
-   with some proportional spacing in between." Before this, each slot was sized
-   to its own content — the ring-less pair took half the line each, a knob
-   reserved its rings' reach, the readings tile took the whole width — so no
-   two slots on the card agreed and nothing lined up. */
-.quick-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  justify-content: center;
-  gap: var(--quick-slot-gap, 8px);
-  min-width: 0;
+/* Landscape: the card is a column of the page's own height (landscape.css), so
+   its rows divide that height between them and the slots subdivide the panel in
+   both directions. The floor is the tallest slot's own content: where a card
+   cannot fit the modules placed on it, it scrolls rather than clipping them —
+   Adeline, 2026-09-25: "in all cases except mobile phone we always want all
+   panels on screen at once. it will be up to the user to ensure they don't
+   over-pack it." */
+@media (aspect-ratio > 1) {
+  .quick-access-row {
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
 }
 
-.quick-line > .quick-segment,
-.quick-line > .quick-climate {
-  /* Shrink is left available purely as a safety net: the measured width can
-     never exceed the line by more than a hundredth of a pixel, and a slot that
-     silently squeezes by that much is invisible where a slot that wrapped onto
-     a line of its own would not be. */
-  flex: 0 1 var(--quick-slot, auto);
-  width: var(--quick-slot, auto);
+/* Portrait has no height of its own to divide: the card is as tall as its content
+   and the page scrolls under it, which is what a phone does. */
+@media (aspect-ratio <= 1) {
+  .quick-access-row {
+    grid-auto-rows: auto;
+  }
+}
+
+/* One slot's own box. Every module placed on the card takes one, whatever it
+   draws — a lighting dial, an amplifier dial, a climate knob, the readings tile
+   — and it fills the track it was given, so that dials, knobs and tiles are all
+   the same slot. A dial inside it is centred across the slot and starts at its
+   top, which is what `.quick-segment`'s own `align-items: center` and
+   `justify-content: flex-start` already say; the slot itself only has to stop a
+   wide control pushing its track wider than the others. */
+.quick-access-row > * {
   min-width: 0;
-  max-width: 100%;
-  /* A control is centred in its slot (Adeline, 2026-09-23): the dial, its title
-     arc and its preset row all sit on the slot's centre line, and any width the
-     slot has beyond the control is shared equally either side of it rather than
-     left over at the right, which is what the old left-packed tile did. The
-     vertical stays top-aligned — a control starts at the top of its own space
-     (see .quick-segment). Stated here, on the slot itself, so it is a property
-     of every module placed on the card rather than of the four classes that
-     happen to be placed today; `e2e/quick-access-slots.spec.ts` asserts it. */
-  align-items: center;
 }
 
 /* Each dial's preset row takes back the air a titled dial's box keeps under its

@@ -4,11 +4,11 @@ import path from "path";
 import { gotoDashboard } from "./helpers";
 
 // specs/quick-access-card.md, portrait (Adeline, 2026-09-14, revised
-// 2026-09-23): the card's dials are lines of slots and every slot is the same
-// width, centred in the line it is on. A line holds as many slots as the card's
-// width allows at the width a slot must have for a knob's rings to stay on
-// screen, so a phone holds one slot a line and a tablet two. No dial's rings
-// may run off the screen edge, and below one slot's width every dial shrinks
+// 2026-09-25): the card is a GRID of slots, one per module placed on it, and
+// every slot is the same width. Portrait's grid is the card's balanced one
+// wherever a slot can still hold a knob's rings — three columns on a wide
+// screen, two on a tablet, one on a phone — and the rings of a knob that is
+// untucked stay on screen either way. Below one slot's width every dial shrinks
 // together, floor 100px.
 // QUICK_ACCESS_SHOTS=<dir> keeps a screenshot of the card at each viewport.
 
@@ -119,7 +119,7 @@ async function expectRingsOnScreen(page: Page, width: number) {
 }
 
 for (const phone of PHONES) {
-  test(`portrait ${phone.name}: two lines of dials, the pair never overlapping`, async ({ page }) => {
+  test(`portrait ${phone.name}: the dials are one grid, the pair never overlapping`, async ({ page }) => {
     await page.setViewportSize({ width: phone.width, height: phone.height });
     await gotoDashboard(page);
     const row = page.locator(".quick-access-row");
@@ -131,7 +131,7 @@ for (const phone of PHONES) {
     const rowCentre = rowBox.x + rowBox.width / 2;
     const [lights, amp, aircon, heater] = await places(page);
 
-    // Every dial is the same size, and each LINE is centred on the card: a line
+    // Every dial is the same size, and each row is centred on the card: a row
     // holding the pair has its centre between the two dials, not on either.
     const sizes = [lights, amp, aircon, heater].map((dial) => dial.size);
     expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1);
@@ -142,18 +142,18 @@ for (const phone of PHONES) {
     }
     for (const [y, xs] of lines) {
       const mean = xs.reduce((sum, x) => sum + x, 0) / xs.length;
-      expect(Math.abs(mean - rowCentre), `the line at y=${y} is centred`).toBeLessThanOrEqual(2);
+      expect(Math.abs(mean - rowCentre), `the row at y=${y} is centred`).toBeLessThanOrEqual(2);
     }
 
-    // The pair shares the first line while both fit; a phone too narrow for two
-    // dials gives each its own line rather than letting them overlap.
+    // The pair shares the first row while both fit; a phone too narrow for two
+    // dials gives each its own row rather than letting them overlap.
     if (Math.abs(lights.y - amp.y) <= 2) {
       expect(amp.left - lights.right, "the pair does not overlap").toBeGreaterThanOrEqual(0);
     } else {
-      expect(amp.y, "a stacked pair is one dial a line").toBeGreaterThan(lights.y);
+      expect(amp.y, "a stacked pair is one dial a row").toBeGreaterThan(lights.y);
     }
 
-    // The climate dials keep the line below the pair, in order.
+    // The climate dials keep the rows below the pair, in order.
     expect(aircon.y).toBeGreaterThan(Math.max(lights.y, amp.y));
     expect(heater.y).toBeGreaterThanOrEqual(aircon.y);
 
@@ -256,19 +256,22 @@ test("portrait narrow phone: dials shrink to fit, not below 100px", async ({ pag
   }
 });
 
-test("wide portrait: lights and amp share the first line, both climate dials the next", async ({ page }) => {
+test("wide portrait: the card is one grid, three slots to a row", async ({ page }) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await gotoDashboard(page);
   await page.locator(".quick-access-row").scrollIntoViewIfNeeded();
   await expect(dials(page)).toHaveCount(4);
   const [lights, amp, aircon, heater] = await places(page);
 
-  expect(Math.abs(lights.y - amp.y), "the pair shares the first line").toBeLessThanOrEqual(2);
-  expect(Math.abs(aircon.y - heater.y), "the climate dials share the second").toBeLessThanOrEqual(2);
-  expect(aircon.y - lights.y, "the climate line is the one below").toBeGreaterThan(0);
-  // Both lines spread evenly: equal spacing inside each of them.
-  const rowCentre = (lights.x + amp.x) / 2;
-  expect(Math.abs(rowCentre - (aircon.x + heater.x) / 2), "the two lines share a centre").toBeLessThanOrEqual(2);
+  // Five modules, three columns: the light dial, the amplifier dial and the first
+  // climate knob share the first row, and the second climate knob opens the
+  // second, in the column under the light dial (Adeline, 2026-09-25 — the grid,
+  // not the old dial-line/climate/readings lines).
+  expect(Math.abs(lights.y - amp.y), "the pair shares the first row").toBeLessThanOrEqual(2);
+  expect(Math.abs(aircon.y - lights.y), "the first climate knob is on that row too").toBeLessThanOrEqual(2);
+  expect(heater.y - lights.y, "the second row is the one below").toBeGreaterThan(0);
+  expect(Math.abs(heater.x - lights.x), "and its column is the light dial's").toBeLessThanOrEqual(2);
+  // The slots are one size, so every dial is drawn at one size.
   for (const dial of [lights, amp, aircon, heater]) expect(dial.size).toBeCloseTo(lights.size, 0);
 
   await expectRingsOnScreen(page, 1080);

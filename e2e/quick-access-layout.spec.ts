@@ -3,10 +3,11 @@ import fs from "fs";
 import path from "path";
 import { gotoDashboard } from "./helpers";
 
-// specs/quick-access-card.md: the card's dials sit on two lines — the lighting
-// dial and the amplifier dial on the first, the two climate dials on the next —
-// and each dial's preset row belongs to the dial above it, sitting just under
-// it rather than a knob-slack below (Adeline, 2026-09-22).
+// specs/quick-access-card.md: the card is a grid of equal slots — the lighting
+// dial, the amplifier dial, the two climate knobs and the readings tile, in the
+// order they are placed — and each dial's preset row belongs to the dial above
+// it, sitting just under it rather than a knob-slack below (Adeline, 2026-09-22;
+// the grid is 2026-09-25).
 // QUICK_ACCESS_SHOTS=<dir> keeps a screenshot of the card at each width.
 
 const SHOTS = process.env.QUICK_ACCESS_SHOTS;
@@ -41,20 +42,23 @@ for (const width of [1280, 1920]) {
       expect(entry.gap, `${entry.segment}: preset row hugging its dial`).toBeLessThanOrEqual(12);
     }
 
-    // The pair shares the card's first line, and the climate dials the next.
-    const rows = await page.evaluate(() => {
-      const centreOf = (selector: string) => {
-        const box = document.querySelector(selector)?.querySelector(".rotary-encoder-dial")?.getBoundingClientRect();
-        return box ? Math.round(box.top + box.height / 2) : null;
-      };
-      return {
-        lights: centreOf(".quick-access .quick-segment-lights"),
-        amp: centreOf(".quick-access .quick-segment-appletv"),
-        aircon: centreOf(".quick-access .quick-climate"),
-      };
-    });
-    expect(Math.abs(rows.lights! - rows.amp!), "the pair shares a line").toBeLessThanOrEqual(2);
-    expect(rows.aircon!, "the climate dials take the line below").toBeGreaterThan(rows.lights!);
+    // The light dial and the amplifier dial are the first two slots of the grid,
+    // so the first three modules share its first row — the light dial, the
+    // amplifier dial, then the aircon knob — and the second row opens under the
+    // first column (Adeline, 2026-09-25: the card is a grid of equal slots, and
+    // the order the slots are placed in is the order they take in it).
+    const grid = await page.evaluate(() =>
+      [...document.querySelectorAll(".quick-access-row > *")].map((slot) => {
+        const box = slot.getBoundingClientRect();
+        return { cls: slot.className, left: Math.round(box.left), top: Math.round(box.top) };
+      }),
+    );
+    expect(grid).toHaveLength(5);
+    expect(Math.abs(grid[0].top - grid[1].top), "the pair shares a row").toBeLessThanOrEqual(1);
+    expect(Math.abs(grid[2].top - grid[0].top), "and so does the first climate knob: three slots, one row")
+      .toBeLessThanOrEqual(1);
+    expect(grid[3].top - grid[0].top, "the fourth slot opens the row below").toBeGreaterThan(0);
+    expect(Math.abs(grid[3].left - grid[0].left), "in the first slot's own column").toBeLessThanOrEqual(1);
 
     if (SHOTS) {
       fs.mkdirSync(SHOTS, { recursive: true });

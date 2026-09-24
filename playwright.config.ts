@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
 
 // E2E runs against the dashboard in demo mode (NEXT_PUBLIC_NOVA_DEMO_MODE=true).
 // Demo mode replaces every `/api/*` call and the SSE stream with the
@@ -10,6 +12,31 @@ const DASHBOARD_PORT = Number(process.env.NOVA_E2E_PORT ?? 3210);
 const PROVIDER_PORT = Number(process.env.NOVA_DEMO_PROVIDER_PORT ?? 4174);
 const PROVIDER_BASE = `http://127.0.0.1:${PROVIDER_PORT}/`;
 const BASE_URL = `http://127.0.0.1:${DASHBOARD_PORT}`;
+
+/**
+ * Where the dummy data provider lives.
+ *
+ * It is a SIBLING of this repo in the workspace, which is what
+ * `e2e/fixtures/provider-server.mjs` assumes when it walks up three directories.
+ * A git worktree (the worktree root `start-branch.ps1` makes, where the change
+ * being tested is made) is outside the repo tree, so that walk reaches nothing,
+ * the provider serves an empty directory, and the whole suite dies on a 30s
+ * webServer timeout before a single test runs.
+ *
+ * git knows where the checkout really is: in a worktree `--git-common-dir` is the
+ * MAIN checkout's `.git`. Resolve the provider from there, so the suite runs the
+ * same way from a worktree as from the checkout.
+ */
+function providerRoot() {
+  try {
+    const commonDir = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+      encoding: "utf8",
+    }).trim();
+    return path.resolve(path.dirname(commonDir), "..", "nova-dummy-data-provider", "public");
+  } catch {
+    return path.resolve(process.cwd(), "..", "nova-dummy-data-provider", "public");
+  }
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -42,7 +69,10 @@ export default defineConfig({
       url: `${PROVIDER_BASE}index.html`,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
-      env: { NOVA_DEMO_PROVIDER_PORT: String(PROVIDER_PORT) },
+      env: {
+        NOVA_DEMO_PROVIDER_PORT: String(PROVIDER_PORT),
+        NOVA_DEMO_PROVIDER_ROOT: process.env.NOVA_DEMO_PROVIDER_ROOT ?? providerRoot(),
+      },
     },
     {
       command: `npx next dev --hostname 127.0.0.1 --port ${DASHBOARD_PORT}`,
