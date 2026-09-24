@@ -148,6 +148,56 @@ test.describe("configuration workspace", () => {
     await expect(resting).toHaveCSS("position", "relative");
     await expect(pinned, "nothing is pinned yet").toBeHidden();
 
+    // The chip is the accent and its text takes that fill's tone (specs/slide-switch.md's
+    // rule), not the page background's. Both halves are asserted, because on a theme
+    // whose accent and background resolve to the same tone slot (the demo's does) the
+    // colour check alone would be vacuous. On the owner's light variant the old
+    // pairing — that tone on the old black chip — measured 1.36:1.
+    const tone = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const chip = document.querySelector(".config-breadcrumb-slot .config-breadcrumb");
+      const crumb = chip?.querySelector(".config-breadcrumb-crumb");
+      if (!chip || !crumb) {
+        throw new Error("no trail on the config page");
+      }
+      // The theme publishes `rgb(r g b)` while computed styles read back `rgb(r, g, b)`,
+      // so compare on the digits alone.
+      const digits = (value: string) => value.replace(/[^0-9.]/g, "");
+      return {
+        crumb: digits(getComputedStyle(crumb).color),
+        onLine: digits(root.getPropertyValue("--cyber-title-on-line")),
+        chip: digits(getComputedStyle(chip).backgroundColor),
+        accentAtOpacity: digits(`${root.getPropertyValue("--cyber-line-rgb")} / 0.7`),
+      };
+    });
+    expect(tone.crumb, "the crumb reads the accent chip's tone").toBe(tone.onLine);
+    expect(tone.chip, "the chip itself is the accent").toBe(tone.accentAtOpacity);
+
+    // Hovering must not change the tone: the crumb is still drawn on the accent
+    // chip, and the reviewed round was a hover that switched to the highlight's
+    // tone while nothing painted a highlight fill. Anchor the page at the top first,
+    // because opening a section scrolls it into view and that can already have
+    // pinned the trail (hiding the resting copy this hovers).
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const restingCrumb = page.locator(".config-breadcrumb-slot .config-breadcrumb .config-breadcrumb-crumb").first();
+    await expect(restingCrumb).toBeVisible();
+    await restingCrumb.hover();
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const crumb = document.querySelector(
+            ".config-breadcrumb-slot .config-breadcrumb .config-breadcrumb-crumb",
+          );
+          if (!crumb) throw new Error("no crumb on the config page");
+          const style = getComputedStyle(crumb);
+          return {
+            color: style.color.replace(/[^0-9.]/g, ""),
+            decoration: style.textDecorationLine,
+          };
+        }),
+      )
+      .toEqual({ color: tone.onLine, decoration: "underline" });
+
     await page.evaluate(() => {
       document.body.style.minHeight = "3000px";
     });

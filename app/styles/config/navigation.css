@@ -4,10 +4,19 @@
    visible: in the page column at rest — its default position, directly under the
    category menu — and in the header band, fixed on the icon cluster's line, once
    the page has scrolled past that position (useConfigBreadcrumbPin sets
-   `data-nova-trail` on the shell; the handover rules are below). Same dark-panel
-   language as .config-page-button/.config-category-button. Purely a jump-to
-   readout: crumbs are plain buttons, see ConfigBreadcrumbBar.tsx. */
+   `data-nova-trail` on the shell; the handover rules are below). It is an
+   accent-tinted chip, the same family as .config-page-button/.config-category-button,
+   and its text follows the theme's tone rules for that surface (below). Purely a
+   jump-to readout: crumbs are plain buttons, see ConfigBreadcrumbBar.tsx. */
 .config-breadcrumb {
+  /* The chip is the theme's accent, so everything on it takes the accent's tone:
+     `--cyber-title-on-line` is what the theme's Text Tone computes for text ON the
+     accent. These crumbs used `--cyber-title-on-bg` before — legible on the
+     background, not on this chip. Rule: specs/slide-switch.md; numbers:
+     specs/config-breadcrumb-navigation.md. */
+  --trail-text: var(--cyber-title-on-line);
+  /* Chevrons only: the aria-hidden separators, at `--cyber-text-dim`'s 86%. */
+  --trail-text-dim: color-mix(in srgb, var(--cyber-title-on-line) 86%, var(--cyber-line));
   /* In flow (the resting copy) but with a z-index of its own: the config column is
      deliberately not a stacking context (background.css excludes it, and
      layout.css lifts the column's children instead), so this level is measured
@@ -21,8 +30,9 @@
   width: 100%;
   overflow-x: auto;
   cursor: grab;
-  border: 1px solid rgb(64 64 64);
-  background: rgb(10 10 10 / 0.7);
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.7);
+  color: var(--trail-text);
   padding: 6px 20px;
   clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
   scrollbar-width: none;
@@ -89,7 +99,8 @@
 }
 
 .config-breadcrumb-chevron {
-  color: rgb(163 163 163);
+  /* aria-hidden separators, so the dim mix is theirs alone. */
+  color: var(--trail-text-dim);
   flex-shrink: 0;
 }
 
@@ -103,16 +114,29 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--cyber-title-on-bg);
+  color: var(--trail-text);
+  /* The chip's own tone as a tight glow, the shape the shell gives title text on
+     every surface (`text-shadow: 0 0 Npx var(--cyber-title-glow-*)`). */
+  text-shadow: 0 0 1px var(--cyber-title-glow-line);
 }
 
 .config-breadcrumb-root {
-  color: rgb(163 163 163);
+  /* Full tone: the root crumb is a button like the others, and a dimmed tone put it
+     under AA (3.83:1 against 4.52:1). Root-ness is position and the chevron. */
+  color: var(--trail-text);
 }
 
 button.config-breadcrumb-crumb:hover,
 button.config-breadcrumb-crumb:focus-visible {
-  color: var(--cyber-cyan);
+  /* No colour change: the only tone for the accent chip is the one already worn, so
+     a second colour would belong to an unpainted surface. Every candidate patch also
+     measured worse (4.21:1 accent, 3.81:1 highlight, against 4.52:1 at rest) —
+     specs/config-breadcrumb-navigation.md. Glow and underline carry the state. */
+  color: var(--trail-text);
+  text-shadow: 0 0 3px var(--cyber-title-glow-line);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   outline: none;
   cursor: pointer;
 }
