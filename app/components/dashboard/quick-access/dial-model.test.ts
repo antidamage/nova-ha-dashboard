@@ -3,140 +3,132 @@ import { ringGeometry } from "../../rotaryEncoderGeometry";
 import { TEMPERATURE_ENCODER_MIN_SIZE } from "../../TemperatureEncoder";
 import {
   PORTRAIT_QUERY,
+  QUICK_DIAL_MAX,
   QUICK_ENCODER_SIZE,
+  QUICK_PRESET_BAND,
   QUICK_READINGS_MIN,
-  QUICK_SLOT_GAP_MAX,
-  QUICK_SLOT_GAP_MIN,
   QUICK_TEMPERATURE_SIZE,
   QUICK_WIDEST_RINGS,
   quickDialBox,
-  quickDialSizeFor,
+  quickDialSizeForCell,
   quickDialSlot,
+  quickSlotHeight,
   quickSlotLayout,
 } from "./dial-model";
 
-/** The card the demo ships: the dial line, two climate knobs, the readings. */
-const FULL_CARD = { dials: 4, readings: 1, widestLine: 2 };
+/** The card the demo ships: four dials and the readings tile. */
+const FULL_CARD = { count: 5, dials: 4, readings: 1 };
+/** A landscape card's content box: a 520px column of the page's own height. */
+const LANDSCAPE = { height: 562, portrait: false };
+/** Portrait: the card is as tall as its content, so it has no height to divide. */
+const PORTRAIT = { height: 0, portrait: true };
 
-describe("the layout slots", () => {
-  it("gives every slot on the card the same width, and fills the line", () => {
-    for (const width of [496, 740, 1000, 384, 319, 244]) {
+describe("the card's grid", () => {
+  it("gives four slots a 2x2 where the card has room for it", () => {
+    const layout = quickSlotLayout({ ...FULL_CARD, count: 4, dials: 4, readings: 0, width: 520, ...LANDSCAPE });
+    expect([layout.columns, layout.rows]).toEqual([2, 2]);
+    // Two slots and the gap between them are the card's whole width.
+    expect(2 * layout.slot + layout.gap).toBeCloseTo(520, 0);
+  });
+
+  it("holds the balanced grid for five, and the card's own minimum for a slot", () => {
+    const layout = quickSlotLayout({ ...FULL_CARD, width: 520, ...LANDSCAPE });
+    expect([layout.columns, layout.rows]).toEqual([3, 2]);
+    expect(layout.slot).toBeGreaterThanOrEqual(quickDialBox(TEMPERATURE_ENCODER_MIN_SIZE));
+  });
+
+  it("goes to one column where the card cannot hold two slots", () => {
+    // A phone in portrait: two ring-bearing knobs side by side would run their
+    // opened rings off the screen, so the card is five rows.
+    const phone = quickSlotLayout({ ...FULL_CARD, width: 343, ...PORTRAIT });
+    expect([phone.columns, phone.rows]).toEqual([1, 5]);
+    expect(phone.slot).toBeCloseTo(343, 1);
+    // A tablet's portrait width holds two of them, and three only just miss.
+    const tablet = quickSlotLayout({ ...FULL_CARD, width: 772, ...PORTRAIT });
+    expect(tablet.columns).toBe(2);
+  });
+
+  it("is one line for two or three components, along the panel's long axis", () => {
+    expect(quickSlotLayout({ count: 2, dials: 2, readings: 0, width: 520, ...LANDSCAPE }).columns).toBe(2);
+    expect(quickSlotLayout({ count: 2, dials: 2, readings: 0, width: 520, ...PORTRAIT }).rows).toBe(2);
+    expect(quickSlotLayout({ count: 3, dials: 3, readings: 0, width: 520, ...LANDSCAPE }).columns).toBe(3);
+    expect(quickSlotLayout({ count: 3, dials: 3, readings: 0, width: 520, ...PORTRAIT }).columns).toBe(1);
+  });
+
+  it("fills the card's width whatever the arrangement", () => {
+    for (const width of [319, 343, 440, 520, 772, 1000, 1920]) {
       for (const portrait of [true, false]) {
-        const layout = quickSlotLayout({ ...FULL_CARD, portrait, width });
-        expect(layout.columns, `${width}px portrait=${portrait} holds one or more slots`).toBeGreaterThanOrEqual(1);
-        // Neither edge of a full line is left over: the slots and the gaps
-        // between them add up to the width the card gave the line.
+        const layout = quickSlotLayout({ ...FULL_CARD, height: portrait ? 0 : 562, portrait, width });
         const used = layout.columns * layout.slot + (layout.columns - 1) * layout.gap;
-        expect(used, `${width}px portrait=${portrait} fills the line`).toBeCloseTo(width, 1);
-      }
-    }
-  });
-
-  it("spaces the slots proportionally, within the floor and the ceiling", () => {
-    const narrow = quickSlotLayout({ ...FULL_CARD, portrait: false, width: 300 });
-    const wide = quickSlotLayout({ ...FULL_CARD, portrait: false, width: 2000 });
-    for (const layout of [narrow, wide]) {
-      expect(layout.gap).toBeGreaterThanOrEqual(QUICK_SLOT_GAP_MIN);
-      expect(layout.gap).toBeLessThanOrEqual(QUICK_SLOT_GAP_MAX);
-    }
-    // A wider slot takes a wider gap with it.
-    expect(wide.gap).toBeGreaterThan(narrow.gap);
-  });
-
-  it("never makes a slot narrower than the widest thing placed in it", () => {
-    // Portrait: a slot holds a knob's rings, so they stay on screen.
-    const portrait = quickSlotLayout({ ...FULL_CARD, portrait: true, width: 640 });
-    expect(portrait.slot).toBeGreaterThanOrEqual(quickDialSlot(portrait.size));
-    // Landscape: the rings float over the page, so a dial's box is the measure.
-    const landscape = quickSlotLayout({ ...FULL_CARD, portrait: false, width: 496 });
-    expect(landscape.slot).toBeGreaterThanOrEqual(quickDialBox(landscape.size));
-    expect(landscape.size).toBe(QUICK_TEMPERATURE_SIZE);
-  });
-
-  it("scales the slots up rather than leaving the line slack", () => {
-    // One column at a phone's width: the slot IS the line.
-    const phone = quickSlotLayout({ ...FULL_CARD, portrait: true, width: 319 });
-    expect(phone.columns).toBe(1);
-    expect(phone.slot).toBeCloseTo(319, 1);
-    // The same columns on a wider card give each slot more of the width.
-    const wide = quickSlotLayout({ ...FULL_CARD, portrait: true, width: 1000 });
-    const narrow = quickSlotLayout({ ...FULL_CARD, portrait: true, width: 638 });
-    expect(wide.columns).toBe(narrow.columns);
-    expect(wide.slot).toBeGreaterThan(narrow.slot);
-  });
-
-  it("holds one column when the card cannot hold two ring-safe slots", () => {
-    // 375px phone: two climate knobs side by side would run their opened rings
-    // off the screen edge, so the line holds one. The rings' reach plus the gap
-    // is what says so.
-    const width = 319;
-    const size = quickDialSizeFor(width);
-    expect(size, "133's rings still fit one slot").toBe(QUICK_TEMPERATURE_SIZE);
-    expect(quickDialSlot(size)).toBeLessThanOrEqual(width);
-    expect(2 * quickDialSlot(size) + QUICK_SLOT_GAP_MIN, "two ring-safe slots do not fit").toBeGreaterThan(width);
-    expect(quickSlotLayout({ ...FULL_CARD, portrait: true, width }).columns).toBe(1);
-  });
-
-  it("reserves the readings tile's own measure when no dial is placed", () => {
-    const readings = quickSlotLayout({ dials: 0, portrait: true, readings: 1, widestLine: 1, width: 400 });
-    expect(readings.slot).toBeGreaterThanOrEqual(QUICK_READINGS_MIN);
-    expect(readings.slot).toBeCloseTo(400, 1);
-  });
-
-  it("never lets the proportional gap eat into the minimum a slot was measured for", () => {
-    // The gap is a share of the slot, so a line given more width takes a wider
-    // gap — and the wider gap leaves the slots less room. Picking the column
-    // count from the minimum gap alone let the slot fall under it by up to
-    // 5.8px (found in review at 1864px with six columns), which in portrait is a
-    // knob's opened rings reaching past the slot they were reserved in.
-    for (let width = 200; width <= 2400; width += 7) {
-      for (const portrait of [true, false]) {
-        for (const widestLine of [1, 2, 3, 4, 6]) {
-          const layout = quickSlotLayout({ dials: 4, portrait, readings: 1, widestLine, width });
-          if (layout.columns === 1) continue; // one slot is the line, nothing to share it with
-          const minimum = portrait ? quickDialSlot(layout.size) : quickDialBox(layout.size);
-          expect(
-            layout.slot,
-            `${width}px portrait=${portrait} widestLine=${widestLine} columns=${layout.columns}`,
-          ).toBeGreaterThanOrEqual(minimum);
-        }
+        expect(used, `${width}px portrait=${portrait} fills the card`).toBeCloseTo(width, 0);
       }
     }
   });
 
   it("needs no measurement to be shaped", () => {
-    const unmeasured = quickSlotLayout({ ...FULL_CARD, portrait: false, width: 0 });
+    const unmeasured = quickSlotLayout({ ...FULL_CARD, ...LANDSCAPE, width: 0 });
     expect(unmeasured.columns).toBe(1);
+    expect(unmeasured.slot).toBe(0);
     expect(unmeasured.size).toBe(QUICK_TEMPERATURE_SIZE);
   });
 });
 
-describe("the size the card picks", () => {
-  it("is the full 133px on a wide portrait screen", () => {
-    expect(quickDialSizeFor(1000)).toBe(QUICK_TEMPERATURE_SIZE);
-    expect(QUICK_ENCODER_SIZE).toBe(QUICK_TEMPERATURE_SIZE);
+describe("the dial a slot gets", () => {
+  it("scales up to fill the room a four-slot card has", () => {
+    const four = quickSlotLayout({ ...FULL_CARD, count: 4, dials: 4, readings: 0, width: 520, ...LANDSCAPE });
+    expect(four.size, "a 2x2 card has more room per slot than the old fixed 133").toBeGreaterThan(
+      QUICK_TEMPERATURE_SIZE,
+    );
+    expect(four.size).toBeLessThanOrEqual(QUICK_DIAL_MAX);
+    // The dial fills the slot it was given: a taller row of the same width is a
+    // bigger dial.
+    const shorter = quickSlotLayout({ ...FULL_CARD, count: 4, dials: 4, readings: 0, height: 340, portrait: false, width: 520 });
+    expect(shorter.size).toBeLessThan(four.size);
   });
 
-  it("keeps a dial's rings on screen at every size it returns", () => {
-    for (const width of [1000, 640, 440, 384, 343, 300, 272]) {
-      expect(quickDialSlot(quickDialSizeFor(width))).toBeLessThanOrEqual(Math.max(width, quickDialSlot(100)));
+  it("never draws a dial below the knob's own floor", () => {
+    // Five knobs in a kiosk column: the slots are wide enough for the floor size
+    // and no bigger, and the card does not shrink them away to fit.
+    const kiosk = quickSlotLayout({ ...FULL_CARD, width: 520, ...LANDSCAPE });
+    expect(kiosk.size).toBeGreaterThanOrEqual(TEMPERATURE_ENCODER_MIN_SIZE);
+    // A card far too narrow for any of it still draws the floor size.
+    expect(quickSlotLayout({ ...FULL_CARD, width: 120, ...PORTRAIT }).size).toBe(TEMPERATURE_ENCODER_MIN_SIZE);
+  });
+
+  it("reserves a knob's rings in portrait and its box in landscape", () => {
+    // Portrait keeps the rings on screen, so a slot is as wide as their reach.
+    const portrait = quickSlotLayout({ count: 1, dials: 1, readings: 0, width: 640, ...PORTRAIT });
+    expect(quickDialSlot(portrait.size)).toBeLessThanOrEqual(portrait.slot);
+    // Landscape lets them float over the page, so the dial's box is the measure.
+    const landscape = quickSlotLayout({ count: 1, dials: 1, readings: 0, width: 496, ...LANDSCAPE });
+    expect(quickDialBox(landscape.size)).toBeLessThanOrEqual(landscape.slot);
+  });
+
+  it("keeps the readings tile's own measure when no dial is placed", () => {
+    const readings = quickSlotLayout({ count: 1, dials: 0, readings: 1, width: 400, ...PORTRAIT });
+    expect(readings.slot).toBeGreaterThanOrEqual(QUICK_READINGS_MIN);
+  });
+
+  it("knows the height a dial needs: its box, its preset row, and the gap", () => {
+    for (const size of [100, 133, 160, 200]) {
+      // The whole band, not the tiles' pulled-back one: the card's rows are
+      // equal and a climate knob reserves its band with nothing taken back
+      // (found by review — this is what a 2x2 card is fitted to).
+      expect(quickSlotHeight(size)).toBeCloseTo(quickDialBox(size) + 8 + QUICK_PRESET_BAND, 6);
     }
-  });
-
-  it("never goes below the 100px floor, even where no size fits", () => {
-    // 272px holds a dial at 110: the pair no longer has to share the line, so
-    // the dials shrink only when one knob's own rings stop fitting.
-    expect(quickDialSizeFor(272)).toBeGreaterThanOrEqual(TEMPERATURE_ENCODER_MIN_SIZE);
-    expect(quickDialSizeFor(272)).toBeLessThan(QUICK_TEMPERATURE_SIZE);
-    expect(quickDialSizeFor(10)).toBe(TEMPERATURE_ENCODER_MIN_SIZE);
-    expect(TEMPERATURE_ENCODER_MIN_SIZE).toBe(100);
+    // A cell of that height is exactly what the size needs, and one a whisker
+    // shorter is not enough for it.
+    expect(quickDialSizeForCell({ height: quickSlotHeight(150), portrait: false, width: 400 })).toBeGreaterThanOrEqual(149);
+    expect(quickDialSizeForCell({ height: quickSlotHeight(150) - 6, portrait: false, width: 400 })).toBeLessThan(150);
   });
 });
 
-describe("the layout's constants", () => {
+describe("the card's constants", () => {
   it("keys portrait on the orientation, and counts the widest knob's rings", () => {
     expect(PORTRAIT_QUERY).toBe("(aspect-ratio <= 1)");
     expect(QUICK_WIDEST_RINGS).toBe(4);
+    expect(QUICK_ENCODER_SIZE).toBe(QUICK_TEMPERATURE_SIZE);
+    expect(QUICK_DIAL_MAX).toBe(200);
   });
 
   it("measures a dial's box and its rings from its own geometry", () => {

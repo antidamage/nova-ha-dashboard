@@ -1,14 +1,16 @@
 /* Quick Access card: segments, dials, steppers, buttons and its own breakpoints. */
 
 /* ── Quick Access (specs/quick-access-card.md) ─────────────────────────────
-   One line of the controls used most, above the zone menu. Its own border,
-   a highlight rail on the left and a name tab on the top edge keep it apart
-   from the panels below.
+   The controls used most, above the zone menu. Its own border, a highlight rail
+   on the left and a name tab on the top edge keep it apart from the panels
+   below.
 
-   How many controls share a line, and how wide each one is, is measured from
-   the card's own width (specs/quick-access-card.md, "The layout slots"); the
-   stylesheet only says how a slot's content is arranged inside it. Segments
-   always move as whole slots — never a horizontal scrollbar. */
+   The card is a grid of equal slots — one per module placed on it — and how many
+   columns it has, how wide a slot is and how large a dial is drawn are all
+   measured from the card's own box (specs/quick-access-card.md, "The layout
+   slots"); this file and quick-access-dials.css only say how a slot's content is
+   arranged inside it. Segments always move as whole slots — never a horizontal
+   scrollbar. */
 .quick-access {
   position: relative;
   min-width: 0;
