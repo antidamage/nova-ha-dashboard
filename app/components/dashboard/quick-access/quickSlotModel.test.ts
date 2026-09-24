@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONTROL_MODULES } from "../../../../lib/control-modules/catalogue";
 import type { ControlPreset, ControlsConfig } from "../../../../lib/control-modules/types";
 import type { DashboardState, DashboardZone } from "../../../../lib/types";
-import { buildQuickAccessItems } from "./quickSlotModel";
+import { buildSlotItems } from "./quickSlotModel";
 
 /**
  * The Quick Access card, from configuration (specs/control-modules.md).
@@ -82,10 +82,39 @@ function build(controls: ControlsConfig, state: DashboardState = STATE) {
   // From the same state the way Dashboard.tsx does, so a test that empties the
   // climate zone is testing resolution rather than an inconsistency in the test.
   const climateZone = state.zones.find((candidate) => candidate.id === "climate") ?? null;
-  return buildQuickAccessItems({ climateZone, controlModules: CONTROL_MODULES, controls, data: state, preferences: state.preferences });
+  return buildSlotItems({ climateZone, controlModules: CONTROL_MODULES, controls, data: state, preferences: state.preferences, surface: "quick-access" });
 }
 
-describe("buildQuickAccessItems", () => {
+describe("buildSlotItems", () => {
+  it("builds a panel's own content as an item of its own", () => {
+    // Every panel defaults to one slot holding a `panel-content` module
+    // (Adeline, 2026-09-25), so the panel draws the content it came with and
+    // nothing about the dashboard changes.
+    const controls: ControlsConfig = {
+      presets: [{ binding: {}, driverId: null, features: {}, id: "panel-clock", moduleId: "panel-content", name: "Clock", roomId: null, variant: null }],
+      slots: [{ id: "clock-content", presetId: "panel-clock", roomId: null, surface: "clock", visible: true }],
+    };
+    const items = buildSlotItems({
+      climateZone: null,
+      controlModules: CONTROL_MODULES,
+      controls,
+      data: STATE,
+      preferences: STATE.preferences,
+      surface: "clock",
+    });
+    expect(items.map((item) => item.kind)).toEqual(["panel"]);
+    expect(items[0].presetId).toBe("panel-clock");
+    // And nothing from another panel's surface leaks in.
+    expect(buildSlotItems({
+      climateZone: null,
+      controlModules: CONTROL_MODULES,
+      controls,
+      data: STATE,
+      preferences: STATE.preferences,
+      surface: "quick-access",
+    })).toEqual([]);
+  });
+
   it("reproduces the card's grid order from the derived slot order", () => {
     const items = build({
       presets: [AIRCON, HEATER, LIGHTS, AMPLIFIER, OUTSIDE],

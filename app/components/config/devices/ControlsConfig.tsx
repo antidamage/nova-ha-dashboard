@@ -6,10 +6,11 @@ import { ConfigAccordion } from "../../ConfigControls";
 import { ConfirmDialog } from "../../ConfirmDialog";
 import { MomentaryFeedbackButton } from "../../MomentaryFeedbackButton";
 import type { ControlModule, ControlPreset } from "../../../../lib/control-modules/types";
+import { PANEL_SURFACES } from "../../../../lib/control-modules/presets";
 import { DeviceTypeGroup } from "./DeviceTypeGroup";
 import { PresetEditor } from "./PresetEditor";
 import { PresetRow } from "./PresetRow";
-import { QuickAccessSlots } from "./QuickAccessSlots";
+import { ControlSlotsPanel } from "./ControlSlotsPanel";
 import { behaviourRows, presetFacts } from "./device-model";
 import { useControlModules } from "./useControlModules";
 
@@ -129,9 +130,59 @@ export function ControlsConfig() {
           </div>
         ) : null}
 
-        <QuickAccessSlots controls={controls} rooms={rooms} onAdd={placePreset} onMove={moveSlot} onRemove={unplacePreset} />
+        <div className="control-slots">
+          <div className="control-slots-head">
+            <h3>Quick Access</h3>
+            <span className="control-slots-count">
+              {controls.slots.filter((slot) => slot.surface === "quick-access").length
+                ? `${controls.slots.filter((slot) => slot.surface === "quick-access").length} placed`
+                : "empty"}
+            </span>
+          </div>
+          <ControlSlotsPanel
+            controls={controls}
+            empty="Nothing is on the card. Add a preset below and it appears here."
+            rooms={rooms}
+            surface="quick-access"
+            onAdd={placePreset}
+            onMove={moveSlot}
+            onRemove={unplacePreset}
+          />
+        </div>
 
         {warnings ? <p className="device-warning">{warnings} preset{warnings === 1 ? "" : "s"} still missing a device binding.</p> : null}
+
+        {/* Every other panel holds slots too (Adeline, 2026-09-25). Each one
+            defaults to a single `panel-content` module, which is the content it
+            came with — reassign it, and the panel shows what you place instead. */}
+        <div className="device-type-list">
+          {PANEL_SURFACES.map((panel) => {
+            const placed = controls.slots.filter((slot) => slot.surface === panel.surface);
+            return (
+              <DeviceTypeGroup
+                badge={`${placed.length} placed`}
+                detail={panel.detail}
+                icon={<Blocks className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
+                id={`panel-slots-${panel.surface}`}
+                key={panel.surface}
+                meta="Panel"
+                title={panel.name}
+              >
+                <ControlSlotsPanel
+                  controls={controls}
+                  empty="This panel is showing nothing. Add a preset, or its own content back."
+                  inheritLabel={panel.surface === "zone-panel" ? "Follows the selected room" : "Follows this panel's room"}
+                  ownPresetId={panel.presetId}
+                  rooms={rooms}
+                  surface={panel.surface}
+                  onAdd={placePreset}
+                  onMove={moveSlot}
+                  onRemove={unplacePreset}
+                />
+              </DeviceTypeGroup>
+            );
+          })}
+        </div>
 
         <div className="device-type-list">
           {modules.map((module) => {
@@ -165,7 +216,7 @@ export function ControlsConfig() {
           problems={problems}
           rooms={rooms}
           onClose={() => setOpenPresetId(null)}
-          onPlace={placePreset}
+          onPlace={(presetId) => placePreset("quick-access", presetId)}
           onRequestDelete={setPendingDelete}
           onUnplace={unplacePreset}
           onUpdate={updatePreset}

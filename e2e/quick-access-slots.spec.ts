@@ -52,14 +52,14 @@ async function waitForSlots(page: import("@playwright/test").Page) {
   await expect(row).toBeVisible();
   await expect(page.locator(".quick-access-row > *")).toHaveCount(5);
   // Measured, and the slots laid out at that width. The card leaves
-  // `--quick-slot` unset until it has measured itself, so an unset (or a
+  // `--slot-width` unset until it has measured itself, so an unset (or a
   // non-positive) value here means the width sweep would be measuring the frame
   // before the layout exists — which is what a bare "is it non-empty" check
   // missed, since a measured zero is non-empty too (found in review).
   await page.waitForFunction(() => {
     const element = document.querySelector(".quick-access-row");
     if (!element) return false;
-    const slot = parseFloat(getComputedStyle(element).getPropertyValue("--quick-slot"));
+    const slot = parseFloat(getComputedStyle(element).getPropertyValue("--slot-width"));
     if (!Number.isFinite(slot) || slot <= 0) return false;
     const first = element.firstElementChild;
     return Boolean(first && first.getBoundingClientRect().width > 1);
@@ -120,7 +120,7 @@ async function drawnRows(page: import("@playwright/test").Page) {
       rows.set(key, [...(rows.get(key) ?? []), slot]);
     }
     return {
-      columns: Number(getComputedStyle(row).getPropertyValue("--quick-columns")),
+      columns: Number(getComputedStyle(row).getPropertyValue("--slot-columns")),
       overflowX: row.scrollWidth - row.clientWidth,
       overflowY: row.scrollHeight - row.clientHeight,
       rowWidth: round(rowRect.width),
@@ -268,7 +268,7 @@ test("four modules are the 2x2, and it fits the card", async ({ page }) => {
   await page.waitForFunction(() => {
     const element = document.querySelector(".quick-access-row");
     if (!element) return false;
-    return parseFloat(getComputedStyle(element).getPropertyValue("--quick-slot")) > 0;
+    return parseFloat(getComputedStyle(element).getPropertyValue("--slot-width")) > 0;
   });
   const drawn = await drawnRows(page);
   if (!drawn) throw new Error("no .quick-access-row");

@@ -159,12 +159,74 @@ Two consequences, both deliberate:
   action ("Save these as presets") that turns the derivation into real
   configuration. Nothing is written behind the owner's back by opening a page.
 
-## Slots and the Quick Access row
+## Slots and the panels
 
 A slot is a reference, never a copy: `{ id, surface, presetId, roomId, visible }`.
 Editing a preset updates every slot showing it, deleting a preset takes its slots
 with it, and a slot whose preset or module is gone renders **nothing** rather than
 an empty control, because an empty control is a permanent hole on the card.
+
+### Every panel holds slots (Adeline, 2026-09-25)
+
+> every panel that isn't an existing modular control can default to a single
+> modular slot, with the current content as a module inside of it, so no visible
+> change, but still have the ability to reassign the content. e.g. the grid page
+> will need its entire content layout in a single module slot that grows down.
+
+- **The surfaces are the panels**: `quick-access`, `clock`, `reminders`, `zones`
+  (the room menu), `zone-panel` (every zone's control panel) and `tasks`.
+  `ControlSlotSurface` is the list, and the config schema reads it, so a slot
+  can only name a panel the build has.
+- **`panel-content` is the module a panel's own content is placed as.** It names
+  the renderer of the same id, which draws the content the PANEL hands it rather
+  than a device: the clock face, the room menu, the zone's controls, the metering,
+  the task list. It has no fields, no variants and no behaviours — its whole job
+  is to be something placeable.
+- **The derivation places one per panel**, so a dashboard that has never been
+  configured looks exactly as it did. `PANEL_SURFACES` in
+  `lib/control-modules/panel-surfaces.ts` is the list, and each panel's preset is
+  named for the panel ("Clock", "Zone controls").
+- **No visible change is a DOM claim, not a slogan.** A panel whose only slot is
+  its own content renders its children directly — no wrapper element, no grid, not
+  one node of difference from the markup the panel had before slots existed
+  (`app/components/dashboard/panel-slots/PanelSlots.tsx`), which is what it takes
+  for a stylesheet full of child selectors to survive. The grid appears the moment
+  something else is placed there — a second module, or a control instead of the
+  content — and then it is the same grid Quick Access uses.
+- **The panel keeps its own element and classes.** The grid renders inside the
+  panel where the page can wrap it (the room menu, whose `+ .tasks-stage` sibling
+  selector a wrapper would break) and around it where the page composes it (the
+  clock, the task list, a zone's controls).
+- **A panel with several slots is laid out by the same rule** — 2x2 for four,
+  3x2 for five, one line where there is no room for two columns, and one column on
+  a phone.
+- **The Devices tab lists every panel's placements**, one group per panel, with
+  its own slot list: reassign, reorder, or take the panel's content off it. The
+  content is a preset like any other, so taking it off loses nothing and placing
+  it back restores the panel.
+- **A panel's content serves no room**, and a preset placed on a panel that
+  inherits its room inherits the PANEL's: a zone's panel is that zone, every other
+  panel is the Home zone — the same rule the card's slots have always used. Its
+  own content preset's `roomId` is null and so is its slot's.
+  - Without that, a lighting preset left on "Inherit the room it is placed in"
+    resolved to no room at all on a panel, was dropped as unusable, and drew
+    nothing while the Devices tab listed it as placed — found by the independent
+    review of PR #51, and the same for a knob. The review is why the inheritance
+    is a rule here rather than a claim.
+- **Only a panel's OWN content may be placed on it.** Another panel's content
+  draws that other panel's content, so the picker does not offer it and the host
+  compares preset ids rather than "is a panel-content item": a foreign one placed
+  by hand would otherwise pin this panel's content in place.
+- **Known, and left**: a panel whose content has been taken off draws that content
+  for the first paint of a load, until the client configuration arrives — "not
+  configured yet" and "configured to nothing" are only distinguishable once one
+  of them is known, and drawing nothing until then is the worse of the two
+  (a blank clock on every load, and a blank panel for ever if the fetch fails).
+- **Where the panels are drawn**: `app/components/dashboard/panel-slots/` holds
+  the host, the item view, the grid style and the measurement, and
+  `app/components/quick-access/dial-model.ts` + `quickSlotModel.ts` hold the model
+  they share with the card — Quick Access was the first panel and those files are
+  the ones the suite and the reviewers know.
 
 A panel's slots are a GRID, not a stack of lines, and the slot's own order is its
 position in it. A module's declared `region` (`dial-line`, `climate`, `readings`)
@@ -290,9 +352,12 @@ Named here rather than discovered later:
 
 - **No per-preset renderer code.** A control module names one of the four shipped
   renderers. Anything needing its own drawing needs the installable module system.
-- **Only Quick Access has slots.** `ControlSlot.surface` is a one-value union
-  today, so adding the zone panels is a new value plus the grid its slots land in
-  (above) — not a new model. The consequence worth knowing: a room's own Climate card still
+- **Every panel holds slots now** (Adeline, 2026-09-25, above), and the zone
+  panels' own contents are still built by their own components rather than by a
+  preset's feature switches: a room's Climate card reads the config directly, so a
+  preset's FEATURE switches do not reach it. The panel hands its content over as a
+  module, which is what makes the content reassignable — it is not a module that
+  re-implements the control. The consequence worth knowing: a room's own Climate card still
   reads the config directly, so a preset's FEATURE switches do not reach it — the
   Lounge knob in its zone panel and the Lounge knob on this card can differ in
   which rings they show until the zone panels are modular too. The two agree on

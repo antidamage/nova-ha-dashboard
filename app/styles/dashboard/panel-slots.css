@@ -1,0 +1,114 @@
+/* Every panel's slot grid (specs/control-modules.md, "Slots and the Quick Access
+   row"). Quick Access is one of these panels; so is the clock, the room menu,
+   the zone's controls and the task list. The card's own chrome, the preset rows
+   and the dial geometry stay in quick-access.css / quick-access-dials.css. */
+
+/* The grid. One track per column, each at least the slot width the panel
+   measured for itself (`--slot-width`, set a frame after paint), and equal, so
+   the slots subdivide the panel's width evenly and a full row reaches both
+   edges. Which arrangement that is — 2x2 for four slots, 3x2 for five, one
+   column where the panel has no room for two — is the layout's decision, not the
+   stylesheet's (app/components/dashboard/panelSlots.ts).
+
+   Adeline, 2026-09-25: "the panel will be defined as having (default in the case
+   of maximum room available) either 1x4, 4x1 or 2x2 slot arrangements. these
+   slots will evenly subdivide the space available." */
+.panel-slots {
+  display: grid;
+  grid-template-columns: repeat(var(--slot-columns, 1), minmax(var(--slot-width, 0px), 1fr));
+  /* A panel is as tall as its content, so a row is content-sized and the page
+     scrolls under it. */
+  grid-auto-rows: auto;
+  gap: var(--slot-gap, 8px);
+  min-width: 0;
+}
+
+/* Landscape: a panel that divides a height of its own — Quick Access, a column of
+   the page's fixed column height (landscape.css) — divides it between its rows,
+   so its slots subdivide the panel in both directions. The floor is the tallest
+   slot's own content: where a panel cannot fit the modules placed on it, it
+   scrolls rather than clipping them — Adeline, 2026-09-25: "in all cases except
+   mobile phone we always want all panels on screen at once. it will be up to the
+   user to ensure they don't over-pack it." */
+@media (aspect-ratio > 1) {
+  .panel-slots-divides-height,
+  .panel-slots-fill,
+  .panel-slots-stage {
+    /* Pure shares while the content can scale into them: nothing grows past the
+       panel and nothing is cut off. */
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  /* Too small to scale: the rows take the height the content needs and the panel
+     scrolls, rather than squeezing a control into half a row or drawing one
+     nobody can read. */
+  .panel-slots-divides-height[data-slot-fit="scroll"],
+  .panel-slots-fill[data-slot-fit="scroll"],
+  .panel-slots-stage[data-slot-fit="scroll"] {
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+}
+
+/* A host that wraps a PANEL sits between the stage and the panel, so it has to
+   pass the height DOWN and the intrinsic width UP. That chain is the stage's own
+   subject (`landscape.css`: "every wrapper between it and a card has to pass both
+   the height DOWN and the intrinsic width UP. Without this the chain's heights
+   are indefinite, which is what broke the camera and collapsed the stage onto its
+   520px floor") — and a wrapper that does not is a regression in every panel it
+   wraps, which the reviews of PR #51 found twice.
+   The stage's rules reach the panel through this by class, not by position.
+   TWO variants, because the hosts are sized from opposite directions (third-round
+   review):
+
+   `stage` — the hosts whose panel the STAGE sizes from content (a zone's
+   controls, the task list). The column is `max-content`, so a panel's intrinsic
+   width still reaches the stage that lays it out. */
+.panel-slots-stage {
+  grid-auto-rows: minmax(0, 1fr);
+  /* Portrait: the stage is `display: block` and fills its card, so the wrapper's
+     column fills with it. NOT max-content here — a size-contained panel (a zone's
+     controls are `container-type: inline-size`) contributes only its padding to
+     max-content, so the panel would be laid out as a sliver with its controls
+     spilling out of it (fourth-round review). */
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+/* Landscape: the stage IS content-sized there (`.control-stage { display: block;
+   width: max-content }`, landscape.css), so the wrapper's column has to follow
+   the panel's intrinsic width — that is what the stage lays itself out from. */
+@media (aspect-ratio > 1) {
+  .panel-slots-stage {
+    grid-template-columns: max-content;
+  }
+}
+
+/* `fill` — the hosts their own container sizes (the clock, the reminder bar,
+   children of the overview's column). One column that FILLS, so a placed module
+   takes the column (and the next one a row below it: the same grid, growing down)
+   rather than being sized to its own unwrapped content — which would stop the
+   card filling its column and, for the reminder bar, would make `flex-wrap` dead
+   weight: a max-content track is never narrower than its item, so the bar could
+   not wrap, and the overview's hidden scrollbars would crop it instead. */
+.panel-slots-fill {
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* One slot's own box: every module placed on a panel takes one, whatever it
+   draws, and it fills the track it was given. A dial inside it is centred across
+   the slot and starts at its top, which is what the segments' own
+   `align-items: center` and `justify-content: flex-start` say; the slot only has
+   to stop a wide control pushing its track wider than the others. */
+.panel-slots > * {
+  min-width: 0;
+  /* Adeline, 2026-09-25: "the content was meant to scale DOWN inside the slot, to
+     fit... get them scaling instead of cropping." A paint-level scale, so the
+     measurement it comes from cannot change the layout that produced it, and one
+     factor for the whole panel so its dials stay the size of each other. The
+     origin is the slot's top centre, which is where the content is aligned. */
+  transform: scale(var(--slot-scale, 1));
+  transform-origin: top center;
+}

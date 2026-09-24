@@ -16,7 +16,7 @@ wrappers: ColorEncoder, TemperatureEncoder, TimerEncoder).
 | Surface | Band | Gap above band |
 |---|---|---|
 | Panels (zone lighting, outside light, climate cards, timer) | `--dial-preset-band` 80px (zone preset grid: 68px buttons + 5px padding + 1px border per side) | `--dial-preset-gap` 8px |
-| Quick Access (lights and Apple TV segments, climate knobs) | `--quick-preset-band` 44px (quick button height) | 8px |
+| Quick Access (lights and Apple TV segments, climate knobs) | `--dial-preset-band` 44px (quick button height) | 8px |
 
 **The row hugs its dial (Adeline, 2026-09-22).** A titled dial's box reserves
 the title's band above *and* below the knob — the band below is empty air, and it
@@ -27,8 +27,8 @@ row keeps its place in the band and takes that air back:
   negative `margin-block-start` with `align-self: start` on the row.
   `dialPresetPull(size)` computes it from the dial's own geometry, and the
   Lounge's halved pair publishes its own (14px at its 100px dials).
-- Quick Access publishes `--quick-dial-pull` from `QuickAccessCard` the same
-  way, beside the measured `--quick-slot`
+- Quick Access publishes `--dial-pull` from `QuickAccessCard` the same
+  way, beside the measured `--slot-width`
   (specs/quick-access-card.md, "The layout slots").
 - Measured in Chromium at 1920x1080, dial circle to preset row: a lighting
   panel 58px → 20px, the Lounge's halved pair (100px dials, pull 14px) 8px,

@@ -5,35 +5,59 @@ import { ConfigSelect } from "../../ConfigSelect";
 import { MomentaryFeedbackButton } from "../../MomentaryFeedbackButton";
 import { roomLabel } from "../../../../lib/control-modules/rooms";
 import type { RoomOption } from "../../../../lib/control-modules/rooms";
-import type { ControlSlot, ControlsConfig } from "../../../../lib/control-modules/types";
+import type { ControlSlot, ControlSlotSurface, ControlsConfig } from "../../../../lib/control-modules/types";
 
 /**
- * The Quick Access row, as configuration (specs/control-modules.md).
+ * One surface's placements, as configuration (specs/control-modules.md).
  *
- * This is the "control slot" list: what the card shows, in order. It is
+ * This is the "control slot" list: what a surface shows, in order. It is
  * deliberately a list of placements rather than a copy of the presets — one
  * preset can be placed in several slots, and editing it changes every one of
  * them, so this panel only ever names a preset and says where it sits.
  *
+ * It was Quick Access' own list until every panel gained slots (Adeline,
+ * 2026-09-25); a panel's list is the same list asked for another surface, and the
+ * panel's default row is the `panel-content` preset holding the content the panel
+ * came with. Reassign it, move it, or take it off: the panel then shows only what
+ * else is placed there.
+ *
  * A slot carries its own room, and a preset whose HA room is "inherit" takes it.
- * Order is the array order, which is what the up/down controls move.
+ * Order is the array order, which is what the up/down controls move — within this
+ * surface, never past another panel's placements.
  */
-export function QuickAccessSlots({
+export function ControlSlotsPanel({
   controls,
+  empty,
+  inheritLabel = "Follows this slot's room",
   onAdd,
   onMove,
   onRemove,
+  ownPresetId,
   rooms,
+  surface,
 }: {
   controls: ControlsConfig;
-  onAdd: (presetId: string) => void;
+  /** What to say when nothing is placed here. */
+  empty: string;
+  /** How a slot with no room of its own reads; a panel's own room differs. */
+  inheritLabel?: string;
+  onAdd: (surface: ControlSlotSurface, presetId: string) => void;
   onMove: (slotId: string, delta: number) => void;
   onRemove: (slotId: string) => void;
+  /**
+   * This panel's own content preset. Only it may be placed here: another panel's
+   * content draws that other panel's content, and offering it was a row that did
+   * nothing (found in review).
+   */
+  ownPresetId?: string;
   rooms: readonly RoomOption[];
+  surface: ControlSlotSurface;
 }) {
-  const quick = controls.slots.filter((slot) => slot.surface === "quick-access");
-  const placed = new Set(quick.map((slot) => slot.presetId));
-  const available = controls.presets.filter((preset) => !placed.has(preset.id));
+  const placed = controls.slots.filter((slot) => slot.surface === surface);
+  const onThisSurface = new Set(placed.map((slot) => slot.presetId));
+  const available = controls.presets.filter(
+    (preset) => !onThisSurface.has(preset.id) && (preset.moduleId !== "panel-content" || preset.id === ownPresetId),
+  );
 
   const slotRow = (slot: ControlSlot, index: number) => {
     const preset = controls.presets.find((candidate) => candidate.id === slot.presetId);
@@ -50,17 +74,17 @@ export function QuickAccessSlots({
                  in" would read as a room called that. */
               : slot.roomId
                 ? `Follows this slot's room · ${roomLabel(slot.roomId, rooms)}`
-                : "Follows this slot's room"}
+                : inheritLabel}
           </span>
         </span>
         <span className="slot-actions">
           <MomentaryFeedbackButton type="button" className="icon-link" aria-label={`Move ${preset?.name ?? ""} earlier`} disabled={index === 0} onClick={() => onMove(slot.id, -1)}>
             <ArrowUp className="h-4 w-4" />
           </MomentaryFeedbackButton>
-          <MomentaryFeedbackButton type="button" className="icon-link" aria-label={`Move ${preset?.name ?? ""} later`} disabled={index === quick.length - 1} onClick={() => onMove(slot.id, 1)}>
+          <MomentaryFeedbackButton type="button" className="icon-link" aria-label={`Move ${preset?.name ?? ""} later`} disabled={index === placed.length - 1} onClick={() => onMove(slot.id, 1)}>
             <ArrowDown className="h-4 w-4" />
           </MomentaryFeedbackButton>
-          <MomentaryFeedbackButton type="button" className="icon-link" aria-label={`Take ${preset?.name ?? ""} off Quick Access`} onClick={() => onRemove(slot.id)}>
+          <MomentaryFeedbackButton type="button" className="icon-link" aria-label={`Take ${preset?.name ?? ""} off this panel`} onClick={() => onRemove(slot.id)}>
             <X className="h-4 w-4" />
           </MomentaryFeedbackButton>
         </span>
@@ -70,16 +94,12 @@ export function QuickAccessSlots({
 
   return (
     <div className="control-slots">
-      <div className="control-slots-head">
-        <h3>Quick Access</h3>
-        <span className="control-slots-count">{quick.length ? `${quick.length} placed` : "empty"}</span>
-      </div>
-      {quick.length ? <ol className="slot-list">{quick.map(slotRow)}</ol> : (
-        <p className="control-slots-empty">Nothing is on the card. Add a preset below and it appears here.</p>
+      {placed.length ? <ol className="slot-list">{placed.map(slotRow)}</ol> : (
+        <p className="control-slots-empty">{empty}</p>
       )}
       {available.length ? (
         <ConfigSelect
-          label="Add a preset to Quick Access"
+          label="Add a preset here"
           options={[
             { label: "Choose a preset…", value: "" },
             ...available.map((preset) => ({ detail: preset.roomId ? roomLabel(preset.roomId, rooms) : "Follows the slot's room", label: preset.name, value: preset.id })),
@@ -87,12 +107,12 @@ export function QuickAccessSlots({
           value=""
           onChange={(presetId) => {
             if (presetId) {
-              onAdd(presetId);
+              onAdd(surface, presetId);
             }
           }}
         />
       ) : (
-        <p className="control-slots-empty">Every preset you have is already on the card.</p>
+        <p className="control-slots-empty">Every preset you have is already placed here.</p>
       )}
     </div>
   );

@@ -25,7 +25,16 @@
  * A listing rather than a bare union because an installed module package is
  * validated against it at runtime (lib/control-modules/library.ts).
  */
-export const SHIPPED_RENDERER_IDS = ["climate-knob", "lighting-dial", "amplifier-dial", "weather-readings"] as const;
+export const SHIPPED_RENDERER_IDS = [
+  "climate-knob",
+  "lighting-dial",
+  "amplifier-dial",
+  "weather-readings",
+  // The odd one out, deliberately: it draws the content the PANEL hands it,
+  // which is how every panel's own content becomes a module that can be placed,
+  // moved or taken off (Adeline, 2026-09-25).
+  "panel-content",
+] as const;
 export type ControlRendererId = (typeof SHIPPED_RENDERER_IDS)[number];
 
 /**
@@ -150,7 +159,30 @@ export type ControlPresetBinding = {
   dryTargetHumidityPct?: number;
 };
 
-export type ControlSlotSurface = "quick-access";
+/**
+ * The panels that can hold a slot.
+ *
+ * Quick Access was the first (specs/control-modules.md); every other dashboard
+ * panel followed on 2026-09-25 (Adeline: "every panel that isn't an existing
+ * modular control can default to a single modular slot, with the current content
+ * as a module inside of it, so no visible change, but still have the ability to
+ * reassign the content"). Each panel defaults to one slot holding a
+ * `panel-content` preset, and a panel with several slots is laid out by the same
+ * grid rule Quick Access uses.
+ *
+ * `zone-panel` is every zone's control panel: its slots apply whatever zone is
+ * selected, and the panel supplies that zone's own content.
+ */
+export const CONTROL_SLOT_SURFACES = [
+  "quick-access",
+  "clock",
+  "reminders",
+  "zones",
+  "zone-panel",
+  "tasks",
+] as const;
+
+export type ControlSlotSurface = (typeof CONTROL_SLOT_SURFACES)[number];
 
 /** A place on a dashboard surface that holds a preset. */
 export type ControlSlot = {

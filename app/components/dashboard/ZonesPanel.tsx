@@ -3,6 +3,7 @@
 import { Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import type { DashboardState } from "../../../lib/types";
+import { PanelSlots } from "./panel-slots/PanelSlots";
 import { ZoneButton } from "./ZoneButton";
 import { HorizontalAccordion } from "./HorizontalAccordion";
 import {
@@ -80,6 +81,9 @@ export function ZonesPanel({
 
   return (
     <aside className="zones-panel border border-neutral-700 bg-neutral-950/70 p-4">
+      {/* The room menu is this panel's content, and a module like any other: it
+          can be reassigned or taken off (Adeline, 2026-09-25). */}
+      <PanelSlots surface="zones">
       <div className="zones-panel-heading mb-4 flex items-center justify-between">
         <h2 className="text-xl font-black uppercase text-neutral-100">Zones</h2>
         <Zap className="h-5 w-5 text-yellow-300" />
@@ -202,6 +206,7 @@ export function ZonesPanel({
         </div>
         </HorizontalAccordion>
       </div>
+      </PanelSlots>
     </aside>
   );
 }

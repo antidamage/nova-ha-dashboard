@@ -45,7 +45,7 @@ export const QUICK_DIAL_MAX = 200;
 
 /**
  * The air a titled dial's layout box keeps under its knob, and the preset row
- * that takes it back. Two halves of one measure: `--quick-preset-band` is
+ * that takes it back. Two halves of one measure: `--dial-preset-band` is
  * dial-preset-band.css's 44px, and `dialPresetPull` is the negative margin that
  * pulls the row up by the box's lower title band (specs/dial-preset-band.md).
  */

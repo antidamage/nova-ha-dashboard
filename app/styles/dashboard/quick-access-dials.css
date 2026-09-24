@@ -3,66 +3,19 @@
    is where that arrangement is drawn. It extends quick-access.css, which stays
    the file for the card itself and its segments. */
 
-/* The grid. One track per column, each at least the slot width the card measured
-   for itself (`--quick-slot`, set by QuickAccessCard a frame after paint), and
-   equal, so the slots subdivide the card's width evenly and a full row reaches
-   both edges. Which arrangement that is — 2x2 for four slots, 3x2 for five, one
-   column down a phone — is the layout's decision, not the stylesheet's
-   (`app/components/dashboard/panelSlots.ts`).
-
-   Adeline, 2026-09-25: "the panel will be defined as having (default in the case
-   of maximum room available) either 1x4, 4x1 or 2x2 slot arrangements. these
-   slots will evenly subdivide the space available." Before this the card was a
-   stack of lines — the dial line, the climate knobs, the readings — each holding
-   as many slots as fitted, so a slot's position said nothing about the slots
-   around it. */
-.quick-access-row {
-  display: grid;
-  grid-template-columns: repeat(var(--quick-columns, 1), minmax(var(--quick-slot, 0px), 1fr));
-  gap: var(--quick-slot-gap, 8px);
-  min-width: 0;
-}
-
-/* Landscape: the card is a column of the page's own height (landscape.css), so
-   its rows divide that height between them and the slots subdivide the panel in
-   both directions. The floor is the tallest slot's own content: where a card
-   cannot fit the modules placed on it, it scrolls rather than clipping them —
-   Adeline, 2026-09-25: "in all cases except mobile phone we always want all
-   panels on screen at once. it will be up to the user to ensure they don't
-   over-pack it." */
-@media (aspect-ratio > 1) {
-  .quick-access-row {
-    grid-auto-rows: minmax(min-content, 1fr);
-  }
-}
-
-/* Portrait has no height of its own to divide: the card is as tall as its content
-   and the page scrolls under it, which is what a phone does. */
-@media (aspect-ratio <= 1) {
-  .quick-access-row {
-    grid-auto-rows: auto;
-  }
-}
-
-/* One slot's own box. Every module placed on the card takes one, whatever it
-   draws — a lighting dial, an amplifier dial, a climate knob, the readings tile
-   — and it fills the track it was given, so that dials, knobs and tiles are all
-   the same slot. A dial inside it is centred across the slot and starts at its
-   top, which is what `.quick-segment`'s own `align-items: center` and
-   `justify-content: flex-start` already say; the slot itself only has to stop a
-   wide control pushing its track wider than the others. */
-.quick-access-row > * {
-  min-width: 0;
-}
+/* The card's grid is the shared one (`app/styles/dashboard/panel-slots.css`),
+   which the card's row carries: the card is a panel, and its slots subdivide it
+   exactly as another panel's do. What is left here is what belongs to a dial's
+   own slot. */
 
 /* Each dial's preset row takes back the air a titled dial's box keeps under its
-   knob (`--quick-dial-pull`, set by QuickAccessCard from the dial's own
+   knob (`--dial-pull`, set by QuickAccessCard from the dial's own
    geometry), so the buttons sit just under the dial they belong to instead of a
    knob-slack below it. A long playlist list wraps rather than overflows. */
 .quick-segment-lights .quick-button-pair,
 .quick-segment-appletv .quick-button-pair {
-  min-height: var(--quick-preset-band);
-  margin-block-start: calc(-1 * var(--quick-dial-pull, 0px));
+  min-height: var(--dial-preset-band);
+  margin-block-start: calc(-1 * var(--dial-pull, 0px));
   flex-wrap: wrap;
   justify-content: center;
 }

@@ -42,7 +42,7 @@
     padding: 16px !important;
   }
 
-  .zones-panel > .grid {
+  .zones-panel .zone-selector-groups {
     gap: 8px !important;
   }
 
@@ -153,7 +153,7 @@
     order: -1;
   }
 
-  .zones-panel > .grid {
+  .zones-panel .zone-selector-groups {
     gap: 12px !important;
   }
 

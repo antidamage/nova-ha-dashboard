@@ -17,6 +17,7 @@ export const CONTROL_RENDERERS: Record<ControlRendererId, { label: string; detai
   "lighting-dial": { label: "Lighting dial", detail: "A room's colour and brightness, with its presets beside it" },
   "amplifier-dial": { label: "Amplifier dial", detail: "Volume, mute and the playlists under it" },
   "weather-readings": { label: "Weather readings", detail: "Condition, temperature, feels-like and UV" },
+  "panel-content": { label: "The panel's own content", detail: "Whatever that panel shows by default" },
 };
 
 export const CONTROL_BEHAVIOURS: Record<string, { label: string; detail: string }> = {

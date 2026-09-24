@@ -12,7 +12,8 @@
 //
 // Facade. The body lives in ./quick-access/:
 //   dial-model.ts            the slot width, the gap and the dial sizes
-//   useQuickSlotLayout.ts    measures the card and lays its slots out
+//   (the slot grid, the measurement and the dial sizes live in
+//    ../panel-slots/, which this card and every other panel share)
 //   QuickSegment.tsx         shared tile parts (segment, climate wrapper, title, button)
 //   QuickLightsSegment.tsx   Home zone colour dial and rule presets
 //   QuickClimateSegments.tsx aircon and heater knobs

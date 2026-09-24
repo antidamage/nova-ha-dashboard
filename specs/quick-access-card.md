@@ -52,7 +52,12 @@ fits in a row:
 > it will be up to the user to ensure they don't over-pack it.
 
 - **The card is a grid of equal slots, one per module placed on it**, in the
-  order the slots are configured in. A module's declared `region` no longer
+  order the slots are configured in. It was the FIRST panel to hold slots and
+  every other dashboard panel now does the same (Adeline, 2026-09-25;
+  specs/control-modules.md, "Every panel holds slots"): the grid, the item view
+  and the measurement live in `app/components/dashboard/panel-slots/`, the card
+  uses them, and a panel's own content is a `panel-content` module it hands to
+  its slot. A module's declared `region` no longer
   places it: the card is not a stack of lines any more, so the position of a
   module is its slot's order and the arrangement below.
 - **The arrangement is the panel's own while the panel has room for it.**

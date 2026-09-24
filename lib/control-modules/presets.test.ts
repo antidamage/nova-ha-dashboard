@@ -66,7 +66,43 @@ describe("derived presets", () => {
 
   it("covers the card's other three segments", () => {
     const ids = effectivePresets(LEGACY).map((preset) => preset.id);
-    expect(ids).toEqual(["lounge", "bedroom", "home-lights", "amplifier", "outside"]);
+    // The five controls the card had before it was configurable, then the one
+    // each PANEL holds its own content in (Adeline, 2026-09-25).
+    expect(ids).toEqual([
+      "lounge",
+      "bedroom",
+      "home-lights",
+      "amplifier",
+      "outside",
+      "panel-clock",
+      "panel-reminders",
+      "panel-zones",
+      "panel-zone",
+      "panel-tasks",
+    ]);
+  });
+
+  it("gives every panel one slot holding its own content", () => {
+    const controls = effectiveControls(LEGACY);
+    const panels = controls.slots.filter((slot) => slot.surface !== "quick-access");
+    expect(panels.map((slot) => [slot.surface, slot.presetId])).toEqual([
+      ["clock", "panel-clock"],
+      ["reminders", "panel-reminders"],
+      ["zones", "panel-zones"],
+      ["zone-panel", "panel-zone"],
+      ["tasks", "panel-tasks"],
+    ]);
+    // Each holds a module the build ships, and that module draws the panel's own
+    // content rather than a device.
+    for (const slot of panels) {
+      const preset = controls.presets.find((candidate) => candidate.id === slot.presetId);
+      expect(preset?.moduleId).toBe("panel-content");
+      expect(MODULES.find((module) => module.id === preset?.moduleId)?.renderer).toBe("panel-content");
+      // A panel's content serves no room and takes no driver or variant.
+      expect(preset?.roomId).toBeNull();
+      expect(preset?.driverId).toBeNull();
+      expect(preset?.variant).toBeNull();
+    }
   });
 
   it("reads declared instances, and their rooms, in preference to the legacy blocks", () => {
@@ -157,7 +193,8 @@ describe("the configured flag", () => {
     const untouched = {
       dashboard: { ...LEGACY.dashboard, controls: { presets: [], slots: [] } },
     } as unknown as PartialConfig;
-    expect(effectivePresets(untouched).length).toBe(5);
+    // The five controls plus one per panel.
+    expect(effectivePresets(untouched).length).toBe(10);
   });
 });
 
@@ -178,7 +215,8 @@ describe("feature gates", () => {
 describe("effectiveControls", () => {
   it("derives both halves from the config when nothing is stored", () => {
     const controls = effectiveControls(LEGACY);
-    expect(controls.slots.map((slot) => slot.presetId)).toEqual(["home-lights", "amplifier", "lounge", "bedroom", "outside"]);
-    expect(controls.slots.every((slot) => slot.surface === "quick-access")).toBe(true);
+    const quickAccess = controls.slots.filter((slot) => slot.surface === "quick-access");
+    expect(quickAccess.map((slot) => slot.presetId)).toEqual(["home-lights", "amplifier", "lounge", "bedroom", "outside"]);
+    expect(controls.slots.length).toBeGreaterThan(quickAccess.length);
   });
 });
