@@ -1,6 +1,7 @@
 import { airconInstances, heaterInstances } from "../climate-instances";
 import type { DashboardConfig } from "../config-schema";
 import { controlModuleIn, CONTROL_MODULES, driverModulesFor } from "./catalogue";
+import { panelContentPresets, panelContentSlots } from "./panel-surfaces";
 import { HOME_ZONE_ID } from "./rooms";
 import { hasStoredPresets, storedPresets, storedSlots } from "./stored";
 import type {
@@ -24,6 +25,9 @@ import type {
  */
 
 export const AIRCON_HEATER_MODULE = "aircon-heater-control";
+// The panels and the module their own content is placed as live in
+// `panel-surfaces.ts`; this file only has to ask for them.
+export { PANEL_CONTENT_MODULE, PANEL_SURFACES } from "./panel-surfaces";
 export const ROOM_LIGHTING_MODULE = "room-lighting";
 export const AMPLIFIER_MODULE = "amplifier-control";
 export const OUTSIDE_WEATHER_MODULE = "outside-weather";
@@ -112,6 +116,8 @@ export function derivedPresets(config: DashboardConfig): ControlPreset[] {
       features: {},
       binding: {},
     },
+    // And one per panel, holding that panel's own content.
+    ...panelContentPresets(),
   ];
 }
 
@@ -128,6 +134,7 @@ export function derivedSlots(config: DashboardConfig): ControlSlot[] {
       visible: true,
     })),
     { id: QUICK_ACCESS_OUTSIDE_SLOT, surface: "quick-access", presetId: "outside", roomId: null, visible: true },
+    ...panelContentSlots(),
   ];
 }
 

@@ -88,10 +88,10 @@
 @media (aspect-ratio <= 1) {
   /* The climate knobs' title arcs make their boxes taller than the dial; the
      untitled lighting and amplifier dials take the same box
-     (`--quick-dial-box`), so every dial on a line sits on one centre line. */
+     (`--dial-box`), so every dial on a line sits on one centre line. */
   .quick-segment-lights .rotary-encoder,
   .quick-segment-appletv .rotary-encoder {
-    height: var(--quick-dial-box, auto);
+    height: var(--dial-box, auto);
   }
 
   /* The two dials that keep their tile chrome in landscape give it up here, so
@@ -183,13 +183,13 @@
    height, and each climate knob reserves the same row (4px gap + 4px margin
    matches the lights segment's 8px gap). */
 .quick-segment-lights .quick-button-pair {
-  min-height: var(--quick-preset-band);
+  min-height: var(--dial-preset-band);
 }
 
 .quick-climate::after {
   content: "";
   flex: none;
-  height: var(--quick-preset-band);
+  height: var(--dial-preset-band);
   margin-top: 4px;
 }
 

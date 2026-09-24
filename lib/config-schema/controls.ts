@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CONTROL_SLOT_SURFACES } from "../control-modules/types";
 import { entityIdSchema, stringListSchema } from "./primitives";
 
 /**
@@ -45,7 +46,7 @@ export type ControlPresetConfig = z.infer<typeof ControlPresetSchema>;
 
 export const ControlSlotSchema = z.object({
   id: z.string().min(1).max(60),
-  surface: z.literal("quick-access").default("quick-access"),
+  surface: z.enum(CONTROL_SLOT_SURFACES).default("quick-access"),
   presetId: z.string().min(1).max(60),
   roomId: z.string().min(1).max(120).nullable().default(null),
   visible: z.boolean().default(true),

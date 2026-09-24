@@ -14,7 +14,7 @@
      `dialPresetPull(size)` is this number for a 200px dial; the Lounge's halved
      pair publishes its own. */
   --dial-preset-pull: 22px;
-  --quick-preset-band: 44px;
+  --dial-preset-band: 44px;
 }
 
 .zone-lighting-controls,

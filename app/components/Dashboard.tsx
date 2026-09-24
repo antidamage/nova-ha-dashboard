@@ -4,12 +4,11 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { Settings } from "lucide-react";
 import { GatedLink } from "./auth/GatedLink";
 import type { DashboardZone } from "../../lib/types";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useDeviceTheme, type ThemeVariant } from "./accentColor";
-import { requestManagedDesktopWallpaperSync } from "./managed-computers-client";
+import { useEffect, useMemo, useState } from "react";
+import { useDeviceTheme } from "./accentColor";
 import { ClockPanel } from "./dashboard/ClockPanel";
 import { ClimateCommandsProvider } from "./dashboard/ClimateCommandsProvider";
-import { useQuickAccessItems } from "./dashboard/quick-access/useQuickAccessItems";
+import { PanelSlots, SlotViewProvider, useDashboardSlotView, useSlotItems } from "./dashboard/panel-slots";
 import { QuickAccessCard } from "./dashboard/QuickAccessCard";
 import { ReminderIconBar } from "./dashboard/ReminderIconBar";
 import { ZoneControls } from "./dashboard/ZoneControls";
@@ -33,6 +32,7 @@ import { useGroupSelection } from "./dashboard/useGroupSelection";
 import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollAnchor } from "./dashboard/useScrollAnchor";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
+import { useManagedDesktopWallpaperSync } from "./dashboard/useManagedDesktopWallpaperSync";
 import { FluidBackground } from "./FluidBackground";
 import { WallpaperBackground } from "./WallpaperBackground";
 import { useExperienceFeature } from "./dashboard/experienceModeSetting";
@@ -50,31 +50,13 @@ export function Dashboard() {
   useHousePartyClockSync();
   useBuildReload();
 
-  // The dashboard is the only place a dark/light flip should push wallpapers to
-  // managed desktops (config edits wait for "Back"). This effect lives in the
-  // dashboard component, so it never runs on the config screen. We record the
-  // first resolved variant without syncing, then push only on an actual flip.
-  // The sync is deduplicated server-side, so the same image is never re-sent.
-  const lastSyncedVariantRef = useRef<ThemeVariant | null>(null);
-  useEffect(() => {
-    if (!themeReady) {
-      return;
-    }
-    const previous = lastSyncedVariantRef.current;
-    lastSyncedVariantRef.current = activeVariant;
-    if (previous === null || previous === activeVariant) {
-      return;
-    }
-    void requestManagedDesktopWallpaperSync().catch((error) => {
-      console.error("[nova-dashboard] managed desktop wallpaper sync failed", error);
-    });
-  }, [activeVariant, themeReady]);
+  useManagedDesktopWallpaperSync({ activeVariant, themeReady });
 
   const { data, error, eventClientId, pausePolling, refresh, setData } = useDashboardState();
   const [toast, setToast] = useState<string | null>(null);
   const { selectedZone, selectedZoneId, selectZone } = useDashboardSelection(data);
   const zoneTree = useMemo(() => buildZoneTree(data), [data]);
-  const quickItems = useQuickAccessItems(data, zoneTree.climate);
+  const quickItems = useSlotItems("quick-access", data, zoneTree.climate).items;
   const loungeEnvironment = useMemo(() => findLoungeEnvironment(data), [data]);
   const bedroomHeaterConfig = useBedroomHeaterConfig();
   const bedroomHeater = useMemo(
@@ -139,15 +121,17 @@ export function Dashboard() {
     />
   );
 
-  // Each accordion group has its own selected zone and joins its controls to
-  // its entry, in both orientations (specs/landscape-layout.md,
-  // specs/portrait-layout.md).
   const groupStage = (zoneId: string | null, group: string) => {
     const zone = zoneForSelection(data, zoneId);
     return zone ? (
-      <div className="control-stage" data-group={group}>{zoneControlsFor(zone)}</div>
+      <div className="control-stage" data-group={group}>
+        <PanelSlots className="panel-slots-stage" dividesHeight roomId={zone.id} surface="zone-panel">{zoneControlsFor(zone)}</PanelSlots>
+      </div>
     ) : null;
   };
+
+  // One provider for every panel's slots; see useDashboardSlotView.
+  const slotView = useDashboardSlotView({ climateZone: zoneTree.climate, commands: { onEntityActions: applyEntityActions, onNotice: setToast, onZoneAction: (zone, action, body) => applyZoneActionFor(zone, action, body) }, data, knobSkin: theme.knobSkin, sun: data?.sun, weather: data?.weather });
 
   return (
     <Tooltip.Provider delayDuration={250}>
@@ -214,10 +198,11 @@ export function Dashboard() {
             }}
             heater={{ onNotice: setToast, preferences: data?.preferences?.bedroomHeater }}
           >
+          <SlotViewProvider view={slotView}>
           <div className="dashboard-layout grid gap-5">
             <div className="dashboard-overview">
-              <ClockPanel />
-              <ReminderIconBar />
+              <PanelSlots className="panel-slots-fill" dividesHeight surface="clock"><ClockPanel /></PanelSlots>
+              <PanelSlots className="panel-slots-fill" dividesHeight surface="reminders"><ReminderIconBar /></PanelSlots>
             </div>
 
             <QuickAccessCard
@@ -246,9 +231,10 @@ export function Dashboard() {
                 running; shown as the Systems entry's joined panel when Tasks is
                 its selection: to the right in landscape, below in portrait. */}
             <div className="control-stage tasks-stage" data-group="systems" hidden={systemsId !== TASKS_ZONE_ID}>
-              <TasksPanel showPanel={systemsId === TASKS_ZONE_ID} />
+              <PanelSlots className="panel-slots-stage" dividesHeight surface="tasks"><TasksPanel showPanel={systemsId === TASKS_ZONE_ID} /></PanelSlots>
             </div>
           </div>
+          </SlotViewProvider>
           </ClimateCommandsProvider>
 
           {toast ? (

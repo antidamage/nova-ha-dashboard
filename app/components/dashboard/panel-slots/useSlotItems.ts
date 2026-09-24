@@ -2,14 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CONTROL_MODULES } from "../../../../lib/control-modules/catalogue";
-import type { ControlModule, ControlsConfig } from "../../../../lib/control-modules/types";
+import { HOME_ZONE_ID } from "../../../../lib/control-modules/rooms";
+import type { ControlModule, ControlSlotSurface, ControlsConfig } from "../../../../lib/control-modules/types";
 import type { DashboardState, DashboardZone } from "../../../../lib/types";
 import { loadSharedClientConfig, readCachedClientConfig } from "../../sharedConfigCache";
-import { buildQuickAccessItems, type QuickItem } from "./quickSlotModel";
+import { buildSlotItems, type QuickItem } from "../quick-access/quickSlotModel";
 
 /**
- * The Quick Access card's items, resolved from configuration
- * (specs/control-modules.md).
+ * A panel's items, resolved from configuration (specs/control-modules.md) — the
+ * Quick Access card's hook, asked for whichever surface it is (`surface`).
  *
  * The configuration arrives TWICE on purpose, and the order matters:
  *
@@ -19,12 +20,8 @@ import { buildQuickAccessItems, type QuickItem } from "./quickSlotModel";
  *      payload predates this block, which is the demo shim and any provider older
  *      than the dashboard reading it.
  *
- * Without the second the card renders nothing wherever the state cannot carry
- * the controls, which is exactly how the published demo works.
- *
- * A hook rather than an inline memo at the call site for a mundane reason worth
- * recording: `app/components/Dashboard.tsx` is on the 10 KB size allowance, and
- * an allowance may only shrink.
+ * Without the second a panel renders nothing wherever the state cannot carry the
+ * controls, which is exactly how the published demo works.
  */
 
 type ControlConfig = { controls?: ControlsConfig; controlModules?: ControlModule[] };
@@ -34,7 +31,7 @@ function readPayload(payload: unknown): ControlConfig {
   return { controlModules: root?.controlModules, controls: root?.controls };
 }
 
-export function useSharedControlConfig(): ControlConfig {
+function useSharedControlConfig(): ControlConfig {
   const [config, setConfig] = useState<ControlConfig>(() => readPayload(readCachedClientConfig()));
   useEffect(() => {
     let alive = true;
@@ -52,10 +49,23 @@ export function useSharedControlConfig(): ControlConfig {
   return config;
 }
 
-export function useQuickAccessItems(
+/**
+ * A surface's items, and whether the configuration they come from is known yet.
+ *
+ * `ready` is not a nicety: a panel whose content is a module must draw that
+ * content when nothing has been configured, and an unknown configuration is not
+ * the same answer as a configured-but-empty one. Without the distinction a panel
+ * renders NOTHING until the config arrives — a blank clock, a blank room menu,
+ * and a permanently empty panel if the fetch fails, which is exactly the flash
+ * this change caused until the e2e caught it.
+ */
+export function useSlotItems(
+  surface: ControlSlotSurface,
   data: DashboardState | null,
   climateZone: DashboardZone | null | undefined,
-): QuickItem[] {
+  /** The room this panel's slots inherit; see QuickSlotInput.roomId. */
+  roomId: string | null = HOME_ZONE_ID,
+): { items: QuickItem[]; ready: boolean } {
   const shared = useSharedControlConfig();
   const controls = data?.controls ?? shared.controls;
   const controlModules = data?.controlModules?.length
@@ -63,14 +73,18 @@ export function useQuickAccessItems(
     : shared.controlModules?.length
       ? shared.controlModules
       : [...CONTROL_MODULES];
-  return useMemo(
-    () => buildQuickAccessItems({
-      climateZone,
-      controlModules,
-      controls: controls ?? { presets: [], slots: [] },
-      data,
-      preferences: data?.preferences,
-    }),
-    [climateZone, controlModules, controls, data],
+  const items = useMemo(
+    () =>
+      buildSlotItems({
+        climateZone,
+        controlModules,
+        controls: controls ?? { presets: [], slots: [] },
+        data,
+        preferences: data?.preferences,
+        roomId,
+        surface,
+      }),
+    [climateZone, controlModules, controls, data, roomId, surface],
   );
+  return { items, ready: controls != null };
 }

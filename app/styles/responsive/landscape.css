@@ -376,7 +376,7 @@ body,
      a card has to pass both the height DOWN and the intrinsic width UP.
      Without this the chain's heights are indefinite, which is what broke the
      camera (below) and collapsed the stage onto its 520px floor. */
-  .dashboard-home .control-stage > .zone-panel {
+  .dashboard-home .control-stage .zone-panel {
     /* Inline-size containment discards the cards' intrinsic widths. Keep it
        for portrait container queries, but let landscape size from content. */
     container-type: normal;
@@ -412,7 +412,7 @@ body,
     grid-column: 1 / -1;
   }
 
-  .dashboard-home .control-stage > .zone-panel[data-lighting-zone] > .mt-8 {
+  .dashboard-home .control-stage .zone-panel[data-lighting-zone] > .mt-8 {
     margin: 0;
   }
 
@@ -435,7 +435,7 @@ body,
   /* The zone panel is a flex column with a header above its controls, so the
      controls take what the header leaves — `height: 100%` here would be the
      panel's full height and push the card's foot out the bottom. */
-  .dashboard-home .control-stage > .zone-panel > .mt-8 {
+  .dashboard-home .control-stage .zone-panel > .mt-8 {
     flex: 1;
     min-height: 0;
     height: auto;
@@ -445,12 +445,12 @@ body,
      The rows are floored at 0: each sub-panel under them is its own scroller
      (specs/advanced-fold.md), so a sub-panel taller than the column scrolls
      inside itself instead of growing the stage. The body no longer scrolls. */
-  .dashboard-home .control-stage > .zone-panel > .mt-8,
+  .dashboard-home .control-stage .zone-panel > .mt-8,
   .dashboard-home .control-stage .lighting-column {
     grid-template-rows: minmax(0, 1fr);
   }
 
-  .dashboard-home .control-stage > .zone-panel > .mt-8 {
+  .dashboard-home .control-stage .zone-panel > .mt-8 {
     overflow: visible;
   }
 
@@ -570,7 +570,7 @@ body,
      (specs/advanced-fold.md): the panel fills the stage, and the fold takes
      the column left below the header, the edit row and the editor. */
 
-  .dashboard-home .tasks-stage > .tasks-panel {
+  .dashboard-home .tasks-stage .tasks-panel {
     display: flex;
     flex-direction: column;
     height: 100%;

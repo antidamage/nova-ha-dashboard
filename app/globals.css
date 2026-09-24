@@ -61,6 +61,7 @@
 @import "./styles/controls/rotary-rings.css";
 @import "./styles/controls/rotary-title-arc.css";
 @import "./styles/controls/temperature-encoder.css";
+@import "./styles/dashboard/panel-slots.css";
 @import "./styles/dashboard/quick-access.css";
 @import "./styles/dashboard/quick-access-dials.css";
 @import "./styles/dashboard/apple-tv-dial.css";
