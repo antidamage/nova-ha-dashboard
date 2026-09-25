@@ -8,23 +8,6 @@ package/file-role directory convention, and a ratchet in
 `ARCHITECTURE.md` says where things live; [`specs/README.md`](specs/README.md)
 indexes the specification, which replaced the root `SPEC.md` on 2026-09-16.
 
-## Terms and domains — read [`VOCABULARY.md`](VOCABULARY.md) before exploring
-
-[`VOCABULARY.md`](VOCABULARY.md) is the dictionary: what the owner's words mean
-("module", "card", "panel", "slot", "grid", "mode"), which area owns each kind of
-functionality and where that code is, and where a change of each kind goes —
-behaviour, front-end, a control or driver module, an installable module, a
-capability module, a config value. Read it before searching the tree: grepping
-for a word that names four different things is the slowest way to an answer, and
-it is how an agent ends up reading the air conditioner's *card* when the question
-was about the air conditioner's *thermostat*.
-
-**Keep it current in the same change.** A change that adds, renames or retires an
-area, a panel or slot surface, a kind of module, a config section, or a word the
-owner uses for one of them updates `VOCABULARY.md` in the same PR. If finding
-something cost you more than a couple of reads, add the term there — that gap is
-the whole reason the file exists.
-
 The reuse rule itself lives in the repo-root `AGENTS.md` under "UI
 implementation conventions": when a surface already has a custom component for
 a control, find and reuse it rather than dropping to a raw `<input>`, an

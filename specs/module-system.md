@@ -1,7 +1,6 @@
 # Nova dashboard module system
 
-Produced by plan `there-are-two-major-dazzling-corbato`
-(`~/.claude/plans/there-are-two-major-dazzling-corbato.md`), 2026-08-28.
+Produced by plan `there-are-two-major-dazzling-corbato`, 2026-08-28.
 
 ## Why
 
@@ -413,7 +412,7 @@ fixed here so the config form can render them generically.
 
 `manifest.configSchema` is a **restricted JSON Schema subset**, because the form
 is generated and must only use the controls in the inventory
-(`nova-ha-dashboard/CLAUDE.md`). No raw inputs, no JSON textarea — module config
+(`nova-ha-dashboard/docs/control-inventory.md`). No raw inputs, no JSON textarea — module config
 is explicitly not text-editable in the UI.
 
 Supported at the top level only (no nesting beyond one level of `object`):
@@ -558,7 +557,7 @@ own React), `api.components` (`ControlCard`, `CheckboxRow`, `ConfigSelect`,
 routes), `api.emit(id, payload)` (forwards to the server bus).
 
 The component set is deliberately the shared inventory from
-`nova-ha-dashboard/CLAUDE.md`. A module rendering a raw `<button>` looks wrong
+`nova-ha-dashboard/docs/control-inventory.md`. A module rendering a raw `<button>` looks wrong
 on this surface; giving it the real controls is what stops that.
 
 ---

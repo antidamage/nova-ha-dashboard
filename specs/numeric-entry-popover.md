@@ -1,7 +1,6 @@
 # Numeric entry popover on Nova's sliders
 
-Produced by plan `add-a-feature-to-optimized-nygaard`
-(`~/.claude/plans/add-a-feature-to-optimized-nygaard.md`), 2026-08-22.
+Produced by plan `add-a-feature-to-optimized-nygaard`, 2026-08-22.
 
 ## Why
 

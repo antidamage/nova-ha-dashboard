@@ -68,7 +68,7 @@ row says where.
 | Home Assistant client, state, events | `lib/ha.ts` + `lib/ha/`, `lib/state.ts`, `lib/dashboard-events/` | `app/components/dashboard/state/` | `specs/home-assistant-integration.md`, `specs/api-contract.md` |
 | Config, persistence, preferences | `lib/config-schema/`, `lib/dashboard-config/`, `lib/preferences/` | `app/components/config/`, `app/components/ConfigWorkspace.tsx` | `specs/configuration-model.md` |
 | Theme, design, wallpaper, sounds | `lib/theme-*.ts`, `lib/design-preferences.ts`, `lib/wallpaper-*.ts`, `lib/sound-*.ts` | `app/components/accentColor.ts`, `app/components/AccentConfig.tsx`, `app/design/`, `app/designs/` | `specs/theme-and-configuration-ux.md`, `specs/design-modules.md`, `specs/ux-sounds.md` |
-| Shared controls library | — (front-end only) | `app/components/controls/`, `app/components/RotaryEncoder.tsx`, `app/components/ColorEncoder.tsx`, `app/components/ConfigSelect.tsx`, `app/components/SlideSwitch.tsx` | `CLAUDE.md` is the inventory; `specs/ux-system9-controls.md` |
+| Shared controls library | — (front-end only) | `app/components/controls/`, `app/components/RotaryEncoder.tsx`, `app/components/ColorEncoder.tsx`, `app/components/ConfigSelect.tsx`, `app/components/SlideSwitch.tsx` | `docs/control-inventory.md` is the inventory; `specs/ux-system9-controls.md` |
 | Control modules: presets and slots | `lib/control-modules/` | `app/components/config/devices/`, `app/components/dashboard/panel-slots/`, `app/components/dashboard/quick-access/` | `specs/control-modules.md` |
 | Installable modules | `lib/modules/runtime/` | `app/components/modules/` | `specs/module-system.md` |
 | Login, face auth, witnesses | `lib/authentik-flow/`, `lib/kiosk-witness/`, `face-auth/` (python) | `app/components/auth/`, `app/components/face/` | `specs/login-surface.md`, `specs/face-auth.md`, `specs/kiosk-attribution.md` |
@@ -83,7 +83,7 @@ row says where.
 | The change | Goes in |
 |---|---|
 | Behaviour, state, a device command | `lib/<area>/` — the area's row above. A package keeps a thin facade at the old path (`lib/aircon-control.ts` over `lib/aircon-control/`) |
-| Front-end, a control, a layout | `app/components/<area>/`; shared controls in `app/components/controls/` and `app/components/*.tsx`. Reuse the component named in `CLAUDE.md` before writing one |
+| Front-end, a control, a layout | `app/components/<area>/`; shared controls in `app/components/controls/` and `app/components/*.tsx`. Reuse the component named in `docs/control-inventory.md` before writing one |
 | Styling, layout, orientation | the partial for the area under `app/styles/`; `app/globals.css` is only the entry file that imports them in load-bearing order. Per-orientation layout: `specs/landscape-layout.md`, `specs/portrait-layout.md`, `specs/ui-shell.md`. Read the `app/globals.css` trap in `ARCHITECTURE.md` first |
 | A new HTTP route | `app/api/<name>/route.ts` (route-per-directory), then `specs/api-contract.md` |
 | A device type on the dashboard (control or driver module) | the `CONTROL_MODULES` array in `lib/control-modules/modules.ts`; `catalogue.ts` holds the lookups over it. What a module may declare comes from `lib/control-modules/fields.ts`, `features.ts`, `types.ts`; a new *renderer* is product code in `app/components/` |
@@ -117,8 +117,8 @@ rule, not this file's.
 
 ## 4. Keeping this current
 
-This file is only worth reading if it is true. The rule lives in `CLAUDE.md`
-("Terms and domains"), where an agent working here will meet it:
+This file is only worth reading if it is true. Every agent working in this repo
+is asked to keep it that way:
 
 - **A change that adds, renames or retires an area, a panel or slot surface, a
   kind of module, a config section, or a word the owner uses for one of them

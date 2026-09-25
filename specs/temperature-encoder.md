@@ -4,7 +4,7 @@ alex, 2026-09-12. A temperature knob built on the same dial as the lighting
 knob. It replaces the body of the aircon and bedroom-heater cards and the
 Quick Access climate segments.
 
-Plan: `~/.claude/plans/let-s-make-a-new-floofy-papert.md`. The interview
+Plan: `let-s-make-a-new-floofy-papert`. The interview
 answers below are alex's. Items marked *(decided)* were the planning or
 implementing agent's call and can be changed here in place.
 

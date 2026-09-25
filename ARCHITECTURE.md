@@ -69,7 +69,7 @@ Existing areas: `auth/`, `dashboard/`, `face/`, `modules/`, `orb-info/`,
 `phonoscope/`, `reminders/`, `tasks/`. `dashboard/` is the largest and holds
 the panels and cards.
 
-The reusable control inventory is in [`CLAUDE.md`](CLAUDE.md), not here —
+The reusable control inventory is in [`docs/control-inventory.md`](docs/control-inventory.md), not here —
 **read it before building any new control.** The rule is that a surface with
 an existing custom component for a control reuses it rather than dropping to a
 raw `<input>` or an unstyled `<button>`.

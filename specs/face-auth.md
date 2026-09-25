@@ -1,7 +1,6 @@
 # Face-released passkey authentication
 
-Produced by plan `expand-on-this-plan-enumerated-garden`
-(`~/.claude/plans/expand-on-this-plan-enumerated-garden.md`), 2026-09-02.
+Produced by plan `expand-on-this-plan-enumerated-garden`, 2026-09-02.
 Supersedes the passkey and authentik sections of the previous pass; the model,
 threshold, liveness, gallery, enrolment and API sections are carried forward.
 
@@ -958,7 +957,7 @@ Enrolment lives **inside `app/components/UserDataConfig.tsx`, beside
 against them is exactly that section's remit, and face is the visual twin of the
 voice profiles already there. It calls the same-origin `/api/face/*` proxy routes
 only, and reuses `ConfigAccordion`, `MomentaryFeedbackButton` and
-`ConfirmDialog` per `nova-ha-dashboard/CLAUDE.md`. No raw inputs, no unstyled
+`ConfirmDialog` per `nova-ha-dashboard/docs/control-inventory.md`. No raw inputs, no unstyled
 buttons.
 
 **`getUserMedia` requires a secure context**, and the enrolment routes require an

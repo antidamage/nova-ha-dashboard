@@ -1,6 +1,6 @@
 # Design modules — switchable presentation layers
 
-Plan: `we-want-to-take-noble-key` (`~/.claude/plans/we-want-to-take-noble-key.md`).
+Plan: `we-want-to-take-noble-key`.
 
 A **Design** is a swappable presentation layer for the dashboard route. The
 current UX becomes one Design ("Nova Classic"); others can be added and

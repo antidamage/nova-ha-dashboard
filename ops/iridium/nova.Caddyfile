@@ -14,7 +14,7 @@
 	# Token-gated route onto nova-voice-llm's llama-server (127.0.0.1:8765,
 	# loopback-only by design). Added 2026-08-28 for unattended scripts
 	# (budget's email-bill scraper, mail-archive's mailbox categoriser) that
-	# need LLM classification but have no live Claude session to do it in.
+	# need LLM classification but have no live agent session to do it in.
 	#
 	# The token is {$NOVA_LLM_KEY} — a Caddyfile-level env substitution, NOT a
 	# literal, because this repo has a public GitHub remote (origin) and a

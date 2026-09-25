@@ -49,7 +49,7 @@ Nova (hostname: see `PRIVATEREF.md#1.1`) is described throughout this SPEC as
 installation* — its identity belongs in config and deployment docs, not in
 application code. The same build must run unchanged on any host that is
 configured for the appropriate role. Any change that hard-codes a machine, or
-that Codex/an agent proposes with a machine-specific branch, must be rejected
+that an agent proposes with a machine-specific branch, must be rejected
 and re-expressed as role + config before it lands.
 
 #### The rule covers households, not just machines

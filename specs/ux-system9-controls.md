@@ -9,7 +9,7 @@ standalone, reusable React/TS component package — **not** part of
 and **not wired into the live `nova-ha-dashboard` UI** — this is a
 demo/showcase library for now.
 
-Plan: `wiggly-gathering-cake` (`~/.claude/plans/wiggly-gathering-cake.md`).
+Plan: `wiggly-gathering-cake`.
 
 ## Package location
 

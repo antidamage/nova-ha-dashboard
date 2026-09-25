@@ -1,7 +1,6 @@
 # Kiosk attribution — who touched the wall panel
 
-Produced by plan `we-need-to-theme-cozy-eich`
-(`~/.claude/plans/we-need-to-theme-cozy-eich.md`), 2026-09-03.
+Produced by plan `we-need-to-theme-cozy-eich`, 2026-09-03.
 
 Related:
 
