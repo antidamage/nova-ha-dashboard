@@ -211,9 +211,10 @@ export async function pressCardFanStep(control: Controller) {
  * the fan step. Each action is its own request, exactly as `/api/entity`
  * receives them.
  *
- * It takes the direction as an argument because a stale one is a real input —
- * a client can dictate cool in a room that needs heat, and the server has to
- * survive it.
+ * It takes the direction as an argument because what the card sends is what the
+ * server seats — the direction is the owner's and the room does not overrule it
+ * (manual-direction-model.ts) — so a client that derives its own direction wrongly
+ * stays a reproducible input rather than an unreachable one.
  */
 export async function pressCardManual(
   control: Controller,

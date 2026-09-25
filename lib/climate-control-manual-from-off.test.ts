@@ -34,28 +34,50 @@ afterEach(() => {
  * followed 41 ms later by `turn_off` — twice per press, for three presses. The
  * unit beeped and never ran, and the Manual she had selected went out on its own.
  *
- * Both halves of it are here: the remembered direction is not evidence for what
- * the room needs, and nothing but the mode switch may unset the mode.
+ * Both halves of it are here: the card names the direction the room needs rather
+ * than a remembered one, and nothing but the mode switch may unset the mode.
  */
 describe("Manual selected from Off with the room away from its target", () => {
-  test("the room decides the direction, not the remembered one", async () => {
+  test("the press names the direction the room needs, and the loop drives it", async () => {
     // Nova's own Auto leg had written hvacMode: cool that day, from the Gree's
-    // heat-soaked thermistor reading above the target while the unit was off.
+    // heat-soaked thermistor reading above the target while the unit was off. The
+    // card derives the direction from the room before it sends anything
+    // (useAirconCommands.setOn), so the remembered value never reaches the unit —
+    // and the seat the press lands is the room's answer, not a stale one.
     resetWorld({ aircon: { autoMode: false, hvacMode: "cool", temperature: 27 } });
     const control = await loadController();
     world.calls.length = 0;
 
     setWorld({ acState: "off", roomTemperature: 21, quiet: "off" });
-    await pressCardManual(control, { direction: "cool", temperature: 27 });
+    await pressCardManual(control, { direction: "heat", temperature: 27 });
     await settle(control);
 
-    // The card's own command is the stale one; the loop's answer is the room's.
-    expect(hvacCalls("cool")).toHaveLength(1);
-    expect(hvacCalls("heat")).toHaveLength(1);
+    // The card's own command and the loop's answer name the same direction.
+    expect(hvacCalls("heat")).toHaveLength(2);
+    expect(hvacCalls("cool")).toHaveLength(0);
     expect(offCalls()).toHaveLength(0);
     const room = await lounge(control);
     expect(room.mode).toBe("manual");
     expect(room.direction).toBe("heat");
+  });
+
+  test("a seated direction is not reversed when the room sits past the target", async () => {
+    // 2026-09-25, her report: heat seated, the target 21 in a 25 degree room.
+    // "I'm happy to wait for it to get there on its own" — the mode is what holds
+    // the room once it arrives there, so the loop must not read the room as
+    // wanting cooling and reverse her.
+    resetWorld({ aircon: { autoMode: false, hvacMode: "heat", temperature: 21 } });
+    setWorld({ acState: "off", roomTemperature: 25, quiet: "off" });
+    const control = await loadController();
+    await pressManual(control, "heat");
+    await settle(control);
+    world.calls.length = 0;
+    await settle(control);
+    await settle(control);
+
+    expect(hvacCalls("cool")).toHaveLength(0);
+    expect(offCalls()).toHaveLength(0);
+    expect((await lounge(control)).direction).toBe("heat");
   });
 
   test("the press's own quiet-switch housekeeping does not unset Manual", async () => {
@@ -134,7 +156,11 @@ describe("Manual selected from Off with the room away from its target", () => {
       resetWorld({ aircon: { autoMode: false, hvacMode: "heat", temperature: 27 } });
       const control = await loadController();
       setWorld({ acState: "off", roomTemperature });
-      await pressManual(control);
+      // The seat is the direction the room needs: heat below the target, cool
+      // above it. What the seat is NOT is a thing the loop may reverse — that is
+      // the case the loop's own tick has to leave alone (see the reversal test
+      // above), and it is why a wrong seat is the owner's to fix, not Nova's.
+      await pressManual(control, expected);
       await settle(control);
       world.calls.length = 0;
 
