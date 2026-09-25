@@ -104,3 +104,5 @@ convention that came with it.
   first.
 - `ARCHITECTURE.md` at the repo root — where code lives, as opposed to what it
   does.
+- `VOCABULARY.md` at the repo root — what the words mean, which area owns each
+  one and where a change of each kind goes. Read it before this index.
