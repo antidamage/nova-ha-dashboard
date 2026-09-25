@@ -145,6 +145,26 @@ describe("Manual selected from Off with the room away from its target", () => {
     expect((await lounge(control)).mode).toBe("manual");
   });
 
+  test("with nothing seated the loop drives the room's own direction", async () => {
+    // `turn_on` selects Manual without naming a direction, so nothing is seated and
+    // the room is the only thing that can answer (manual-direction-model.ts). The
+    // card derives the same direction before it sends anything; this is the loop's
+    // half of that, against a unit that is off.
+    resetWorld({ aircon: { autoMode: false, hvacMode: "cool", temperature: 27 } });
+    setWorld({ acState: "off", roomTemperature: 21, quiet: "off" });
+    const control = await loadController();
+    await control.handleLegacyClimateAction({
+      entityId: "climate.ac", domain: "climate", service: "turn_on",
+    });
+    await settle(control);
+
+    expect(hvacCalls("heat")).toHaveLength(1);
+    expect(hvacCalls("cool")).toHaveLength(0);
+    const room = await lounge(control);
+    expect(room.mode).toBe("manual");
+    expect(room.direction).toBe("heat");
+  });
+
   test("a selected mode is never inert: off plus a room away from target always drives", async () => {
     const cases = [
       { room: 21, at: "2026-09-19T08:00:00Z", expected: "heat" as const },
