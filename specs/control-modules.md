@@ -201,9 +201,14 @@ an empty control, because an empty control is a permanent hole on the card.
   3x2 for five, one line where there is no room for two columns, and one column on
   a phone.
 - **The Devices tab lists every panel's placements**, one group per panel, with
-  its own slot list: reassign, reorder, or take the panel's content off it. The
-  content is a preset like any other, so taking it off loses nothing and placing
-  it back restores the panel.
+  its own slot list: reassign, reorder, or replace the panel's content. A panel's
+  body is what the panel shows unless a CONTROL is placed beside it — the fallback
+  the live dashboard taught us to keep (2026-09-25: a configuration saved before
+  these surfaces existed has no slots for them at all, and reading that as "nothing
+  is placed here" blanked every panel on the page). Its own content is a preset
+  like any other: reassigning the slot moves the panel to whatever that preset
+  draws, and the *panel* — its box, its chrome, its place in the layout — is not
+  something a slot takes away.
 - **A panel's content serves no room**, and a preset placed on a panel that
   inherits its room inherits the PANEL's: a zone's panel is that zone, every other
   panel is the Home zone — the same rule the card's slots have always used. Its

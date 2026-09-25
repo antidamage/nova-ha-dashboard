@@ -37,6 +37,7 @@ import {
   type TaskDraft,
   type TaskEditorSaveDraft,
 } from "./task-model";
+import { PanelSlots } from "../dashboard/panel-slots/PanelSlots";
 import { TasksAdvanced } from "./TasksAdvanced";
 import { TaskSourceIcon } from "./TaskSourceIcon";
 import { useTaskAlerts } from "./useTaskAlerts";
@@ -409,6 +410,9 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
           <section className="tasks-panel border border-neutral-700 bg-neutral-950/70 p-4">
             {/* No heading: the highlighted menu item already names the panel
                 (Adeline, 2026-09-16, specs/tasks-panel.md). */}
+            {/* The list is this panel's content, drawn inside the panel's own box
+                (Adeline, 2026-09-25). */}
+            <PanelSlots className="panel-slots-fill" dividesHeight surface="tasks">
             <div className="grid gap-3">
               {/* Only the timer above the line; everything else past it (specs/tasks-panel.md). */}
               <AdvancedFold
@@ -495,6 +499,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                 <TimerEncoder />
               </AdvancedFold>
             </div>
+            </PanelSlots>
           </section>
 
           <ImportModal open={importOpen} onClose={() => setImportOpen(false)} />

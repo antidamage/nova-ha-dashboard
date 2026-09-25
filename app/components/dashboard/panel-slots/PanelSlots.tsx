@@ -19,19 +19,20 @@ import { useSlotView } from "./slotViewContext";
  * of it, so no visible change, but still have the ability to reassign the
  * content."
  *
- * So a panel wraps its own body in this and passes it as the children: the
- * derived configuration places one `panel-content` module in the panel's slot, so
- * the body is drawn exactly where it was and nothing looks different — while the
- * slot is a slot like any other, listed in the Devices tab, where the content can
- * be reassigned, moved, or taken off the panel without losing it.
+ * So a panel wraps its own body in this and passes it as the children, and the
+ * body is drawn exactly where it was: it is what the panel shows unless a CONTROL
+ * is placed beside it. The panel's own content is a preset like any other, listed
+ * in the Devices tab, where it can be reassigned, moved or replaced — and where a
+ * control placed beside it puts both on the panel's grid.
  *
- * **A panel whose only slot is its own content renders its children directly.**
- * No wrapper, no grid, not one node of difference from the markup the panel had
+ * **A panel showing only its own content renders its children directly.** No
+ * wrapper, no grid, not one node of difference from the markup the panel had
  * before slots existed — which is what "no visible change" has to mean for a
- * stylesheet full of child selectors. The grid appears the moment something else
- * is placed — a second module, or a control instead of the content — and then it
- * is the same grid the card uses (2x2 for four, one line where the panel has no
- * room for two columns).
+ * stylesheet full of child selectors, and what a configuration saved before these
+ * surfaces existed gets. The grid appears the moment a CONTROL is placed on the
+ * panel, and it is one column wide: a panel's body stacks what is placed on it,
+ * growing down, where the card lays several modules out across
+ * (`panel-slots-fill`, app/styles/dashboard/panel-slots.css).
  *
  * The panel keeps its own element and classes either way: the grid renders INSIDE
  * it, so the selectors that find the panel (`.zones-panel + .tasks-stage`,
@@ -77,16 +78,20 @@ export function PanelSlots({
   // seen and neither the scale nor the scroll fallback engaged (fifth-round
   // review).
   const { fits, scale } = useSlotScale(rowRef, { dividesHeight, gap: layout.gap, rows: Math.max(1, items.length) });
-  // No view (the Plain design), a configuration that has not arrived yet, or
-  // nothing placed but the panel's OWN content: the panel draws its own body and
-  // not one node changes. A configuration that HAS arrived and places nothing is
-  // a different answer — the owner took the content off — and the grid draws
-  // nothing for it. The comparison is by preset id, not by kind: another panel's
-  // content placed here is not this panel's content (found in review).
+  // The panel's content is drawn unless a CONTROL has been placed on this
+  // surface: the content IS the panel, and the slot grid only appears when there
+  // is something else to lay out beside it.
+  //
+  // This is not a nicety, and getting it wrong broke the live dashboard on
+  // 2026-09-25. A configuration that predates the panel surfaces has no slots for
+  // them AT ALL — which is every install that has ever opened the Devices tab,
+  // because a stored controls block wins outright over the derivation — so the
+  // "no items" case is the ordinary one, not the emptied one, and treating it as
+  // "nothing is placed here" suppressed the body of every panel on the page.
+  // (The e2e could not see it: the demo has no stored configuration.)
   const ownPresetId = PANEL_SURFACES.find((panel) => panel.surface === surface)?.presetId;
-  const contentOnly = items.length > 0
-    && items.every((item) => item.kind === "panel" && item.presetId === ownPresetId);
-  if (!view || !ready || contentOnly) {
+  const placedControls = items.filter((item) => item.kind !== "panel");
+  if (!view || !ready || placedControls.length === 0) {
     return <>{children}</>;
   }
   return (
@@ -96,7 +101,14 @@ export function PanelSlots({
       data-slot-fit={fits ? "scale" : "scroll"}
       style={slotGridStyle(layout, scale)}
     >
-      {items.map((item) => renderSlotItem(item, { ...view, content: children, dialSize: layout.size }))}
+      {items.map((item) =>
+        // Only a panel's OWN content preset draws the panel's body: another
+        // panel's content placed here draws nothing rather than this panel's.
+        renderSlotItem(item, {
+          ...view,
+          content: item.kind === "panel" && item.presetId === ownPresetId ? children : undefined,
+          dialSize: layout.size,
+        }))}
     </div>
   );
 }

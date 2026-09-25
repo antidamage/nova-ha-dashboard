@@ -64,7 +64,7 @@ test("a panel's own content can be reassigned from the Devices tab", async ({ pa
   // The grid wraps the panel's own element for a panel the page composes (the
   // clock, the tasks list, a zone's controls); for the room menu, which the page
   // cannot wrap without breaking its selectors, it renders inside.
-  const clock = page.locator(".panel-slots:has(.clock-panel)");
+  const clock = page.locator(".clock-panel .panel-slots");
   await expect(clock, "the clock panel now holds a grid").toHaveCount(1);
   await expect(clock.locator("> *"), "its own content and the readings tile").toHaveCount(2);
   await expect(clock.locator(".weather-readings, .quick-segment-weather"), "the module that was placed").toHaveCount(1);
@@ -94,29 +94,32 @@ test("the Devices tab lists every panel's placements", async ({ page }) => {
   await expect(page.getByText("Panel's own content").first()).toBeVisible();
 });
 
-test("a panel's own content is a preset, and placing it back restores the panel", async ({ page }) => {
+test("a stored configuration that predates the panel surfaces still draws every panel", async ({ page }) => {
+  // THE regression test for the live breakage on 2026-09-25. A stored controls
+  // block wins outright over the derivation, and every configuration saved before
+  // this feature has no slots for the panel surfaces at all — so "this surface
+  // has no slots" is the ordinary case, not the emptied one. Treating it as
+  // "nothing is placed here" blanked the body of every panel on the page: the
+  // live dashboard showed the orb, an empty time box, the card, and nothing else.
+  // The demo has no stored configuration, which is why nothing here had caught it.
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoDashboard(page);
-  // Take the clock's own content off: the panel keeps its chrome and shows
-  // nothing of its own — its content is a module, not the panel itself.
   await seedControls(page, (controls) => {
     const block = controls as { presets: unknown[]; slots: { surface: string }[] };
     return {
       configured: true,
       presets: block.presets,
-      slots: block.slots.filter((slot) => slot.surface !== "clock"),
+      // Exactly what an install carries today: the card's slots and nothing else.
+      slots: block.slots.filter((slot) => slot.surface === "quick-access"),
     };
   });
-  // Nothing is drawn for the clock any more — neither its face nor anything the
-  // grid would hold in its place. Asserting ".clock-panel .panel-slots" said
-  // nothing at all: the clock's grid is its PARENT, so that selector cannot match
-  // whatever the state, which is what the re-review caught.
-  await expect(page.locator(".clock-panel .clock-face")).toHaveCount(0);
-  // Nothing is drawn for the clock at all: the content it came with WAS the panel
-  // element, so with that off and nothing placed there is no wrapper and no card
-  // (a count of ".panel-slots:has(.clock-panel) > *" would pass vacuously here,
-  // as the third review said).
-  await expect(page.locator(".clock-panel"), "and the panel itself is not drawn").toHaveCount(0);
+  await expect(page.locator(".clock-panel .clock-face"), "the clock").toHaveCount(1);
+  await expect(page.locator(".zones-panel .zone-selector-groups"), "the room menu").toHaveCount(1);
+  // One zone panel per accordion group (Home and Systems each keep a selection).
+  await expect(page.locator(".zone-panel .mt-8").first(), "a zone's body").toBeVisible();
+  await expect(page.locator(".zone-panel .zone-lighting-controls").first(), "with the zone's controls in it").toBeVisible();
+  // And no panel grew a grid it has nothing to put in.
+  await expect(page.locator(".panel-slots"), "only the card's own row").toHaveCount(1);
 });
 
 test("content scales down into its slot rather than being cropped", async ({ page }) => {
@@ -178,7 +181,7 @@ test("a room-inheriting control placed on a panel draws there", async ({ page })
       ],
     };
   });
-  const clock = page.locator(".panel-slots:has(.clock-panel)");
+  const clock = page.locator(".clock-panel .panel-slots");
   await expect(clock.locator(".quick-segment-lights"), "the lighting dial the slot holds").toHaveCount(1);
   await expect(clock.locator(".clock-face"), "beside the clock's own content").toHaveCount(1);
 });
@@ -208,12 +211,11 @@ test("the room menu keeps its own layout with a second module on it", async ({ p
 });
 
 test("a second module on a zone's panel does not break the stage's layout", async ({ page }) => {
-  // Re-review finding of PR #51: for the panels the page composes — a zone's
-  // controls and the task list — the slot grid is a wrapper BETWEEN the stage and
-  // the panel, so the stage's own child rules stopped matching and the height
-  // chain broke: over-tall panels, sub-panels losing their scroller, the page
-  // scrolling instead of the panels fitting. The stage's rules key on the class
-  // now and the wrapper passes the height down.
+  // The grid renders INSIDE the panel (Adeline: "the actual structure of the site
+  // shouldn't change, we're just introducing modular slots for panel content"), so
+  // the panel is still the stage's own child and the height chain the stylesheet
+  // describes is untouched. What has to hold: the panel fills the stage, the stage
+  // does not grow past its column, and the panel's own grid fits inside the panel.
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoDashboard(page);
   await seedControls(page, (controls) => {
@@ -224,34 +226,31 @@ test("a second module on a zone's panel does not break the stage's layout", asyn
       slots: [...block.slots, { id: "zone-outside", presetId: "outside", roomId: null, surface: "zone-panel", visible: true }],
     };
   });
-  // The configuration arrives a frame or two after the page does; the grid is the
-  // evidence that it has.
-  await expect(page.locator(".panel-slots:has(.zone-panel)").first()).toBeVisible();
-  // The grid that wraps a ZONE PANEL, and the stage it sits in. The page has more
-  // than one control stage (each accordion group has one), so the one to measure
-  // is found through the panel it holds.
+  await expect(page.locator(".zone-panel .panel-slots").first()).toBeVisible();
   const measured = await page.evaluate(() => {
-    const grid = [...document.querySelectorAll(".panel-slots")].find((node) => node.querySelector(".zone-panel"));
-    const stage = grid?.parentElement ?? null;
-    const panel = grid?.querySelector(".zone-panel") ?? null;
+    const panel = document.querySelector(".zone-panel");
+    const grid = panel?.querySelector(".panel-slots") ?? null;
+    const stage = panel?.closest(".control-stage") as HTMLElement | null;
+    const box = (node: Element | null | undefined) => (node ? node.getBoundingClientRect() : null);
+    const panelBox = box(panel);
+    const gridBox = box(grid);
     return {
-      gridHeight: grid ? Math.round(grid.getBoundingClientRect().height) : 0,
-      panelHeight: panel ? Math.round(panel.getBoundingClientRect().height) : 0,
+      gridHeight: gridBox ? Math.round(gridBox.height) : 0,
+      gridInside: panelBox && gridBox ? Math.round(panelBox.width - gridBox.width) : -1,
+      panelHeight: panelBox ? Math.round(panelBox.height) : 0,
       panelSlots: grid ? grid.children.length : 0,
-      panelHeightComputed: panel ? getComputedStyle(panel).height : "",
       stageClient: stage?.clientHeight ?? 0,
       stageScroll: stage?.scrollHeight ?? 0,
     };
   });
-  expect(measured.gridHeight, "the zone panel holds a grid of two slots").toBeGreaterThan(0);
-  expect(measured.panelSlots, "both of them are drawn").toBe(2);
+  expect(measured.panelSlots, "the zone panel holds both modules").toBe(2);
+  expect(measured.gridHeight, "and its grid has room").toBeGreaterThan(0);
   expect(measured.stageScroll, "the stage does not grow past its column").toBeLessThanOrEqual(measured.stageClient + 1);
   expect(
-    Math.abs(measured.gridHeight - measured.stageClient),
-    "the grid passes the stage's height through to the panel it wraps",
+    Math.abs(measured.panelHeight - measured.stageClient),
+    "the panel still fills the stage, as it did before the grid was there",
   ).toBeLessThanOrEqual(2);
-  expect(measured.panelHeightComputed, "and the panel keeps a definite height, so its sub-panels still scroll")
-    .toMatch(/^[\d.]+px$/);
+  expect(measured.gridInside, "and the grid sits inside the panel's own box").toBeGreaterThanOrEqual(0);
 });
 
 test("a module placed on a container-sized panel fills its column", async ({ page }) => {
@@ -275,12 +274,11 @@ test("a module placed on a container-sized panel fills its column", async ({ pag
       ],
     };
   });
-  await expect(page.locator(".panel-slots:has(.clock-panel)")).toBeVisible();
+  await expect(page.locator(".clock-panel .panel-slots")).toBeVisible();
   const measured = await page.evaluate(() => {
     const overview = document.querySelector(".dashboard-overview") as HTMLElement;
-    const grids = [...document.querySelectorAll(".panel-slots")];
-    const clock = grids.find((node) => node.querySelector(".clock-panel"));
-    const reminders = grids.find((node) => node.querySelector(".reminder-icon-bar, .reminder-tile, .reminder-bar"));
+    const clock = document.querySelector(".clock-panel");
+    const reminders = document.querySelector(".reminder-icon-bar .panel-slots, .reminder-icon-bar");
     const width = (node: Element | null | undefined) => (node ? Math.round(node.getBoundingClientRect().width) : -1);
     // The clock panel's own border sits inside the wrapper, so the wrapper is what
     // has to reach the column's width. The wrapper has no border of its own.
@@ -293,8 +291,11 @@ test("a module placed on a container-sized panel fills its column", async ({ pag
     };
   });
   expect(Math.abs(measured.clock - measured.overview), "the clock fills the overview's column").toBeLessThanOrEqual(2);
+  // A module placed on it fills the panel's own content box, so it is narrower by
+  // the panel's padding — not by a max-content track sized to its own content.
   for (const slot of measured.clockSlots) {
-    expect(Math.abs(slot - measured.overview), "and so does every module placed on it").toBeLessThanOrEqual(2);
+    expect(slot, "a module placed on it is not wider than the panel").toBeLessThanOrEqual(measured.overview);
+    expect(measured.overview - slot, "and fills the panel's content box").toBeLessThanOrEqual(44);
   }
   expect(Math.abs(measured.reminders - measured.overview), "the reminder bar does too").toBeLessThanOrEqual(2);
 });
@@ -315,13 +316,13 @@ test("a module on a zone's panel fills it in portrait too", async ({ page }) => 
       slots: [...block.slots, { id: "zone-outside", presetId: "outside", roomId: null, surface: "zone-panel", visible: true }],
     };
   });
-  await expect(page.locator(".panel-slots:has(.zone-panel)").first()).toBeVisible();
+  await expect(page.locator(".zone-panel .panel-slots").first()).toBeVisible();
   const measured = await page.evaluate(() => {
-    const grid = [...document.querySelectorAll(".panel-slots")].find((node) => node.querySelector(".zone-panel"));
-    const panel = grid?.querySelector(".zone-panel") ?? null;
+    const panel = document.querySelector(".zone-panel");
+    const grid = panel?.querySelector(".panel-slots") ?? null;
     const width = (node: Element | null | undefined) => (node ? Math.round(node.getBoundingClientRect().width) : -1);
-    return { grid: width(grid), parent: width(grid?.parentElement), panel: width(panel) };
+    return { grid: width(grid), parent: width(panel?.parentElement), panel: width(panel) };
   });
-  expect(Math.abs(measured.grid - measured.parent), "the wrapper fills the stage in portrait").toBeLessThanOrEqual(2);
-  expect(Math.abs(measured.panel - measured.grid), "and the panel fills the wrapper").toBeLessThanOrEqual(2);
+  expect(Math.abs(measured.panel - measured.parent), "the panel fills its container in portrait").toBeLessThanOrEqual(2);
+  expect(measured.grid, "and its grid fits inside the panel").toBeLessThanOrEqual(measured.panel);
 });

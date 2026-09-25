@@ -22,6 +22,7 @@ import { ZoneLightEvents } from "./ZoneLightEvents";
 import { ZoneRulePresetRow } from "../zoneLightRulesClient";
 import { selectPrimaryZonePanel } from "../panel-registry";
 import { ModuleSlot } from "../../modules/ModuleSlot";
+import { PanelSlots } from "../panel-slots/PanelSlots";
 import {
   countDomainsForZone,
   dashboardEntityIsOn,
@@ -230,6 +231,10 @@ export function ZoneControls({
       </header>
 
       <div className="mt-8 grid gap-5">
+        {/* The zone's panel is a panel: its own controls are its content, laid out
+            inside the panel's own box, and the room a slot inherits is THIS zone's
+            (Adeline, 2026-09-25). */}
+        <PanelSlots className="panel-slots-fill" dividesHeight roomId={zone.id} surface="zone-panel">
         <div className="lighting-column grid gap-5">
           {primaryPanel ? (
             primaryPanel.render({
@@ -304,6 +309,7 @@ export function ZoneControls({
           )}
         </div>
         <ModuleSlot id="zone.controls.after" context={{ zone }} />
+        </PanelSlots>
       </div>
     </section>
   );

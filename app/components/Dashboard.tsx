@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useDeviceTheme } from "./accentColor";
 import { ClockPanel } from "./dashboard/ClockPanel";
 import { ClimateCommandsProvider } from "./dashboard/ClimateCommandsProvider";
-import { PanelSlots, SlotViewProvider, useDashboardSlotView, useSlotItems } from "./dashboard/panel-slots";
+import { SlotViewProvider, useDashboardSlotView, useSlotItems } from "./dashboard/panel-slots";
 import { QuickAccessCard } from "./dashboard/QuickAccessCard";
 import { ReminderIconBar } from "./dashboard/ReminderIconBar";
 import { ZoneControls } from "./dashboard/ZoneControls";
@@ -125,7 +125,7 @@ export function Dashboard() {
     const zone = zoneForSelection(data, zoneId);
     return zone ? (
       <div className="control-stage" data-group={group}>
-        <PanelSlots className="panel-slots-stage" dividesHeight roomId={zone.id} surface="zone-panel">{zoneControlsFor(zone)}</PanelSlots>
+        {zoneControlsFor(zone)}
       </div>
     ) : null;
   };
@@ -201,8 +201,8 @@ export function Dashboard() {
           <SlotViewProvider view={slotView}>
           <div className="dashboard-layout grid gap-5">
             <div className="dashboard-overview">
-              <PanelSlots className="panel-slots-fill" dividesHeight surface="clock"><ClockPanel /></PanelSlots>
-              <PanelSlots className="panel-slots-fill" dividesHeight surface="reminders"><ReminderIconBar /></PanelSlots>
+              <ClockPanel />
+              <ReminderIconBar />
             </div>
 
             <QuickAccessCard
@@ -231,7 +231,7 @@ export function Dashboard() {
                 running; shown as the Systems entry's joined panel when Tasks is
                 its selection: to the right in landscape, below in portrait. */}
             <div className="control-stage tasks-stage" data-group="systems" hidden={systemsId !== TASKS_ZONE_ID}>
-              <PanelSlots className="panel-slots-stage" dividesHeight surface="tasks"><TasksPanel showPanel={systemsId === TASKS_ZONE_ID} /></PanelSlots>
+              <TasksPanel showPanel={systemsId === TASKS_ZONE_ID} />
             </div>
           </div>
           </SlotViewProvider>

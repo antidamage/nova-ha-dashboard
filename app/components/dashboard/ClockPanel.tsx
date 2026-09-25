@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAgentName } from "../AgentNameContext";
 import { ModuleSlot } from "../modules/ModuleSlot";
+import { PanelSlots } from "./panel-slots/PanelSlots";
 
 // No timeZone is passed to Intl below, so the wall clock shows the time where
 // the screen is — which is what a clock on a wall should do, and is correct for
@@ -93,6 +94,9 @@ export function ClockPanel() {
 
   return (
     <section className="clock-panel border border-neutral-700 bg-neutral-950/70 p-5">
+      {/* The clock is a panel: its content is a slot, and it is drawn here inside
+          the panel's own box (Adeline, 2026-09-25). */}
+      <PanelSlots className="panel-slots-fill" dividesHeight surface="clock">
       <header className="mb-4 flex items-center justify-between gap-4">
         <div>
           <h2 className="mt-1 text-3xl font-black uppercase text-neutral-50">{agentName}</h2>
@@ -120,6 +124,7 @@ export function ClockPanel() {
           })}
         </div>
       </div>
+      </PanelSlots>
       <ModuleSlot id="clock.after" context={{ now }} />
     </section>
   );

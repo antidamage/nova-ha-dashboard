@@ -20,6 +20,7 @@
 // are both shared. Nothing needs an explicit `useLiteMode()` gate.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PanelSlots } from "../panel-slots/PanelSlots";
 
 import type { Task } from "../../../../lib/types";
 import { useOrbSettings } from "../../orb-info/useOrbSettings";
@@ -356,6 +357,9 @@ export function ReminderIconBar() {
       role="group"
       aria-label="Reminders"
     >
+      {/* The bar is a panel: its tiles are its content, drawn inside the bar's own
+          box (Adeline, 2026-09-25). */}
+      <PanelSlots className="panel-slots-fill" dividesHeight surface="reminders">
       {tiles.map((tile) => {
         const busy = busyKeys.has(tile.key);
         const undoable = Boolean(tile.undoUntil);
@@ -394,6 +398,7 @@ export function ReminderIconBar() {
           </button>
         );
       })}
+      </PanelSlots>
     </div>
   );
 }
