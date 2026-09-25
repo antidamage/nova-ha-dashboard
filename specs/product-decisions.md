@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Product decisions from prior work
 
 These decisions were recovered from project memory and are part of the intended

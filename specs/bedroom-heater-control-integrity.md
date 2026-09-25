@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Bedroom heater — control integrity
 
 Owner: alex. Written 2026-08-25 after the heater was found running at a

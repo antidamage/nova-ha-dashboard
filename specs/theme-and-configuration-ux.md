@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Theme and Configuration UX
 
 Device theme is managed by `app/components/accentColor.ts`.

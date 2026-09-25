@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Self-update channel
 
 Where the dashboard looks for a new version, who decides it, and which

@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Experience modes: rich and lite
 
 Older tablets cannot afford the dashboard's full visual load, so every device

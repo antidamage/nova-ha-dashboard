@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Panel surface colour
 
 alex, 2026-09-13. Direct request, no plan codename. Task log

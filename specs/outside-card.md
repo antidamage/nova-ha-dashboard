@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # The Outside card
 
 alex, 2026-09-12. Plan `glowing-inventing-charm`. The Outside zone had no

@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Quick Access — the one-line home card
 
 alex, 2026-09-10. A compact, single-line card that puts the controls used

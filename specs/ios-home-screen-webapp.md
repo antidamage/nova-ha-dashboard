@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # iOS home-screen web app
 
 alex runs the dashboard as a bookmark added to the iPhone Home Screen, which

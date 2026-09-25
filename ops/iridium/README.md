@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Nova on iridium — bare metal hosting role
 
 The whole Nova hosting role (dashboard + HA + Matter + Mosquitto + tuya bridge +

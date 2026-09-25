@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Control modules and presets
 
 alex, 2026-09-22. Quick Access is becoming modular and configurable, and this

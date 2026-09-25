@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # The Apple TV (amplifier) dial
 
 alex, 2026-09-22. **Placeholder for the IR emitter** that will control the
