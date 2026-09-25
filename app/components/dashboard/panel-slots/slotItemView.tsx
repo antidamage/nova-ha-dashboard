@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { QuickAppleTVSegment } from "../quick-access/QuickAppleTVSegment";
 import { QuickAirconSegment, QuickHeaterSegment } from "../quick-access/QuickClimateSegments";
 import { QuickLightsSegment } from "../quick-access/QuickLightsSegment";
@@ -30,7 +30,13 @@ export function renderSlotItem(
 ): ReactNode {
   const { content, dialSize, knobSkin, onEntityActions, onNotice, onZoneAction, sun, weather } = props;
   if (item.kind === "panel") {
-    return <Fragment key={item.key}>{content}</Fragment>;
+    // ONE slot, so the content is wrapped: a fragment's children would each become
+    // a grid item and the panel's own body would be laid out across the track.
+    return (
+      <div className="panel-slot-content" key={item.key}>
+        {content}
+      </div>
+    );
   }
   if (item.kind === "lighting") {
     return (
