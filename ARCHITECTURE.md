@@ -1,6 +1,8 @@
 # Architecture
 
-Where code lives. For what it *does*, see [`specs/README.md`](specs/README.md).
+Where code lives. For what it *does*, see [`specs/README.md`](specs/README.md);
+for what the words mean and where each kind of change goes, see
+[`VOCABULARY.md`](VOCABULARY.md).
 
 This file exists so an agent can find the right file without reading the tree.
 If you are about to `grep -r` across the repo, read this first.
@@ -95,9 +97,11 @@ Full detail: [`specs/agent-token-footprint.md`](specs/agent-token-footprint.md).
 
 Things that will bite an agent that does not know them:
 
-- **`app/globals.css` is 247KB with a BOM at byte 0 and no `@layer`
-  discipline.** Source order is load-bearing — reordering changes which rule
-  wins. Five contract tests read it as text and regex it.
+- **`app/globals.css` is an entry file, not the stylesheet: it holds a BOM at
+  byte 0 and the `@import` lines into `app/styles/**`, in load-bearing order.**
+  There is no `@layer` discipline, so source order is what decides which rule
+  wins — never reorder the imports or a partial. The contract tests read the
+  whole bundle through `app/styles/readCss.ts`.
 - **`lib/no-household-data.test.ts` waives by file path**, and a waiver that
   matches nothing also fails. Moving a waived file breaks it in both
   directions. Grep the waiver list before moving anything under `lib/` or

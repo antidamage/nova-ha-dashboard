@@ -252,8 +252,11 @@ applied so literally that a five-line union gets its own file.
 
 ## 7. CSS
 
-`app/globals.css` is 9,048 lines, 247 KB, **BOM at byte 0**, with
-`@import "tailwindcss"` at line 5. It is imported once, at `app/layout.tsx:2`.
+`app/globals.css` is the entry file: **BOM at byte 0**, a header comment,
+`@import "tailwindcss"`, then one `@import "./styles/…"` line per partial in
+`app/styles/**`, and nothing else. It is imported once, at `app/layout.tsx:2`.
+Before the split landed it was one 9,048-line, 247 KB file — that is the "before"
+figure in the table above, not today's.
 
 - Tailwind v4 (via `@tailwindcss/postcss`, no `tailwind.config.*`) resolves
   `@import` itself, so plain CSS `@import` of partials needs no build change.
@@ -273,10 +276,10 @@ applied so literally that a five-line union gets its own file.
 - **Do not introduce `@layer` in this campaign.** That is a behaviour change
   wearing a refactor's coat.
 
-Target: entry file of BOM, header comment, `@import "tailwindcss"`, then ~28
-partial imports in original order, and nothing else. Contents under
-`app/styles/` grouped by feature: `tokens/`, `base/`, `avatar/`, `reminders/`,
-`config/`, `dashboard/`, `tasks/`, `orb/`, `motion/`.
+Landed: the entry file as described above — 64 partials, in original document
+order, grouped under `app/styles/` as `tokens/`, `base/`, `avatar/`,
+`reminders/`, `config/`, `dashboard/`, `tasks/`, `orb/`, `camera/`, `controls/`,
+`overlays/`, `phonoscope/`, `responsive/` and `voice/`.
 
 `app/styles/readCss.ts` — a test helper, not shipped — reads the entry,
 resolves the `@import`s in order, and returns the concatenation. The
