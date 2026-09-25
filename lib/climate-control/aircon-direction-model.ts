@@ -15,12 +15,13 @@ import type { Direction } from "./types";
  *   tick; they are never a direction to drive.
  * - Auto reports what the unit is doing, falling back to the last direction
  *   anyone asked for. Only reporting: Auto's planner chooses its own direction.
- * - Manual asks `manualAirconDirection`, which decides from the room. What the
+ * - Manual asks `manualAirconDirection`, which runs the direction she seated.
+ *   The room answers only when nothing is seated. What the
  *   owner seated is passed as the dictation and nothing else is — in particular
  *   not `prefs.hvacMode`, which Nova's own Auto leg writes. Feeding that in made
- *   it evidence: it held a heating unit 0.6 °C short of its target inside the flip
- *   margin, and chose a direction with no reading to check it against
- *   (2026-09-24 review of #47).
+ *   it evidence: it chose a direction with no reading to check it against
+ *   (2026-09-24 review of #47). The margin that once let the room overrule a seat
+ *   is gone (2026-09-25).
  */
 export function airconTickDirection(input: {
   filteredTemperature: number | null;

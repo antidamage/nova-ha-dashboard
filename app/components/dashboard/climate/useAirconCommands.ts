@@ -267,19 +267,21 @@ export function useAirconCommands({
   const setOn = () => {
     if (!entity) return Promise.resolve();
     const actions: EntityActionInput[] = [];
-    // The room picks the direction, exactly as the server loop does
-    // (lib/climate-control/manual-direction-model.ts): below the target heats,
-    // above it cools. The remembered hvacMode is only the answer when the room
-    // cannot give one — it is not the owner's dictation, because Nova's own Auto
-    // leg writes it. Reading it as the dictation is what sent `set_hvac_mode:
-    // cool` at a 21 degree room with a 27 degree target on 2026-09-24, which the
-    // loop answered 41 ms later with a turn_off at "target reached": two beeps
-    // and a unit that never ran.
+    // The direction the server seated is the answer, exactly as the loop reads it
+    // (lib/climate-control/manual-direction-model.ts): a press must not overrule
+    // the mode she set, so that "heat, with a target below the room" stays heat
+    // (Adeline, 2026-09-25). The room names a direction only when nothing is
+    // seated, and the remembered hvacMode only when the room cannot either — it
+    // is not her dictation, because Nova's own Auto leg writes it (2026-09-24).
     const rememberedMode = isAirconMode(airconSettings.hvacMode) ? airconSettings.hvacMode : undefined;
+    const seatedMode = controlState?.mode === "manual" &&
+      (controlState.direction === "heat" || controlState.direction === "cool")
+      ? controlState.direction
+      : undefined;
     const targetTemperature = airconSettings.temperature;
-    const wantedMode = typeof targetTemperature === "number"
+    const wantedMode = seatedMode ?? (typeof targetTemperature === "number"
       ? airconUserModeIntent(targetTemperature, airconAutoMeasuredTemperature(entity)) ?? rememberedMode
-      : rememberedMode;
+      : rememberedMode);
     // Never the first supported mode as a stand-in: this unit lists "auto" first,
     // which is not a direction Manual can run, and left Manual with nothing to
     // start. No direction is a bare turn_on, which is honest.

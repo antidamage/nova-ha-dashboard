@@ -350,7 +350,7 @@ is a room sensor, not a guess.
 The same rule applies to the bedroom heater: `planBedroomHeaterTick` switches the
 element off and holds with Auto still armed.
 
-### 5.3 The room decides the direction Manual runs (Adeline, 2026-09-24)
+### 5.3 The direction Manual runs is the owner's seat (Adeline, 2026-09-24, 2026-09-25)
 
 > "air conditioner set to manual from off. room temp 21. target temp 27. air con
 > beeps, does not turn on, eventually switches to off." … "it was already set to
@@ -387,22 +387,34 @@ The unit beeped twice per press and never ran. Two independent causes:
 
 **The rules:**
 
-- **The room decides the direction, in one place.** `manualAirconDirection`
-  (`climate-control/manual-direction-model.ts`): a room below its target runs
-  heat, above it runs cool, and a room exactly on the target has nothing to choose,
-  so the unit runs on in whatever direction it is already running — which is what
-  still lets a running unit stop.
-- **A dictated direction holds only while it describes the room.** Inside
-  `MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C` (1 °C) past the target the dictation
-  stands, so a resting unit keeps showing the direction it just ran and a
-  thermostat does not reverse over a degree of overshoot. Past that margin the
-  direction describes a room that is no longer there, and the room wins. This is
-  the defect above exactly: `cool` dictated at a 21 °C room with a 27 °C target is
-  six degrees of drift, so the room answers instead.
+- **One place decides the direction.** `manualAirconDirection`
+  (`climate-control/manual-direction-model.ts`): the direction the owner seated is
+  the answer; with nothing seated, a room below its target runs heat, above it runs
+  cool, and a room exactly on the target has nothing to choose, so the unit runs on
+  in whatever direction it is already running — which is what still lets a running
+  unit stop.
+- **A target never changes the mode.** A seated heat or cool holds whatever the
+  room does; the room only answers when nothing is seated. Adeline, 2026-09-25:
+
+  > "if the mode is set to heat and I set a temp below the room temp … check that
+  > it doesn't change the mode on me. if the mode is wrong for the desired outcome
+  > already then that's user error and not for the app to fix."
+
+  The direction is the mode that maintains the temperature once the room arrives
+  on its own — heat holds a floor and never cools a room to reach a target the
+  weather will reach anyway — so it is hers to set and only she moves it. The room
+  used to overrule a seat once it sat more than
+  `MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C` (1 °C) past the target, which made every
+  target change a mode change: on 2026-09-25 heat was seated with the target moved
+  to 21 in a 25 °C room, Nova ran `climate.c6780cad` in cool and the Heat light
+  went with it, and pressing Heat again was undone by the loop within one tick —
+  repeatedly, until the unit was switched off by hand. That constant and its rule
+  are gone. **Auto is unchanged and is not covered by this:** the direction there
+  is the thermostat's to choose (§3.3), not the owner's to hold.
 - **The press and the loop answer it the same way.** `useAirconCommands.setOn`
-  derives the direction from the room before it sends anything, so a press of
-  Manual no longer dictates a direction it cannot justify. Where nothing can be
-  derived — no reading, and no usable remembered direction — it sends a bare
+  sends the seated direction, and derives one from the room only when nothing is
+  seated — a press must not overrule a seat either. Where nothing can be derived —
+  no seat, no reading, and no usable remembered direction — it sends a bare
   `turn_on` rather than guessing: the old fallback was the unit's first supported
   mode, which for this Gree is `auto`, a mode Manual cannot run, leaving Manual
   with no direction and nothing to start.
@@ -415,14 +427,13 @@ The unit beeped twice per press and never ran. Two independent causes:
   and no usable reading there is no direction to run, so `driveAircon` drives
   nothing until one of the two exists — §5.2's "never a guess between heat and
   cool". Passing `prefs.hvacMode` in as a last-resort direction was tried on
-  2026-09-24 and reverted the same day: it held a heating unit 0.6 °C short of its
-  target inside the flip margin, and chose a direction with no reading to check it
-  against. The press is what seats a direction, and a press with a seated
+  2026-09-24 and reverted the same day: it chose a direction with no reading to
+  check it against. The press is what seats a direction, and a press with a seated
   direction is what runs blind (§5.2).
 - **Auto's own guard sizes are untouched** (§6). Every one of them bounds the
   sensor; none of them may make a selected mode inert, and with the direction
-  derived rather than remembered, an off unit with the room away from its target
-  always has a direction to drive.
+  coming from the seat when there is one and the room when there is not, an off
+  unit away from its target never lacks one.
 
 ### 5.4 A stop is judged by the direction the unit is running
 
@@ -468,9 +479,9 @@ at anything the owner asked for — which is why that stop keeps the request ali
 4. The mode switch and the direction are covered as rules of their own
    (`lib/climate-control-manual-direction.test.ts`,
    `lib/climate-control-mode-model.test.ts`, `lib/climate-control-policy.test.ts`):
-   a dictated direction the room contradicts is not followed and one it agrees
-   with is kept; the dictation holds within a degree past the target; with no
-   dictation, or no reading, the room or the running direction answers; dry and
+   the owner's seat is kept whatever the room is doing, including a target below
+   the room; with no seat, or no reading, the room or the running direction
+   answers; dry and
    fan-only are never a direction; a companion switch's `turn_off` says nothing
    about the mode while the unit's own `turn_off` still means Off; a companion
    action neither reclaims ownership nor latches a Manual request; and a fan step
@@ -478,15 +489,16 @@ at anything the owner asked for — which is why that stop keeps the request ali
    never Off (`lib/climate-control-manual.test.ts` presses it the way the knob
    does).
 5. The 2026-09-24 incident end to end (`lib/climate-control-manual.test.ts`): a
-   card press that dictates `cool` at a 21 °C room with a 27 °C target leaves
-   Manual selected and produces `set_hvac_mode: heat` with no `turn_off`; the
-   press's own quiet-switch housekeeping does not unset the mode; and with the
-   unit off and the room away from its target on either side, the loop always
-   drives it — heat below, cool above.
+   card press that names the room's direction at a 21 °C room with a 27 °C target
+   leaves Manual selected and produces `set_hvac_mode: heat` with no `turn_off`; a
+   seated heat with the target moved below the room produces no `set_hvac_mode:
+   cool` at all; the press's own quiet-switch housekeeping does not unset the mode;
+   and with the unit off and the room away from its target on either side, the loop
+   always drives it — heat below, cool above.
 6. Live on the lounge unit: with the room below target and Auto resting inside
    the 10-minute dwell, raising the target puts `climate.c6780cad` into `heat`
-   within roughly ten seconds, visible in HA history. Dropping the target below
-   the reading while heating produces a single transition to `cool` with no
+   within roughly ten seconds, visible in HA history. In Auto, dropping the target
+   below the reading while heating produces a single transition to `cool` with no
    intervening `off`. A subsequent untouched cycle still spaces its starts by at
    least ten minutes. Pressing Manual from Off in a room below its target heats
    it on the first tick after the press, with the mode still Manual a minute

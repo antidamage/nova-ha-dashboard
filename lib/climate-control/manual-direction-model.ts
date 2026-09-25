@@ -1,9 +1,8 @@
 import { airconUserModeIntent } from "../aircon-control";
 import type { Direction } from "./types";
-import { MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C } from "./constants";
 
 /**
- * Which direction Manual runs, decided by the room rather than by memory.
+ * Which direction Manual runs, given the direction the owner seated.
  *
  * Adeline, 2026-09-24: "if air con is off when user specified auto or manual and
  * the temp is out of homeostasis, air con unit SHOULD BE ON." The room is the
@@ -11,25 +10,28 @@ import { MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C } from "./constants";
  * cool — and this is the one place that decision is made, so the UI's press and
  * the server loop cannot answer it differently.
  *
- * A remembered direction is not evidence. It describes the last time *something*
- * set it, and on this aircon that is usually Nova's own Auto leg: the Gree's
- * return-air thermistor heat-soaks above the target while the unit is off, Auto
- * reverses to cool on that transient, and `preferences.aircon.hvacMode` records
- * "cool" for the rest of the day. Reading that as the direction the owner
- * dictated is what turned her first press of Manual in a 21 °C room with a 27 °C
- * target into `set_hvac_mode: cool`, an immediate "target reached", and a
- * `turn_off` 41 ms later on 2026-09-24 — two beeps and a unit that never ran.
- * Arming Auto first appeared to fix it only because Auto's own arm rewrote the
- * remembered direction to heat from the room it could see.
+ * A direction the owner seated is the answer, and nothing else moves it. The seat
+ * is her mode: it is what maintains the temperature once the room arrives on its
+ * own, so a target she moves must not move it (Adeline, 2026-09-25: "if the mode
+ * is set to heat and I set a temp below the room temp … check that it doesn't
+ * change the mode on me. if the mode is wrong for the desired outcome already
+ * then that's user error and not for the app to fix"). The room names a direction
+ * only when nothing is seated.
  *
- * The dictation still holds while the room is on that direction's side of the
- * target, and within `MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C` past it: a thermostat
- * does not reverse over a degree of overshoot, and a resting unit keeps the light
- * showing the direction it just ran. Only past that margin, or with no direction
- * seated at all, does the room decide.
+ * The room used to overrule a seat once it sat more than
+ * `MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C` (1 °C) past the target, and that made
+ * every target change a mode change: heat seated with a 21 °C target in a 25 °C
+ * room read as "the room wants cooling", Nova ran `climate.c6780cad` in cool, and
+ * pressing Heat again was undone by the loop within one tick (2026-09-25).
+ *
+ * A remembered direction is still not evidence, so `dictated` is only ever the
+ * direction the owner seated (§5.3): `preferences.aircon.hvacMode` is written by
+ * Nova's own Auto leg, and reading it as the dictation is what turned a press of
+ * Manual in a 21 °C room with a 27 °C target into `set_hvac_mode: cool` and a
+ * `turn_off` 41 ms later on 2026-09-24.
  */
 export function manualAirconDirection(input: {
-  /** The direction the owner last dictated (Manual's remembered direction), or null. */
+  /** The direction the owner seated (Manual's remembered direction), or null. */
   dictated: Direction | null;
   /** The direction the unit is physically running, or null. */
   running: Direction | null;
@@ -39,27 +41,21 @@ export function manualAirconDirection(input: {
 }): Direction | null {
   const { dictated, measured, running, target } = input;
   const seated = heatOrCool(dictated);
-  if (seated) {
-    if (measured === null || target === null || !Number.isFinite(target)) return seated;
-    // Past the target on the other side, by more than the flip margin: the
-    // dictation is describing a room that is no longer there.
-    const stale = seated === "heat"
-      ? measured > target + MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C
-      : measured < target - MANUAL_AIRCON_DIRECTION_FLIP_MARGIN_C;
-    if (!stale) return seated;
-  }
-  // Nothing dictates heat or cool, and the unit is running Dry or Fan-only: that
-  // is what it is doing, started by whoever started it, and this loop drives only
-  // heat and cool — so report it rather than proposing a direction for it. A Dry
-  // the owner selected is handled by the caller, which has its own branch for it.
-  if (seated === null && (running === "dry" || running === "fan_only")) return running;
-  // No dictation, or a stale one: the room says which way, and where the room is
-  // exactly on its target either direction has already arrived, so the direction
-  // the unit is running is the one that can still stop it.
+  // Her seat is the answer, whatever the room is doing — including a room that
+  // has gone past the target the other way, which is a room arriving on its own.
+  if (seated) return seated;
+  // Nothing is seated, and the unit is running Dry or Fan-only: that is what it
+  // is doing, started by whoever started it, and this loop drives only heat and
+  // cool — so report it rather than proposing a direction for it. A Dry the
+  // owner selected is handled by the caller, which has its own branch for it.
+  if (running === "dry" || running === "fan_only") return running;
+  // Nothing seated: the room says which way, and where the room is exactly on
+  // its target either direction has already arrived, so the direction the unit
+  // is running is the one that can still stop it.
   const wanted = measured !== null && target !== null && Number.isFinite(target)
     ? airconUserModeIntent(target, measured)
     : undefined;
-  return wanted ?? seated ?? heatOrCool(running);
+  return wanted ?? heatOrCool(running);
 }
 
 /** Dry and fan-only are statuses of their own, never a direction to drive. */

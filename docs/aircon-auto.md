@@ -27,8 +27,10 @@ recent fresh reports for starts and Auto direction selection.
 - None of those guards apply to a change the owner made. A target the owner
   moved, or a fresh press of Auto, is latched as `userRequestAt` and acted on
   the next tick: it starts inside the dwell, skips the settling wait, and
-  reverses direction directly with no intervening off. See
-  `specs/aircon-auto-control.md`, which is the authority for this file.
+  reverses direction directly with no intervening off. That reversal belongs to
+  **Auto**, whose direction is its own to choose; in Manual the direction is the
+  owner's and a target never moves it. See `specs/aircon-auto-control.md`, which
+  is the authority for this file.
 
 The predictor uses a 10-minute time constant. Home Assistant history across the
 recent Heat shutdowns shows the first whole-degree correction after 2-11
