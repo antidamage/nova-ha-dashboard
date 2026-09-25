@@ -6,23 +6,25 @@
  * slots will evenly subdivide the space available. inside the slots the content
  * will be centre-top aligned, and will scale up or down to fit in the slot."
  *
- * So a panel is a GRID of equal slots — one per component placed in it — rather
- * than a stack of lines each holding as many controls as fit. The arrangement is
- * the panel's own default while it has room for it: the balanced grid, which is
- * 2x2 for four slots and 3x2 for five. Where the panel has no room for that
- * (a phone, either way up; any panel narrower than the balanced grid needs) the
- * arrangement narrows a column at a time down to a single line along the panel's
- * long axis — one column when the panel is taller than wide, one row when it is
- * wider than tall, which is the "4x1 or 1x4 depending on the screen orientation"
- * a phone gets.
+ * Adeline, 2026-09-25, on the Quick Access card, which is the panel this rule was
+ * first written for: the DIAL slots come first and they are the only thing the
+ * grid is for — "the first four slots (strictly for dial controls) should be in a
+ * 2x2 grid if there's room, or a 1x4 grid if there isn't". Everything else placed
+ * on the card "make[s] a wide slot at the bottom", a single line of the panel's
+ * whole width, and that line "collapses" when there is nothing in it.
  *
- * The row COUNT follows from the columns, so it is not a free choice: five slots
+ * So a panel that groups its slots (`wideBottom`) has two regions: the dial grid -
+ * 2x2 for four dials, a single line along the panel's long axis where two columns
+ * do not fit, and a column per dial on a phone - and the wide line slots under it,
+ * one per module that is not a dial.
+ *
+ * The row COUNT follows from the columns, so it is not a free choice: five dials
  * in three columns are two rows, the last one short. A short last row fills from
  * the first column like any other grid.
  *
- * This file is the rule, not the card: the Quick Access card is the first panel
- * to use it (`quick-access/dial-model.ts`), and a panel with one component is the
- * 1x1 case of it — the component fills the panel, centre-top, scaled to it.
+ * This file is the rule, not the card: the Quick Access card is the panel that
+ * groups its slots (`quick-access/dial-model.ts`), and a panel with one component
+ * is the 1x1 case of it — the component fills the panel, centre-top, scaled to it.
  */
 
 /** Columns and rows a panel's slots occupy. */
@@ -35,8 +37,15 @@ export type SlotArrangement = {
 export type PanelSlotGrid = SlotArrangement & {
   /** The gap between two slots, and between two rows. */
   gap: number;
-  /** Every slot's width. The rows divide the panel's height between them. */
+  /** Every grid slot's width. The rows divide the panel's height between them. */
   slot: number;
+  /**
+   * The wide line slots under the grid: one per module that is not a dial, each
+   * spanning the panel's whole width and one line tall. 0 when nothing is placed
+   * on that row, and 0 on a panel that does not group its slots — the line
+   * collapses, and the rows above it take its height.
+   */
+  wide: number;
 };
 
 /**
@@ -57,7 +66,8 @@ export const PANEL_SLOT_GAP_MAX = 28;
  * Two or three things are a single line along the panel's long axis — Adeline,
  * 2026-09-25: "if there are two components, follow the same rules for a 1x2 or
  * 2x1 area depending on layout orientation. continue this pattern." Four or more
- * get the balanced grid, so four are 2x2, five and six 3x2, seven to nine 3x3.
+ * get the balanced grid, so four are 2x2 — the arrangement Adeline named for the
+ * card's dials — five and six 3x2, seven to nine 3x3.
  */
 export function balancedColumns(count: number, portrait: boolean): number {
   if (count <= 1) {
@@ -85,16 +95,28 @@ export function slotGap(slot: number): number {
 export type PanelSlotRequest = {
   /** How many components the panel holds. */
   count: number;
-  /** The panel's own content width, from its measurement. */
-  width: number;
+  /**
+   * How many of them are DIAL controls — the ones the grid is for where the panel
+   * groups its slots. A panel that does not group passes `count`.
+   */
+  dials: number;
   /** The narrowest a slot may be before the content in it cannot work. */
   minWidth: number;
   /** Whether the panel is taller than it is wide. */
   portrait: boolean;
+  /**
+   * Whether the panel lays its dials out in the grid and every other module along
+   * a wide line slot under it (the Quick Access card), rather than laying every
+   * slot out in the one grid.
+   */
+  wideBottom: boolean;
+  /** The panel's own content width, from its measurement. */
+  width: number;
 };
 
 /**
- * The grid a panel of `count` components lays them out in.
+ * The grid a panel of `count` components lays them out in, with the wide line
+ * slots it needs underneath.
  *
  * The balanced arrangement is taken first, and then given up a column at a time
  * while a slot would come out narrower than the panel's own minimum — which is
@@ -111,14 +133,23 @@ export type PanelSlotRequest = {
 export function panelSlotGrid(request: PanelSlotRequest): PanelSlotGrid {
   const count = Math.max(0, Math.floor(request.count));
   if (count === 0) {
-    return { columns: 0, gap: PANEL_SLOT_GAP_MIN, rows: 0, slot: 0 };
+    return { columns: 0, gap: PANEL_SLOT_GAP_MIN, rows: 0, slot: 0, wide: 0 };
   }
-  let columns = Math.min(count, Math.max(1, balancedColumns(count, request.portrait)));
+  // The slots the grid itself places, and the ones that take a wide line under
+  // it. A panel that does not group its slots puts all of them in the grid, so
+  // these are `count` and 0 and the arrangement is the one it always was.
+  const dials = Math.min(count, Math.max(0, Math.floor(request.dials)));
+  const spread = request.wideBottom ? dials : count;
+  const wide = request.wideBottom ? count - dials : 0;
+  // A panel whose modules are ALL on the wide row still needs the one track that
+  // row's width is measured against.
+  const gridCount = Math.max(1, spread);
   if (!(request.width > 0)) {
     // Unmeasured. One column, so the first painted frame lays the slots out
     // rather than collapsing them, and the measurement replaces it a frame later.
-    return { columns: 1, gap: PANEL_SLOT_GAP_MIN, rows: count, slot: 0 };
+    return { columns: 1, gap: PANEL_SLOT_GAP_MIN, rows: spread, slot: 0, wide };
   }
+  let columns = Math.max(1, Math.min(gridCount, balancedColumns(gridCount, request.portrait)));
   let gap = PANEL_SLOT_GAP_MIN;
   let slot = slotWidth(columns, request.width, gap);
   // The gap is a share of the slot and the slot is what is left after the gaps,
@@ -137,5 +168,5 @@ export function panelSlotGrid(request: PanelSlotRequest): PanelSlotGrid {
     slot = slotWidth(columns, request.width, gap);
     resolve();
   }
-  return { columns, gap, rows: Math.ceil(count / columns), slot };
+  return { columns, gap, rows: Math.ceil(spread / columns), slot, wide };
 }

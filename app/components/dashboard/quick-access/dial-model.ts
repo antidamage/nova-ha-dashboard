@@ -1,25 +1,20 @@
-"use client";
+/**
+ * The Quick Access card's dial geometry (specs/quick-access-card.md).
+ *
+ * How wide a knob's box is, how far its rings reach, how tall the slot holding one
+ * has to be, and the largest dial that fits a budget — the same numbers for the
+ * climate knob, the lighting dial and the amplifier dial. The card's GRID — how
+ * many columns it has, how wide a slot is and which dial size a slot gets — is
+ * `slot-layout.ts`, which reads these.
+ *
+ * Adeline, 2026-09-23: "tidy up the layout slots the modules go into by making
+ * them all the same size and evenly spaced and distributed." Adeline, 2026-09-25:
+ * the panel is "defined as having ... either 1x4, 4x1 or 2x2 slot arrangements",
+ * and the content in a slot "will scale up or down to fit in the slot".
+ */
 
 import { ringGeometry } from "../../rotaryEncoderGeometry";
 import { TEMPERATURE_ENCODER_MIN_SIZE } from "../../TemperatureEncoder";
-import { PANEL_SLOT_GAP_MAX, PANEL_SLOT_GAP_MIN, panelSlotGrid, type PanelSlotGrid } from "../panelSlots";
-
-/**
- * The Quick Access card's slots (specs/quick-access-card.md).
- *
- * The card is a grid of equal slots — one per module placed on it — and this is
- * the panel's own half of that rule: the measuring that turns the card's box and
- * the number of modules into a grid (`panelSlots.ts`, the rule every panel
- * shares), the dial size that fills a slot, and the minimum a slot has to be
- * before the content in it stops working.
- *
- * Adeline, 2026-09-23: "tidy up the layout slots the modules go into by making
- * them all the same size and evenly spaced and distributed." Adeline,
- * 2026-09-25: the panel is "defined as having ... either 1x4, 4x1 or 2x2 slot
- * arrangements", and the content in a slot "will scale up or down to fit in the
- * slot". Before this the card was a stack of lines — the dial line, the climate
- * knobs, the readings — each holding as many slots as fitted.
- */
 
 /**
  * A third bigger than the knob's 100px floor (Adeline, 2026-09-12): at the floor
@@ -54,6 +49,16 @@ export const QUICK_DIAL_ROW_GAP = 8;
 
 /** The narrowest a readings tile may be before its words stop fitting. */
 export const QUICK_READINGS_MIN = 208;
+
+/**
+ * The height of one wide line slot: a line of a module's own content, which is
+ * what every module that is not a dial gets under the card's dial grid (Adeline,
+ * 2026-09-25: "make the date all one line and make a wide slot at the bottom for
+ * it"). The card's rows are shares of its own height, so this line comes out of
+ * that total before the dials divide what is left (`slot-layout.ts`), and the
+ * stylesheet is given the same figure as the wide row's track.
+ */
+export const QUICK_WIDE_LINE = 56;
 
 /** Portrait, the same test the card's portrait CSS keys on. */
 export const PORTRAIT_QUERY = "(aspect-ratio <= 1)";
@@ -117,54 +122,3 @@ export function quickDialSizeForCell(request: { width: number; height: number; p
   return Math.min(byWidth, byHeight);
 }
 
-/** The card's slots: the arrangement, the slot, the gap and the dial size. */
-export type QuickSlotLayout = PanelSlotGrid & {
-  /** Dial diameter every dial on the card is drawn at. */
-  size: number;
-  /** One row's height, or 0 where the card's height is its content's. */
-  rowHeight: number;
-};
-
-export type QuickSlotRequest = {
-  /** The card's own width, from its measurement. */
-  width: number;
-  /** The card's content height, or 0 where it has none of its own. */
-  height: number;
-  /** Whether the card is in portrait, where the rings must stay on screen. */
-  portrait: boolean;
-  /** How many slots are placed: what decides the arrangement. */
-  count: number;
-  /** How many dials are placed, so a readings-only card reserves no dial box. */
-  dials: number;
-  /** How many readings tiles are placed. */
-  readings: number;
-};
-
-/**
- * The card's grid, measured from the card itself, with the dial size that fills a
- * slot in it.
- *
- * A slot is at least the widest thing placed in the card needs — a knob's rings
- * in portrait, its titled box in landscape, the readings tile's own measure — and
- * the arrangement is settled from that (`panelSlots.ts`), so the same rules hold
- * on a phone, a tablet and the kiosk.
- */
-export function quickSlotLayout(request: QuickSlotRequest): QuickSlotLayout {
-  const { count, dials, height, portrait, readings, width } = request;
-  const dialMin = dials > 0 ? (portrait ? quickDialSlot(TEMPERATURE_ENCODER_MIN_SIZE) : quickDialBox(TEMPERATURE_ENCODER_MIN_SIZE)) : 0;
-  // The readings tile's own measure is what the card is laid out to when it is
-  // the only thing placed on it. Alongside dials it is a preference, not a floor:
-  // it wraps its readings inside whatever slot the dials need (Adeline,
-  // 2026-09-25 — the place belongs to the arrangement, and the arrangement
-  // belongs to the knobs that cannot draw smaller).
-  const minWidth = Math.max(dialMin, readings > 0 && dials === 0 ? QUICK_READINGS_MIN : 0);
-  const grid = panelSlotGrid({ count, minWidth, portrait, width });
-  if (grid.columns === 0 || grid.slot <= 0) {
-    // Nothing placed, or nothing measured yet. The card's own design size, so the
-    // first painted frame is a card rather than dials at their floor.
-    return { ...grid, rowHeight: 0, size: QUICK_TEMPERATURE_SIZE };
-  }
-  const rowHeight = height > 0 ? (height - (grid.rows - 1) * grid.gap) / grid.rows : 0;
-  const size = quickDialSizeForCell({ height: rowHeight, portrait, width: grid.slot });
-  return { ...grid, rowHeight, size };
-}

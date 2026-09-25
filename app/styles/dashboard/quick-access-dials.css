@@ -19,3 +19,41 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* A module in the wide line slot is drawn on ONE line (Adeline, 2026-09-25: "make
+   the date all one line"). The segment gives up the stacked column it is
+   everywhere else — the tile's 84px minimum height and the title above its state —
+   and reads across the line instead: name, then readings. Its readings stay on
+   the one row too, because wrapping them is exactly what "all one line" rules
+   out, and the slot's own scale is what makes them fit where the card is narrow. */
+.panel-slot-wide > .quick-segment {
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  /* SAFE centre, for the same reason as the slot's own: the line has to be
+     measurable before it can be scaled to fit, and a plain centre hides half of
+     an overflowing row from `scrollWidth`. */
+  justify-content: safe center;
+  gap: 18px;
+}
+
+.panel-slot-wide .quick-segment-text {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.panel-slot-wide .quick-weather-readings {
+  flex-wrap: nowrap;
+}
+
+/* Nothing on the line is squeezed. A flex row that cannot hold what it has will
+   otherwise shrink its own items and let their CONTENTS spill to the right, so the
+   slot's overflow — the number the scale is derived from — reads smaller than the
+   line really is, and the line runs past the card's edge (measured: a 375px card
+   put 13px of its UV reading outside itself). Held at their natural size, the spill
+   is the line's true width and the slot's own scale fits it exactly. */
+.panel-slot-wide > .quick-segment > *,
+.panel-slot-wide .quick-weather-readings > * {
+  flex: none;
+}

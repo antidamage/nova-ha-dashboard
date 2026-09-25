@@ -3,11 +3,11 @@ import fs from "fs";
 import path from "path";
 import { gotoDashboard } from "./helpers";
 
-// specs/quick-access-card.md: the card is a grid of equal slots — the lighting
-// dial, the amplifier dial, the two climate knobs and the readings tile, in the
-// order they are placed — and each dial's preset row belongs to the dial above
-// it, sitting just under it rather than a knob-slack below (Adeline, 2026-09-22;
-// the grid is 2026-09-25).
+// specs/quick-access-card.md: the card is a grid of equal DIAL slots — the lighting
+// dial, the amplifier dial and the two climate knobs, in the order they are placed —
+// with the readings tile on a wide line under them (2026-09-25), and each dial's
+// preset row belongs to the dial above it, sitting just under it rather than a
+// knob-slack below (Adeline, 2026-09-22; the grid is 2026-09-25).
 // QUICK_ACCESS_SHOTS=<dir> keeps a screenshot of the card at each width.
 
 const SHOTS = process.env.QUICK_ACCESS_SHOTS;
@@ -42,11 +42,10 @@ for (const width of [1280, 1920]) {
       expect(entry.gap, `${entry.segment}: preset row hugging its dial`).toBeLessThanOrEqual(12);
     }
 
-    // The light dial and the amplifier dial are the first two slots of the grid,
-    // so the first three modules share its first row — the light dial, the
-    // amplifier dial, then the aircon knob — and the second row opens under the
-    // first column (Adeline, 2026-09-25: the card is a grid of equal slots, and
-    // the order the slots are placed in is the order they take in it).
+    // The dials are the grid, two to a row (Adeline, 2026-09-25: "the first four
+    // slots (strictly for dial controls) should be in a 2x2 grid if there's
+    // room"), and the module that is not a dial — the readings tile — is the wide
+    // line under them rather than a slot beside the fourth knob.
     const grid = await page.evaluate(() =>
       [...document.querySelectorAll(".quick-access-row > *")].map((slot) => {
         const box = slot.getBoundingClientRect();
@@ -54,11 +53,13 @@ for (const width of [1280, 1920]) {
       }),
     );
     expect(grid).toHaveLength(5);
-    expect(Math.abs(grid[0].top - grid[1].top), "the pair shares a row").toBeLessThanOrEqual(1);
-    expect(Math.abs(grid[2].top - grid[0].top), "and so does the first climate knob: three slots, one row")
-      .toBeLessThanOrEqual(1);
-    expect(grid[3].top - grid[0].top, "the fourth slot opens the row below").toBeGreaterThan(0);
-    expect(Math.abs(grid[3].left - grid[0].left), "in the first slot's own column").toBeLessThanOrEqual(1);
+    expect(Math.abs(grid[0].top - grid[1].top), "the pair shares the first row").toBeLessThanOrEqual(1);
+    expect(grid[2].top - grid[0].top, "the first climate knob opens the row below").toBeGreaterThan(0);
+    expect(Math.abs(grid[2].left - grid[0].left), "in the first slot's own column").toBeLessThanOrEqual(1);
+    expect(Math.abs(grid[3].top - grid[2].top), "and the second knob shares that row").toBeLessThanOrEqual(1);
+    expect(Math.abs(grid[3].left - grid[1].left), "in the second slot's column").toBeLessThanOrEqual(1);
+    expect(grid[4].top - grid[2].top, "the readings line takes the row under them").toBeGreaterThan(0);
+    expect(grid[4].left, "and spans the card from its left edge").toBeLessThanOrEqual(grid[0].left + 1);
 
     if (SHOTS) {
       fs.mkdirSync(SHOTS, { recursive: true });

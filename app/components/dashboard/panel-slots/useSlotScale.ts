@@ -17,6 +17,12 @@ import { PORTRAIT_QUERY } from "../quick-access/dial-model";
  * makes it safe: a transform does not change layout, so the measurement it is
  * derived from cannot feed back into itself.
  *
+ * The wide line slot at the bottom of a card is the one exception, and it is
+ * measured against its OWN box rather than the panel's rows: it is a line, not a
+ * share of the height, so the dials' share is the wrong budget for it — and
+ * letting it push the shared factor would shrink every dial on the card to fit
+ * one line of readings. It gets a factor of its own (`--wide-scale`).
+ *
  * Below `SLOT_SCALE_FLOOR` the panel stops scaling and grows its rows instead —
  * the content would be too small to read or to hit, and a panel that cannot fit
  * the modules placed on it scrolls, which is the over-packed case the spec
@@ -37,14 +43,26 @@ export type SlotScaleState = {
   fits: boolean;
   /** One factor for every slot on the panel, 1 when nothing has to shrink. */
   scale: number;
+  /** The factor the wide line slots use, measured against their own line. */
+  wideScale: number;
 };
 
 export function useSlotScale(
   rowRef: RefObject<HTMLElement | null>,
-  options: { dividesHeight: boolean; gap: number; rows: number },
+  options: {
+    /**
+     * The height one slot has to fit in, where the caller has measured it (the
+     * card's model divides a height of its own and knows a dial row's share).
+     * Omitted, the share is derived from the panel's rows as before.
+     */
+    available?: number;
+    dividesHeight: boolean;
+    gap: number;
+    rows: number;
+  },
 ): SlotScaleState {
-  const { dividesHeight, gap, rows } = options;
-  const [state, setState] = useState<SlotScaleState>({ fits: true, scale: 1 });
+  const { available: given, dividesHeight, gap, rows } = options;
+  const [state, setState] = useState<SlotScaleState>({ fits: true, scale: 1, wideScale: 1 });
 
   useEffect(() => {
     const row = rowRef.current;
@@ -61,16 +79,22 @@ export function useSlotScale(
     const measure = () => {
       const slots = [...row.children] as HTMLElement[];
       if (!slots.length) {
-        setState({ fits: true, scale: 1 });
+        setState({ fits: true, scale: 1, wideScale: 1 });
         return;
       }
       // The share a row has when the rows are shares — computed from the
       // panel's own height, which the row sizing does not change, so this
       // number is the same in both modes and the measurement cannot oscillate.
-      const available = divides()
-        ? (row.clientHeight - Math.max(0, rows - 1) * gap) / Math.max(1, rows)
-        : Number.POSITIVE_INFINITY;
+      // A caller that has measured it for itself (the card's model, which takes
+      // the wide lines out of the height first) passes it in; it is only ever
+      // read where the rows ARE shares, so portrait ignores it either way.
+      const available = !divides()
+        ? Number.POSITIVE_INFINITY
+        : given !== undefined
+          ? given
+          : (row.clientHeight - Math.max(0, rows - 1) * gap) / Math.max(1, rows);
       let needed = 1;
+      let wide = 1;
       for (const slot of slots) {
         // scrollWidth/scrollHeight are the content's own size whatever the box it
         // was given, and neither is affected by the transform. The BOX measured
@@ -80,18 +104,20 @@ export function useSlotScale(
         // against the client box instead scaled every kiosk dial by 0.994 for a
         // border, which the floor assertion caught.
         const width = slot.offsetWidth > 0 ? slot.offsetWidth / Math.max(1, slot.scrollWidth) : 1;
+        if (slot.dataset.slotRegion === "wide") {
+          // A wide line slot's own box is its budget: one line of the panel's
+          // whole width, not a share of its height.
+          const height = slot.offsetHeight > 0 ? slot.offsetHeight / Math.max(1, slot.scrollHeight) : 1;
+          wide = Math.min(wide, width, height);
+          continue;
+        }
         const height = Number.isFinite(available) ? available / Math.max(1, slot.scrollHeight) : 1;
         needed = Math.min(needed, width, height);
       }
-      if (needed >= 1) {
-        setState({ fits: true, scale: 1 });
-        return;
-      }
-      setState(
-        needed <= SLOT_SCALE_FLOOR
-          ? { fits: false, scale: 1 }
-          : { fits: true, scale: Math.round(needed * 1000) / 1000 },
-      );
+      // The dials' factor, and the wide line's own. Neither is allowed below the
+      // floor: there the content keeps its own size and the panel scrolls.
+      const factor = (value: number) => (value >= 1 || value <= SLOT_SCALE_FLOOR ? 1 : Math.round(value * 1000) / 1000);
+      setState({ fits: needed >= 1 || needed > SLOT_SCALE_FLOOR, scale: factor(needed), wideScale: factor(wide) });
     };
     const observer = new ResizeObserver(measure);
     observer.observe(row);
@@ -106,7 +132,7 @@ export function useSlotScale(
       observer.disconnect();
       portrait.removeEventListener("change", measure);
     };
-  }, [rowRef, dividesHeight, gap, rows]);
+  }, [rowRef, dividesHeight, gap, rows, given]);
 
   return state;
 }

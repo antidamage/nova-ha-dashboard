@@ -4,12 +4,11 @@ import path from "path";
 import { gotoDashboard } from "./helpers";
 
 // specs/quick-access-card.md, portrait (Adeline, 2026-09-14, revised
-// 2026-09-25): the card is a GRID of slots, one per module placed on it, and
-// every slot is the same width. Portrait's grid is the card's balanced one
-// wherever a slot can still hold a knob's rings — three columns on a wide
-// screen, two on a tablet, one on a phone — and the rings of a knob that is
-// untucked stay on screen either way. Below one slot's width every dial shrinks
-// together, floor 100px.
+// 2026-09-25): the card is a GRID of DIAL slots with a wide line slot under it, and
+// every dial slot is the same width. Portrait's grid is the 2x2 wherever two slots
+// can still hold a knob's rings — the wide screen and a tablet — and one column of
+// four on a phone, and the rings of a knob that is untucked stay on screen either
+// way. Below one slot's width every dial shrinks together, floor 100px.
 // QUICK_ACCESS_SHOTS=<dir> keeps a screenshot of the card at each viewport.
 
 const SHOTS = process.env.QUICK_ACCESS_SHOTS;
@@ -256,21 +255,28 @@ test("portrait narrow phone: dials shrink to fit, not below 100px", async ({ pag
   }
 });
 
-test("wide portrait: the card is one grid, three slots to a row", async ({ page }) => {
+test("wide portrait: the card is the 2x2 with the readings line under it", async ({ page }) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await gotoDashboard(page);
   await page.locator(".quick-access-row").scrollIntoViewIfNeeded();
   await expect(dials(page)).toHaveCount(4);
   const [lights, amp, aircon, heater] = await places(page);
 
-  // Five modules, three columns: the light dial, the amplifier dial and the first
-  // climate knob share the first row, and the second climate knob opens the
-  // second, in the column under the light dial (Adeline, 2026-09-25 — the grid,
-  // not the old dial-line/climate/readings lines).
+  // Two columns, because this width holds two ring-safe slots: the lights and the
+  // amplifier share the first row, the two climate knobs the second, and the
+  // readings tile is the wide line under them (Adeline, 2026-09-25 — the four
+  // dials are the grid, "strictly for dial controls").
   expect(Math.abs(lights.y - amp.y), "the pair shares the first row").toBeLessThanOrEqual(2);
-  expect(Math.abs(aircon.y - lights.y), "the first climate knob is on that row too").toBeLessThanOrEqual(2);
-  expect(heater.y - lights.y, "the second row is the one below").toBeGreaterThan(0);
-  expect(Math.abs(heater.x - lights.x), "and its column is the light dial's").toBeLessThanOrEqual(2);
+  expect(aircon.y - lights.y, "the climate knobs open the second").toBeGreaterThan(0);
+  expect(Math.abs(aircon.y - heater.y), "and share it").toBeLessThanOrEqual(2);
+  expect(Math.abs(aircon.x - lights.x), "in the lights' own column").toBeLessThanOrEqual(2);
+  expect(Math.abs(heater.x - amp.x), "and the second in the amplifier's").toBeLessThanOrEqual(2);
+  const line = await page.locator(".quick-access-row > .panel-slot-wide").boundingBox();
+  const row = await page.locator(".quick-access-row").boundingBox();
+  if (!line || !row) throw new Error("no line slot");
+  expect(line.y, "the readings line sits under both dial rows").toBeGreaterThan(aircon.y);
+  expect(line.width, "and is the card's whole width").toBeCloseTo(row.width, 0);
+  expect(line.height, "as ONE line").toBeLessThanOrEqual(58);
   // The slots are one size, so every dial is drawn at one size.
   for (const dial of [lights, amp, aircon, heater]) expect(dial.size).toBeCloseTo(lights.size, 0);
 

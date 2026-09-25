@@ -198,9 +198,13 @@ an empty control, because an empty control is a permanent hole on the card.
   panel where the page can wrap it (the room menu, whose `+ .tasks-stage` sibling
   selector a wrapper would break) and around it where the page composes it (the
   clock, the task list, a zone's controls).
-- **A panel with several slots is laid out by the same rule** — 2x2 for four,
-  3x2 for five, one line where there is no room for two columns, and one column on
-  a phone.
+- **A panel with several slots is laid out by the same rule** — the balanced grid,
+  2x2 for four slots and 3x2 for five, one line where there is no room for two
+  columns, and one column on a phone — except the Quick Access card, which groups
+  its slots: its dial controls take the grid and every module that is not a dial
+  takes a wide line slot of the panel's whole width under them
+  (specs/quick-access-card.md, "The layout slots"). That grouping is the card's
+  own and no other panel's: a panel's rows are its modules, one each.
 - **The Devices tab lists every panel's placements**, one group per panel, with
   its own slot list: reassign, reorder, or replace the panel's content. A panel's
   body is what the panel shows unless a CONTROL is placed beside it — the fallback
@@ -242,17 +246,28 @@ fall back to.
 
 - **The arrangement is the panel's own while the panel has room for it**, and the
   rule is `app/components/dashboard/panelSlots.ts`
-  (`balancedColumns`/`panelSlotGrid`): the balanced grid — 2x2 for four slots,
-  3x2 for five — giving up a column at a time while a slot would come out
-  narrower than the panel's own minimum, down to a single line along the panel's
-  long axis.
+  (`balancedColumns`/`panelSlotGrid`): the balanced grid, giving up a column at a
+  time while a slot would come out narrower than the panel's own minimum, down to
+  a single line along the panel's long axis.
 - **Every slot on a panel is the same size**, whatever it draws, and the slots
   evenly subdivide the panel; a slot's content is centred across it and starts at
   its top, and scales up or down to fit it. A panel with one component is the 1x1
   case of the same rule (Adeline, 2026-09-25).
-- So the card the demo ships — five modules — is three columns of two, and the
-  four-module card is the 2x2 Adeline named. The worked example, with the
-  numbers, is specs/quick-access-card.md, "The layout slots".
+- **A panel that groups its slots has two regions** — the Quick Access card, and
+  Adeline, 2026-09-25: "the first four slots (strictly for dial controls) should
+  be in a 2x2 grid if there's room, or a 1x4 grid if there isn't ... make a wide
+  slot at the bottom for it. if there is no content in it, the line slot
+  collapses." Its DIAL controls — `isDialKind` in
+  `app/components/dashboard/panel-slots/useSlotLayout.ts`: a lighting dial, the
+  amplifier dial, a climate knob — take the grid, which is sized from the DIALS
+  rather than from every module placed on the panel; every other module takes a
+  wide line slot of the panel's whole width under them, one line tall and drawn as
+  one row. With no such module the line is not there at all: no element, no track,
+  no gap, and the dials divide the whole panel.
+- So the card the demo ships — four dials and the readings tile — is the 2x2
+  Adeline named for a desktop, with the tile on one line under it, and a card of
+  four dials and nothing else is that same 2x2 with no line. The worked example,
+  with the numbers, is specs/quick-access-card.md, "The layout slots".
 
 ## The config page
 

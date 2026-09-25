@@ -2,40 +2,54 @@ import { expect, test } from "@playwright/test";
 import { gotoDashboard } from "./helpers";
 
 // specs/quick-access-card.md, "The layout slots" (Adeline, 2026-09-25): the card
-// is a grid of equal slots — one per module placed on it — in a defined
-// arrangement, the slots evenly subdivide the card, and the content in a slot is
-// CENTRED across it and starts at its TOP.
+// is a grid of DIAL slots — 2x2 for four "if there's room, or a 1x4 grid if there
+// isn't" — with "a wide slot at the bottom" for every module that is not a dial,
+// drawn as ONE line and collapsed when nothing is placed in it.
 //
-// Which arrangement a card of N slots gets, and how big the dial in a slot is,
-// are pure functions and are proved in `panelSlots.test.ts` and
-// `dial-model.test.ts`; this is the shipped five-module card in a browser at the
-// widths the rule names, including the two it must not break: a phone's single
-// column, and a landscape card that fits its column rather than scrolling.
-// QUICK_ACCESS_SHOTS=<dir> is honoured by the other two specs, not this one.
+// Which arrangement a card of N dials gets, and how tall its line is, are pure
+// functions and are proved in `panelSlots.test.ts` and `slot-layout.test.ts`; this
+// is the shipped five-module card in a browser at the widths the rule names,
+// including the two it must not break: a phone's single column, and a landscape
+// card that fits its column rather than scrolling.
+//
+// Every figure below is measured, not derived: QUICK_ACCESS_SHOTS=<dir> is honoured
+// by the other two specs, not this one.
 
 const VIEWPORTS = [
-  { columns: 3, fits: true, name: "kiosk 1920x1080", rows: 2, width: 1920, height: 1080 },
-  { columns: 3, fits: true, name: "desktop 1366x768", rows: 2, width: 1366, height: 768 },
-  { columns: 3, fits: true, name: "wide portrait 1080x1920", rows: 2, width: 1080, height: 1920 },
-  { columns: 3, fits: true, name: "ipad pro 1024x1366", rows: 2, width: 1024, height: 1366 },
-  { columns: 2, fits: true, name: "tablet 820x1180", rows: 3, width: 820, height: 1180 },
-  { columns: 1, fits: true, name: "phone 440x956", rows: 5, width: 440, height: 956 },
-  { columns: 1, fits: true, name: "phone 375x812", rows: 5, width: 375, height: 812 },
+  { columns: 2, dialRows: 2, fits: true, height: 1080, name: "kiosk 1920x1080", width: 1920 },
+  { columns: 2, dialRows: 2, fits: true, height: 768, name: "desktop 1366x768", width: 1366 },
+  { columns: 2, dialRows: 2, fits: true, height: 1920, name: "wide portrait 1080x1920", width: 1080 },
+  { columns: 2, dialRows: 2, fits: true, height: 1366, name: "ipad pro 1024x1366", width: 1024 },
+  { columns: 2, dialRows: 2, fits: true, height: 1180, name: "tablet 820x1180", width: 820 },
+  { columns: 1, dialRows: 4, fits: true, height: 956, name: "phone 440x956", width: 440 },
+  { columns: 1, dialRows: 4, fits: true, height: 812, name: "phone 375x812", width: 375 },
   // The one case that may scroll (Adeline, 2026-09-25: "in all cases except
-  // mobile phone we always want all panels on screen at once"): five knobs at
-  // the 100px floor need more height than a 393px-tall window gives the column.
-  { columns: 3, fits: false, name: "phone landscape 852x393", rows: 2, width: 852, height: 393 },
+  // mobile phone we always want all panels on screen at once"): four knobs in two
+  // columns at the 100px floor, plus the line, need more height than a 393px-tall
+  // window gives the column.
+  { columns: 2, dialRows: 2, fits: false, height: 393, name: "phone landscape 852x393", width: 852 },
 ];
+
+/** The card's own height a line slot may take: one line, and the row's gap. */
+const LINE_SLOT_MAX = 58;
 
 type Slot = {
   cls: string;
   contentTop: number | null;
   dial: number | null;
   h: number;
+  /** The box the layout gave it, before any scale the slot draws itself with. */
+  layoutW: number;
   leftGap: number | null;
   /** How far the slot's own content reaches down its box. */
   needs: number;
   rightGap: number | null;
+  /** The heights the slot's own readings' captions sit at. */
+  captionTops: number[];
+  /** How far the slot's own text reaches below the box it was given (negative). */
+  textRoom: number;
+  /** The heights the slot's own readings' numbers sit at. */
+  valueTops: number[];
   w: number;
   x: number;
   y: number;
@@ -47,10 +61,10 @@ type Slot = {
  * frame or two after that. Waiting on the row's presence alone measures a layout
  * that is still moving.
  */
-async function waitForSlots(page: import("@playwright/test").Page) {
+async function waitForSlots(page: import("@playwright/test").Page, count = 5) {
   const row = page.locator(".quick-access-row");
   await expect(row).toBeVisible();
-  await expect(page.locator(".quick-access-row > *")).toHaveCount(5);
+  await expect(page.locator(".quick-access-row > *")).toHaveCount(count);
   // Measured, and the slots laid out at that width. The card leaves
   // `--slot-width` unset until it has measured itself, so an unset (or a
   // non-positive) value here means the width sweep would be measuring the frame
@@ -64,7 +78,7 @@ async function waitForSlots(page: import("@playwright/test").Page) {
     const first = element.firstElementChild;
     return Boolean(first && first.getBoundingClientRect().width > 1);
   });
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
   await row.scrollIntoViewIfNeeded();
 }
 
@@ -80,6 +94,7 @@ async function drawnRows(page: import("@playwright/test").Page) {
     const row = document.querySelector(".quick-access-row");
     if (!row) return null;
     const rowRect = row.getBoundingClientRect();
+    const scale = parseFloat(getComputedStyle(row).getPropertyValue("--wide-scale")) || 1;
     const slots: Slot[] = [];
     for (const slot of [...row.children]) {
       const box = slot.getBoundingClientRect();
@@ -101,14 +116,30 @@ async function drawnRows(page: import("@playwright/test").Page) {
       const needs = [...slot.children].reduce((most, child) => {
         return Math.max(most, child.getBoundingClientRect().bottom - box.top);
       }, 0);
+      // The rows the module's own readings sit on: a module drawn across one line
+      // has its captions on one row and their numbers on the one under them, and
+      // nothing else below.
+      const words = [...slot.querySelectorAll(".quick-segment-title, .quick-segment-state, .quick-stepper-caption, .quick-current-number")];
+      const tops = (selector: string) =>
+        [...new Set(words.filter((node) => node.matches(selector)).map((node) => Math.round(node.getBoundingClientRect().top)))];
+      const textRoom = words.reduce(
+        (least, node) => Math.min(least, box.bottom - node.getBoundingClientRect().bottom),
+        Number.POSITIVE_INFINITY,
+      );
       slots.push({
+        captionTops: tops(".quick-stepper-caption"),
         cls: slot.className,
         contentTop: contentBox ? round(contentBox.top - inner) : null,
         dial: dialBox ? round(dialBox.getBoundingClientRect().width) : null,
         h: round(box.height),
+        // A line slot that cannot fit the card's width draws itself smaller
+        // (`--wide-scale`), and the box it was GIVEN is that divided back out.
+        layoutW: round(box.width / scale),
         leftGap: contentBox ? round(contentBox.left - innerLeft) : null,
         needs: round(needs),
         rightGap: contentBox ? round((innerLeft + innerWidth) - contentBox.right) : null,
+        textRoom: Number.isFinite(textRoom) ? round(textRoom) : 0,
+        valueTops: tops(".quick-current-number"),
         w: round(box.width),
         x: round(box.left - rowRect.left),
         y: round(box.top - rowRect.top),
@@ -134,7 +165,7 @@ async function drawnRows(page: import("@playwright/test").Page) {
 }
 
 for (const viewport of VIEWPORTS) {
-  test(`the slots are one grid at ${viewport.name}`, async ({ page }) => {
+  test(`the dial grid and its line at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await gotoDashboard(page);
     await waitForSlots(page);
@@ -144,44 +175,77 @@ for (const viewport of VIEWPORTS) {
     const all = drawn.rows.flatMap((row) => row.slots);
     expect(all.length, "the demo card holds five slots").toBe(5);
     expect(drawn.columns, "the card declares the columns its slots use").toBe(viewport.columns);
-    expect(drawn.rows.length, "five slots fill the rows below").toBe(viewport.rows);
 
-    // One width for the whole card: a lighting dial, an amplifier dial, a
-    // climate knob and the readings tile are all the same slot.
-    const widths = all.map((slot) => slot.w);
-    expect(Math.min(...widths), "a laid-out slot, not the unmeasured frame").toBeGreaterThan(1);
-    expect(Math.max(...widths) - Math.min(...widths), "one slot width").toBeLessThanOrEqual(1);
+    const lines = all.filter((slot) => slot.cls.includes("panel-slot-wide"));
+    const dials = all.filter((slot) => slot.dial !== null);
+    expect(dials.length, "four of the five slots are DIAL slots").toBe(4);
+    expect(lines.length, "and the fifth is the wide line slot").toBe(1);
+
+    // The line is last, and it is one row of the card's whole width: the module
+    // that is not a dial does not take a column off the dials (2026-09-25).
+    const line = lines[0];
+    expect(line.y, "the line sits under the dials").toBeGreaterThan(Math.max(...dials.map((slot) => slot.y)));
+    expect(line.layoutW, "the line is the card's whole width").toBeCloseTo(drawn.rowWidth, 0);
+    expect(line.x, "the line starts at the card's left edge").toBeLessThanOrEqual(1);
+    expect(line.h, "and it is ONE line tall").toBeLessThanOrEqual(LINE_SLOT_MAX);
+    // Drawn ACROSS that line rather than as a column of words: the three readings'
+    // captions share one row, their numbers the row under them, and every word is
+    // inside the one line the slot was given.
+    expect(new Set(line.captionTops).size, "the readings' captions sit on one row").toBe(1);
+    expect(new Set(line.valueTops).size, "and their values on the row under them").toBe(1);
+    expect(line.textRoom, "all of it inside the one line the slot is").toBeGreaterThanOrEqual(-1);
+    expect(line.x + line.w, "the line is inside the card").toBeLessThanOrEqual(drawn.rowWidth + 1);
+
+    // The dials are the grid: two columns of two on a desktop, kiosk, iPad and
+    // wide portrait screen, and one column of four on a phone.
+    const dialRows = new Map<number, typeof dials>();
+    for (const slot of dials) {
+      const key = Math.round(slot.y);
+      dialRows.set(key, [...(dialRows.get(key) ?? []), slot]);
+    }
+    expect(dialRows.size, "the dials fill the rows below").toBe(viewport.dialRows);
+    for (const [, inRow] of dialRows) {
+      expect(inRow.length, "every dial row is full").toBe(viewport.columns);
+    }
+    expect(drawn.rows.length, "and the line is the row after them").toBe(viewport.dialRows + 1);
+
+    // One width for the whole card: a lighting dial, an amplifier dial and a
+    // climate knob are all the same slot. (The line is the card's width, not a
+    // slot's.)
+    const slotWidths = dials.map((slot) => slot.w);
+    expect(Math.min(...slotWidths), "a laid-out slot, not the unmeasured frame").toBeGreaterThan(1);
+    expect(Math.max(...slotWidths) - Math.min(...slotWidths), "one slot width").toBeLessThanOrEqual(1);
 
     // A slot is never cut off: the slots subdivide the card, they do not overflow
     // it.
-    expect(drawn.overflowX, "no slot runs past the card's edge").toBeLessThanOrEqual(1);
+    expect(drawn.overflowX, "nothing runs past the card's edge").toBeLessThanOrEqual(1);
 
-    // Every row is filled edge to edge, or is the short last row.
+    // Every dial row is filled edge to edge.
     for (const row of drawn.rows) {
-      expect(row.slots.length).toBeLessThanOrEqual(viewport.columns);
+      if (row.slots.includes(line)) continue;
       const first = row.slots[0];
       const last = row.slots[row.slots.length - 1];
-      if (row.slots.length === viewport.columns) {
-        expect(first.x, "a full row starts at the row's left edge").toBeLessThanOrEqual(1);
-        expect(drawn.rowWidth - (last.x + last.w), "a full row ends at its right edge").toBeLessThanOrEqual(1);
-      }
+      expect(first.x, "a full row starts at the row's left edge").toBeLessThanOrEqual(1);
+      expect(drawn.rowWidth - (last.x + last.w), "a full row ends at its right edge").toBeLessThanOrEqual(1);
     }
 
     // Controls are top-aligned in their slot, not centred in it: every dial
-    // starts at the same height within its own space, and the readings tile
-    // starts at the top of its (short) slot too.
-    const dials = all.filter((slot) => slot.dial !== null);
-    expect(dials.length, "five slots, four of them dials").toBe(4);
+    // starts at the same height within its own space, right under its own title
+    // band. The band is a share of the dial, so the tolerance is too — the fixed
+    // 20px this replaced was measured on a 100px knob, and the card now draws a
+    // 200px one whose band is twice as tall. A dial centred in its slot instead
+    // sits about a quarter of the way down and fails this.
     expect(new Set(dials.map((slot) => slot.dial)).size, "one dial size for the card").toBe(1);
     expect(Math.max(...dials.map((slot) => slot.contentTop ?? 0)) - Math.min(...dials.map((slot) => slot.contentTop ?? 0)))
       .toBeLessThanOrEqual(2);
-    for (const top of all.map((slot) => slot.contentTop).filter((value): value is number => value !== null)) {
-      expect(top, "content starts at the top of its slot, not in the middle of it").toBeLessThanOrEqual(20);
+    for (const slot of dials) {
+      expect(slot.contentTop, `${slot.cls}: content at the top of its slot, not in the middle of it`)
+        .toBeLessThanOrEqual((slot.dial ?? 0) * 0.12);
     }
 
-    // A control is centred in its slot: the width the slot has beyond it is
-    // shared equally either side, never left over at the right. The readings tile
-    // is not a control and is not covered.
+    // A dial is centred in its slot: the width the slot has beyond it is shared
+    // equally either side, never left over at the right. The readings tile is not
+    // a control and is not covered.
     for (const slot of dials) {
       expect(slot.leftGap, "content has a left gap to measure").not.toBeNull();
       expect(Math.abs((slot.leftGap ?? 0) - (slot.rightGap ?? 0)), `${slot.cls}: centred in its slot`)
@@ -198,27 +262,30 @@ for (const viewport of VIEWPORTS) {
       expect(drawn.overflowY, `${viewport.name}: the card fits its column`).toBeLessThanOrEqual(1);
     }
 
-    // In landscape the card is a column of a height of its own, so its rows
+    // In landscape the card is a column of a height of its own, so its dial rows
     // divide that height between them (the slots "evenly subdivide the space
-    // available"). Portrait has no height to divide: the card is as tall as its
-    // content.
+    // available"). The wide line is NOT one of those shares — it is one line of
+    // its own, and the dials divide what is left. Portrait has no height to
+    // divide: the card is as tall as its content.
     if (viewport.fits && viewport.width > viewport.height) {
-      for (const row of drawn.rows) {
-        expect(Math.abs(row.h - drawn.rows[0].h), "the rows are the same height").toBeLessThanOrEqual(1);
+      const dialRows = drawn.rows.filter((row) => !row.slots.includes(line)).map((row) => row.h);
+      for (const height of dialRows) {
+        expect(Math.abs(height - dialRows[0]), "the dial rows are the same height").toBeLessThanOrEqual(1);
       }
+      expect(line.h, "and the line is one line, not a share of them").toBeLessThan(dialRows[0]);
     }
   });
 }
 
 test("a slot with more room draws a bigger dial", async ({ page }) => {
   // The content scales to its slot (Adeline, 2026-09-25): the same five modules
-  // in a 2x3 card's wider slots draw larger dials than a 3x2 card's, and the
-  // narrowest card — a kiosk column, where five knobs only fit three to a row —
-  // draws the knob's own floor size rather than shrinking past it.
+  // in a 2x2 card's wider slots draw larger dials than the kiosk's, and the
+  // card's dials never shrink below the knob's own floor however narrow it gets.
   const sizes: Record<string, number> = {};
   for (const viewport of [
     { name: "820x1180", width: 820, height: 1180 },
     { name: "1920x1080", width: 1920, height: 1080 },
+    { name: "375x812", width: 375, height: 812 },
   ]) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await gotoDashboard(page);
@@ -232,16 +299,19 @@ test("a slot with more room draws a bigger dial", async ({ page }) => {
     expect(sizes[viewport.name], `${viewport.name}: never below the knob's floor`).toBeGreaterThanOrEqual(131);
   }
   expect(sizes["820x1180"], "the wider slot draws the bigger dial").toBeGreaterThan(sizes["1920x1080"]);
+  // And the dial the card draws at 520px has grown past the floor the old 3x2
+  // arrangement was pinned to.
+  expect(sizes["1920x1080"], "roomier per dial than the 3x2 the card used to draw").toBeGreaterThan(140);
 });
 
 /**
- * The card with FOUR modules on it — the arrangement Adeline named ("on desktop,
- * it will be 2x2"). The demo's own derived controls, from the app itself, with
- * the readings tile taken off; the demo keeps its config in sessionStorage and
- * merges what it finds there over its defaults, so the seed is the whole stored
- * document with only the controls block replaced.
+ * The card with FOUR modules on it — the arrangement Adeline named. The demo's
+ * own derived controls, from the app itself, with the readings tile taken off; the
+ * demo keeps its config in sessionStorage and merges what it finds there over its
+ * defaults, so the seed is the whole stored document with only the controls block
+ * replaced.
  */
-async function seedFourModules(page: import("@playwright/test").Page) {
+async function seedWithoutReadings(page: import("@playwright/test").Page) {
   const controls = await page.evaluate(async () =>
     (await (await fetch("/api/control-modules")).json()).controls);
   const four = {
@@ -260,20 +330,17 @@ async function seedFourModules(page: import("@playwright/test").Page) {
   await page.reload({ waitUntil: "domcontentloaded" });
 }
 
-test("four modules are the 2x2, and it fits the card", async ({ page }) => {
+test("with nothing on the line it collapses, and the dials take the whole card", async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await gotoDashboard(page);
-  await seedFourModules(page);
-  await expect(page.locator(".quick-access-row > *")).toHaveCount(4);
-  await page.waitForFunction(() => {
-    const element = document.querySelector(".quick-access-row");
-    if (!element) return false;
-    return parseFloat(getComputedStyle(element).getPropertyValue("--slot-width")) > 0;
-  });
+  await seedWithoutReadings(page);
+  await waitForSlots(page, 4);
   const drawn = await drawnRows(page);
   if (!drawn) throw new Error("no .quick-access-row");
 
-  expect(drawn.columns, "four modules are two columns").toBe(2);
+  // Four dials and no line at all: no slot, no row, nothing reserved for it.
+  expect(page.locator(".quick-access-row > .panel-slot-wide"), "the line is not there").toHaveCount(0);
+  expect(drawn.columns, "four dials are two columns").toBe(2);
   expect(drawn.rows.length, "and two rows").toBe(2);
   expect(drawn.overflowY, "a 2x2 card fits its column").toBeLessThanOrEqual(1);
   for (const row of drawn.rows) {
@@ -287,4 +354,7 @@ test("four modules are the 2x2, and it fits the card", async ({ page }) => {
   }
   const dials = drawn.rows.flatMap((row) => row.slots).filter((slot) => slot.dial !== null);
   expect(new Set(dials.map((slot) => slot.dial)).size, "one dial size for the card").toBe(1);
+  // The dials divide the whole card rather than a third of it: roomier than the
+  // same card with a line under them.
+  expect(dials[0].dial, "no height given away to a line that is not there").toBeGreaterThan(160);
 });

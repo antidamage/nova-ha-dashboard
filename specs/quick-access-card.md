@@ -52,46 +52,74 @@ fits in a row:
 > in all cases except mobile phone we always want all panels on screen at once.
 > it will be up to the user to ensure they don't over-pack it.
 
-- **The card is a grid of equal slots, one per module placed on it**, in the
-  order the slots are configured in. It was the FIRST panel to hold slots and
-  every other dashboard panel now does the same (Adeline, 2026-09-25;
-  specs/control-modules.md, "Every panel holds slots"): the grid, the item view
-  and the measurement live in `app/components/dashboard/panel-slots/`, the card
-  uses them, and a panel's own content is a `panel-content` module it hands to
-  its slot. A module's declared `region` no longer
-  places it: the card is not a stack of lines any more, so the position of a
-  module is its slot's order and the arrangement below.
-- **The arrangement is the panel's own while the panel has room for it.**
-  `app/components/dashboard/panelSlots.ts` is the rule — `balancedColumns` and
-  `panelSlotGrid` — and the card passes it its own measured box and the number of
-  modules placed on it. The balanced arrangement is the grid: **2x2 for four
-  slots, 3x2 for five, 3x3 for seven to nine**; two or three modules are one line
-  along the panel's long axis (Adeline, 2026-09-25: "if there are two components,
-  follow the same rules for a 1x2 or 2x1 area depending on layout orientation.
-  continue this pattern"). It gives up a column at a time while a slot would come
-  out narrower than the panel's own minimum, which is the whole of what decides
-  the phone. On the shipped card:
-  - **Four modules are the 2x2 Adeline named**, on a desktop, a kiosk and an iPad
-    Pro 12.9 alike.
-  - **The five modules the demo places are 3x2.** The card is a 520px column of
-    the landscape layout, and 2x3 cannot be laid out in that column's 600px
-    height at the knob's own 100px floor — three rows of knobs need 3 × 211.4 +
-    2 × 12 = ~658px — so the balanced grid that *does* fit is the one used. Five
-    knobs at the old fixed 133px fit neither way round (they need 3 × 257.3 +
-    2 × 12 = ~796px of height in two columns, or ~636px of width in three), which
-    is why the dial size is derived from the slot rather than fixed.
-  - **A tablet's portrait width holds three columns** where the card is ~1000px
-    wide and two at 820px.
-  - **A phone in portrait holds one column** — five rows — because two
-    ring-bearing knobs side by side would run their opened rings off the screen.
-    A phone in landscape gets as many columns as its 520px column allows (three);
-    five across needs 867px and is never drawn.
+- **The card is a grid of DIAL slots, with a wide line under it.** Adeline,
+  2026-09-25, on what the grid is for: "the first four slots (strictly for dial
+  controls) should be in a 2x2 grid if there's room, or a 1x4 grid if there isn't.
+  ... there is also a date module in here, make the date all one line and make a
+  wide slot at the bottom for it. if there is no content in it, the line slot
+  collapses." So the card has two regions: its DIAL controls take the grid, and
+  every module that is not a dial takes a wide line slot of the card's whole
+  width under them, one line tall. The arrangement rule is
+  `app/components/dashboard/panelSlots.ts` (`wideBottom`); the card's own
+  measuring is `quick-access/slot-layout.ts`, the item view is
+  `panel-slots/slotItemView.tsx`, and the stylesheets are
+  `app/styles/dashboard/panel-slots.css` (the slot) and `quick-access-dials.css`
+  (the line's content). It was the FIRST panel to hold slots and every other
+  dashboard panel now does the same (Adeline, 2026-09-25;
+  specs/control-modules.md, "Every panel holds slots"), but the card is the one
+  panel that GROUPS them: a panel's own content is one slot like any other.
+- **Which modules are dials.** `isDialKind`
+  (`app/components/dashboard/panel-slots/useSlotLayout.ts`): a lighting dial, the
+  amplifier dial and a climate knob. The readings tile is not a dial, and neither
+  is a panel's own content.
+- **The grid is sized from the DIALS, not from every module on the card.** This is
+  the defect the 2026-09-25 round named: the balanced grid across all five modules
+  gave three columns, so the four dials were split 3 + 1 with the readings tile
+  beside the fourth. Four dials are the 2x2 Adeline named, whatever else is
+  placed.
+- **Dials first, in the order the slots are configured in.** `slotItemsInOrder`
+  lays the dials out — the first slots are "strictly for dial controls" — and puts
+  everything else on the line under them. A module's declared `region` still
+  places nothing: the position of a module is its slot's order and the arrangement
+  below.
+- **Where two columns do not fit, the dials are one column — the 1x4.** The
+  arrangement gives up a column at a time while a slot would come out narrower
+  than the card's own minimum (`balancedColumns`/`panelSlotGrid`). A phone's width
+  holds one ring-safe slot, so a phone's card is four dial rows and the line under
+  them; a tablet's portrait width holds two, and keeps the 2x2. Two or three dials
+  are a single line along the card's long axis.
+- **The line slot is one line, the card's whole width, and it collapses.** The
+  card's height is divided between its rows, so each line takes its own height out
+  first (`QUICK_WIDE_LINE`, 56px, `quick-access/dial-model.ts`) and the dial rows
+  divide what is left; the stylesheet is given the same figure as the row's track
+  (`panel-slots/slotGrid.ts`). With no module that is not a dial the card has no
+  line at all: no element, no track, no gap, and the dials divide the whole card —
+  a card of four dials is exactly the 2x2 it was.
+- **A module the card cannot draw is not a slot either.** A panel's own content
+  belongs to the panel it came from and the card hands it nothing, so the card
+  drops those items before counting its slots: drawing one would be a permanent
+  hole in the middle of the dials, and the line the owner asked to collapse must
+  collapse rather than hold an empty box. (The Devices tab does not offer another
+  panel's content; this is the by-hand case.)
+- **The line's content is drawn across the line**, one row, centred: the segment
+  gives up the stacked column it is everywhere else — its 84px minimum height and
+  the title above its state — and reads left to right (`quick-access-dials.css`).
+  Wrapping is exactly what "all one line" rules out, and the slot's own scale is
+  what makes the row fit a narrow card.
+- **On the shipped card**: four dials — the lights, the amplifier, the Lounge
+  aircon and the Bedroom heater — are the 2x2 on a desktop, a kiosk, an iPad Pro
+  12.9 and a 1080px portrait screen, and one column of four on a phone; the
+  Outside readings tile is the line under them, drawn ACROSS the card — icon,
+  name, then its three readings left to right, each caption over its own number
+  as the tile always has it — rather than as a column of words in a slot. The
+  five-module card draws its dials at 120px in a 520x600 column (a fifth bigger
+  than the 100px floor the 3x2 arrangement drew, and 157.7px across the dial), and
+  the four-dial card at 141px. Measured in Chromium, 2026-09-25.
 - **The slots subdivide the panel.** The columns divide the card's width between
   them with the proportional gap, so a full row reaches both edges; in landscape
-  the rows divide the column's own height between them
-  (`grid-auto-rows: minmax(min-content, 1fr)`), so the grid fills the panel in
-  both directions. Portrait has no height to divide — the card is as tall as its
-  content and the page scrolls under it, which is what a phone does.
+  the dial rows divide the column's own height between them, so the grid fills the
+  panel in both directions. Portrait has no height to divide — the card is as tall
+  as its content and the page scrolls under it, which is what a phone does.
 - **The content is centred across its slot and starts at its top** (Adeline,
   2026-09-25: "centre-top aligned"). A dial's left and right gaps to its slot's
   edges are equal, and every dial starts at the same height within its own slot
@@ -101,9 +129,8 @@ fits in a row:
   landscape) and its height (`quickSlotHeight`), never below the temperature
   knob's 100px floor and never above the controls' own 200px ceiling. So a 2x2
   card draws bigger dials than the old fixed 133px, a card that must fit five
-  knobs into a kiosk column draws the floor size, and every dial on the card is
-  still one size. The readings tile is one slot like any other and is not scaled:
-  it reflows its own readings.
+  knobs into a phone draws the floor size, and every dial on the card is still one
+  size. The readings tile is one slot like any other: what it is given is a line.
   - **The height is the tallest slot kind's, and a climate knob is that kind.**
     `quickSlotHeight` is the dial's box plus the gap plus the WHOLE preset band,
     because a knob reserves its band as a spacer with nothing taken back
@@ -114,12 +141,18 @@ fits in a row:
     scrollbar hidden, so the arrangement Adeline named for a desktop was quietly
     cut off. Found by the independent review of PR #50, measured in Chromium, and
     `e2e/quick-access-slots.spec.ts` now asserts the card fits its column rather
-    than only that its rows are equal while it does.
-- **A short last row fills from the first column.** Five slots in three columns
-  are two rows, and the second row's two slots sit under the first two columns —
-  the columns of one row line up with the row above, which is what the one slot
-  width is for. (This replaces "a short row is centred", Adeline 2026-09-23,
-  which was about lines rather than a grid.)
+    than only that its rows are equal while it does. The same arithmetic now takes
+    every wide line out of the card's height before the dial rows divide it.
+  - **The line slot has a scale of its own** (`--wide-scale`,
+    `panel-slots/useSlotScale.ts`): it is measured against its own line rather
+    than against a dial row's share of the height, and one line of readings must
+    not be allowed to shrink every dial on the card. The dials keep their one
+    shared factor.
+- **A partial last dial row fills from the first column.** Five to seven dials in
+  three columns are two rows and the second row's slots sit under the first
+  columns — the columns of one row line up with the row above, which is what the
+  one slot width is for. (This replaces "a short row is centred", Adeline
+  2026-09-23, which was about lines rather than a grid.)
 - **The gap is a share of a slot** — `PANEL_SLOT_GAP_RATIO` (5%), floor
   `PANEL_SLOT_GAP_MIN` (8px), ceiling `PANEL_SLOT_GAP_MAX` (28px) — so a slot
   that has been scaled up to fill its row takes its spacing up with it instead of
@@ -135,17 +168,20 @@ fits in a row:
   slots gives up columns instead.
 - **What one slot width costs, stated plainly.** A ring-bearing knob's portrait
   slot is ~300px at 133px, more than half a 375px card, so **a phone holds one
-  slot a row** and the card is five rows tall there — the lights, the amplifier,
-  each climate knob and the readings tile, one under the other, all the same
-  size. A 1080px portrait screen holds three, and the kiosk three.
-- **Checked by:** `panelSlots.test.ts` (the arrangement rule: the balanced grid,
-  the line for two or three, the phone's one column, the panel filled exactly),
-  `dial-model.test.ts` (the slot's width, the dial a slot gets, the height it is
-  fitted to, the floor), and `e2e/quick-access-slots.spec.ts` (the shipped
-  five-module card at eight viewports — one slot width, rows filled edge to edge,
-  content centred and top-aligned, one dial size, the card FITTING its column
-  wherever it is meant to, no horizontal overflow — plus a four-module card,
-  which is the 2x2 and is the case that found the short measure). `e2e/quick-access-portrait.spec.ts` keeps the rings-on-screen and
+  slot a row** and the card is four dial rows plus the line there — the lights,
+  the amplifier, each climate knob and the readings, one under the other, all the
+  same size. A 1080px portrait screen holds two, and the kiosk two.
+- **Checked by:** `panelSlots.test.ts` (the arrangement rule: the balanced grid
+  for a panel that does not group its slots, the 2x2 for four dials, the 1x4 where
+  two do not fit, the collapsed line, the panel filled exactly),
+  `slot-layout.test.ts` (the card's grid, the line taken out of the height before
+  the dial rows divide it, the dial a slot gets, the floor), `dial-model.test.ts`
+  (the dial's geometry and the height it needs), and `e2e/quick-access-slots.spec.ts`
+  (the shipped five-module card at eight viewports — one dial grid of 2x2 or 1x4,
+  a full-width line under it drawn as ONE line, content centred and top-aligned,
+  one dial size, the card FITTING its column wherever it is meant to, no
+  horizontal overflow — plus a four-dial card, which is the 2x2 with no line at
+  all). `e2e/quick-access-portrait.spec.ts` keeps the rings-on-screen and
   preset-row checks; `e2e/quick-access-layout.spec.ts` keeps the preset row
   hugging its dial and checks the first row.
 - Tile height is 84px, set by the original colour encoder footprint (a 56px

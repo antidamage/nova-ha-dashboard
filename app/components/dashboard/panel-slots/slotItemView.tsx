@@ -62,3 +62,24 @@ export function renderSlotItem(
   }
   return <QuickWeatherSegment key={item.key} features={item.features} weather={weather} />;
 }
+
+/**
+ * One module in the wide line slot under a panel's dial grid: the same item, in
+ * the element that marks the region (Adeline, 2026-09-25: "make a wide slot at
+ * the bottom for it"). The slot is one line of the panel's whole width, and the
+ * stylesheet lays its content out across that line.
+ *
+ * Only a module that is NOT a dial is wrapped: a slot holding a dial is the
+ * segment itself, exactly as it was before the card had regions, so nothing about
+ * a dial's own markup moved.
+ */
+export function renderWideSlotItem(
+  item: QuickItem,
+  props: SlotItemViewProps & { content?: ReactNode; dialSize: number },
+): ReactNode {
+  return (
+    <div className="panel-slot-wide" data-slot-region="wide" key={item.key}>
+      {renderSlotItem(item, props)}
+    </div>
+  );
+}

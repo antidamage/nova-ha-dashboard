@@ -125,9 +125,10 @@ test("a stored configuration that predates the panel surfaces still draws every 
 test("content scales down into its slot rather than being cropped", async ({ page }) => {
   // Adeline, 2026-09-25: "the content was meant to scale DOWN inside the slot, to
   // fit... get them scaling instead of cropping." A landscape column short enough
-  // that the card's rows cannot hold the five modules at their own scale. The
-  // card is 520px wide with three columns, and its rows are the column's height
-  // divided between them (landscape.css: min(600px, 100dvh - 160px)).
+  // that the card's rows cannot hold what is placed on it at its own scale. The
+  // card is 520px wide with two columns of dials and a line under them, and its rows
+  // are the column's height divided between them (landscape.css: min(600px, 100dvh
+  // - 160px)).
   const card = page.locator(".quick-access-row");
 
   await page.setViewportSize({ width: 1280, height: 600 });
@@ -149,8 +150,10 @@ test("content scales down into its slot rather than being cropped", async ({ pag
   expect(scaled.scale, "the content is drawn smaller than its slot needs").toBeLessThan(1);
   expect(scaled.scale, "and not smaller than the floor").toBeGreaterThanOrEqual(0.7);
   expect(scaled.overflow, "so nothing is cut off and nothing scrolls").toBeLessThanOrEqual(1);
-  // Every slot shrinks by the same factor, so the card's dials stay one size.
-  const widths = await card.locator("> *").evaluateAll((slots) =>
+  // Every DIAL slot shrinks by the same factor, so the card's dials stay one size.
+  // The wide line slot is not one of them: it has its own factor (--wide-scale),
+  // because the card's rows are the wrong budget for a one-line slot.
+  const widths = await card.locator("> :not(.panel-slot-wide)").evaluateAll((slots) =>
     slots.map((slot) => Math.round(slot.getBoundingClientRect().width)));
   expect(Math.max(...widths) - Math.min(...widths), "one slot width").toBeLessThanOrEqual(1);
 

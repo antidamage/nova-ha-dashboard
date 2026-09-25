@@ -68,9 +68,10 @@ export function PanelSlots({
   const rowRef = useRef<HTMLDivElement>(null);
   // The hooks run in both shapes; a panel holding only its own content has no
   // arrangement to measure and no grid to draw. Every host here is single-column —
-  // the card is the one host that lays several out across — so a host's rows are
-  // its modules, one each.
-  const layout = useSlotLayout(rowRef, slotCounts(items), dividesHeight);
+  // the card is the one host that lays several out across and the only one that
+  // groups its slots (a dial grid with a wide line under it) — so a host's rows
+  // are its modules, one each.
+  const layout = useSlotLayout(rowRef, slotCounts(items), { dividesHeight });
   // `rows: items.length`, NOT the arrangement's rows: these variants draw one
   // track, so the stylesheet gives every module its own row whatever
   // --slot-columns says. Feeding the height term the arrangement's row count made
@@ -99,7 +100,7 @@ export function PanelSlots({
       ref={rowRef}
       className={classNames("panel-slots", className)}
       data-slot-fit={fits ? "scale" : "scroll"}
-      style={slotGridStyle(layout, scale)}
+      style={slotGridStyle(layout, scale, { fits })}
     >
       {items.map((item) =>
         // Only a panel's OWN content preset draws the panel's body: another

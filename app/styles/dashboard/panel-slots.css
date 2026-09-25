@@ -13,9 +13,10 @@
 /* The grid. One track per column, each at least the slot width the panel
    measured for itself (`--slot-width`, set a frame after paint), and equal, so
    the slots subdivide the panel's width evenly and a full row reaches both
-   edges. Which arrangement that is — 2x2 for four slots, 3x2 for five, one
-   column where the panel has no room for two — is the layout's decision, not the
-   stylesheet's (app/components/dashboard/panelSlots.ts).
+   edges. Which arrangement that is — 2x2 for four dials, one column where the
+   panel has no room for two, a full-width line under them for every module that
+   is not a dial — is the layout's decision, not the stylesheet's
+   (app/components/dashboard/panelSlots.ts and quick-access/slot-layout.ts).
 
    Adeline, 2026-09-25: "the panel will be defined as having (default in the case
    of maximum room available) either 1x4, 4x1 or 2x2 slot arrangements. these
@@ -89,4 +90,41 @@
      origin is the slot's top centre, which is where the content is aligned. */
   transform: scale(var(--slot-scale, 1));
   transform-origin: top center;
+}
+
+/* The wide line slot: a module that is not a dial takes one row of the panel's
+   whole width, under the dial grid (Adeline, 2026-09-25: "make a wide slot at the
+   bottom for it"). It is one line tall — the layout gives it that height rather
+   than a share of the panel's own (`panel-slots/slotGrid.ts`) — and the
+   stylesheet that owns the module draws its content across the line.
+
+   It is not in the grid at all when nothing is placed there: no slot is drawn and
+   the layout emits no track for it, so the rows above take its height. That is
+   the collapse Adeline asked for ("if there is no content in it, the line slot
+   collapses"), and it is why the region is marked on the element rather than
+   reserved as an empty row. */
+.panel-slots > .panel-slot-wide {
+  grid-column: 1 / -1;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  /* SAFE centre: centred while it fits, and start-aligned once it does not, which
+     is what makes the overflow measurable. A plain `center` on a container whose
+     content is wider than it spills both ways, and `scrollWidth` then reports only
+     the right-hand spill — so the factor useSlotScale derives from it was too
+     generous and a 375px card drew its readings line 13px past its own edge
+     (measured in Chromium). Start-aligned, the same measurement is the content's
+     real width, the factor fits it exactly, and the alignment is centre again
+     because the content now fills what it was given. */
+  justify-content: safe center;
+  /* Its own factor, not the panel's: one line of readings must not be allowed to
+     shrink every dial on the card (useSlotScale).
+
+     LEFT-centred origin: an overflowed flex row starts at the slot's left edge
+     (`safe center` above), so scaling about the box's centre pushed its right-hand
+     end further out than the factor allowed — a 375px card drew its UV reading 27px
+     past the card. Scaled about the left, the same factor puts the line's end at
+     the slot's right edge exactly. */
+  transform: scale(var(--wide-scale, 1));
+  transform-origin: left center;
 }
