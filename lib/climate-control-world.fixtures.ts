@@ -212,9 +212,11 @@ export async function pressCardFanStep(control: Controller) {
  * receives them.
  *
  * It takes the direction as an argument because what the card sends is what the
- * server seats — the direction is the owner's and the room does not overrule it
- * (manual-direction-model.ts) — so a client that derives its own direction wrongly
- * stays a reproducible input rather than an unreachable one.
+ * server seats: the direction is the owner's, and the room does not overrule it
+ * (manual-direction-model.ts). A press whose direction the room contradicts — heat
+ * with the target below the room, which `pressManual` seats in
+ * `climate-control-manual-from-off.test.ts` — is therefore a state the tests build
+ * on purpose rather than one the server repairs.
  */
 export async function pressCardManual(
   control: Controller,
