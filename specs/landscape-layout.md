@@ -1,8 +1,8 @@
 # Landscape dashboard layout
 
-Produced by: claude-code session_01BWgQ56, task 20260911T074843Z-11075c82
-(2026-09-11). Interview answers from Adeline, same date. Takes over Codex's
-landscape accordion work (tasks 20260911T025552Z-566ec253 onwards).
+Produced by: session_01BWgQ56, task 20260911T074843Z-11075c82
+(2026-09-11). Interview answers from Adeline, same date. Takes over the
+earlier landscape accordion work (tasks 20260911T025552Z-566ec253 onwards).
 
 Applies when `(aspect-ratio > 1)` matches and the page is the dashboard home
 (`isHorizontalDashboard()`). Portrait is `specs/portrait-layout.md`.

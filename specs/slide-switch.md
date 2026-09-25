@@ -46,7 +46,7 @@ Converted:
   checkbox styled as a switch.
 - Each `CheckboxRow` that toggles a single setting rather than opening a group.
 
-`nova-ha-dashboard/CLAUDE.md`'s inventory is updated to say this, so the next
+`nova-ha-dashboard/docs/control-inventory.md` is updated to say this, so the next
 session does not reach for a raw checkbox.
 
 ## Done means

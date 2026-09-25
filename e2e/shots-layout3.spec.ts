@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { gotoDashboard, selectZone, waitForStableLayout } from "./helpers";
 
-const DIR = "C:/Users/Addie/AppData/Local/Temp/claude/D--Projects-Agent/d06ad3c0-bb72-49ae-9fe9-8f78a8300965/scratchpad/shots-layout3/";
+const DIR = `${process.env.TEMP ?? "/tmp"}/nova-shots-layout3/`;
 const HOME = '.horizontal-accordion[data-group="home"]';
 const SYSTEMS = '.horizontal-accordion[data-group="systems"]';
 const LIGHTING = `${HOME} .zone-panel[data-lighting-zone] .advanced-fold`;

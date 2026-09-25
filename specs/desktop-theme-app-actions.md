@@ -1,7 +1,6 @@
 # Wallpaper highlight colour, and per-application theme actions
 
-Produced by plan `hashed-gliding-bentley`
-(`~/.claude/plans/hashed-gliding-bentley.md`), 2026-08-25.
+Produced by plan `hashed-gliding-bentley`, 2026-08-25.
 
 ## Why
 

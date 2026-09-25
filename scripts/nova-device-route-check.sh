@@ -22,9 +22,8 @@
 #
 # THE RULE THIS SCRIPT ENFORCES: a cached/derived value is a hypothesis to
 # verify against something the cache does not control, never a verdict to
-# hand back to a user who is reporting something different. See the
-# claude-code memory feedback_debug_verify_live_believe_user.md ("BELIEVE THE
-# USER" -- Adeline's own words, given twice).
+# hand back to a user who is reporting something different. "BELIEVE THE USER"
+# -- Adeline's own words, given twice.
 #
 # Run on nova:
 #   bash /opt/nova-ha-dashboard/scripts/nova-device-route-check.sh <entity_id>

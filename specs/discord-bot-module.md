@@ -1,7 +1,6 @@
 # Discord bot module
 
-Produced by plan `there-are-two-major-dazzling-corbato`
-(`~/.claude/plans/there-are-two-major-dazzling-corbato.md`), 2026-08-28.
+Produced by plan `there-are-two-major-dazzling-corbato`, 2026-08-28.
 
 Depends on [`module-system.md`](./module-system.md) — this is the first real
 consumer of that hook API, and the thing that proves it is sufficient rather

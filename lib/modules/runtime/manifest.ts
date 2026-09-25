@@ -14,7 +14,7 @@ const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
 /**
  * The config-form schema is a restricted JSON Schema subset, because the form is
- * generated and may only use the shared controls in `nova-ha-dashboard/CLAUDE.md`.
+ * generated and may only use the shared controls in `nova-ha-dashboard/docs/control-inventory.md`.
  * Module config is deliberately not text-editable, so anything the form cannot
  * render is rejected at install with the offending property named.
  */

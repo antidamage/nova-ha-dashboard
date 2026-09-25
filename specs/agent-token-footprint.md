@@ -306,9 +306,8 @@ swallowed by an unlucky grep or glob:
 | `package-lock.json` | 160 KB |
 | `config/demo-theme.default.json` | 25 KB |
 
-~1.1 MB. Enforced as `permissions.deny` `Read` rules in
-`D:\Projects\Agent\.claude\settings.json`, and stated here for agents that do
-not read that file.
+~1.1 MB. Enforced as `permissions.deny` `Read` rules in the agent workspace's
+tool settings, and stated here for agents that do not read them.
 
 ## 9. Naming — identifiers stay descriptive
 
@@ -332,7 +331,7 @@ that renames anything, including a local, is rejected.
   near-duplicates.
 
 `SPEC.md` is dissolved into `specs/` and becomes a thin index.
-`nova-ha-dashboard/CLAUDE.md` already teaches the per-area convention and
+`nova-ha-dashboard/docs/control-inventory.md` already teaches the per-area convention and
 never mentions `SPEC.md`, so this moves the repo toward the convention it
 already documents.
 
@@ -349,9 +348,8 @@ already documents.
   the suite on all 149 pre-existing offenders and teach everyone to ignore it.
   The ratchet is the gate; this is the report.
 - A **skill** fronts the script so calling it is trivial for any agent. Source
-  in-repo plus a `deploy-skills.ps1` mirroring to both
-  `C:\Users\Addie\.claude\skills` and `C:\Users\Addie\.codex\skills`, matching
-  the four existing deploy scripts.
+  in-repo plus a `deploy-skills.ps1` mirroring to each agent's own skills
+  directory under the user profile, matching the four existing deploy scripts.
 
 ## 12. Definition of done
 
@@ -374,8 +372,9 @@ For the campaign:
 
 - Zero files over 10 KB without a named exception.
 - `ARCHITECTURE.md` and `specs/README.md` exist and are accurate.
-- The convention is referenced from `AGENTS.md`, both `CLAUDE.md` files, the
-  Hermes system prompt, the Turnstone prompts, and the pi spec.
+- The convention is referenced from `AGENTS.md`, each repo's own component inventory
+  (`nova-ha-dashboard/docs/control-inventory.md`), every agent's own system
+  prompt, and the orchestration prompts.
 - Baseline table in §1 updated with after-figures.
 
 ## 13. Reviewer checklist

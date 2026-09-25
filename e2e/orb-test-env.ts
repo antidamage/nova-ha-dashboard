@@ -4,7 +4,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-export const ORB_TEST_SCRATCH = "C:/Users/Addie/AppData/Local/Temp/claude/D--Projects-Agent/d06ad3c0-bb72-49ae-9fe9-8f78a8300965/scratchpad";
+export const ORB_TEST_SCRATCH = `${process.env.TEMP ?? "/tmp"}/nova-orb-e2e`;
 const data = path.join(ORB_TEST_SCRATCH, "orb-e2e-data", `w${process.pid}`);
 mkdirSync(data, { recursive: true });
 process.env.NOVA_DASHBOARD_TASKS = path.join(data, "tasks.json");

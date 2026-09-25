@@ -7,7 +7,7 @@ Adeline asked for no interview ("no user questions just do it"), so every
 decision below that she did not state was made by the implementing agent and
 is marked *(decided)*. Change them here, in place.
 
-Produced by: interactive Claude Code session, 2026-09-10 (no plan file; the
+Produced by: an interactive session, 2026-09-10 (no plan file; the
 request was executed directly).
 
 ## Placement
@@ -334,7 +334,7 @@ and the dial sizes in `quick-access/dial-model.ts`.
 - Zone actions for a zone other than the selected one:
   `useDashboardCommands` gains `applyZoneActionFor(zone, action, body)`;
   the existing `applyZoneAction` becomes the selected-zone wrapper around it.
-- Listed in `nova-ha-dashboard/CLAUDE.md`'s component inventory.
+- Listed in `nova-ha-dashboard/docs/control-inventory.md`.
 
 ## Done means
 

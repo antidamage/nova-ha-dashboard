@@ -6,9 +6,6 @@ Classic dashboard surface and in `/config` with one reusable rotary control.
 Plan: none on disk — plan mode ended before a plan file was written, so this
 spec was written as the first task of execution instead.
 
-The prototype the visual design was signed off from:
-`https://claude.ai/code/artifact/968f633d-0b49-48db-879f-5a0981a6034b`.
-
 ## What it is
 
 A large, smooth, soft dial. A row of small lights across its centre says
@@ -23,7 +20,7 @@ Adeline, 2026-09-12: everything generic in this control moved into a base,
 `RotaryEncoder`, so changes to the dial reach every knob built on it. The
 colour knob keeps its behaviour and its public API; the temperature knob
 (`specs/temperature-encoder.md`) is the second knob on the base. Plan:
-`~/.claude/plans/let-s-make-a-new-floofy-papert.md`.
+`let-s-make-a-new-floofy-papert`.
 
 `RotaryEncoder` owns: the layers, the relative-angle drag and dead centre,
 fine mode, the index that shows the value (with its sweep), keyboard, clicks,

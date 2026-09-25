@@ -4,7 +4,7 @@ import { gotoDashboard, waitForStableLayout } from "./helpers";
 // Every lighting automation is a rule (specs/zone-light-events.md, round 2):
 // the preset row is On, the shown rules in order, Off; a rule's button applies
 // its value; and this section's labels take the panel's text colour.
-const SHOTS = "C:/Users/Addie/AppData/Local/Temp/claude/D--Projects-Agent/d06ad3c0-bb72-49ae-9fe9-8f78a8300965/scratchpad/shots-lighting";
+const SHOTS = `${process.env.TEMP ?? "/tmp"}/nova-shots-lighting`;
 const RULES_KEY = "nova.dashboard.demoZoneRules.v1";
 const THEME_KEY = "nova.dashboard.themeOverride.v1";
 const PRESETS = ".zone-panel .zone-lighting-presets";

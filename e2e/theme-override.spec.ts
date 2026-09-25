@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { gotoDashboard } from "./helpers";
 
 // Per-device theme override button (specs/theme-override.md).
-const SHOTS = "C:/Users/Addie/AppData/Local/Temp/claude/D--Projects-Agent/d06ad3c0-bb72-49ae-9fe9-8f78a8300965/scratchpad/shots-theme";
+const SHOTS = `${process.env.TEMP ?? "/tmp"}/nova-shots-theme`;
 const KEY = "nova.dashboard.themeOverride.v1";
 const GLOBAL_KEYS = ["nova.dashboard.accent.v1", "nova.dashboard.sharedAccent.v1"];
 

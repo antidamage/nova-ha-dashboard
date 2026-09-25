@@ -1,7 +1,6 @@
 # The Nova login surface
 
-Produced by plan `we-need-to-theme-cozy-eich`
-(`~/.claude/plans/we-need-to-theme-cozy-eich.md`), 2026-09-03.
+Produced by plan `we-need-to-theme-cozy-eich`, 2026-09-03.
 
 Related, and authoritative where they overlap:
 
@@ -587,7 +586,7 @@ calibration data belongs.
 
 ## Component reuse
 
-Per `nova-ha-dashboard/CLAUDE.md`, the inventory for the repo-root reuse rule:
+Per `nova-ha-dashboard/docs/control-inventory.md`, the inventory for the repo-root reuse rule:
 buttons are `MomentaryFeedbackButton`, the dialog is `ModalOverlay`. The two text
 fields are the surface's only raw inputs and are justified — this is a credential
 form, and `NumericEntryPopover` is a numeric control. No unstyled `<button>`, no

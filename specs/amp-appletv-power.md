@@ -2,7 +2,7 @@
 
 Adeline, 2026-09-19. Task log `20260919T120947Z-458dcadf`. No plan codename —
 this was a direct request, not a plan-mode run; the spec is still written first
-(CLAUDE.md, "Every plan writes a spec as its first task").
+(AGENTS.md, "Every plan writes a spec as its first task").
 
 The floating meter has been moved onto the **amp**. Three things follow from
 that:
