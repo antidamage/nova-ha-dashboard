@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # System 9 UX control library
 
 Produced from a mockup set at `D:\Downloads\system 9 UX` (16 AI-generated

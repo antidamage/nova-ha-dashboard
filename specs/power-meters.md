@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Metered power: Washing Machine and Floating Meter
 
 Adeline, 2026-09-14. Plan codename `we-now-how-two-lazy-lemur`. Task log

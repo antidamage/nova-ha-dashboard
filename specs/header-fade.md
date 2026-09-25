@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # The header fade strip
 
 Adeline, 2026-09-12. Plan `glowing-inventing-charm`.

@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Browser voice satellite
 
 Lets any dashboard browser (phone, tablet, kiosk) act as a voice satellite: the

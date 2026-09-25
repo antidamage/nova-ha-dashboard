@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # The Apple TV (amplifier) dial
 
 Adeline, 2026-09-22. **Placeholder for the IR emitter** that will control the

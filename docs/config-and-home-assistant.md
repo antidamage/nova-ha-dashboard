@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Config vs Home Assistant: where each setting lives
 
 Nova is designed so that **most configuration happens in Home Assistant simply by

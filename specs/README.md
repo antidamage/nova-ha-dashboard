@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Spec index
 
 One spec per feature area. This index exists so an agent can find the right
@@ -12,6 +13,31 @@ git history is the revision log. Do not add dated near-duplicates.
 185KB file. It was dissolved into this directory on 2026-09-16 and is now an
 index only; see `agent-token-footprint.md` for the reasoning and the file-size
 convention that came with it.
+
+## Read the suite in this order
+
+Every documentation file here opens with the same line, naming where the suite
+starts. Follow it rather than whichever file you happened to open first — a
+change made from one file alone has missed the rules the others hold, and been
+redone for it.
+
+1. `D:\Projects\Agent\AGENTS.md` — the authority for any change: the task log,
+   the PR that ends merged, deployment, and the UI-reuse conventions.
+2. This index — what each area does, and which spec answers for it.
+3. `VOCABULARY.md` at the repo root — the owner's words, and which area owns
+   each one. Read it before exploring the tree.
+4. [maintenance-rule.md](maintenance-rule.md) and
+   [agent-token-footprint.md](agent-token-footprint.md) — the rules every change
+   owes, whichever area it is in.
+5. The spec for the area you are changing, plus `ARCHITECTURE.md` for where the
+   code lives.
+
+`lib/docs-entry-point.test.ts` is the gate: a documentation file read here
+without that line fails the unit suite, a copy under `public/` must **not**
+carry it (its reader cannot open this machine's paths), and a spec under `specs/`
+this index does not name by its own path — or a row whose link leads nowhere —
+fails with them. What is enforced is the line's presence, not a reader's
+obedience to it; but a file that should have it cannot pass unnoticed.
 
 ## Start here
 
@@ -105,4 +131,4 @@ convention that came with it.
 - `ARCHITECTURE.md` at the repo root — where code lives, as opposed to what it
   does.
 - `VOCABULARY.md` at the repo root — what the words mean, which area owns each
-  one and where a change of each kind goes. Read it before this index.
+  one and where a change of each kind goes. Read it before exploring the tree.

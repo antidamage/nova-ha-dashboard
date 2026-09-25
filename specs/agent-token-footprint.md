@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Agent token footprint
 
 Plan: `majestic-aurora`. Written 2026-09-16.
@@ -329,6 +330,25 @@ that renames anything, including a local, is rejected.
 - A later plan covering ground an existing spec describes **edits that spec in
   place**. Git history is the revision log. Do not accumulate dated
   near-duplicates.
+- **Every documentation file read in this repo opens with the same line, and it
+  names where the suite starts** — `D:\Projects\Agent\AGENTS.md` first, then
+  this index. An agent that reads the one file it happened to open and stops
+  there is the failure this exists to prevent: a change made against
+  `maintenance-rule.md` alone missed the rules that live in this file, and had
+  to be redone three times over. The line is byte-exact on purpose, so no file
+  can quietly become its own private copy of the rules.
+- **A copy that leaves the workspace carries no line**, because the path in it
+  is not true for whoever reads it. Everything under `public/` is copied
+  verbatim into the demo published to GitHub Pages, and `public/agent/**` is
+  served by a deployed dashboard as its agent package, so a reader there cannot
+  open this machine's `AGENTS.md` and the line would be the dead instruction
+  this rule exists to remove. The skill package under `skills/` is read here and
+  carries the line; the `public/` copy is a separately written document (the two
+  already differ, and `scripts/package-agent-skills.mjs` validates both rather
+  than deriving one) and carries none.
+- **Every spec is listed in `specs/README.md`** — every file under `specs/`,
+  nested directories included, by its own path so a nested spec cannot borrow a
+  top-level row. A spec no index names is a spec nothing leads a reader to.
 
 `SPEC.md` is dissolved into `specs/` and becomes a thin index.
 `nova-ha-dashboard/docs/control-inventory.md` already teaches the per-area convention and
@@ -347,6 +367,20 @@ already documents.
   into `npm test` — it has no allowlist, so during the burn-down it would red
   the suite on all 149 pre-existing offenders and teach everyone to ignore it.
   The ratchet is the gate; this is the report.
+- **`lib/docs-entry-point.test.ts`** is the ratchet for section 10, in five
+  cases: the marker as the first line of every tracked `.md` read in this
+  workspace (after the frontmatter, where a skill needs its `---` block to stay
+  line 1); **no** marker under `public/`, whose readers cannot open this
+  machine's path; every file under `specs/` named in the index by its own path;
+  no index link that resolves to nothing; and an exemption list capped by
+  `MAX_EXEMPT` (zero, empty) whose entries must be deleted once their file
+  carries the marker or has gone. Unlike `check-file-sizes.mjs` it **is** wired
+  into `npm test`: there is no pre-existing offender cohort for it to teach
+  anyone to ignore. It fails on a new doc without the line, on a line added to a
+  served copy, on an index row dropped or dead, and on an exemption entry — and
+  it runs on a push to `main` in the demo workflow and wherever an agent runs
+  the repo's definition of done; there is no PR-time job, so a doc that no one
+  runs the suite for can still reach `main`.
 - A **skill** fronts the script so calling it is trivial for any agent. Source
   in-repo plus a `deploy-skills.ps1` mirroring to each agent's own skills
   directory under the user profile, matching the four existing deploy scripts.

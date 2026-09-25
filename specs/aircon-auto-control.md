@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Lounge aircon — Auto control
 
 Owner: Adeline. Written 2026-09-05 after the unit sat off for six minutes with

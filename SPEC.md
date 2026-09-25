@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Nova HA Dashboard Specification
 
 This file used to be the whole specification: 33 sections, 3,474 lines, 185KB.

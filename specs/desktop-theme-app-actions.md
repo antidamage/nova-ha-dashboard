@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Wallpaper highlight colour, and per-application theme actions
 
 Produced by plan `hashed-gliding-bentley`, 2026-08-25.

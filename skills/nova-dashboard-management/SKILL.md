@@ -2,6 +2,7 @@
 name: nova-dashboard-management
 description: "Install, configure, validate, and manage a deployed Nova Home Assistant dashboard through its MCP endpoint and portable config schema. Use when an agent needs to guide a new dashboard setup, review or apply dashboard config, discover Home Assistant entities, verify deployment health, or safely manage dashboard tasks/zones/entities through Nova Dashboard MCP."
 ---
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 
 # Nova Dashboard Management
 

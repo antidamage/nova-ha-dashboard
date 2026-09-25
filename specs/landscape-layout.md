@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Landscape dashboard layout
 
 Produced by: session_01BWgQ56, task 20260911T074843Z-11075c82

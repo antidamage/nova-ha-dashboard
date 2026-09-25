@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # TemperatureEncoder — the climate knob
 
 Adeline, 2026-09-12. A temperature knob built on the same dial as the lighting

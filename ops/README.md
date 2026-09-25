@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Nova self-update (configured channel → build → safe switch)
 
 The dashboard updates itself from its configured update channel while running,

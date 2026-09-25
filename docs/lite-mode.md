@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Lite Mode — checklist for adding features
 
 The dashboard supports two per-device experience modes: **rich** (full

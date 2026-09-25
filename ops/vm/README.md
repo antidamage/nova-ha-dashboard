@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # nova-vm — the Nova hosting appliance (Linux VM on indium)
 
 > **HISTORICAL — superseded 2026-08-02.** The Nova hosting role moved off this

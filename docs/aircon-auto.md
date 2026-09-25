@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Lounge climate control
 
 Nova controls the Gree through one server thermostat. `Auto` chooses heat or

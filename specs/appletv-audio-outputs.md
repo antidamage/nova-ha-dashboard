@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # The Apple TV's audio output, published for the amp to read
 
 Adeline, 2026-09-21: *"when automated state is checked on, check the current

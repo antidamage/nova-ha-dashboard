@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Kiosk display rotation from the built-in camera
 
 Produced in session 2026-09-16 (no plan-mode plan file; interview answers below

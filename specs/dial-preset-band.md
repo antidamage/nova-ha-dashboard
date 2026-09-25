@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Dial preset band
 
 Adeline, 2026-09-16. Applies to every round control (RotaryEncoder and its

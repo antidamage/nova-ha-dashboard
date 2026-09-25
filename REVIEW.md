@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Code Review — Nova HA Dashboard
 
 Scope: full pass over `lib/` (~15.8k LOC) and `app/` (~22.3k LOC) for code style,

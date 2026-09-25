@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # iOS page overscroll
 
 Adeline, 2026-09-17: "on ios but particularly ipad, dragging can pull the entire

@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Config Schema
 
 Portable config is JSON with `schemaVersion: 1`. The checked-in defaults are assembled from `config/dashboard-config.default.json`, `config/common.json`, and `config/tasks.json`.
