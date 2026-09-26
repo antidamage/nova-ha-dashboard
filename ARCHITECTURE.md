@@ -45,6 +45,7 @@ camera-events/     Python service — camera event processing
 | Login or face auth | `app/components/auth/`, `app/components/face/`, `face-auth/` |
 | Styling | `app/globals.css` — see the warning below |
 | Config schema or validation | `lib/config-schema/`, `app/api/config/` |
+| Arrival and departure, household members | `lib/arrivals/`, `app/api/arrival/[name]/route.ts`, `app/components/config/arrival/` |
 | A shared type (`DashboardState`, preferences, HA entities) | `lib/types/`, by domain; import from `lib/types.ts` |
 | Realtime events / SSE | `lib/dashboard-events/` (`store.ts` owns the state) |
 | The module system | `lib/modules/`, `app/components/modules/` |

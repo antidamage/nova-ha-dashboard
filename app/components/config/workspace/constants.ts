@@ -44,6 +44,7 @@ export const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   "voice-infrastructure": "voice-people",
   "voice-people": "voice-people",
   "user-data": "voice-people",
+  arrival: "voice-people",
   appearance: "appearance-dashboard",
   "appearance-dashboard": "appearance-dashboard",
   "status-orb-info": "appearance-dashboard",

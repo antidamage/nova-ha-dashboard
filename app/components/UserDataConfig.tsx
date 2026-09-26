@@ -1,6 +1,7 @@
 "use client";
 
 import { Users } from "lucide-react";
+import { ArrivalConfig } from "./config/arrival/ArrivalConfig";
 import { ConfigAccordion } from "./ConfigControls";
 import { FaceEnrolmentConfig } from "./FaceEnrolmentConfig";
 import { KioskActivityConfig } from "./KioskActivityConfig";
@@ -12,7 +13,8 @@ import { SpeakerProfilesConfig } from "./SpeakerProfilesConfig";
 // voice profiles for the same reason — it is the visual twin of the same thing.
 // Wall-panel activity sits here too: it is a record of which of those enrolled
 // people did what, so it belongs with the identities rather than in a systems
-// section.
+// section. Arrival & departure is here for the same reason — its members ARE the
+// household people, and it is where that list is edited.
 export function UserDataConfig() {
   return (
     <ConfigAccordion
@@ -26,6 +28,7 @@ export function UserDataConfig() {
       <SpeakerProfilesConfig />
       <FaceEnrolmentConfig />
       <KioskActivityConfig />
+      <ArrivalConfig />
     </ConfigAccordion>
   );
 }

@@ -51,7 +51,10 @@ Main configuration areas:
   zone naming rules.
 - `dashboard`: special zone IDs, command-hold timings, event poll timings,
   weather refresh timing, adaptive lighting polling, avatar widget settings,
-  climate settings, and build reload outage behavior.
+  climate settings, build reload outage behavior, the household people
+  (`dashboard.people`, each carrying the `arrival`/`departure` device states the
+  arrival endpoints apply) and the presets those states name for targets with no
+  preset concept of their own (`dashboard.arrivals`).
 - `mapWeather`: map center, RainViewer manifest/fallback URLs, radar refresh
   and preload settings, and satellite tile URL template.
 - `power`: timezone, billing cycle dates, sampling/publish intervals, Powershop
@@ -85,6 +88,10 @@ Configuration UI:
 - It can refresh, export, validate, import, and download/view schema.
 - It shows setup status for HA URL/token, iCloud username/password, Powershop
   email/password, and MCP bearer token.
+- Under Voice & People → User Data, **Arrival & Departure** edits the household
+  member list and what each member's arrival and departure set; it is the only
+  editor `dashboard.people` has, and the endpoints resolve their `<name>` against
+  the same list.
 
 ## Persistence
 

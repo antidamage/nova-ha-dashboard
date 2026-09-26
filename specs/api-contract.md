@@ -290,6 +290,18 @@ Control:
   plain power commands, returning plain text `on`.
 - `GET /api/outside-light/off`: explicitly turn Outside zone lighting off,
   returning plain text `off`.
+- `GET /api/arrival/<name>` and `GET /api/departure/<name>`: apply the device
+  states the named household member has configured for that event, in order, and
+  return JSON `{ member, event, ok, states: [{ target, presetId, ok, error? }] }`.
+  `<name>` is a `dashboard.people` id or label, matched case-insensitively; 404
+  with `{ error, members }` when nothing matches; 200 with `states: []` and a
+  `note` when the member has nothing configured; 500 when an entry failed, with
+  every entry still attempted. See `arrival-and-departure.md`.
+- `GET /api/arrivals`: the household members with their arrival/departure states,
+  the target kinds, and each target's currently selectable presets — what the
+  Arrival & Departure config section reads.
+- `PUT /api/arrivals`: body `{ people }` replaces `dashboard.people`, validated
+  against the config schema; returns the same payload as the GET.
 
 Telemetry:
 

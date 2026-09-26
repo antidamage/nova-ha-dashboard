@@ -5,6 +5,7 @@ import {
 } from "../aircon-config";
 import { NovaAvatarConfigSchema } from "./appearance";
 import { ControlsConfigSchema } from "./controls";
+import { ArrivalsConfigSchema } from "./arrivals";
 import { DoorbellConfigSchema } from "./doorbell";
 import { LightingEntityPresetSchema, LightingIntensityThresholdSchema, ZoneLightEventSchema, ZoneLightRuleSchema } from "./lighting";
 import {
@@ -169,6 +170,14 @@ export const DashboardConfigSchema = z.object({
       (people) => people.filter((person) => person.primary).length <= 1,
       "Only one household person can be primary",
     ),
+    /**
+     * Presets for arrival/departure targets that own no preset concept of
+     * their own. Both ship empty, and the picker says there are none rather
+     * than inventing one. Lighting is absent deliberately: its presets are
+     * the zone light rules (dashboard.lighting.zoneRules).
+     * See specs/arrival-and-departure.md.
+     */
+    arrivals: ArrivalsConfigSchema.default({ climatePresets: [], volumePresets: [] }),
     specialZones: z.object({
       power: z.object({
         id: z.string().min(1),
