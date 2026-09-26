@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HouseholdPersonArrivalFields } from "./arrivals";
 import { entityIdSchema } from "./primitives";
 
 const PowerDeviceRatingSchema = z.object({
@@ -142,6 +143,7 @@ const HouseholdPersonSchema = z.object({
   label: z.string().min(1),
   /** Hex colour used for this person's blocks and totals. */
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  ...HouseholdPersonArrivalFields,
 });
 export type HouseholdPerson = z.infer<typeof HouseholdPersonSchema>;
 export { HouseholdPersonSchema };

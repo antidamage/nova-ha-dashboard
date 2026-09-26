@@ -7,6 +7,13 @@ export { DASHBOARD_CONFIG_SCHEMA_VERSION, HaDomainSchema } from "./config-schema
 export type { ZoneLightEvent, ZoneLightEventTime } from "./config-schema/lighting";
 
 export type {
+  ArrivalState,
+  ArrivalTargetKind,
+  ClimateArrivalPreset,
+  VolumeArrivalPreset,
+} from "./config-schema/arrivals";
+
+export type {
   AlwaysOnMeter,
   AmpPowerControlConfig,
   FloatingMeterCategory,

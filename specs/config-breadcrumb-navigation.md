@@ -63,8 +63,8 @@ categories.
 - system-data: `history`, `secrets`, `config-transfer`, `updates`, `system`
 
 **One level deep, static, already id'd:** `FaceEnrolmentConfig`
-(`id="face-enrolment"`) and `KioskActivityConfig`
-(`id="kiosk-activity"`), both siblings inside `UserDataConfig`
+(`id="face-enrolment"`), `KioskActivityConfig` (`id="kiosk-activity"`) and
+`ArrivalConfig` (`id="arrival"`), all siblings inside `UserDataConfig`
 (`id="user-data"`).
 
 **Inside `AccentConfig`'s "Theme & Experience" (`id="appearance"`) —

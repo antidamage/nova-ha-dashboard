@@ -27,6 +27,7 @@ export const STATIC_ACCORDION_PATHS: Record<ConfigCategoryId, StaticAccordionPat
     ["user-data"],
     ["user-data", "face-enrolment"],
     ["user-data", "kiosk-activity"],
+    ["user-data", "arrival"],
   ],
   "appearance-dashboard": [
     ["appearance"],

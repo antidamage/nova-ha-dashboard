@@ -20,6 +20,9 @@ with Vitest under jsdom. Notable suites include:
   CSV/preferences/usage/config logic.
 - `lib/orb-modules/orb-modules*.test.ts` and `app/components/avatar/orb-renderer/orbRenderer.test.ts` — orb
   module normalization and canvas rendering against a recording stub.
+- `lib/arrivals/` and `app/components/config/arrival/` — member resolution,
+  the state-apply model, the target registry and its three targets, the
+  endpoints' own response shape, and the config section's edits.
 - `lib/dashboard-config.test.ts`, `lib/mcp-dashboard/mcp-dashboard.test.ts`,
   `lib/state.golden.test.ts`, `lib/tasks/tasks.test.ts`,
   `app/components/ConfigWorkspace.test.tsx`, and the dashboard component/hook
@@ -44,8 +47,9 @@ server for the `nova-dummy-data-provider` fixtures
 demo) and `next dev` in demo mode. `e2e/global-setup.ts` warms both routes so
 parallel workers do not race first-request compilation. Specs cover dashboard
 load, zone navigation, lighting, climate, tasks/reminders, the `/config`
-workspace, theme, and the experience-mode first-run/lite pathway
-(`e2e/experience-mode.spec.ts`). Run with `npm run test:e2e` or, from the repo
+workspace, theme, the experience-mode first-run/lite pathway
+(`e2e/experience-mode.spec.ts`) and the Arrival & Departure config section
+(`e2e/arrivals.spec.ts`). Run with `npm run test:e2e` or, from the repo
 root, `./run-e2e.ps1` (which installs the Chromium build if missing).
 
 The navigation helpers `gotoDashboard`/`gotoConfig` pre-seed

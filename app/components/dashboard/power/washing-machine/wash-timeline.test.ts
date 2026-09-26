@@ -114,7 +114,7 @@ describe("washStep", () => {
 });
 
 describe("personColor", () => {
-  const people = [{ color: "#22d3ee", id: "addie", label: "Addie" }];
+  const people = [{ arrival: [], color: "#22d3ee", departure: [], id: "addie", label: "Addie" }];
 
   it("uses the configured person's colour, and the neutral when unassigned", () => {
     expect(personColor(people, "addie")).toBe("#22d3ee");
