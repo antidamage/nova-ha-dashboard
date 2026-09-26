@@ -7,6 +7,7 @@ import { isControlInteractionCoolingDown } from "../../controlInteractionCooldow
 import { emitClientEvent } from "../emitClientEvent";
 import { arePageUpdatesPaused, subscribePageUpdatePause } from "../pageUpdatePause";
 import { fetchDashboardStateSnapshot } from "./client";
+import { useStallReload } from "./useStallReload";
 import type { LoadState } from "./types";
 
 export function useDashboardState() {
@@ -21,6 +22,7 @@ export function useDashboardState() {
   // watchdog below; seeded with mount time so a fresh page gets the full grace
   // period before it may conclude it is wedged.
   const lastSnapshotAt = useRef(Date.now());
+  const getLastSnapshotAt = useCallback(() => lastSnapshotAt.current, []);
   const hasDashboardData = useRef(false);
   const pendingScrollSnapshot = useRef<DashboardState | null>(null);
 
@@ -240,47 +242,10 @@ export function useDashboardState() {
     };
   }, []);
 
-  // === STALL RELOAD — deliberate last resort, keep the trigger conservative ===
-  // A kiosk-style client never fires the focus/online/pageshow events that force
-  // a refresh, so if the poll loop and the SSE stream BOTH wedge (2026-07-11:
-  // hung connection pool + silently dead EventSource → "Loading zone controls"
-  // for 70+ minutes against a healthy server) nothing above ever recovers the
-  // page. If no server snapshot has arrived by any path for STALL_RELOAD_AFTER_MS
-  // while the page is visible, reload once. This is NOT the old 8s reload-loop
-  // (see the poll loop's catch): with fetch timeouts in place transient stalls
-  // surface as retryable errors well inside the window, and the localStorage
-  // stamp caps a genuinely dead server at one reload per STALL_RELOAD_MIN_GAP_MS.
-  useEffect(() => {
-    const STALL_RELOAD_AFTER_MS = 5 * 60_000;
-    const STALL_RELOAD_MIN_GAP_MS = 15 * 60_000;
-    const STALL_RELOAD_STAMP_KEY = "nova.dashboard.stallReloadAt.v1";
-
-    const timer = window.setInterval(() => {
-      if (document.hidden) {
-        return;
-      }
-      if (Date.now() - lastSnapshotAt.current < STALL_RELOAD_AFTER_MS) {
-        return;
-      }
-      let lastReloadAt = 0;
-      try {
-        lastReloadAt = Number(window.localStorage.getItem(STALL_RELOAD_STAMP_KEY)) || 0;
-      } catch {
-        // Storage unavailable — still reload, just without loop protection.
-      }
-      if (Date.now() - lastReloadAt < STALL_RELOAD_MIN_GAP_MS) {
-        return;
-      }
-      try {
-        window.localStorage.setItem(STALL_RELOAD_STAMP_KEY, String(Date.now()));
-      } catch {
-        // Ignore: reloading matters more than stamping.
-      }
-      window.location.reload();
-    }, 30_000);
-
-    return () => window.clearInterval(timer);
-  }, []);
+  // The stall watchdog reads the same snapshot clock this hook feeds from the
+  // poll loop and the SSE handler; it lives in its own module (and its own
+  // test) because its rule is "visible time only" and that rule is the point.
+  useStallReload(getLastSnapshotAt);
 
   return { data, status, error, eventClientId, setData, refresh, pausePolling, isPollingPaused };
 }

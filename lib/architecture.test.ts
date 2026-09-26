@@ -81,7 +81,7 @@ const ALLOWED: Allowance[] = [
   { file: "app/components/dashboard/state/useDashboardCommands.ts", bytes: 11872, permanent: "section 2 criterion 2 — one hook sharing sequence counters, timers and abort controller" },
   { file: "app/components/config/reminders/RemindersConfig.tsx", bytes: 11848, permanent: "section 2 criterion 2 — callbacks share roster and config state" },
   { file: "app/components/dashboard/zones/ZoneControls.test.tsx", bytes: 11741 },
-  { file: "app/components/dashboard/state/useDashboardState.ts", bytes: 11737, permanent: "section 2 criterion 2 — poll loop, SSE handler and stall watchdog share refs" },
+  { file: "app/components/dashboard/state/useDashboardState.ts", bytes: 11737, permanent: "section 2 criterion 2 — poll loop and SSE handler share the snapshot refs" },
   { file: "lib/voice-settings/update-model.ts", bytes: 11669, permanent: "section 2 criterion 3 — splitting validators needs ~13 single-consumer exports" },
   { file: "app/components/tasks/TaskEditor.tsx", bytes: 11653, permanent: "section 2 criterion 2 — one form over one draft state" },
   { file: "app/components/Dashboard.tsx", bytes: 11604 },
