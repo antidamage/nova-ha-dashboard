@@ -85,4 +85,60 @@ describe("SystemActivityBlocker", () => {
     }, { timeout: 6000 });
     expect(status.state.read).toBe(false);
   }, 20000);
+
+  it("reloads after an outage when the served build is not the one this page runs", async () => {
+    // The page is holding a DEFERRED build change: it has heard of "new-build"
+    // (so lastKnownBuildId matches what the server now serves) but it is still
+    // RUNNING "old-build". That is the case the recovery path has to see, or a
+    // release would never bring an on-screen page current.
+    vi.resetModules();
+    vi.doMock("../useBuildReload", () => ({
+      getLastKnownBuildId: () => "new-build",
+      getRunningBuildId: () => "old-build",
+    }));
+
+    let healthOk = false;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/healthz") {
+        return { ok: healthOk, body: { cancel: async () => {} } } as unknown as Response;
+      }
+      if (url === "/api/update") {
+        return {
+          ok: healthOk,
+          json: async () => ({ busy: false, phaseAt: null }),
+          body: { cancel: async () => {} },
+        } as unknown as Response;
+      }
+      if (url === "/api/version") {
+        return { ok: true, json: async () => ({ buildId: "new-build" }) } as unknown as Response;
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const reload = vi.fn();
+    const originalLocation = window.location;
+    // @ts-expect-error -- deliberately replacing the read-only global for the test
+    delete window.location;
+    // @ts-expect-error -- partial Location, only reload is exercised
+    window.location = { ...originalLocation, reload };
+
+    const { SystemActivityBlocker: Blocker } = await import("../SystemActivityBlocker");
+    render(<Blocker />);
+
+    // The box goes away long enough to block: two consecutive health misses at
+    // one poll every three seconds. Wait on the fetch count rather than on the
+    // blocker's markup, which this test has no business asserting.
+    await waitFor(
+      () =>
+        expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/healthz").length)
+          .toBeGreaterThanOrEqual(4),
+      { timeout: 25000 },
+    );
+
+    // ...and comes back, still serving the build this page is not running.
+    healthOk = true;
+    await waitFor(() => expect(reload).toHaveBeenCalled(), { timeout: 20000 });
+  }, 60000);
 });

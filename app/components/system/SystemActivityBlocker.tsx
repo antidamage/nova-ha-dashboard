@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SystemBlocker } from "../SystemBlocker";
 import { explicitBlockerActive } from "../systemBlockerState";
-import { getLastKnownBuildId } from "../useBuildReload";
+import { getRunningBuildId } from "../useBuildReload";
 import { useAgentName } from "../AgentNameContext";
 import {
   COPY,
@@ -118,11 +118,11 @@ export function SystemActivityBlocker() {
     };
 
     // Nova is back and idle after a blocking episode. Reload only when it
-    // buys something: the served build changed while we were blocked, we
-    // never learned our own build (can't tell — old behaviour, reload), or
-    // the outage ran long. A dismissed blocker never force-reloads; if the
-    // build did change, useBuildReload picks it up on its own poll/SSE event.
-    // Returns true when a reload was initiated (the poll loop must stop).
+    // buys something: the build this page is RUNNING is not the one being
+    // served (a deferred change counts), we never learned our own build
+    // (can't tell — old behaviour, reload), or the outage ran long. A
+    // dismissed blocker never force-reloads. Returns true when a reload was
+    // initiated (the poll loop must stop).
     const recoverFromBlocking = async () => {
       let serverBuildId: string | null = null;
       try {
@@ -143,10 +143,14 @@ export function SystemActivityBlocker() {
         return true;
       }
 
-      const knownBuildId = getLastKnownBuildId();
-      const buildChanged = serverBuildId !== null && knownBuildId !== null && serverBuildId !== knownBuildId;
+      // Compare against the build this page is RUNNING, not the newest id it has
+      // heard: a page holding a deferred change has already recorded the new id
+      // in lastKnownBuildId, and comparing that would make this path a no-op
+      // exactly when a page on screen needs the release.
+      const runningBuildId = getRunningBuildId();
+      const buildChanged = serverBuildId !== null && runningBuildId !== null && serverBuildId !== runningBuildId;
       const blockedLong = blockedSince > 0 && Date.now() - blockedSince >= RELOAD_MIN_BLOCKED_MS;
-      if (!dismissedRef.current && (buildChanged || knownBuildId === null || blockedLong)) {
+      if (!dismissedRef.current && (buildChanged || runningBuildId === null || blockedLong)) {
         reloadNow();
         return true;
       }
