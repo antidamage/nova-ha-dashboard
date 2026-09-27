@@ -14,7 +14,7 @@ test.describe("arrival and departure configuration", () => {
     await page.getByRole("button", { name: /Voice & People/ }).click();
 
     const userData = page.locator("#user-data").getByRole("button", { name: /User Data/ });
-    const arrival = page.locator("#arrival").getByRole("button", { name: /Arrival & Departure/ });
+    const arrival = page.locator("#arrival").getByRole("button", { name: /Household members/ });
 
     // The workspace re-renders when its config lands, which can reset a freshly
     // toggled accordion, so retry the open until the body sticks.

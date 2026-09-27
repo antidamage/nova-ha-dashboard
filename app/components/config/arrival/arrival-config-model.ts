@@ -3,7 +3,7 @@ import type { ArrivalState, ArrivalTargetKind } from "../../../../lib/config-sch
 import type { ArrivalEventKind } from "../../../../lib/arrivals/types";
 
 /**
- * The Arrival & Departure section's edits, as pure functions over
+ * The Household members section's edits, as pure functions over
  * `dashboard.people`. Keeping them here means the components only render and
  * call, and every rule below is a unit test rather than a click.
  *

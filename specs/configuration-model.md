@@ -88,7 +88,7 @@ Configuration UI:
 - It can refresh, export, validate, import, and download/view schema.
 - It shows setup status for HA URL/token, iCloud username/password, Powershop
   email/password, and MCP bearer token.
-- Under Voice & People → User Data, **Arrival & Departure** edits the household
+- Under Voice & People → User Data, **Household members** edits the household
   member list and what each member's arrival and departure set; it is the only
   editor `dashboard.people` has, and the endpoints resolve their `<name>` against
   the same list.

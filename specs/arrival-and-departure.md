@@ -15,7 +15,7 @@ leaves, and the place that state is configured.
 | `lib/arrivals/run.ts` | the endpoints' behaviour and response shape |
 | `app/api/arrival/[name]/route.ts`, `app/api/departure/[name]/route.ts` | the endpoints |
 | `app/api/arrivals/route.ts` | the config section's read and write |
-| `app/components/config/arrival/` | the Arrival & Departure config section |
+| `app/components/config/arrival/` | the Household members config section |
 
 ## Members are `dashboard.people`
 
@@ -25,7 +25,7 @@ case-insensitively; the list lives in config, this house's copy in the household
 package, and nothing about any person is written into source. A name that matches
 nothing is a `404` naming the names the dashboard does know — never a near-miss.
 
-The list is edited under Voice & People → User Data → Arrival & Departure, which
+The list is edited under Voice & People → User Data → Household members, which
 is also the first UI `dashboard.people` has ever had. Because power attribution
 reads the same list (`lib/washing.ts`, `lib/power/ha-publish.ts`), a member added
 here is selectable in the washing machine card too: one list of people, two

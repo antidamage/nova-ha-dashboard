@@ -35,7 +35,7 @@ function stubFetch() {
 
 /** The accordion is collapsed by default; its body only exists once opened. */
 async function openSection() {
-  const header = screen.getByRole("button", { name: /Arrival & Departure/ });
+  const header = screen.getByRole("button", { name: /Household members/ });
   fireEvent.click(header);
   return header;
 }

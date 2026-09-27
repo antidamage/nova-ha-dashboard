@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * The Arrival & Departure config section's own API: the household member list
+ * The Household members config section's own API: the household member list
  * with each member's states, and which presets every target can offer right now.
  *
  * The write is the whole `dashboard.people` array, because a person is one
