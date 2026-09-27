@@ -4,19 +4,19 @@ import type { HouseholdPerson } from "../../lib/config-schema";
 import { WashWhoSelect } from "./laundry-client";
 
 /**
- * The laundry page's claim control (specs/power-meters.md §5.3).
+ * The laundry page's claim field (specs/power-meters.md §5.3).
  *
- * It names a person where the panel's block taps to the next one, so what is
- * worth pinning is what a pick *sends* — the chosen id, not a step in config
- * order — and what the row *shows*, which is only ever the name the page was
- * rendered with.
+ * It is a plain `<select>` on purpose — the dashboard's themed, portalled listbox
+ * is app furniture on a printed bill — so what is worth pinning is what a pick
+ * *sends* (the chosen id, never a step in config order), and what the row *shows*,
+ * which is only ever the name the page was rendered with.
  *
  * That last part is the whole design and it was arrived at twice: an optimistic
- * value cleared when the response landed put the owner from before the write
- * back on screen for as long as the refresh took, and one held until the read
- * agreed could never clear when the store's answer came back different, leaving
- * the row naming somebody the store did not hold beside totals, rendered from
- * that same store, that named somebody else.
+ * value cleared when the response landed put the owner from before the write back
+ * on screen for as long as the refresh took, and one held until the read agreed
+ * could never clear when the store's answer came back different, leaving the row
+ * naming somebody the store did not hold beside totals, rendered from that same
+ * store, that named somebody else.
  */
 
 const refresh = vi.fn();
@@ -51,15 +51,15 @@ function stubFetch(ok = true) {
 const bodyOf = (fetchMock: ReturnType<typeof stubFetch>) =>
   JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body));
 
-const trigger = () => screen.getByRole("button", { name: /Who ran this wash/ });
+const field = () => screen.getByRole("combobox", { name: /Who ran this wash/ }) as HTMLSelectElement;
+const shownValue = () => (field().selectedOptions[0]?.textContent ?? "").trim();
 
 describe("claiming a wash from the laundry page", () => {
   it("sends the person that was picked, not the next one in config order", async () => {
     const fetchMock = stubFetch();
     render(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person="tonya" />);
 
-    fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Addie" }));
+    fireEvent.change(field(), { target: { value: "addie" } });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(bodyOf(fetchMock)).toEqual({ cycleId: "wash-1", person: "addie" });
@@ -70,8 +70,7 @@ describe("claiming a wash from the laundry page", () => {
     const fetchMock = stubFetch();
     render(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person="addie" />);
 
-    fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: /Unassigned/ }));
+    fireEvent.change(field(), { target: { value: "" } });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(bodyOf(fetchMock)).toEqual({ cycleId: "wash-1", person: null });
@@ -81,11 +80,17 @@ describe("claiming a wash from the laundry page", () => {
     const fetchMock = stubFetch();
     render(<WashWhoSelect active cycleId="running" people={PEOPLE} person={null} />);
 
-    fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Tonya" }));
+    fireEvent.change(field(), { target: { value: "tonya" } });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(bodyOf(fetchMock)).toEqual({ active: true, cycleId: "running", person: "tonya" });
+  });
+
+  it("offers every configured person and Unassigned", () => {
+    render(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person={null} />);
+
+    expect([...field().options].map((option) => option.textContent)).toEqual(["Addie", "Tonya", "Unassigned"]);
+    expect(shownValue()).toBe("Unassigned");
   });
 
   it("shows the server's answer only, and says it is working while the write is in flight", async () => {
@@ -95,19 +100,18 @@ describe("claiming a wash from the laundry page", () => {
     const { release } = stubPendingFetch();
     const { rerender } = render(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person="tonya" />);
 
-    fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Addie" }));
+    fireEvent.change(field(), { target: { value: "addie" } });
 
-    expect(trigger().textContent).toContain("Tonya");
-    expect(trigger().textContent).not.toContain("Addie");
+    expect(shownValue()).toBe("Tonya");
+    expect(field().value).toBe("tonya");
     expect(screen.getByText("Saving…")).toBeTruthy();
-    expect(trigger()).toBeDisabled();
+    expect(field()).toBeDisabled();
 
     // The write lands; the refreshed render arrives carrying it.
     release(true);
     await waitFor(() => expect(refresh).toHaveBeenCalled());
     rerender(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person="addie" />);
-    expect(trigger().textContent).toContain("Addie");
+    expect(shownValue()).toBe("Addie");
     await waitFor(() => expect(screen.queryByText("Saving…")).toBeNull());
   });
 
@@ -119,35 +123,34 @@ describe("claiming a wash from the laundry page", () => {
     stubFetch();
     const { rerender } = render(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person={null} />);
 
-    fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Addie" }));
+    fireEvent.change(field(), { target: { value: "addie" } });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
 
     rerender(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person="tonya" />);
 
-    expect(trigger().textContent).toContain("Tonya");
+    expect(shownValue()).toBe("Tonya");
     expect(document.querySelector(".laundry-who-printed")?.textContent).toContain("Tonya");
   });
 
   it("shows a person this household no longer configures as Unassigned", () => {
     // The store holds `tonya`; this household configures somebody else under a
-    // new id. That wash counts as unassigned in the totals, so the picker must
-    // read the same way rather than wearing the first configured person's name.
+    // new id. That wash counts as unassigned in the totals, so the field must read
+    // the same way rather than wearing the first configured person's name.
     render(<WashWhoSelect cycleId="wash-1" people={[{ arrival: [], color: "#22d3ee", departure: [], id: "addie", label: "Addie", primary: true }]} person="tonya" />);
 
-    expect(trigger().textContent).toContain("Unassigned");
-    expect(trigger().textContent).not.toContain("Addie");
+    expect(shownValue()).toBe("Unassigned");
+    expect(field().value).toBe("");
   });
 
   it("says so when the write is refused, and shows the store's answer still", async () => {
     stubFetch(false);
     render(<WashWhoSelect cycleId="wash-1" people={PEOPLE} person="addie" />);
 
-    fireEvent.click(trigger());
-    fireEvent.click(screen.getByRole("button", { name: "Tonya" }));
+    fireEvent.change(field(), { target: { value: "tonya" } });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Not saved");
     expect(refresh).not.toHaveBeenCalled();
-    expect(trigger().textContent).toContain("Addie");
+    expect(shownValue()).toBe("Addie");
+    expect(field()).not.toBeDisabled();
   });
 });

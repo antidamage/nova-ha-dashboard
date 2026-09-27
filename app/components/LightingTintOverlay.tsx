@@ -6,6 +6,7 @@
  * Enabled per theme (`lightingTint`); see specs/lighting-tint.md.
  */
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { DashboardState } from "../../lib/types";
 import { tintColor } from "./dashboard/lightingTint";
 import { useLightingTintZone } from "./dashboard/lightingTintZoneSetting";
@@ -27,6 +28,7 @@ function useTintEnabled() {
 }
 
 export function LightingTintOverlay() {
+  const pathname = usePathname()?.replace(/\/$/, "");
   const enabled = useTintEnabled();
   const [zoneId] = useLightingTintZone();
   const [lit, setLit] = useState(false);
@@ -64,6 +66,12 @@ export function LightingTintOverlay() {
       unsubscribe();
     };
   }, [enabled, zoneId]);
+
+  // The bill is a document on white paper: the room's light colour blended over
+  // it is dashboard chrome on somebody else's printout (specs/power-meters.md
+  // §5.3). The layer is skipped there rather than rendered transparent, so a
+  // tint can never paint on the sheet.
+  if (pathname === "/laundry") return null;
 
   return (
     <div
