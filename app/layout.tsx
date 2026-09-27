@@ -33,9 +33,18 @@ import { headBootstrapScript } from "./shell/head-bootstrap-script";
 // Without it Safari fills that strip with its own tint colour. Top-fixed chrome
 // already offsets itself with env(safe-area-inset-top) in globals.css.
 export const viewport: Viewport = {
-  width: "device-width",
+  /**
+   * The whole dashboard declares itself dark, whichever Nova theme is selected,
+   * so Chromium's Auto Dark Theme leaves it alone — that mode repaints light
+   * fills after first paint (specs/color-encoder.md, "Surviving Brave's auto dark
+   * mode"). It is a `viewport` field rather than a tag in the tree below so a
+   * route that must be light can say `only light` for itself, which is the
+   * documented opt-out; see app/laundry/page.tsx.
+   */
+  colorScheme: "dark",
   initialScale: 1,
   viewportFit: "cover",
+  width: "device-width",
 };
 
 // Where the Outside camera stream is embedded FROM. Capture now lives on
@@ -110,14 +119,6 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Always tells the browser this page is dark, whichever Nova theme is
-            selected, so Chromium's auto dark mode (a Brave flag Adeline runs)
-            leaves it alone. That mode repaints light fills after first paint:
-            the ColorEncoder ring went dark as a bright colour was desaturated
-            and the lit LED settled to blue-grey, and `!important` and image
-            fills are rewritten too. Mirrored on `:root` in globals.css
-            (specs/color-encoder.md, "Surviving Brave's auto dark mode"). */}
-        <meta name="color-scheme" content="dark" />
         {/* Next's appleWebApp.capable only emits the modern
             `mobile-web-app-capable`, which iOS Safari does not read. iOS still
             requires this exact legacy name, and the black-translucent status

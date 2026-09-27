@@ -18,7 +18,10 @@
 html:has(.laundry-page),
 body:has(.laundry-page) {
   background: #ffffff;
-  color-scheme: light;
+  /* `only light` opts the page out of a browser's automatic dark theme, which
+     would repaint this document white-on-black; the meta in the head says the same
+     word, and the layout says `dark` for every other route. §5.3 has the why. */
+  color-scheme: only light;
 }
 
 .laundry-page {
@@ -334,12 +337,11 @@ body:has(.laundry-page) {
 }
 
 /* Narrow screens. A ruled six-column table cannot be narrower than its widest
-   cell, and on a phone that is wider than the screen: at 320px the version with
-   two columns dropped still came to ~360px of table, so the whole page panned
-   sideways. So each wash becomes its own block instead — the date, the energy
-   and the cost on one line, the claim field beneath it — which has no
-   min-content to exceed and reads better at this size anyway (measured: no
-   horizontal overflow at 320, 360, 390 and 641px). */
+   cell, and on a phone that is wider than the screen: with two columns dropped it
+   still came to ~360px of table, so the whole page panned sideways. Each wash is
+   its own block instead — date, energy and cost on one line, the claim field
+   beneath — which has no min-content to exceed. Measured: no horizontal overflow
+   at 320, 360, 375, 390, 414, 480, 639, 641, 768 and 1240px. */
 @media (max-width: 640px) {
   .laundry-page {
     padding: 20px 14px 56px;
