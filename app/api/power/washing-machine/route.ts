@@ -4,6 +4,7 @@ import {
   attributeWashingMachineCycle,
   readWashHistory,
   samplePowerNow,
+  setWashingMachineCyclePerson,
 } from "../../../../lib/power";
 
 export const dynamic = "force-dynamic";
@@ -35,27 +36,40 @@ export async function GET(request: Request) {
 }
 
 /**
- * Cycle one wash's attribution onward: unassigned → each configured person in
- * order → unassigned (specs/power-meters.md §4.3).
+ * Write one wash's owner. Two shapes, and the difference is deliberate:
  *
- * The client sends the cycle id only. The server owns the order, so two screens
- * tapping the same block cannot disagree about what comes next.
+ * - `{ cycleId }` or `{ active: true }` alone **cycles** the attribution onward
+ *   — unassigned → each configured person in order → unassigned. The panel's
+ *   block is a tap, and the server owns the order so two screens cannot disagree
+ *   about what comes next (specs/power-meters.md §4.3).
+ * - `{ person }` **names** the person, `null` to clear it. That is the laundry
+ *   history's dropdown, which picks rather than steps (§5.3). A key that is
+ *   absent cycles; a key present and `null` clears, so the two are not the same
+ *   request.
+ *
+ * A name this household does not configure is refused rather than written.
  */
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { active?: unknown; cycleId?: unknown };
-    if (body.active === true) {
-      const cycle = await attributeOpenWashingMachineCycle();
-      if (!cycle) return NextResponse.json({ error: "No active wash" }, { status: 404 });
-      return NextResponse.json(await samplePowerNow(), { headers: { "Cache-Control": "no-store" } });
+    const body = (await request.json()) as { active?: unknown; cycleId?: unknown; person?: unknown };
+    if (body.person !== undefined && body.person !== null && typeof body.person !== "string") {
+      return NextResponse.json({ error: "person must be a person id or null" }, { status: 400 });
     }
     const cycleId = typeof body.cycleId === "string" ? body.cycleId : null;
-    if (!cycleId) {
+    if (body.active !== true && !cycleId) {
       return NextResponse.json({ error: "cycleId is required" }, { status: 400 });
     }
-    const cycle = await attributeWashingMachineCycle(cycleId);
+    const cycle = body.person === undefined
+      ? body.active === true
+        ? await attributeOpenWashingMachineCycle()
+        : await attributeWashingMachineCycle(cycleId!)
+      : await setWashingMachineCyclePerson({
+          active: body.active === true,
+          ...(cycleId ? { cycleId } : {}),
+          person: body.person,
+        });
     if (!cycle) {
-      return NextResponse.json({ error: "Unknown wash cycle" }, { status: 404 });
+      return NextResponse.json({ error: body.active === true ? "No active wash" : "Unknown wash cycle" }, { status: 404 });
     }
     return NextResponse.json(await samplePowerNow(), { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

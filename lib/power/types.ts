@@ -3,6 +3,7 @@ import type {
   HouseholdPerson,
   PowerAccountUsagePoint,
   PowerDeviceRating,
+  WashRateWindow,
 } from "../config-schema";
 import type { PowershopEstimateCalibration } from "../power-estimation";
 import type {
@@ -156,6 +157,64 @@ export type WashHistory = {
   blocks: number[];
   cycles: WashGraphCycle[];
   window: WashBlock;
+};
+
+/**
+ * One wash as the laundry history lists it: the labels a bill prints for it,
+ * in the household's own timezone (specs/power-meters.md §5.3).
+ */
+export type WashMonthCycle = WashingMachineCycle & {
+  /** The local day it ran, e.g. `Sat 19 Sep`. */
+  dateLabel: string;
+  durationLabel: string;
+  /** The local time it started, e.g. `11:00 AM`. */
+  startLabel: string;
+};
+
+/** The plan a month's washes were costed at, as the page states it. */
+export type WashMonthRate = {
+  planName: string;
+  sourceUrl: string;
+  /** The date the rates were read, when the plan records one. */
+  asOf: string | null;
+  /** The plan's own unit rate, cents per kWh. */
+  cPerKwh: number;
+  /**
+   * Whether those cents include GST. The machine's own plan says so in its
+   * schema and is what this household uses; a household tariff makes no claim
+   * either way, so the page must not assert one on its behalf.
+   */
+  includingGst: boolean;
+  /** Its free or discounted windows, for the page to print. */
+  windows: WashRateWindow[];
+};
+
+/**
+ * One calendar month of the washing machine's history, as the standalone
+ * laundry page renders it: the washes in it, what they cost, and the months
+ * either side so the page can be paged (specs/power-meters.md §5.3).
+ */
+export type WashMonthView = {
+  monthKey: string;
+  /** `September 2026`, the way a bill heads the period. */
+  label: string;
+  /** Every month holding a wash, newest first. The page steps through these. */
+  months: string[];
+  nextMonthKey: string | null;
+  previousMonthKey: string | null;
+  cycles: WashMonthCycle[];
+  /** The wash under way, when there is one. It is nobody's until it closes. */
+  running: WashMonthCycle | null;
+  totals: WashingMachineTotals[];
+  people: HouseholdPerson[];
+  /**
+   * How many washes the month holds. The month's own count, NOT the `totals`
+   * row whose `person` is `null` — that row is the Unassigned bucket.
+   */
+  washes: number;
+  kwh: number;
+  costNzd: number;
+  rate: WashMonthRate;
 };
 
 export type PowerDashboard = {

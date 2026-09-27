@@ -214,3 +214,22 @@ describe("washing-machine cycle detection at the metered thresholds", () => {
     expect(washing.open?.startedAt).toBe("2026-09-14T11:06:00.000Z");
   });
 });
+
+describe("the cycle's length floor", () => {
+  it("keeps a short low-power spin and drops a blip under both floors", () => {
+    // A standalone spin is about eleven minutes and draws little, so it
+    // integrates under `minCycleKwh` — the one cycle the energy floor cannot
+    // judge (Adeline, 2026-09-27). Length settles it: at least
+    // `minCycleMinutes` is a wash whatever it drew, and shorter than that AND
+    // under the floor is the panel or a door.
+    const spin = replay([[60, 11], [0, 4]], undefined, METERED_CONFIG);
+    expect(spin.cycles).toHaveLength(1);
+    expect(spin.cycles[0].kwh).toBeLessThan(METERED_CONFIG.minCycleKwh);
+    expect(METERED_CONFIG.minCycleMinutes).toBe(11);
+
+    // Six minutes at 200 W is 0.02 kWh: under the energy floor and under the
+    // length floor, so it is the door opening, not a wash.
+    const blip = replay([[200, 6], [0, 4]], undefined, METERED_CONFIG);
+    expect(blip.cycles).toEqual([]);
+  });
+});

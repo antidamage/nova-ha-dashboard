@@ -1,34 +1,29 @@
-// The washing machine: its tick, per-person attribution and monthly summary.
-import path from "path";
-import { readDashboardConfigSync } from "../dashboard-config";
+// The washing machine: its tick, the month's summary, and the graph's day read.
+// Attribution is a store write of its own — see ./wash-claim.
 import type { HaState } from "../types";
-import { reconcileWashCompletion } from "../wash-completion";
+import { readDashboardConfigSync } from "../dashboard-config";
 import {
   blankWashingMachineState,
   cycleId as washingCycleId,
   monthTotals,
-  nextPerson,
   pruneWashingMachineCycles,
   recordWashingMachineSample,
   WASHING_MACHINE_HISTORY_DAYS,
-  type WashAttribution,
   type WashingMachineState,
 } from "../washing-machine";
 import { localMonthKey } from "./calendar";
 import { meterReading } from "./meters";
-import { setWashTimer, syncWashTimer } from "./wash-timer";
 import {
   powerConfig,
   readJson,
   runningWashCurve,
-  serializePower,
-  WASH_TRACE_DIR,
   washCurves,
   WASHING_MACHINE_PATH,
   writeJsonAtomic,
 } from "./store";
+import { syncWashTimer } from "./wash-timer";
 import { buildWashHistory } from "./wash-history";
-import type { PowerWashingMachineSummary, WashTraceFile } from "./types";
+import type { PowerWashingMachineSummary } from "./types";
 
 export async function recordWashingMachineTick(
   persisted: WashingMachineState,
@@ -66,73 +61,6 @@ export async function recordWashingMachineTick(
   await syncWashTimer(beforeTimer, next.open?.timer);
   const cutoff = new Date(now.getTime() - WASHING_MACHINE_HISTORY_DAYS * 86_400_000).toISOString();
   return pruneWashingMachineCycles(next, cutoff);
-}
-
-/**
- * Where a tap starts in the person order.
- *
- * A **default** attribution is not a claim — nobody made it — so a tap on one
- * claims the wash from the top of the order, exactly as an unassigned wash does.
- * Leaving it in the order meant a wash the household's default had picked up
- * could only be claimed by tapping past it, and the first tap read as the wash
- * being released (specs/power-meters.md 4.3).
- */
-function tapFrom(cycle: { attribution?: WashAttribution; person?: string | null }) {
-  return cycle.attribution?.source === "auto" ? null : cycle.person ?? null;
-}
-
-/**
- * Attribute one wash to a person, or cycle it onward. Unassigned -> each
- * configured person in order -> unassigned. The caller sends the cycle id only;
- * the server owns the order so two screens cannot disagree about what comes
- * next. See specs/power-meters.md 4.3.
- */
-async function attributeWashingMachineCycleUnlocked(cycleId: string) {
-  if (!powerConfig().washingMachine) {
-    return null;
-  }
-  const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
-  const state = { ...blankWashingMachineState(), ...persisted };
-  const index = state.cycles.findIndex((cycle) => cycle.id === cycleId);
-  const personIds = (readDashboardConfigSync().dashboard.people ?? []).map((person) => person.id);
-  // A tap is a manual claim, including a tap back to unassigned: the unclaimed
-  // default never overrides it (§4.3).
-  const attribution: WashAttribution = { at: new Date().toISOString(), source: "manual" };
-  if (state.open?.startedAt && washingCycleId(state.open.startedAt) === cycleId) {
-    state.open.person = nextPerson(tapFrom(state.open), personIds);
-    state.open.attribution = attribution;
-    // The wash's timer belongs to the primary person: this tap starts it, and a
-    // tap that takes the wash off her cancels it, silently
-    // (specs/power-meters.md, "The wash's timer").
-    const timer = await setWashTimer(state.open, new Date());
-    // A timer that has already finished keeps its record — the alert it raised is
-    // still on the household's screen, and a tap must not start a second one for
-    // a wash that has been notified. An unfinished one goes with the claim.
-    if (timer) state.open.timer = timer;
-    else if (state.open.timer?.completedAt === null) delete state.open.timer;
-    await reconcileWashCompletion(state, new Map());
-    await writeJsonAtomic(WASHING_MACHINE_PATH, state);
-    return state.open;
-  }
-  if (index === -1) {
-    return null;
-  }
-  const cycle = { ...state.cycles[index], attribution, person: nextPerson(tapFrom(state.cycles[index]), personIds) };
-  state.cycles = [...state.cycles.slice(0, index), cycle, ...state.cycles.slice(index + 1)];
-  await writeJsonAtomic(WASHING_MACHINE_PATH, state);
-  // The curve is logged against whoever the wash now belongs to.
-  const tracePath = path.join(WASH_TRACE_DIR, `${cycle.id}.json`);
-  const trace = await readJson<WashTraceFile | null>(tracePath, null);
-  if (trace) await writeJsonAtomic(tracePath, { ...trace, attribution, person: cycle.person });
-  return cycle;
-}
-
-/** Claim the wash currently under way; completed washes use the cycle path above. */
-export async function attributeOpenWashingMachineCycle() {
-  return serializePower(async () => {
-    const state = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
-    return state.open?.startedAt ? attributeWashingMachineCycleUnlocked(washingCycleId(state.open.startedAt)) : null;
-  });
 }
 
 export function buildWashingMachineSummary(
@@ -178,6 +106,12 @@ export async function readWashHistory(atMs: number | null) {
   return buildWashHistory({ ...blankWashingMachineState(), ...persisted }, atMs, new Date());
 }
 
+/**
+ * Attribution is a store write of its own — see ./wash-claim — re-exported here
+ * so its callers (the API route, the facade and the suites) keep their import.
+ */
+export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle, setWashingMachineCyclePerson } from "./wash-claim";
+
 export function washReconcileSignature(state: WashingMachineState) {
   const open = state.open;
   const last = state.cycles[state.cycles.length - 1];
@@ -187,8 +121,4 @@ export function washReconcileSignature(state: WashingMachineState) {
     open?.startedAt ?? null, open?.person ?? null, open?.completion?.at ?? null,
     state.cycles.length, last?.id ?? null, last?.person ?? null, last?.completion?.at ?? null,
   ]);
-}
-
-export function attributeWashingMachineCycle(id: string) {
-  return serializePower(() => attributeWashingMachineCycleUnlocked(id));
 }

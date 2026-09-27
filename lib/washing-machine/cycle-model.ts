@@ -172,9 +172,14 @@ export function recordWashingMachineSample(
         completion: open.completion,
         startedAt: open.startedAt,
       };
-      // Below the floor this was the machine's standby panel or a door-open
-      // blip, not a wash. Drop it rather than filling the month with noise.
-      const cycles = closed.kwh >= config.minCycleKwh
+      // Below BOTH floors this was the machine's standby panel or a door-open
+      // blip, not a wash. The energy floor alone cannot judge a spin: a spin is
+      // short and draws little, so a real one integrates under `minCycleKwh` —
+      // while a wake that never became a wash is seconds long, not minutes. So
+      // length settles it: a cycle at least `minCycleMinutes` long is a wash
+      // whatever it drew (§4.1).
+      const minutes = seconds(closed.startedAt, closed.endedAt) / 60;
+      const cycles = closed.kwh >= config.minCycleKwh || minutes >= config.minCycleMinutes
         ? [...state.cycles, settleUnclaimed(closed, config, at)]
         : state.cycles;
       return { ...state, cycles, open: null };

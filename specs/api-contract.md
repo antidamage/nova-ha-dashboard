@@ -313,7 +313,11 @@ Telemetry:
   start/duration labels and curves. Without `block`, the newest day holding a
   wash.
 - `POST /api/power/washing-machine { cycleId } | { active: true }`: cycle that
-  wash's attribution onward.
+  wash's attribution onward — unassigned → each configured person in order →
+  unassigned. `{ cycleId | active: true, person }` instead **names** the person
+  (an id, or `null` to clear it), which is what the laundry page's picker sends;
+  a key absent cycles, a key present and `null` clears. A name the household does
+  not configure is refused with 400 and nothing is written.
 - `GET /api/nova-load`: return host load metrics.
 
 Configuration:

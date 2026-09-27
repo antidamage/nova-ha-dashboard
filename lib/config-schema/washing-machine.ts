@@ -38,6 +38,51 @@ export type WashTimerConfig = z.infer<typeof WashTimerConfigSchema>;
 export { WashTimerConfigSchema };
 
 /**
+ * One window of the machine's plan where the unit rate differs from the plan's
+ * own — a retailer's free hours, or a half-price night.
+ *
+ * A window is anchored on the local day it OPENS, so `21:00`-`07:00` belongs to
+ * the evening it began: after midnight it is still that evening's window, and
+ * its day list is read against yesterday. Hence the two passes in the matcher
+ * rather than a 48-hour clock.
+ */
+const WashRateWindowSchema = z.object({
+  label: z.string().min(1),
+  /** Local days the window opens on. `21:00`-`07:00` on `mon`-`fri` is five windows. */
+  days: z.array(z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"])).min(1),
+  /** Minutes past local midnight; `1440` is the end of the day. */
+  fromMinute: z.number().int().min(0).max(1440),
+  /** Minutes past local midnight; below `fromMinute` means the window crosses midnight. */
+  toMinute: z.number().int().min(0).max(1440),
+  /** The unit rate inside the window, in cents per kWh including GST. */
+  cPerKwh: z.number().nonnegative(),
+});
+export type WashRateWindow = z.infer<typeof WashRateWindowSchema>;
+
+/**
+ * The electricity plan the washing machine is costed at, when that is not the
+ * plan the rest of the panel uses.
+ *
+ * The two are genuinely different questions: the grid is one household's total
+ * consumption at whatever it buys, while a wash is a single appliance whose cost
+ * someone is looking at on its own — at a retailer's rates for this address, on
+ * the plan that address is on. Rates are what the bill states, so they include
+ * GST and a wash's cost reads the same as its line on the bill.
+ */
+const WashRatesSchema = z.object({
+  planName: z.string().min(1),
+  /** Where the numbers were read from, so a later session can re-check them. */
+  sourceUrl: z.string().min(1).optional(),
+  /** The date the numbers were read, `YYYY-MM-DD`. */
+  asOf: z.string().min(1).optional(),
+  /** The plan's unit rate outside every window, in cents per kWh including GST. */
+  cPerKwh: z.number().nonnegative(),
+  windows: z.array(WashRateWindowSchema).default([]),
+});
+export type WashRates = z.infer<typeof WashRatesSchema>;
+export { WashRatesSchema, WashRateWindowSchema };
+
+/**
  * Cycle detection for a washing machine on a metering plug. Every threshold is
  * config so a different machine is a config edit. See specs/power-meters.md §4.
  */
@@ -65,6 +110,19 @@ const WashingMachineConfigSchema = z.object({
    */
   endQuietSeconds: z.number().positive().default(180),
   minCycleKwh: z.number().nonnegative().default(0.05),
+  /**
+   * The shortest a real cycle can be: a standalone spin, about eleven minutes on
+   * this machine. A closed cycle at least this long is kept whatever it drew, so
+   * a short low-power spin is not dropped as a blip by the energy floor alone —
+   * a spin is exactly the cycle that floor was never able to judge (§4.1).
+   */
+  minCycleMinutes: z.number().positive().default(11),
+  /**
+   * The machine's own electricity plan, when the wash is costed at rates the
+   * rest of the panel does not use (§4.1). Absent leaves the wash on the
+   * household's plan, which is what a single-plan household wants.
+   */
+  rates: WashRatesSchema.optional(),
   /** The wash's timer: the claim's countdown and the machine's own stop rule. */
   timer: WashTimerConfigSchema.default({
     extendMinutes: 10,

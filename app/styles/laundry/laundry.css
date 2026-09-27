@@ -1,0 +1,360 @@
+/* The standalone laundry page: the washing machine's own power history, month by
+   month, shaped like a power bill and printable.
+   specs/power-meters.md §5.3.
+
+   Its own partial rather than more of dashboard/power.css, because the two read
+   nothing alike: the panel is a glance and a tap, this is a document. The one
+   thing they share is the claim picker, which is already styled globally by
+   controls/cyber-select.css. */
+
+.laundry-page {
+  display: grid;
+  gap: 18px;
+  margin: 0 auto;
+  max-width: 900px;
+  min-height: 100dvh;
+  padding: 28px 20px 56px;
+}
+
+.laundry-empty {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.95rem;
+  margin-top: 25dvh;
+  text-align: center;
+}
+
+.laundry-head {
+  align-items: flex-end;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.laundry-head h1 {
+  color: var(--cyber-highlight, #e879f9);
+  font-size: 1.85rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.laundry-sub {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.8rem;
+  margin: 6px 0 0;
+}
+
+/* The month's own step list: one line, with the month named between the arrows
+   so a printed page says which period it is without the nav. */
+.laundry-nav {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.laundry-month {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.laundry-button {
+  background: var(--cyber-panel-soft, #2a2a2a);
+  border: 1px solid var(--cyber-line, #333);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.laundry-button:hover:not(.is-disabled) {
+  border-color: var(--cyber-highlight, #e879f9);
+}
+
+.laundry-button.is-disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+/* The bill itself. */
+.laundry-sheet {
+  background: var(--cyber-panel, #161616);
+  border: 1px solid var(--cyber-line, #333);
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.laundry-sheet-head {
+  align-items: start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.laundry-period {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.laundry-plan {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.78rem;
+  margin: 4px 0 0;
+}
+
+.laundry-rate {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 0;
+  text-align: right;
+}
+
+.laundry-asof {
+  color: var(--cyber-map-labels, #a8a8a8);
+  display: block;
+  font-weight: 400;
+}
+
+.laundry-windows {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.laundry-table,
+.laundry-totals table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.laundry-caption {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  padding-bottom: 7px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.laundry-table th,
+.laundry-table td,
+.laundry-totals th,
+.laundry-totals td {
+  border-bottom: 1px solid var(--cyber-line, #333);
+  font-size: 0.85rem;
+  padding: 9px 8px;
+  text-align: left;
+}
+
+.laundry-table th,
+.laundry-totals th {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.laundry-table .is-number,
+.laundry-totals .is-number {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.laundry-row.is-running td {
+  font-style: italic;
+}
+
+.laundry-row.is-empty td {
+  color: var(--cyber-map-labels, #a8a8a8);
+  text-align: center;
+}
+
+.laundry-totals {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.laundry-totals table {
+  max-width: 460px;
+}
+
+.laundry-totals tr.is-total td {
+  border-bottom: none;
+  border-top: 2px solid var(--cyber-border-strong, rgb(255 255 255 / 0.73));
+  font-weight: 800;
+}
+
+.laundry-totals tr.is-average td {
+  border-bottom: none;
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.78rem;
+  padding-top: 6px;
+}
+
+.laundry-totals tr.is-unassigned td {
+  color: var(--cyber-map-labels, #a8a8a8);
+}
+
+.laundry-who {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.laundry-who-select {
+  min-width: 170px;
+}
+
+/* Paper gets the name, screen gets the picker. The printed sheet must carry no
+   control at all: a printed dropdown is a box with a chevron on somebody's bill. */
+.laundry-who-printed {
+  display: none;
+}
+
+.laundry-who-busy,
+.laundry-who-failed {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.laundry-who-busy {
+  color: var(--cyber-map-labels, #a8a8a8);
+}
+
+.laundry-who-failed {
+  color: #fca5a5;
+}
+
+.laundry-swatch {
+  border-radius: 999px;
+  display: block;
+  height: 12px;
+  width: 12px;
+}
+
+.laundry-swatch.is-empty {
+  border: 1px solid var(--cyber-line, #333);
+}
+
+.laundry-note {
+  color: var(--cyber-map-labels, #a8a8a8);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* A phone is the reader for the local copy, so the one column that is not part
+   of "what, how much, whose" goes rather than the font shrinking. */
+@media (max-width: 620px) {
+  .laundry-page {
+    padding: 20px 14px 40px;
+  }
+
+  .laundry-table thead th:nth-child(2),
+  .laundry-table tbody td:nth-child(2) {
+    display: none;
+  }
+
+  .laundry-who-select {
+    min-width: 132px;
+  }
+
+  .laundry-sheet {
+    padding: 16px;
+  }
+}
+
+/* A printed bill: no screen furniture, no dark fills, and the picker's own value
+   in its place. The tables keep their rules and every row is on the sheet —
+   the printed page is not a screenshot of the phone. */
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  .laundry-page {
+    color: #111;
+    max-width: none;
+    padding: 0;
+  }
+
+  .laundry-head h1,
+  .laundry-period,
+  .laundry-sheet,
+  .laundry-table th,
+  .laundry-table td,
+  .laundry-totals th,
+  .laundry-totals td,
+  .laundry-totals tr.is-unassigned td,
+  .laundry-row.is-empty td {
+    color: #111;
+  }
+
+  .laundry-head h1 {
+    font-size: 1.5rem;
+  }
+
+  .laundry-nav,
+  .laundry-head .laundry-button,
+  .laundry-who-select,
+  .laundry-who-busy,
+  .laundry-who-failed,
+  .laundry-asof,
+  .laundry-note {
+    /* The note is a screen affordance; the figures and their plan are the bill. */
+    display: none;
+  }
+
+  .laundry-sheet {
+    background: none;
+    border: 1px solid #999;
+    padding: 14px;
+  }
+
+  .laundry-who-printed {
+    display: inline;
+  }
+
+  .laundry-table,
+  .laundry-totals table {
+    page-break-inside: auto;
+  }
+
+  .laundry-table thead,
+  .laundry-totals thead {
+    display: table-header-group;
+  }
+
+  .laundry-table tr,
+  .laundry-totals tr {
+    page-break-inside: avoid;
+  }
+
+  .laundry-table th,
+  .laundry-table td,
+  .laundry-totals th,
+  .laundry-totals td {
+    border-bottom: 1px solid #ddd;
+  }
+
+  .laundry-totals tr.is-total td {
+    border-top: 2px solid #111;
+  }
+}

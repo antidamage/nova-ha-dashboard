@@ -17,9 +17,9 @@ import {
   WASHING_MACHINE_PATH,
   writeJsonAtomic,
 } from "./store";
-import { currentRate } from "./tariff";
 import type { PowerState } from "./types";
 import { recordWashingMachineTick, washReconcileSignature } from "./washing";
+import { washRateAt } from "./washing-rates";
 
 /**
  * The metering plugs' tick (specs/power-meters.md §7.3): floating-meter
@@ -57,7 +57,8 @@ export async function sampleMetersUnlocked(): Promise<void> {
   );
   const state = { ...blankState(), ...persisted };
   const keys = currentKeys(now);
-  const rate = currentRate(now);
+  // The wash is costed at the machine's own plan, not the grid's (§4.1).
+  const washRate = washRateAt(now);
   const lastMs = state.lastMeterSampleAt ? Date.parse(state.lastMeterSampleAt) : NaN;
   const elapsedHours = Number.isFinite(lastMs) ? (now.getTime() - lastMs) / 3_600_000 : 0;
   const integrate = elapsedHours > 0 && elapsedHours <= config.timing.maxIntegrationHours;
@@ -80,7 +81,7 @@ export async function sampleMetersUnlocked(): Promise<void> {
       statesById,
       now,
       integrationHours,
-      rate.cPerKwh / 100,
+      washRate.cPerKwh / 100,
       energyKwh,
     );
   }

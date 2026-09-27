@@ -18,7 +18,7 @@ import {
   WASHING_MACHINE_PATH,
   writeJsonAtomic,
 } from "./store";
-import { currentRate } from "./tariff";
+import { washRateAt } from "./washing-rates";
 import type { PowerState, WashTraceFile } from "./types";
 
 /**
@@ -70,7 +70,7 @@ export function rebuildWashingMachineHistory(from: string, to: string) {
     );
     const rebuilt = replayWashingHistory({
       config,
-      costPerKwhAt: (atMs) => currentRate(new Date(atMs)).cPerKwh / 100,
+      costPerKwhAt: (atMs) => washRateAt(new Date(atMs)).cPerKwh / 100,
       fromMs,
       maxIntegrationHours: power.timing.maxIntegrationHours,
       points: meterHistoryPoints(history, sensors),

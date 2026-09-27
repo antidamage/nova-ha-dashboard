@@ -22,11 +22,17 @@ estimate for the other two keeps getting better.
 | `nova-household/dashboard-config.json` | this house's meters, categories, people, device ratings |
 | `lib/power-meter-guard.ts` | the always-on guard loop |
 | `lib/power-floating-meter.ts` | per-category accumulation and the learned model |
-| `lib/washing-machine.ts` | cycle detection, the cycle store, attribution |
-| `lib/power/wash-history.ts` | the wash graph's day blocks: the day, the index, one day's washes with their labels and curves |
+| `lib/washing-machine.ts` | cycle detection, the cycle store, the month's totals |
+| `lib/power/wash-history.ts` | the wash graph's day blocks: the day, the index, one day's washes with their labels and curves; and the laundry page's month read |
+| `lib/power/wash-months.ts` | the laundry page's month view: its step list, its rows and its totals |
+| `lib/power/wash-claim.ts` | who a wash belongs to: the panel's cycling tap and the page's named pick |
+| `lib/power/washing-rates.ts` | the plan the wash is costed at, and the window in force at an instant |
+| `app/laundry/page.tsx` | the standalone, printable, month-by-month history page |
+| `app/laundry/laundry-client.tsx` | that page's claim picker, and its print button |
+| `app/styles/laundry/laundry.css` | that page's sheet, and its print sheet |
 | `lib/power.ts` | integration tick, base-load suppression, dashboard payload, MQTT publish |
 | `app/api/power/floating-meter/route.ts` | set the active category |
-| `app/api/power/washing-machine/route.ts` | attribute a cycle; read one day of the graph |
+| `app/api/power/washing-machine/route.ts` | attribute a cycle (cycled, or named with `person`); read one day of the graph |
 | `app/components/dashboard/PowerMeters.tsx` | both surfaces, mounted by `PowerPanel` |
 | `instrumentation.ts` | starts the guard |
 
@@ -255,9 +261,45 @@ and from the modelled daily base:
   "startSustainedSeconds": 120,
   "endWatts": 2,
   "endQuietSeconds": 180,
-  "minCycleKwh": 0.05
+  "minCycleKwh": 0.05,
+  "minCycleMinutes": 11,
+  "rates": {
+    "planName": "Contact Energy — Basic plan, standard user (this address)",
+    "sourceUrl": "https://journey.contact.co.nz/residential/find-a-plan",
+    "asOf": "2026-09-27",
+    "cPerKwh": 28.279,
+    "windows": []
+  }
 }
 ```
+
+**The machine's own plan.** A wash is costed at `rates` when it is configured,
+and at the household's tariff when it is not — so a single-plan household needs
+no extra config, and the two are genuinely different questions: the grid is one
+household's total consumption at whatever it buys, while a wash is a single
+appliance whose cost somebody is looking at on its own. Adeline, 2026-09-27:
+*"update the washing machine power calculations to use Contact Energy rates for
+this address. These rates will ONLY be used for the washing machine."*
+
+- The numbers are the address's own: this household's retailer quotes per
+  address and per plan, so the plan is named in config with the date the numbers
+  were read. **The address itself stays in the household package**, which is what
+  keeps this repo distributable — the spec's example names the plan and the
+  retailer, not the property. `cPerKwh` includes GST, because that is what the
+  bill states and what the cost column should therefore read; a household tariff
+  makes no such claim, so a surface that prints a rate says "including GST" only
+  for the machine's own plan.
+- `windows` are the plan's free or discounted hours — a retailer's free evening,
+  or a half-price night. A window is anchored on the local day it **opens**, so
+  `21:00`-`07:00` on `mon`-`fri` is five windows and 2 AM Saturday morning still
+  belongs to Friday evening's. Cost is struck at the rate in force at the time of
+  the sample (below), so a wash spanning a free window is free for the part of it
+  inside the window, exactly as the bill will charge it.
+- An unconfigured `rates` is not an error: the wash falls back to
+  `power.rates.tariff`, which is what the rest of the panel uses. It costs zero
+  only where no tariff is configured at all — a supported state this module
+  reports itself inactive in (see the power module), not a silence on this
+  change's part.
 
 Detection runs on the existing power sample tick, off the same HA state read.
 
@@ -312,8 +354,19 @@ below the wash's own pause floor, and on this plug the two are nine days apart
 - A cycle **closes** when the meter has stayed below `endWatts` for
   `endQuietSeconds`. `endedAt` is when it dropped, not when the quiet window
   expired.
-- A closed cycle below `minCycleKwh` is **discarded** — that is the machine's
+- A closed cycle is **kept** when it draws at least `minCycleKwh` **or** runs at
+  least `minCycleMinutes`. Below both it is discarded — that is the machine's
   standby panel or a door-open blip, not a wash.
+- `minCycleMinutes` exists because the energy floor cannot judge a **spin**. A
+  standalone spin is this machine's shortest real cycle at about eleven minutes
+  and draws little, so it integrates *under* `minCycleKwh`: the floor that was
+  meant to drop noise dropped real washes instead. Adeline, 2026-09-27: *"note
+  that the shortest possible cycle is about 11 minutes (standalone spin cycle)"*.
+  Length is what separates the two cases — a wake that never became a wash is
+  seconds long, a spin is minutes — so length is what decides it, and the energy
+  floor only drops what is short *and* faint. Measured: a 6-minute 200 W blip
+  (0.02 kWh, under both) is not a wash; an 11-minute 60 W spin (0.011 kWh, under
+  the energy floor alone) is.
 - Energy is integrated the way `samplePowerUnlocked()` integrates everything
   else: `watts * elapsedHours / 1000`, with the same `maxIntegrationHours` gap
   guard. Cost is struck at the rate in force at the time of the sample, so a
@@ -580,6 +633,78 @@ rules.
 - The old rolling twelve-hour x-axis, and the square-root time compaction that
   went with it, are gone: a wash is placed linearly, at its own clock time.
 
+### 5.3 Laundry — the standalone history page
+
+`/laundry`, Adeline, 2026-09-27: *"set up a standalone page that will be publicly
+accessible on the network. it is for tonya and I to read the full power usage
+history. page it by month. allow for attribution of washes there (data shared
+with the dashboard wash attribution) via dropdown. don't expose any config
+abilities on this page… lay it out more like a power bill: clean. allow it to be
+printed. show totals down the bottom."*
+
+Not a dashboard panel, because the reader is not the dashboard: it is somebody
+with a phone who wants the month's washes and whose they were. It is a **server
+component** — the store is read where it lives, there is no polling and no new
+data endpoint, and the page prints from a plain document.
+
+- **Reach.** A path on the existing origin, never a port: `http://nova.local/laundry`
+  on the LAN and the tailnet name over HTTPS, both of which already route unknown
+  paths to Next.js. Caddy's config gate names admin paths, so this one needs no
+  route added and nothing on it is gated — the household reaches it by typing its
+  name. The only write it can perform is a wash's owner (§4.3).
+- **By month.** A calendar month in the household's own timezone (§4.4), 1st to
+  end. `?month=YYYY-MM` names one; without it the page opens on the first entry of
+  its own step list, which is the **month under way** — the current period, as a
+  bill opens. When that month holds no wash yet the page says `$0.00` and the last
+  month that did is one press of "previous" away; the month under way is in the
+  list whether or not it holds one. The step buttons then move to the previous and
+  next month **that holds a wash** — the step list is the washes plus the month
+  under way, so the only empty month a step can land on is that one, which is the
+  month the page opens on anyway.
+- **One row per wash**: its local date, start, length, energy, cost and who it
+  belongs to. The wash under way is listed first and marked running; it is in no
+  total, because it is nobody's until it closes (§4.3). A wash counts in the
+  calendar month it **ended** — the same bucket the totals use — while its row
+  prints the day it **started**, so a load begun at 11:50 PM on 31 August and
+  finished after midnight is on September's bill, dated `Mon 31 Aug`. Deliberate
+  and consistent with the totals; written down only because a reader may wonder.
+- **The claim is a dropdown**, `ConfigSelect`, one per row, offering each
+  configured person plus Unassigned — the same control the floating meter's
+  category picker uses (§5.1), and each option carries the person's colour. It
+  **names** a person where the panel's block **taps** to the next one; both go
+  through the one store write, so the panel and this page cannot disagree **about
+  what the store holds** — they can show different owners for as long as one of
+  them is stale, since the panel polls and this page is read once, but neither can
+  write something the other will not read. The value written is `manual` either
+  way. A name the household does not configure is refused rather than stored.
+- **The picker never guesses.** The name in the row is the one the page was
+  rendered with, and a pick appears when the refreshed render carrying it
+  (`router.refresh()`) arrives — never before. From the pick until that render the
+  control is **disabled and says `Saving…`**: the write's own round trip *and* the
+  refresh are one wait, so there is no window where the row shows the owner from
+  before the write with an enabled control and nothing to say one is coming. A
+  refused write says `Not saved` and leaves the row showing the store's answer. An
+  **optimistic** value was tried twice and withdrawn twice. Cleared when the
+  response landed, it flicked back to the owner from before the write for as long
+  as the refresh took. Held until the read agreed, it could never clear when the
+  store's answer came back *different* — a wash named from another screen, or by a
+  tap on the panel's own block, between the write and the read — so the row named
+  somebody the store did not hold while the totals and the printed sheet on the
+  same page, rendered from that same store, named somebody else. A control that
+  shows an unconfirmed claim is worse than one that shows it is working.
+- **Bill-shaped**: the period and the plan it was costed at, the plan's unit rate
+  with the date the rates were read, its windows when it has any, the washes, and
+  the totals **at the bottom** — one row per person plus Unassigned, then the
+  month's own line and its average unit cost, which is what a reader compares
+  against the unit rate.
+- **Printable.** A `@media print` sheet: screen furniture (the month nav, the
+  print button, the pickers, the note) is dropped, the sheet goes to paper colours
+  with its rules kept, and each row prints the person's **name** in place of the
+  picker, so a printed bill carries no control and still says whose wash it was.
+  Table headers repeat across pages and a row is never split by one.
+- Unknown, absent or non-`YYYY-MM` `month` falls back to the opening month rather
+  than erroring: this page is read by somebody who may type the URL by hand.
+
 ## 6. Published back to Home Assistant
 
 Through the existing `publishDiscovery()` / `publishPowerState()` MQTT path, on
@@ -701,6 +826,33 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 - A closed wash has a trace file whose `person` follows a later tap.
 - Blocks show their curve and auto blocks are hatched, without overflow at
   kiosk portrait and landscape.
+
+### The machine's plan, its length floor, and the laundry page
+
+- A wash is costed at `washingMachine.rates` when it is configured, and at the
+  household's tariff when it is not. The unit rate in force at the sample decides
+  each part of a wash, so one spanning a window's edge is charged both ways.
+- A window is read against the local day it OPENS: `21:00`-`07:00` is its own
+  window at 2 AM the next morning, and a window with no width matches nothing.
+- A closed cycle at least `minCycleMinutes` long is kept whatever it drew, and
+  one below both floors is dropped: the same 11-minute trace is a wash at 60 W
+  and a blip at 6 minutes.
+- `/laundry` renders with no config surface and no control that writes anything
+  but a wash's owner.
+- It opens on the month under way, steps to the previous and next month that
+  holds a wash, and answers an unknown `?month=` with that same month rather than
+  an error.
+- The totals block's `All washes` line counts the **month's own** washes — the
+  same list its energy and cost are summed over — and never the `Unassigned` row
+  printed above it, which is a bucket rather than a total.
+- A wash named from the page's dropdown is written as `manual`, is visible on the
+  panel's sub-totals and the next poll of `/api/power`, and a name this household
+  does not configure is refused with a 400 and nothing written.
+- The running wash is listed and counted in no total, and its row claims the wash
+  under way rather than a stored cycle.
+- Printing the page yields the period, the plan and its rate, one row per wash
+  with the person's name rather than a picker, and the totals — with no month nav
+  and no print button on the sheet.
 
 ## Status orb wash entry
 

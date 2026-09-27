@@ -93,3 +93,51 @@ describe("tapping a wash block", () => {
     expect(readWash(data).open?.attribution?.source).toBe("manual");
   });
 });
+
+/**
+ * The laundry page's picker names somebody rather than stepping to the next
+ * person (specs/power-meters.md 5.3). It is a different write from a tap, and the
+ * one thing it must never do is store a name this household cannot resolve —
+ * which would read as Unassigned on every surface while the store held it.
+ */
+describe("naming a wash's owner", () => {
+  it("writes the person it was given, not the next one in config order", async () => {
+    const { data, washing } = await withStore({ cycles: [cycle("addie")], open: null, version: 1 });
+
+    await washing.setWashingMachineCyclePerson({ cycleId: "wash-1", person: "tonya" });
+
+    expect(readWash(data).cycles[0].person).toBe("tonya");
+    expect(readWash(data).cycles[0].attribution?.source).toBe("manual");
+  });
+
+  it("clears the owner with null", async () => {
+    const { data, washing } = await withStore({ cycles: [cycle("tonya")], open: null, version: 1 });
+
+    await washing.setWashingMachineCyclePerson({ cycleId: "wash-1", person: null });
+
+    expect(readWash(data).cycles[0].person).toBeNull();
+  });
+
+  it("refuses a person this household does not configure, and stores nothing", async () => {
+    const { data, washing } = await withStore({ cycles: [cycle("addie")], open: null, version: 1 });
+
+    await expect(washing.setWashingMachineCyclePerson({ cycleId: "wash-1", person: "new-person" }))
+      .rejects.toThrow(/not one this household configures/);
+    expect(readWash(data).cycles[0].person).toBe("addie");
+  });
+
+  it("names the wash under way", async () => {
+    const { data, washing } = await withStore({ cycles: [], open: openWash(20).open, version: 1 });
+
+    await washing.setWashingMachineCyclePerson({ active: true, person: "tonya" });
+
+    expect(readWash(data).open?.person).toBe("tonya");
+    expect(readWash(data).open?.attribution?.source).toBe("manual");
+  });
+
+  it("does nothing for a wash the store does not hold", async () => {
+    const { washing } = await withStore({ cycles: [cycle("addie")], open: null, version: 1 });
+
+    expect(await washing.setWashingMachineCyclePerson({ cycleId: "wash-9", person: "tonya" })).toBeNull();
+  });
+});
