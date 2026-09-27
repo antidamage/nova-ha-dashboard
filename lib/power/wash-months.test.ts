@@ -192,7 +192,7 @@ describe("a month's washes, totals and claims", () => {
     // reading on the right wash, and to say nothing about a wash no reading covers
     // rather than calling it cold (§5.3).
     const temperatures = new Map<string, WashTemperature>([
-      [SEPTEMBER.id, { degrees: 40, heatUp: { seconds: 487, watts: 2190 }, source: "degrees" }],
+      [SEPTEMBER.id, { degrees: 40, heatUp: { open: false, seconds: 487, watts: 2190 }, source: "degrees" }],
     ]);
 
     const month = view({ temperatures });

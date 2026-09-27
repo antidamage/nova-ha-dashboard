@@ -53,7 +53,7 @@ const WASH: WashingMachineCycle = {
 /** What the classifier read off this wash's samples; the sheet carries its answer (§5.3). */
 const TEMPERATURE: WashTemperature = {
   degrees: 40,
-  heatUp: { seconds: 487, watts: 2190 },
+  heatUp: { open: false, seconds: 487, watts: 2190 },
   source: "degrees",
 };
 

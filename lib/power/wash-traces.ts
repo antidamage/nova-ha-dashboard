@@ -48,14 +48,20 @@ export async function readWashTemperatures(
   config: WashingMachineConfig,
 ): Promise<Map<string, WashTemperature>> {
   const temperatures = new Map<string, WashTemperature>();
+  // The gap the wash's own timer trusts is the one the samples are read with (§4.5):
+  // two element runs either side of a longer gap are two runs, not one.
+  const maxGapSeconds = config.timer.maxSampleGapSeconds;
   for (const cycle of cyclesInMonth(state.cycles, monthKey, (iso) => localMonthKey(new Date(iso)))) {
-    temperatures.set(cycle.id, washTemperature(await tracePoints(cycle.id), config.temperature, { complete: true }));
+    temperatures.set(
+      cycle.id,
+      washTemperature(await tracePoints(cycle.id), config.temperature, { complete: true, maxGapSeconds }),
+    );
   }
   const open = state.open?.startedAt ? state.open : null;
   if (open?.startedAt && localMonthKey(new Date(open.startedAt)) === monthKey) {
     temperatures.set(
       cyclePlaceholder,
-      washTemperature(await openPoints(open.startedAt), config.temperature, { complete: false }),
+      washTemperature(await openPoints(open.startedAt), config.temperature, { complete: false, maxGapSeconds }),
     );
   }
   return temperatures;

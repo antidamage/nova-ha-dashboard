@@ -216,7 +216,10 @@ export async function readWashDetail(id: string) {
     rate: washMonthRate(new Date()),
     running,
     // A wash still running has not finished heating: its temperature is named only
-    // once the element's own run is in the trace (§5.3).
-    temperature: washTemperature(points, config.temperature, { complete: !running }),
+    // once the element's own run is over in the trace (§5.3).
+    temperature: washTemperature(points, config.temperature, {
+      complete: !running,
+      maxGapSeconds: config.timer.maxSampleGapSeconds,
+    }),
   });
 }

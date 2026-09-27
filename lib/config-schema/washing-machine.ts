@@ -138,29 +138,40 @@ const WashingMachineConfigSchema = z.object({
    * is the only trace of the button that was pressed, and a wash with no plateau at
    * all is a cold cycle.
    *
-   * The numbers are this machine's, measured from its own traces: 487 s of heat-up
-   * was a 40° cycle and 899 s was a 60°, which is a 15 °C fill and about 19.5 s of
-   * heating per degree of rise.
+   * The numbers are this machine's, measured from its own traces and labelled by
+   * Adeline: its 899 s heat-up was a **40°** cycle and its 487 s one a cooler cycle —
+   * which a linear rise from real mains water makes **30°**, since 487 s as 20° would
+   * need a fill below freezing. That is an 18 °C fill and about 41 s of heating per
+   * degree of rise, so the 20° button heats for about 82 s and the floor below has to
+   * sit under that, or the coolest cycle a wash can be set to would read as a cold one
+   * (§5.3).
    */
   temperature: z
     .object({
       /** At or above this the element is on: a 2 kW heater draws about 2.2 kW. */
       heaterWatts: z.number().positive().default(1500),
       /** What the water comes in at, which the rise is measured from. */
-      inletDegrees: z.number().nonnegative().default(15),
+      inletDegrees: z.number().nonnegative().default(18),
       /** Seconds of heating for each degree the machine has to raise the water. */
-      secondsPerDegree: z.number().positive().default(19.5),
+      secondsPerDegree: z.number().positive().default(41),
       /** The buttons the machine offers: a measured rise snaps to one of them. */
       options: z.array(z.number().positive()).min(1).default([20, 30, 40, 60, 90]),
       /** Shorter than this is the element topping up, not a cycle's heat-up. */
-      minimumSeconds: z.number().positive().default(120),
+      minimumSeconds: z.number().positive().default(60),
+      /**
+       * A run of the element that **starts** later than this is holding a
+       * temperature, not bringing a load up: this machine's own heat-ups begin 11 to
+       * 14 minutes in, and a longer top-up afterwards must not be read as one.
+       */
+      heatUpBySeconds: z.number().positive().default(1080),
     })
     .default({
       heaterWatts: 1500,
-      inletDegrees: 15,
-      minimumSeconds: 120,
+      heatUpBySeconds: 1080,
+      inletDegrees: 18,
+      minimumSeconds: 60,
       options: [20, 30, 40, 60, 90],
-      secondsPerDegree: 19.5,
+      secondsPerDegree: 41,
     }),
   /**
    * The person an unclaimed wash belongs to: nobody claimed it, so it was not

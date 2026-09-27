@@ -712,37 +712,49 @@ data endpoint, and the page prints from a plain document.
   only: nothing asks for it on paper, where the claim prints as a name.
 - **Every column, at every width** (Adeline, 2026-09-27: *"Always show every column
   even if collapsed, they can just wrap"*). The phone layout used to drop Start and
-  Length and hide the header row to fit the screen; it now keeps all six columns and
+  Length and hide the header row to fit the screen; it now keeps all seven columns and
   the ruled table, and a cell that does not fit **wraps or breaks inside its own
   column**. That is what `table-layout: fixed` buys: an automatic layout sizes a
   table to its cells' min-content, the claim field's min-content is a form control's,
   and the six columns therefore came out wider than the phone and panned the whole
   page sideways — the reason the columns were dropped in the first place. The claim
   field's column keeps a third of the table and its 16px font, because iOS zooms a
-  phone's page in on a smaller control; the five figures share what is left.
+  phone's page in on a smaller control; the figures share what is left.
 - **The temperature the cycle was set to**, read from the wash's own heat-up
   (Adeline, 2026-09-27: *"Identify hot by the 2000w plateau at the beginning and mark
   those as hot and add it as a column. Everything else is cold... the options are
   cold, 20, 30, 40, 60, and 90."*). The element is the only part of a cycle that
   draws kilowatts, and it runs until the water reaches the thermostat's target — so
-  the trace carries the temperature as a **duration**: the longest unbroken run of
-  samples at the element's own draw is the water being brought up, and its length is
-  linear in the rise the machine had to make from the mains it filled from. The rise
-  is snapped to the buttons the machine actually offers, so the column reads `Cold`,
-  `20°`, `30°`, `40°`, `60°` or `90°`. A wash whose trace cannot say — nothing kept,
-  or one still running whose heat-up may not have happened yet — reads `—`, which is
-  deliberately **not** `Cold`: nothing read is nothing said, while a finished wash
-  with no element in its trace is a cold cycle and is marked as one.
+  the trace carries the temperature as a **duration**: the element's own run is the
+  water being brought up, and its length is linear in the rise the machine had to make
+  from the mains it filled from. The rise is snapped to the buttons the machine
+  actually offers, so the column reads `Cold`, `20°`, `30°`, `40°`, `60°` or `90°`.
+  A wash whose trace cannot say reads `—`, which is deliberately **not** `Cold`:
+  nothing read is nothing said, while a finished wash with no element in its trace is
+  a cold cycle and is marked as one.
   - The numbers live in `power.washingMachine.temperature` on the household config
-    (§4.1's rule: a threshold is a number, not code), and they are this machine's
-    own, measured from its traces: **487 s** of heat-up at 2.19 kW was a **40°**
-    cycle — the example that labelled this feature — and **899 s** at 2.16 kW was a
-    **60°**, which is a 15 °C fill and about 19.5 s of heating per degree of rise.
-    One measurement plus the rise it implies is what names the other: nothing was
-    tuned to make the second one come out at 60.
-  - A run shorter than `minimumSeconds` is the element topping up a temperature it
-    is holding, not bringing a load up, and reads as no heat-up at all — so a cold
-    cycle that re-heats briefly is still cold.
+    (§4.1's rule: a threshold is a number, not code), and they are this machine's own,
+    labelled by the person who ran the washes: the **899 s** heat-up of 19 September
+    was a **40°** cycle and the **487 s** one of 25 September a **30°** — an 18 °C fill
+    and about 41 s of heating per degree of rise. Adeline, 2026-09-27, correcting a
+    first attempt that had read the shorter heat-up as the hotter wash: *"the first
+    reading chronologically is probably 40 degrees and the later one is a lower
+    temperature"*. The pair is what pins the line, and the physics is the cross-check
+    on it: 487 s as a 20° cycle would need the mains to fill below freezing, so a
+    cooler-than-40° reading of that wash can only be 30.
+  - **The run has to start early** (`heatUpBySeconds`), which is the plateau the owner
+    pointed at. A cycle that holds a temperature re-heats in bursts as the water
+    cools, and a burst like that can outlast a short heat-up, so only a run opening
+    inside the window a heat-up occupies is the load being brought up. A run shorter
+    than `minimumSeconds` reads as no heat-up at all — and that floor sits **under the
+    20° button's own 82 s** (the arithmetic below), because a floor above it would make
+    the coolest cycle the machine offers read as a cold one.
+  - **A sampling gap ends a run.** The meter says nothing about the stretch it did not
+    observe, so two element draws either side of a gap longer than the wash timer's own
+    `maxSampleGapSeconds` (§4.5) are two runs rather than one long one.
+  - **A running wash whose element is still on is unmeasured, not named**: the rise it
+    shows is partial, and a partial rise names a cooler cycle than the one that was
+    chosen. It is named on the next read, once the element has stopped.
   - The classifier is pure (`lib/power/wash-temperature.ts`) and the traces it reads
     are `lib/power/wash-traces.ts`'s, which are the same readers the panel's blocks
     use for the same files (§5.2): one reader per trace shape, so the sheet, the
@@ -778,7 +790,7 @@ data endpoint, and the page prints from a plain document.
   2026-09-27: *"We need to be able to click into the entry and see all the details
   including the power graph for that run in high detail."* **The whole row is the
   target**, because on a phone the row is what a finger goes for while a date inside
-  six columns is the width of two words. What is *not* a target is the claim field in
+  a ruled table is the width of two words. What is *not* a target is the claim field in
   that row: a tap that lands on a control is a claim, and the row's own click leaves it
   alone. The date carries a real `<a>` as well, so the row is reachable by keyboard and
   read as a link — the click on the row is the pointer's convenience on top of a link

@@ -112,7 +112,7 @@ export function buildWashMonth(options: {
   const { state, now, people, rate, temperatures } = options;
   const months = washMonths(state, now);
   const monthKey = washMonthOnShow(state, options.requested, now);
-  const unmeasured: WashTemperature = { degrees: null, heatUp: { seconds: 0, watts: 0 }, source: "unmeasured" };
+  const unmeasured: WashTemperature = { degrees: null, heatUp: { open: false, seconds: 0, watts: 0 }, source: "unmeasured" };
   const of = (id: string) => temperatures.get(id) ?? unmeasured;
   const cycles = cyclesInMonth(state.cycles, monthKey, (iso) => localMonthKey(new Date(iso)))
     .map((cycle) => monthCycle(cycle, of(cycle.id)));

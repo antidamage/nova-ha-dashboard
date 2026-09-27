@@ -18,7 +18,7 @@ export const CONFIG: WashingMachineConfig = {
   minCycleKwh: 0.05,
   minCycleMinutes: 11,
   timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 2 },
-  temperature: { heaterWatts: 1500, inletDegrees: 15, minimumSeconds: 120, options: [20, 30, 40, 60, 90], secondsPerDegree: 19.5 },
+  temperature: { heaterWatts: 1500, heatUpBySeconds: 1080, inletDegrees: 18, minimumSeconds: 60, options: [20, 30, 40, 60, 90], secondsPerDegree: 41 },
 };
 
 export const SAMPLE_SECONDS = 30;
