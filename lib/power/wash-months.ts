@@ -17,6 +17,7 @@ import {
 import { wallClockLabel, washDurationLabel } from "../washing-machine/history-model";
 import { localMonthKey, localParts, localWallMs, monthNames } from "./calendar";
 import type { WashMonthCycle, WashMonthRate, WashMonthView } from "./types";
+import type { WashTemperature } from "./wash-temperature";
 
 const FULL_MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -58,8 +59,21 @@ export function washMonths(state: WashingMachineState, now: Date) {
   return withWashes.includes(current) ? withWashes : [current, ...withWashes];
 }
 
-/** A wash as the page lists it: its local date, start time and length. */
-function monthCycle(cycle: WashingMachineCycle): WashMonthCycle {
+/**
+ * The month a page opens on: the one asked for when the store holds a wash in it,
+ * and the step list's first entry otherwise — which is the month under way (§5.3).
+ *
+ * One function, because the page's own read has to know which month it is about to
+ * show *before* it builds the view: that is the month whose washes it reads the
+ * traces of, for their temperatures.
+ */
+export function washMonthOnShow(state: WashingMachineState, requested: string | null, now: Date) {
+  const months = washMonths(state, now);
+  return requested && months.includes(requested) ? requested : months[0];
+}
+
+/** A wash as the page lists it: its local date, start time, length and temperature. */
+function monthCycle(cycle: WashingMachineCycle, temperature: WashTemperature): WashMonthCycle {
   const from = Date.parse(cycle.startedAt);
   const parts = localParts(new Date(from));
   return {
@@ -67,6 +81,7 @@ function monthCycle(cycle: WashingMachineCycle): WashMonthCycle {
     dateLabel: `${parts.weekday} ${Number(parts.day)} ${monthNames[parts.month - 1]}`,
     durationLabel: washDurationLabel(Date.parse(cycle.endedAt) - from),
     startLabel: wallClockLabel(localWallMs(new Date(from))),
+    temperature,
   };
 }
 
@@ -87,12 +102,20 @@ export function buildWashMonth(options: {
   now: Date;
   people: HouseholdPerson[];
   rate: WashMonthRate;
+  /**
+   * What each wash's own trace says about its temperature, by cycle id — read by
+   * the caller, because it is disk (§5.3). A wash the map does not hold is
+   * **unmeasured** rather than cold: nothing was read about it, so nothing is said.
+   */
+  temperatures: ReadonlyMap<string, WashTemperature>;
 }): WashMonthView {
-  const { state, now, people, rate } = options;
+  const { state, now, people, rate, temperatures } = options;
   const months = washMonths(state, now);
-  const monthKey = options.requested && months.includes(options.requested) ? options.requested : months[0];
+  const monthKey = washMonthOnShow(state, options.requested, now);
+  const unmeasured: WashTemperature = { degrees: null, heatUp: { seconds: 0, watts: 0 }, source: "unmeasured" };
+  const of = (id: string) => temperatures.get(id) ?? unmeasured;
   const cycles = cyclesInMonth(state.cycles, monthKey, (iso) => localMonthKey(new Date(iso)))
-    .map(monthCycle);
+    .map((cycle) => monthCycle(cycle, of(cycle.id)));
   const index = months.indexOf(monthKey);
   const open = state.open?.startedAt ? state.open : null;
   return {
@@ -110,7 +133,7 @@ export function buildWashMonth(options: {
           kwh: open.kwh,
           person: open.person ?? null,
           startedAt: open.startedAt!,
-        })
+        }, of(cyclePlaceholder))
       : null,
     totals: monthTotals(cycles, people.map((person) => person.id)),
     people,

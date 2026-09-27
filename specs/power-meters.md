@@ -697,8 +697,8 @@ data endpoint, and the page prints from a plain document.
   next month **that holds a wash** — the step list is the washes plus the month
   under way, so the only empty month a step can land on is that one, which is the
   month the page opens on anyway.
-- **One row per wash**: its local date, start, length, energy, cost and who it
-  belongs to. The wash under way is listed first and marked running; it is in no
+- **One row per wash**: its local date, start, length, temperature, energy, cost
+  and who it belongs to. The wash under way is listed first and marked running; it is in no
   total, because it is nobody's until it closes (§4.3). A wash counts in the
   calendar month it **ended** — the same bucket the totals use — while its row
   prints the day it **started**, so a load begun at 11:50 PM on 31 August and
@@ -720,6 +720,33 @@ data endpoint, and the page prints from a plain document.
   page sideways — the reason the columns were dropped in the first place. The claim
   field's column keeps a third of the table and its 16px font, because iOS zooms a
   phone's page in on a smaller control; the five figures share what is left.
+- **The temperature the cycle was set to**, read from the wash's own heat-up
+  (Adeline, 2026-09-27: *"Identify hot by the 2000w plateau at the beginning and mark
+  those as hot and add it as a column. Everything else is cold... the options are
+  cold, 20, 30, 40, 60, and 90."*). The element is the only part of a cycle that
+  draws kilowatts, and it runs until the water reaches the thermostat's target — so
+  the trace carries the temperature as a **duration**: the longest unbroken run of
+  samples at the element's own draw is the water being brought up, and its length is
+  linear in the rise the machine had to make from the mains it filled from. The rise
+  is snapped to the buttons the machine actually offers, so the column reads `Cold`,
+  `20°`, `30°`, `40°`, `60°` or `90°`. A wash whose trace cannot say — nothing kept,
+  or one still running whose heat-up may not have happened yet — reads `—`, which is
+  deliberately **not** `Cold`: nothing read is nothing said, while a finished wash
+  with no element in its trace is a cold cycle and is marked as one.
+  - The numbers live in `power.washingMachine.temperature` on the household config
+    (§4.1's rule: a threshold is a number, not code), and they are this machine's
+    own, measured from its traces: **487 s** of heat-up at 2.19 kW was a **40°**
+    cycle — the example that labelled this feature — and **899 s** at 2.16 kW was a
+    **60°**, which is a 15 °C fill and about 19.5 s of heating per degree of rise.
+    One measurement plus the rise it implies is what names the other: nothing was
+    tuned to make the second one come out at 60.
+  - A run shorter than `minimumSeconds` is the element topping up a temperature it
+    is holding, not bringing a load up, and reads as no heat-up at all — so a cold
+    cycle that re-heats briefly is still cold.
+  - The classifier is pure (`lib/power/wash-temperature.ts`) and the traces it reads
+    are `lib/power/wash-traces.ts`'s, which are the same readers the panel's blocks
+    use for the same files (§5.2): one reader per trace shape, so the sheet, the
+    bill and the graph cannot disagree about what a wash drew.
 - **The claim is a plain `<select>`**, one per row, offering each configured
   person plus Unassigned. Explicitly **not** `ConfigSelect`: that is the app's
   themed, portalled listbox, and a menu on `document.body` carrying the dashboard's

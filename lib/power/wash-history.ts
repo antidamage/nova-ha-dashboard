@@ -1,7 +1,6 @@
 // The wash graph's day blocks in the household's own timezone: the day an
 // instant falls in, the days that hold a wash, and one day's washes with the
 // labels and curve each is drawn with. See specs/power-meters.md 5.2.
-import path from "path";
 import { readDashboardConfigSync } from "../dashboard-config";
 import { blankWashingMachineState, cycleId, downsampleTrace, type WashingMachineCycle, type WashingMachineState } from "../washing-machine";
 import {
@@ -12,14 +11,14 @@ import {
   WASH_BLOCK_MS,
 } from "../washing-machine/history-model";
 import { localInstantMs, localParts, localWallMs, monthNames } from "./calendar";
-import { readJson, WASH_TRACE_DIR, WASHING_MACHINE_PATH, powerConfig } from "./store";
+import { readJson, WASHING_MACHINE_PATH, powerConfig } from "./store";
 import { currentRate } from "./tariff";
-import type { OpenWashTrace, WashBlock, WashGraphCycle, WashHistory, WashMonthRate, WashTraceFile } from "./types";
-import { buildWashDetail, type WashDetailSample } from "./wash-detail";
-import { buildWashMonth, cyclePlaceholder } from "./wash-months";
+import type { WashBlock, WashGraphCycle, WashHistory, WashMonthRate } from "./types";
+import { buildWashDetail } from "./wash-detail";
+import { washTemperature } from "./wash-temperature";
+import { openPoints, readWashTemperatures, tracePoints } from "./wash-traces";
+import { buildWashMonth, cyclePlaceholder, washMonthOnShow } from "./wash-months";
 import { washRates } from "./washing-rates";
-
-const OPEN_TRACE_PATH = path.join(WASH_TRACE_DIR, "open.json");
 
 /** The local day an instant falls in, labelled in the household's timezone. */
 export function washBlockOf(atMs: number): WashBlock {
@@ -53,14 +52,13 @@ export function washBlockStarts(state: WashingMachineState, now: Date) {
   return [...starts].sort((a, b) => a - b);
 }
 
-/** A wash's own watts, from its trace file, or the open trace while it runs. */
+/**
+ * A wash's own watts, from its trace file, or the open trace while it runs:
+ * downsampled to the 48 points a block on the panel's card is drawn from (§5.2),
+ * through the same readers the laundry page's sheets use for the same files.
+ */
 async function readCurve(cycle: WashGraphCycle) {
-  if (cycle.active) {
-    const open = await readJson<OpenWashTrace | null>(OPEN_TRACE_PATH, null);
-    return downsampleTrace(open && open.anchor === cycle.startedAt ? open.points : []);
-  }
-  const trace = await readJson<WashTraceFile | null>(path.join(WASH_TRACE_DIR, `${cycle.id}.json`), null);
-  return downsampleTrace(trace?.points ?? []);
+  return downsampleTrace(cycle.active ? await openPoints(cycle.startedAt) : await tracePoints(cycle.id));
 }
 
 /**
@@ -128,17 +126,23 @@ export async function buildWashHistory(
  * rendering an empty bill for a household that has none.
  */
 export async function readWashMonth(requested: string | null) {
-  if (!powerConfig().washingMachine) {
+  const config = powerConfig().washingMachine;
+  if (!config) {
     return null;
   }
   const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
   const now = new Date();
+  const state = { ...blankWashingMachineState(), ...persisted };
+  // Which month is on show has to be settled first: it is that month's washes whose
+  // traces are read for their temperatures (§5.3).
+  const monthKey = washMonthOnShow(state, requested, now);
   return buildWashMonth({
-    state: { ...blankWashingMachineState(), ...persisted },
+    state,
     requested,
     now,
     people: readDashboardConfigSync().dashboard.people ?? [],
     rate: washMonthRate(now),
+    temperatures: await readWashTemperatures(state, monthKey, config),
   });
 }
 
@@ -171,21 +175,6 @@ function washMonthRate(now: Date): WashMonthRate {
   };
 }
 
-/** A closed wash's own samples, in the shape its trace file keeps (§4.6). */
-async function tracePoints(id: string): Promise<WashDetailSample[]> {
-  const trace = await readJson<WashTraceFile | null>(path.join(WASH_TRACE_DIR, `${id}.json`), null);
-  return trace?.points ?? [];
-}
-
-/** The open wash's samples, rebased onto the instant it started. */
-function openPoints(trace: OpenWashTrace | null, startedAt: string): WashDetailSample[] {
-  if (!trace || trace.anchor !== startedAt) {
-    return [];
-  }
-  const start = Date.parse(startedAt) / 1000;
-  return trace.points.map(([at, value]): WashDetailSample => [Math.round(at - start), value]);
-}
-
 /**
  * One wash, for the laundry page's detail sheet: the cycle, its own samples at
  * the resolution the meter kept them, and the plan it was costed at (§5.3).
@@ -195,7 +184,8 @@ function openPoints(trace: OpenWashTrace | null, startedAt: string): WashDetailS
  * rather than rendering an empty sheet for a URL somebody typed by hand.
  */
 export async function readWashDetail(id: string) {
-  if (!powerConfig().washingMachine) {
+  const config = powerConfig().washingMachine;
+  if (!config) {
     return null;
   }
   const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
@@ -218,11 +208,15 @@ export async function readWashDetail(id: string) {
   if (!cycle) {
     return null;
   }
+  const points = running ? await openPoints(cycle.startedAt) : await tracePoints(cycle.id);
   return buildWashDetail({
     cycle,
     people: readDashboardConfigSync().dashboard.people ?? [],
-    points: running ? openPoints(await readJson<OpenWashTrace | null>(OPEN_TRACE_PATH, null), cycle.startedAt) : await tracePoints(cycle.id),
+    points,
     rate: washMonthRate(new Date()),
     running,
+    // A wash still running has not finished heating: its temperature is named only
+    // once the element's own run is in the trace (§5.3).
+    temperature: washTemperature(points, config.temperature, { complete: !running }),
   });
 }

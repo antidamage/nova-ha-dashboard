@@ -132,6 +132,37 @@ const WashingMachineConfigSchema = z.object({
     stopWatts: 2,
   }),
   /**
+   * What a wash's own heat-up says about the cycle temperature somebody chose
+   * (§5.3). The element is the only part of a cycle that draws kilowatts, and it
+   * runs until the water reaches the thermostat's target — so the plateau's length
+   * is the only trace of the button that was pressed, and a wash with no plateau at
+   * all is a cold cycle.
+   *
+   * The numbers are this machine's, measured from its own traces: 487 s of heat-up
+   * was a 40° cycle and 899 s was a 60°, which is a 15 °C fill and about 19.5 s of
+   * heating per degree of rise.
+   */
+  temperature: z
+    .object({
+      /** At or above this the element is on: a 2 kW heater draws about 2.2 kW. */
+      heaterWatts: z.number().positive().default(1500),
+      /** What the water comes in at, which the rise is measured from. */
+      inletDegrees: z.number().nonnegative().default(15),
+      /** Seconds of heating for each degree the machine has to raise the water. */
+      secondsPerDegree: z.number().positive().default(19.5),
+      /** The buttons the machine offers: a measured rise snaps to one of them. */
+      options: z.array(z.number().positive()).min(1).default([20, 30, 40, 60, 90]),
+      /** Shorter than this is the element topping up, not a cycle's heat-up. */
+      minimumSeconds: z.number().positive().default(120),
+    })
+    .default({
+      heaterWatts: 1500,
+      inletDegrees: 15,
+      minimumSeconds: 120,
+      options: [20, 30, 40, 60, 90],
+      secondsPerDegree: 19.5,
+    }),
+  /**
    * The person an unclaimed wash belongs to: nobody claimed it, so it was not
    * the primary person's. Absent leaves such a wash Unassigned, which is what a
    * household with nobody else in it wants. Must name a configured person.

@@ -13,6 +13,7 @@ import type { WashingMachineCycle } from "../washing-machine";
 import { wallClockLabel, washDurationLabel } from "../washing-machine/history-model";
 import { localMonthKey, localParts, localWallMs, monthNames } from "./calendar";
 import type { WashMonthRate } from "./types";
+import type { WashTemperature } from "./wash-temperature";
 
 /** One sample of the run: seconds since it started, and the watts at that moment. */
 export type WashDetailSample = [number, number];
@@ -48,6 +49,8 @@ export type WashDetail = {
   points: WashDetailSample[];
   /** The month the bill counts it in — the one it ended in (§5.3). */
   monthKey: string;
+  /** The cycle's temperature, as this wash's own samples show it (§5.3). */
+  temperature: WashTemperature;
   rate: WashMonthRate;
   people: HouseholdPerson[];
 };
@@ -66,8 +69,10 @@ export function buildWashDetail(options: {
   rate: WashMonthRate;
   people: HouseholdPerson[];
   running: boolean;
+  /** Read from these same samples by the caller, which holds the machine's own numbers (§5.3). */
+  temperature: WashTemperature;
 }): WashDetail {
-  const { cycle, points, rate, people, running } = options;
+  const { cycle, points, rate, people, running, temperature } = options;
   const from = Date.parse(cycle.startedAt);
   const to = Date.parse(cycle.endedAt);
   const parts = localParts(new Date(from));
@@ -94,6 +99,7 @@ export function buildWashDetail(options: {
     running,
     samples: points.length,
     startLabel: wallClockLabel(localWallMs(new Date(from))),
+    temperature,
   };
 }
 

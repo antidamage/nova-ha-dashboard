@@ -6,6 +6,7 @@ import type {
   WashRateWindow,
 } from "../config-schema";
 import type { PowershopEstimateCalibration } from "../power-estimation";
+import type { WashTemperature } from "./wash-temperature";
 import type {
   WashAttribution,
   WashingMachineCycle,
@@ -169,6 +170,8 @@ export type WashMonthCycle = WashingMachineCycle & {
   durationLabel: string;
   /** The local time it started, e.g. `11:00 AM`. */
   startLabel: string;
+  /** The cycle's temperature, as its own samples show it. */
+  temperature: WashTemperature;
 };
 
 /** The plan a month's washes were costed at, as the page states it. */

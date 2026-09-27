@@ -90,6 +90,7 @@ describe("the laundry page's chrome", () => {
       "page.tsx",
       "laundry-client.tsx",
       "laundry-row.tsx",
+      "wash-table.tsx",
       "wash-graph.tsx",
       "bill-format.ts",
       join("[id]", "page.tsx"),
@@ -134,9 +135,21 @@ describe("the laundry page's paper", () => {
     // Adeline, 2026-09-27: "use the background colour associated with the user
     // claiming it". The colour is the store's answer, through the month view's
     // own lookup, so the page cannot show a person the panel would not.
-    const page = readFileSync(join(appDir, "laundry", "page.tsx"), "utf8");
+    // The table is a sibling of the page — the bill's own file is against the 10 KB
+    // cap — so the row's colour is read where the row is drawn.
+    const table = readFileSync(join(appDir, "laundry", "wash-table.tsx"), "utf8");
 
-    expect(page).toContain("style={{ background: washClaimColor(cycle.person, view.people) }}");
+    expect(table).toContain("style={{ background: washClaimColor(cycle.person, people) }}");
+  });
+
+  it("has a temperature column, and the claim field's width follows the columns", () => {
+    // The column is last-but-one now and the claim field is last; its width is
+    // keyed to that, not to an index that moves when a column arrives (§5.3).
+    const table = readFileSync(join(appDir, "laundry", "wash-table.tsx"), "utf8");
+
+    expect(table).toContain('<th scope="col">Temp</th>');
+    expect(table).toContain("{temperatureLabel(cycle.temperature)}");
+    expect(globalsCss).toContain(".laundry-table th:last-child {");
   });
 
   it("keeps every column on a phone, wrapping rather than dropping one", () => {

@@ -7,6 +7,7 @@ const at = Date.parse("2026-09-14T00:00:00Z");
 const drying = { hours: 4, daylightHours: 3, maxRainMm: 0.1, maxRainChancePct: 30 };
 const config: WashingMachineConfig = { powerSensorEntityId: "sensor.test", entityIds: ["switch.test"], startWatts: 15, startSustainedSeconds: 120, endWatts: 5, endQuietSeconds: 300, minCycleKwh: 0.05, minCycleMinutes: 11,
   timer: { extendMinutes: 10, firstPeriodMinutes: 70, maxSampleGapSeconds: 90, stopSeconds: 120, stopWatts: 5 },
+  temperature: { heaterWatts: 1500, inletDegrees: 15, minimumSeconds: 120, options: [20, 30, 40, 60, 90], secondsPerDegree: 19.5 },
   completionAlert: { enabled: true, personId: "owner", discord: true, drying } };
 function running(person: string | null = "owner", kwh = 0.2): WashingMachineState {
   return { version: 1, cycles: [], open: { person, kwh, costNzd: 0.1, startedAt: new Date(at - 600000).toISOString(), aboveSince: null, belowSince: null, lastSampleAt: new Date(at - 30000).toISOString(), lastWatts: 200 } };

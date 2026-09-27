@@ -388,10 +388,11 @@ body:has(.laundry-page) {
   }
 
   /* The claim field is the widest thing in a row and the one cell that cannot
-     wrap, so its column is given the width the field needs and the five figures
-     share what is left. The field keeps its 16px: iOS zooms a phone's whole page
-     in on a control it renders under that (§5.3). */
-  .laundry-table th:nth-child(6) {
+     wrap, so its column — the **last** one, and a selector that stays right when
+     another column arrives (§5.3) — is given the width the field needs, and the
+     figures share what is left. The field keeps its 16px: iOS zooms a phone's whole
+     page in on a control it renders under that (§5.3). */
+  .laundry-table th:last-child {
     width: 34%;
   }
 
