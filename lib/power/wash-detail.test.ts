@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HouseholdPerson } from "../config-schema";
 import type { WashingMachineCycle, WashingMachineState } from "../washing-machine";
 import { buildWashDetail, wattsAxis } from "./wash-detail";
+import type { WashTemperature } from "./wash-temperature";
 import {
   cleanupWashStores,
   CONFIG,
@@ -49,8 +50,15 @@ const WASH: WashingMachineCycle = {
   startedAt: "2026-09-18T21:10:00.000Z",
 };
 
+/** What the classifier read off this wash's samples; the sheet carries its answer (§5.3). */
+const TEMPERATURE: WashTemperature = {
+  degrees: 40,
+  heatUp: { seconds: 487, watts: 2190 },
+  source: "degrees",
+};
+
 const detail = (points: Array<[number, number]>, cycle: WashingMachineCycle = WASH) =>
-  buildWashDetail({ cycle, people: PEOPLE, points, rate: RATE, running: false });
+  buildWashDetail({ cycle, people: PEOPLE, points, rate: RATE, running: false, temperature: TEMPERATURE });
 
 describe("one wash's own sheet", () => {
   it("labels the run in the household's own timezone", () => {
@@ -98,6 +106,7 @@ describe("one wash's own sheet", () => {
       points: [],
       rate: RATE,
       running: false,
+      temperature: TEMPERATURE,
     }).cPerKwh).toBeNull();
   });
 
@@ -106,6 +115,10 @@ describe("one wash's own sheet", () => {
     const across = { ...WASH, endedAt: "2026-08-31T12:40:00.000Z", startedAt: "2026-08-31T11:50:00.000Z" };
 
     expect(detail([[0, 12]], across).monthKey).toBe("2026-09");
+  });
+
+  it("carries the temperature its samples were read for", () => {
+    expect(detail([[0, 12], [4200, 8]]).temperature.degrees).toBe(40);
   });
 
   it("says a wash with no samples plainly rather than inventing a curve", () => {

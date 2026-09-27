@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HouseholdPerson } from "../config-schema";
 import type { WashingMachineCycle, WashingMachineState } from "../washing-machine";
+import type { WashTemperature } from "./wash-temperature";
 import { buildWashMonth, washClaimColor, washMonthLabel, washMonths } from "./wash-months";
 
 /**
@@ -44,13 +45,22 @@ const AUGUST: WashingMachineCycle = {
 const state = (cycles: WashingMachineCycle[], open: WashingMachineState["open"] = null): WashingMachineState =>
   ({ cycles, open, version: 1 });
 
-const view = (overrides: { cycles?: WashingMachineCycle[]; open?: WashingMachineState["open"]; requested?: string | null; now?: Date } = {}) =>
+const view = (
+  overrides: {
+    cycles?: WashingMachineCycle[];
+    open?: WashingMachineState["open"];
+    requested?: string | null;
+    now?: Date;
+    temperatures?: Map<string, WashTemperature>;
+  } = {},
+) =>
   buildWashMonth({
     now: overrides.now ?? new Date("2026-09-25T00:00:00.000Z"),
     people: PEOPLE,
     rate: RATE,
     requested: overrides.requested ?? null,
     state: state(overrides.cycles ?? [SEPTEMBER, AUGUST], overrides.open ?? null),
+    temperatures: overrides.temperatures ?? new Map(),
   });
 
 describe("the months a page can step through", () => {
@@ -175,6 +185,22 @@ describe("a month's washes, totals and claims", () => {
 
   it("states the plan its costs were struck at", () => {
     expect(view().rate.planName).toBe("Contact Energy Basic");
+  });
+
+  it("carries the temperature each wash's own trace was read for", () => {
+    // Read by the caller — the traces are disk — so the view's job is to put each
+    // reading on the right wash, and to say nothing about a wash no reading covers
+    // rather than calling it cold (§5.3).
+    const temperatures = new Map<string, WashTemperature>([
+      [SEPTEMBER.id, { degrees: 40, heatUp: { seconds: 487, watts: 2190 }, source: "degrees" }],
+    ]);
+
+    const month = view({ temperatures });
+
+    expect(month.cycles.find((cycle) => cycle.id === SEPTEMBER.id)?.temperature.degrees).toBe(40);
+    // And a wash no reading covers says nothing about its temperature, rather than
+    // being called cold for want of one.
+    expect(view().cycles[0].temperature.source).toBe("unmeasured");
   });
 });
 

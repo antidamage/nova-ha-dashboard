@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
 import { readWashMonth } from "../../lib/power";
-import { washClaimColor } from "../../lib/power/wash-months";
 import { isDemoMode } from "../shell/layout-data";
 import { kwh, money } from "./bill-format";
-import { LaundryPrint, WashWhoSelect } from "./laundry-client";
-import { WashRow } from "./laundry-row";
+import { LaundryPrint } from "./laundry-client";
+import { WashTable } from "./wash-table";
 
 // The washing machine's own power history, page by month, for the household to
 // read and to claim a wash from — a standalone page rather than a dashboard
@@ -138,47 +137,7 @@ export default async function LaundryPage({ searchParams }: { searchParams: Prom
 
         <section className="laundry-block">
           <h2 className="laundry-caption">Washes</h2>
-          <table className="laundry-table">
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Start</th>
-                <th scope="col">Length</th>
-                <th scope="col" className="is-number">Energy</th>
-                <th scope="col" className="is-number">Cost</th>
-                <th scope="col">Claimed by</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Whose wash it is: the panel's colour for that person (§5.2). */}
-              {rows.map((cycle) => (
-                <WashRow
-                  className={cycle === view.running ? "laundry-row is-running" : "laundry-row"}
-                  href={`/laundry/${cycle.id}`}
-                  key={cycle.id}
-                  style={{ background: washClaimColor(cycle.person, view.people) }}
-                >
-                  <td>
-                    <Link className="laundry-row-link" href={`/laundry/${cycle.id}`}>
-                      {cycle.dateLabel}
-                    </Link>
-                  </td>
-                  <td>{cycle.startLabel}</td>
-                  <td>{cycle.durationLabel}{cycle === view.running ? " — running" : ""}</td>
-                  <td className="is-number">{kwh(cycle.kwh)}</td>
-                  <td className="is-number">{money(cycle.costNzd)}</td>
-                  <td>
-                    <WashWhoSelect active={cycle === view.running} cycleId={cycle.id} people={view.people} person={cycle.person} />
-                  </td>
-                </WashRow>
-              ))}
-              {rows.length === 0 ? (
-                <tr className="laundry-row is-empty">
-                  <td colSpan={6}>No washes this month.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+          <WashTable people={view.people} rows={rows} running={view.running} />
         </section>
 
         <section className="laundry-block laundry-block-totals">

@@ -49,6 +49,7 @@ export type {
   WashMonthRate,
   WashMonthView,
 } from "./power/types";
+export type { WashHeatUp, WashTemperature } from "./power/wash-temperature";
 export {
   readActiveFloatingCategoryId,
   readAmpAutomation,

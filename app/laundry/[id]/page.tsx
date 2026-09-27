@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { readWashDetail } from "../../../lib/power";
 import { washMonthLabel } from "../../../lib/power/wash-months";
 import { isDemoMode } from "../../shell/layout-data";
-import { kwh, money, watts } from "../bill-format";
+import { kwh, money, secondsLabel, temperatureLabel, watts } from "../bill-format";
 import { LaundryPrint, WashWhoSelect } from "../laundry-client";
 import { WashGraph } from "../wash-graph";
 
@@ -87,6 +87,10 @@ export default async function LaundryWashPage({ params }: { params: Promise<{ id
               <dd>{wash.durationLabel}</dd>
             </div>
             <div>
+              <dt>Temperature</dt>
+              <dd>{temperatureLabel(wash.temperature)}</dd>
+            </div>
+            <div>
               <dt>Energy</dt>
               <dd>{kwh(wash.kwh)}</dd>
             </div>
@@ -124,6 +128,16 @@ export default async function LaundryWashPage({ params }: { params: Promise<{ id
             startLabel={wash.startLabel}
           />
         </section>
+
+        {/* What the temperature above rests on: the element's own run, which is the
+            only thing in a trace that records the button somebody pressed (§5.3). */}
+        {wash.temperature.source === "degrees" ? (
+          <p className="laundry-note">
+            The element ran {secondsLabel(wash.temperature.heatUp.seconds)} at{" "}
+            {watts(wash.temperature.heatUp.watts)}: the water coming up to{" "}
+            {wash.temperature.degrees}°C.
+          </p>
+        ) : null}
 
         <section className="laundry-block">
           <h2 className="laundry-caption">Claimed by</h2>
