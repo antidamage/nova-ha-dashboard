@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { readWashMonth } from "../../lib/power";
 import { isDemoMode } from "../shell/layout-data";
 import { LaundryPrint, WashWhoSelect } from "./laundry-client";
@@ -39,6 +39,17 @@ export const metadata: Metadata = {
   description: "The washing machine's own power history, month by month.",
   title: "Laundry — power used by the washing machine",
 };
+
+/**
+ * The bill is paper, and must not be repainted by the browser's automatic dark
+ * theme — which renders a page it reads as light white-on-black when the device
+ * is in dark mode. `only light` is the documented opt-out, and it has to be in the
+ * head: Chromium bases its forced-dark opt-out on the meta tag rather than on a
+ * computed style. The dashboard says `dark` for itself (app/layout.tsx), which is
+ * why that is a `viewport` field a route can override rather than a tag in the
+ * tree; both this and the page's own `color-scheme: only light` are needed.
+ */
+export const viewport: Viewport = { colorScheme: "only light" };
 
 /** Energy, to the precision a wash is worth: a spin is a few hundredths. */
 function kwh(value: number) {

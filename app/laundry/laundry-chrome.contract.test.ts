@@ -45,6 +45,24 @@ describe("the laundry page's chrome", () => {
     expect(guard?.[0]).toContain('"/laundry"');
   });
 
+  it("asks the browser not to repaint it with its automatic dark theme", () => {
+    // The bill is paper. A browser whose device is in dark mode repaints a page it
+    // reads as light — white text on black over a document meant to be printed —
+    // and `only light` is the documented opt-out. It has to be in the head as well
+    // as in the CSS: Chromium bases its forced-dark opt-out on the meta tag. The
+    // dashboard wants the opposite and declares `dark` for every other route,
+    // which is why that value is a `viewport` field a page can override.
+    const page = readFileSync(join(appDir, "laundry", "page.tsx"), "utf8");
+    const layout = readFileSync(join(appDir, "layout.tsx"), "utf8");
+
+    expect(page).toContain('colorScheme: "only light"');
+    expect(layout).toContain('colorScheme: "dark"');
+    expect(layout).not.toContain('name="color-scheme"');
+
+    const root = globalsCss.slice(globalsCss.indexOf("html:has(.laundry-page)"));
+    expect(root.slice(0, 600)).toContain("color-scheme: only light");
+  });
+
   it("carries no dashboard frontend code of its own", () => {
     // The page renders its own document: a plain <select> rather than the app's
     // themed, portalled listbox, and no component of the dashboard's at all. A

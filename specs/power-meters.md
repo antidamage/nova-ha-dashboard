@@ -674,6 +674,20 @@ data endpoint, and the page prints from a plain document.
   dashboard paints its own ground there, which shows around a document that is white
   — and the print sheet is a partial of its own, since the screen rules are at the
   token-footprint cap.
+- **`only light`, in the CSS and in the head.** A device in dark mode makes the
+  browser apply an *automatically generated* dark theme to a page it reads as light
+  — this one rendered white-on-black, over a document meant to be printed. The
+  documented opt-out is `color-scheme: only light`, per element or in the head
+  (<https://developer.chrome.com/blog/auto-dark-theme>), and it has to be in **both**:
+  the meta because Chromium bases the forced-dark opt-out on the tag rather than on a
+  computed style, and the CSS because that is what makes the form fields and
+  scrollbars light. The dashboard declares `dark` for itself, deliberately, to
+  survive the same feature on its own surfaces
+  (`specs/color-encoder.md`, "Surviving Brave's auto dark mode") — which is why
+  `colorScheme` is a `viewport` field in `app/layout.tsx` that a route can override,
+  rather than a tag in the tree. This opt-out covers a browser darkening a light
+  page; nothing in a page can prevent iOS's Smart Invert or an extension like Dark
+  Reader rewriting the colours outright.
 - **By month.** A calendar month in the household's own timezone (§4.4), 1st to
   end. `?month=YYYY-MM` names one; without it the page opens on the first entry of
   its own step list, which is the **month under way** — the current period, as a
