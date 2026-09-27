@@ -16,8 +16,11 @@
  *   power/aggregate.ts        buckets, projections, graphs, pruneState
  *   power/floating-meter.ts   the floating meter's pure model
  *   power/meters.ts           plug readings; floating-meter tick and summary
- *   power/washing.ts          washing-machine tick, attribution, summary
- *   power/wash-history.ts     the wash graph's day blocks
+ *   power/washing.ts          washing-machine tick, month summary, day read
+ *   power/wash-claim.ts       who a wash belongs to: the tap and the picker
+ *   power/wash-history.ts     the wash graph's day blocks, and the month read
+ *   power/wash-months.ts      the laundry page's month view
+ *   power/washing-rates.ts    the plan the machine is costed at
  *   power/dashboard.ts        buildDashboard
  *   power/ha-publish.ts       MQTT discovery and state publishing
  *   power/meter-sampling.ts   the metering plugs' tick
@@ -42,6 +45,9 @@ export type {
   WashBlock,
   WashGraphCycle,
   WashHistory,
+  WashMonthCycle,
+  WashMonthRate,
+  WashMonthView,
 } from "./power/types";
 export {
   readActiveFloatingCategoryId,
@@ -49,6 +55,13 @@ export {
   setAmpAutomation,
   setFloatingMeterCategory,
 } from "./power/meters";
-export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle, readWashHistory } from "./power/washing";
+export {
+  attributeOpenWashingMachineCycle,
+  attributeWashingMachineCycle,
+  setWashingMachineCyclePerson,
+} from "./power/wash-claim";
+export { readWashHistory } from "./power/washing";
+export { readWashMonth } from "./power/wash-history";
+export { washRateAt, washRates } from "./power/washing-rates";
 export { reattributeFloatingMeterHistory, rebuildWashingMachineHistory } from "./power/history-repair";
 export { ensurePowerMonitorStarted, sampleMetersNow, samplePowerNow } from "./power/sampling";

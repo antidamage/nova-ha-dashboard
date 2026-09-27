@@ -2,7 +2,8 @@
 // instant falls in, the days that hold a wash, and one day's washes with the
 // labels and curve each is drawn with. See specs/power-meters.md 5.2.
 import path from "path";
-import { cycleId, downsampleTrace, type WashingMachineState } from "../washing-machine";
+import { readDashboardConfigSync } from "../dashboard-config";
+import { blankWashingMachineState, cycleId, downsampleTrace, type WashingMachineState } from "../washing-machine";
 import {
   blockStartWallMs,
   blockStartsForSpan,
@@ -11,8 +12,11 @@ import {
   WASH_BLOCK_MS,
 } from "../washing-machine/history-model";
 import { localInstantMs, localParts, localWallMs, monthNames } from "./calendar";
-import { readJson, WASH_TRACE_DIR } from "./store";
+import { readJson, WASH_TRACE_DIR, WASHING_MACHINE_PATH, powerConfig } from "./store";
+import { currentRate } from "./tariff";
 import type { OpenWashTrace, WashBlock, WashGraphCycle, WashHistory, WashTraceFile } from "./types";
+import { buildWashMonth } from "./wash-months";
+import { washRates } from "./washing-rates";
 
 const OPEN_TRACE_PATH = path.join(WASH_TRACE_DIR, "open.json");
 
@@ -112,4 +116,33 @@ export async function buildWashHistory(
   const blocks = washBlockStarts(state, now);
   const window = washBlockOf(atMs ?? blocks.at(-1) ?? now.getTime());
   return { blocks, cycles: await readWashBlock(state, window, now), window };
+}
+
+/**
+ * One calendar month of the machine's history, for the standalone laundry page:
+ * the washes in it, what they cost, the months either side, and the plan they
+ * were costed at (`specs/power-meters.md` §5.3).
+ *
+ * Null when no washing machine is configured, so the page says so rather than
+ * rendering an empty bill for a household that has none.
+ */
+export async function readWashMonth(requested: string | null) {
+  if (!powerConfig().washingMachine) {
+    return null;
+  }
+  const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
+  const now = new Date();
+  // The wash's own plan when it has one; the household's otherwise, which is the
+  // same answer the tick's costing reached at the time (§4.1).
+  const rates = washRates();
+  const household = rates ? null : currentRate(now);
+  return buildWashMonth({
+    state: { ...blankWashingMachineState(), ...persisted },
+    requested,
+    now,
+    people: readDashboardConfigSync().dashboard.people ?? [],
+    rate: rates
+      ? { asOf: rates.asOf ?? null, cPerKwh: rates.cPerKwh, includingGst: true, planName: rates.planName, sourceUrl: rates.sourceUrl ?? "", windows: rates.windows }
+      : { asOf: null, cPerKwh: household!.cPerKwh, includingGst: false, planName: household!.displayName, sourceUrl: household!.sourceUrl, windows: [] },
+  });
 }

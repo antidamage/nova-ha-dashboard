@@ -129,8 +129,8 @@ export { AmpPowerControlSchema };
 
 // The wash's config moved to its own domain file at the size cap; see
 // lib/config-schema/washing-machine.ts.
-export { WashingMachineConfigSchema, WashTimerConfigSchema } from "./washing-machine";
-export type { WashingMachineConfig, WashTimerConfig } from "./washing-machine";
+export { WashingMachineConfigSchema, WashRatesSchema, WashRateWindowSchema, WashTimerConfigSchema } from "./washing-machine";
+export type { WashingMachineConfig, WashRates, WashRateWindow, WashTimerConfig } from "./washing-machine";
 
 /**
  * A person in this household, for attributing shared consumption. Personal

@@ -23,6 +23,8 @@ export type {
   PowerDeviceRating,
   PowerTariff,
   WashingMachineConfig,
+  WashRateWindow,
+  WashRates,
 } from "./config-schema/power";
 
 export { DoorbellConfigSchema, DoorbellScheduleSchema, DoorbellSecretMetaSchema } from "./config-schema/doorbell";
