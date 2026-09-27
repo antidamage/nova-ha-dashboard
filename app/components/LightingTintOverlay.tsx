@@ -71,7 +71,7 @@ export function LightingTintOverlay() {
   // it is dashboard chrome on somebody else's printout (specs/power-meters.md
   // §5.3). The layer is skipped there rather than rendered transparent, so a
   // tint can never paint on the sheet.
-  if (pathname === "/laundry") return null;
+  if (pathname === "/laundry" || pathname?.startsWith("/laundry/")) return null;
 
   return (
     <div

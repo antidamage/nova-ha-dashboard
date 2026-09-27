@@ -1,9 +1,19 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import path from "path";
+import { writeFileSync } from "fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WashingMachineCycle, WashingMachineState } from "../washing-machine";
+import type { WashingMachineState } from "../washing-machine";
 import { blockStartWallMs } from "../washing-machine/history-model";
+import {
+  BLOCK_19_SEP,
+  BLOCK_20_SEP,
+  BLOCK_21_SEP,
+  cleanupWashStores,
+  CONFIG,
+  LATER,
+  MORNING,
+  scratch,
+  seedTrace,
+  seedWashes,
+} from "./wash-store.fixtures";
 
 /**
  * The wash graph's day blocks, in the household's own timezone
@@ -15,74 +25,6 @@ import { blockStartWallMs } from "../washing-machine/history-model";
  * so a local midnight is 12:00Z the day before and every block boundary in them
  * is deliberate.
  */
-
-const CONFIG = {
-  dashboard: { people: [{ color: "#22d3ee", id: "addie", label: "Addie", primary: true }] },
-  power: {
-    timeZone: "Pacific/Auckland",
-    washingMachine: {
-      entityIds: ["switch.washing_machine"],
-      powerSensorEntityId: "sensor.washing_machine_power",
-    },
-  },
-};
-
-/** 11:00 PM–12:10 AM local, 19 into 20 Sep: one wash across local midnight. */
-const MORNING: WashingMachineCycle = {
-  costNzd: 0.171,
-  endedAt: "2026-09-19T12:10:29.443Z",
-  id: "2026-09-19T11-00-36-668Z",
-  kwh: 0.61894,
-  person: "tonya",
-  startedAt: "2026-09-19T11:00:36.668Z",
-};
-
-/** 10:02–11:14 AM local on 20 Sep, in the same day the wash above ran into. */
-const LATER: WashingMachineCycle = {
-  costNzd: 0.0254,
-  endedAt: "2026-09-19T23:14:39.396Z",
-  id: "2026-09-19T22-02-26-095Z",
-  kwh: 0.0921,
-  person: "addie",
-  startedAt: "2026-09-19T22:02:26.095Z",
-};
-
-const BLOCK_19_SEP = Date.parse("2026-09-18T12:00:00.000Z");
-const BLOCK_20_SEP = Date.parse("2026-09-19T12:00:00.000Z");
-const BLOCK_21_SEP = Date.parse("2026-09-20T12:00:00.000Z");
-
-const scratchDirs: string[] = [];
-
-function scratch() {
-  const dir = mkdtempSync(path.join(tmpdir(), "nova-wash-"));
-  scratchDirs.push(dir);
-  const data = path.join(dir, "power");
-  mkdirSync(path.join(data, "washing-machine-traces"), { recursive: true });
-  const config = path.join(dir, "dashboard-config.json");
-  writeFileSync(config, JSON.stringify(CONFIG), "utf8");
-  return { config, data };
-}
-
-function seedWashes(data: string, state: WashingMachineState) {
-  writeFileSync(path.join(data, "washing-machine.json"), JSON.stringify(state), "utf8");
-}
-
-/** A trace file: [seconds since the start, watts], as the meter writes them. */
-function seedTrace(data: string, cycle: WashingMachineCycle, watts: number[]) {
-  const points = watts.map((value, index): [number, number] => [index * 30, value]);
-  writeFileSync(
-    path.join(data, "washing-machine-traces", `${cycle.id}.json`),
-    JSON.stringify({
-      cycleId: cycle.id,
-      endedAt: cycle.endedAt,
-      kwh: cycle.kwh,
-      person: cycle.person,
-      points,
-      startedAt: cycle.startedAt,
-    }),
-    "utf8",
-  );
-}
 
 /** Two washes in two days between them; the first crosses local midnight. */
 async function freshHistory(config: unknown = CONFIG) {
@@ -107,9 +49,7 @@ function blockOf(calendar: Awaited<ReturnType<typeof freshHistory>>["calendar"],
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.resetModules();
-  while (scratchDirs.length) {
-    rmSync(scratchDirs.pop()!, { recursive: true, force: true });
-  }
+  cleanupWashStores();
 });
 
 // Every case here imports the power module graph afresh against its own stubbed

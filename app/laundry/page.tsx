@@ -3,7 +3,9 @@ import type { Metadata, Viewport } from "next";
 import { readWashMonth } from "../../lib/power";
 import { washClaimColor } from "../../lib/power/wash-months";
 import { isDemoMode } from "../shell/layout-data";
+import { kwh, money } from "./bill-format";
 import { LaundryPrint, WashWhoSelect } from "./laundry-client";
+import { WashRow } from "./laundry-row";
 
 // The washing machine's own power history, page by month, for the household to
 // read and to claim a wash from — a standalone page rather than a dashboard
@@ -51,15 +53,6 @@ export const metadata: Metadata = {
  * tree; both this and the page's own `color-scheme: only light` are needed.
  */
 export const viewport: Viewport = { colorScheme: "only light" };
-
-/** Energy, to the precision a wash is worth: a spin is a few hundredths. */
-function kwh(value: number) {
-  return `${value < 1 ? value.toFixed(3) : value.toFixed(2)} kWh`;
-}
-
-function money(value: number) {
-  return `$${value.toFixed(2)}`;
-}
 
 export default async function LaundryPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const { month } = isDemoMode ? { month: undefined } : await searchParams;
@@ -159,12 +152,17 @@ export default async function LaundryPage({ searchParams }: { searchParams: Prom
             <tbody>
               {/* Whose wash it is: the panel's colour for that person (§5.2). */}
               {rows.map((cycle) => (
-                <tr
+                <WashRow
                   className={cycle === view.running ? "laundry-row is-running" : "laundry-row"}
+                  href={`/laundry/${cycle.id}`}
                   key={cycle.id}
                   style={{ background: washClaimColor(cycle.person, view.people) }}
                 >
-                  <td>{cycle.dateLabel}</td>
+                  <td>
+                    <Link className="laundry-row-link" href={`/laundry/${cycle.id}`}>
+                      {cycle.dateLabel}
+                    </Link>
+                  </td>
                   <td>{cycle.startLabel}</td>
                   <td>{cycle.durationLabel}{cycle === view.running ? " — running" : ""}</td>
                   <td className="is-number">{kwh(cycle.kwh)}</td>
@@ -172,7 +170,7 @@ export default async function LaundryPage({ searchParams }: { searchParams: Prom
                   <td>
                     <WashWhoSelect active={cycle === view.running} cycleId={cycle.id} people={view.people} person={cycle.person} />
                   </td>
-                </tr>
+                </WashRow>
               ))}
               {rows.length === 0 ? (
                 <tr className="laundry-row is-empty">

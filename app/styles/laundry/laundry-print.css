@@ -42,6 +42,18 @@
     display: inline;
   }
 
+  /* A wash's row opens its own sheet on screen only: on paper it is a line of a
+     bill, and the date inside it is not a link. The selector matches the weight of
+     the screen rule it answers (`.laundry-row:not(.is-empty)`, laundry-detail.css),
+     or the pointer stays — a media query adds no specificity. */
+  .laundry-row:not(.is-empty) {
+    cursor: auto;
+  }
+
+  .laundry-row-link {
+    text-decoration: none;
+  }
+
   .laundry-bill-head,
   .laundry-caption,
   .laundry-table th,
@@ -66,6 +78,13 @@
 
   .laundry-row.is-running td {
     background: #f2f2f2;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* The figure's one background, and the same treatment for the same reason: the
+     curve runs under the average's label, so its plate has to survive printing. */
+  .laundry-graph-average {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }

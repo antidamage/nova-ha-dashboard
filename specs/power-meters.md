@@ -746,6 +746,52 @@ data endpoint, and the page prints from a plain document.
   somebody the store did not hold while the totals and the printed sheet on the
   same page, rendered from that same store, named somebody else. A control that
   shows an unconfirmed claim is worse than one that shows it is working.
+- **One wash, opened from its row** (`/laundry/<cycleId>`, and `/laundry/running`
+  for the wash under way, which is the id every view lists it under). Adeline,
+  2026-09-27: *"We need to be able to click into the entry and see all the details
+  including the power graph for that run in high detail."* **The whole row is the
+  target**, because on a phone the row is what a finger goes for while a date inside
+  six columns is the width of two words. What is *not* a target is the claim field in
+  that row: a tap that lands on a control is a claim, and the row's own click leaves it
+  alone. The date carries a real `<a>` as well, so the row is reachable by keyboard and
+  read as a link — the click on the row is the pointer's convenience on top of a link
+  that still works with JavaScript off. Because the row acts on a tap without being a
+  control, it is marked `data-tap-action` and `TouchClickGuard` treats it as an action:
+  the click a platform can synthesize after a touch scroll gesture is suppressed, so
+  dragging the bill to scroll and lifting over a row scrolls it rather than opening the
+  wash under the finger.
+- **The sheet states one run**: its date, its start and end, how long it ran, its
+  energy, its cost, the plan and the unit rate it was costed at, the unit cost it
+  actually drew at (its cost over its energy, so a wash inside a retailer's cheap
+  window reads as the rate it ran at, §4.1), the highest watts any sample read, the
+  draw it averaged, and who it belongs to — with **the same claim field the row has**,
+  through the same write, so the reader can name the wash they are looking at.
+- **High detail is what the sheet is for.** The graph draws **every sample the trace
+  file kept** — the open wash's own trace while it runs — and says how many it drew.
+  The panel's block carries 48 points because that is what fits across a card (§5.2);
+  this is the run's own detail, and a ninety-minute wash is several hundred of them. It
+  is a **document's figure**: the curve is the bill's black and the rules are its greys,
+  and its one background — the plate under the average's label, which the curve runs
+  under — is asked for in the print sheet with `print-color-adjust`, as the running
+  wash's shade is, because a curve that vanishes on paper is worse than no curve. The
+  wattage axis is text in the margin so it keeps a readable size on a phone, and the
+  whole figure is stated in
+  words in its caption — which is also what a screen reader gets, the SVGs being
+  decorative and hidden.
+- **The sheet is the bill, one wash deep.** Same paper, same rules, same `only light`
+  opt-out in both the CSS and the head, and the same standalone treatment: the orb, the
+  browser voice satellite, the first-run chooser and the lighting tint are off
+  `/laundry/...` exactly as they are off `/laundry`, so the guard matches the path and
+  everything under it. It has a URL of its own so one wash can be sent to somebody. Its
+  back-link returns to the wash's own month — the month it **ended** in, which is the
+  bucket the totals count it in. An id the store no longer holds is said plainly and
+  sends the reader back to the bill, which is where "no washing machine is configured"
+  is said: a URL typed by hand is not an error page.
+- **Read where the data lives**, like the bill: `readWashDetail` reads the persisted
+  state and that wash's trace file through the same store the month view reads, so the
+  sheet needs no data endpoint of its own either, and the demo — which has no server —
+  shows its own empty state. The plan is resolved in one place (`washMonthRate`), so the
+  bill and a wash's sheet cannot state different rates for the same wash.
 - **Bill-shaped**: a masthead (what the document is, the period, the plan it was
   costed at) with the month's figures beside it — the unit rate and the date the
   rates were read, the wash count, the energy, and the cost in emphasis — then the

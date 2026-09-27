@@ -61,7 +61,7 @@ export {
   setWashingMachineCyclePerson,
 } from "./power/wash-claim";
 export { readWashHistory } from "./power/washing";
-export { readWashMonth } from "./power/wash-history";
+export { readWashDetail, readWashMonth } from "./power/wash-history";
 export { washRateAt, washRates } from "./power/washing-rates";
 export { reattributeFloatingMeterHistory, rebuildWashingMachineHistory } from "./power/history-repair";
 export { ensurePowerMonitorStarted, sampleMetersNow, samplePowerNow } from "./power/sampling";
