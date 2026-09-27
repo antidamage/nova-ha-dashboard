@@ -30,14 +30,21 @@ export function DashboardGlobalServices({
 
   if (pathname === "/phonoscope-debug") return null;
 
-  // The knob demos (specs/color-encoder.md, specs/temperature-encoder.md) are
-  // control benches: the orb would sit over the dials and the first-run modal
-  // over the page — and that modal, at z 10000, covers the temperature knob's
-  // floating rings at 9000, which made the review screenshots useless. They
-  // keep the haptics, since how the dials click is part of the demo.
-  // Demo-mode builds add a trailing slash.
-  const bench = pathname?.replace(/\/$/, "");
-  if (bench === "/color-encoder-rings" || bench === "/temperature-encoder") {
+  // Standalone surfaces that are neither the dashboard nor the config page. The
+  // orb is body-level chrome that lands on top of whatever such a page shows, and
+  // the first-run chooser has nothing to do with reading one:
+  //
+  //   - the knob demos are control benches, and that modal at z 10000 covers the
+  //     temperature knob's floating rings at 9000, which made the review
+  //     screenshots useless;
+  //   - /laundry is the washing machine's history read as a bill — by one person
+  //     on a phone, and printed — so the orb, the voice satellite and the chooser
+  //     are furniture nobody asked for (specs/power-meters.md §5.3).
+  //
+  // Both keep the haptics, since their controls are touched. Demo-mode builds add
+  // a trailing slash.
+  const standalone = pathname?.replace(/\/$/, "");
+  if (standalone === "/color-encoder-rings" || standalone === "/temperature-encoder" || standalone === "/laundry") {
     return (
       <>
         <TouchClickGuard />

@@ -651,7 +651,29 @@ data endpoint, and the page prints from a plain document.
   on the LAN and the tailnet name over HTTPS, both of which already route unknown
   paths to Next.js. Caddy's config gate names admin paths, so this one needs no
   route added and nothing on it is gated — the household reaches it by typing its
-  name. The only write it can perform is a wash's owner (§4.3).
+  name. The only write it can perform is a wash's owner (§4.3). A device on the LAN
+  with no household CA must use the **plain-HTTP** origin (`http://nova.local/laundry`,
+  or `http://<host-ip>/laundry` where `.local` does not resolve); the `:443` LAN
+  vhost serves the household certificate.
+- **No dashboard chrome, and no dashboard frontend code.** `DashboardGlobalServices`
+  leaves the status orb, the browser voice satellite and the first-run chooser off
+  this route, beside the knob benches that already did — body-level chrome that
+  lands on top of a sheet, and a modal over a document nobody is setting up a device
+  with — and `LightingTintOverlay` skips it too, so the room's light colour is never
+  blended over somebody's printout. The claim field is a touch control, so the
+  haptics stay. The page's own files import **no component of the dashboard's**: its
+  field is a plain `<select>`, not `ConfigSelect`. The tab is named for the page
+  rather than inheriting `${agentName} Control`, because this one arrives as a link
+  in a message.
+- **Its own colours, not the theme.** Every other surface takes its palette from
+  `--cyber-*` and follows whichever theme is selected; a bill does not, and the page
+  names **no** theme variable anywhere. A document that changes colour with a theme
+  is a dashboard, and this one is printed and handed to somebody: white paper, black
+  ink, a system font, rules for its structure, and the same reading under every
+  theme. It repaints `<html>` and `<body>` through `:has(.laundry-page)` — the
+  dashboard paints its own ground there, which shows around a document that is white
+  — and the print sheet is a partial of its own, since the screen rules are at the
+  token-footprint cap.
 - **By month.** A calendar month in the household's own timezone (§4.4), 1st to
   end. `?month=YYYY-MM` names one; without it the page opens on the first entry of
   its own step list, which is the **month under way** — the current period, as a
@@ -668,15 +690,17 @@ data endpoint, and the page prints from a plain document.
   prints the day it **started**, so a load begun at 11:50 PM on 31 August and
   finished after midnight is on September's bill, dated `Mon 31 Aug`. Deliberate
   and consistent with the totals; written down only because a reader may wonder.
-- **The claim is a dropdown**, `ConfigSelect`, one per row, offering each
-  configured person plus Unassigned — the same control the floating meter's
-  category picker uses (§5.1), and each option carries the person's colour. It
-  **names** a person where the panel's block **taps** to the next one; both go
-  through the one store write, so the panel and this page cannot disagree **about
-  what the store holds** — they can show different owners for as long as one of
-  them is stale, since the panel polls and this page is read once, but neither can
-  write something the other will not read. The value written is `manual` either
-  way. A name the household does not configure is refused rather than stored.
+- **The claim is a plain `<select>`**, one per row, offering each configured
+  person plus Unassigned. Explicitly **not** `ConfigSelect`: that is the app's
+  themed, portalled listbox, and a menu on `document.body` carrying the dashboard's
+  palette is the dashboard sitting on a printed bill — so the page renders its own
+  field, and imports no dashboard component at all. It **names** a person where
+  the panel's block **taps** to the next one; both go through the one store write,
+  so the panel and this page cannot disagree **about what the store holds** — they
+  can show different owners for as long as one of them is stale, since the panel
+  polls and this page is read once, but neither can write something the other will
+  not read. The value written is `manual` either way. A name the household does not
+  configure is refused rather than stored.
 - **The picker never guesses.** The name in the row is the one the page was
   rendered with, and a pick appears when the refreshed render carrying it
   (`router.refresh()`) arrives — never before. From the pick until that render the
@@ -692,16 +716,21 @@ data endpoint, and the page prints from a plain document.
   somebody the store did not hold while the totals and the printed sheet on the
   same page, rendered from that same store, named somebody else. A control that
   shows an unconfirmed claim is worse than one that shows it is working.
-- **Bill-shaped**: the period and the plan it was costed at, the plan's unit rate
-  with the date the rates were read, its windows when it has any, the washes, and
-  the totals **at the bottom** — one row per person plus Unassigned, then the
-  month's own line and its average unit cost, which is what a reader compares
+- **Bill-shaped**: a masthead (what the document is, the period, the plan it was
+  costed at) with the month's figures beside it — the unit rate and the date the
+  rates were read, the wash count, the energy, and the cost in emphasis — then the
+  washes itemised on ruled rows with right-aligned tabular figures, then the totals
+  **at the bottom**: one row per person plus Unassigned, the month's own line under
+  a heavier rule, and its average unit cost, which is what a reader compares
   against the unit rate.
-- **Printable.** A `@media print` sheet: screen furniture (the month nav, the
-  print button, the pickers, the note) is dropped, the sheet goes to paper colours
-  with its rules kept, and each row prints the person's **name** in place of the
-  picker, so a printed bill carries no control and still says whose wash it was.
-  Table headers repeat across pages and a row is never split by one.
+- **Printable.** A `@media print` sheet, in a partial of its own: screen furniture
+  (the month nav, the print button, the claim fields) is dropped and each row
+  prints the person's **name** in place of the field, so a printed bill carries no
+  control and still says whose wash it was. The sheet keeps an inset of its own as
+  well as the page margin, so a print dialog set to "no margins" cannot put the
+  first and last columns against the edge of the paper; headers repeat across pages
+  and a row is never split by one; the running wash's shade is asked for explicitly
+  with `print-color-adjust`, because browsers drop background colours by default.
 - Unknown, absent or non-`YYYY-MM` `month` falls back to the opening month rather
   than erroring: this page is read by somebody who may type the URL by hand.
 

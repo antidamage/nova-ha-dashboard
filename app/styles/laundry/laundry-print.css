@@ -1,0 +1,92 @@
+/* The laundry bill on paper (specs/power-meters.md §5.3). Split out of
+   laundry.css, which is at the token-footprint cap with the screen rules in it
+   (specs/agent-token-footprint.md §3).
+
+   Nothing of the screen survives: the month's step list, the print button and the
+   claim fields go, and each wash's owner prints as the name written into the row
+   instead. What stays is the document — the head, the figures, the ruled washes,
+   the totals and the small print — with its rules darkened for paper and the
+   running wash's shade asked for explicitly, because a browser drops background
+   colours by default and that shade is how the row reads as unfinished. */
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html:has(.laundry-page),
+  body:has(.laundry-page) {
+    background: #ffffff;
+  }
+
+  /* The sheet keeps an inset of its own, so a print dialog set to "no margins"
+     — which discards `@page` — cannot put the first and last columns against
+     the edge of the paper. With the page margin above that is 20mm a side; with
+     none it is 6mm and still nothing is clipped. */
+  .laundry-page {
+    max-width: none;
+    min-height: 0;
+    padding: 0 6mm;
+  }
+
+  .laundry-bar,
+  .laundry-who-select,
+  .laundry-who-busy,
+  .laundry-who-failed {
+    display: none;
+  }
+
+  .laundry-who-printed {
+    display: inline;
+  }
+
+  .laundry-bill-head,
+  .laundry-caption,
+  .laundry-table th,
+  .laundry-totals tr.is-total td {
+    border-color: #000000;
+  }
+
+  .laundry-figures > div,
+  .laundry-table td,
+  .laundry-totals td,
+  .laundry-note {
+    border-color: #999999;
+  }
+
+  /* The figures box and the totals are part of how each figure reads, so their
+     rules and the unfinished wash's shade are asked for rather than assumed. */
+  .laundry-figures,
+  .laundry-totals {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .laundry-row.is-running td {
+    background: #f2f2f2;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .laundry-table tbody tr,
+  .laundry-totals tbody tr,
+  .laundry-block,
+  .laundry-figures > div,
+  .laundry-note {
+    page-break-inside: avoid;
+  }
+
+  .laundry-block {
+    page-break-before: auto;
+  }
+
+  .laundry-table thead,
+  .laundry-totals thead {
+    display: table-header-group;
+  }
+
+  /* The bill's small print: a bill has some, so it stays. */
+  .laundry-note {
+    font-size: 9pt;
+  }
+}
