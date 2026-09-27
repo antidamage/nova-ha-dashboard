@@ -48,7 +48,7 @@ demo) and `next dev` in demo mode. `e2e/global-setup.ts` warms both routes so
 parallel workers do not race first-request compilation. Specs cover dashboard
 load, zone navigation, lighting, climate, tasks/reminders, the `/config`
 workspace, theme, the experience-mode first-run/lite pathway
-(`e2e/experience-mode.spec.ts`) and the Arrival & Departure config section
+(`e2e/experience-mode.spec.ts`) and the Household members config section
 (`e2e/arrivals.spec.ts`). Run with `npm run test:e2e` or, from the repo
 root, `./run-e2e.ps1` (which installs the Chromium build if missing).
 

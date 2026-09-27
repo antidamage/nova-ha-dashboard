@@ -77,7 +77,7 @@ row says where.
 | Doorbell | `lib/doorbell/`, `lib/doorbell-coordinator.ts` — server side only, driven by a call to the sequence route rather than by any dashboard control | `app/api/doorbell/sequence` | no spec of its own yet |
 | MCP and the agent interface | `lib/mcp/`, `lib/mcp-dashboard/` | — (no dashboard surface) | `specs/mcp-and-agent-interface.md` |
 | Update channel | `lib/update/`, `lib/update-scheduler.ts` | `app/components/UpdateBanner.tsx`, `app/components/config/updates/` | `specs/self-update-channel.md` |
-| Arrival and departure | `lib/arrivals/` (member-model, apply-model, targets.ts and lib/arrivals/targets/), `lib/config-schema/arrivals.ts` | `app/components/config/arrival/` (the section under Voice & People → User Data) | `specs/arrival-and-departure.md` |
+| Arrival and departure | `lib/arrivals/` (member-model, apply-model, targets.ts and lib/arrivals/targets/), `lib/config-schema/arrivals.ts` | `app/components/config/arrival/` (the section under Voice & People → User Data, titled **Household members**) | `specs/arrival-and-departure.md` |
 | Events, attribution, monitoring spool | `lib/event-spool.ts`, `lib/control-attribution.ts`, `lib/request-attribution.ts`, `lib/household-events/` | `app/components/dashboard/useDashboardCommands.ts` | `docs/household-event-feed.md` |
 
 ## 3. Where a change goes

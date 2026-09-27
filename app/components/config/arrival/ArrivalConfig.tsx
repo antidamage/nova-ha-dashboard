@@ -20,7 +20,7 @@ import { MemberEditor } from "./MemberEditor";
 import { NEW_PERSON_LABEL, useArrivalSettings } from "./useArrivalSettings";
 
 /**
- * Arrival & Departure (specs/arrival-and-departure.md): who lives here, and what
+ * Household members (specs/arrival-and-departure.md): who lives here, and what
  * each of them sets on the way in and on the way out. It sits under Voice &
  * People → User Data because its members ARE the household people that section
  * is about — the same list the voice identities and consumption attribution use.
@@ -53,7 +53,7 @@ export function ArrivalConfig() {
   return (
     <ConfigAccordion
       id="arrival"
-      title="Arrival & Departure"
+      title="Household members"
       icon={<Users className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
       className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl"
     >

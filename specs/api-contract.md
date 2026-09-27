@@ -299,7 +299,7 @@ Control:
   every entry still attempted. See `arrival-and-departure.md`.
 - `GET /api/arrivals`: the household members with their arrival/departure states,
   the target kinds, and each target's currently selectable presets — what the
-  Arrival & Departure config section reads.
+  Household members config section reads.
 - `PUT /api/arrivals`: body `{ people }` replaces `dashboard.people`, validated
   against the config schema; returns the same payload as the GET.
 
