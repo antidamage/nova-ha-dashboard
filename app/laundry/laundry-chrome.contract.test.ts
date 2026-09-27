@@ -104,6 +104,32 @@ describe("the laundry page's paper", () => {
     expect(laundryRules).not.toMatch(/var\(--cyber-/);
   });
 
+  it("paints each wash with the colour of the person who claimed it", () => {
+    // Adeline, 2026-09-27: "use the background colour associated with the user
+    // claiming it". The colour is the store's answer, through the month view's
+    // own lookup, so the page cannot show a person the panel would not.
+    const page = readFileSync(join(appDir, "laundry", "page.tsx"), "utf8");
+
+    expect(page).toContain("style={{ background: washClaimColor(cycle.person, view.people) }}");
+  });
+
+  it("keeps every column on a phone, wrapping rather than dropping one", () => {
+    // Adeline, 2026-09-27: "Always show every column even if collapsed, they can
+    // just wrap." The narrow layout used to drop Start and Length and hide the
+    // header row to fit the screen; the fixed layout is what holds six columns
+    // inside a phone, so nothing on it may hide a column again.
+    // Anchored on the laundry page's own first rule inside it: five other
+    // partials carry a 640px breakpoint earlier in the bundle, so the media
+    // query alone is not the laundry page's.
+    const narrow = globalsCss.slice(globalsCss.indexOf("@media (max-width: 640px) {\n  .laundry-page {"));
+    const block = narrow.slice(0, narrow.indexOf("\n}\n") + 2);
+
+    expect(block).toContain("table-layout: fixed");
+    expect(block, "the narrow table hides something").not.toContain("display: none");
+    expect(block, "a column is dropped by index again").not.toMatch(/\.laundry-table td:nth-child/);
+    expect(block, "the header row is hidden again").not.toContain("thead");
+  });
+
   it("asks for the print sheet's shades explicitly", () => {
     const printRules = globalsCss.slice(globalsCss.indexOf("@media print"));
 

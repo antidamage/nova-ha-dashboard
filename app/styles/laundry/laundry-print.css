@@ -7,7 +7,9 @@
    instead. What stays is the document — the head, the figures, the ruled washes,
    the totals and the small print — with its rules darkened for paper and the
    running wash's shade asked for explicitly, because a browser drops background
-   colours by default and that shade is how the row reads as unfinished. */
+   colours by default and that shade is how the row reads as unfinished. The
+   colour the screen paints a claimed row with is deliberately not asked for: a
+   printed bill is ink on paper, and the claim prints as the person's name. */
 
 @media print {
   @page {

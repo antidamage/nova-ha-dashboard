@@ -704,6 +704,22 @@ data endpoint, and the page prints from a plain document.
   prints the day it **started**, so a load begun at 11:50 PM on 31 August and
   finished after midnight is on September's bill, dated `Mon 31 Aug`. Deliberate
   and consistent with the totals; written down only because a reader may wonder.
+  The row **wears the colour of the person it is claimed by** — the same hex the
+  panel fills that person's block with (§5.2), read through `washClaimColor` in the
+  month view so the two surfaces cannot disagree about what a colour means. An
+  unassigned wash is paper, and so is one whose person this household no longer
+  configures, which the field and the totals already read as Unassigned. Screen
+  only: nothing asks for it on paper, where the claim prints as a name.
+- **Every column, at every width** (Adeline, 2026-09-27: *"Always show every column
+  even if collapsed, they can just wrap"*). The phone layout used to drop Start and
+  Length and hide the header row to fit the screen; it now keeps all six columns and
+  the ruled table, and a cell that does not fit **wraps or breaks inside its own
+  column**. That is what `table-layout: fixed` buys: an automatic layout sizes a
+  table to its cells' min-content, the claim field's min-content is a form control's,
+  and the six columns therefore came out wider than the phone and panned the whole
+  page sideways — the reason the columns were dropped in the first place. The claim
+  field's column keeps a third of the table and its 16px font, because iOS zooms a
+  phone's page in on a smaller control; the five figures share what is left.
 - **The claim is a plain `<select>`**, one per row, offering each configured
   person plus Unassigned. Explicitly **not** `ConfigSelect`: that is the app's
   themed, portalled listbox, and a menu on `document.body` carrying the dashboard's
@@ -744,7 +760,9 @@ data endpoint, and the page prints from a plain document.
   well as the page margin, so a print dialog set to "no margins" cannot put the
   first and last columns against the edge of the paper; headers repeat across pages
   and a row is never split by one; the running wash's shade is asked for explicitly
-  with `print-color-adjust`, because browsers drop background colours by default.
+  with `print-color-adjust`, because browsers drop background colours by default —
+  and the claimer's colour deliberately is not, so a printed bill stays ink on paper
+  and says whose wash it was in words.
 - Unknown, absent or non-`YYYY-MM` `month` falls back to the opening month rather
   than erroring: this page is read by somebody who may type the URL by hand.
 

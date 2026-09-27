@@ -237,7 +237,7 @@ body:has(.laundry-page) {
   white-space: nowrap;
 }
 
-.laundry-row.is-running td {
+.laundry-row.is-running {
   background: var(--bill-shade);
   font-style: italic;
 }
@@ -336,12 +336,15 @@ body:has(.laundry-page) {
   display: none;
 }
 
-/* Narrow screens. A ruled six-column table cannot be narrower than its widest
-   cell, and on a phone that is wider than the screen: with two columns dropped it
-   still came to ~360px of table, so the whole page panned sideways. Each wash is
-   its own block instead — date, energy and cost on one line, the claim field
-   beneath — which has no min-content to exceed. Measured: no horizontal overflow
-   at 320, 360, 375, 390, 414, 480, 639, 641, 768 and 1240px. */
+/* Narrow screens. Adeline, 2026-09-27: *"Always show every column even if
+   collapsed, they can just wrap"* — so every column stays, the header row with
+   them, and a cell that does not fit wraps inside its own column instead of the
+   column being dropped. `table-layout: fixed` is what makes that possible: an
+   auto layout sizes a table to its cells' min-content, and the claim field's
+   min-content is a form control's, so the ruled table came out wider than the
+   phone and the page panned sideways. Fixed layout gives each column the width
+   it is told, the cells wrap or break inside it, and the table can be no wider
+   than the page. */
 @media (max-width: 640px) {
   .laundry-page {
     padding: 20px 14px 56px;
@@ -365,82 +368,39 @@ body:has(.laundry-page) {
     font-size: 1.3rem;
   }
 
-  /* The columns are named by what they hold now, so the header row has nothing
-     left to say ("0.057 kWh" and "$0.02" name themselves). */
-  .laundry-table thead {
-    display: none;
+  .laundry-table {
+    table-layout: fixed;
   }
 
-  .laundry-table,
-  .laundry-table tbody,
-  .laundry-table tr,
+  .laundry-table th,
   .laundry-table td {
-    display: block;
-  }
-
-  .laundry-table tr {
-    border-bottom: 1px solid var(--bill-rule);
-    display: grid;
-    gap: 6px 14px;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    padding: 11px 0;
-  }
-
-  .laundry-table td {
-    border-bottom: none;
-    font-size: 0.95rem;
-    padding: 0;
-    white-space: nowrap;
-  }
-
-  /* Start and Length: dropped rather than squeezed, as before. */
-  .laundry-table td:nth-child(2),
-  .laundry-table td:nth-child(3) {
-    display: none;
-  }
-
-  .laundry-table td:nth-child(1) {
-    grid-column: 1;
-  }
-
-  .laundry-table td:nth-child(4) {
-    grid-column: 2;
-    text-align: right;
-  }
-
-  .laundry-table td:nth-child(5) {
-    grid-column: 3;
-    text-align: right;
-  }
-
-  /* The claim field has the row to itself, and cannot be pushed off the screen
-     by a column beside it. */
-  .laundry-table td:nth-child(6) {
-    grid-column: 1 / -1;
-    margin-top: 2px;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+    padding-left: 3px;
+    padding-right: 3px;
     white-space: normal;
   }
 
-  /* The shade belongs to the block, not to a cell of a row that no longer
-     draws as cells. */
-  .laundry-row.is-running td {
-    background: none;
+  /* The figures wrap here too: `nowrap` in a fixed-layout column is the one
+     thing left that can still be wider than its cell. */
+  .laundry-table .is-number {
+    white-space: normal;
   }
 
-  .laundry-row.is-running {
-    background: var(--bill-shade);
-    padding-left: 8px;
-    padding-right: 8px;
+  /* The claim field is the widest thing in a row and the one cell that cannot
+     wrap, so its column is given the width the field needs and the five figures
+     share what is left. The field keeps its 16px: iOS zooms a phone's whole page
+     in on a control it renders under that (§5.3). */
+  .laundry-table th:nth-child(6) {
+    width: 34%;
   }
 
-  .laundry-row.is-empty td {
-    padding: 18px 0;
-    text-align: center;
+  .laundry-who-select {
+    max-width: 100%;
+    padding: 4px 2px;
+    width: 100%;
   }
 
-  /* The totals keep all four columns — four short figures read fine stacked no
-     further — but the cell padding comes in, because at 320px it was the table's
-     own padding that ran past the screen rather than its contents. */
   .laundry-totals th,
   .laundry-totals td {
     font-size: 0.9rem;

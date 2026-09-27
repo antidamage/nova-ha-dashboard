@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { HouseholdPerson } from "../config-schema";
 import type { WashingMachineCycle, WashingMachineState } from "../washing-machine";
-import { buildWashMonth, washMonthLabel, washMonths } from "./wash-months";
+import { buildWashMonth, washClaimColor, washMonthLabel, washMonths } from "./wash-months";
 
 /**
  * The laundry page's month view (specs/power-meters.md §5.3).
@@ -175,5 +175,19 @@ describe("a month's washes, totals and claims", () => {
 
   it("states the plan its costs were struck at", () => {
     expect(view().rate.planName).toBe("Contact Energy Basic");
+  });
+});
+
+describe("the colour a wash wears on the page", () => {
+  it("is the claimer's, and nothing at all when nobody claimed it", () => {
+    expect(washClaimColor("addie", PEOPLE)).toBe("#22d3ee");
+    expect(washClaimColor("tonya", PEOPLE)).toBe("#e879f9");
+    expect(washClaimColor(null, PEOPLE)).toBeUndefined();
+  });
+
+  it("is nothing for a person this household no longer configures", () => {
+    // The field and the totals already read such a wash as Unassigned, so the
+    // row's colour must not fall back to the first configured person's.
+    expect(washClaimColor("someone-removed", PEOPLE)).toBeUndefined();
   });
 });
