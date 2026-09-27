@@ -2,6 +2,12 @@
 
 import { useEffect, useRef } from "react";
 
+// An action is anything a tap DOES something on, which is what the click a
+// platform can synthesize after a touch scroll gesture is suppressed for. That
+// includes an element that is not a control at all: a wash's row on the laundry
+// bill opens that wash's own sheet, so a finger that scrolls the bill and lifts
+// over a row must scroll it rather than open the wash under it. `[data-tap-action]`
+// is that mark, and app/laundry/laundry-row.tsx is what wears it.
 const ACTION_SELECTOR = [
   "a[href]",
   "button",
@@ -9,6 +15,7 @@ const ACTION_SELECTOR = [
   "select",
   "summary",
   "textarea",
+  "[data-tap-action]",
   "[role='button']",
   "[role='checkbox']",
   "[role='menuitem']",

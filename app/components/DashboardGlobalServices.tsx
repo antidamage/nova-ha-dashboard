@@ -39,12 +39,15 @@ export function DashboardGlobalServices({
   //     screenshots useless;
   //   - /laundry is the washing machine's history read as a bill — by one person
   //     on a phone, and printed — so the orb, the voice satellite and the chooser
-  //     are furniture nobody asked for (specs/power-meters.md §5.3).
+  //     are furniture nobody asked for (specs/power-meters.md §5.3). One wash's own
+  //     sheet lives under it and is the same document, so the guard matches the path
+  //     and everything under it rather than the bill's own URL alone.
   //
   // Both keep the haptics, since their controls are touched. Demo-mode builds add
   // a trailing slash.
   const standalone = pathname?.replace(/\/$/, "");
-  if (standalone === "/color-encoder-rings" || standalone === "/temperature-encoder" || standalone === "/laundry") {
+  const onLaundry = standalone === "/laundry" || standalone?.startsWith("/laundry/");
+  if (standalone === "/color-encoder-rings" || standalone === "/temperature-encoder" || onLaundry) {
     return (
       <>
         <TouchClickGuard />

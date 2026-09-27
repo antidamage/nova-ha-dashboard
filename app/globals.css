@@ -73,4 +73,5 @@
 @import "./styles/tasks/reminders-panel.css";
 @import "./styles/responsive/standalone.css";
 @import "./styles/laundry/laundry.css";
+@import "./styles/laundry/laundry-detail.css";
 @import "./styles/laundry/laundry-print.css";

@@ -1,0 +1,150 @@
+/* The laundry page's one-wash sheet and its power graph
+   (specs/power-meters.md §5.3).
+
+   A partial of its own because laundry.css is at the token-footprint cap with the
+   bill's own rules in it (specs/agent-token-footprint.md §3). It declares no new
+   palette: the graph is the same document, so it draws in the bill's ink and its
+   greys and takes nothing from the dashboard's theme.
+
+   The graph is the figure a printed bill would carry, so nothing in it is a
+   background colour except the average's own plate: the curve runs under that
+   label, so the plate is asked for in the print sheet with `print-color-adjust`,
+   the way the running wash's shade already is. A curve that disappears on paper
+   is worse than no curve. */
+
+/* One wash's row opens its own sheet: the whole row is the target on a phone, and
+   the date inside it is the link a keyboard and a screen reader get (§5.3). The
+   empty month's row opens nothing, so it gets no pointer. */
+.laundry-row:not(.is-empty) {
+  cursor: pointer;
+}
+
+.laundry-row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.laundry-row-link:hover {
+  text-decoration: underline;
+}
+
+/* The wash's own power, at every sample the meter kept. */
+.laundry-graph {
+  margin: 0;
+}
+
+.laundry-graph-empty {
+  color: var(--bill-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.laundry-graph-body {
+  display: flex;
+  gap: 8px;
+}
+
+/* The wattage axis, in the margin: text, so it stays a readable size when the
+   plot is squeezed onto a phone. */
+.laundry-graph-yscale {
+  flex: none;
+  position: relative;
+  width: 4.6rem;
+}
+
+.laundry-graph-yscale span {
+  color: var(--bill-muted);
+  font-size: 0.8rem;
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.laundry-graph-plot {
+  border-bottom: 1px solid var(--bill-rule-strong);
+  border-left: 1px solid var(--bill-rule-strong);
+  flex: 1;
+  height: 230px;
+  min-width: 0;
+  position: relative;
+}
+
+.laundry-graph-rules,
+.laundry-graph-curve {
+  display: block;
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.laundry-graph-rules line {
+  stroke: var(--bill-rule);
+  stroke-width: 1;
+  /* The plot is stretched to its box, so the stroke has to be told not to
+     stretch with it. */
+  vector-effect: non-scaling-stroke;
+}
+
+/* The draw the run averaged: a threshold rule, not a gridline. */
+.laundry-graph-rules line.is-average {
+  stroke: var(--bill-muted);
+  stroke-dasharray: 4 3;
+}
+
+.laundry-graph-curve polyline {
+  fill: none;
+  stroke: var(--bill-ink);
+  stroke-linejoin: round;
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The average's own figure, beside its rule. Paper behind it, because the curve
+   runs under the label and a document's figure has to be readable — the one
+   background in the figure, and the print sheet asks for it explicitly. */
+.laundry-graph-average {
+  background: #ffffff;
+  color: var(--bill-muted);
+  font-size: 0.75rem;
+  padding: 0 3px;
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+.laundry-graph-time {
+  color: var(--bill-muted);
+  display: flex;
+  font-size: 0.8rem;
+  justify-content: space-between;
+  margin: 4px 0 0 4.6rem;
+  padding-left: 8px;
+}
+
+/* The claim, on a sheet of its own: the field on screen, the person on paper
+   (the printed name is the bill's own rule, §5.3). */
+.laundry-detail-claim {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .laundry-graph-plot {
+    height: 150px;
+  }
+
+  .laundry-graph-yscale {
+    width: 3.4rem;
+  }
+
+  .laundry-graph-yscale span,
+  .laundry-graph-time {
+    font-size: 0.7rem;
+  }
+
+  .laundry-graph-time {
+    margin-left: 3.4rem;
+  }
+}

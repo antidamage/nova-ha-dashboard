@@ -3,7 +3,7 @@
 // labels and curve each is drawn with. See specs/power-meters.md 5.2.
 import path from "path";
 import { readDashboardConfigSync } from "../dashboard-config";
-import { blankWashingMachineState, cycleId, downsampleTrace, type WashingMachineState } from "../washing-machine";
+import { blankWashingMachineState, cycleId, downsampleTrace, type WashingMachineCycle, type WashingMachineState } from "../washing-machine";
 import {
   blockStartWallMs,
   blockStartsForSpan,
@@ -14,8 +14,9 @@ import {
 import { localInstantMs, localParts, localWallMs, monthNames } from "./calendar";
 import { readJson, WASH_TRACE_DIR, WASHING_MACHINE_PATH, powerConfig } from "./store";
 import { currentRate } from "./tariff";
-import type { OpenWashTrace, WashBlock, WashGraphCycle, WashHistory, WashTraceFile } from "./types";
-import { buildWashMonth } from "./wash-months";
+import type { OpenWashTrace, WashBlock, WashGraphCycle, WashHistory, WashMonthRate, WashTraceFile } from "./types";
+import { buildWashDetail, type WashDetailSample } from "./wash-detail";
+import { buildWashMonth, cyclePlaceholder } from "./wash-months";
 import { washRates } from "./washing-rates";
 
 const OPEN_TRACE_PATH = path.join(WASH_TRACE_DIR, "open.json");
@@ -132,17 +133,96 @@ export async function readWashMonth(requested: string | null) {
   }
   const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
   const now = new Date();
-  // The wash's own plan when it has one; the household's otherwise, which is the
-  // same answer the tick's costing reached at the time (§4.1).
-  const rates = washRates();
-  const household = rates ? null : currentRate(now);
   return buildWashMonth({
     state: { ...blankWashingMachineState(), ...persisted },
     requested,
     now,
     people: readDashboardConfigSync().dashboard.people ?? [],
-    rate: rates
-      ? { asOf: rates.asOf ?? null, cPerKwh: rates.cPerKwh, includingGst: true, planName: rates.planName, sourceUrl: rates.sourceUrl ?? "", windows: rates.windows }
-      : { asOf: null, cPerKwh: household!.cPerKwh, includingGst: false, planName: household!.displayName, sourceUrl: household!.sourceUrl, windows: [] },
+    rate: washMonthRate(now),
+  });
+}
+
+/**
+ * The plan a wash is costed at: the machine's own when it has one, the
+ * household's otherwise — the same answer the tick's costing reached at the time
+ * (§4.1). One function, because the month the page pages through and one wash's
+ * own sheet must not state different rates for the same wash.
+ */
+function washMonthRate(now: Date): WashMonthRate {
+  const rates = washRates();
+  if (rates) {
+    return {
+      asOf: rates.asOf ?? null,
+      cPerKwh: rates.cPerKwh,
+      includingGst: true,
+      planName: rates.planName,
+      sourceUrl: rates.sourceUrl ?? "",
+      windows: rates.windows,
+    };
+  }
+  const household = currentRate(now);
+  return {
+    asOf: null,
+    cPerKwh: household.cPerKwh,
+    includingGst: false,
+    planName: household.displayName,
+    sourceUrl: household.sourceUrl,
+    windows: [],
+  };
+}
+
+/** A closed wash's own samples, in the shape its trace file keeps (§4.6). */
+async function tracePoints(id: string): Promise<WashDetailSample[]> {
+  const trace = await readJson<WashTraceFile | null>(path.join(WASH_TRACE_DIR, `${id}.json`), null);
+  return trace?.points ?? [];
+}
+
+/** The open wash's samples, rebased onto the instant it started. */
+function openPoints(trace: OpenWashTrace | null, startedAt: string): WashDetailSample[] {
+  if (!trace || trace.anchor !== startedAt) {
+    return [];
+  }
+  const start = Date.parse(startedAt) / 1000;
+  return trace.points.map(([at, value]): WashDetailSample => [Math.round(at - start), value]);
+}
+
+/**
+ * One wash, for the laundry page's detail sheet: the cycle, its own samples at
+ * the resolution the meter kept them, and the plan it was costed at (§5.3).
+ *
+ * Null when no washing machine is configured, when the id names no wash the store
+ * still holds, and for the open wash when none is running — the page says so
+ * rather than rendering an empty sheet for a URL somebody typed by hand.
+ */
+export async function readWashDetail(id: string) {
+  if (!powerConfig().washingMachine) {
+    return null;
+  }
+  const persisted = await readJson<WashingMachineState>(WASHING_MACHINE_PATH, blankWashingMachineState());
+  const state = { ...blankWashingMachineState(), ...persisted };
+  const open = state.open?.startedAt ? state.open : null;
+  // The wash under way has no stored id: every view names it with the
+  // placeholder, and its own start instant is the id its trace would carry, so
+  // either answers for it (§4.6).
+  const running = open !== null && (id === cyclePlaceholder || id === cycleId(open.startedAt!));
+  const cycle: WashingMachineCycle | null = running && open
+    ? {
+        costNzd: open.costNzd,
+        endedAt: new Date().toISOString(),
+        id: cyclePlaceholder,
+        kwh: open.kwh,
+        person: open.person ?? null,
+        startedAt: open.startedAt!,
+      }
+    : state.cycles.find((candidate) => candidate.id === id) ?? null;
+  if (!cycle) {
+    return null;
+  }
+  return buildWashDetail({
+    cycle,
+    people: readDashboardConfigSync().dashboard.people ?? [],
+    points: running ? openPoints(await readJson<OpenWashTrace | null>(OPEN_TRACE_PATH, null), cycle.startedAt) : await tracePoints(cycle.id),
+    rate: washMonthRate(new Date()),
+    running,
   });
 }

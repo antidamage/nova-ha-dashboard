@@ -30,7 +30,13 @@ describe("the laundry page's chrome", () => {
   it("is left off the body-level chrome the layout mounts on every route", () => {
     const guard = standaloneGuard(globalServices);
 
-    expect(guard).toContain('"/laundry"');
+    // The bill's path **and everything under it**: one wash's own sheet lives there
+    // and is the same document (§5.3). Read off the file rather than the guard's
+    // own line, because that condition names the path once and then tests a
+    // variable.
+    expect(globalServices).toContain('standalone === "/laundry"');
+    expect(globalServices).toContain('standalone?.startsWith("/laundry/")');
+    expect(guard).toContain("onLaundry");
     // The orb is mounted after that guard, so a route the guard covers never
     // reaches it. The import has no angle bracket, so this finds the JSX.
     expect(globalServices.indexOf("<NovaAvatar")).toBeGreaterThan(globalServices.indexOf(guard));
@@ -43,6 +49,19 @@ describe("the laundry page's chrome", () => {
     const guard = overlay.match(/if \(pathname === [^\n]*?\) return null;/);
 
     expect(guard?.[0]).toContain('"/laundry"');
+    // One wash's own sheet is the same paper, one path below the bill's (§5.3).
+    expect(guard?.[0]).toContain('startsWith("/laundry/")');
+  });
+
+  it("keeps one wash's sheet renderable in the demo's static export, off the store", () => {
+    // The demo build is a static export with no server, so a dynamic route needs
+    // the paths its export can carry, and the page must render without reading the
+    // build machine's real data directory — the shape the bill already has (§5.3).
+    const page = readFileSync(join(appDir, "laundry", "[id]", "page.tsx"), "utf8");
+
+    expect(page).toContain("export function generateStaticParams()");
+    expect(page).toContain('colorScheme: "only light"');
+    expect(page).toContain("isDemoMode ?");
   });
 
   it("asks the browser not to repaint it with its automatic dark theme", () => {
@@ -67,7 +86,14 @@ describe("the laundry page's chrome", () => {
     // The page renders its own document: a plain <select> rather than the app's
     // themed, portalled listbox, and no component of the dashboard's at all. A
     // bill that borrows one is the dashboard sitting on the paper.
-    for (const file of ["page.tsx", "laundry-client.tsx"]) {
+    for (const file of [
+      "page.tsx",
+      "laundry-client.tsx",
+      "laundry-row.tsx",
+      "wash-graph.tsx",
+      "bill-format.ts",
+      join("[id]", "page.tsx"),
+    ]) {
       const source = readFileSync(join(appDir, "laundry", file), "utf8");
       // Any import that reaches into the dashboard's components, aliased or
       // relative — the earlier form only matched `../` and `./`.
