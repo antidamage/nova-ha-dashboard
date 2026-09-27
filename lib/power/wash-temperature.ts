@@ -9,10 +9,11 @@
 // cold cycle shows no plateau at all, which is why "the element never ran" is a
 // reading rather than a missing one.
 //
-// The numbers below are this machine's, measured from its own traces: 487 s of
-// heat-up at 2.19 kW was a 40° cycle, and 899 s at 2.16 kW was a 60° — one rise
-// per degree of ~19.5 s from a 15 °C fill, which is what `power.washingMachine.
-// temperature` holds (§4.1's rule: the thresholds are config, not code).
+// The numbers below are this machine's, measured from its own traces and labelled
+// by the person who ran those washes: its 899 s heat-up was a 40° cycle and its
+// 487 s one a 30° — an 18 °C fill at about 41 s of heating per degree of rise,
+// which is what `power.washingMachine.temperature` holds (§4.1's rule: the
+// thresholds are config, not code).
 //
 // Pure: the samples, the machine's numbers and whether the wash has finished are
 // all arguments. The store read is wash-history.ts's (§5.3).
@@ -26,6 +27,8 @@ export type WashHeatUp = {
   /** How long the element ran, in seconds, and what it drew while it did. */
   seconds: number;
   watts: number;
+  /** The element was still on in the wash's last sample, so the rise is partial. */
+  open: boolean;
 };
 
 /**
@@ -43,31 +46,53 @@ export type WashTemperature = {
 };
 
 /**
- * The longest unbroken stretch the element was on.
+ * The longest unbroken stretch the element was on, **near the start of the cycle**.
  *
- * The longest, not the first: a cycle that holds a temperature re-heats in bursts
- * as the water cools, and the run that brought the load up is the one that carries
- * the rise. Sampling is one point per meter tick (~10 s here), so a plateau's
- * length is its own span between its first and last sample at the element's draw.
+ * Three things decide whether a run of the element is a cycle's heat-up, and each
+ * of them is what the trace says rather than a guess:
+ *
+ * - **It has to start early.** A cycle that holds a temperature re-heats in bursts
+ *   as the water cools, and those bursts can be longer than a short heat-up was; the
+ *   water is hot by then, so only a run that begins inside `heatUpBySeconds` of the
+ *   start is the load being brought up.
+ * - **A sampling gap ends it.** The meter says nothing about the stretch it did not
+ *   observe, so two runs either side of a gap longer than `maxGapSeconds` are two
+ *   runs — the same limit the wash's own timer trusts (§4.5).
+ * - **A run still going in the last sample is open**, which means a wash that has
+ *   not finished has not finished heating either.
+ *
+ * Sampling is one point per meter tick (~10 s here), so a run's length is its own
+ * span between its first and last sample at the element's draw.
  */
-export function washHeatUp(points: WashDetailSample[], heaterWatts: number): WashHeatUp {
-  let best: WashHeatUp = { seconds: 0, watts: 0 };
+export function washHeatUp(
+  points: WashDetailSample[],
+  config: WashTemperatureConfig,
+  maxGapSeconds: number,
+): WashHeatUp {
+  let best: WashHeatUp = { open: false, seconds: 0, watts: 0 };
   let start = -1;
+  let previous = -1;
   const close = (end: number) => {
     if (start < 0) return;
     const seconds = points[end - 1][0] - points[start][0];
     if (seconds > best.seconds) {
       const run = points.slice(start, end);
-      best = { seconds, watts: run.reduce((sum, [, value]) => sum + value, 0) / run.length };
+      best = {
+        open: end === points.length,
+        seconds,
+        watts: run.reduce((sum, [, value]) => sum + value, 0) / run.length,
+      };
     }
     start = -1;
   };
-  points.forEach(([, value], index) => {
-    if (value >= heaterWatts) {
-      if (start < 0) start = index;
+  points.forEach(([seconds, value], index) => {
+    if (start >= 0 && seconds - previous > maxGapSeconds) close(index);
+    if (value >= config.heaterWatts) {
+      if (start < 0 && seconds <= config.heatUpBySeconds) start = index;
     } else {
       close(index);
     }
+    previous = seconds;
   });
   close(points.length);
   return best;
@@ -85,13 +110,18 @@ export function washHeatUp(points: WashDetailSample[], heaterWatts: number): Was
 export function washTemperature(
   points: WashDetailSample[],
   config: WashTemperatureConfig,
-  options: { complete: boolean },
+  options: { complete: boolean; maxGapSeconds: number },
 ): WashTemperature {
-  const heatUp = washHeatUp(points, config.heaterWatts);
+  const heatUp = washHeatUp(points, config, options.maxGapSeconds);
   if (points.length === 0) {
     return { degrees: null, heatUp, source: "unmeasured" };
   }
   if (heatUp.seconds >= config.minimumSeconds) {
+    // The element is on in the wash's last sample: the water is still coming up, so
+    // the rise so far is not the temperature that was chosen — yet.
+    if (heatUp.open && !options.complete) {
+      return { degrees: null, heatUp, source: "unmeasured" };
+    }
     const rise = config.inletDegrees + heatUp.seconds / config.secondsPerDegree;
     return { degrees: nearest(rise, config.options), heatUp, source: "degrees" };
   }
