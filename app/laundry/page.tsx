@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
 import { readWashMonth } from "../../lib/power";
+import { washClaimColor } from "../../lib/power/wash-months";
 import { isDemoMode } from "../shell/layout-data";
 import { LaundryPrint, WashWhoSelect } from "./laundry-client";
 
@@ -74,6 +75,9 @@ export default async function LaundryPage({ searchParams }: { searchParams: Prom
   }
 
   const average = view.kwh > 0 ? (view.costNzd / view.kwh) * 100 : 0;
+
+  // The month's washes with the one under way at their head — the panel's order.
+  const rows = view.running ? [view.running, ...view.cycles] : view.cycles;
 
   return (
     <main className="laundry-page">
@@ -153,31 +157,24 @@ export default async function LaundryPage({ searchParams }: { searchParams: Prom
               </tr>
             </thead>
             <tbody>
-              {view.running ? (
-                <tr className="laundry-row is-running">
-                  <td>{view.running.dateLabel}</td>
-                  <td>{view.running.startLabel}</td>
-                  <td>{view.running.durationLabel} — running</td>
-                  <td className="is-number">{kwh(view.running.kwh)}</td>
-                  <td className="is-number">{money(view.running.costNzd)}</td>
-                  <td>
-                    <WashWhoSelect active cycleId={view.running.id} people={view.people} person={view.running.person} />
-                  </td>
-                </tr>
-              ) : null}
-              {view.cycles.map((cycle) => (
-                <tr className="laundry-row" key={cycle.id}>
+              {/* Whose wash it is: the panel's colour for that person (§5.2). */}
+              {rows.map((cycle) => (
+                <tr
+                  className={cycle === view.running ? "laundry-row is-running" : "laundry-row"}
+                  key={cycle.id}
+                  style={{ background: washClaimColor(cycle.person, view.people) }}
+                >
                   <td>{cycle.dateLabel}</td>
                   <td>{cycle.startLabel}</td>
-                  <td>{cycle.durationLabel}</td>
+                  <td>{cycle.durationLabel}{cycle === view.running ? " — running" : ""}</td>
                   <td className="is-number">{kwh(cycle.kwh)}</td>
                   <td className="is-number">{money(cycle.costNzd)}</td>
                   <td>
-                    <WashWhoSelect cycleId={cycle.id} people={view.people} person={cycle.person} />
+                    <WashWhoSelect active={cycle === view.running} cycleId={cycle.id} people={view.people} person={cycle.person} />
                   </td>
                 </tr>
               ))}
-              {view.cycles.length === 0 && !view.running ? (
+              {rows.length === 0 ? (
                 <tr className="laundry-row is-empty">
                   <td colSpan={6}>No washes this month.</td>
                 </tr>

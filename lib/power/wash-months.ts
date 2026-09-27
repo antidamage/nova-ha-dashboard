@@ -126,6 +126,17 @@ export function buildWashMonth(options: {
 }
 
 /**
+ * The colour a wash wears on the page: the one the panel fills that person's
+ * block with (§5.2), so the two surfaces cannot disagree about what a colour
+ * means. Nobody claimed it — or the household no longer configures the person
+ * the store holds, which the page's field and its totals already read as
+ * Unassigned — and there is no colour at all, which the page renders as paper.
+ */
+export function washClaimColor(person: string | null, people: HouseholdPerson[]) {
+  return people.find((candidate) => candidate.id === person)?.color;
+}
+
+/**
  * The running wash's id in this view. It has no stored id yet — the store names a
  * cycle when it closes — and the page claims it through the open wash's own
  * route rather than by id, so a value no cycle can collide with is all it needs.
