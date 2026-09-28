@@ -14,7 +14,7 @@ import type { ArrivalEventKind } from "../../../../lib/arrivals/types";
  */
 
 /** Product colours for a household person's blocks. Not household data. */
-export const PERSON_COLOURS = ["#22d3ee", "#e879f9", "#f97316", "#a3e635", "#60a5fa", "#facc15"];
+export const PERSON_COLOURS = ["#f97316", "#2dd4bf", "#a3e635", "#60a5fa", "#facc15"];
 
 export type ArrivalTargetOption = { kind: ArrivalTargetKind; label: string };
 export type ArrivalPresetOption = { id: string; label: string; group?: string };

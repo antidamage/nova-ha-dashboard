@@ -40,7 +40,7 @@ what an air-conditioning preset or a volume preset looks like:
 ```json
 "people": [
   {
-    "id": "ada", "label": "Ada", "color": "#22d3ee", "primary": true,
+    "id": "ada", "label": "Ada", "color": "#f97316", "primary": true,
     "arrival": [{ "target": "lighting", "presetId": "adaptive-office" }],
     "departure": [{ "target": "lighting", "presetId": "builtin-off:office" }]
   }
