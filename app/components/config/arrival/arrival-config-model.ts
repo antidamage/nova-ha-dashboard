@@ -86,6 +86,24 @@ export function setPrimaryMember(people: readonly HouseholdPerson[], id: string)
   return people.map((person) => ({ ...person, primary: person.id === id }));
 }
 
+/**
+ * A member's colour, as the colour dial hands it over: a `#rrggbb` the schema
+ * accepts, lowercased so two people cannot hold the same colour in two spellings.
+ *
+ * Anything else is refused by returning the list unchanged — the same shape the
+ * refusals above use — because the schema would reject the whole document rather
+ * than the one value, and a save that cannot succeed must not be attempted.
+ */
+export function setMemberColor(
+  people: readonly HouseholdPerson[],
+  id: string,
+  color: string,
+): HouseholdPerson[] {
+  const next = color.trim().toLowerCase();
+  if (!/^#[0-9a-f]{6}$/.test(next)) return [...people];
+  return people.map((person) => (person.id === id ? { ...person, color: next } : person));
+}
+
 export function statesOf(person: HouseholdPerson, event: ArrivalEventKind): ArrivalState[] {
   return event === "arrival" ? person.arrival : person.departure;
 }
