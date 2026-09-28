@@ -12,6 +12,7 @@ import {
   removeMember,
   removeState,
   renameMember,
+  setMemberColor,
   setPrimaryMember,
   targetsWithoutPresets,
   updateState,
@@ -20,8 +21,9 @@ import { MemberEditor } from "./MemberEditor";
 import { NEW_PERSON_LABEL, useArrivalSettings } from "./useArrivalSettings";
 
 /**
- * Household members (specs/arrival-and-departure.md): who lives here, and what
- * each of them sets on the way in and on the way out. It sits under Voice &
+ * Household members (specs/arrival-and-departure.md): who lives here, what colour
+ * they are shown in, and what each of them sets on the way in and on the way out.
+ * It sits under Voice &
  * People → User Data because its members ARE the household people that section
  * is about — the same list the voice identities and consumption attribution use.
  */
@@ -79,6 +81,7 @@ export function ArrivalConfig() {
           <MemberEditor
             key={member.id}
             member={member}
+            onColor={(color) => void commit(setMemberColor(members, member.id, color))}
             onPrimary={() => void commit(setPrimaryMember(members, member.id))}
             removable={members.length > 1}
             onRemove={() => void commit(removeMember(members, member.id))}

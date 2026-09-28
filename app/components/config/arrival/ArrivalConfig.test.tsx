@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { turn, useDialHarness } from "../../ColorEncoder.fixtures";
 import { ArrivalConfig } from "./ArrivalConfig";
+
+// The colour dial's own pointer-capture and geometry shims, from the encoder's
+// shared harness: a trackpad-less jsdom lays nothing out, and an angular drag
+// needs the dial's box.
+useDialHarness();
 
 const payload = {
   members: [
@@ -47,6 +53,26 @@ afterEach(() => {
 });
 
 describe("ArrivalConfig", () => {
+  it("sets a member's colour with the same dial the zones use", async () => {
+    const fetchMock = stubFetch();
+
+    render(<ArrivalConfig />);
+    await openSection();
+    await screen.findByDisplayValue("Ada");
+
+    // One member, one dial, named for them; a turn of it commits a "#rrggbb".
+    turn(screen.getByRole("slider", { name: /Ada colour/ }), 30);
+
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+      expect(put).toBeTruthy();
+      const body = JSON.parse(String((put![1] as RequestInit).body)) as { people: { color: string }[] };
+      expect(body.people[0].color).toMatch(/^#[0-9a-f]{6}$/);
+      // A turn of the hue channel is a new colour, not the one it started on.
+      expect(body.people[0].color).not.toBe("#22d3ee");
+    });
+  });
+
   it("lists the members, their states and each target's presets", async () => {
     stubFetch();
 

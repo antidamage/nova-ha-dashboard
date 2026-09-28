@@ -9,6 +9,7 @@ import {
   removeMember,
   removeState,
   renameMember,
+  setMemberColor,
   setPrimaryMember,
   targetsWithoutPresets,
   updateState,
@@ -61,6 +62,25 @@ describe("member edits", () => {
   it("renames without changing the id the endpoints address", () => {
     expect(renameMember(people, "ada", "Ada L")).toEqual([{ ...ada, label: "Ada L" }, bea]);
     expect(renameMember(people, "ada", "  ")).toEqual(people);
+  });
+
+  it("sets a member's colour, lowercased, and leaves the others alone", () => {
+    const before = addMember(addMember([], "Ada"), "Bo");
+
+    const after = setMemberColor(before, before[0].id, "#FF4D2E");
+
+    expect(after[0].color).toBe("#ff4d2e");
+    expect(after[1].color).toBe(before[1].color);
+  });
+
+  it("refuses a colour the schema would reject, rather than saving a broken document", () => {
+    // The whole people array is one write: a value the schema refuses loses every
+    // other edit in the same save, so the model returns the list it was given.
+    const people = addMember([], "Ada");
+
+    for (const bad of ["red", "#ff", "#ff4d2e7", "rgb(255, 77, 46)", ""]) {
+      expect(setMemberColor(people, people[0].id, bad)).toEqual(people);
+    }
   });
 
   it("moves primary to exactly one member", () => {

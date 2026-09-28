@@ -47,6 +47,16 @@ what an air-conditioning preset or a volume preset looks like:
 ]
 ```
 
+A member's `color` is what the dashboard shows their consumption in — the wash
+blocks on the power panel and the laundry bill's own rows (`specs/power-meters.md`
+§5.2, §5.3). It is set in this section with **the same rotary colour control the
+zones use** (`ColorEncoder`, `specs/color-encoder.md`) rather than a second colour
+picker, since a person's colour is the same kind of value as a light's (Adeline,
+2026-09-27). The dial writes on **release**: `onChange` moves the knob, and its
+`onCommit` is the one config write a gesture makes. A colour the schema would refuse
+is refused by the model by leaving the list unchanged, because the people array is a
+single write and a bad value would lose every other edit in the same save.
+
 `ARRIVAL_TARGET_KINDS` in `lib/config-schema/arrivals.ts` is the enum, and
 `lib/arrivals/targets.test.ts` fails unless `ARRIVAL_TARGETS` registers exactly
 those kinds: adding a fourth kind is a new file under `lib/arrivals/targets/`,
