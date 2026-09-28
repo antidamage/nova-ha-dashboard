@@ -706,7 +706,13 @@ data endpoint, and the page prints from a plain document.
   and consistent with the totals; written down only because a reader may wonder.
   The row **wears the colour of the person it is claimed by** — the same hex the
   panel fills that person's block with (§5.2), read through `washClaimColor` in the
-  month view so the two surfaces cannot disagree about what a colour means. An
+  month view so the two surfaces cannot disagree about what a colour means — and it
+  wears it as a **vertical gradient**: clear along the row's top edge and 20% opaque
+  along its bottom (Adeline, 2026-09-27: *"make those pink and blue colours more
+  subtle. make it a gradient from transparent at the top to 20% opaque at the
+  bottom."*). The alpha is appended to that hex (`00` to open, `33` for 20%) rather
+  than mixed with `transparent`, which interpolates through grey because it is a
+  black with no alpha. An
   unassigned wash is paper, and so is one whose person this household no longer
   configures, which the field and the totals already read as Unassigned. Screen
   only: nothing asks for it on paper, where the claim prints as a name.

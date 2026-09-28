@@ -20,6 +20,24 @@ export function watts(value: number) {
 }
 
 /**
+ * A wash's own row, wearing the colour of the person who claimed it: a vertical
+ * gradient, clear along the row's top edge and 20% opaque along its bottom, so a
+ * line of a bill is marked without its ink sitting under a block of colour
+ * (Adeline, 2026-09-27: *"make it a gradient from transparent at the top to 20%
+ * opaque at the bottom"*).
+ *
+ * No claimer, no background — the row stays paper.
+ *
+ * The alpha is APPENDED to the colour's own hex rather than mixed with
+ * `transparent`: a gradient to `transparent` interpolates through grey, because
+ * `transparent` is a black with no alpha, and both ends of this one have to be the
+ * person's own colour. `33` is 51 of 255 — 20%.
+ */
+export function claimBackground(color: string | undefined) {
+  return color ? `linear-gradient(180deg, ${color}00, ${color}33)` : undefined;
+}
+
+/**
  * The temperature a wash ran at: the button that was pressed, `Cold` for a cycle
  * whose element never ran, and an em dash for one whose trace cannot say — which
  * is not the same thing as cold (§5.3).

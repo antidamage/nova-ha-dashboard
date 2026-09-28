@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { HouseholdPerson } from "../../lib/config-schema";
 import type { WashMonthCycle } from "../../lib/power";
 import { washClaimColor } from "../../lib/power/wash-months";
-import { kwh, money, temperatureLabel } from "./bill-format";
+import { claimBackground, kwh, money, temperatureLabel } from "./bill-format";
 import { WashRow } from "./laundry-row";
 import { WashWhoSelect } from "./laundry-client";
 
@@ -42,13 +42,14 @@ export function WashTable({
         </tr>
       </thead>
       <tbody>
-        {/* Whose wash it is: the panel's colour for that person (§5.2). */}
+        {/* Whose wash it is: the panel's colour for that person, as the gradient its
+            row wears (§5.2, §5.3). */}
         {rows.map((cycle) => (
           <WashRow
             className={cycle === running ? "laundry-row is-running" : "laundry-row"}
             href={`/laundry/${cycle.id}`}
             key={cycle.id}
-            style={{ background: washClaimColor(cycle.person, people) }}
+            style={{ background: claimBackground(washClaimColor(cycle.person, people)) }}
           >
             <td>
               <Link className="laundry-row-link" href={`/laundry/${cycle.id}`}>
