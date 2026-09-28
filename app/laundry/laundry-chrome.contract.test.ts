@@ -139,7 +139,7 @@ describe("the laundry page's paper", () => {
     // cap — so the row's colour is read where the row is drawn.
     const table = readFileSync(join(appDir, "laundry", "wash-table.tsx"), "utf8");
 
-    expect(table).toContain("style={{ background: washClaimColor(cycle.person, people) }}");
+    expect(table).toContain("style={{ background: claimBackground(washClaimColor(cycle.person, people)) }}");
   });
 
   it("has a temperature column, and the claim field's width follows the columns", () => {
