@@ -408,8 +408,8 @@ People come from household config, never product source —
 ```jsonc
 "dashboard": {
   "people": [
-    { "id": "alex", "label": "alex", "color": "#22d3ee" },
-    { "id": "sam", "label": "sam", "color": "#e879f9" }
+    { "id": "alex", "label": "alex", "color": "#841900" },
+    { "id": "new-person", "label": "sam", "color": "#017d5e" }
   ]
 }
 ```
@@ -513,7 +513,7 @@ Config, household data only (`nova-household/dashboard-config.json`):
 
 ```jsonc
 "washingMachine": {
-  "unclaimedPersonId": "sam",
+  "unclaimedPersonId": "new-person",
   "timer": {
     "firstPeriodMinutes": 70,
     "extendMinutes": 10,

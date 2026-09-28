@@ -18,7 +18,7 @@ import {
 const ada: HouseholdPerson = {
   id: "ada",
   label: "Ada",
-  color: "#22d3ee",
+  color: PERSON_COLOURS[0],
   primary: true,
   arrival: [],
   departure: [],
