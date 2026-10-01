@@ -25,17 +25,23 @@ export async function requestEmulatedDry(unit: AirconInstance, now: number) {
 /**
  * Leaving emulated Dry, however it happens: forget its bookkeeping and put back
  * the owner's target, which emulation replaced with room minus one.
+ *
+ * The restore is a write of its own, so it happens only while the room is Nova's.
+ * An expired sleep timer stops the unit and nothing else: the caller's allowance
+ * covers its `turn_off` alone, and must not be forwarded here, or the person who
+ * just took the unit by hand has their setpoint overwritten at the moment Nova
+ * stands down from it.
  */
-export async function leaveEmulatedDry(unit: AirconInstance, entityId: string | undefined, preferences?: DashboardPreferences) {
+export async function leaveEmulatedDry(unit: AirconInstance, entityId: string | undefined) {
   const room = roomState(unit.id);
   const restore = room.drySetpointChanged;
   room.dryUserRequestAt = null;
   room.dryOffByEmulation = false;
   room.drySetpointChanged = false;
   if (!restore || !entityId) return;
-  const target = airconPreferencesFor(preferences ?? await readDashboardPreferences(), unit.id)?.temperature;
+  const target = airconPreferencesFor(await readDashboardPreferences(), unit.id)?.temperature;
   if (typeof target === "number" && Number.isFinite(target)) {
-    await executeActions(unit, [{ entityId, domain: "climate", service: "set_temperature", data: { temperature: target } }], true);
+    await executeActions(unit, [{ entityId, domain: "climate", service: "set_temperature", data: { temperature: target } }]);
   }
 }
 
@@ -134,7 +140,17 @@ export async function stopAndCancel(
     sensorAgeSeconds?: number | null;
     sensorUnusableReason?: string | null;
   } = {},
+  /**
+   * An expired sleep timer is the owner's own standing instruction, and all it
+   * ever does is turn the device off, so it is executed even while the room is
+   * suspended after a device override — see `driveAircon`. Both callers today
+   * are timer paths and pass true; the default is false so that anything else
+   * reaching this function cannot command a device that is in someone else's
+   * hands. The allowance covers this function's own stop and nothing else.
+   */
+  options: { whileSuspended?: boolean } = {},
 ) {
+  const allowWhileExternal = options.whileSuspended === true;
   const now = Date.now();
   const room = instance.id;
   roomState(room).lastStopReason = reason;
@@ -158,12 +174,14 @@ export async function stopAndCancel(
   if (instance.kind === "aircon") {
     airconThermostatFor(room).resetForUserRequest();
     roomState(room).manualDirection = null;
-    await executeActions(instance, [{ entityId, domain: "climate", service: "turn_off" }]);
+    await executeActions(instance, [{ entityId, domain: "climate", service: "turn_off" }], allowWhileExternal);
+    // No allowance forwarded: the restore is a second write, and it is not the
+    // timer's. See `leaveEmulatedDry`.
     await leaveEmulatedDry(instance, entityId);
     await mergeDashboardPreferences(airconPreferencesPatch(room, { autoMode: false, offTimerEndsAt: null }));
   } else {
     heaterThermostatFor(room).resetForUserRequest();
-    await executeActions(instance, [{ entityId, domain: "switch", service: "turn_off" }]);
+    await executeActions(instance, [{ entityId, domain: "switch", service: "turn_off" }], allowWhileExternal);
     await mergeDashboardPreferences(heaterPreferencesPatch(room, { mode: "off", offTimerEndsAt: null }));
   }
 }

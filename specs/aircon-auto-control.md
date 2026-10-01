@@ -281,6 +281,17 @@ Only an expired sleep timer ends the mode without the owner, through
 sensor fail-safe does not end anything: it switches the unit off and leaves the
 mode selected, waiting for a reading (§5.2). Both are explainable afterwards.
 
+The timer outlives a suspension. A room taken by hand stands the loop down, but
+the timer is still read on every tick: one armed before the override is honoured
+when it expires, and its `turn_off` is sent even though the room reads
+`external` (`stopAndCancel(..., { whileSuspended: true })`). Turning off is all
+the timer does, so it cannot fight the person holding the remote, and the room
+stays theirs. That allowance covers the stop alone: the emulated-Dry bookkeeping
+`stopAndCancel` clears afterwards is not given it, so the setpoint of a suspended
+unit stays exactly as the person holding the remote left it (`leaveEmulatedDry`).
+Guarding the whole block with ownership instead let a unit run past
+its timer — the aircon left running all night on 2026-10-02.
+
 **Nothing else may end it, and that is now structural.** Adeline, 2026-09-24:
 "user selected mode should never be unset by any process, ever." An action only
 speaks about the mode when it is aimed at the unit's own device — the aircon's
