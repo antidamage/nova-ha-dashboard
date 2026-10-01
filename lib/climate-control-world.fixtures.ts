@@ -61,7 +61,7 @@ export const haClientMock = () => ({
   haRest: async () => world.states,
 });
 
-export const dashboardConfigMock = () => {
+export const dashboardConfigMock = ({ heater = false }: { heater?: boolean } = {}) => {
   const config = {
     dashboard: {
       aircon: { title: "Lounge", matchTokens: [] },
@@ -75,7 +75,13 @@ export const dashboardConfigMock = () => {
           temperatureEntityIds: ["sensor.lounge_temperature"],
           humidityEntityIds: [],
         }],
-        heaters: [],
+        heaters: heater ? [{
+          id: "bedroom",
+          title: "Bedroom",
+          switchEntityIds: ["switch.bedroom_heater"],
+          temperatureEntityIds: ["sensor.bedroom_temperature"],
+          humidityEntityIds: [],
+        }] : [],
       },
     },
   };
@@ -96,14 +102,30 @@ export function setWorld({
   roomTemperature = 22,
   quiet,
   sensorAgeMinutes = 0,
+  heater,
 }: {
   acState?: string;
   roomTemperature?: number;
   quiet?: "on" | "off";
   sensorAgeMinutes?: number;
+  heater?: { state: "on" | "off"; roomTemperature?: number };
 } = {}) {
   const at = new Date(Date.now() - sensorAgeMinutes * 60_000).toISOString();
   world.states = [
+    ...(heater
+      ? [{
+          entity_id: "switch.bedroom_heater",
+          state: heater.state,
+          attributes: { friendly_name: "Bedroom Heater" },
+          last_changed: at, last_updated: at, last_reported: at,
+        },
+        {
+          entity_id: "sensor.bedroom_temperature",
+          state: String(heater.roomTemperature ?? 18),
+          attributes: {},
+          last_changed: at, last_updated: at, last_reported: at,
+        }]
+      : []),
     {
       entity_id: "climate.ac",
       state: acState,

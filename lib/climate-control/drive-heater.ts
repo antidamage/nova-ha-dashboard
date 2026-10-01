@@ -46,9 +46,15 @@ export async function driveHeater(
     sensorUnusableReason: sensorAvailable ? null : sensor ? "stale-or-non-numeric" : "no-sensor-entity",
   };
 
-  if (heater && usable(heater) && room.owner === "nova") {
-    if (bedroomHeaterSleepTimerExpired(prefs, now)) {
-      await stopAndCancel(instance, heater.entity_id, "timer-expired", sensorDetail);
+  // Same rule as the air conditioner: the loop stands down while someone else
+  // has the unit, but the owner's sleep timer outlives that stand-down and only
+  // ever turns the element off (2026-10-02 — the timer used to die with the
+  // override and the element ran past it).
+  const sleepTimerExpired = bedroomHeaterSleepTimerExpired(prefs, now);
+
+  if (heater && usable(heater) && (room.owner === "nova" || sleepTimerExpired)) {
+    if (sleepTimerExpired) {
+      await stopAndCancel(instance, heater.entity_id, "timer-expired", sensorDetail, { whileSuspended: true });
     } else if (mode === "off" && heater.state === "on") {
       room.lastStopReason = "nova-off";
       await executeActions(instance, [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);

@@ -292,7 +292,11 @@ Required behaviour:
   a time-of-day trigger, and nothing may turn the heater on or off because a
   time of day arrived.
 - The sleep timer (`offTimerEndsAt`) is unchanged — it is a deliberate user act
-  and still fires server-side with every client asleep.
+  and still fires server-side with every client asleep. It also fires while the
+  room is suspended: a timer armed before the element was taken by hand is
+  honoured when it expires, because the stand-down is about who is driving the
+  unit, not about dropping the owner's own instruction. See
+  `specs/aircon-auto-control.md`, "Sleep timer" — the rule is shared.
 - The thermostat band and the 10-minute min-cycle dwell are unchanged.
 - The 2-minute sensor grace window is **gone** (2026-09-19): with no usable room
   reading the element switches off at once and Auto stays armed, waiting for a

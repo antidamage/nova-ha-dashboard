@@ -109,10 +109,18 @@ export async function driveAircon(
   let forcedOff = false;
   let restingNow = false;
 
-  if (aircon && usable(aircon) && !external) {
-    const offTimer = prefs?.offTimerEndsAt;
-    if (typeof offTimer === "string" && new Date(offTimer).getTime() <= now) {
-      await stopAndCancel(unit, aircon.entity_id, "timer-expired");
+  const offTimer = prefs?.offTimerEndsAt;
+  const sleepTimerExpired = typeof offTimer === "string" && Date.parse(offTimer) <= now;
+
+  // The loop stands down while someone else has the unit, but an armed sleep
+  // timer is the owner's own instruction and outlives that stand-down: used as a
+  // guard on the whole block, a timer set minutes before a device override was
+  // never evaluated again and the unit ran all night (2026-10-02). All the timer
+  // does is turn the unit off, so honouring it cannot fight the person holding
+  // the remote. See specs/aircon-auto-control.md, "Sleep timer".
+  if (aircon && usable(aircon) && (!external || sleepTimerExpired)) {
+    if (sleepTimerExpired) {
+      await stopAndCancel(unit, aircon.entity_id, "timer-expired", {}, { whileSuspended: true });
       forcedOff = true;
     } else if (prefs?.autoMode) {
       thermostat.reconcile({
