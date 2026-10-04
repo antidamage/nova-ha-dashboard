@@ -717,15 +717,26 @@ data endpoint, and the page prints from a plain document.
   configures, which the field and the totals already read as Unassigned. Screen
   only: nothing asks for it on paper, where the claim prints as a name.
 - **Every column, at every width** (Adeline, 2026-09-27: *"Always show every column
-  even if collapsed, they can just wrap"*). The phone layout used to drop Start and
-  Length and hide the header row to fit the screen; it now keeps all seven columns and
-  the ruled table, and a cell that does not fit **wraps or breaks inside its own
-  column**. That is what `table-layout: fixed` buys: an automatic layout sizes a
-  table to its cells' min-content, the claim field's min-content is a form control's,
-  and the six columns therefore came out wider than the phone and panned the whole
-  page sideways — the reason the columns were dropped in the first place. The claim
-  field's column keeps a third of the table and its 16px font, because iOS zooms a
-  phone's page in on a smaller control; the figures share what is left.
+  even if collapsed, they can just wrap"* — and 2026-10-05: *"don't remove any
+  columns, just make it so that fields inside a row can wrap"*). The phone layout
+  used to drop Start and Length and hide the header row to fit the screen. It keeps
+  all seven columns and the ruled table at every width, and at 640px and below the
+  fields wrap **inside the row** rather than inside a column: a table row cannot
+  wrap its cells, so a row is a wrapping flex line — each field is as wide as its own
+  value prints (`Wed 30 Sep`, `11:50 PM`, `1h 19m`, `30°`, `0.077 kWh`, `$0.14`), the
+  fields flow left to right and one that does not fit moves down **whole**. The width
+  travels with the field, on the cell's own class (`is-date` … `is-cost`), rather than
+  sitting at an index that moves when a column arrives; the header cells wear the same
+  classes, so every figure still sits under its own label. The claim field is the
+  widest thing in a row and the one cell that cannot be narrower, so it takes the line
+  under the figures, where the header's own label wraps with it; it keeps its 16px
+  font, because iOS zooms a phone's page in on a smaller control. Fixed layout was the
+  earlier form of this rule, and is what wrapping a *cell inside its own column*
+  needed: six columns across a phone come out about 40px each, where `0.077 kWh`
+  breaks after `0.077` and `Length` prints as `Leng`/`th`, with every row four lines
+  tall — the layout Adeline read as *"looks bad on mobile portrait"*, and what the
+  wrapped row replaced. Screen width only: paper is the print sheet's, whatever
+  size it is, and keeps the ruled table.
 - **The temperature the cycle was set to**, read from the wash's own heat-up
   (Adeline, 2026-09-27: *"Identify hot by the 2000w plateau at the beginning and mark
   those as hot and add it as a column. Everything else is cold... the options are

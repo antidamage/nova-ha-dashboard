@@ -337,15 +337,16 @@ body:has(.laundry-page) {
 }
 
 /* Narrow screens. Adeline, 2026-09-27: *"Always show every column even if
-   collapsed, they can just wrap"* — so every column stays, the header row with
-   them, and a cell that does not fit wraps inside its own column instead of the
-   column being dropped. `table-layout: fixed` is what makes that possible: an
-   auto layout sizes a table to its cells' min-content, and the claim field's
-   min-content is a form control's, so the ruled table came out wider than the
-   phone and the page panned sideways. Fixed layout gives each column the width
-   it is told, the cells wrap or break inside it, and the table can be no wider
-   than the page. */
-@media (max-width: 640px) {
+   collapsed, they can just wrap"* — every column stays, the header row with
+   them. Adeline, 2026-10-05: *"don't remove any columns, just make it so that
+   fields inside a row can wrap"* — a table row cannot wrap its cells, so on a
+   phone a row is a **wrapping line of whole fields** (§5.3): each field's own
+   class carries the width its value prints at, the header wears the same
+   classes and wraps with the row, and the claim field takes the line under the
+   figures. Squeezing six columns into the screen instead broke values mid-word
+   (`0.077` over `kWh`, `Length` as `Leng`/`th`) and stood every row four lines
+   tall. Screen width only: paper keeps the ruled table whatever its size. */
+@media screen and (max-width: 640px) {
   .laundry-page {
     padding: 20px 14px 56px;
   }
@@ -368,38 +369,82 @@ body:has(.laundry-page) {
     font-size: 1.3rem;
   }
 
-  .laundry-table {
-    table-layout: fixed;
+  /* A row is a line of fields that wraps, and the header wraps with its rows. */
+  .laundry-table,
+  .laundry-table thead,
+  .laundry-table tbody {
+    display: block;
+  }
+
+  .laundry-table tr {
+    align-items: baseline;
+    border-bottom: 1px solid var(--bill-rule);
+    column-gap: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    padding-bottom: 7px;
+  }
+
+  .laundry-table thead tr {
+    border-bottom: 1px solid var(--bill-rule-strong);
+  }
+
+  /* An empty month keeps the desktop row's look: no rule under it. */
+  .laundry-table tr.laundry-row.is-empty {
+    border-bottom: none;
   }
 
   .laundry-table th,
   .laundry-table td {
+    border-bottom: none;
+    flex: 0 0 auto;
     font-size: 0.8rem;
-    overflow-wrap: anywhere;
-    padding-left: 3px;
-    padding-right: 3px;
+    /* A field takes more than its width before it breaks through a value. */
+    min-width: min-content;
+    padding: 2px 0;
     white-space: normal;
   }
 
-  /* The figures wrap here too: `nowrap` in a fixed-layout column is the one
-     thing left that can still be wider than its cell. */
   .laundry-table .is-number {
     white-space: normal;
   }
 
-  /* The claim field is the widest thing in a row and the one cell that cannot
-     wrap, so its column — the **last** one, and a selector that stays right when
-     another column arrives (§5.3) — is given the width the field needs, and the
-     figures share what is left. The field keeps its 16px: iOS zooms a phone's whole
-     page in on a control it renders under that (§5.3). */
+  /* One width per field, off the bill's own format: `Wed 30 Sep`, `11:50 PM`,
+     `1h 19m`, `30°`, `0.077 kWh`, `$0.14`. */
+  .laundry-table .is-date {
+    flex-basis: 10.5ch;
+  }
+
+  .laundry-table .is-start {
+    flex-basis: 8.2ch;
+  }
+
+  .laundry-table .is-length {
+    flex-basis: 6.3ch;
+  }
+
+  .laundry-table .is-temp {
+    flex-basis: 4.1ch;
+  }
+
+  .laundry-table .is-energy {
+    flex-basis: 9.7ch;
+  }
+
+  .laundry-table .is-cost {
+    flex-basis: 6.3ch;
+  }
+
   .laundry-table th:last-child {
-    width: 34%;
+    flex-basis: 100%;
+  }
+
+  .laundry-table td:last-child {
+    flex-basis: 100%;
   }
 
   .laundry-who-select {
-    max-width: 100%;
     padding: 4px 2px;
-    width: 100%;
   }
 
   .laundry-totals th,
