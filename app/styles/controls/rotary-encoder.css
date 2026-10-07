@@ -120,11 +120,6 @@
   background: repeating-conic-gradient(from 0deg, rgba(0, 0, 0, 0.035) 0deg 1.2deg, rgba(255, 255, 255, 0.035) 1.2deg 2.4deg);
 }
 
-.rotary-encoder[data-mode="light"] .rotary-encoder-index {
-  background: linear-gradient(180deg, rgba(40, 44, 52, 0.85), rgba(40, 44, 52, 0.55));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
-}
-
 .rotary-encoder[data-mode="light"] .rotary-encoder-channel,
 .rotary-encoder[data-mode="light"] .rotary-encoder-label {
   color: rgba(0, 0, 0, 0.46);

@@ -119,18 +119,25 @@
   mask: radial-gradient(circle closest-side, transparent 0 52%, #000 72% 95%, transparent 97%);
 }
 
-/* One mark, joined to the rim and half its old length (Adeline, 2026-09-11). */
+/* One mark, joined to the rim (Adeline, 2026-09-11). Cut into the knob as a
+   groove filled with the LED colour: twice the old width and 1.5x the old
+   length, an inset shadow along its top edge and a pale lip on its lower edge
+   for the emboss, and a subtle glow (Adeline, 2026-10-08). The same rule serves
+   the pale knob; the LED colour is what carries the contrast. */
 .rotary-encoder-index {
   position: absolute;
   top: 0;
   left: 50%;
-  width: max(1px, calc(var(--re-size) * 0.012));
-  height: calc(var(--re-size) * 0.1);
+  width: max(2px, calc(var(--re-size) * 0.024));
+  height: calc(var(--re-size) * 0.15);
   border-radius: 999px;
-  /* Light body plus a dark outline, so the index reads on a dark knob and on a
-     light one — the knob takes the theme's background colour, which is both. */
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.34));
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38), 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--re-led-on, #ffffff) 82%, #000 18%),
+    var(--re-led-on, #ffffff));
+  box-shadow:
+    inset 0 1px 1.5px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.22),
+    0 0 max(3px, calc(var(--re-size) * 0.03)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.4);
   transform: translateX(-50%);
 }
 
