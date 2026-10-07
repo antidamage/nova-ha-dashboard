@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "fs";
+import { spawnSync } from "child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync } from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -178,5 +179,32 @@ describe("force endpoint", () => {
     const secret = register(["add", "--id", "agent-a", "--scope", "update:force"]);
     expect((await getToken("agent-a", secret)).response.status).toBe(503);
     delete process.env.NOVA_OAUTH_SIGNING_KEY;
+  });
+});
+
+describe("oauth-client CLI as a program", () => {
+  it("runs when started directly and prints the new secret once", () => {
+    const script = path.join(process.cwd(), "scripts", "oauth-client.mjs");
+    const run = (...args: string[]) =>
+      spawnSync(process.execPath, [script, ...args, "--dir", dir], { encoding: "utf8" });
+    const added = run("add", "--id", "agent-cli", "--scope", "update:force");
+    expect(added.status).toBe(0);
+    expect(added.stdout.trim().length).toBeGreaterThan(20);
+    expect(run("list").stdout).toContain("agent-cli\tupdate:force\tactive");
+  });
+
+  it("still runs when reached through a symlink, as scripts/ is on the host", () => {
+    const real = path.join(process.cwd(), "scripts", "oauth-client.mjs");
+    const link = path.join(dir, "linked-oauth-client.mjs");
+    try {
+      symlinkSync(real, link);
+    } catch {
+      return; // no symlink privilege on this machine
+    }
+    const listed = spawnSync(process.execPath, [link, "add", "--id", "via-link", "--scope", "update:force", "--dir", dir], {
+      encoding: "utf8",
+    });
+    expect(listed.status).toBe(0);
+    expect(listed.stdout.trim().length).toBeGreaterThan(20);
   });
 });
