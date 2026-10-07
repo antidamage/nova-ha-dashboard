@@ -302,7 +302,11 @@ do_prune() {
     [ "$base" = "$cur" ] || [ "$base" = "$prev" ] && continue
     if [ "$idx" -gt "$KEEP_RELEASES" ]; then
       log "pruning old release $base"
-      rm -rf "$RELEASES_DIR/$base"
+      # Pruning is housekeeping and must never stop an update: an old release
+      # can hold files its builder left unremovable, and under `set -e` a
+      # failed rm here ended the whole apply before the build, leaving the
+      # state file at "checking" for good (2026-10-08). Report it and move on.
+      rm -rf "$RELEASES_DIR/$base" 2>/dev/null || log "could not fully prune $base; leaving the remainder"
     fi
   done < <(ls -1dt "$RELEASES_DIR"/*/ 2>/dev/null)
 }
