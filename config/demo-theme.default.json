@@ -6,26 +6,26 @@
       "dark": {
         "accent": {
           "cursor": {
-            "x": 0,
-            "y": 1
+            "x": 0.05635901713156052,
+            "y": 0.6352941176470588
           },
-          "intensity": 15,
+          "intensity": 26,
           "rgb": [
             255,
-            255,
-            255
+            193,
+            162
           ]
         },
         "highlight": {
           "cursor": {
-            "x": 0,
-            "y": 0.9999591525979322
+            "x": 0.05964334040572636,
+            "y": 0
           },
-          "intensity": 20,
+          "intensity": 50,
           "rgb": [
             255,
-            255,
-            255
+            91,
+            0
           ]
         },
         "avatar": {
@@ -46,7 +46,7 @@
               "x": 0,
               "y": 1
             },
-            "intensity": 33,
+            "intensity": 0,
             "rgb": [
               255,
               255,
@@ -58,7 +58,7 @@
               "x": 0,
               "y": 1
             },
-            "intensity": 0,
+            "intensity": 11,
             "rgb": [
               255,
               255,
@@ -209,7 +209,8 @@
         },
         "uxSounds": {
           "unlockDial": "light-mechanical-click",
-          "dialClick": "soft-click",
+          "lockDial": "soft-mechanical-click",
+          "dialClick": "soft-mechanical-click",
           "foldBreak": "medium-mechanical-click",
           "foldHeal": "light-mechanical-click",
           "sectionChange": "soft-click",
@@ -269,10 +270,10 @@
         "panel": {
           "color": {
             "cursor": {
-              "x": 0.704806893001211,
+              "x": 0,
               "y": 1
             },
-            "intensity": 6,
+            "intensity": 9,
             "rgb": [
               255,
               255,
@@ -402,6 +403,18 @@
             255,
             131,
             64
+          ]
+        },
+        "unlockRingColor": {
+          "cursor": {
+            "x": 0.058627076375621624,
+            "y": 1
+          },
+          "intensity": 100,
+          "rgb": [
+            255,
+            255,
+            255
           ]
         },
         "mapBuildingOpacity": 64,
@@ -615,6 +628,10 @@
               "speed": 54,
               "pulse": 26,
               "softness": 100
+            },
+            "tech": {
+              "light": 0,
+              "knobTheme": 0
             }
           },
           "glass": {
@@ -632,7 +649,7 @@
             "reflection": 35,
             "drift": 100
           },
-          "alertPulseRate": 100
+          "alertPulseRate": 75
         },
         "background": {
           "cursor": {
@@ -677,6 +694,7 @@
         },
         "uxSounds": {
           "unlockDial": "light-mechanical-click",
+          "lockDial": "medium-mechanical-click",
           "dialClick": "soft-click",
           "foldBreak": "medium-mechanical-click",
           "foldHeal": "soft-mechanical-click",
@@ -862,14 +880,26 @@
         "knobSkin": "dark",
         "ledColor": {
           "cursor": {
-            "x": 0.4179721911071997,
-            "y": 0.3696991903866641
+            "x": 0.03229269995620887,
+            "y": 0.3686274509803922
           },
           "intensity": 100,
           "rgb": [
-            94,
             255,
-            175
+            125,
+            94
+          ]
+        },
+        "unlockRingColor": {
+          "cursor": {
+            "x": 0.058627076375621624,
+            "y": 1
+          },
+          "intensity": 100,
+          "rgb": [
+            255,
+            255,
+            255
           ]
         },
         "mapBuildingOpacity": 64,
@@ -955,5 +985,5 @@
       "nudgePx": 10
     }
   },
-  "updatedAt": "2026-09-16T08:27:58.990Z"
+  "updatedAt": "2026-09-23T10:14:29.578Z"
 }
