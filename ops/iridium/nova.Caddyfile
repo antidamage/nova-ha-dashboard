@@ -206,7 +206,10 @@
 		# module's own attention route — the DM an agent sends before it stops to
 		# ask a question — and answering the flat LAN 403. That route carries its
 		# own x-nova-attention-key secret; it is authenticated, just not here.
-		not path /api/modules/events /api/modules/*/attention
+		# /api/update/force is the same case: /api/update/* matched it, but it
+		# answers only to an OAuth bearer token (specs/update-force-endpoint.md),
+		# so an agent on the LAN would otherwise never reach the check.
+		not path /api/modules/events /api/modules/*/attention /api/update/force
 	}
 	handle @admin_any {
 		import ak_forward_auth
@@ -384,7 +387,10 @@
 		# module's own attention route — the DM an agent sends before it stops to
 		# ask a question — and answering the flat LAN 403. That route carries its
 		# own x-nova-attention-key secret; it is authenticated, just not here.
-		not path /api/modules/events /api/modules/*/attention
+		# /api/update/force is the same case: /api/update/* matched it, but it
+		# answers only to an OAuth bearer token (specs/update-force-endpoint.md),
+		# so an agent on the LAN would otherwise never reach the check.
+		not path /api/modules/events /api/modules/*/attention /api/update/force
 	}
 	handle @admin_any {
 		respond 403
