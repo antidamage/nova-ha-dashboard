@@ -10,7 +10,7 @@
 //
 // A new secret is printed once and never stored; only its scrypt hash is.
 import { randomBytes, scryptSync } from "node:crypto";
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -109,7 +109,18 @@ export function runCli(argv) {
   throw new Error("usage: oauth-client.mjs add|list|revoke|rotate --id <id> [--scope <s>] [--label <t>] [--dir <data>]");
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+// import.meta.url is the real path; process.argv[1] is the path as typed. On the
+// host scripts/ is a symlink into the active release, so compare real paths or
+// the CLI silently does nothing there.
+function isMain() {
+  try {
+    return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   try {
     runCli(process.argv.slice(2));
   } catch (error) {
