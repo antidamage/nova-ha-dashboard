@@ -57,6 +57,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | [experience-modes.md](experience-modes.md) | Rich vs lite, and the parity contract every feature owes |
 | [deployment-and-operations.md](deployment-and-operations.md) | Build, deploy and operational runbooks |
 | [self-update-channel.md](self-update-channel.md) | Where the dashboard looks for a new version, which config layer decides it, and the host-side apply half |
+| [update-force-endpoint.md](update-force-endpoint.md) | OAuth-protected `POST /api/update/force`: client-credentials tokens, the client registry, scopes, and how an agent forces an update now |
 | [testing.md](testing.md) | Test layers, what each one guards, and how to run them |
 | [mcp-and-agent-interface.md](mcp-and-agent-interface.md) | The MCP surface the dashboard exposes to agents |
 | [system-power-controls.md](system-power-controls.md) | Host power actions and the reconnect blocker |
