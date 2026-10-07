@@ -30,6 +30,13 @@ branch HEAD and logs when a requested sha differs, as it does for the button.
 `/api/update/apply`, which the Update button uses, is unchanged and stays
 unauthenticated: it is the in-page button, on the LAN.
 
+The gateway (`ops/iridium/nova.Caddyfile`) gates every mutating `/api/update/*`
+call behind the admin check, and answers a flat 403 on the LAN vhosts. `force`
+is excluded from that gate by path, in both `config_gate_authed` and
+`config_gate_denied`, because the OAuth token is its check; without the
+exclusion an agent never reaches it. A change to the Caddyfile reaches the host
+only when it is installed there (`ops/iridium/README.md`).
+
 ## OAuth shape
 
 A small OAuth 2.0 authorization server for one grant: **client credentials**
