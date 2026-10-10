@@ -27,6 +27,7 @@
 @import "./styles/controls/rect-slider.css";
 @import "./styles/config/layout.css";
 @import "./styles/dashboard/header.css";
+@import "./styles/dashboard/rotate-modal.css";
 @import "./styles/config/navigation.css";
 @import "./styles/config/accordion.css";
 @import "./styles/tasks/task-cards.css";

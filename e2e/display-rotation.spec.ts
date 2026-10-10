@@ -44,6 +44,32 @@ for (const { name, viewport, side } of cases) {
       await expect.poll(() => strip.evaluate((node) => getComputedStyle(node).opacity)).toBe("1");
     });
 
+    test("the button opens a centred outline square that a tap outside dismisses", async ({ page }) => {
+      await page.addInitScript((key) => window.localStorage.setItem(key, "true"), KEY);
+      await gotoDashboard(page);
+
+      await page.locator(".dashboard-rotate-link").click();
+      const box = page.locator(".rotate-modal-box");
+      await expect(box).toBeVisible();
+      const b = (await box.boundingBox())!;
+      expect(Math.abs(b.x + b.width / 2 - viewport.width / 2)).toBeLessThan(2);
+      expect(Math.abs(b.y + b.height / 2 - viewport.height / 2)).toBeLessThan(2);
+      expect(Math.abs(b.width - b.height)).toBeLessThan(1);
+      expect(await box.evaluate((node) => getComputedStyle(node).borderTopWidth)).toBe("1px");
+      expect(await page.locator(".rotate-modal-backdrop").evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+
+      await page.mouse.click(5, 5);
+      await expect(box).toHaveCount(0);
+    });
+
+    test("the modal dismisses itself after three seconds", async ({ page }) => {
+      await page.addInitScript((key) => window.localStorage.setItem(key, "true"), KEY);
+      await gotoDashboard(page);
+      await page.locator(".dashboard-rotate-link").click();
+      await expect(page.locator(".rotate-modal-box")).toBeVisible();
+      await expect(page.locator(".rotate-modal-box")).toHaveCount(0, { timeout: 5_000 });
+    });
+
     test("no button until the setting is on", async ({ page }) => {
       await gotoDashboard(page);
       await expect(page.locator(".dashboard-rotate-link")).toHaveCount(0);
