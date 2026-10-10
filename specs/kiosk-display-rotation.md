@@ -44,9 +44,21 @@ kiosk, an ASUS Zen AiO with no `/sys/bus/iio`) and gets turned by hand.
 `app/styles/dashboard/rotate-modal.css`, rendered into `document.body`.
 
 - A **square with a thin outline** (1px, `--cyber-border-dim`), centred, side
-  `min(60vmin, 320px)`, with the rotate icon **enlarged in the middle** (70% of
-  the square). Nothing else: no fill, title, shadow, corner cut or text. The page
-  behind it is **dimmed slightly** (`rgb(0 0 0 / 0.35)`).
+  `min(60vmin, 320px)`, with a **rounded-square button** in the middle (70% of
+  the square, corner radius 22%) and the rotate icon **engraved in it**. Nothing
+  else: no fill on the square, title, shadow, corner cut or text. The page behind
+  it is **dimmed slightly** (`rgb(0 0 0 / 0.35)`).
+- **The button is the dials' material** (Adeline, 2026-10-11: "follow our style
+  guide"; the guide for it is the knob face in `specs/color-encoder.md` and
+  `app/styles/controls/rotary-knob-face.css`): the knob skin's tint (`#191b20`
+  dark, `#eceef1` light, following `data-knob-skin` through `useKnobSkin`, on the
+  button as `data-mode`), a domed face lit from the top left, a shaded inner edge,
+  a 1px lip and a drop shadow, every size taken from the button so it scales.
+  Hover lifts it (`brightness(1.14)`), a press sinks it (`brightness(0.92)` and a
+  deeper inner shadow), achromatic as on a dial. The icon is engraved like the
+  dials' captions: black and white over the tint (`rgba(255,255,255,0.46)` dark,
+  `rgba(0,0,0,0.46)` light), a dark cut above and a light lip below, no theme
+  colour.
 - **The icon is the control.** Each tap on it rotates the display one step
   clockwise (`window.novaKioskRotate("clockwise")`), and the modal stays open
   for the next tap.
