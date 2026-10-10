@@ -213,6 +213,15 @@
   left: calc(16px + 52px + env(safe-area-inset-left, 0px));
 }
 
+/* Rotate display (specs/kiosk-display-rotation.md): bottom left in portrait.
+   Landscape moves it to the bottom right in responsive/landscape.css. */
+.dashboard-rotate-link {
+  top: auto;
+  right: auto;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: calc(16px + env(safe-area-inset-left, 0px));
+}
+
 /* Below ~420px wide a second button beside Reload would reach the centred
    200px orb's resting box, so the theme button drops under Reload instead. */
 @media (max-aspect-ratio: 1 / 1) and (max-width: 419px) {

@@ -1,259 +1,171 @@
 <!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
-# Kiosk display rotation from the built-in camera
+# Display rotation: the rotate button
 
-Produced in session 2026-09-16 (no plan-mode plan file; interview answers below
-were taken with AskUserQuestion in the same session).
+Adeline, 2026-10-11. No plan-mode plan file: the request was specific enough to
+write straight into this spec (the interview was skipped on purpose; every
+number below is from her message or marked as a decision).
 
-The wall-panel kiosk (Nocturnium, KDE Plasma on Wayland, panel output `eDP-1`)
-has no accelerometer — confirmed 2026-09-20: it is an ASUS Zen AiO M5401WUA
-desktop with no `/sys/bus/iio` at all, which is why KDE reports "Auto Rotate
-Policy: incapable". The camera is the only orientation sensor there is. Its built-in webcam (`USB2.0 HD UVC WebCam: USB2.0 HD`)
-is fixed to the panel, so the room's apparent rotation in that camera is the
-panel's rotation in the world. A daemon on the kiosk reads it and rotates the
-desktop so the display is upright.
+This replaces the camera-driven auto-rotation (built 2026-09-16, rebuilt
+2026-09-20, removed 2026-10-11 because it "was not working very well"). That
+mechanism read the built-in webcam, matched ORB features, and asked DeepSeek
+which way was up. None of it remains: no camera capture for orientation, no
+retained frame, no DeepSeek call, no people gate, no hourly check. Its history
+is in git.
 
-## Requirements (from Adeline, 2026-09-15)
+## The feature
 
-- Use the **built-in** camera only. Never the LifeCam: it floats and always
-  sits at the physical top of the screen, so it carries no orientation.
-- Poll **every 60 s**, and also **whenever the kiosk browser enters or reloads
-  the dashboard front page (`/`) or the config page (`/config…`)**, including
-  client-side navigation between them.
-- Change the **OS desktop rotation** (`kscreen-doctor output.<name>.rotation.*`).
-- **One frame is retained** (2026-09-20): the last frame that produced a
-  confirmed rotation, at `/var/lib/nova-kiosk-orient/last.jpg`, 640x480,
-  owner-only, overwritten each time so no older frame survives. It is never
-  logged, never shown, and never served. Every other frame is decoded in
-  memory and discarded. Capture is local V4L2, never through the browser.
-  The retained frame leaves the machine only as a base64 payload to DeepSeek,
-  and only when an orientation change has already been detected.
-- A reading **within 15° of the retained frame** means nothing moved: no
-  rotation, no API call.
-- A reading **more than 15° from the retained frame** means the panel has been
-  turned. Settle first (re-read every 1 s for up to 5 s, two consecutive
-  readings agreeing within 15°), then **ask DeepSeek which way the settled
-  frame is facing** and apply its answer.
-- **Lights off: abandon** (Adeline, 2026-09-20). A frame whose mean pixel
-  value is under `ORIENT_DARK_MEAN` (25) is not judged at all — no matching
-  decision, no API call — **unless a person triggered the reading**. Walking up
-  to the panel counts; the 60 s timer and the hourly check do not. A dark room
-  is where the matcher manufactures confidence out of noise, and it is the
-  exact condition that produced the 06:07 failure.
-- **Hourly, regardless of the local reading** (Adeline, 2026-09-20): send a
-  frame to DeepSeek and apply the orientation it reports. The local match is a
-  cheap change detector; this is the standing authority that corrects it when
-  it has quietly drifted or gone blind. One call an hour is the floor, not an
-  extra — a change-triggered call resets the hour.
-- **Low-confidence readings** (dark room, camera busy, too few matches) change
-  nothing. Logged, then wait for the next trigger. No burst.
-- The existing fixed built-in camera rotation (`WITNESS_CAMERAS` `USB2.0 HD=90`,
-  `dashboard.kiosk.cameras` preview rule) now **follows the detected
-  orientation** and applies only to authentication/attribution captures and
-  the face preview.
+A round-arrow **rotate button**. One tap rotates the display **clockwise by 90
+degrees**: the picture turns the way a clock hand does, so landscape becomes
+portrait with the old top edge now on the right, and four taps are a full turn.
 
-## Method: local change detection, DeepSeek for absolute orientation
+It exists for a wall panel that has no orientation sensor (the Nocturnium
+kiosk, an ASUS Zen AiO with no `/sys/bus/iio`) and gets turned by hand.
 
-The 2026-09-16 design matched every frame against one pinned upright reference
-and trusted the resulting angle outright. It failed in service overnight
-2026-09-19/20: in a dark room the matcher returned *confident* readings at
-barely-over-threshold inlier counts (25-36), and a spurious `0.0°` at 06:07
-rotated the panel out of `right` into `normal`, leaving it wrong all morning.
-Two readings either side of it said 268° and 275°.
+### Where it appears
 
-So the local match no longer decides anything absolute. It answers one
-question — *has the view moved since the frame we last acted on?* — and a
-vision model answers the one that matters, *which way is this frame facing?*
+- **Only when "Allow display rotation" is on** for this machine, and only when
+  this machine does not sense its own orientation (below).
+- **Landscape** (`aspect-ratio > 1`): bottom **right** corner.
+  **Portrait**: bottom **left** corner. The button sits at the viewport corner,
+  12px in on landscape and 16px in on portrait, plus the safe-area inset.
+- It is one of the header buttons (`.dashboard-config-link`), so it **fades out
+  on scroll exactly as they do**: opacity `1 - --nova-header-fade`, and no
+  pointer input once `nova-header-controls-disabled` is set (fade at least half
+  in). Nothing about that behaviour is new code.
+- Icon only (`RotateCw`), 44px square like its neighbours. `aria-label`
+  "Rotate display clockwise".
 
-### The retained frame
+### The setting
 
-`/var/lib/nova-kiosk-orient/last.jpg` is the frame that produced the last
-confirmed rotation, beside `last.npz` (its ORB keypoints and descriptors) and
-the cardinal that was applied to it, in `state.json`. Writing a new one
-replaces both files atomically; **no older frame is kept**. It is a *rolling*
-reference: each confirmed rotation replaces it, so the 15° test always
-measures change since the last moment orientation was known to be right.
-Drift cannot accumulate, because DeepSeek re-establishes absolute truth every
-time the frame is replaced.
+- Name: **Allow display rotation**. It is a `SwitchRow` in the config page's
+  **This Device** section, beside Auto Fullscreen.
+- **Per machine, not per theme**: `localStorage["nova.dashboard.displayRotation.v1"]`
+  (`"true"` / `"false"`), the same model as Auto Fullscreen and the reminder
+  banner (`autoFullscreenSetting.ts`). Never in a theme, never in the shared
+  host config, never travelling between devices. Absent means **off**.
+  Code: `app/components/dashboard/displayRotationSetting.ts`.
+- **On for the kiosk.** Set once on Nocturnium's Brave profile; it persists
+  there.
 
-### Per reading
+### Devices that rotate themselves
 
-0. If the frame is darker than `DARK_MEAN` and nothing user-triggered this
-   reading, stop here. The hourly clock is deliberately **not** reset, so the
-   check fires on the first lit tick rather than waiting out another hour.
-1. Open `/dev/videoN` resolved by card-name substring `USB2.0 HD` (lowest
-   node; never the IR node, never forbidden `macrosilicon`/`2109`). MJPG,
-   640x480. Discard the first 8 frames (auto-exposure), keep the 9th, release.
-2. Grayscale, CLAHE, ORB (1500 features).
-3. Hamming kNN match against `last.npz`, Lowe ratio 0.75,
-   `estimateAffinePartial2D` RANSAC (reprojection 6 px). `delta =
-   atan2(M[1,0], M[0,0])` is how far the view has turned **since the retained
-   frame**, not since upright.
-4. Confident when inliers ≥ 25 and inliers/good ≥ 0.25.
-5. `|delta| ≤ 15°` and no hourly check due: nothing happened. Return.
-6. `|delta| > 15°`, or the match was not confident, or the hour is up: settle,
-   then ask DeepSeek.
+A device that senses its own orientation must not be offered the option: the OS
+already rotates the page, and a second rotation fights it.
 
-### Settling
+- The switch is **disabled** and shows the reason ("This device rotates itself,
+  so manual rotation is not offered"). A stored `"true"` on such a device is
+  ignored: the button does not show.
+- A device counts as self-rotating when **any** of these holds
+  (`app/components/dashboard/autoRotationSensing.ts`):
+  1. `navigator.userAgentData.mobile` is true;
+  2. the user agent names iPhone, iPad, iPod or Android;
+  3. iPadOS reporting as a Mac: `Macintosh` with `maxTouchPoints > 1`;
+  4. a **sensor probe**: within 1.5 s of mount a `deviceorientation` event
+     arrives with a non-null `beta` or `gamma` (a real accelerometer; desktop
+     browsers fire it with nulls or not at all).
+- **The OS auto-rotate flag cannot be read.** No web API exposes the Android or
+  iOS rotation lock, so the decision does not look at it: a phone with rotation
+  locked still senses orientation and is treated as self-rotating. Checked
+  2026-10-11; if a browser ships such a flag, add it to the list above.
+- Rules 1-3 resolve synchronously; rule 4 can only turn the answer from "no" to
+  "yes" later. The button therefore never flashes on for a self-rotating device
+  that rules 1-3 catch, and a sensor-only device (a tablet with a desktop user
+  agent) hides within 1.5 s.
 
-Re-read every 1 s for up to 5 s until two consecutive readings agree within
-15°. This keeps a hand mid-turn from spending an API call on a blurred frame.
-If it never settles, the last reading is used anyway — the model is better
-placed to judge a marginal frame than the matcher is.
+## How the rotation happens
 
-### Asking DeepSeek
+The layouts are chosen by viewport media queries (`aspect-ratio`, see
+`specs/landscape-layout.md` and `specs/portrait-layout.md`), so rotating the page
+with CSS would leave the wrong layout showing. The **operating system** rotates
+the output and the browser's viewport follows, which switches the layout for
+free.
 
-`POST https://api.deepseek.com/v1/chat/completions`, model
-`deepseek-v4-flash-vision-exp` — an alias for the single `deepseek-flash`
-backend, which does read images.
+A page cannot do that itself, so the kiosk runs a small user service,
+`ops/kiosk/nova-kiosk-rotate.py` (unit `nova-kiosk-rotate.service`), on the
+machine that owns the display:
 
-**It is never shown a sideways photo.** Measured 2026-09-20 against this
-model: asked *which edge is nearest the ceiling*, it answered upright and
-upside-down frames correctly every time, but on a frame turned 90 or 270 it
-reasoned in circles and hit the token ceiling without ever answering — and
-90/270 is exactly this panel's case. A binary *is this upright?* on a sideways
-frame failed the same way.
+1. It attaches over CDP (`127.0.0.1:9223`, the kiosk Brave) to the page whose URL
+   starts with `NOVA_BACKEND_URL` (`~/.config/nova-kiosk/backend.env`),
+   reconnecting every 5 s if Brave restarts.
+2. It registers a CDP **binding**, `Runtime.addBinding("novaKioskRotate")`.
+   That puts `window.novaKioskRotate(payload)` into every document of that
+   page, including after navigation. A machine without the service has no such
+   function, and the button then does nothing but log a warning.
+3. A call to it advances the output **one step clockwise** with
+   `kscreen-doctor output.<name>.rotation.<value>`.
+4. Calls arriving within 1.5 s of a rotation are ignored, so a double tap is one
+   step.
 
-So the question is inverted. Each candidate cardinal is **un-done first**, and
-the model is asked only to confirm an already-upright picture:
+Rotation values are KDE's, and the cycle that turns the picture clockwise is
 
-> Is this photo the right way up, with the ceiling at the top and the floor at
-> the bottom? Answer with exactly one word: yes or no.
+`normal -> left -> inverted -> right -> normal`
 
-The first candidate confirmed `yes` is the answer. Candidates are tried in the
-order: the rotation currently applied, then what the local match predicts,
-then the rest — so the usual case costs one call, not four.
+(a clockwise picture turn is the output's `left`; `right` is where a panel
+physically turned clockwise sits, and it turns the picture the other way).
 
-`max_tokens` is 900. This is a reasoning model: it spends completion tokens on
-`reasoning_content` before writing a word of `content`, and a 16-token budget
-returned an empty answer with `finish_reason: length` every single time.
+### Shared state the old daemon also kept
 
-**An empty or unreadable reply is a retry signal, never a "no."** Roughly one
-call in three returns empty content for a question the next call answers.
-Counting a flaky blank as a rejection walks straight past the correct
-rotation — it scored 2/4 before this was fixed and 4/4 after. An explicit
-verdict, either way, is final and costs no further calls. Three attempts,
-2 s apart.
+The face witness and the face preview rotate the built-in camera's raw picture
+to match the panel, so the service still records the rotation it applied and
+pushes it where those two read it:
 
-**On failure, fall back to the local angle** (Adeline, 2026-09-20):
-`cardinal = round((retained cardinal + delta) / 90)`, applied only when the
-match was confident. This is the path that produced the overnight failure, so
-it is the fallback and not the primary; when the match was not confident
-either, nothing is applied. A fallback rotation deliberately does **not**
-replace the retained frame, so a guess cannot become the next baseline —
-which is why `state.json` tracks `retainedCardinal` separately from the
-rotation currently applied.
+- `/var/lib/nova-kiosk-rotate/state.json`:
+  `{"rotation": "left", "cameraCorrection": 270, "camera": "USB2.0 HD", "updatedAt": 1789000000}`.
+  Camera correction is `(360 - c) % 360` where `c` is 0, 90, 180, 270 for
+  normal, left, inverted, right. `ops/nocturnium_kiosk_witness/config.py`
+  reads it (`WITNESS_ORIENT_STATE`).
+- `localStorage["nova.kiosk.cameraRotations"] = [{"match":"USB2.0 HD","degrees":N}]`
+  in the kiosk page over CDP, on connect, after each rotation and on each page
+  load, then `nova:kiosk-camera-rotation` is dispatched. `FacePreview` reads it.
+- The service writes this state for the rotation it **applies**. It does not
+  read the camera, and a rotation made outside the button (KDE settings) is not
+  noticed until the next tap, which reads the real output first.
 
-### The privacy gate
+## The orb shadow at the other end
 
-**No frame containing a person is ever sent** (Adeline, 2026-09-20). Before
-any request, the frame is checked locally by two detectors on all four
-rotations, because the camera itself may be mounted sideways:
+The orb shadow strip (`.header-fade-strip`, `specs/header-fade.md`) now has a
+mirror at the opposite end of the screen: the same colour, the same theme
+opacity, the same `--nova-header-fade` scroll fade.
 
-- **YuNet** (`yunet.onnx`, deployed to `/var/lib/nova-kiosk-orient/`), score
-  threshold 0.6.
-- **HOG pedestrians**, weight threshold 0.6. The floor matters: HOG reports
-  every candidate it scores above zero, and on furniture that is a steady
-  trickle of nonsense. Measured 2026-09-20, an empty living room peaked at
-  0.43 while a person really in this camera's frame scored 0.76 and their face
-  0.69. Ungated, the detector fired on every frame of an empty room — and a
-  gate that never clears silently disables the vision model, leaving the
-  system on the ORB fallback that failed in the first place.
+- Portrait: the existing strip is the top; the mirror is the **bottom**, same
+  height (`--nova-avatar-size`), gradient `to top`.
+- Landscape: the existing strip is the left sidebar edge; the mirror is the
+  **right** edge, same width (`--dashboard-sidebar-width`), gradient `to left`.
+- It is `<div className="header-fade-strip header-fade-strip-end">`, rendered
+  by `HeaderFadeStrip` (dashboard home only; the config page keeps its single
+  strip). `pointer-events: none`, `z-index: 90`, below the buttons.
 
-The gate is biased toward suppressing: no detector available, or a detector
-that errors, counts as occupied. A suppressed frame costs one skipped call,
-retried on the next 60 s tick.
+## Removed
 
-Face orientation was evaluated as a *local* substitute for DeepSeek and
-**rejected**: on a real frame from this camera YuNet scored the wrong rotation
-higher than the right one (0.69 at c=0 against the true 0.54 at c=270).
-Hough line analysis was rejected too — the room yields ~11 lines, far too few
-for a structural tilt, and a line family only gives tilt mod 90 anyway.
-
-### Mapping
-
-| room in frame (c) | panel physically | kscreen rotation | camera correction (CW deg) |
-|---|---|---|---|
-| 0 | landscape | `normal` (1) | 0 |
-| 90 CW | turned anticlockwise | `left` (2) | 270 |
-| 180 | upside down | `inverted` (4) | 180 |
-| 270 CW | turned clockwise | `right` (8) | 90 |
-
-Camera correction = `(360 − c) % 360`: the clockwise turn that stands the
-built-in camera's raw picture upright. Verified live 2026-09-20: with the
-panel physically turned clockwise into portrait, the raw frame shows
-world-up at the frame's left edge, giving c = 270 → `right`.
-
-## Triggers
-
-- 60 s timer inside the daemon (the local change detector). **Not**
-  user-triggered, so it abandons in the dark.
-- 3600 s since the last DeepSeek answer (the standing authority). Runs on the
-  next 60 s tick after the hour is up, and any change-triggered call resets it.
-  **Not** user-triggered either.
-- CDP on `127.0.0.1:9223` (the kiosk Brave). Attach to the page target whose
-  URL starts with `NOVA_BACKEND_URL`; `Page.frameNavigated` (main frame) and
-  `Page.navigatedWithinDocument`. Trigger when the new path is `/` or starts
-  with `/config`. Reconnect every 5 s if Brave restarts. CDP is only a
-  notification channel; nothing is captured through the browser.
-- Triggers arriving during a reading coalesce into one follow-up reading.
-
-## Shared state
-
-The daemon writes `/var/lib/nova-kiosk-orient/state.json` (owned by the login
-user, readable by the witness):
-
-```json
-{"rotation": "left", "cameraCorrection": 270, "camera": "USB2.0 HD", "updatedAt": 1789000000}
-```
-
-Only written from a confident, settled reading.
-
-- **Witness** (`nocturnium-kiosk-witness.py`): for a camera whose name matches
-  the state's `camera`, use `cameraCorrection` in place of the
-  `WITNESS_CAMERAS` degrees. No state file → the env value. Default for
-  `USB2.0 HD` becomes `0` (upright in landscape).
-- **Face preview** (browser): the daemon writes
-  `localStorage["nova.kiosk.cameraRotations"] = [{"match":"USB2.0 HD","degrees":N}]`
-  into the kiosk page over CDP after each change and on each page load, and
-  dispatches `nova:kiosk-camera-rotation`. `FacePreview` rules from that key
-  take precedence over `dashboard.kiosk.cameras`. Other devices never have the
-  key, so they are unaffected. `nova-household` config rule for `USB2.0 HD`
-  becomes `0`.
+- `ops/kiosk/nova-kiosk-orient.py`, `ops/kiosk/nova_kiosk_orient/`,
+  `ops/kiosk/nova-kiosk-orient.service`, the cached `ops/kiosk/models/yunet.onnx`.
+- `deploy-kiosk-orient.ps1` (workspace root); `deploy-kiosk-rotate.ps1` replaces
+  it and installs the service. It needs no API key, no OpenCV and no model.
+- On Nocturnium: the `nova-kiosk-orient` user unit, `~/.config/nova-kiosk/orient.env`
+  and `/var/lib/nova-kiosk-orient/` (including the one retained camera frame).
 
 ## Deployment
 
-- `ops/kiosk/nova-kiosk-orient.py`, user unit `nova-kiosk-orient.service`
-  (needs the Wayland session for `kscreen-doctor` and seat ACLs for the camera).
-  The script is the entry point; its body is the sibling package
-  `ops/kiosk/nova_kiosk_orient/`, which imports because Python puts the
-  script's own directory on `sys.path`.
-- `deploy-kiosk-orient.ps1` at repo root: installs `python3-opencv`, the
-  script and its package (and the witness script and its package), the unit,
-  `/var/lib/nova-kiosk-orient` owned by the login user; enables and restarts.
-- `deploy-kiosk-orient.ps1` also fetches and checksums `yunet.onnx` (cached in
-  the git-ignored `ops/kiosk/models/`), and writes `DEEPSEEK_API_KEY` from the
-  deploying machine's environment to `~/.config/nova-kiosk/orient.env` (0600),
-  which the unit reads via `EnvironmentFile`. The key is copied as a file, not
-  passed on a command line, so it never reaches the remote process table.
-- `nova-kiosk-orient.py seed` establishes the retained frame now. It needs an
-  empty room: seeding asks DeepSeek, and the gate blocks a frame with a person
-  in it. The daemon otherwise seeds itself on the first tick that finds the
-  room empty.
-- `nova-kiosk-orient.py check` runs one full pass and prints every stage —
-  the reading, the gate's verdict, DeepSeek's answer and the local fallback —
-  without applying anything.
+- Dashboard: merged to `main`, then the host's update channel
+  (`specs/self-update-channel.md`); the force-update endpoint is called after
+  the merge so the host fetches it now (`specs/update-force-endpoint.md`).
+- Kiosk service: `deploy-kiosk-rotate.ps1` at the workspace root. The kiosk's
+  Brave stays on its existing launch; the service attaches to it.
+- `localStorage["nova.dashboard.displayRotation.v1"] = "true"` is set on the
+  kiosk page over CDP, once.
 
 ## Done means
 
-- Service active on Nocturnium; log shows readings at 60 s and on a dashboard
-  reload of `/` and `/config`.
-- Orientation is correct at all four rotations. Verified 2026-09-20 against a
-  known indoor photo turned to each cardinal: **4/4**.
-- The gate clears an empty room and fires on an occupied one. Verified
-  2026-09-20 both ways.
-- A dark frame abandons on a timer tick and proceeds when user-triggered.
-  Verified 2026-09-20 by raising `ORIENT_DARK_MEAN` above the measured
-  daylight brightness and running both paths.
-- Exactly one image file exists under `/var/lib/nova-kiosk-orient` (`last.jpg`,
-  0600) and no other frame is written anywhere.
-- Witness and preview follow the state; dashboard tests pass.
+- `displayRotationSetting`, `autoRotationSensing` and the button have unit
+  tests: absent key is off; stored true plus a self-rotating device shows no
+  button; the button renders only when allowed; a click calls
+  `window.novaKioskRotate` once.
+- The switch is disabled with its reason on a self-rotating device.
+- At 1280x720 the button is bottom right; at 430x932 it is bottom left. It
+  fades with the other header buttons and is not clickable once they are not.
+- The strip's mirror is present at the bottom (portrait) and the right
+  (landscape) and fades with the first.
+- On Nocturnium: `systemctl --user is-active nova-kiosk-rotate` is `active`,
+  one call to `window.novaKioskRotate` over CDP moves `kscreen-doctor -o`'s
+  rotation one step, and the page lays out in the new orientation.
+- The dashboard `typecheck`, unit tests and the repo's file-size ratchet pass.

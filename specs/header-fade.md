@@ -54,6 +54,14 @@ existing colour-plus-opacity slot.
 **The default is black at the weight it has always had**, so no existing theme
 changes appearance when this ships.
 
+## The mirror at the other end
+
+The dashboard home draws the strip twice (`HeaderFadeStrip`): the one above, and a
+mirror, `header-fade-strip header-fade-strip-end`, at the opposite end of the
+screen — the bottom in portrait, the right edge in landscape, the same size and
+the same colour, opacity and scroll fade, gradient reversed. See
+`specs/kiosk-display-rotation.md`.
+
 ## On the config page
 
 `/config` mounts the same strip element, because the same shadow belongs under

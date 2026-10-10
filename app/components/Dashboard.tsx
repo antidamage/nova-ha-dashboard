@@ -39,6 +39,7 @@ import { useExperienceFeature } from "./dashboard/experienceModeSetting";
 import { TasksPanel } from "./TasksPanel";
 import { UpdateBanner } from "./UpdateBanner";
 import { ReloadButton } from "./ReloadButton";
+import { RotateDisplayButton } from "./RotateDisplayButton";
 import { ThemeOverrideButton } from "./ThemeOverrideButton";
 import { HeaderFadeStrip } from "./dashboard/HeaderFadeStrip";
 import { useBuildReload } from "./useBuildReload";
@@ -149,6 +150,7 @@ export function Dashboard() {
           <HeaderFadeStrip />
           <ReloadButton />
           <ThemeOverrideButton />
+          <RotateDisplayButton />
           <GatedLink
             className="dashboard-config-link"
             href="/config"

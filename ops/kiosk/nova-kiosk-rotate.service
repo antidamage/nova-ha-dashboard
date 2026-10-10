@@ -1,0 +1,14 @@
+[Unit]
+Description=Nova kiosk display rotation (the dashboard's rotate button)
+# A USER unit: kscreen-doctor needs the Wayland session. See
+# specs/kiosk-display-rotation.md.
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/nova-ha-dashboard/ops/kiosk/nova-kiosk-rotate.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

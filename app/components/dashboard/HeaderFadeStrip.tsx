@@ -48,6 +48,7 @@ export function HeaderFadeStrip() {
   return (
     <>
       <div className="header-fade-strip" aria-hidden="true" />
+      <div className="header-fade-strip header-fade-strip-end" aria-hidden="true" />
       <div className="header-mini-clock" aria-hidden="true">
         {time}
       </div>

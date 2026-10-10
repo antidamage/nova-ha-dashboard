@@ -1,6 +1,7 @@
 "use client";
 
 import type { useAutoFullscreenSetting } from "../../dashboard/autoFullscreenSetting";
+import { useDisplayRotation } from "../../dashboard/displayRotationSetting";
 import type { useExperienceFeatures } from "../../dashboard/experienceModeSetting";
 import type { useStatusOrbInfoSetting } from "../../dashboard/statusOrbInfoSetting";
 import type { useAgentName } from "../../AgentNameContext";
@@ -34,6 +35,7 @@ export function ThisDeviceSection({
   statusOrbInfoVisible: ReturnType<typeof useStatusOrbInfoSetting>[0];
   setStatusOrbInfoVisible: ReturnType<typeof useStatusOrbInfoSetting>[1];
 }) {
+  const displayRotation = useDisplayRotation();
   // The section title lives on the wrapping ConfigAccordion ("This Device",
   // id="this-device" in AccentConfig), so the body opens on the first control.
   return (
@@ -44,6 +46,19 @@ export function ThisDeviceSection({
               label="Auto Fullscreen"
               detail={autoFullscreen ? `This device keeps ${agentName} fullscreen` : "This device opens without requesting fullscreen"}
               onChange={setAutoFullscreen}
+            />
+            <SwitchRow
+              checked={displayRotation.allowed}
+              disabled={displayRotation.selfRotating}
+              label="Allow display rotation"
+              detail={
+                displayRotation.selfRotating
+                  ? "This device rotates itself, so manual rotation is not offered"
+                  : displayRotation.allowed
+                    ? "A rotate button turns the display 90° clockwise on this device"
+                    : "No rotate button on this device"
+              }
+              onChange={displayRotation.setEnabled}
             />
             <SwitchRow
               checked={experienceFeatures.statusOrb}
