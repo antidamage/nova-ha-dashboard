@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import { readWashDetail } from "../../../lib/power";
 import { washMonthLabel } from "../../../lib/power/wash-months";
 import { isDemoMode } from "../../shell/layout-data";
@@ -39,6 +40,14 @@ export function generateStaticParams() {
 }
 
 export default async function LaundryWashPage({ params }: { params: Promise<{ id: string }> }) {
+  // `await params` alone does not make this page dynamic: the route declares
+  // `generateStaticParams`, so Next renders each id once and serves that render
+  // from then on. The sheet then kept showing the owner from the first visit and
+  // `router.refresh()` after a pick returned the same cached render, so a wash
+  // read as mis-attributed and could not be changed from here. The bill stays
+  // dynamic through `searchParams`; this sheet has none, so it opts in. The demo
+  // export has no server to render on.
+  if (!isDemoMode) await connection();
   const { id } = isDemoMode ? { id: "" } : await params;
   const wash = isDemoMode || !id ? null : await readWashDetail(id);
   if (!wash) {
