@@ -17,6 +17,18 @@
   text-indent: 0.06em;
 }
 
+/* The decimal part of either temperature: half the size, its top level with the
+   top of the digits (specs/temperature-encoder.md, "Face"). The digits' cap
+   height is about 0.7 of the full size, the decimal's about 0.7 of half of it, so
+   raising its baseline by 0.7 of its own em lines the two tops up. `vertical-align:
+   top` aligns line boxes, not glyphs, and left it a few pixels proud. Zero line
+   height keeps it from growing the line. */
+.temperature-encoder .rotary-encoder-decimal {
+  font-size: 0.5em;
+  line-height: 0;
+  vertical-align: 0.7em;
+}
+
 /* ColorEncoder placements (specs/color-encoder.md). */
 .zone-color-encoder {
   display: flex;

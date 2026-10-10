@@ -18,9 +18,9 @@ import { RotaryEncoder, type EncoderLed, type RotaryEncoderRing } from "./Rotary
 import { formatTemperature } from "./dashboard/shared";
 import { temperatureColour, temperatureGlow, temperatureRingPaint } from "./temperatureEncoderModel";
 
-/** `22.5°`, or `--` with no reading rather than a degree sign on nothing. */
+/** `22.5`, or `--` with no reading. No degree sign on the face (Adeline, 2026-10-11). */
 function degrees(value: number | null) {
-  return value === null ? "--" : `${formatTemperature(value)}°`;
+  return formatTemperature(value);
 }
 
 /** A temperature knob is unusable below this; the lighting knob's floor is 50. */
@@ -106,6 +106,7 @@ export function TemperatureEncoder({
       disabled={disabled}
       title={title}
       faceTop={degrees(target)}
+      faceDecimals
       faceTopClassName="temperature-encoder-target"
       faceBottom={degrees(room)}
       faceBottomClassName="temperature-encoder-room"

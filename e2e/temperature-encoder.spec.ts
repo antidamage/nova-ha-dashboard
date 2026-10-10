@@ -37,8 +37,8 @@ test.describe("temperature knob", () => {
     const root = knob(page, "aircon-200");
     await expect(root).toHaveAttribute("data-locked", "true");
     // Locked, it still shows both temperatures and its mode lights.
-    await expect(root.locator(".temperature-encoder-target")).toHaveText("22°");
-    await expect(root.locator(".temperature-encoder-room")).toHaveText("21.4°");
+    await expect(root.locator(".temperature-encoder-target")).toHaveText("22");
+    await expect(root.locator(".temperature-encoder-room")).toHaveText("21.4");
     await expect(root.locator(".rotary-encoder-led")).toHaveCount(3);
 
     await tap(dial(page, "aircon-200"));

@@ -66,6 +66,7 @@ import {
 import { dragStep, fractionOf, valueAt } from "./ring-drag-model";
 import { glidesOnStep } from "./ring-glide-model";
 import type { RingPress, RotaryEncoderProps, RotaryEncoderRing } from "./types";
+import { FaceText } from "./faceText";
 import { useFaceTopFit } from "./useFaceTopFit";
 import { useKnobSkin } from "./useKnobSkin";
 import { useRingGlide } from "./useRingGlide";
@@ -90,6 +91,7 @@ export function RotaryEncoder({
   faceBottom,
   faceTopClassName,
   faceBottomClassName,
+  faceDecimals = false,
   color,
   ringPaint,
   checker = false,
@@ -611,7 +613,7 @@ export function RotaryEncoder({
   }, [labelKey, dialSize, shown.length, showRings]);
 
   // The knob's own text is cut the same way, against its max-width.
-  const { dialRef, faceTopFitted } = useFaceTopFit(faceTop, faceTopClassName, dialSize);
+  const { dialRef, faceTopFitted } = useFaceTopFit(faceTop, faceTopClassName, dialSize, faceDecimals);
 
   // ── The title arc ──────────────────────────────────────────────────
 
@@ -948,7 +950,7 @@ export function RotaryEncoder({
             className={["rotary-encoder-label", faceTopClassName].filter(Boolean).join(" ")}
             aria-hidden
           >
-            {faceTopFitted}
+            <FaceText text={faceTopFitted} decimals={faceDecimals} />
           </span>
         ) : null}
         <span className="rotary-encoder-leds" data-labelled={ledLabels ? "true" : undefined} aria-hidden>
@@ -965,7 +967,7 @@ export function RotaryEncoder({
         </span>
         {faceBottom ? (
           <span className={["rotary-encoder-channel", faceBottomClassName].filter(Boolean).join(" ")}>
-            {faceBottom}
+            <FaceText text={faceBottom} decimals={faceDecimals} />
           </span>
         ) : null}
         {children}

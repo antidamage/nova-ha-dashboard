@@ -137,8 +137,8 @@ describe("the air conditioner's knob", () => {
 
   it("shows the room's temperature under the lights and the target above them", () => {
     const { container } = render(<AirconKnob entity={AIRCON} title="Lounge" onEntityActions={vi.fn()} />);
-    expect(container.querySelector(".temperature-encoder-target")?.textContent).toBe("22°");
-    expect(container.querySelector(".temperature-encoder-room")?.textContent).toBe("23°");
+    expect(container.querySelector(".temperature-encoder-target")?.textContent).toBe("22");
+    expect(container.querySelector(".temperature-encoder-room")?.textContent).toBe("23");
   });
 
   // Was "pulls an outside target in, once" — it used to write the clamped value
@@ -151,7 +151,7 @@ describe("the air conditioner's knob", () => {
     const dial = screen.getAllByRole("slider")[0];
     expect(dial.getAttribute("aria-valuemin")).toBe("18");
     expect(dial.getAttribute("aria-valuemax")).toBe("21");
-    expect(container.querySelector(".temperature-encoder-target")?.textContent).toBe("21°");
+    expect(container.querySelector(".temperature-encoder-target")?.textContent).toBe("21");
     act(() => vi.advanceTimersByTime(10000));
     expect(onEntityActions).not.toHaveBeenCalled();
   });
@@ -168,7 +168,7 @@ describe("the heater's knob", () => {
 
   it("reads the room to a decimal place", () => {
     const { container } = render(<HeaterKnob switchEntity={HEATER_SWITCH} temperature={19.5} title="Bedroom" />);
-    expect(container.querySelector(".temperature-encoder-room")?.textContent).toBe("19.5°");
+    expect(container.querySelector(".temperature-encoder-room")?.textContent).toBe("19.5");
   });
 
   it("shows no reading as -- rather than a degree sign on nothing", () => {

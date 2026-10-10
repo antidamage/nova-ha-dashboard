@@ -110,8 +110,16 @@ longer change what the knob does.
   doubled, `clamp(20px, 15% of size, 28px)` (Adeline, 2026-10-10). It drops below the LED names rather than
   running through them (Adeline, 2026-09-12).
 - Both etched like the dial's caption (black and white overlays, no theme
-  colour), formatted by `formatTemperature` with a `°`. The room temperature
-  reads `--` when there is no reading.
+  colour), formatted by `formatTemperature` with **no degree sign** (Adeline,
+  2026-10-11). The room temperature reads `--` when there is no reading.
+- **The decimal part is half size and stands along the top of the digits**
+  (Adeline, 2026-10-11, after `22.5°` clipped to an ellipsis on small knobs): in
+  `22.5`, `22` is full size and `.5` (the point included) is `0.5em`, its
+  baseline raised `0.7em` of its own size so its top is level with the digits'
+  (`vertical-align: top` aligns line boxes, not glyphs, and left it a few pixels
+  proud), in both temperatures. A whole number or `--` prints as it is. It is the dial's `faceDecimals` prop (`controls/rotary/faceText.tsx`); the
+  top text's fit measure uses the same half-size markup, so the width it checks
+  is the width that prints.
 - Beyond the LED names above, there is no other text on the knob face. The room
   name curves around the **outside** of the knob as a title arc
   (specs/color-encoder.md, "The title arcs over the knob"); the target degrees

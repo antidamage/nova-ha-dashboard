@@ -46,6 +46,6 @@ test.describe("climate controls", () => {
   test("the target reads back what the knob is set to", async ({ page }) => {
     const knob = page.locator(".climate-knob-body .temperature-encoder").first();
     const target = knob.locator(".temperature-encoder-target");
-    await expect(target).toHaveText(/^-?[\d.]+°$/);
+    await expect(target).toHaveText(/^-?[\d.]+$/);
   });
 });
