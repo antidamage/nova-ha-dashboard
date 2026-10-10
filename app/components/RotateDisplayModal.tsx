@@ -3,6 +3,7 @@
 import { RotateCwSquare } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useKnobSkin } from "./controls/rotary/useKnobSkin";
 import { rotationSteps, useKioskRotation } from "./dashboard/kioskRotation";
 
 export const MODAL_DISMISS_MS = 3000;
@@ -26,6 +27,10 @@ export function RotateDisplayModal({ onDismiss }: { onDismiss: () => void }) {
   const [angle, setAngle] = useState(0);
   const [taps, setTaps] = useState(0);
   const previous = useRef(rotation);
+  // The button is made of the same material as the dials, so it takes the same
+  // light or dark skin (specs/kiosk-display-rotation.md, "The rotate modal").
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const skin = useKnobSkin(undefined, boxRef);
 
   useEffect(() => {
     const before = previous.current;
@@ -49,10 +54,11 @@ export function RotateDisplayModal({ onDismiss }: { onDismiss: () => void }) {
 
   return createPortal(
     <div className="rotate-modal-backdrop" role="dialog" aria-modal="true" aria-label="Rotate display" onClick={onDismiss}>
-      <div className="rotate-modal-box" style={{ transform: `rotate(${angle}deg)` }}>
+      <div ref={boxRef} className="rotate-modal-box" style={{ transform: `rotate(${angle}deg)` }}>
         <button
           type="button"
           className="rotate-modal-icon"
+          data-mode={skin}
           aria-label="Rotate display clockwise"
           onClick={(event) => {
             event.stopPropagation();

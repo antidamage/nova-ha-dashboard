@@ -141,6 +141,31 @@ describe("RotateDisplayButton and its modal", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("the icon button takes the dials' light or dark skin", () => {
+    allow();
+    document.documentElement.dataset.knobSkin = "light";
+    try {
+      render(<RotateDisplayButton />);
+      fireEvent.click(corner());
+      expect(icon().className).toContain("rotate-modal-icon");
+      expect(icon().getAttribute("data-mode")).toBe("light");
+    } finally {
+      delete document.documentElement.dataset.knobSkin;
+    }
+  });
+
+  it("the icon button is the dark skin when the theme pins dark", () => {
+    allow();
+    document.documentElement.dataset.knobSkin = "dark";
+    try {
+      render(<RotateDisplayButton />);
+      fireEvent.click(corner());
+      expect(icon().getAttribute("data-mode")).toBe("dark");
+    } finally {
+      delete document.documentElement.dataset.knobSkin;
+    }
+  });
+
   it("counter-rotates as the display turns, so the box keeps its orientation", () => {
     win.novaKioskRotate = vi.fn();
     win.__novaKioskRotation = "normal";

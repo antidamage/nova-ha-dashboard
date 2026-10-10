@@ -1,7 +1,8 @@
 /* The rotate-display modal (specs/kiosk-display-rotation.md): a thin-outline
-   square with the icon enlarged in the middle, over a slightly dimmed page. No
-   fill, shadow, corner cut or title: nothing else on it. */
+   square over a slightly dimmed page, holding one rounded-square button with the
+   rotate icon engraved in it. Nothing else on the modal: no fill, title or text. */
 .rotate-modal-backdrop {
+  --rotate-modal-side: min(60vmin, 320px);
   position: fixed;
   inset: 0;
   z-index: 300;
@@ -16,25 +17,93 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: min(60vmin, 320px);
+  width: var(--rotate-modal-side);
   aspect-ratio: 1;
   border: 1px solid var(--cyber-border-dim);
 }
 
+/* The button is the knob's material in a rounded square (specs/color-encoder.md,
+   the knob face): the same skin tints, a domed face lit from the top left, a
+   shaded inner edge, a lip and a drop shadow, all sized from the button so they
+   scale with it. Hover lifts it and a press sinks it, achromatically, as on a
+   dial. The icon is engraved: a dark cut with a light lip under it, black and
+   white over the tint, no theme colour. */
 .rotate-modal-icon {
+  --rm-size: calc(var(--rotate-modal-side) * 0.7);
+  --rm-tint: #191b20;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 70%;
-  height: 70%;
+  width: var(--rm-size);
+  height: var(--rm-size);
   padding: 0;
   border: 0;
-  background: none;
-  color: var(--cyber-title-on-bg);
+  border-radius: 22%;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      color-mix(in srgb, var(--rm-tint) 82%, #fff 18%),
+      var(--rm-tint) 70%,
+      color-mix(in srgb, var(--rm-tint) 74%, #000 26%) 100%);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.16),
+    inset 0 0 calc(var(--rm-size) * 0.08) rgba(0, 0, 0, 0.35),
+    0 calc(var(--rm-size) * 0.02) calc(var(--rm-size) * 0.07) rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.46);
   cursor: pointer;
+  transition: filter 520ms ease, box-shadow 520ms ease;
+}
+
+.rotate-modal-icon[data-mode="light"] {
+  --rm-tint: #eceef1;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 58%),
+    radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
+    radial-gradient(circle at 50% 42%,
+      #ffffff,
+      var(--rm-tint) 68%,
+      color-mix(in srgb, var(--rm-tint) 86%, #000 14%) 100%);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 0 calc(var(--rm-size) * 0.08) rgba(0, 0, 0, 0.09),
+    0 calc(var(--rm-size) * 0.02) calc(var(--rm-size) * 0.07) rgba(0, 0, 0, 0.28);
+  color: rgba(0, 0, 0, 0.46);
+}
+
+.rotate-modal-icon:hover {
+  filter: brightness(1.14);
+}
+
+.rotate-modal-icon:active {
+  filter: brightness(0.92);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    inset 0 calc(var(--rm-size) * 0.012) calc(var(--rm-size) * 0.1) rgba(0, 0, 0, 0.5),
+    0 calc(var(--rm-size) * 0.006) calc(var(--rm-size) * 0.03) rgba(0, 0, 0, 0.35);
+  transition-duration: 160ms;
+}
+
+.rotate-modal-icon[data-mode="light"]:active {
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    inset 0 calc(var(--rm-size) * 0.012) calc(var(--rm-size) * 0.1) rgba(0, 0, 0, 0.22),
+    0 calc(var(--rm-size) * 0.006) calc(var(--rm-size) * 0.03) rgba(0, 0, 0, 0.2);
+}
+
+.rotate-modal-icon:focus-visible {
+  outline: 1px solid var(--cyber-border-dim);
+  outline-offset: calc(var(--rm-size) * 0.03);
 }
 
 .rotate-modal-svg {
-  width: 100%;
-  height: 100%;
+  width: 56%;
+  height: 56%;
+  filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.55)) drop-shadow(0 1px 0 rgba(255, 255, 255, 0.22));
+}
+
+.rotate-modal-icon[data-mode="light"] .rotate-modal-svg {
+  filter: drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.3)) drop-shadow(0 1px 0 rgba(255, 255, 255, 0.9));
 }
