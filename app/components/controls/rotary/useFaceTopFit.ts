@@ -2,9 +2,13 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { ELLIPSIS } from "./constants";
+import { setFaceTextContent } from "./faceText";
 
-/** Cuts the knob face's top text with "..." to fit its max-width. */
-export function useFaceTopFit(faceTop: string | undefined, faceTopClassName: string | undefined, dialSize: number) {
+/**
+ * Cuts the knob face's top text with "..." to fit its max-width. `decimals`
+ * measures it with its decimal part at half size, as it will print.
+ */
+export function useFaceTopFit(faceTop: string | undefined, faceTopClassName: string | undefined, dialSize: number, decimals = false) {
   const dialRef = useRef<HTMLDivElement | null>(null);
   const [faceTopFitted, setFaceTopFitted] = useState(faceTop ?? "");
   useLayoutEffect(() => {
@@ -20,7 +24,7 @@ export function useFaceTopFit(faceTop: string | undefined, faceTopClassName: str
     host.appendChild(probe);
     const room = dialSize * 0.7;
     const fits = (text: string) => {
-      probe.textContent = text;
+      setFaceTextContent(probe, text, decimals);
       // jsdom lays nothing out; there, everything fits.
       return probe.getBoundingClientRect().width <= room;
     };
@@ -37,6 +41,6 @@ export function useFaceTopFit(faceTop: string | undefined, faceTopClassName: str
     }
     probe.remove();
     setFaceTopFitted(next);
-  }, [faceTop, faceTopClassName, dialSize]);
+  }, [faceTop, faceTopClassName, dialSize, decimals]);
   return { dialRef, faceTopFitted };
 }

@@ -138,6 +138,8 @@ export type RotaryEncoderProps = {
   /** Extra classes for those two slots. */
   faceTopClassName?: string;
   faceBottomClassName?: string;
+  /** Prints a decimal part in either slot at half size, top-aligned (`22.5`). */
+  faceDecimals?: boolean;
   /** The value's colour: the ring's default paint, its fill and its glow. */
   color?: string;
   /** Paints the colour ring with something richer than `color` (a gradient). */
