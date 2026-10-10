@@ -104,10 +104,10 @@ longer change what the knob does.
 
 ## Face
 
-- **Target above the LEDs**, large: `clamp(14px, 11% of size, 24px)`
-  *(decided)*.
-- **Room temperature below the LEDs**, smaller: the caption rule,
-  `clamp(10px, 7.5% of size, 14px)`. It drops below the LED names rather than
+- **Target above the LEDs**, large: `clamp(28px, 22% of size, 48px)`
+  *(decided; doubled from `clamp(14px, 11%, 24px)`, Adeline, 2026-10-10)*.
+- **Room temperature below the LEDs**, smaller: the caption rule
+  doubled, `clamp(20px, 15% of size, 28px)` (Adeline, 2026-10-10). It drops below the LED names rather than
   running through them (Adeline, 2026-09-12).
 - Both etched like the dial's caption (black and white overlays, no theme
   colour), formatted by `formatTemperature` with a `°`. The room temperature
