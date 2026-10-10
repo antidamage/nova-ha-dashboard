@@ -51,10 +51,10 @@ export function rotationForLabel(label: string, rules: CameraRotationRule[]): nu
 }
 
 /**
- * Rules the kiosk's orientation daemon writes into this browser over CDP.
+ * Rules the kiosk's display-rotation service writes into this browser over CDP.
  *
  * The kiosk's built-in camera turns with the panel, so its correction follows
- * the measured panel orientation rather than the config. Only the kiosk ever
+ * the display rotation the rotate button applied rather than the config. Only the kiosk ever
  * has this key; see specs/kiosk-display-rotation.md.
  */
 export const KIOSK_ROTATION_KEY = "nova.kiosk.cameraRotations";

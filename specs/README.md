@@ -123,7 +123,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | Spec | Covers |
 |---|---|
 | [login-surface.md](login-surface.md) · [face-auth.md](face-auth.md) | The login screen and face-released passkeys |
-| [kiosk-attribution.md](kiosk-attribution.md) · [kiosk-display-rotation.md](kiosk-display-rotation.md) | Kiosk identity and display rotation |
+| [kiosk-attribution.md](kiosk-attribution.md) · [kiosk-display-rotation.md](kiosk-display-rotation.md) | Kiosk identity, and the rotate button |
 
 ## Not in this directory
 

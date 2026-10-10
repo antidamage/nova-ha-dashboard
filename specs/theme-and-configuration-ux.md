@@ -27,6 +27,10 @@ Storage:
   stored in localStorage under `nova.dashboard.autoFullscreen.v1`; the value
   migrates out of the legacy theme entry on first read. The server still
   strips a legacy `autoFullscreenOnLoad` field from incoming theme payloads.
+- "Allow display rotation" is a standalone per-device setting too
+  (`nova.dashboard.displayRotation.v1`, off when absent), in the same "This
+  Device" accordion and disabled on a device that rotates itself; it gates the
+  rotate button (`specs/kiosk-display-rotation.md`).
 - The experience mode (§31) is likewise a standalone per-device setting, never
   part of a theme. It is four independent feature toggles — status orb,
   background, camera, and world map. The `/config` "This Device" accordion

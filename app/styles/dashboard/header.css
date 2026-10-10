@@ -24,6 +24,15 @@
   will-change: opacity;
 }
 
+/* The same shadow at the opposite end of the screen (specs/kiosk-display-rotation.md):
+   the bottom in portrait; landscape moves it to the right edge. Same colour,
+   opacity and scroll fade as the strip above, mirrored. */
+.header-fade-strip-end {
+  top: auto;
+  bottom: 0;
+  background: linear-gradient(to top, var(--cyber-header-fade, #000) 0%, transparent 100%);
+}
+
 /* Mini clock/date follow the same clock font + colour as the full ClockPanel
    readout (.clock-time/.clock-date, --cyber-clock family) rather than the
    generic mono/title tokens, so a theme's clock font choice carries here too. */

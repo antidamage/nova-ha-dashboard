@@ -42,6 +42,17 @@
     background: linear-gradient(to right, var(--cyber-header-fade, #000) 0%, transparent 100%);
   }
 
+  /* The mirror of the sidebar shadow, on the right edge. */
+  body:has(.dashboard-home) .header-fade-strip.header-fade-strip-end {
+    top: 0;
+    bottom: 0;
+    left: auto;
+    right: 0;
+    width: calc(var(--dashboard-sidebar-width) + env(safe-area-inset-right, 0px));
+    height: auto;
+    background: linear-gradient(to left, var(--cyber-header-fade, #000) 0%, transparent 100%);
+  }
+
   body:has(.dashboard-home) .dashboard-config-link {
     top: auto;
     right: auto;
@@ -60,8 +71,15 @@
     left: calc(12px + 52px + env(safe-area-inset-left, 0px));
   }
 
-  body:has(.dashboard-home) .dashboard-config-link:not(.dashboard-reload-link):not(.dashboard-theme-override-link) {
+  body:has(.dashboard-home) .dashboard-config-link:not(.dashboard-reload-link):not(.dashboard-theme-override-link):not(.dashboard-rotate-link) {
     left: calc(12px + 104px + env(safe-area-inset-left, 0px));
+  }
+
+  /* Rotate display: bottom right in landscape (bottom left in portrait, in
+     config/layout.css). specs/kiosk-display-rotation.md. */
+  body:has(.dashboard-home) .dashboard-config-link.dashboard-rotate-link {
+    left: auto;
+    right: calc(12px + env(safe-area-inset-right, 0px));
   }
 
   /* Mini time/date stack under the orb's bottom edge as it shrinks, centred

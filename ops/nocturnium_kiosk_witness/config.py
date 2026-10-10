@@ -51,10 +51,10 @@ WITNESS_KEY = env_str("NOVA_WITNESS_KEY")
 WITNESS_CAMERAS = env_str("WITNESS_CAMERAS", "LifeCam=0,USB2.0 HD=0")
 
 # The built-in camera turns with the panel, so its rotation is not fixed.
-# nova-kiosk-orient measures the panel's orientation and records the correction
-# for that camera here; when present it replaces the WITNESS_CAMERAS degrees.
+# nova-kiosk-rotate records the display rotation it applied, and the correction
+# for that camera, here; when present it replaces the WITNESS_CAMERAS degrees.
 # See specs/kiosk-display-rotation.md.
-ORIENT_STATE = Path(env_str("WITNESS_ORIENT_STATE", "/var/lib/nova-kiosk-orient/state.json"))
+ORIENT_STATE = Path(env_str("WITNESS_ORIENT_STATE", "/var/lib/nova-kiosk-rotate/state.json"))
 
 # Names that are never a face camera, whatever the preference list says.
 #
