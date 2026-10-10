@@ -109,6 +109,15 @@ def recorded_rotation() -> str | None:
     return rotation if rotation in CARDINAL else None
 
 
+def live_rotation() -> str | None:
+    """What the output reads now, falling back to the last rotation recorded."""
+    try:
+        output = current_output()
+    except (OSError, subprocess.SubprocessError):
+        output = None
+    return output[1] if output else recorded_rotation()
+
+
 def rotate_clockwise() -> str | None:
     """Advance the output one step. Returns the rotation now applied."""
     output = current_output()
@@ -143,10 +152,14 @@ class Page:
     def push_rules(self, rotation: str | None) -> None:
         if not rotation:
             return
+        # Also tell the page which way it is turned: the rotate modal holds still
+        # against the screen by counter-rotating itself (specs/kiosk-display-rotation.md).
         script = (
             "try{localStorage.setItem('nova.kiosk.cameraRotations',%s);"
             "window.dispatchEvent(new Event('nova:kiosk-camera-rotation'))}catch(e){}"
-        ) % json.dumps(json.dumps(camera_rules(rotation)))
+            "try{window.__novaKioskRotation=%s;"
+            "window.dispatchEvent(new CustomEvent('nova:kiosk-rotation',{detail:%s}))}catch(e){}"
+        ) % (json.dumps(json.dumps(camera_rules(rotation))), json.dumps(rotation), json.dumps(rotation))
         self.send("Runtime.evaluate", {"expression": script})
 
     def target(self):
@@ -178,7 +191,7 @@ class Page:
                 self.send("Runtime.addBinding", {"name": BINDING})
                 self.send("Page.enable")
                 LOG.info("attached to the kiosk page")
-                self.push_rules(recorded_rotation())
+                self.push_rules(live_rotation())
                 while True:
                     message = json.loads(self.ws.recv())
                     method = message.get("method")
@@ -186,7 +199,7 @@ class Page:
                     if method == "Runtime.bindingCalled" and params.get("name") == BINDING:
                         self.on_binding()
                     elif method == "Page.frameNavigated" and not params.get("frame", {}).get("parentId"):
-                        self.push_rules(recorded_rotation())
+                        self.push_rules(live_rotation())
             except Exception as error:
                 LOG.debug("cdp: %s", error)
             self.ws = None

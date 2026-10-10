@@ -1,0 +1,40 @@
+/* The rotate-display modal (specs/kiosk-display-rotation.md): a thin-outline
+   square with the icon enlarged in the middle, over a slightly dimmed page. No
+   fill, shadow, corner cut or title: nothing else on it. */
+.rotate-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.35);
+}
+
+/* The box is turned by an inline transform that cancels the display's rotation. */
+.rotate-modal-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(60vmin, 320px);
+  aspect-ratio: 1;
+  border: 1px solid var(--cyber-border-dim);
+}
+
+.rotate-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70%;
+  height: 70%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cyber-title-on-bg);
+  cursor: pointer;
+}
+
+.rotate-modal-svg {
+  width: 100%;
+  height: 100%;
+}

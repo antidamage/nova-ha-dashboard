@@ -14,9 +14,12 @@ is in git.
 
 ## The feature
 
-A round-arrow **rotate button**. One tap rotates the display **clockwise by 90
-degrees**: the picture turns the way a clock hand does, so landscape becomes
-portrait with the old top edge now on the right, and four taps are a full turn.
+A **rotate button** in the corner opens the **rotate modal**; each tap on the
+modal's enlarged icon rotates the display **clockwise by 90 degrees**: the
+picture turns the way a clock hand does, so landscape becomes portrait with the
+old top edge now on the right, and four taps are a full turn. (Adeline,
+2026-10-11: the corner button used to rotate directly; it now only opens the
+modal.)
 
 It exists for a wall panel that has no orientation sensor (the Nocturnium
 kiosk, an ASUS Zen AiO with no `/sys/bus/iio`) and gets turned by hand.
@@ -32,8 +35,37 @@ kiosk, an ASUS Zen AiO with no `/sys/bus/iio`) and gets turned by hand.
   on scroll exactly as they do**: opacity `1 - --nova-header-fade`, and no
   pointer input once `nova-header-controls-disabled` is set (fade at least half
   in). Nothing about that behaviour is new code.
-- Icon only (`RotateCw`), 44px square like its neighbours. `aria-label`
-  "Rotate display clockwise".
+- Icon only (`RotateCwSquare`), 44px square like its neighbours. `aria-label`
+  "Rotate display". Tapping it opens the modal and rotates nothing.
+
+### The rotate modal
+
+`app/components/RotateDisplayModal.tsx`, styled in
+`app/styles/dashboard/rotate-modal.css`, rendered into `document.body`.
+
+- A **square with a thin outline** (1px, `--cyber-border-dim`), centred, side
+  `min(60vmin, 320px)`, with the rotate icon **enlarged in the middle** (70% of
+  the square). Nothing else: no fill, title, shadow, corner cut or text. The page
+  behind it is **dimmed slightly** (`rgb(0 0 0 / 0.35)`).
+- **The icon is the control.** Each tap on it rotates the display one step
+  clockwise (`window.novaKioskRotate("clockwise")`), and the modal stays open
+  for the next tap.
+- **Dismissed** by a tap anywhere that is not the icon (the dimmed page or the
+  square around the icon), by Escape, or by **three seconds without a tap on the
+  icon**: the 3 s wait restarts on every icon tap (`MODAL_DISMISS_MS`).
+- **It does not rotate with the display.** The page re-lays itself out in the
+  new orientation, so the square counter-rotates by the same amount and keeps the
+  orientation it had when it opened until dismissed: the display turning
+  counter-clockwise turns the square clockwise. Each clockwise display step turns
+  the square `-90deg` (`rotate(angle)` on `.rotate-modal-box`, accumulated, no
+  transition so it never lags the layout).
+- The modal learns the display's rotation from the kiosk service, which sets
+  `window.__novaKioskRotation` (one of `normal`, `left`, `inverted`, `right`) and
+  fires `nova:kiosk-rotation` on connect, on each page load and after each
+  rotation (`app/components/dashboard/kioskRotation.ts`). Steps are counted from
+  the rotation names, so a tap the service ignores (see the debounce below) does
+  not skew the angle. A machine without the service has no rotation to report:
+  the modal opens, the tap logs a warning, and the square does not turn.
 
 ### The setting
 
