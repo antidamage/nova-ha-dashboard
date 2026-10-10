@@ -5,13 +5,14 @@
    target above the lights, large, and the room's own below them, small. Both
    are etched like the caption, so no theme colour touches the knob. */
 .temperature-encoder .rotary-encoder-dial > .rotary-encoder-label.temperature-encoder-target {
-  font-size: clamp(14px, calc(var(--re-size) * 0.11), 24px);
+  font-size: clamp(28px, calc(var(--re-size) * 0.22), 48px);
   letter-spacing: 0.04em;
   text-indent: 0.04em;
   text-transform: none;
 }
 
 .temperature-encoder .rotary-encoder-dial > .rotary-encoder-channel.temperature-encoder-room {
+  font-size: clamp(20px, calc(var(--re-size) * 0.15), 28px);
   letter-spacing: 0.06em;
   text-indent: 0.06em;
 }
