@@ -225,6 +225,12 @@ export function zoneHasActiveLighting(zone: DashboardZone) {
   return lightLayerEntities(zone.entities).some(isEntityOn);
 }
 
+/** Lit lights in the zone, not counting the fixtures a threshold rule itself drives. */
+export function zoneLightsOnExcept(zone: DashboardZone, drivenEntityIds: Iterable<string>) {
+  const driven = new Set(drivenEntityIds);
+  return lightLayerEntities(zone.entities).filter((entity) => isEntityOn(entity) && !driven.has(entity.entity_id)).length;
+}
+
 export function targetZoneForThresholdEntity(dashboard: DashboardState, entityId: string) {
   const zones = zonesForThresholdEntity(dashboard, entityId);
   return zones.find(zoneHasActiveLighting) ?? zones[0] ?? null;

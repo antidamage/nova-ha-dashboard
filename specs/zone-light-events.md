@@ -80,7 +80,8 @@ clears any staged value.
 ## What stays as it is
 
 - **The neon 61% intensity threshold** (`intensityThresholds`). It is not
-  time-based — it keys off the zone's brightness — so events do not replace it.
+  time-based — it keys off the zone's brightness and, through the rule's
+  `minLightsOn`, how many other lights are on — so events do not replace it.
 - **The conservatory pinned preset** (`entityPresets`, `pinned`). It means
   "whenever this fixture is on, it is warm white", which a fire-and-forget
   event cannot express, and the Conservatory zone also holds `light.hallway_2`,

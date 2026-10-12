@@ -31,6 +31,22 @@ export function intensityThresholdPctForEntity(
   return thresholdPct;
 }
 
+/** How many other lights in the zone must be on before the entity may be; zero, no count gate, when no rule says. */
+export function minLightsOnForEntity(
+  entity: Pick<DashboardEntity, "entity_id">,
+  lighting?: DashboardLightingConfig,
+) {
+  let minLightsOn = 0;
+
+  for (const threshold of lighting?.intensityThresholds ?? []) {
+    if (thresholdEntityIds(threshold).has(entity.entity_id)) {
+      minLightsOn = Math.max(minLightsOn, Math.round(Number(threshold.minLightsOn)) || 0);
+    }
+  }
+
+  return minLightsOn;
+}
+
 export function hasIntensityThreshold(
   entity: Pick<DashboardEntity, "entity_id">,
   lighting?: DashboardLightingConfig,

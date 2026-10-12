@@ -4,6 +4,8 @@ import type { ZoneLightRule } from "../zone-light-rules/types";
 export type LightingIntensityThreshold = {
   name?: string;
   thresholdPct: number;
+  /** Lights in the zone, besides these, that must be on. Absent or 0 means no count gate. */
+  minLightsOn?: number;
   entityIds: string[];
 };
 

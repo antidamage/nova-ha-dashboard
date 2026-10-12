@@ -8,6 +8,7 @@ import { colorTemperatureKelvinSchema, entityIdSchema, lightBrightnessPctSchema 
 export const LightingIntensityThresholdSchema = z.object({
   name: z.string().min(1).optional(),
   thresholdPct: z.number().int().min(0).max(100),
+  minLightsOn: z.number().int().min(0).max(50).optional(),
   entityIds: z.array(entityIdSchema).min(1),
 });
 const LightColorTemperatureOverrideSchema = z.object({
@@ -92,6 +93,7 @@ export const ZoneLightRuleSchema = z.discriminatedUnion("kind", [
     ...ZoneLightRuleBase,
     kind: z.literal("threshold"),
     thresholdPct: z.number().int().min(0).max(100),
+    minLightsOn: z.number().int().min(0).max(50).optional(),
     entityIds: z.array(entityIdSchema).min(1),
   }),
   z.object({ ...ZoneLightRuleBase, kind: z.literal("pinned"), entityIds: z.array(entityIdSchema).min(1) }),
