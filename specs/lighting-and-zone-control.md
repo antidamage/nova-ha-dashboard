@@ -162,7 +162,13 @@ device is replaced.
   at or above it. The neon lights, for example, only turn on when the Lounge is
   set to 60% or higher. The scheduled poller (`applyLightingIntensityThresholds`)
   keeps the fixture in sync with its zone's current intensity, turning it on/off
-  as the zone crosses the threshold.
+  as the zone crosses the threshold. A rule may also set `minLightsOn` (default
+  none, which leaves the rule exactly as it was; the neon rule uses 3): the fixture is only on while at least that many
+  *other* lit lights in the zone are on, so one desk light left on overnight
+  cannot bring the neon up at sunrise. The fixtures the rule drives are not
+  counted. The zone's Advanced section edits it as "And at least N lights on"
+  under the threshold percent. Zone commands drive every light of the zone
+  together, so the count only gates the scheduled poller.
 - **Pinned entity presets** — `dashboard.lighting.entityPresets` with
   `pinned: true` lock a fixture to a fixed look. A pinned light ignores whatever
   brightness/colour a zone command (On, brightness drag, colour pad, White,

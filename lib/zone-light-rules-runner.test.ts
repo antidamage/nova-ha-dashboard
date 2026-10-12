@@ -86,6 +86,31 @@ describe("the host runner decides the same after migration", () => {
     expect(before.adaptive.length).toBeGreaterThan(0);
   });
 
+  it("a threshold fixture waits for its minimum count of other lit lights", async () => {
+    const needsTwo: DashboardLightingConfig = {
+      ...legacy,
+      intensityThresholds: [{ name: "Strip", thresholdPct: 61, minLightsOn: 2, entityIds: ["light.strip"] }],
+    };
+    buildDashboardState.mockResolvedValue(state(needsTwo));
+    callService.mockClear();
+    await applyLightingIntensityThresholds();
+    const stripCalls = () => JSON.stringify(callService.mock.calls).includes("light.strip");
+    expect(stripCalls()).toBe(false);
+
+    buildDashboardState.mockResolvedValue(state({ ...needsTwo, intensityThresholds: [{ ...needsTwo.intensityThresholds[0], minLightsOn: 1 }] }));
+    await applyLightingIntensityThresholds();
+    expect(stripCalls()).toBe(true);
+  });
+
+  it("without minLightsOn a lit threshold fixture is left on when no other light is", async () => {
+    const litStrip = entity("light.strip", "on", { supported_color_modes: ["onoff"] });
+    const alone = [{ id: "den", name: "Den", entities: [litStrip], brightnessPct: 100, counts: { switch: 0 } }];
+    buildDashboardState.mockResolvedValue({ ...state(legacy), entities: [litStrip], zones: alone } as unknown as DashboardState);
+    callService.mockClear();
+    await applyLightingIntensityThresholds();
+    expect(JSON.stringify(callService.mock.calls)).not.toContain("turn_off");
+  });
+
   it("a disabled adaptive rule stops that zone's transition", async () => {
     const migrated = migrateLightingRules(legacy, zones as never).lighting;
     const lighting = {

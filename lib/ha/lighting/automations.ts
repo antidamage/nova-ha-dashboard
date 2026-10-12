@@ -1,6 +1,6 @@
 // Scheduled host passes for intensity thresholds and pinned light presets.
 import type { DashboardEntity } from "../../types";
-import { intensityThresholdPctForEntity } from "../../lighting-thresholds";
+import { intensityThresholdPctForEntity, minLightsOnForEntity } from "../../lighting-thresholds";
 import { deferLightingForHouseParty } from "../../house-party-coordinator";
 import { buildDashboardState } from "../../state";
 import { callLightingService, callMany, setEntityPower } from "./commands";
@@ -10,6 +10,7 @@ import {
   numericAttribute,
   targetZoneForThresholdEntity,
   zoneHasActiveLighting,
+  zoneLightsOnExcept,
 } from "./light-model";
 
 export async function applyLightingIntensityThresholds(housePartyBypass = false) {
@@ -34,7 +35,9 @@ export async function applyLightingIntensityThresholds(housePartyBypass = false)
         continue;
       }
 
-      const shouldBeOn = zoneHasActiveLighting(zone) && zone.brightnessPct >= thresholdPct;
+      const shouldBeOn = zoneHasActiveLighting(zone)
+        && zone.brightnessPct >= thresholdPct
+        && zoneLightsOnExcept(zone, threshold.entityIds) >= minLightsOnForEntity(entity, dashboard.lighting);
       if (shouldBeOn && entity.state !== "on") {
         tasks.push(setEntityPower(entity, true));
       } else if (!shouldBeOn && entity.state === "on") {

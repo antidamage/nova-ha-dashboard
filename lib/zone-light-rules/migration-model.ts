@@ -26,7 +26,7 @@ export function projectLightingRules<T extends Partial<DashboardLightingConfig>>
   const thresholds: LightingIntensityThreshold[] = [
     ...(lighting.intensityThresholds ?? []),
     ...rules.flatMap((rule) => rule.kind === "threshold" && rule.enabled
-      ? [{ ...(rule.name ? { name: rule.name } : {}), thresholdPct: rule.thresholdPct, entityIds: [...rule.entityIds] }]
+      ? [{ ...(rule.name ? { name: rule.name } : {}), thresholdPct: rule.thresholdPct, ...(rule.minLightsOn ? { minLightsOn: rule.minLightsOn } : {}), entityIds: [...rule.entityIds] }]
       : []),
   ];
 
@@ -120,6 +120,7 @@ export function migrateLightingRules(
       enabled: true,
       kind: "threshold",
       thresholdPct: threshold.thresholdPct,
+      ...(threshold.minLightsOn ? { minLightsOn: threshold.minLightsOn } : {}),
       entityIds: [...threshold.entityIds],
     });
     changed = true;

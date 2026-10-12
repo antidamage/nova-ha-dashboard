@@ -4,6 +4,7 @@ import {
   hasIntensityThreshold,
   intensityThresholdPctForEntity,
   isEntitySuppressedByIntensity,
+  minLightsOnForEntity,
   splitEntitiesByIntensityThreshold,
 } from "./lighting-thresholds";
 
@@ -36,6 +37,17 @@ describe("lighting intensity thresholds", () => {
     expect(intensityThresholdPctForEntity(neon, lighting)).toBe(50);
     expect(isEntitySuppressedByIntensity(neon, 49, lighting)).toBe(true);
     expect(isEntitySuppressedByIntensity(neon, 50, lighting)).toBe(false);
+  });
+
+  it("has no count gate by default and honours a configured minimum", () => {
+    const neon = light("light.cupboard_socket_1");
+    const counted: DashboardLightingConfig = {
+      intensityThresholds: [{ thresholdPct: 50, minLightsOn: 3, entityIds: ["light.cupboard_socket_1"] }],
+    };
+
+    expect(minLightsOnForEntity(neon, lighting)).toBe(0);
+    expect(minLightsOnForEntity(neon, counted)).toBe(3);
+    expect(minLightsOnForEntity(light("light.kitchen_light_1"), counted)).toBe(0);
   });
 
   it("leaves unassigned entities active", () => {

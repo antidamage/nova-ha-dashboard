@@ -20,7 +20,7 @@ type RuleBase = {
 export type ZoneLightRule =
   | (RuleBase & { kind: "event"; at: ZoneLightEventTime; days: number[]; value: ZoneLightRuleValue })
   | (RuleBase & { kind: "adaptive" })
-  | (RuleBase & { kind: "threshold"; thresholdPct: number; entityIds: string[] })
+  | (RuleBase & { kind: "threshold"; thresholdPct: number; minLightsOn?: number; entityIds: string[] })
   | (RuleBase & { kind: "pinned"; entityIds: string[] })
   | (RuleBase & { kind: "preset"; value: ZoneLightRuleValue; builtin?: "on" | "off" });
 

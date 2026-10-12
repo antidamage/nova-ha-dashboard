@@ -14,7 +14,7 @@ import { IconButton } from "../IconButton";
 import { SlideSwitch } from "../../SlideSwitch";
 import { ReminderIconPicker } from "../../reminders/ReminderIconPicker";
 import { RuleIcon, useZoneLightRules } from "../zoneLightRulesClient";
-import { KIND_LABELS, PERCENTS } from "./constants";
+import { KIND_LABELS, minLightsOptions, PERCENTS } from "./constants";
 import { newRule } from "./zone-model";
 import { EntityToggles } from "./EntityToggles";
 import { EventEditor } from "./EventEditor";
@@ -104,6 +104,16 @@ export function ZoneLightEvents({
                     onChange={(pct) => void update(rule.id, { thresholdPct: Number(pct) })}
                   />
                 </div>
+                <div className="zone-light-event-row">
+                  <span className="zone-lighting-label">And at least</span>
+                  <ConfigSelect
+                    ariaLabel="Minimum lights on"
+                    value={String(rule.minLightsOn ?? 0)}
+                    options={minLightsOptions(switchables.length, rule.minLightsOn ?? 0)}
+                    onChange={(count) => void update(rule.id, { minLightsOn: Number(count) })}
+                  />
+                </div>
+                <p className="zone-lighting-detail">Other lights in the zone that must be on; the fixtures below are not counted.</p>
                 <EntityToggles
                   candidates={switchables}
                   label="Threshold drives"
