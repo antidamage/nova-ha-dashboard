@@ -1,44 +1,65 @@
-// Apple TV swipe/stickiness tuning, shared between the /api/theme envelope (read
-// live by the tvOS app) and the "Apple TV Expert Settings" config UI. This is the
-// single source of truth for the defaults, the legal ranges, and the clamping —
-// both the server route and the React control import from here so the slider
-// bounds and the values the watch actually receives can never drift apart.
+// Apple TV swipe feel, shared between the /api/theme envelope (read live by the
+// tvOS app) and the "Apple TV Expert Settings" config UI. This is the single
+// source of truth for the defaults, the legal ranges, and the clamping — both
+// the server route and the React control import from here so the slider bounds
+// and the values the TV actually receives can never drift apart.
 //
-// The tvOS client mirrors these names/defaults in `SwipeSettings` (DashboardStore
-// .swift); keep the two in sync when adding a knob.
+// The tvOS client mirrors these names/defaults in `SwipeSettings`
+// (NovaAppleTVDashboard/SwipeSettings.swift); keep the two in sync when adding
+// a knob. Distances are percentages of the remote's touch-pad width.
 
 export type AppleTvSwipeSettings = {
-  /** Swipes-in-a-row needed to reverse one level *out* of the menu hierarchy. */
-  hierarchyCharge: number;
-  /** Swipes-in-a-row needed to cross between device groups (aircon ↔ heater). */
-  componentGroupCharge: number;
-  /** How long (ms) accumulated swipe "charge" survives between flicks before it resets. */
-  resetMs: number;
-  /** Minimum gap (ms) between accepted navigation moves. Lower = more sensitive. */
-  moveIntervalMs: number;
-  /** Dwell (ms) a control must be pushed before focus detaches from it. */
-  detachMs: number;
-  /** How far (px) the focused control rubber-bands as a "about to break free" hint. 0 = off. */
+  /** Travel (% of pad) for the first step of a touch. */
+  firstStepPct: number;
+  /** Further travel (% of pad) for each extra step in the same touch. */
+  nextStepPct: number;
+  /** First-step travel when the touch follows a same-direction step within 350 ms. */
+  flowFirstStepPct: number;
+  /** Multiplier on the travel needed to cross into another column of the band. */
+  boundaryResistance: number;
+  /** Unlocked dial, up/down: travel (% of pad) per value step. */
+  adjustStepPct: number;
+  /** Lift speed (pad widths/s) at which a short touch counts as a flick step. */
+  flickSpeed: number;
+  /** Extra lift speed (pad widths/s) needed for each coasted item. */
+  coastSpeedPerItem: number;
+  /** Most items a flick may coast after lift. 0 = no coasting. */
+  coastMax: number;
+  /** How far (px) the focused control leans toward the swipe. 0 = off. */
   nudgePx: number;
+  /** Clickpad edge press held: delay (ms) before the first repeat. */
+  holdDelayMs: number;
+  /** Clickpad edge press held: time (ms) between repeats. */
+  repeatMs: number;
 };
 
 export const APPLETV_SWIPE_DEFAULTS: AppleTvSwipeSettings = {
-  hierarchyCharge: 4,
-  componentGroupCharge: 3,
-  resetMs: 500,
-  moveIntervalMs: 220,
-  detachMs: 80,
+  firstStepPct: 27,
+  nextStepPct: 43,
+  flowFirstStepPct: 20,
+  boundaryResistance: 1.3,
+  adjustStepPct: 15,
+  flickSpeed: 1.5,
+  coastSpeedPerItem: 1.5,
+  coastMax: 2,
   nudgePx: 14,
+  holdDelayMs: 450,
+  repeatMs: 180,
 };
 
 // Inclusive [min, max, step] for each knob, consumed by the config sliders.
 export const APPLETV_SWIPE_RANGES = {
-  hierarchyCharge: { min: 1, max: 8, step: 1 },
-  componentGroupCharge: { min: 1, max: 8, step: 1 },
-  resetMs: { min: 200, max: 1500, step: 50 },
-  moveIntervalMs: { min: 100, max: 500, step: 10 },
-  detachMs: { min: 0, max: 250, step: 10 },
+  firstStepPct: { min: 10, max: 60, step: 1 },
+  nextStepPct: { min: 20, max: 90, step: 1 },
+  flowFirstStepPct: { min: 5, max: 60, step: 1 },
+  boundaryResistance: { min: 1, max: 2, step: 0.05 },
+  adjustStepPct: { min: 5, max: 40, step: 1 },
+  flickSpeed: { min: 0.5, max: 4, step: 0.1 },
+  coastSpeedPerItem: { min: 0.5, max: 4, step: 0.1 },
+  coastMax: { min: 0, max: 4, step: 1 },
   nudgePx: { min: 0, max: 48, step: 1 },
+  holdDelayMs: { min: 200, max: 800, step: 10 },
+  repeatMs: { min: 100, max: 500, step: 10 },
 } as const satisfies Record<keyof AppleTvSwipeSettings, { min: number; max: number; step: number }>;
 
 function clampField(field: keyof AppleTvSwipeSettings, value: unknown): number {
@@ -48,10 +69,10 @@ function clampField(field: keyof AppleTvSwipeSettings, value: unknown): number {
     return fallback;
   }
   const clamped = Math.min(max, Math.max(min, value));
-  // Charge counts are whole swipes; everything else is a continuous magnitude.
-  return field === "hierarchyCharge" || field === "componentGroupCharge"
-    ? Math.round(clamped)
-    : clamped;
+  // The coast cap counts whole items; everything else is a continuous magnitude,
+  // kept to two decimals so a slider's float arithmetic (1.1500000000000001)
+  // never reaches storage, the API or the readout.
+  return field === "coastMax" ? Math.round(clamped) : Math.round(clamped * 100) / 100;
 }
 
 /**
@@ -64,13 +85,19 @@ export function normalizeAppleTvSwipe(value: unknown): AppleTvSwipeSettings {
     ? (value as Record<string, unknown>)
     : {});
   return {
-    hierarchyCharge: clampField("hierarchyCharge", source.hierarchyCharge),
-    componentGroupCharge: clampField("componentGroupCharge", source.componentGroupCharge),
-    resetMs: clampField("resetMs", source.resetMs),
-    moveIntervalMs: clampField("moveIntervalMs", source.moveIntervalMs),
-    detachMs: clampField("detachMs", source.detachMs),
+    firstStepPct: clampField("firstStepPct", source.firstStepPct),
+    nextStepPct: clampField("nextStepPct", source.nextStepPct),
+    flowFirstStepPct: clampField("flowFirstStepPct", source.flowFirstStepPct),
+    boundaryResistance: clampField("boundaryResistance", source.boundaryResistance),
+    adjustStepPct: clampField("adjustStepPct", source.adjustStepPct),
+    flickSpeed: clampField("flickSpeed", source.flickSpeed),
+    coastSpeedPerItem: clampField("coastSpeedPerItem", source.coastSpeedPerItem),
+    coastMax: clampField("coastMax", source.coastMax),
     nudgePx: clampField("nudgePx", source.nudgePx),
+    holdDelayMs: clampField("holdDelayMs", source.holdDelayMs),
+    repeatMs: clampField("repeatMs", source.repeatMs),
   };
+
 }
 
 /**
