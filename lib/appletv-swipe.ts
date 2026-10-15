@@ -34,11 +34,11 @@ export type AppleTvSwipeSettings = {
 };
 
 export const APPLETV_SWIPE_DEFAULTS: AppleTvSwipeSettings = {
-  firstStepPct: 27,
-  nextStepPct: 43,
-  flowFirstStepPct: 20,
-  boundaryResistance: 1.3,
-  adjustStepPct: 15,
+  firstStepPct: 12,
+  nextStepPct: 28,
+  flowFirstStepPct: 8,
+  boundaryResistance: 1.15,
+  adjustStepPct: 8,
   flickSpeed: 1.5,
   coastSpeedPerItem: 1.5,
   coastMax: 2,
@@ -49,11 +49,11 @@ export const APPLETV_SWIPE_DEFAULTS: AppleTvSwipeSettings = {
 
 // Inclusive [min, max, step] for each knob, consumed by the config sliders.
 export const APPLETV_SWIPE_RANGES = {
-  firstStepPct: { min: 10, max: 60, step: 1 },
-  nextStepPct: { min: 20, max: 90, step: 1 },
-  flowFirstStepPct: { min: 5, max: 60, step: 1 },
+  firstStepPct: { min: 5, max: 60, step: 1 },
+  nextStepPct: { min: 10, max: 90, step: 1 },
+  flowFirstStepPct: { min: 3, max: 60, step: 1 },
   boundaryResistance: { min: 1, max: 2, step: 0.05 },
-  adjustStepPct: { min: 5, max: 40, step: 1 },
+  adjustStepPct: { min: 3, max: 40, step: 1 },
   flickSpeed: { min: 0.5, max: 4, step: 0.1 },
   coastSpeedPerItem: { min: 0.5, max: 4, step: 0.1 },
   coastMax: { min: 0, max: 4, step: 1 },
