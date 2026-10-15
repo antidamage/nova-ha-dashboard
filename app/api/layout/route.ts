@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { appleTvSwipeUpdateFrom, normalizeAppleTvSwipe } from "../../../lib/appletv-swipe";
 import { mergeDashboardPreferences, readDashboardPreferences } from "../../../lib/preferences";
 import type { LayoutPreferences } from "../../../lib/types";
 
 export const dynamic = "force-dynamic";
 
-// Apple TV layout/interaction preferences (the control-band height plus the
-// swipe-stickiness tuning). Read by the "Apple TV Expert Settings" config section
-// and merged into preferences.layout; the same values are surfaced live to the
-// tvOS app on the /api/theme envelope (see app/api/theme/route.ts).
+// Apple TV layout preferences (the control-band height), merged into
+// preferences.layout; the same value is surfaced live to the tvOS app on the
+// /api/theme envelope (see app/api/theme/route.ts). The remote's swipe feel is
+// learned on the TV and has no setting here.
 
 const TV_HEIGHT_FRACTION_DEFAULT = 0.6;
 const TV_HEIGHT_FRACTION_MIN = 0.3;
@@ -23,7 +22,6 @@ function resolveTvHeightFraction(raw: unknown): number {
 function layoutResponse(layout: LayoutPreferences | undefined) {
   return {
     tvHeightFraction: resolveTvHeightFraction(layout?.tvHeightFraction),
-    swipe: normalizeAppleTvSwipe(layout?.swipe),
   };
 }
 
@@ -42,26 +40,20 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as Record<string, unknown> | null;
-    const swipeUpdate = appleTvSwipeUpdateFrom(body?.swipe);
     const rawHeight = body?.tvHeightFraction;
     const heightUpdate =
       typeof rawHeight === "number" && Number.isFinite(rawHeight)
         ? resolveTvHeightFraction(rawHeight)
         : undefined;
 
-    if (!swipeUpdate && heightUpdate === undefined) {
+    if (heightUpdate === undefined) {
       throw new Error("No layout settings provided");
     }
 
     const preferences = await readDashboardPreferences();
-    // Merge field-by-field so changing one knob never drops the others, and
-    // re-normalize so the stored value is always complete and in range.
     const nextLayout: LayoutPreferences = {
       ...preferences.layout,
       ...(heightUpdate !== undefined ? { tvHeightFraction: heightUpdate } : {}),
-      ...(swipeUpdate
-        ? { swipe: normalizeAppleTvSwipe({ ...preferences.layout?.swipe, ...swipeUpdate }) }
-        : {}),
     };
 
     await mergeDashboardPreferences({ layout: nextLayout });

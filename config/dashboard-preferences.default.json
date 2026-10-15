@@ -5920,16 +5920,6 @@
     "autoUpdate": false,
     "updatedAt": "2026-07-25T11:17:04.525Z"
   },
-  "layout": {
-    "swipe": {
-      "hierarchyCharge": 2,
-      "componentGroupCharge": 2,
-      "resetMs": 500,
-      "moveIntervalMs": 100,
-      "detachMs": 100,
-      "nudgePx": 10
-    }
-  },
   "voice": {
     "wakeWord": "bandit",
     "updatedAt": "2026-07-31T10:04:50.212Z",

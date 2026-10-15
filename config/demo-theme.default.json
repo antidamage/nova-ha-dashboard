@@ -975,15 +975,7 @@
     }
   },
   "layout": {
-    "tvHeightFraction": 0.6,
-    "swipe": {
-      "hierarchyCharge": 2,
-      "componentGroupCharge": 2,
-      "resetMs": 500,
-      "moveIntervalMs": 100,
-      "detachMs": 100,
-      "nudgePx": 10
-    }
+    "tvHeightFraction": 0.6
   },
   "updatedAt": "2026-09-23T10:14:29.578Z"
 }

@@ -43,7 +43,6 @@ export const STATIC_ACCORDION_PATHS: Record<ConfigCategoryId, StaticAccordionPat
     ["reminders"],
     ["status-orb-info"],
     ["climate"],
-    ["appletv-swipe"],
     ["phonoscope"],
     ["phonoscope", "phonoscope-house-party"],
     ["phonoscope", "phonoscope-color-groups"],

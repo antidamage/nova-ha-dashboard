@@ -56,7 +56,7 @@ categories.
 - voice-people: `voice-infrastructure`, `voice`, `voice-training`,
   `user-data`
 - appearance-dashboard: `appearance`, `reminders`, `status-orb-info`,
-  `climate`, `appletv-swipe`, `phonoscope`
+  `climate`, `phonoscope`
 - devices: `managed-computers`, `hardware-assistant`, `camera`
 - modules: `modules` (per-module rows inside are plain rows, not nested
   accordions)

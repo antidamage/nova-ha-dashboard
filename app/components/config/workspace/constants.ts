@@ -50,7 +50,6 @@ export const HASH_CATEGORY: Record<string, ConfigCategoryId> = {
   "status-orb-info": "appearance-dashboard",
   reminders: "appearance-dashboard",
   climate: "appearance-dashboard",
-  "appletv-swipe": "appearance-dashboard",
   phonoscope: "appearance-dashboard",
   devices: "devices",
   "managed-computers": "devices",
