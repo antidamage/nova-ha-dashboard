@@ -21,46 +21,81 @@ const FIELDS: {
   color: [number, number, number];
 }[] = [
   {
-    key: "hierarchyCharge",
-    label: "Back-Out Grip",
-    unit: "swipes",
-    caption: "Swipes in a row needed to reverse one level out of a menu.",
-    color: [255, 0, 187],
-  },
-  {
-    key: "componentGroupCharge",
-    label: "Group Grip",
-    unit: "swipes",
-    caption: "Swipes needed to cross between devices (e.g. aircon → heater).",
-    color: [180, 95, 240],
-  },
-  {
-    key: "resetMs",
-    label: "Grip Window",
-    unit: "ms",
-    caption: "How long swipe pressure builds up before it relaxes.",
-    color: [120, 130, 255],
-  },
-  {
-    key: "moveIntervalMs",
-    label: "Step Interval",
-    unit: "ms",
-    caption: "Minimum gap between focus moves. Lower feels more sensitive.",
+    key: "firstStepPct",
+    label: "First Step",
+    unit: "% pad",
+    caption: "Swipe distance for the first move. Lower feels more sensitive.",
     color: [60, 220, 240],
   },
   {
-    key: "detachMs",
-    label: "Detach Dwell",
-    unit: "ms",
-    caption: "Hold time before focus leaves a control on the first push.",
+    key: "nextStepPct",
+    label: "Extra Step",
+    unit: "% pad",
+    caption: "Further distance for each additional move in one swipe. First + extra = a full-pad swipe moves 2.",
     color: [80, 200, 160],
   },
   {
-    key: "nudgePx",
-    label: "Rubber-Band Hint",
-    unit: "px",
-    caption: "How far the focused control nudges before it breaks free. 0 = off.",
+    key: "flowFirstStepPct",
+    label: "Flow First Step",
+    unit: "% pad",
+    caption: "First-step distance when a swipe follows another in the same direction.",
+    color: [120, 130, 255],
+  },
+  {
+    key: "boundaryResistance",
+    label: "Group Stickiness",
+    unit: "×",
+    caption: "Extra distance to cross into another group of the band. 1 = none.",
+    color: [180, 95, 240],
+  },
+  {
+    key: "adjustStepPct",
+    label: "Dial Step",
+    unit: "% pad",
+    caption: "Distance per value step when adjusting an unlocked dial.",
+    color: [255, 0, 187],
+  },
+  {
+    key: "flickSpeed",
+    label: "Flick Speed",
+    unit: "pad/s",
+    caption: "Lift speed at which a short swipe counts as a flick.",
     color: [255, 170, 70],
+  },
+  {
+    key: "coastSpeedPerItem",
+    label: "Coast Speed",
+    unit: "pad/s",
+    caption: "Extra lift speed needed for each item a flick carries on.",
+    color: [240, 200, 80],
+  },
+  {
+    key: "coastMax",
+    label: "Coast Limit",
+    unit: "items",
+    caption: "Most items a flick may carry on after lift. 0 = no coasting.",
+    color: [100, 220, 120],
+  },
+  {
+    key: "nudgePx",
+    label: "Lean",
+    unit: "px",
+    caption: "How far the focused control leans toward the swipe. 0 = off.",
+    color: [255, 120, 90],
+  },
+  {
+    key: "holdDelayMs",
+    label: "Hold Delay",
+    unit: "ms",
+    caption: "Held clickpad edge: wait before repeating.",
+    color: [90, 160, 255],
+  },
+  {
+    key: "repeatMs",
+    label: "Hold Repeat",
+    unit: "ms",
+    caption: "Held clickpad edge: time between repeats.",
+    color: [160, 120, 255],
   },
 ];
 
@@ -138,15 +173,16 @@ export function AppleTvSwipeConfig({
       <div className="panel-corner panel-corner-right" />
 
       <p className="mb-4 text-sm leading-relaxed text-neutral-400">
-        Tunes the trackpad swipe feel on the Apple TV dashboard — how hard you must
-        swipe to back out of a menu or cross between devices, and the rubber-band
-        hint the focused control gives before it breaks free. Changes apply live.
+        Tunes the remote's swipe feel on the Apple TV dashboard — how far a swipe
+        must travel to move, how a flick carries on, and how the focused control
+        leans as you push. Distances are a share of the touch pad's width.
+        Changes apply live.
       </p>
 
       <div className="grid gap-4">
         {FIELDS.map((field) => {
           const range = APPLETV_SWIPE_RANGES[field.key];
-          const value = settings[field.key];
+          const value = Math.round(settings[field.key] * 100) / 100;
           return (
             <div key={field.key} className="grid gap-1.5">
               <SliderControlPanel
@@ -159,7 +195,7 @@ export function AppleTvSwipeConfig({
                 min={range.min}
                 step={range.step}
                 value={value}
-                valueText={field.unit === "swipes" ? `${value}×` : `${value} ${field.unit}`}
+                valueText={field.unit === "×" ? `${value}×` : `${value} ${field.unit}`}
                 onPreview={(next) => {
                   draggingRef.current = true;
                   markInteraction();
