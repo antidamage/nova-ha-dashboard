@@ -22,7 +22,6 @@
 import { History, Paintbrush, ShieldCheck, UserRound } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
-import type { AppleTvSwipeSettings } from "../../lib/appletv-swipe";
 import type { AgentPreferences, VoicePreferences, WatchfacePreferences } from "../../lib/types";
 import type { SunThemeStatus, ThemeStorageValue } from "./accentColor";
 import { ConfigAccordion } from "./ConfigControls";
@@ -41,7 +40,6 @@ const AgentAdministration = dynamic(() => import("./AgentAdministration").then((
 const AgentConfig = dynamic(() => import("./AgentConfig").then((module) => module.AgentConfig));
 const AgentNameConfig = dynamic(() => import("./AgentNameConfig").then((module) => module.AgentNameConfig));
 const ClimateConfig = dynamic(() => import("./ClimateConfig").then((module) => module.ClimateConfig));
-const AppleTvSwipeConfig = dynamic(() => import("./AppleTvSwipeConfig").then((module) => module.AppleTvSwipeConfig));
 const CameraConfig = dynamic(() => import("./CameraConfig").then((module) => module.CameraConfig));
 const ControlsConfig = dynamic(() => import("./ControlsConfig").then((module) => module.ControlsConfig));
 const StatusOrbInfoConfig = dynamic(() => import("./StatusOrbInfoConfig").then((module) => module.StatusOrbInfoConfig));
@@ -60,7 +58,6 @@ const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfi
 export function ConfigWorkspace({
   initialAgentSettings,
   initialAutoUpdate,
-  initialSwipe,
   initialSun,
   initialTheme,
   initialVoiceSettings,
@@ -68,7 +65,6 @@ export function ConfigWorkspace({
 }: {
   initialAgentSettings?: AgentPreferences | null;
   initialAutoUpdate?: boolean;
-  initialSwipe?: AppleTvSwipeSettings | null;
   initialSun?: SunThemeStatus | null;
   initialTheme?: ThemeStorageValue | null;
   initialVoiceSettings?: VoicePreferences | null;
@@ -125,7 +121,6 @@ export function ConfigWorkspace({
                 <RemindersConfig />
                 <StatusOrbInfoConfig initialSettings={initialWatchface} />
                 <ClimateConfig />
-                <AppleTvSwipeConfig initialSettings={initialSwipe} />
                 <PhonoscopeConfig />
               </>
             ) : null}

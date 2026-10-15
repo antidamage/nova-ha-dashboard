@@ -1,4 +1,3 @@
-import type { AppleTvSwipeSettings } from "../appletv-swipe";
 
 export type RouterMetric = {
   entity_id: string;
@@ -108,12 +107,6 @@ export type LayoutPreferences = {
    * fills. Surfaced on the /api/theme envelope and polled live by the tvOS app.
    */
   tvHeightFraction?: number;
-  /**
-   * Apple TV swipe/stickiness tuning, surfaced on the same /api/theme envelope
-   * and polled live by the tvOS app. See lib/appletv-swipe.ts for shape, defaults
-   * and ranges.
-   */
-  swipe?: AppleTvSwipeSettings;
 };
 
 export type UpdatePreferences = {

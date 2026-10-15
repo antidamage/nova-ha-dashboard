@@ -61,7 +61,6 @@ export default async function ConfigPage() {
     <ConfigWorkspace
       initialAgentSettings={sharedPreferences?.agent ?? null}
       initialAutoUpdate={preferences?.update?.autoUpdate ?? dashboardConfig.update.autoUpdate}
-      initialSwipe={preferences?.layout?.swipe ?? null}
       initialSun={initialSun}
       initialTheme={initialTheme}
       initialVoiceSettings={sharedPreferences?.voice ?? null}

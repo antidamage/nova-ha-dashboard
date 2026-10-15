@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { normalizeAppleTvSwipe } from "../../../lib/appletv-swipe";
 import { parseThemeUpdateRequest } from "../../../lib/api/dashboard-requests";
 import { readDashboardConfig } from "../../../lib/dashboard-config";
 import { resolveThemeVariant } from "../../../lib/managed-desktop-sync";
@@ -21,9 +20,7 @@ function resolveLayout(layout: LayoutPreferences | undefined) {
     typeof raw === "number" && Number.isFinite(raw)
       ? Math.min(TV_HEIGHT_FRACTION_MAX, Math.max(TV_HEIGHT_FRACTION_MIN, raw))
       : TV_HEIGHT_FRACTION_DEFAULT;
-  // Always emit a fully-populated swipe block so the tvOS app gets every knob
-  // (filling unset fields from the shared defaults).
-  return { tvHeightFraction: fraction, swipe: normalizeAppleTvSwipe(layout?.swipe) };
+  return { tvHeightFraction: fraction };
 }
 
 function layoutUpdateFrom(value: unknown): LayoutPreferences | undefined {

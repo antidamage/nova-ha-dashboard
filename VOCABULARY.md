@@ -57,7 +57,7 @@ row says where.
 | Climate: the thermostat authority | `lib/aircon-control/`, `lib/climate-control/`, `lib/climate-control-policy.ts`, `lib/bedroom-heater-control/`, `lib/climate-instances.ts` | `app/components/dashboard/climate/`, `app/components/dashboard/ClimateControls.tsx`, `app/components/dashboard/ClimateKnobs.tsx` | `specs/aircon-auto-control.md`, `specs/climate-controls.md`, `specs/bedroom-heater-control-integrity.md` |
 | Power, the Grid, meters | `lib/power/`, `lib/power-meter-guard.ts`, `lib/powershop-usage.ts`, `lib/amp-*.ts`, `lib/power-floating-meter.ts` | `app/components/dashboard/power/`, `app/components/dashboard/PowerPanel.tsx`, `app/components/dashboard/usePowerDashboard.ts` | `specs/power-meters.md`, `specs/amp-appletv-power.md` |
 | Washing machine | `lib/washing-machine/`, `lib/wash-*.ts` | `app/components/dashboard/power/washing-machine/` | `specs/power-meters.md` |
-| Media: the amplifier and the Apple TV | `lib/amp-*.ts` (the amp's power control and the meter it follows), `lib/apple-tv/`, `lib/appletv-command.ts`, `lib/appletv-swipe.ts` | `app/components/dashboard/appleTV*.tsx`, `app/components/dashboard/appleTVAmpClient.ts`, `app/components/dashboard/appleTVAmpCommands.ts` | `specs/apple-tv-volume.md`, `specs/amp-appletv-power.md`, `specs/appletv-audio-outputs.md` |
+| Media: the amplifier and the Apple TV | `lib/amp-*.ts` (the amp's power control and the meter it follows), `lib/apple-tv/`, `lib/appletv-command.ts` | `app/components/dashboard/appleTV*.tsx`, `app/components/dashboard/appleTVAmpClient.ts`, `app/components/dashboard/appleTVAmpCommands.ts` | `specs/apple-tv-volume.md`, `specs/amp-appletv-power.md`, `specs/appletv-audio-outputs.md` |
 | Tasks and reminders | `lib/tasks/`, `lib/tasks.ts`, `lib/icloud-sync/` | `app/components/TasksPanel.tsx`, `app/components/tasks/`, `app/components/reminders/`, `app/components/dashboard/ReminderIconBar.tsx` | `specs/tasks-panel.md`, `specs/icloud-sync.md` |
 | Camera and DVR | `lib/camera/`, `camera-events/` (python), `app/api/camera-proxy/` | `app/components/dashboard/CameraPanel.tsx`, `app/components/dashboard/camera/`, `app/components/config/camera/` | `docs/camera-dvr.md` |
 | Outside, weather, map, radar | `lib/modules/weather/`, `lib/radar/` | `app/components/dashboard/OutsideControls.tsx`, `app/components/dashboard/WeatherPanel.tsx`, `app/components/MapPanel.tsx` | `specs/outside-weather-and-map.md` |
@@ -112,7 +112,7 @@ rule, not this file's.
 |---|---|
 | Assistant | identity, agent, authority |
 | Voice & People | voice infrastructure, voice, voice training, user data (face enrolment, kiosk activity, arrival & departure — the household member list and what each member's arrival and departure set) |
-| Appearance & Dashboard | appearance (theme settings: colours, fonts, status orb, background, map, theme reminders, sound), reminders, status orb info, climate, Apple TV swipe, Phonoscope |
+| Appearance & Dashboard | appearance (theme settings: colours, fonts, status orb, background, map, theme reminders, sound), reminders, status orb info, climate, Phonoscope |
 | Devices | managed computers, hardware assistant, camera, **Controls & Devices** (device types, their presets, and the panel slot lists) |
 | Modules | installed installable modules, and the device-module library (download/install a package) |
 | System & Data | history, secrets, config transfer, updates, system power |

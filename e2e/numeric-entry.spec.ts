@@ -7,10 +7,10 @@ test.describe("slider numeric entry", () => {
   test("tapping a config slider opens a focused numeric field", async ({ page }) => {
     await gotoConfig(page);
     await page.getByRole("button", { name: /Appearance & Dashboard/ }).click();
-    // Apple TV Expert Settings is a plain column of sliders, so it needs no
-    // colour modal opened first to have one on screen.
+    // Climate holds a plain range slider, so it needs no colour modal opened
+    // first to have one on screen.
     // Scoped to the accordion: the breadcrumb renders a button of the same name.
-    const section = page.locator("#appletv-swipe").getByRole("button", { name: "Apple TV Expert Settings" });
+    const section = page.locator("#climate").getByRole("button", { name: "Climate" });
     await expect(async () => {
       await section.click();
       await expect(section).toHaveAttribute("aria-expanded", "true");
