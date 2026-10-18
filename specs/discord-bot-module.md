@@ -32,6 +32,13 @@ src/
   inbound.ts       proposals, the rate limiter
   hermes-bridge.ts session links, chunking, which session a DM belongs to
   hermes-client.ts the Hermes WebUI client: login, new session, one turn
+  agent-brief.ts   the fixed brief a fresh-DM session is given
+  agent-jobs.ts    which agent handles a DM, the open-job store
+  agent-flow.ts    submit, react, poll, deliver and link; server.ts only routes to it
+  agent-runner-client.ts  the HTTP client for the runner's two job routes
+runner/
+  agent-runner.mjs   the service on Ununhexium that starts CLI sessions
+  install-runner.ps1 registers it as a headless logon task
 module.json
 build.mjs          esbuild → dist/{server,client}.mjs
 README.md
@@ -114,11 +121,17 @@ handle is what is configured; the id is what is displayed.
 | `hermes.workspace` | string | blank | where a Discord-started session works; blank uses the WebUI's own |
 | `hermes.model` | string | blank | blank ⇒ the profile default (deepseek) |
 | `hermes.chatTimeoutMs` | number 30000–3600000 | `600000` | how long one turn may take |
+| `agent.agent` | `claude` \| `codex` \| `hermes` | `claude` | who handles a fresh DM (§ Fresh messages) |
+| `agent.model` | string | `sonnet` | passed to the agent's CLI as-is; blank ⇒ the CLI's default |
+| `agent.effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| blank | `medium` | blank ⇒ the CLI's default |
+| `agent.runnerUrl` | string | — | the agent runner, e.g. `https://<host>:8444`; needed for `claude` and `codex` |
+| `agent.pollIntervalMs` | number 5000–120000 | `15000` | how often an open job is checked |
 | `messages.<hookId>` | template | see below | empty ⇒ that hook stays silent |
 
 The WebUI password is the `discord.hermesWebuiPassword` **secret**, not config:
 it goes to the dashboard secrets store (`PUT …/config` `{"secrets": {...}}`), so
-an exported module config cannot carry it.
+an exported module config cannot carry it. The runner's bearer key is the
+`discord.agentRunnerKey` secret, on the same terms.
 
 Per-reminder echo settings are **not** here — they live on the reminder
 (§ Per-reminder echo).
@@ -352,6 +365,132 @@ points back at the session it came from.
 and `lastHermesError` join the module's status detail, and a broken bridge
 reports `state: "error"` on the module rather than `ok` with a footnote.
 
+### Fresh messages: a headless agent session
+
+Added 2026-10-18. In `hermes` mode, a DM that is **not a Discord reply** is a
+fresh request. `agent.agent` decides who handles it:
+
+| `agent.agent` | a fresh DM |
+|---|---|
+| `claude` (default) | a new headless Claude Code session on Ununhexium, `agent.model` / `agent.effort` (default `sonnet` / `medium`) |
+| `codex` | a new headless Codex session on Ununhexium, same two settings |
+| `hermes` | a new Hermes WebUI session, exactly as in § Hermes mode |
+
+An unrecognised `agent.effort` is reported in `agentWarning` and the CLI's
+default is used. An unrecognised agent runs nothing: the DM is answered with the value that was
+not understood, and the status names it (`agentWarning`). A typo must not
+quietly pick an agent.
+
+**Replies are unchanged.** A DM that replies to a message the bot sent continues
+the session that sent it, as in § Hermes mode. The link now records which agent
+owns the session, so a reply to a Claude Code answer resumes that Claude Code
+session (`claude -p --resume`), a reply to a Codex answer resumes that Codex
+session, and a reply to a Hermes answer — or to a message with no link, such as
+an attention ping — takes the Hermes path exactly as before. A link with no
+agent recorded (every link written before this change) is a Hermes link.
+`agent.model` and `agent.effort` belong to the configured agent: a reply that
+resumes a different agent's session (the setting changed since) is sent with
+neither, so that CLI uses its own defaults — `sonnet` means nothing to Codex.
+
+**Only her messages.** The § Filtering rules apply unchanged: only the
+configured `userId` (resolved from the handle `antidamage`) is read, and every
+other author is dropped before anything is sent anywhere.
+
+**The brief.** The DM text is the prompt. The module adds a fixed brief, sent as
+an appended system prompt for Claude Code and prepended to the prompt for
+Codex. Its wording is `src/agent-brief.ts`, and it says:
+
+1. **No interaction.** The session is unattended: nobody answers a question,
+   approves a prompt or watches it. Do not ask, wait, or send an attention ping.
+   Resolve open questions from the repositories, MemPalace, the environment and
+   sensible defaults, and name any judgement call in the reply.
+2. **Complete the task.** Fire-and-forget, but not optional. If part of it
+   genuinely cannot be done, finish the rest and state exactly what is left and
+   why.
+3. **Classify first.** *Site change* — a change to the code or content of an
+   existing site, app or other repository-backed product: follow that
+   repository's change process from AGENTS.md (branch, pull request, independent
+   review, merge). *Action* — a task on a PC, the network, a device, a service
+   or an account. *Information* — a question. Only a site change gets a pull
+   request; an action or a question is done directly, as quickly as possible.
+4. **Reply briefly.** The final message is the Discord reply, read on a phone:
+   outcome first, then what was verified, then anything left. No narration.
+
+**It is asynchronous.** A site change can take an hour, far past any HTTP wait,
+so the module does not hold a request open:
+
+1. The module `POST`s the job to the runner, which answers `202` with a job id
+   at once. The module reacts 👀 to her message: picked up, nothing more.
+2. The job is recorded in module storage (`agent-jobs.json`: job id, channel,
+   her message id, agent, start time), so a dashboard restart keeps waiting for
+   it.
+3. Every `agent.pollIntervalMs` the module asks the runner for each open job.
+4. When one finishes, its answer is posted as replies to her message, split as
+   in § Hermes mode, and each message sent is linked to `{agent, sessionId}`.
+5. A failed job is reported as a reply (`The claude session failed: …`). If it
+   got as far as a session id, that message is linked too, so replying resumes
+   the session that failed.
+6. A job the runner no longer knows (`404`) is reported and dropped. An
+   unreachable runner is retried on the next poll; a job older than 6 hours is
+   then reported as lost and dropped, never polled forever.
+
+A submission that fails — no runner URL, no key, the runner refused or
+unreachable — is answered in the DM with the reason. Never silence.
+
+**Status.** `agent`, `agentWarning`, `pendingAgentJobs`, `lastAgentAt` and
+`lastAgentError` join the status detail. A failing runner reports
+`state: "error"`, like a broken Hermes bridge.
+
+### The agent runner
+
+`runner/agent-runner.mjs` in this repository: a dependency-free Node HTTP
+service on Ununhexium that starts the CLI sessions. The module runs on the Nova
+host and cannot start a process on Ununhexium; the runner is the one place that
+does.
+
+| route | |
+|---|---|
+| `GET /health` | `{ok, running, queued}` — no key needed; counts only, no job contents |
+| `POST /jobs` `{agent, prompt, brief?, model?, effort?, resumeSessionId?}` | `202 {jobId}`; `400` for an unknown agent or effort, an empty prompt, a model not matching `^[A-Za-z0-9._:\[\]-]{1,80}$`, a resume id not matching `^[A-Za-z0-9-]{8,80}$`, or a body that is not JSON or is over 256 KB |
+| `GET /jobs/<id>` | `{jobId, agent, state: queued\|running\|done\|failed, sessionId, answer, error, createdAt, startedAt, finishedAt}`; `404` unknown |
+
+- **Auth.** Every route but `/health` needs `Authorization: Bearer <key>`;
+  anything else is `401`. The key is compared in constant time.
+- **Config** is a JSON file outside every repository (`--config`, default
+  `%LOCALAPPDATA%\nova-agent-runner\config.json`): `key`, `port` (default
+  `8791`), `bind` (default `127.0.0.1`), `workspace` (the directory sessions
+  start in), `maxConcurrent` (default `2`), `timeoutMs` (default 4 h),
+  `claudePath`, `codexPath`, `claudePermissionMode` (default `auto`). It
+  refuses to start with a key shorter than 32 characters, and logs to
+  `runner.log` beside the config.
+- **Reach.** It binds loopback and is published to the tailnet by
+  `tailscale serve` on `8444` (HTTPS, tailnet only), like the Hermes WebUI on
+  `8443`.
+- **Claude Code**: `claude -p --output-format json --permission-mode <mode>
+  [--append-system-prompt-file <file>] [--model <m>] [--effort <e>]
+  [--resume <id>]`, prompt on stdin. The brief is written to
+  `jobs/<id>.brief.txt` and passed only when one was sent; model and effort
+  only when set. `result` is the answer, `session_id` the session, `is_error`
+  a failure.
+- **Codex**: `codex exec [resume <id>] --json
+  --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check -o <file>
+  [-m <m>] [-c model_reasoning_effort="<e>"] -`, brief and prompt on stdin;
+  model and effort only when set. The session id is `thread_id` from the
+  `thread.started` event; the answer is the `-o` file.
+- **Headless.** Every child is spawned with `windowsHide`. The runner itself is
+  started at logon by the scheduled task `Nova-AgentRunner` as
+  `conhost.exe --headless node.exe …`, so no window ever reaches her desktop.
+- **Bounds.** At most `maxConcurrent` sessions run; more wait in order. A
+  session past `timeoutMs` is killed with its whole process tree and fails as
+  timed out.
+- **Persistence.** Each job is a JSON file in the runner's data directory;
+  files older than 7 days are pruned when the runner starts. A job that was running when the runner stopped is marked failed
+  (`the runner restarted while this job ran`) at the next start; a queued one is
+  started.
+- `runner/install-runner.ps1` registers the scheduled task, writes a config with
+  a fresh key if there is none, and prints only where the config is — never the
+  key.
+
 ### Relay (confirm mode)
 
 Used when `inbound.mode` is `confirm` — the behaviour in everything from here to
@@ -449,3 +588,15 @@ With `inbound.mode: confirm` (the default is `hermes`; its own list follows):
   could not answer: …`) and the module reports `state: "error"` — never silence.
 - `inbound.mode: confirm` restores the dry-run + Confirm/Cancel behaviour above,
   unchanged.
+
+### Done means — fresh messages
+
+- A fresh DM gets 👀 within seconds, and later the agent's answer as a reply to
+  it; with defaults, the session is Claude Code on `sonnet` at `medium` effort.
+- Replying to that answer resumes the same Claude Code session.
+- Replying to a Hermes answer still continues its Hermes session.
+- `agent.agent: hermes` makes a fresh DM behave exactly as before this change.
+- A DM from any account other than the configured handle starts nothing.
+- With the runner stopped, a fresh DM is answered with the reason, and the
+  module reports `state: "error"`.
+- No console window appears on Ununhexium when a session starts.
