@@ -428,6 +428,12 @@ Tasks:
 - `POST /api/tasks/sync-icloud`: force iCloud sync.
 - `ALL /api/tasks/mcp`: compatibility shim to `/api/mcp`.
 
+Notifications (one-off, not reminders; see `notifications.md`):
+
+- `GET /api/notifications`: list active notifications; `?command=docs` for docs.
+- `POST /api/notifications`: create one (`title`, `body`, `severity`, `source`, `ttlSeconds`, `sticky`).
+- `DELETE /api/notifications?id=<id>` or `?all=1`: dismiss one or all.
+
 Map/weather tiles:
 
 - `GET /api/radar/[z]/[x]/[y]`: RainViewer radar tile proxy.
