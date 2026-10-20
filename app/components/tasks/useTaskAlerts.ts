@@ -2,14 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { Task } from "../../../lib/types";
 import { washReminder } from "../../../lib/wash-reminder";
-import { useDeviceTheme } from "../accentColor";
-import { resolveUxSoundUrl } from "../dashboard/controlSound";
 import { useReminderBannerSetting } from "../dashboard/reminderBannerSetting";
 import { useOrbSettings } from "../orb-info/useOrbSettings";
-import { loadSharedClientConfig, readCachedClientConfig } from "../sharedConfigCache";
-import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
-import { ALERT_AUDIO_REPEAT_MS, ALERT_AUDIO_WINDOW_MS } from "./constants";
-import { alertAudioTimingFromConfig } from "./panel-model";
 import { jsonFetch } from "./task-api";
 import {
   hasTaskAlertChimed,
@@ -22,7 +16,8 @@ import {
   taskStartMs,
   type AlertState,
 } from "./task-model";
-import type { TaskAudioStatus } from "./types";
+import { useAlertAudio } from "./useAlertAudio";
+import { useTaskAlertEvents, useTaskListLoader } from "./useTaskFeed";
 
 /**
  * The Reminders panel's alert machine: task loading and pushes, the alert
@@ -50,27 +45,9 @@ export function useTaskAlerts({
   // Per-device: does this screen show the reminder banners at all? Repeat
   // behaviour is no longer tied to this -- that is per-reminder (`annoy`).
   const [bannersEnabled] = useReminderBannerSetting();
-  const [audioTiming, setAudioTiming] = useState({
-    windowMs: ALERT_AUDIO_WINDOW_MS,
-    repeatMs: ALERT_AUDIO_REPEAT_MS,
-  });
-  const audioWindowMs = audioTiming.windowMs;
-  const audioRepeatMs = audioTiming.repeatMs;
   const [alert, setAlert] = useState<AlertState | null>(null);
-  const [taskAudioExists, setTaskAudioExists] = useState(false);
   const alertRef = useRef<AlertState | null>(null);
   const tasksRef = useRef<Task[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  // Which clip the reminder alert plays, per the theme's assignment. Recomputed
-  // when the assignments or the theme's own control sound change; null means
-  // the action is set to None (specs/ux-sounds.md).
-  const { theme: soundTheme } = useDeviceTheme();
-  const reminderAlertUrl = useMemo(
-    () => resolveUxSoundUrl("reminderAlert"),
-    [soundTheme.uxSounds],
-  );
-  const audioStopTimer = useRef<number | null>(null);
-  const audioRepeatTimer = useRef<number | null>(null);
   const taskPushRevision = useRef(0);
   const dismissingTaskIds = useRef<Set<string>>(new Set());
   // Occurrences this screen has already chimed for, keyed `taskId:sessionKey`.
@@ -91,135 +68,10 @@ export function useTaskAlerts({
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    let loading = false;
-
-    const loadTasks = async () => {
-      if (loading) {
-        return;
-      }
-
-      loading = true;
-      const revision = taskPushRevision.current;
-      try {
-        const payload = await jsonFetch<{ tasks: Task[] }>("/api/tasks?command=list", { cache: "no-store" });
-        // A push (tasks list or a dismissal) that landed while this fetch was in
-        // flight is newer; a stale list would re-raise a dismissed alert and
-        // restart its sound on this screen only.
-        if (alive && revision === taskPushRevision.current) {
-          setTasks(payload.tasks);
-          setTasksLoaded(true);
-        }
-      } catch (error) {
-        if (alive) {
-          setMessage(error instanceof Error ? error.message : "Failed to load reminders");
-        }
-      } finally {
-        loading = false;
-      }
-    };
-
-    const refreshWhenVisible = () => {
-      if (!document.hidden) {
-        void loadTasks();
-      }
-    };
-
-    void loadTasks();
-    window.addEventListener("focus", refreshWhenVisible);
-    window.addEventListener("online", refreshWhenVisible);
-    window.addEventListener("pageshow", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-
-    return () => {
-      alive = false;
-      window.removeEventListener("focus", refreshWhenVisible);
-      window.removeEventListener("online", refreshWhenVisible);
-      window.removeEventListener("pageshow", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-
-    void jsonFetch<TaskAudioStatus>("/api/tasks/audio?status=1", { cache: "no-store" })
-      .then((payload) => {
-        if (alive) {
-          setTaskAudioExists(payload.exists);
-        }
-      })
-      .catch(() => {
-        if (alive) {
-          setTaskAudioExists(false);
-        }
-      });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const stopAudio = useCallback(() => {
-    if (audioStopTimer.current !== null) {
-      window.clearTimeout(audioStopTimer.current);
-      audioStopTimer.current = null;
-    }
-
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-  }, []);
-
-  const clearAudioCadence = useCallback(() => {
-    if (audioRepeatTimer.current !== null) {
-      window.clearInterval(audioRepeatTimer.current);
-      audioRepeatTimer.current = null;
-    }
-    stopAudio();
-  }, [stopAudio]);
-
-  const playAudioWindow = useCallback(() => {
-    if (!taskAudioExists || !reminderAlertUrl) {
-      return;
-    }
-
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    stopAudio();
-    audio.currentTime = 0;
-    audio.play().catch((error) => {
-      console.info("[nova-dashboard] task alert audio blocked or unavailable", error);
-    });
-    audioStopTimer.current = window.setTimeout(stopAudio, audioWindowMs);
-  }, [audioWindowMs, reminderAlertUrl, stopAudio, taskAudioExists]);
-
-  const startAudioCadence = useCallback(
-    (annoy: boolean) => {
-      if (!taskAudioExists) {
-        clearAudioCadence();
-        return;
-      }
-
-      clearAudioCadence();
-      playAudioWindow();
-
-      // Only a reminder explicitly marked as an annoyer nags. Everything else
-      // gets exactly one chime per occurrence, household-wide -- see
-      // `hasTaskAlertChimed`. The banner (where enabled) still waits to be
-      // tapped; it just does so quietly.
-      if (annoy) {
-        audioRepeatTimer.current = window.setInterval(playAudioWindow, audioRepeatMs);
-      }
-    },
-    [audioRepeatMs, clearAudioCadence, playAudioWindow, taskAudioExists],
-  );
+  // Called here, not at the top, so every effect keeps the order it had when
+  // this was one hook: the loader, then the chime's clip check and cadence.
+  useTaskListLoader({ setMessage, setTasks, setTasksLoaded, taskPushRevision });
+  const { audioRef, clearAudioCadence, reminderAlertUrl, setTaskAudioExists, startAudioCadence, taskAudioExists } = useAlertAudio();
 
   const clearAlert = useCallback(
     (taskId?: string) => {
@@ -292,83 +144,7 @@ export function useTaskAlerts({
     [clearAlert],
   );
 
-  useEffect(() => {
-    const apply = (config: unknown) => {
-      const timing = alertAudioTimingFromConfig(config);
-      if (timing) {
-        setAudioTiming(timing);
-      }
-    };
-
-    apply(readCachedClientConfig());
-    void loadSharedClientConfig().then(apply).catch(() => {
-      // Falling back to the compiled-in cadence is fine; this is a sound.
-    });
-  }, []);
-
-  useEffect(() => {
-    if (typeof EventSource === "undefined") {
-      return;
-    }
-
-    const unsubscribe = subscribeToDashboardEvents({
-      tasks: (event) => {
-        try {
-          taskPushRevision.current += 1;
-          const payload = JSON.parse(event.data) as { tasks?: Task[] } | Task[];
-          setTasks(Array.isArray(payload) ? payload : (payload.tasks ?? []));
-          setTasksLoaded(true);
-        } catch (error) {
-          setMessage(error instanceof Error ? error.message : "Failed to read reminder event");
-        }
-      },
-      "task-alert": (event) => {
-        try {
-          const payload = JSON.parse(event.data) as AlertState;
-          if (payload.taskId && payload.name) {
-            triggerAlert(payload);
-          }
-        } catch (error) {
-          setMessage(error instanceof Error ? error.message : "Failed to read reminder alert");
-        }
-      },
-      "task-dismiss": (event) => {
-        try {
-          const payload = JSON.parse(event.data) as { taskId?: string };
-          if (payload.taskId) {
-            taskPushRevision.current += 1;
-            // updateTask: the local list must carry the acknowledgement too, or
-            // the orb, the chime and the alert effect re-raise it from stale data.
-            void dismissAlert({ post: false, taskId: payload.taskId, updateTask: true });
-          }
-        } catch (error) {
-          setMessage(error instanceof Error ? error.message : "Failed to read reminder dismissal");
-        }
-      },
-      "dashboard-error": (event) => {
-        try {
-          const payload = JSON.parse(event.data) as { message?: string };
-          if (payload.message) {
-            setMessage(payload.message);
-          }
-        } catch {
-          setMessage("Dashboard event error");
-        }
-      },
-      "task-audio": (event) => {
-        try {
-          const payload = JSON.parse(event.data) as TaskAudioStatus;
-          setTaskAudioExists(Boolean(payload.exists));
-        } catch {
-          setTaskAudioExists(false);
-        }
-      },
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [dismissAlert, triggerAlert]);
+  useTaskAlertEvents({ dismissAlert, setMessage, setTasks, setTaskAudioExists, setTasksLoaded, taskPushRevision, triggerAlert });
 
   useEffect(() => {
     if (tasksLoaded && alert && shouldClearTaskAlert(tasks, alert, nowMs)) {
@@ -420,9 +196,6 @@ export function useTaskAlerts({
   const alertChimed = alertTask ? hasTaskAlertChimed(alertTask) : false;
   const alertChimedRef = useRef(false);
   const washAlertId = alertTask && washReminder(alertTask)?.phase === "active" ? alertTask.id : null;
-
-
-
   useEffect(() => {
     alertChimedRef.current = alertChimed;
   }, [alertChimed]);
