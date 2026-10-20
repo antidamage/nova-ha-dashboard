@@ -105,6 +105,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | [apple-tv-volume.md](apple-tv-volume.md) | The amplifier dial (IR-emitter placeholder) |
 | [arrival-and-departure.md](arrival-and-departure.md) | Arrival and departure endpoints: the household members they address, and the device states each member sets |
 | [tasks-panel.md](tasks-panel.md) · [icloud-sync.md](icloud-sync.md) | Tasks and reminder sync |
+| [notifications.md](notifications.md) | One-off notifications raised through `/api/notifications`, shown on every screen |
 | [status-orb-stack.md](status-orb-stack.md) | Status orb priority, timer and washing ETA |
 | [discord-bot-module.md](discord-bot-module.md) | Discord module |
 

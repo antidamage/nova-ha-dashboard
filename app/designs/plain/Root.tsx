@@ -15,6 +15,7 @@
  * The data wiring below is intentionally identical to `Dashboard.tsx`'s: both
  * designs pull from the same hooks, which is what makes them interchangeable.
  */
+import { NotificationStack } from "../../components/notifications/NotificationStack";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { GatedLink } from "../../components/auth/GatedLink";
@@ -206,6 +207,7 @@ export function PlainRoot() {
 
         <VoiceTranscriptPanel />
 
+        <NotificationStack />
         {toast ? <p className="plain-toast">{toast}</p> : null}
       </main>
     </Tooltip.Provider>

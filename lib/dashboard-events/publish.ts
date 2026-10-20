@@ -148,3 +148,14 @@ export function holdDashboardEventLightPolling(durationMs = LIGHT_COMMAND_EVENT_
 export function publishOrbTimer(timer: import("../orb-timer-model").OrbTimer | null) {
   broadcast(sseEvent("orb-timer", JSON.stringify({ timer })));
 }
+
+// One-off notifications (lib/notifications/): the full record on create, and
+// just the id on dismiss or cap eviction. Late joiners get the active list
+// from sendNotificationsSnapshot in ./notifications.
+export function publishNotification(notification: unknown) {
+  broadcast(sseEvent("notification", JSON.stringify(notification)));
+}
+
+export function publishNotificationDismiss(id: string) {
+  broadcast(sseEvent("notification-dismiss", JSON.stringify({ id })));
+}
