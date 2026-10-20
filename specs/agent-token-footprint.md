@@ -1,7 +1,7 @@
 <!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Agent token footprint
 
-Plan: `majestic-aurora`. Written 2026-09-16.
+Plan: `majestic-aurora`. Written 2026-09-16. Ratchet scope widened to `e2e/` and `face-auth/` on 2026-10-20 (plan `dashboard-debt-and-size-burndown`); the e2e and face-auth files over the cap were recorded as burn-down entries at their then-current sizes.
 
 This repo is read by agents, not by Adeline. This spec defines how it is
 structured so that reading it is cheap.
@@ -357,8 +357,8 @@ already documents.
 
 ## 11. Enforcement
 
-- **`lib/architecture.test.ts`** is the ratchet: no file in `lib/` or `app/`
-  exceeds 10 KB except an explicit path-keyed allowlist, and no `types.ts` has
+- **`lib/architecture.test.ts`** is the ratchet: no file in `lib/`, `app/`, `e2e/` or `face-auth/`
+  exceeds 10 KB (`.ts`, `.tsx`, `.css`, `.py`) except an explicit path-keyed allowlist, and no `types.ts` has
   a runtime import. Same waiver technique as `lib/no-household-data.test.ts`,
   so it reads as native to this repo.
 - **`scripts/check-file-sizes.mjs`** is the on-demand view: whole tree, not

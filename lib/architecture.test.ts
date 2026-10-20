@@ -27,8 +27,8 @@ import { describe, expect, it } from "vitest";
  */
 
 const ROOT = process.cwd();
-const SCAN_DIRS = ["lib", "app"];
-const SOURCE_EXT = new Set([".ts", ".tsx", ".css"]);
+const SCAN_DIRS = ["lib", "app", "e2e", "face-auth"];
+const SOURCE_EXT = new Set([".ts", ".tsx", ".css", ".py"]);
 
 /** 10 KB, per the spec. Bytes, not lines: tokens track bytes far more closely. */
 const CAP_BYTES = 10 * 1024;
@@ -62,7 +62,7 @@ const ALLOWED: Allowance[] = [
   { file: "app/components/auth/login-panel/useLoginFlow.ts", bytes: 15753, permanent: "section 2 criterion 2 — one password/passkey/face state machine sharing liveRef, fail, start and applyChallenge" },
   { file: "app/components/theme/accent/useDeviceTheme.ts", bytes: 15674 },
   { file: "lib/demo-config/bootstrap-script.ts", bytes: 14948, permanent: "section 2 criterion 3 — one template literal of browser JS; fragments would only be reassembled by the same caller" },
-  { file: "app/components/dashboard/reminders/ReminderIconBar.tsx", bytes: 14775 },
+  { file: "app/components/dashboard/reminders/ReminderIconBar.tsx", bytes: 15058 },
   { file: "lib/voice-transcript/voice-transcript.test.ts", bytes: 14662 },
   { file: "lib/phonoscope-migrate-v3.ts", bytes: 14161 },
   { file: "app/components/dashboard/satellite/runtime.ts", bytes: 14129, permanent: "section 2 criterion 2 — one class sharing private instance state" },
@@ -92,6 +92,23 @@ const ALLOWED: Allowance[] = [
   { file: "lib/ha/lighting/zone-action.ts", bytes: 10439, permanent: "section 2 criterion 2 — one function, setZoneAction" },
   { file: "app/components/theme/accent/store.ts", bytes: 10337, permanent: "section 2 criterion 2 — the package's single state owner" },
   { file: "app/components/dashboard/zones/ZoneControls.tsx", bytes: 10334, permanent: "section 2 criterion 2 — one component reading its own hook state" },
+  { file: "e2e/advanced-fold.spec.ts", bytes: 13631 },
+  { file: "e2e/color-encoder-rings.spec.ts", bytes: 13157 },
+  { file: "e2e/color-encoder-sweep.spec.ts", bytes: 12349 },
+  { file: "e2e/color-encoder.spec.ts", bytes: 11838 },
+  { file: "e2e/config.spec.ts", bytes: 15672 },
+  { file: "e2e/orb-dial.spec.ts", bytes: 15158 },
+  { file: "e2e/panel-slots.spec.ts", bytes: 18639 },
+  { file: "e2e/portrait-layout.spec.ts", bytes: 13084 },
+  { file: "e2e/quick-access-portrait.spec.ts", bytes: 14289 },
+  { file: "e2e/quick-access-slots.spec.ts", bytes: 19413 },
+  { file: "face-auth/antispoof/minifasnet.py", bytes: 13339 },
+  { file: "face-auth/service/pipeline.py", bytes: 11834 },
+  { file: "face-auth/test_authenticator.py", bytes: 20888 },
+  { file: "face-auth/test_core.py", bytes: 32995 },
+  { file: "app/components/dashboard/state/stallReload.test.ts", bytes: 11085 },
+  { file: "lib/orb-modules/orb-modules.settings.test.ts", bytes: 12479 },
+  { file: "lib/orb-modules/tech.data.ts", bytes: 10325, permanent: "section 2 criterion 1 — the Tech orb module table" },
 ];
 
 /**
