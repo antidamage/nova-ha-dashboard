@@ -66,7 +66,7 @@ COPY core /app/core
 COPY service /app/service
 COPY antispoof /app/antispoof
 COPY authenticator /app/authenticator
-COPY test_core.py test_authenticator.py /app/
+COPY test_*.py core_fixtures.py authenticator_fixtures.py /app/
 
 ENV NOVA_FACE_AUTH_DATA=/data \
     FACE_MODEL_ROOT=/models \
