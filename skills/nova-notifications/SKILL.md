@@ -2,6 +2,7 @@
 name: nova-notifications
 description: "Put a one-off notification on every Nova dashboard screen through POST /api/notifications, and list or dismiss them. Use when an agent should tell the household something that is not a reminder or task: a long job finished, a deploy failed, something needs looking at. Live data, not source code: no build, commit or deploy."
 ---
+<!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 
 # Nova notifications
 
