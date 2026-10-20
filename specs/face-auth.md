@@ -62,8 +62,8 @@ face-auth/
     ctap.py               clientDataJSON, authenticatorData, ES256 assertion
     authentik.py          credential registration + session revocation
     harness.py            local WebAuthn RP test double, tests only
-  test_core.py            unittest
-  test_authenticator.py   unittest
+  test_core_*.py          unittest, one file per area of core; fixtures in core_fixtures.py
+  test_authenticator_*.py unittest, one file per area; OracleTestCase in authenticator_fixtures.py
   Dockerfile
   requirements.txt
 ops/iridium/nova-face-auth.service
@@ -565,7 +565,7 @@ face login; it cannot enable one, cannot enrol, and cannot clear a lockout.
 # The face pipeline
 
 Unchanged by the passkey redesign. Detection, liveness and matching are already
-built in `core.py`/`test_core.py` (24 tests passing) and this section describes
+built in `core.py`/`test_core.py` (now `core/` and `test_core_*.py`; 24 tests passing) and this section describes
 what exists.
 
 ## Models and pipeline
