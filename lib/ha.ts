@@ -5,6 +5,7 @@
  * Where things are:
  *
  *   ha/client.ts                         REST/WebSocket client, callService
+ *                                        (facade over ha/client/)
  *   ha/entities.ts, zones.ts, registry.ts, twins.ts, health.ts, states.ts
  *                                        state projection pieces
  *   ha/entity-actions.ts                 setEntityAction

@@ -1,8 +1,6 @@
 "use client";
 
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { Settings } from "lucide-react";
-import { GatedLink } from "./auth/GatedLink";
 import type { DashboardZone } from "../../lib/types";
 import { useEffect, useMemo, useState } from "react";
 import { useDeviceTheme } from "./accentColor";
@@ -33,17 +31,11 @@ import { useRadarPreload } from "./dashboard/useRadarPreload";
 import { useScrollAnchor } from "./dashboard/useScrollAnchor";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
 import { useManagedDesktopWallpaperSync } from "./dashboard/useManagedDesktopWallpaperSync";
-import { FluidBackground } from "./FluidBackground";
-import { WallpaperBackground } from "./WallpaperBackground";
 import { useExperienceFeature } from "./dashboard/experienceModeSetting";
 import { TasksPanel } from "./TasksPanel";
-import { UpdateBanner } from "./UpdateBanner";
-import { ReloadButton } from "./ReloadButton";
-import { RotateDisplayButton } from "./RotateDisplayButton";
-import { ThemeOverrideButton } from "./ThemeOverrideButton";
-import { HeaderFadeStrip } from "./dashboard/HeaderFadeStrip";
 import { useBuildReload } from "./useBuildReload";
 import { ModuleSlot } from "./modules/ModuleSlot";
+import { DashboardChrome } from "./DashboardChrome";
 import { NotificationStack } from "./notifications/NotificationStack";
 
 export function Dashboard() {
@@ -139,44 +131,7 @@ export function Dashboard() {
     <Tooltip.Provider delayDuration={250}>
       <main className="min-h-screen bg-neutral-950 text-neutral-100">
         <div className="dashboard-shell dashboard-home min-h-screen px-4 py-5 sm:px-6" data-demo={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? "true" : undefined}>
-          {/* Background off: no WebGL, and the shell flattens to the plain
-              theme colour (specs/experience-modes.md). */}
-          {showBackground ? (
-            theme.desktopWallpaper.useAsDashboardBackground ? (
-              <WallpaperBackground wallpaper={theme.desktopWallpaper} />
-            ) : (
-              <FluidBackground theme={theme} />
-            )
-          ) : null}
-          <HeaderFadeStrip />
-          <ReloadButton />
-          <ThemeOverrideButton />
-          <RotateDisplayButton />
-          <GatedLink
-            className="dashboard-config-link"
-            href="/config"
-            aria-label="Configuration"
-            data-demo-tooltip-title="Config"
-            data-demo-tooltip="Open dashboard theme and setup tools."
-          >
-            <Settings className="h-5 w-5" aria-hidden="true" />
-          </GatedLink>
-
-          <UpdateBanner />
-
-          {data?.haHealth?.status === "degraded" ? (
-            // Home Assistant returned a mass-unavailable snapshot (restart/reload).
-            // The server is holding last-known-good state (lib/ha/health.ts), so
-            // tiles keep their values dimmed rather than all flipping to dead —
-            // this chip is the only outward sign of the blip.
-            <div
-              className="pointer-events-none fixed left-1/2 top-3 z-50 -translate-x-1/2 border border-amber-300/60 bg-neutral-950/90 px-4 py-2 text-xs font-black uppercase tracking-wide text-amber-200 shadow-2xl"
-              role="status"
-              aria-live="polite"
-            >
-              Reconnecting to Home Assistant…
-            </div>
-          ) : null}
+          <DashboardChrome haHealth={data?.haHealth} showBackground={showBackground} theme={theme} />
 
           <header className="top-banner p-0">
             <ModuleSlot id="header.banner.before" />
