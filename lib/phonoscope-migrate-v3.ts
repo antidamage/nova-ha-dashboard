@@ -1,20 +1,21 @@
-import {
-  PHONOSCOPE_GLOW_BLEND_EFFECT,
-  PHONOSCOPE_GLOW_BLUR_EFFECT,
-  PHONOSCOPE_GLOW_OPACITY_EFFECT,
-  PHONOSCOPE_MESSAGE_SCALE_EFFECT,
-  PHONOSCOPE_THEME_CHANGE_EFFECT,
-} from "./phonoscope-drivers";
 import type {
   PhonoscopeColorGroup,
   PhonoscopeColorGroupEntry,
   PhonoscopeColorTheme,
-  PhonoscopeDriver,
-  PhonoscopeDriverLane,
-  PhonoscopeEffectBinding,
   PhonoscopeHouseParty,
   PhonoscopeSettingsGroup,
 } from "./types";
+import { isRecord } from "./phonoscope/normalize-model";
+import {
+  lanesFromSources,
+  legacyGlowBlendModeIndex,
+  nextId,
+  pictureLanes,
+  resetPhonoscopeMigrationIds,
+  themeChangeLane,
+} from "./phonoscope-migrate-v3/lanes";
+
+export { legacyGlowBlendModeIndex, resetPhonoscopeMigrationIds };
 
 /**
  * One-shot migration from the pre-lane Phonoscope configuration.
@@ -33,201 +34,9 @@ import type {
 
 export const PHONOSCOPE_DEFAULT_SETTINGS_GROUP_ID = "default";
 
-type LegacySource = {
-  type?: unknown;
-  value?: unknown;
-  min?: unknown;
-  max?: unknown;
-  cadence?: unknown;
-  intervalSeconds?: unknown;
-  transitionSeconds?: unknown;
-  attackSeconds?: unknown;
-  holdSeconds?: unknown;
-  releaseSeconds?: unknown;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function numberOr(value: unknown, fallback: number) {
-  return Number.isFinite(Number(value)) ? Number(value) : fallback;
-}
-
 function slug(value: string, fallback: string) {
   const normalized = value.toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
   return /^[a-z][a-z0-9_-]{1,63}$/.test(normalized) ? normalized : fallback;
-}
-
-let counter = 0;
-function nextId(prefix: string) {
-  counter += 1;
-  return `${prefix}_${counter.toString(36)}`;
-}
-
-/** Reset the id counter so a migration run is reproducible in tests. */
-export function resetPhonoscopeMigrationIds() {
-  counter = 0;
-}
-
-function driverOf(partial: Partial<PhonoscopeDriver>): PhonoscopeDriver {
-  return {
-    type: partial.type ?? "beat",
-    every: partial.every ?? 1,
-    offset: partial.offset ?? 0,
-    divide: partial.divide ?? 1,
-    intervalSeconds: partial.intervalSeconds ?? 4,
-    cadence: partial.cadence ?? "beat",
-  };
-}
-
-/**
- * A pre-lane source becomes a driver plus the binding fields it carried.
- * Manual sources have no driver at all and are dropped by the caller: the new
- * model has no static layer, and their values were baked into the module
- * manifest's defaults instead.
- */
-function laneDriverFor(source: LegacySource): PhonoscopeDriver | null {
-  const type = String(source.type ?? "");
-  if (type === "manual" || type === "fixed" || !type) return null;
-  if (type === "random") {
-    // `bar` was a synonym for downbeat, and `interval` is now the timer driver.
-    const cadence = String(source.cadence ?? "beat");
-    return driverOf({
-      type: "random",
-      cadence: cadence === "bar" || cadence === "downbeat"
-        ? "downbeat"
-        : cadence === "song"
-          ? "song"
-          : cadence === "interval"
-            ? "timer"
-            : "beat",
-      intervalSeconds: numberOr(source.intervalSeconds, 4),
-    });
-  }
-  if (["beat", "downbeat", "energy", "bass", "mid", "treble"].includes(type)) {
-    return driverOf({ type: type as PhonoscopeDriver["type"] });
-  }
-  return null;
-}
-
-function bindingFor(
-  effect: string,
-  source: LegacySource,
-  driver: PhonoscopeDriver,
-): PhonoscopeEffectBinding {
-  // A legacy random source sampled a value and glided to it, ignoring the
-  // envelope entirely. Both halves of that now live on the binding: the drawn
-  // value is `randomValue`, and the glide is the attack it ramps over. Its
-  // stored `attackSeconds`, which the old evaluator never read, is discarded
-  // rather than resurrected.
-  const random = driver.type === "random";
-  return {
-    id: nextId("bind"),
-    effect,
-    min: numberOr(source.min, 0),
-    max: numberOr(source.max, 0),
-    attackSeconds: random
-      ? Math.max(0, numberOr(source.transitionSeconds, 0.5))
-      : numberOr(source.attackSeconds, 0.05),
-    holdSeconds: numberOr(source.holdSeconds, 0),
-    releaseSeconds: numberOr(source.releaseSeconds, 0.6),
-    ...(random ? { randomValue: true } : {}),
-  };
-}
-
-/**
- * A stable key so sources sharing a driver land in the same lane. Two random
- * sources that differed only by glide now merge, which is right: the glide has
- * become a per-binding attack, so one lane can carry both.
- */
-function laneKey(driver: PhonoscopeDriver) {
-  return driver.type === "random"
-    ? `random:${driver.cadence}:${driver.intervalSeconds}`
-    : driver.type;
-}
-
-/**
- * Turn a `{ settingId: source }` map into lanes, one per distinct driver, so a
- * configuration that drove four settings from the bass ends up with one Bass
- * lane holding four effects rather than four identical lanes.
- */
-function lanesFromSources(sources: Record<string, unknown>): PhonoscopeDriverLane[] {
-  const byDriver = new Map<string, PhonoscopeDriverLane>();
-  for (const [effect, rawSource] of Object.entries(sources)) {
-    if (!isRecord(rawSource)) continue;
-    const driver = laneDriverFor(rawSource);
-    if (!driver) continue;
-    const key = laneKey(driver);
-    let lane = byDriver.get(key);
-    if (!lane) {
-      lane = { id: nextId("lane"), driver, modifiers: [], bindings: [] };
-      byDriver.set(key, lane);
-    }
-    lane.bindings.push(bindingFor(effect, rawSource, driver));
-  }
-  return [...byDriver.values()];
-}
-
-/**
- * The colour group's old rotation controls become one `__themeChange` binding:
- * `changeMode` picks the driver, `waitSeconds` becomes the timer interval, and
- * `transitionSeconds` becomes the release — the cross-fade.
- */
-function themeChangeLane(group: Record<string, unknown>): PhonoscopeDriverLane {
-  const changeMode = String(group.changeMode ?? "interval");
-  const driver = changeMode === "song"
-    ? driverOf({ type: "song" })
-    : changeMode === "downbeat"
-      ? driverOf({ type: "downbeat" })
-      : driverOf({ type: "timer", intervalSeconds: Math.max(0.25, numberOr(group.waitSeconds, 60)) });
-  return {
-    id: nextId("lane"),
-    driver,
-    modifiers: [],
-    bindings: [{
-      id: nextId("bind"),
-      effect: PHONOSCOPE_THEME_CHANGE_EFFECT,
-      min: 0,
-      max: 1,
-      attackSeconds: 0,
-      holdSeconds: 0,
-      releaseSeconds: Math.max(0, numberOr(group.transitionSeconds, 3)),
-      params: { order: String(group.order ?? "sequential") === "shuffle" ? 1 : 0 },
-    }],
-  };
-}
-
-/**
- * The blend modes in the order they are numbered on the axis. Only ever
- * appended: a stored range is a pair of numbers on it, so renumbering would
- * silently repoint every configuration that drives the parameter.
- */
-const GLOW_BLEND_MODE_AXIS = ["screen", "multiply", "overlay"] as const;
-
-/** The glow overlay and message scale were already driven; they just move. */
-function pictureLanes(raw: Record<string, unknown>): PhonoscopeDriverLane[] {
-  const sources: Record<string, unknown> = {};
-  const glow = isRecord(raw.glowOverlay) ? raw.glowOverlay : {};
-  if (isRecord(glow.blurSource)) sources[PHONOSCOPE_GLOW_BLUR_EFFECT] = glow.blurSource;
-  if (isRecord(glow.opacitySource)) sources[PHONOSCOPE_GLOW_OPACITY_EFFECT] = glow.opacitySource;
-  if (isRecord(glow.blendModeSource)) sources[PHONOSCOPE_GLOW_BLEND_EFFECT] = glow.blendModeSource;
-  if (isRecord(raw.messageScaleSource)) sources[PHONOSCOPE_MESSAGE_SCALE_EFFECT] = raw.messageScaleSource;
-  return lanesFromSources(sources);
-}
-
-/**
- * Configurations written before the blend mode became a driven parameter carry
- * a plain `blendMode` string. It was a fixed choice rather than a driver, so it
- * has no lane; it survives as the module-independent default the engines fall
- * back to, which is what a manual source always meant.
- */
-export function legacyGlowBlendModeIndex(raw: unknown): number | null {
-  if (!isRecord(raw)) return null;
-  const glow = isRecord(raw.glowOverlay) ? raw.glowOverlay : {};
-  if (glow.blendModeSource !== undefined || typeof glow.blendMode !== "string") return null;
-  const index = (GLOW_BLEND_MODE_AXIS as readonly string[]).indexOf(glow.blendMode);
-  return index >= 0 ? index : null;
 }
 
 export type PhonoscopeMigrationResult = {
