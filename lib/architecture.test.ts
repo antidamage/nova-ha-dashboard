@@ -70,12 +70,9 @@ const ALLOWED: Allowance[] = [
   { file: "app/components/theme/accent/defaults.ts", bytes: 12103, permanent: "section 2 criterion 1 — the two shipped theme tables" },
   { file: "app/components/dashboard/state/useDashboardCommands.ts", bytes: 11872, permanent: "section 2 criterion 2 — one hook sharing sequence counters, timers and abort controller" },
   { file: "app/components/config/reminders/RemindersConfig.tsx", bytes: 11848, permanent: "section 2 criterion 2 — callbacks share roster and config state" },
-  { file: "app/components/dashboard/zones/ZoneControls.test.tsx", bytes: 11741 },
   { file: "app/components/dashboard/state/useDashboardState.ts", bytes: 11737, permanent: "section 2 criterion 2 — poll loop and SSE handler share the snapshot refs" },
   { file: "lib/voice-settings/update-model.ts", bytes: 11669, permanent: "section 2 criterion 3 — splitting validators needs ~13 single-consumer exports" },
   { file: "app/components/tasks/TaskEditor.tsx", bytes: 11653, permanent: "section 2 criterion 2 — one form over one draft state" },
-  { file: "lib/no-household-data.test.ts", bytes: 11485 },
-  { file: "lib/modules/runtime/store.test.ts", bytes: 11361 },
   { file: "app/components/avatar/nova-avatar/NovaAvatarVisual.tsx", bytes: 11338, permanent: "section 2 criterion 3 — host wiring; further split needs ~20 pass-through props" },
   { file: "lib/preferences/store.ts", bytes: 10618, permanent: "section 2 criterion 2 — write queue, per-section merge and atomic write kept together so no merge branch is lost" },
   { file: "lib/ha/lighting/zone-action.ts", bytes: 10439, permanent: "section 2 criterion 2 — one function, setZoneAction" },
@@ -92,8 +89,6 @@ const ALLOWED: Allowance[] = [
   { file: "e2e/quick-access-portrait.spec.ts", bytes: 14289 },
   { file: "e2e/quick-access-slots.spec.ts", bytes: 19413 },
   { file: "face-auth/antispoof/minifasnet.py", bytes: 13339, permanent: "section 2 criterion 5 — upstream Silent-Face MiniFASNet vendored verbatim; the attribute names are the .pth state-dict keys" },
-  { file: "app/components/dashboard/state/stallReload.test.ts", bytes: 11085 },
-  { file: "lib/orb-modules/orb-modules.settings.test.ts", bytes: 12479 },
   { file: "lib/orb-modules/tech.data.ts", bytes: 10325, permanent: "section 2 criterion 1 — the Tech orb module table" },
 ];
 

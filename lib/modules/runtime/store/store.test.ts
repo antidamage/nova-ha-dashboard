@@ -1,68 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "fs/promises";
-import os from "os";
+import { mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
 import { zipSync, strToU8 } from "fflate";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseModuleManifest } from "./manifest";
-
-async function importWithTempStore() {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), "nova-modules-"));
-  vi.stubEnv("NOVA_DASHBOARD_MODULES_DIR", path.join(tempDir, "modules"));
-  vi.stubEnv("NOVA_DASHBOARD_SECRETS_PATH", path.join(tempDir, "dashboard-secrets.json"));
-  vi.resetModules();
-  return { store: await import("./store"), tempDir };
-}
-
-const MANIFEST = {
-  id: "fixture-module",
-  name: "Fixture",
-  version: "1.0.0",
-  description: "Test fixture",
-  hooks: ["entity.action", "thermostat.transition", "card.body.after"],
-  secrets: ["fixture.token"],
-  messages: { "thermostat.transition": "{entity} {state}" },
-  configSchema: {
-    type: "object",
-    properties: {
-      label: { type: "string", default: "hello" },
-      "fixture.token": { type: "string", format: "secret" },
-      volume: { type: "number", minimum: 0, maximum: 10, default: 5 },
-      nested: { type: "object", properties: { enabled: { type: "boolean", default: true } } },
-    },
-  },
-};
-
-function packageZip(overrides: Record<string, unknown> = {}, files: Record<string, string> = {}) {
-  return zipSync({
-    "module.json": strToU8(JSON.stringify({ ...MANIFEST, ...overrides })),
-    "server.mjs": strToU8("export default { register() {} };\n"),
-    "client.mjs": strToU8("export default { register() {} };\n"),
-    ...Object.fromEntries(Object.entries(files).map(([name, body]) => [name, strToU8(body)])),
-  });
-}
-
-describe("module manifest", () => {
-  it("names the offending hook rather than just refusing", () => {
-    const parsed = parseModuleManifest({ ...MANIFEST, hooks: ["entity.action", "not.a.hook"] });
-    expect(parsed.ok).toBe(false);
-    expect(parsed.ok === false && parsed.error).toContain("not.a.hook");
-  });
-
-  it("rejects a message template for a hook the module never declared", () => {
-    const parsed = parseModuleManifest({
-      ...MANIFEST,
-      messages: { "reminder.due": "nope" },
-    });
-    expect(parsed.ok).toBe(false);
-    expect(parsed.ok === false && parsed.error).toContain("reminder.due");
-  });
-
-  it("rejects an entry path that escapes the package", () => {
-    const parsed = parseModuleManifest({ ...MANIFEST, entry: { server: "../../evil.mjs" } });
-    expect(parsed.ok).toBe(false);
-    expect(parsed.ok === false && parsed.error).toContain("relative path");
-  });
-});
+import { MANIFEST, importWithTempStore, packageZip } from "./store.fixtures";
 
 describe("module store", () => {
   afterEach(() => {
@@ -231,54 +171,6 @@ describe("module store", () => {
       const broken = summaries.find((entry) => entry.id === "broken");
       expect(broken).toMatchObject({ state: "failed", enabled: false });
       expect(broken?.error).toContain("module.json");
-    } finally {
-      await rm(tempDir, { recursive: true, force: true });
-    }
-  });
-});
-
-describe("the real Discord module package", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-    vi.resetModules();
-  });
-
-  // Guards the contract between the two repos: if the manifest or the packaging
-  // drifts, this fails here rather than at install time on the live dashboard.
-  it("installs, if it has been built", async () => {
-    const zipPath = path.join(
-      process.cwd(),
-      "..",
-      "nova-module-discord",
-      "nova-module-discord-0.1.0.zip",
-    );
-    let bytes: Uint8Array;
-    try {
-      bytes = new Uint8Array(await readFile(zipPath));
-    } catch {
-      // The module repo is built separately; skip rather than fail a checkout
-      // that has not built it.
-      return;
-    }
-
-    const { store, tempDir } = await importWithTempStore();
-    try {
-      const result = await store.installModulePackage(bytes, "test");
-      expect(result.id).toBe("discord-bot");
-
-      const summaries = await store.moduleSummaries();
-      expect(summaries[0]).toMatchObject({ id: "discord-bot", hasServer: true, hasClient: true });
-      // The package declares separate bot, face-veto and attention credentials.
-      expect(summaries[0].secrets).toEqual([
-        { name: "discord.botToken", configured: false },
-        { name: "discord.faceVetoKey", configured: false },
-        { name: "discord.attentionKey", configured: false },
-      ]);
-
-      // The token must be a secret-typed field, or export would leak it.
-      const manifest = await store.readManifest("discord-bot");
-      const config = store.coerceModuleConfig(manifest!, { "discord.botToken": "leak-me" });
-      expect(store.exportableModuleConfig(manifest!, config)).not.toHaveProperty("discord.botToken");
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }

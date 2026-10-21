@@ -1,6 +1,5 @@
-import { readFileSync, readdirSync, statSync } from "fs";
-import path from "path";
 import { describe, expect, it } from "vitest";
+import { scan, type Finding } from "./no-household-data.fixtures";
 
 /**
  * specs/maintenance-rule.md, "Golden Rule: No Machine-Specific Code": nova-ha-dashboard is a
@@ -19,52 +18,11 @@ import { describe, expect, it } from "vitest";
  * WAIVERS BELOW ARE A RATCHET, NOT A PARKING SPACE. Every entry is a real
  * violation with the phase that removes it. A waiver that no longer matches
  * anything also fails, so the list cannot rot once the code is fixed.
- */
-
-const ROOT = process.cwd();
-const SCAN_DIRS = ["lib", "app"];
-
-const ENTITY_DOMAINS = [
-  "light", "switch", "sensor", "binary_sensor", "climate", "media_player",
-  "button", "lock", "fan", "cover", "vacuum", "humidifier", "input_boolean",
-  "input_number", "input_select", "device_tracker", "person", "camera",
-  "scene", "script", "automation", "assist_satellite", "todo", "water_heater",
-  "siren", "valve", "lawn_mower", "number", "select",
-];
-
-/**
- * `sun.sun` and `weather.*` are omitted from the domain list on purpose: they
- * are auto-detected product-wide bindings, not this home's devices.
- */
-const ENTITY_ID_RE = new RegExp(`(?:^|[^a-z0-9_.])(${ENTITY_DOMAINS.join("|")})\\.[a-z0-9_]{2,}`);
-const TIMEZONE_RE = /\b(?:Africa|America|Antarctica|Arctic|Asia|Atlantic|Australia|Europe|Indian|Pacific)\/[A-Za-z_]+/;
-const IPV4_RE = /\b(?:\d{1,3}\.){3}\d{1,3}\b/;
-const MAC_RE = /\b[0-9a-f]{2}(?::[0-9a-f]{2}){5}\b/i;
-
-/**
- * Addresses that name no particular machine. Loopback, the unspecified address
- * and the broadcast address are protocol constants, not someone's house.
- */
-const GENERIC_ADDRESSES = new Set(["127.0.0.1", "0.0.0.0", "255.255.255.255"]);
-
-/**
- * Opaque identifiers that only mean anything in this one house.
  *
- * Third-party integration NAMES are deliberately absent. "Powershop", "Tapo"
- * and "iCloud" are product features in the same way the Home Assistant
- * integration list is; what must not ship is the account and tariff DATA behind
- * them, which the fresh-install test pins separately.
+ * The detector itself (the scanned file set, the literal lexer, the shapes)
+ * lives in ./no-household-data.fixtures.ts, and its self-check in
+ * ./no-household-data.detector.test.ts.
  */
-const HOUSEHOLD_TOKENS = [
-  "tuya_mobile",
-  "nx620v",
-  "c6780cad",
-  "nova.local",
-  "iridium",
-  "nocturnium",
-  "neptunium",
-  "ununhexium",
-];
 
 type Waiver = {
   /** Repo-relative POSIX path. */
@@ -91,161 +49,8 @@ const WAIVERS: Waiver[] = [
  * That refactor is done. Machines are now referred to by the role they fill
  * (`voiceHost`, "the voice host"), the module is `lib/voice-host-settings.ts`,
  * and the URL comes from NOVA_VOICE_HOST_URL. Both lists are empty, so the
- * plain detector below covers everything with nothing excused.
+ * plain detector covers everything with nothing excused.
  */
-
-function sourceFiles(dir: string): string[] {
-  const absolute = path.join(ROOT, dir);
-  let entries: string[];
-  try {
-    entries = readdirSync(absolute);
-  } catch {
-    return [];
-  }
-
-  const found: string[] = [];
-  for (const entry of entries) {
-    const full = path.join(absolute, entry);
-    if (statSync(full).isDirectory()) {
-      if (["node_modules", ".next", "test", "__snapshots__"].includes(entry)) continue;
-      found.push(...sourceFiles(path.join(dir, entry)));
-      continue;
-    }
-    if (!/\.tsx?$/.test(entry)) continue;
-    // Tests and the fixtures helpers that tests import are not product source; a
-    // fixture naming a sample entity id is test data, not this household's.
-    if (/\.(test|spec|fixtures)\.tsx?$/.test(entry)) continue;
-    found.push(path.join(dir, entry).split(path.sep).join("/"));
-  }
-  return found;
-}
-
-/**
- * Every quoted string in the file, without its delimiters.
- *
- * This walks the source rather than using a regex. A regex lexer treats the
- * apostrophe in a comment like "the lounge's sensor" as an opening quote and
- * then swallows everything up to the next one, hiding the real literals that
- * follow — which is exactly how the first version of this test silently passed
- * over four hard-coded entity ids.
- *
- * Comments are skipped on purpose. Only literals change behaviour, and flagging
- * prose would trip on every comment that explains why a config value exists,
- * which is the fastest way to get a rule like this muted.
- */
-function stringLiterals(source: string): string[] {
-  const literals: string[] = [];
-  let i = 0;
-
-  while (i < source.length) {
-    const ch = source[i];
-
-    if (ch === "/" && source[i + 1] === "/") {
-      i += 2;
-      while (i < source.length && source[i] !== "\n") i += 1;
-      continue;
-    }
-
-    if (ch === "/" && source[i + 1] === "*") {
-      i += 2;
-      while (i < source.length && !(source[i] === "*" && source[i + 1] === "/")) i += 1;
-      i += 2;
-      continue;
-    }
-
-    if (ch === '"' || ch === "'" || ch === "`") {
-      const quote = ch;
-      i += 1;
-      let value = "";
-      while (i < source.length) {
-        const current = source[i];
-        if (current === "\\") {
-          value += source[i + 1] ?? "";
-          i += 2;
-          continue;
-        }
-        if (current === quote) {
-          i += 1;
-          break;
-        }
-        // An unterminated single/double quote means we mis-lexed something
-        // (most likely a regex literal); give up on it rather than consuming
-        // the rest of the file.
-        if (quote !== "`" && current === "\n") break;
-        value += current;
-        i += 1;
-      }
-      literals.push(value);
-      continue;
-    }
-
-    i += 1;
-  }
-
-  return literals;
-}
-
-/**
- * Drop `${...}` spans from a template literal. What is inside them is code, not
- * data: `${camera.brightness}` in an ffmpeg filter string is a property access
- * that happens to look exactly like a `camera.*` entity id.
- */
-function withoutInterpolations(literal: string): string {
-  let out = "";
-  let depth = 0;
-  for (let i = 0; i < literal.length; i += 1) {
-    if (literal[i] === "$" && literal[i + 1] === "{") {
-      depth += 1;
-      i += 1;
-      continue;
-    }
-    if (depth > 0) {
-      if (literal[i] === "{") depth += 1;
-      else if (literal[i] === "}") depth -= 1;
-      continue;
-    }
-    out += literal[i];
-  }
-  return out;
-}
-
-function householdIpIn(text: string): boolean {
-  const match = text.match(IPV4_RE);
-  if (!match) return false;
-  const address = match[0];
-  if (GENERIC_ADDRESSES.has(address)) return false;
-  // Reject version-like strings ("2.14.3.1") by requiring a plausible address.
-  return address.split(".").every((octet) => Number(octet) <= 255);
-}
-
-function violationsIn(rawLiteral: string): string | null {
-  const literal = withoutInterpolations(rawLiteral);
-  if (ENTITY_ID_RE.test(literal)) return "home-assistant entity id";
-  if (TIMEZONE_RE.test(literal)) return "hard-coded timezone";
-  if (MAC_RE.test(literal)) return "mac address";
-  if (householdIpIn(literal)) return "ip address";
-  const lower = literal.toLowerCase();
-  for (const token of HOUSEHOLD_TOKENS) {
-    if (lower.includes(token)) return `household token "${token}"`;
-  }
-  return null;
-}
-
-type Finding = { file: string; literal: string; kind: string };
-
-function scan(): Finding[] {
-  const findings: Finding[] = [];
-  for (const dir of SCAN_DIRS) {
-    for (const file of sourceFiles(dir)) {
-      const source = readFileSync(path.join(ROOT, file), "utf8");
-      for (const literal of stringLiterals(source)) {
-        const kind = violationsIn(literal);
-        if (kind) findings.push({ file, literal, kind });
-      }
-    }
-  }
-  return findings;
-}
 
 function isWaived(finding: Finding) {
   return WAIVERS.some(
@@ -291,28 +96,5 @@ describe("no household data in product source", () => {
       stale,
       stale.length ? `These waivers no longer match anything — delete them:\n${report}` : undefined,
     ).toEqual([]);
-  });
-
-  it("actually detects the shapes it claims to", () => {
-    expect(violationsIn("light.bedroom_light")).toBe("home-assistant entity id");
-    expect(violationsIn("Pacific/Auckland")).toBe("hard-coded timezone");
-    expect(violationsIn("192.168.8.20")).toBe("ip address");
-    expect(violationsIn("d0:73:d5:a1:52:6f")).toBe("mac address");
-    expect(violationsIn("light.tuya_mobile_kitchen")).toBe("home-assistant entity id");
-    expect(violationsIn("http://nocturnium.local:8080")).toContain("nocturnium");
-
-    // Shapes that must NOT trip it, or the rule becomes noise people mute.
-    expect(violationsIn("sun.sun")).toBeNull();
-    expect(violationsIn("weather.forecast_home")).toBeNull();
-    expect(violationsIn("2.14.3")).toBeNull();
-    expect(violationsIn("hvac_modes")).toBeNull();
-    expect(violationsIn("Mon")).toBeNull();
-    expect(violationsIn("http://127.0.0.1:8123")).toBeNull();
-    expect(violationsIn("255.255.255.255")).toBeNull();
-    // Interpolated code that merely looks like an entity id.
-    expect(violationsIn("eq=brightness=${camera.brightness}")).toBeNull();
-    expect(violationsIn("${camera.id}-${stamp}.ts")).toBeNull();
-    // A third-party integration NAME is a product feature, not household data.
-    expect(violationsIn("powershop")).toBeNull();
   });
 });
