@@ -1,7 +1,7 @@
 <!-- START HERE, never here alone: read D:\Projects\Agent\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Agent token footprint
 
-Plan: `majestic-aurora`. Written 2026-09-16. Ratchet scope widened to `e2e/` and `face-auth/` on 2026-10-20 (plan `dashboard-debt-and-size-burndown`); the e2e and face-auth files over the cap were recorded as burn-down entries at their then-current sizes.
+Plan: `majestic-aurora`. Written 2026-09-16. Ratchet scope widened to `e2e/` and `face-auth/` on 2026-10-20 (plan `dashboard-debt-and-size-burndown`); the e2e and face-auth files over the cap were recorded as burn-down entries at their then-current sizes. The burn-down list was emptied on 2026-10-21 by the same plan (PRs #96-#98, #100, #101 and #103-#105): every file still over the cap carries a named section 2 criterion.
 
 This repo is read by agents, not by Adeline. This spec defines how it is
 structured so that reading it is cheap.
@@ -23,27 +23,37 @@ cheap, which comes from four things:
 
 ### Before and after
 
-| Measure | 2026-09-16 (before) | 2026-09-17 (after) |
-|---|---|---|
-| Tracked text (excl. images, lockfiles, fonts, audio) | 8.5 MB | 8.6 MB |
-| Source files (`.ts`, `.tsx`, `.css`, `.py`, `.mjs`) | 833 | 1,679 |
-| Source files over 10 KB | 154 | 56 |
-| Bytes in files over 10 KB | 3,977 KB | 858 KB |
-| Median source file | — | 2.9 KB |
-| Largest file | `app/globals.css`, 247 KB | `controls/rotary/RotaryEncoder.tsx`, 38 KB |
-| Largest doc | `SPEC.md`, 185 KB | `specs/face-auth.md`, 64 KB (`SPEC.md` is a 3 KB index) |
-| Flat files at `lib/` top level | 216 | 189 |
-| Flat files at `app/components/` top level | 142 | 136 |
+| Measure | 2026-09-16 (before) | 2026-09-17 (after) | 2026-10-20 (drift) | 2026-10-21 (burn-down done) |
+|---|---|---|---|---|
+| Tracked text (excl. images, lockfiles, fonts, audio) | 8.5 MB | 8.6 MB | — | 10.2 MB |
+| Source files (`.ts`, `.tsx`, `.css`, `.py`, `.mjs`) | 833 | 1,679 | 1,963 | 2,025 |
+| Source files over 10 KB | 154 | 56 | 62 | 34 |
+| Bytes in files over 10 KB | 3,977 KB | 858 KB | 958 KB | 558 KB |
+| Median source file | — | 2.9 KB | — | 3.2 KB |
+| Largest file | `app/globals.css`, 247 KB | `controls/rotary/RotaryEncoder.tsx`, 38 KB | — | `lib/aircon-control.test.ts`, 47 KB (permanent); largest non-test `RotaryEncoder.tsx`, 41 KB |
+| Largest doc | `SPEC.md`, 185 KB | `specs/face-auth.md`, 64 KB (`SPEC.md` is a 3 KB index) | — | `specs/power-meters.md`, 69 KB |
+| Flat files at `lib/` top level | 216 | 189 | 189 | 208 |
+| Flat files at `app/components/` top level | 142 | 136 | 136 | 156 |
+
+The 2026-10-20 column is the measurement the burn-down plan started from
+(`dashboard-debt-and-size-burndown`); only the size rows were taken then. The
+three size rows of the last two columns are `node scripts/check-file-sizes.mjs`. Flat
+top-level counts rose because each split keeps a facade at the original path,
+and because new features since 2026-09-17 added files there; moving facades
+into their packages is the plan's optional step 7, not done.
 
 Total size barely moved — this campaign relocates code, it does not delete it.
 What changed is the cost of a read: the median file is under 3 KB, and a facade
 at each original path lists what its package contains.
 
 Most top-level files that remain are those facades, kept on purpose so no call
-site changed. The 56 files still over 10 KB are each recorded in
-`lib/architecture.test.ts`: permanent ones carry their section 2 criterion,
-and the rest are burn-down entries that may only shrink. The largest burn-down
-entries — `RotaryEncoder.tsx`, `config/accent/AccentConfig.tsx`,
+site changed. The 34 files `check-file-sizes.mjs` still reports over 10 KB
+are each recorded in `lib/architecture.test.ts` with their section 2 criterion
+named. The three files in `PERMANENT_TEST_FILES` (the two large table-driven
+tests and `architecture.test.ts` itself) are over the cap too, but the script
+leaves them out of its count. The non-permanent burn-down list is empty, so any
+new file over the cap fails the ratchet. The largest
+remaining files — `RotaryEncoder.tsx`, `config/accent/AccentConfig.tsx`,
 `dashboard/camera/CameraPanel.tsx`, `advanced-fold/AdvancedFold.tsx`,
 `useAirconCommands.ts` and `tasks/TasksPanel.tsx` — share closure state across
 their parts, so reducing them further needs a behaviour-preserving extraction
@@ -69,8 +79,11 @@ named in the commit body, one sentence, naming which criterion:
    different axis; if none exists, stop.
 4. **A spec pins the file by path.** `PHONOSCOPE_MODULE_SPEC.md` does this.
    Splitting requires the spec to be updated first.
-5. **Generated or vendored.** Not currently applicable, but stated so the
-   reviewer has the category.
+5. **Generated or vendored.** Code copied verbatim from upstream, with its
+   provenance recorded in the file, or emitted by a tool. Splitting it would
+   make every upstream update a manual re-split. In use for
+   `face-auth/antispoof/minifasnet.py`, whose attribute names must also match
+   the published weight files.
 
 Large table-driven tests are explicitly out of scope for splitting — a big
 table-driven test is the correct shape. `lib/aircon-control.test.ts` (48 KB)
