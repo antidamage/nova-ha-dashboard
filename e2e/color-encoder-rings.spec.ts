@@ -1,64 +1,11 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
-import fs from "fs";
-import path from "path";
-import { expectNoConsoleErrors, seedExperienceMode, watchConsole } from "./helpers";
+import { expect, test } from "@playwright/test";
+import { expectNoConsoleErrors, watchConsole } from "./helpers";
+import { box, dial, expected, openDemo, shot } from "./color-encoder-rings.fixtures";
 
 // ColorEncoder on its demo page, measured in a real browser against
-// specs/color-encoder.md. Setting COLOR_ENCODER_SHOTS to a directory
-// also writes the screenshots the visual gauntlet reviews.
-const SHOTS = process.env.COLOR_ENCODER_SHOTS;
-
-async function shot(target: Locator | Page, name: string) {
-  if (!SHOTS) return;
-  fs.mkdirSync(SHOTS, { recursive: true });
-  await target.screenshot({ path: path.join(SHOTS, `${name}.png`), animations: "disabled" });
-}
-
-async function openDemo(page: Page) {
-  // Without a stored choice the first-run experience-mode dialog covers the page.
-  await seedExperienceMode(page);
-  await page.goto("/color-encoder-rings/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator('[data-demo-dial="count-5"] .rotary-encoder-rings')).toBeVisible({ timeout: 30_000 });
-}
-
-function dial(page: Page, id: string) {
-  return page.locator(`[data-demo-dial="${id}"] .color-encoder`);
-}
-
-type Box = { x: number; y: number; width: number; height: number };
-
-async function box(locator: Locator): Promise<Box> {
-  const measured = await locator.boundingBox();
-  if (!measured) throw new Error("element has no box");
-  return measured;
-}
-
-/**
- * The spec's geometry table, recomputed here so the test does not trust the code.
- *
- * `ColorEncoder` hands its `label` to the dial as a **title**, and a titled
- * dial's rings sit a title band further out: the caption's font plus 2% of the
- * size of clearance at each side (`titleBand` in
- * `controls/rotary/geometry-model.ts`). Without the band these three tests and
- * the drag below read the wrong radius and are red on main — named here as the
- * fix by Adeline, 2026-09-20, with the note that it was not the unlock ring's
- * doing. The band takes the *caption*; a dial with four or more rings shrinks
- * only its label font, to the pitch less 6, so the labels do not crowd
- * (Adeline, 2026-09-12).
- */
-function expected(size: number, rings: number) {
-  const font = Math.min(14, Math.max(10, size * 0.075));
-  const pitch = Math.max(size * 0.085, font + 2);
-  const track = (pitch * 6) / 8.5;
-  const gap = pitch - track;
-  // DIAL_RADIUS_SHARE: half the knob, plus the unlock ring, ring and bevel.
-  const dialRadius = size * 0.657;
-  // TITLE_CLEARANCE_SHARE, once each side of the caption.
-  const titleBand = font + 2 * size * 0.02;
-  const labelFont = rings >= 4 ? Math.min(font, Math.max(10, pitch - 6)) : font;
-  const radii = Array.from({ length: rings }, (_, index) => dialRadius + titleBand + gap + track / 2 + index * pitch);
-  return { font, labelFont, pitch, track, radii, dialRadius, titleBand };
-}
+// specs/color-encoder.md: ring counts, title and caption placement, and the
+// ring geometry at three sizes. Dragging and the light treatment are in
+// color-encoder-rings.drag.spec.ts.
 
 test.describe("ColorEncoder demo", () => {
   test("draws 0–5 rings with the dial dead centre, its name arced over the knob and the caption under the lights", async ({ page }) => {
@@ -170,82 +117,4 @@ test.describe("ColorEncoder demo", () => {
       await shot(root, `size-${size}`);
     });
   }
-
-  test("dragging a thumb round the arc moves only that ring, and pins in the gap", async ({ page }) => {
-    await openDemo(page);
-    const root = dial(page, "count-3");
-    // The demo page has grown long enough that this dial sits below the fold,
-    // and the pointer is driven in viewport coordinates: without this the press
-    // lands on the page behind it and moves nothing (Adeline, 2026-09-21).
-    await root.scrollIntoViewIfNeeded();
-    const svg = root.locator("svg.rotary-encoder-rings");
-    const frame = await box(svg);
-    const cx = frame.x + frame.width / 2;
-    const cy = frame.y + frame.height / 2;
-    const radius = expected(200, 3).radii[2];
-    const point = (angle: number) => {
-      const radians = (angle * Math.PI) / 180;
-      return [cx + radius * Math.sin(radians), cy - radius * Math.cos(radians)] as const;
-    };
-    const outer = root.locator('[data-ring-index="2"]');
-    const inner = root.locator('[data-ring-index="0"]');
-    const innerBefore = await inner.getAttribute("aria-valuenow");
-
-    await page.mouse.move(...point(0));
-    await page.mouse.down();
-    expect(Number(await outer.getAttribute("aria-valuenow"))).toBeCloseTo(50, 0);
-    for (let angle = 10; angle <= 120; angle += 10) await page.mouse.move(...point(angle));
-    const high = Number(await outer.getAttribute("aria-valuenow"));
-    expect(high).toBeGreaterThan(90);
-    // On into the gap and out the far side: pinned at the top from the first
-    // degree of gap onward, and still pinned at every step through it.
-    for (const angle of [150, 180, 210, 240]) {
-      await page.mouse.move(...point(angle));
-      expect(Number(await outer.getAttribute("aria-valuenow"))).toBe(100);
-    }
-    await page.mouse.up();
-    expect(await inner.getAttribute("aria-valuenow")).toBe(innerBefore);
-    await shot(root, "dragged");
-  });
-
-  test("light section takes the light treatment", async ({ page }) => {
-    await openDemo(page);
-    await expect(dial(page, "light-5")).toHaveAttribute("data-mode", "light");
-    await expect(dial(page, "count-5")).toHaveAttribute("data-mode", "dark");
-    // The lit light keeps its white fill in light mode; unlit ones are dark.
-    const fills = await dial(page, "light-5").evaluate((element) =>
-      Array.from(element.querySelectorAll<HTMLElement>(".rotary-encoder-led")).map((led) => ({
-        lit: led.dataset.lit === "true",
-        image: getComputedStyle(led).backgroundImage,
-      })));
-    expect(fills.filter((led) => led.lit)).toHaveLength(1);
-    // The lit light carries the 97-byte PNG that suppresses Chromium's auto dark
-    // mode (specs/color-encoder.md, "Surviving Brave's auto dark mode"), and an
-    // unlit one does not. It is not the *first* layer of the stack — the themed
-    // ramp is layered over it, on top — so this looks for it anywhere in the
-    // value rather than at the front.
-    for (const led of fills) expect(led.image.includes('url("data:image/png')).toBe(led.lit);
-    // And the ramp must stay ON TOP of it: the PNG is only there to keep auto
-    // dark mode's hands off the element, so a stack with the raster first would
-    // paint the PNG's near-white instead of the light's colour — the failure the
-    // layer order exists to prevent (app/styles/controls/rotary-leds.css).
-    for (const led of fills.filter((item) => item.lit)) {
-      const ramp = led.image.indexOf("linear-gradient");
-      expect(ramp).toBeGreaterThanOrEqual(0);
-      expect(ramp).toBeLessThan(led.image.indexOf('url("data:image/png'));
-    }
-
-    // A disabled control dims each ring once, to 45%, not 45% of 45%.
-    const opacity = await dial(page, "disabled").evaluate((element) => {
-      const ring = element.querySelector(".rotary-encoder-ring-slider") as Element;
-      let total = 1;
-      for (let node: Element | null = ring; node && node !== element.parentElement; node = node.parentElement) {
-        total *= Number(getComputedStyle(node).opacity);
-      }
-      return total;
-    });
-    expect(opacity).toBeCloseTo(0.45, 2);
-    await shot(page.locator('[data-demo-dial="light-5"]').locator(".."), "light");
-    await shot(page.locator('[data-demo-dial="alpha"]').locator(".."), "states");
-  });
 });
