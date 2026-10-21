@@ -19,8 +19,8 @@ type ColorEncoderProps = {
 
 let latestEncoder: ColorEncoderProps | null = null;
 
-vi.mock("../../ColorEncoder", () => ({
-  ColorEncoder: (props: ColorEncoderProps) => {
+vi.mock("../../LightEncoder", () => ({
+  LightEncoder: (props: ColorEncoderProps) => {
     latestEncoder = props;
     return <div aria-label="Zone lights" />;
   },

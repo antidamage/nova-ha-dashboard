@@ -3,15 +3,14 @@ import fs from "fs";
 import path from "path";
 import { hsvToRgb } from "../app/components/colorEncoderModel";
 import { gotoDashboard } from "./helpers";
+import { bandAtThreeOClock } from "./light-band";
 
-// The sweep smoke test from specs/color-encoder.md ("Done means"). Drives the
-// zone dial through brightness and saturation 0→100→0 in 10% steps and hue
-// through 360° in 30° steps, and at every step checks the dial's value, the
-// command it sent, and the ring's rendered pixel against the expected HSV. It
-// runs twice: normally, and with Chromium's forced dark mode — the Brave flag
-// that turned the ring dark on a desaturated bright colour. Commands go to the
-// demo-mode data shim; nothing reaches Home Assistant. COLOR_ENCODER_SHOTS=<dir>
-// keeps a screenshot of the dial at every step for the visual check.
+// The sweep smoke test (specs/color-encoder.md, "Done means"): the zone dial
+// through brightness and saturation 0→100→0 in 10% steps and hue through 360°
+// in 30° steps, checking at each step the value, the command and the band's
+// pixel (./light-band.ts). It runs normally and under Chromium's forced dark
+// mode, the Brave flag that once darkened the ring. Commands go to the demo
+// shim. COLOR_ENCODER_SHOTS=<dir> keeps a screenshot of every step.
 
 const SHOTS = process.env.COLOR_ENCODER_SHOTS;
 /** Per-channel tolerance for the sampled ring pixel: hue is read back rounded. */
@@ -154,7 +153,7 @@ async function sweep(page: Page, run: string) {
   }
   await recordCommands(page);
   const dial = page.locator(".zone-panel").getByLabel("Zone lights");
-  const root = page.locator(".zone-panel .zone-color-encoder .color-encoder");
+  const root = page.locator(".zone-panel .zone-color-encoder .light-encoder");
   await dial.scrollIntoViewIfNeeded();
 
   // A bright, saturated start: both clamped channels pinned at 100.
@@ -181,8 +180,8 @@ async function sweep(page: Page, run: string) {
     const shown = parseFloat(await angle(root));
     const offTurn = ((((shown - expectedAngle) % 360) + 540) % 360) - 180;
     expect(Math.abs(offTurn), `${label} index at ${shown}°, expected ${expectedAngle}° (mod 360)`).toBeLessThan(1);
-    const expectedRing = hsvToRgb(h, s, v);
-    expectClose(await sampleRing(page, root), expectedRing, RING_TOLERANCE, `${run} ring at ${label}`);
+    const band = bandAtThreeOClock(channel, h, s, v);
+    if (band) expectClose(await sampleRing(page, root), band, RING_TOLERANCE, `${run} ring at ${label}`);
     const command = await lastCommand(page);
     if (channel === "brightness") {
       expect(command, `${label} command`).toMatchObject({ action: "brightness", brightnessPct: v });

@@ -104,31 +104,71 @@ export function blendAngle(size: number) {
   return Math.min(80, (RING_BLEND_PX / radius) * (180 / Math.PI));
 }
 
-/**
- * The ring's paint: the target across the top half, the room temperature across
- * the bottom half, fading into each other at 3 and 9 o'clock. A conic gradient
- * starts at 12 o'clock and runs clockwise, which is the dial's own convention.
- */
-export function temperatureRingPaint(target: number | null | undefined, room: number | null | undefined, size: number) {
-  const top = temperatureColour(target);
-  const bottom = temperatureColour(room);
-  const half = blendAngle(size) / 2;
-  return [
-    "conic-gradient(from 0deg",
-    `${top} 0deg`,
-    `${top} ${(90 - half).toFixed(2)}deg`,
-    `${bottom} ${(90 + half).toFixed(2)}deg`,
-    `${bottom} ${(270 - half).toFixed(2)}deg`,
-    `${top} ${(270 + half).toFixed(2)}deg`,
-    `${top} 360deg)`,
-  ].join(", ");
+/** Each colour fades to nothing over this much arc at its outer end. */
+export const RING_END_FADE_PX = 40;
+
+/** Degrees of arc that `RING_END_FADE_PX` covers on a knob of this size. */
+export function endFadeAngle(size: number) {
+  return blendAngle(size) * (RING_END_FADE_PX / RING_BLEND_PX);
 }
 
-/** The ring's glow while the unit is running: the colour-dial's full-glow figures. */
-export function temperatureGlow(target: number | null | undefined, size: number, running: boolean) {
-  if (!running) return "0 0 0 rgba(0, 0, 0, 0)";
-  const rgb = temperatureColour(target).replace(/rgb\(|\)/g, "");
-  return `0 0 ${(size * 0.14).toFixed(1)}px ${(size * 0.012).toFixed(1)}px rgba(${rgb}, 0.62)`;
+/** The knob's index as degrees past 7:30: the ring's mark. Mid-sweep without a range. */
+export function temperatureRingMark(value: number, min: number, max: number) {
+  if (!(max > min)) return 135;
+  return ((Math.max(min, Math.min(max, value)) - min) / (max - min)) * 270;
+}
+
+/** A `temperatureColour` (an `rgb()` or a hex) at `alpha`. */
+function rgba(colour: string, alpha: number) {
+  const channels = colour.startsWith("#") ? hexToRgb(colour).join(", ") : colour.replace(/^rgb\((.*)\)$/, "$1");
+  return `rgba(${channels}, ${alpha})`;
+}
+
+/** The target's arc from the mark's blend to 4:30, fading out before the end. */
+function targetStops(colour: string, alpha: number, size: number) {
+  const end = 270 - endFadeAngle(size);
+  const half = blendAngle(size) / 2;
+  return [
+    `${rgba(colour, alpha)} calc(var(--re-mark) + ${half.toFixed(2)}deg)`,
+    `${rgba(colour, alpha)} max(${end.toFixed(2)}deg, var(--re-mark) * 0.5 + 135deg)`,
+    // At the top of the range the arc has no length left to fade over, so it
+    // fades over one more blend past the mark rather than ending on a hard edge.
+    `${rgba(colour, 0)} max(270deg, calc(var(--re-mark) + ${(half * 2).toFixed(2)}deg))`,
+    `${rgba(colour, 0)} 360deg)`,
+  ];
+}
+
+/**
+ * The ring's paint, split at the mark (specs/temperature-encoder.md, "Colour
+ * ring"): the room temperature from 7:30 to the mark, the target from the mark
+ * to 4:30, each fading out at its outer end so the two never meet across the
+ * bottom. Written against `var(--re-mark)`, so the split follows the index; the
+ * conic starts at 7:30 (225° clockwise from 12).
+ */
+export function temperatureRingPaint(target: number | null | undefined, room: number | null | undefined, size: number) {
+  const bottom = temperatureColour(room);
+  return [
+    "conic-gradient(from 225deg",
+    `${rgba(bottom, 0)} 0deg`,
+    `${rgba(bottom, 1)} min(${endFadeAngle(size).toFixed(2)}deg, var(--re-mark) * 0.5)`,
+    `${rgba(bottom, 1)} calc(var(--re-mark) - ${(blendAngle(size) / 2).toFixed(2)}deg)`,
+    ...targetStops(temperatureColour(target), 1, size),
+  ].join(", ") + ", var(--re-ring-empty)";
+}
+
+/**
+ * The ring's glow while the unit is running: the target's own arc, which the
+ * base blurs, at the colour dial's full-glow alpha. Nothing while idle.
+ */
+export function temperatureGlowPaint(target: number | null | undefined, size: number, running: boolean) {
+  if (!running) return "none";
+  const colour = temperatureColour(target);
+  return [
+    "conic-gradient(from 225deg",
+    `${rgba(colour, 0)} 0deg`,
+    `${rgba(colour, 0)} calc(var(--re-mark) - ${(blendAngle(size) / 2).toFixed(2)}deg)`,
+    ...targetStops(colour, 0.62, size),
+  ].join(", ");
 }
 
 // ── The timer ring ──────────────────────────────────────────────────────────

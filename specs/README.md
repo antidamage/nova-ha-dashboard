@@ -81,6 +81,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 |---|---|
 | [color-encoder.md](color-encoder.md) | ColorEncoder, the surface's only colour picker |
 | [temperature-encoder.md](temperature-encoder.md) | The climate knob |
+| [light-encoder.md](light-encoder.md) | The lighting knob: Brt/Hue/Sat, band filled from zero to the mark |
 | [dial-preset-band.md](dial-preset-band.md) · [numeric-entry-popover.md](numeric-entry-popover.md) · [slide-switch.md](slide-switch.md) | Shared control parts |
 | [ux-system9-controls.md](ux-system9-controls.md) | The System 9 control library |
 | [ux-sounds.md](ux-sounds.md) | UX sound library and per-action assignment |

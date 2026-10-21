@@ -96,6 +96,8 @@ export function RotaryEncoder({
   ringPaint,
   checker = false,
   glow,
+  glowPaint,
+  ringMark,
   knobSkin,
   ledLabels = false,
   rings = [],
@@ -892,6 +894,8 @@ export function RotaryEncoder({
         "--re-size": `${dialSize}px`,
         ...(color ? { "--re-color": color } : {}),
         ...(ringPaint ? { "--re-ring-paint": ringPaint } : {}),
+        ...(glowPaint ? { "--re-glow-paint": glowPaint } : {}),
+        ...(typeof ringMark === "number" ? { "--re-mark": `${ringMark.toFixed(2)}deg` } : {}),
         "--re-glow": glow ?? "0 0 0 rgba(0, 0, 0, 0)",
         "--re-angle": `${angle.toFixed(2)}deg`,
         "--re-pitch": `${geometry.pitch.toFixed(2)}px`,
@@ -922,7 +926,9 @@ export function RotaryEncoder({
         {...pointerHandlers}
       >
         <span className="rotary-encoder-outer-bevel" aria-hidden />
-        <span className="rotary-encoder-glow" aria-hidden />
+        <span className="rotary-encoder-glow" data-paint={glowPaint ? "true" : undefined} aria-hidden>
+          {glowPaint ? <span className="rotary-encoder-glow-paint" /> : null}
+        </span>
         {checker ? <span className="rotary-encoder-checker" aria-hidden /> : null}
         <span className="rotary-encoder-ring" aria-hidden />
         <span className="rotary-encoder-ring-shade" aria-hidden />

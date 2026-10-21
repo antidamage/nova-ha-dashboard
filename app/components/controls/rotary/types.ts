@@ -149,6 +149,16 @@ export type RotaryEncoderProps = {
   /** The ring's glow, as a box-shadow. */
   glow?: string;
   /**
+   * The glow as a paint instead: drawn through the ring's annulus and blurred,
+   * in place of `glow` (specs/light-encoder.md, "The base's part").
+   */
+  glowPaint?: string;
+  /**
+   * Degrees, published as `--re-mark`, which sweeps with the index; paints
+   * that follow the mark refer to `var(--re-mark)`.
+   */
+  ringMark?: number;
+  /**
    * Light/dark treatment for the knob. Omitted, the base follows the device
    * theme's knob-skin setting (published on `<html data-knob-skin>` by
    * applyDeviceTheme), which is what every knob should do; pass it only to pin

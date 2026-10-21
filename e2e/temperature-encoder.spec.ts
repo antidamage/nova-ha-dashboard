@@ -116,7 +116,7 @@ test.describe("temperature knob", () => {
     expect(ids).toEqual(["timer"]);
   });
 
-  test("the ring paints the target over the room, and goes dark with no reading", async ({ page }) => {
+  test("the ring paints the room and the target either side of the mark, and goes dark with no reading", async ({ page }) => {
     await open(page);
     const paintOf = (id: string) =>
       knob(page, id).locator(".rotary-encoder-ring").evaluate((node) => getComputedStyle(node).backgroundImage);

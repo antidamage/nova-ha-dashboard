@@ -8,10 +8,12 @@ import {
   TIMER_VALUE_WIDEST,
   blendAngle,
   effectiveTargetRange,
+  endFadeAngle,
   fanStepText,
   hexToRgb,
   temperatureColour,
-  temperatureGlow,
+  temperatureGlowPaint,
+  temperatureRingMark,
   temperatureRingPaint,
   timerMinutesRemaining,
   timerValueText,
@@ -45,35 +47,53 @@ describe("the temperature colour scale", () => {
 });
 
 describe("the ring's paint", () => {
-  it("puts the target across the top and the room across the bottom", () => {
+  const rgba = (hex: string, alpha: number) => `rgba(${hexToRgb(hex).join(", ")}, ${alpha})`;
+
+  it("puts the room left of the mark and the target right of it, from 7:30", () => {
     const paint = temperatureRingPaint(26, 18, 200);
-    const hot = rgb(TEMPERATURE_HOT);
-    const cold = rgb(TEMPERATURE_COLD);
-    expect(paint.startsWith("conic-gradient(from 0deg")).toBe(true);
-    // Top half at 0°, bottom half at 180°.
-    expect(paint).toContain(`${hot} 0deg`);
-    expect(paint).toContain(`${cold} ${(90 + blendAngle(200) / 2).toFixed(2)}deg`);
-    expect(paint).toContain(`${hot} 360deg`);
+    const half = (blendAngle(200) / 2).toFixed(2);
+    expect(paint.startsWith("conic-gradient(from 225deg")).toBe(true);
+    expect(paint).toContain(`${rgba(TEMPERATURE_COLD, 1)} calc(var(--re-mark) - ${half}deg)`);
+    expect(paint).toContain(`${rgba(TEMPERATURE_HOT, 1)} calc(var(--re-mark) + ${half}deg)`);
+  });
+
+  it("fades both colours out at their outer ends, so they never meet across the bottom", () => {
+    const paint = temperatureRingPaint(26, 18, 200);
+    expect(paint).toContain(`${rgba(TEMPERATURE_COLD, 0)} 0deg`);
+    expect(paint).toContain(`${rgba(TEMPERATURE_COLD, 1)} min(${endFadeAngle(200).toFixed(2)}deg, var(--re-mark) * 0.5)`);
+    expect(paint).toContain(`${rgba(TEMPERATURE_HOT, 0)} max(270deg, calc(var(--re-mark) + ${blendAngle(200).toFixed(2)}deg))`);
+    expect(paint).toContain(`${rgba(TEMPERATURE_HOT, 0)} 360deg)`);
+    expect(paint.endsWith(", var(--re-ring-empty)")).toBe(true);
   });
 
   it("blends over about 30px of arc, so a small knob blends over more degrees", () => {
     // 30px at the ring's mid radius: 15.6° on a 200px knob.
     expect(blendAngle(200)).toBeCloseTo((30 / 110) * (180 / Math.PI), 4);
     expect(blendAngle(100)).toBeGreaterThan(blendAngle(200));
+    expect(endFadeAngle(200)).toBeCloseTo(blendAngle(200) * (40 / 30), 4);
   });
 
-  it("shows a dark bottom half when the room has no reading", () => {
-    expect(temperatureRingPaint(22, null, 200)).toContain(TEMPERATURE_UNKNOWN);
+  it("shows a dark room side when the room has no reading", () => {
+    expect(temperatureRingPaint(22, null, 200)).toContain(rgba(TEMPERATURE_UNKNOWN, 1));
+  });
+
+  it("puts the mark where the index is: 0 at the floor, 270 at the ceiling", () => {
+    expect(temperatureRingMark(16, 16, 30)).toBe(0);
+    expect(temperatureRingMark(23, 16, 30)).toBe(135);
+    expect(temperatureRingMark(30, 16, 30)).toBe(270);
+    expect(temperatureRingMark(40, 16, 30)).toBe(270);
   });
 });
 
 describe("the glow", () => {
-  it("only glows while the unit is running", () => {
-    expect(temperatureGlow(24, 200, false)).toBe("0 0 0 rgba(0, 0, 0, 0)");
-    expect(temperatureGlow(24, 200, true)).toMatch(/^0 0 28\.0px 2\.4px rgba\(/);
+  it("only glows while the unit is running, along the target's arc", () => {
+    expect(temperatureGlowPaint(24, 200, false)).toBe("none");
+    const glow = temperatureGlowPaint(24, 200, true);
+    expect(glow.startsWith("conic-gradient(from 225deg")).toBe(true);
+    expect(glow).toMatch(/, 0\.62\) calc\(var\(--re-mark\) \+/);
+    expect(glow).toMatch(/, 0\) max\(270deg, calc\(var\(--re-mark\) \+/);
   });
 });
-
 describe("the timer ring", () => {
   it("counts whole minutes left, rounded up", () => {
     const now = Date.parse("2026-09-12T10:00:00Z");
