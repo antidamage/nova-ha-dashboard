@@ -117,11 +117,19 @@ the named component before introducing a one-off equivalent.
   slider under the dial. `RingedColorEncoder`, the copy the rings were built
   in, was merged back here on 2026-09-11 and is gone. Use
   `ColorEncoderPanel` (`app/components/controls/config/ColorEncoderPanel.tsx`) over a stored
-  `ThemeColorValue` in config; `ZoneColorEncoder` in `dashboard/zones/ZoneColorEncoder.tsx`
-  is the lighting-card wrapper. HSVA maths and the lossless `ThemeColorValue`
+  `ThemeColorValue` in config. Lights are not a `ColorEncoder` any more: see
+  `LightEncoder` below. HSVA maths and the lossless `ThemeColorValue`
   adapters are in `app/components/colorEncoderModel.ts`. See
   `specs/color-encoder.md`. The old `ColorSpectrum`, `ColorIntensitySlider` and
   `ConfigColorPicker` are gone — do not reintroduce a spectrum pad.
+- `LightEncoder` — `app/components/LightEncoder.tsx`. The lighting knob, split
+  from `ColorEncoder` on 2026-10-21: lights Brt / Hue / Sat with brightness lit
+  on load, and a band that fills in the light's colour from the lit channel's
+  zero point to the mark, soft at both ends, with the glow on that arc only.
+  Shares the channels and value model with `ColorEncoder` through
+  `useHsvaDial.ts`; paint in `lightEncoderModel.ts`. `ZoneColorEncoder` in
+  `dashboard/zones/ZoneColorEncoder.tsx` is its zone binding (lighting card,
+  outside lights, Quick Access, light rules). See `specs/light-encoder.md`.
 - `ColorWidget` — `app/components/controls/config/ColorWidget.tsx`. This is one colour slot
   on the config page: an inline cell holding a `ColorEncoder` and any
   slot-specific extras, plus the copy/paste colour actions. It is deliberately

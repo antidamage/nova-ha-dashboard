@@ -141,7 +141,7 @@ test("the colour ring is the scale's colour, sampled rather than eyeballed", asy
   expect(await paint("cold")).toContain("rgb(138, 216, 255)");
   expect(await paint("mid")).toContain("rgb(246, 239, 228)");
   expect(await paint("hot")).toContain("rgb(255, 74, 28)");
-  // No reading: the bottom half is the charcoal, and the top is still the target.
+  // No reading: the room side of the mark is the charcoal, the other side still the target.
   const missing = await paint("no-room");
   expect(missing).toContain("rgb(30, 32, 36)");
   // 23°C is a quarter of the way from the pale middle to the orange-red end,

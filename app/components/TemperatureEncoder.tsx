@@ -7,8 +7,8 @@
  * temperature and nothing else, whatever mode the room is in. The lights across
  * its face are the modes (Auto / Manual / Off on the aircon, Auto / Off on the
  * heater) and a tap cycles them. The target sits above the lights and the room's
- * own temperature below, smaller. The ring shows both: the target across its top
- * half, the room across its bottom.
+ * own temperature below, smaller. The ring shows both, split at the mark: the
+ * room from 7:30 up to it, the target from it on to 4:30.
  *
  * It tucks itself away after five seconds, and its rings float over the page —
  * both are the base's, see specs/color-encoder.md.
@@ -16,7 +16,7 @@
 import { useMemo } from "react";
 import { RotaryEncoder, type EncoderLed, type RotaryEncoderRing } from "./RotaryEncoder";
 import { formatTemperature } from "./dashboard/shared";
-import { temperatureColour, temperatureGlow, temperatureRingPaint } from "./temperatureEncoderModel";
+import { temperatureColour, temperatureGlowPaint, temperatureRingMark, temperatureRingPaint } from "./temperatureEncoderModel";
 
 /** `22.5`, or `--` with no reading. No degree sign on the face (Adeline, 2026-10-11). */
 function degrees(value: number | null) {
@@ -93,7 +93,7 @@ export function TemperatureEncoder({
   const value = typeof target === "number" ? clamp(target, minTarget, maxTarget) : (minTarget + maxTarget) / 2;
 
   const paint = useMemo(() => temperatureRingPaint(target, room, dialSize), [target, room, dialSize]);
-  const glow = useMemo(() => temperatureGlow(target, dialSize, running), [target, dialSize, running]);
+  const glowPaint = useMemo(() => temperatureGlowPaint(target, dialSize, running), [target, dialSize, running]);
 
   return (
     <RotaryEncoder
@@ -103,6 +103,8 @@ export function TemperatureEncoder({
       ariaValueText={`Target ${formatTemperature(target)} degrees, room ${formatTemperature(room)} degrees`}
       color={temperatureColour(target)}
       ringPaint={paint}
+      ringMark={temperatureRingMark(value, minTarget, maxTarget)}
+      glowPaint={glowPaint}
       disabled={disabled}
       title={title}
       faceTop={degrees(target)}
@@ -110,7 +112,6 @@ export function TemperatureEncoder({
       faceTopClassName="temperature-encoder-target"
       faceBottom={degrees(room)}
       faceBottomClassName="temperature-encoder-room"
-      glow={glow}
       knobSkin={knobSkin}
       ledLabels
       leds={modes}

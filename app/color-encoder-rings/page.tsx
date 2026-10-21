@@ -12,6 +12,7 @@ import {
   type ColorEncoderChannel,
 } from "../components/ColorEncoder";
 import type { Hsva } from "../components/colorEncoderModel";
+import { LightEncoder } from "../components/LightEncoder";
 import { StatusOrbDemo } from "../components/StatusOrbDemo";
 import { DemoTemperatureDial } from "../components/TemperatureEncoderDemo";
 import { DEFAULT_DARK_THEME, DEFAULT_LIGHT_THEME } from "../components/theme/accent/defaults";
@@ -80,6 +81,19 @@ function DemoDial({ channels = COLOR_ENCODER_CHANNELS, disabled, id, initial = D
   );
 }
 
+/** A lighting knob (specs/light-encoder.md): the band fills from zero to the mark. */
+function DemoLight({ id, initial, knobSkin }: { id: string; initial: Hsva; knobSkin?: "dark" | "light" }) {
+  const [colour, setColour] = useState<Hsva>(initial);
+  return (
+    <figure style={styles.figure} data-demo-dial={id}>
+      <LightEncoder knobSkin={knobSkin} label="Lights" size={200} value={colour} onChange={setColour} />
+      <figcaption style={styles.caption} data-demo-readout>
+        {Math.round(colour.v)}% · hue {Math.round(colour.h)}
+      </figcaption>
+    </figure>
+  );
+}
+
 function Section({ children, light, title }: { children: ReactNode; light?: boolean; title: string }) {
   return (
     <section
@@ -100,6 +114,16 @@ export default function ColorEncoderRingsDemo() {
   return (
     <main style={styles.page}>
       <h1 style={styles.title}>ColorEncoder</h1>
+
+      <Section title="Light knob">
+        {[0, 30, 75, 100].map((v) => (
+          <DemoLight key={v} id={`light-knob-${v}`} initial={{ ...FILL_COLOURS[1], v }} knobSkin="dark" />
+        ))}
+      </Section>
+
+      <Section light title="Light knob, light skin">
+        <DemoLight id="light-knob-light" initial={{ ...FILL_COLOURS[2], v: 60 }} knobSkin="light" />
+      </Section>
 
       {/* Adeline, 2026-09-20: one of each surface that carries the embossed
           unlock ring, in both skins. They start locked — a tap unlocks one and

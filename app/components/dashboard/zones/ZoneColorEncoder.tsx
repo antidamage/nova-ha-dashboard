@@ -2,13 +2,14 @@
 
 import { useRef } from "react";
 import type { SpectrumCursor } from "../../../../lib/types";
-import { ColorEncoder, type ColorEncoderChannel } from "../../ColorEncoder";
+import { LightEncoder } from "../../LightEncoder";
+import type { ColorEncoderChannel } from "../../useHsvaDial";
 import { hsvToRgb, rgbToHsv, type Hsva } from "../../colorEncoderModel";
 import type { SpectrumValue } from "../lighting";
 
 /**
- * The zone's one colour-and-level control: a 200px `ColorEncoder`
- * (specs/color-encoder.md). Hue and saturation become `rgb_color` at full
+ * The zone's one colour-and-level control: a 200px `LightEncoder`
+ * (specs/light-encoder.md). Hue and saturation become `rgb_color` at full
  * value; the brightness light is the zone's `brightness_pct`. There is no
  * second brightness control on the card.
  *
@@ -36,7 +37,7 @@ export function ZoneColorEncoder({
   className?: string;
   colorEnabled: boolean;
   disabled: boolean;
-  /** Forwarded to ColorEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
+  /** Forwarded to LightEncoder; see DeviceTheme.knobSkin, specs/color-encoder.md. */
   knobSkin?: "auto" | "dark" | "light";
   label?: string;
   /** Dial diameter in px; the zone card uses 200, Quick Access 56. */
@@ -70,11 +71,10 @@ export function ZoneColorEncoder({
 
   return (
     <div className={className ? `zone-color-encoder ${className}` : "zone-color-encoder"}>
-      <ColorEncoder
+      <LightEncoder
         ariaLabel="Zone lights"
-        defaultChannel="brightness"
         demoTooltipTitle="Lights"
-        demoTooltip="Tap to switch between brightness, saturation and hue. Turn it like a knob."
+        demoTooltip="Tap to switch between brightness, hue and saturation. Turn it like a knob."
         disabled={disabled}
         knobSkin={knobSkin}
         label={label}

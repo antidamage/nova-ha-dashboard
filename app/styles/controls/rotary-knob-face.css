@@ -15,6 +15,54 @@
   transition: box-shadow 180ms linear;
 }
 
+/* A painted glow: the caller's arc through the ring's annulus, blurred, so it
+   lights only the part of the band that is filled (specs/light-encoder.md). */
+.rotary-encoder-glow[data-paint] {
+  box-shadow: none;
+  filter: blur(calc(var(--re-size) * 0.07));
+}
+
+.rotary-encoder-glow-paint {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--re-glow-paint);
+  -webkit-mask: var(--re-annulus);
+  mask: var(--re-annulus);
+}
+
+.rotary-encoder.rotary-encoder-disabled .rotary-encoder-glow-paint {
+  display: none;
+}
+
+/* The mark a paint can follow: registered so it can sweep with the index
+   (250ms, ease-out) and track 1:1 under the hand. */
+@property --re-mark {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+.rotary-encoder {
+  /* The band where nothing fills it: an empty sunken channel. */
+  --re-ring-empty: #1e2024;
+  transition: --re-mark 250ms ease-out;
+}
+
+.rotary-encoder[data-mode="light"] {
+  --re-ring-empty: #b4b7bd;
+}
+
+.rotary-encoder:has(> .rotary-encoder-dial[data-pressed="true"]) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotary-encoder {
+    transition: none;
+  }
+}
+
 .rotary-encoder-checker,
 .rotary-encoder-ring,
 .rotary-encoder-ring-shade {

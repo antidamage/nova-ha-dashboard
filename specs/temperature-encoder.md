@@ -127,17 +127,31 @@ longer change what the knob does.
 
 ## Colour ring
 
-The ring shows two temperatures on one scale:
+The ring shows two temperatures on one scale, split at the knob's mark
+(Adeline, 2026-10-21; this replaces the target-top, room-bottom halves):
 
-- **Top half: the target.**
-- **Bottom half: the room temperature.** Dark charcoal `#1e2024` when there
-  is no reading.
+- **Left of the mark: the room temperature.** It starts at the zero point,
+  7:30 (the knob's minimum), and fills forward to the mark. Dark charcoal
+  `#1e2024` when there is no reading.
+- **Right of the mark: the target.** It runs from the mark to the maximum
+  position, 4:30.
+- **Both fade out at the outer ends of their range**, so they never meet
+  across the bottom gap: the room colour fades in from nothing over `40px` of
+  arc from 7:30, the target fades to nothing over `40px` before 4:30
+  *(decided)*. With the mark near an end the fade shrinks to half that side's
+  length, so the colour that ends there still reaches the mark; with the mark
+  at 4:30 itself the target fades over one more blend past it, a short way into
+  the gap. Otherwise, between 4:30 and 7:30 the band is the empty channel,
+  `--re-ring-empty`
+  (`specs/light-encoder.md`).
+- The two colours **blend into each other over about 30px of arc** centred on
+  the mark, measured along the ring's mid radius, at every size. The blend's
+  angle is therefore `30px / r_mid` radians, wider on a small knob.
+- The split follows the mark through its sweeps and glides — it is painted
+  against the base's `--re-mark` (`specs/light-encoder.md`, "The base's part").
 - The scale runs **18°C ice blue → 22°C pale warm white → 26°C orange-red**,
   clamped outside that range (Adeline). Hexes *(decided)*: `#8ad8ff`,
   `#f6efe4`, `#ff4a1c`, interpolated in sRGB between neighbouring stops.
-- The two halves **blend into each other over about 30px of arc** at 3 and 9
-  o'clock, measured along the ring's mid radius, at every size. The blend's
-  angle is therefore `30px / r_mid` radians, wider on a small knob.
 - No checkerboard: there is no alpha.
 
 ## Glow
@@ -145,8 +159,10 @@ The ring shows two temperatures on one scale:
 The ring glows in the **target colour only while the unit is running**:
 the aircon actively heating, cooling or fanning (power not Off and the unit
 reporting `heat`, `cool`, `fan_only` or `dry`); the heater's switch on. No
-glow when idle or Off (Adeline). The glow uses the lighting knob's full-glow
-figures (`t = 1` in its formula).
+glow when idle or Off (Adeline). Since 2026-10-21 the glow is the target's
+own arc blurred — mark to 4:30, the same soft end — so it never lights the
+room's side or the bottom gap *(decided)*, at alpha `0.62` and the lighting
+knob's blur.
 
 ## Unavailable
 

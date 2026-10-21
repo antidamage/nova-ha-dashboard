@@ -37,8 +37,17 @@ supplies:
   `step`, or `wrap` for a value with no ends. A bounded domain maps 7:30 →
   4:30 over the top and turns at `(max − min) / 270°` per degree; a wrapped
   one maps one turn to its range. `sensitivity` still overrides the rate.
-- **Colour-ring paint** (a CSS background) and **glow** (a box-shadow).
+- **Colour-ring paint** (a CSS background) and **glow** (a box-shadow). Or,
+  since 2026-10-21, a **glow paint** blurred through the ring's annulus, and a
+  **ring mark** published as `--re-mark` so a paint can follow the index
+  (`specs/light-encoder.md`, "The base's part").
 - **Size limits**: `minSize` (default 50) to 200.
+
+**Lights are a separate knob since 2026-10-21** (Adeline): `LightEncoder`,
+`specs/light-encoder.md`, with its own light order and a band that fills to
+the mark. This control is now the colour picker only, and is unchanged. The
+two share their channels and value model through `useHsvaDial.ts`. Where this
+spec still speaks of "the lighting dial", read `LightEncoder`.
 
 `ColorEncoder` is a wrapper that maps HSVA onto the base: channels as LEDs,
 the channel caption, checkerboard plus colour paint, the brightness-keyed

@@ -10,29 +10,28 @@
  * on it. The label curves around the outside of the knob, along the top.
  *
  * The base carries the layers, the relative-angle drag, the clicks, the rings
- * and the light/dark treatment. What lives here is HSVA: which channel the knob
- * turns, the checkerboard and colour paint, the brightness-keyed glow, the rule
- * for adopting an outside value, and the form input.
+ * and the light/dark treatment; `useHsvaDial` carries the channels and the rule
+ * for adopting an outside value, shared with the lights' `LightEncoder`. What
+ * lives here is the picker's paint: the checkerboard and colour, the
+ * brightness-keyed glow, and the form input.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  hsvaToCss,
-  hsvaToFormValue,
-  hsvaToRgb,
-  normalizeHsva,
-  wrapHue,
-  type Hsva,
-} from "./colorEncoderModel";
+import { hsvaToCss, hsvaToFormValue, hsvaToRgb, type Hsva } from "./colorEncoderModel";
 import {
   ENCODER_MAX_SIZE,
   ENCODER_MIN_SIZE,
   RotaryEncoder,
-  type EncoderLed,
   type RotaryEncoderRing,
 } from "./RotaryEncoder";
-import { ARC_SPAN } from "./rotaryEncoderGeometry";
+import {
+  CHANNEL_LABEL,
+  CHANNEL_SENSITIVITY,
+  channelCaption,
+  clamp,
+  useHsvaDial,
+  type ColorEncoderChannel,
+} from "./useHsvaDial";
 
-export type ColorEncoderChannel = "hue" | "brightness" | "saturation" | "alpha";
+export type { ColorEncoderChannel } from "./useHsvaDial";
 
 export const COLOR_ENCODER_CHANNELS: ColorEncoderChannel[] = ["hue", "brightness", "saturation"];
 export const COLOR_ENCODER_CHANNELS_WITH_ALPHA: ColorEncoderChannel[] = [
@@ -47,61 +46,6 @@ export const COLOR_ENCODER_MAX_SIZE = ENCODER_MAX_SIZE;
 
 /** A ring on the colour dial: the base's ring, unchanged. */
 export type ColorEncoderRing = RotaryEncoderRing;
-
-/**
- * Units of channel movement per degree the knob is turned. The index shows the
- * value, so the value moves at exactly the rate its own index angle implies: a
- * hue degree per degree, and 100/270 of a 0–100 channel per degree.
- */
-const SENSITIVITY: Record<ColorEncoderChannel, number> = {
-  hue: 1,
-  brightness: 100 / ARC_SPAN,
-  saturation: 100 / ARC_SPAN,
-  alpha: 100 / ARC_SPAN,
-};
-
-const CHANNEL_LABEL: Record<ColorEncoderChannel, string> = {
-  hue: "hue",
-  brightness: "brightness",
-  saturation: "saturation",
-  alpha: "alpha",
-};
-
-const CHANNEL_CAPTION: Record<ColorEncoderChannel, [long: string, short: string]> = {
-  hue: ["HUE", "HUE"],
-  brightness: ["BRIGHT", "BRT"],
-  saturation: ["SAT", "SAT"],
-  alpha: ["ALPHA", "ALPH"],
-};
-
-/** Below this the caption font is pinned at its 10px floor (10 / 0.075). */
-const CAPTION_SHORT_BELOW_PX = 10 / 0.075;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function channelValue(value: Hsva, channel: ColorEncoderChannel) {
-  if (channel === "hue") return value.h;
-  if (channel === "brightness") return value.v;
-  if (channel === "saturation") return value.s;
-  return value.a;
-}
-
-function withChannel(value: Hsva, channel: ColorEncoderChannel, next: number): Hsva {
-  if (channel === "hue") return { ...value, h: wrapHue(next) };
-  if (channel === "brightness") return { ...value, v: clamp(next, 0, 100) };
-  if (channel === "saturation") return { ...value, s: clamp(next, 0, 100) };
-  return { ...value, a: clamp(next, 0, 100) };
-}
-
-function sameStoredColour(left: Hsva, right: Hsva) {
-  const leftRgb = hsvaToRgb(left);
-  const rightRgb = hsvaToRgb(right);
-  return leftRgb.every((component, index) => Math.abs(component - rightRgb[index]) <= 3)
-    && Math.abs(left.v - right.v) <= 1
-    && Math.abs(left.a - right.a) <= 1;
-}
 
 export type ColorEncoderProps = {
   activeChannel?: ColorEncoderChannel;
@@ -153,35 +97,9 @@ export function ColorEncoder({
   onChange,
   onCommit,
 }: ColorEncoderProps) {
-  const incoming = useMemo(() => normalizeHsva(value), [value]);
+  const dial = useHsvaDial({ activeChannel, channels, defaultChannel, size, value, onActiveChannelChange });
+  const { channel, colour, dialSize } = dial;
 
-  const [internalChannel, setInternalChannel] = useState<ColorEncoderChannel>(
-    defaultChannel && channels.includes(defaultChannel) ? defaultChannel : channels[0],
-  );
-  const channel = activeChannel && channels.includes(activeChannel) ? activeChannel : internalChannel;
-  useEffect(() => {
-    if (!channels.includes(internalChannel)) {
-      setInternalChannel(defaultChannel && channels.includes(defaultChannel) ? defaultChannel : channels[0]);
-    }
-  }, [channels, defaultChannel, internalChannel]);
-
-  // The dial keeps its own unrounded colour and adopts an incoming one only
-  // when it is genuinely different (specs/color-encoder.md, "Rounding"). The
-  // base holds the channel being turned through a drag; this ref carries the
-  // whole colour, so the other three channels survive the round trip.
-  const colourRef = useRef(incoming);
-  const pressedRef = useRef(false);
-  if (!pressedRef.current && !sameStoredColour(colourRef.current, incoming)) {
-    colourRef.current = incoming;
-  }
-  const colour = colourRef.current;
-
-  const leds: EncoderLed[] = useMemo(
-    () => channels.map((item) => ({ id: item, label: CHANNEL_LABEL[item] })),
-    [channels],
-  );
-
-  const dialSize = clamp(Math.round(size), ENCODER_MIN_SIZE, ENCODER_MAX_SIZE);
   const withAlpha = channels.includes("alpha");
   const rgb = hsvaToRgb(colour);
   const glowAmount = clamp((colour.v - 50) / 50, 0, 1) * (withAlpha ? colour.a / 100 : 1);
@@ -189,46 +107,34 @@ export function ColorEncoder({
     ? "0 0 0 rgba(0, 0, 0, 0)"
     : `0 0 ${(dialSize * (0.03 + 0.11 * glowAmount)).toFixed(1)}px ${(dialSize * 0.012 * glowAmount).toFixed(1)}px rgba(${rgb.join(", ")}, ${(0.62 * glowAmount).toFixed(3)})`;
 
-  const current = channelValue(colour, channel);
-  const apply = (next: number) => {
-    const updated = withChannel(colour, channel, next);
-    colourRef.current = updated;
-    return updated;
-  };
-
   return (
     <>
       <RotaryEncoder
         variantClassName="color-encoder"
         className={className}
         ariaLabel={ariaLabel ?? (label ? undefined : "Colour")}
-        ariaValueText={`${CHANNEL_LABEL[channel]} ${Math.round(current)}${channel === "hue" ? "°" : "%"}`}
+        ariaValueText={`${CHANNEL_LABEL[channel]} ${Math.round(dial.current)}${channel === "hue" ? "°" : "%"}`}
         checker
         color={hsvaToCss(withAlpha ? colour : { ...colour, a: 100 })}
         demoTooltip={demoTooltip}
         demoTooltipTitle={demoTooltipTitle}
         disabled={disabled}
         title={label}
-        faceBottom={CHANNEL_CAPTION[channel][dialSize < CAPTION_SHORT_BELOW_PX ? 1 : 0]}
+        faceBottom={channelCaption(channel, dialSize)}
         glow={glow}
         knobSkin={knobSkin}
-        leds={leds}
+        leds={dial.leds}
         activeLed={channel}
-        onActiveLedChange={(id) => {
-          setInternalChannel(id as ColorEncoderChannel);
-          onActiveChannelChange?.(id as ColorEncoderChannel);
-        }}
+        onActiveLedChange={dial.selectChannel}
         range={channel === "hue" ? { min: 0, max: 360, wrap: true } : { min: 0, max: 100 }}
         rings={rings}
-        sensitivity={sensitivity?.[channel] ?? SENSITIVITY[channel]}
+        sensitivity={sensitivity?.[channel] ?? CHANNEL_SENSITIVITY[channel]}
         size={size}
         tuckAfterMs={tuckAfterMs}
-        value={current}
-        onPressedChange={(pressed) => {
-          pressedRef.current = pressed;
-        }}
-        onChange={(next) => onChange(apply(next))}
-        onCommit={(next) => onCommit?.(apply(next))}
+        value={dial.current}
+        onPressedChange={dial.setPressed}
+        onChange={(next) => onChange(dial.apply(next))}
+        onCommit={(next) => onCommit?.(dial.apply(next))}
       />
       {name ? <input type="hidden" name={name} value={hsvaToFormValue(colour, format, withAlpha)} /> : null}
     </>
