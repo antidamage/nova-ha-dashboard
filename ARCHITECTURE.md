@@ -56,7 +56,8 @@ Server and shared logic. Packages that already follow the convention:
 
 - **`lib/ha/`** — the Home Assistant client, split into `client`, `entities`,
   `zones`, `registry`, `twins`, `health`, `states`. `lib/ha.ts` is the facade
-  over it. **This is the reference example** for how a package should look.
+  over it, and `lib/ha/client.ts` is itself a facade over `lib/ha/client/`
+  (`connection`, `service-calls`, `websocket`). **This is the reference example** for how a package should look.
 - **`lib/orb-info/`** — the file-role vocabulary already applied: `types.ts`,
   `format.ts`, `catalogue.ts`, `stack.ts`, `preferences.ts`, `events.ts`.
 - `lib/camera/`, `lib/modules/`, `lib/api/`, `lib/desktop-theme-actions/`,
