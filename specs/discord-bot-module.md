@@ -67,9 +67,9 @@ package must inline all deps.
   needed as a privileged intent — Discord always supplies content for DMs and
   for messages that mention the bot, which is the whole of what this reads.
 - **REST** (`https://discord.com/api/v10`): `POST /users/@me/channels` to open
-  the DM, `POST /channels/{id}/messages` to send, `PATCH /webhooks/…/messages/…`
-  to edit a message after an interaction. Respects `X-RateLimit-*` and `429`
-  `retry_after`.
+  the DM, `POST /channels/{id}/messages` to send, `PATCH
+  /channels/{id}/messages/{id}` to edit a message after an interaction. Every
+  call retries until it lands (below).
 - Bundles `ws` — the container is `node:22-trixie-slim` and has no stable global
   `WebSocket`.
 
@@ -82,6 +82,61 @@ thing — it is the one non-obvious part of the packaging contract.
 
 Node 20 is also why the gateway's `zlib-stream` compression is not used: plain
 JSON, the traffic is a handful of messages a day.
+
+### Retries
+
+Every Discord action — a send, a reply, a reaction, an edit, opening the DM,
+reading the bot's own identity at start — is retried until Discord answers
+(`src/discord/retry.ts`, used by `src/discord/rest.ts`). Added 2026-10-23, after
+a dashboard restart came up before its network did: the one start-up call
+failed with `fetch failed`, the module gave up, and an agent's answer sat
+undelivered until the module was reloaded by hand.
+
+- **What is retried**: a network failure, an attempt with no complete answer
+  in 15 s (a response body that stalls or breaks off included), `408`, any
+  `5xx`, and `429`. Any other `4xx` is a refusal and is not retried — the same
+  request would be refused again. What happens to a refusal is the caller's
+  choice: the queue flush, start-up, the DM channel, the attention route, the
+  veto route and agent answers report it (as `lastError`, in the log, or both);
+  courtesy replies, expiry edits, typing and interaction acks drop it silently.
+- **Prompt**: the first retry is 0.25–0.5 s out, doubling to a ceiling of
+  **15 s** (half fixed, half jittered). Once the network is back a message waits
+  at most one interval when the failures were fast (refused connections, 5xx);
+  when the network hung instead, the attempt in flight runs out its 15 s first,
+  so the worst case is about 30 s. With nothing failing there is no added wait
+  at all.
+- **No flooding**: the backoff is shared by every call. After a failure all
+  calls wait behind one gate, and while it stays shut only one request at a time
+  goes out as a probe. An outage costs one request per interval, however many
+  messages are waiting; the first answer releases them all.
+- **Rate limits**: a `429` waits Discord's `retry_after` (at least 100 ms; 1 s
+  when Discord gives none) — on the one call for a route limit, on every call
+  for a global one (`global: true` or `X-RateLimit-Scope: global`). A rate limit
+  is not a failure and does not set `retrying`.
+- **No duplicates**: every message carries a `nonce` with `enforce_nonce`, fixed
+  across its retries, so within one run an attempt that landed but lost its
+  answer is not posted twice. An agent answer's chunks use a nonce derived from
+  the job and the chunk's position, so a chunk that landed just before a stop
+  and is sent again by the next start is dropped too — but only within
+  Discord's nonce window of a few minutes. A longer gap can post that one chunk
+  twice.
+- **Two calls have deadlines**, because late is useless: the typing indicator
+  (5 s) and an interaction acknowledgement (2.5 s; Discord refuses one after
+  3 s).
+- **Start-up** runs in the background and retries like everything else, so the
+  module never holds the dashboard's module load, and comes online by itself
+  when Discord is reachable.
+- **Stop or reload** ends every call still retrying. Two things survive it:
+  unsent queue lines are re-queued and persisted, and an agent job stays open
+  with the number of answer chunks already posted, so the next start carries on
+  from there rather than posting the start of the answer again. Everything else
+  still retrying is dropped: an attention ping answered `202`, a veto DM
+  answered `send_pending`, a Hermes answer, an edit or a reaction. None of them
+  is persisted.
+- **Status**: while calls are failing the module reports `state: "error"`,
+  `Discord is not answering, retrying: <reason>`, and `retrying` holds the
+  reason. The next answer from Discord clears it — including after a typing
+  indicator or interaction ack that gave up, which leave it set until then.
 
 ## Setup
 
@@ -185,8 +240,10 @@ noisiest hook; anyone who wants more sets a longer template.
 - Over 2000 characters, the batch splits across messages at line boundaries.
 - At `maxQueueDepth` the oldest lines are dropped and the flush prepends
   `(N earlier events dropped)`. Silently losing events is worse than saying so.
-- A failed send re-queues the batch once, then drops it and records
-  `lastError`. The queue never grows without bound because of a dead network.
+- A flush waits while its sends retry (see Retries); flushes never overlap.
+  Behind a dead network the queue keeps filling up to `maxQueueDepth`, and the
+  oldest lines drop as above. A batch Discord refuses is dropped and recorded as
+  `lastError`; a stop mid-batch re-queues only the lines not yet sent.
 
 ### Once per occurrence
 
@@ -237,6 +294,7 @@ than leaving a false "Done" as the last word.
 | `openProposals` | inbound proposals awaiting a button |
 | `openVetoes`, `lastVetoAt`, `lastVetoError` | face-login vetoes |
 | `lastError` | |
+| `retrying` | why Discord calls are failing and being retried, or `null` |
 | `inboundMode` | the effective mode, `hermes` or `confirm` |
 | `inboundModeWarning` | the configured value when it was neither, so a typo is visible |
 | `linkedSessions` | reply → session links held |
@@ -257,8 +315,11 @@ line: `🔔 **Needs you** — <summary>` (summary trimmed to 400 characters).
 It sends directly rather than joining the queue — the caller is an agent that
 has already stopped and is waiting on a human, so a batching delay is the one
 thing the message cannot afford. A bad key is `401`, a missing summary `400`,
-and an unsendable DM `503` with the reason. Never a quiet `200`: the calling
-agent has to know whether anyone was told.
+and `503` with the reason when the bot is not set up or Discord refuses the DM.
+A DM still retrying after 10 s is `202` with `queued: true`: it keeps retrying
+and lands when Discord answers, unless the module stops or reloads first, which
+drops it (it is not persisted).
+Never a quiet `200`: the calling agent has to know whether anyone was told.
 
 The rule that obliges agents to call it is in `AGENTS.md`, "Ping Discord before
 you stop for the owner".
@@ -628,5 +689,10 @@ With `inbound.mode: confirm` (the default is `hermes`; its own list follows):
 - With the runner stopped, a fresh DM is answered with the reason, and the
   module reports `state: "error"`.
 - No console window appears on Ununhexium when a session starts.
+- An answer that finishes while Discord is unreachable — including a dashboard
+  restart that comes up before its network — is delivered by itself once
+  Discord answers, with no reload. Within one run no chunk is posted twice;
+  across a stop, a chunk re-sent within Discord's few-minute nonce window is
+  not posted twice either.
 - A fresh DM's session sees the last 30 messages as context, and a DM replying to
   her own earlier message resumes the session that answered it.
