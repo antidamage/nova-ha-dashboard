@@ -441,6 +441,34 @@ unreachable — is answered in the DM with the reason. Never silence.
 `lastAgentError` join the status detail. A failing runner reports
 `state: "error"`, like a broken Hermes bridge.
 
+### Chat history
+
+Added 2026-10-23. Every DM that reaches an agent (Claude Code, Codex or Hermes,
+fresh or a reply) carries the DM channel's recent history as context.
+
+- **What is sent.** The latest 30 messages of the DM, oldest first, one line each:
+  `[time] [session abcd1234] Adeline|Nova: (reply to ...) text`. The message being
+  answered is left out of the history and follows it as `Her message:`. Each
+  message is cut at 600 characters, the whole block at 8000 (oldest lines go
+  first), and messages with no text are skipped. A history that cannot be read is
+  omitted; the message is still answered.
+- **Every message is a new session.** The agent is told it has no memory of the
+  earlier sessions and that the history is only what was said, not what they did.
+  It is told that her message may nevertheless continue an earlier request ("yes
+  do that", "try again"), to infer that from the history where the message only
+  makes sense against it, and to ignore the history where it stands alone.
+- **A Discord reply is a continuation.** A reply resumes the session established
+  by the message it replies to. That is either Nova's answer (linked when it was
+  sent) or her own original message (linked to the session when the answer
+  arrives, so replying to her own earlier message works the same way). The prompt
+  names the replied-to message and its session. Where the target is older than
+  the 30-message window the prompt says its text is not in the history.
+- **Session tags.** A history line whose message is linked to a session carries
+  the first 8 characters of its id, so the agent can see which lines belong to one
+  session. Links expire on the same TTL as before.
+- **Where.** `nova-module-discord/src/chat-history.ts` builds the text; the brief
+  (`agent-brief.ts`, rule 5) and the Hermes prompt both use the same guide text.
+
 ### The agent runner
 
 `runner/agent-runner.mjs` in this repository: a dependency-free Node HTTP
@@ -600,3 +628,5 @@ With `inbound.mode: confirm` (the default is `hermes`; its own list follows):
 - With the runner stopped, a fresh DM is answered with the reason, and the
   module reports `state: "error"`.
 - No console window appears on Ununhexium when a session starts.
+- A fresh DM's session sees the last 30 messages as context, and a DM replying to
+  her own earlier message resumes the session that answered it.
