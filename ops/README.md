@@ -115,7 +115,7 @@ else.
 ## Container timezone
 
 `/opt/nova-ha-dashboard/.env.local` must contain `TZ=Pacific/Auckland`. The
-`node:20-bookworm-slim` container defaults to UTC, and anything that reasons
+`node:22-bookworm-slim` container defaults to UTC, and anything that reasons
 about local time on the server — the auto theme's hour-of-day sun fallback,
 `update.checkHourLocal`, log timestamps — is wrong by 12-13 hours without it.
 The unit's `--env-file` passes it through; no sudo needed, takes effect on the

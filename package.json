@@ -30,7 +30,7 @@
     "ical.js": "^2.2.1",
     "lucide-react": "latest",
     "maplibre-gl": "^5.24.0",
-    "next": "latest",
+    "next": "^16.4.2",
     "react": "latest",
     "react-dom": "latest",
     "sharp": "^0.34.5",

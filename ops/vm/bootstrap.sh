@@ -81,7 +81,7 @@ log "build the app (flat install; nova-release migrate erects the farm later)"
 # Same build container nova-release uses; artifacts run unchanged on trixie.
 current_sha="$(git -C "$APP_ROOT" log -1 --format=%H 2>/dev/null || echo dev)"
 if [ ! -d "$APP_ROOT/.next" ] || [ "$(cat "$APP_ROOT/.nova-built-sha" 2>/dev/null)" != "$current_sha" ]; then
-  sudo docker run --rm -v "$APP_ROOT":/app -w /app node:20-bookworm-slim \
+  sudo docker run --rm -v "$APP_ROOT":/app -w /app node:22-bookworm-slim \
     sh -c "npm ci --no-audit --no-fund && npm run build"
   printf '%s' "$current_sha" > "$APP_ROOT/.nova-built-sha"
 fi
