@@ -42,22 +42,24 @@ export function airconFanStep(
   entity: DashboardEntity,
   quietSwitch?: DashboardEntity,
   turboSwitch?: DashboardEntity,
+  /** The owner chose Aggressive: Turbo on the unit, remembered as its own step. */
+  aggressive = false,
 ): AirconFanStep {
   if (quietSwitch?.state === "on") {
     return "quiet";
   }
   if (turboSwitch?.state === "on") {
-    return "turbo";
+    return aggressive ? "aggressive" : "turbo";
   }
 
   const mode = String(entity.attributes.fan_mode ?? "").toLowerCase();
-  return AIRCON_FAN_STEPS.includes(mode as AirconFanStep) && mode !== "quiet" && mode !== "turbo"
+  return AIRCON_FAN_STEPS.includes(mode as AirconFanStep) && mode !== "quiet" && mode !== "turbo" && mode !== "aggressive"
     ? (mode as AirconFanStep)
     : "medium";
 }
 
 export function airconFanModeServiceValue(step: AirconFanStep) {
-  return step === "quiet" ? "low" : step === "turbo" ? "high" : step;
+  return step === "quiet" ? "low" : step === "turbo" || step === "aggressive" ? "high" : step;
 }
 
 export function desiredModeForDelta(delta: number): ActiveAirconMode {
@@ -101,7 +103,8 @@ export function airconUserModeIntent(
 
 export function airconFanStepForTemperatureDelta(delta: number): AirconFanStep {
   const degreeSteps = Math.max(1, Math.floor(Math.abs(delta)));
-  const index = clampNumber(degreeSteps - 1, 0, AIRCON_FAN_STEPS.length - 1);
+  // Auto stops at turbo: Aggressive is the owner's to choose, never the delta's.
+  const index = clampNumber(degreeSteps - 1, 0, AIRCON_FAN_STEPS.indexOf("turbo"));
   return AIRCON_FAN_STEPS[index] ?? "quiet";
 }
 

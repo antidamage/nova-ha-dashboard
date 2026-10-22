@@ -84,7 +84,11 @@ export function airconLegacyActionIntent(input: {
   }
   if (autoMode === false && manualDirection === null) {
     const running = input.unitState;
-    if (running === "heat" || running === "cool" || running === "fan_only") manualDirection = running;
+    if (running === "heat" || running === "cool") manualDirection = running;
+    // With Auto or Manual selected, a unit on fan only is the thermostat's own
+    // park (specs/aircon-auto-control.md §8), not the owner choosing Fan. Seating
+    // it would leave Manual driving nothing.
+    else if (running === "fan_only" && storedMode !== "auto" && storedMode !== "manual") manualDirection = running;
   }
   // A turn_off ends Manual only when it is aimed at the unit itself: a remembered
   // direction would otherwise let the loop start the unit again. Auto's own rest

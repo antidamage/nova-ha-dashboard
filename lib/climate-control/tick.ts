@@ -135,7 +135,11 @@ export async function tick() {
           // mode is waiting for one. "grace" reads as "waiting" to a module.
           : mode !== "off" && rawTemperature === null ? "grace"
           : restingNow ? "resting"
-          : aircon && isClimateEntityOn(aircon) ? "driving" : mode === "off" ? "off" : "resting",
+          // A unit parked on fan only is resting, not driving (spec §8) — unless
+          // fan only is the direction the owner chose.
+          : aircon && isClimateEntityOn(aircon) &&
+              !(aircon.state === "fan_only" && direction !== "fan_only" && direction !== "dry") ? "driving"
+          : mode === "off" ? "off" : "resting",
         direction,
         dryEmulatable: emulatesDry(unit, aircon),
         sensorAvailable: rawTemperature !== null,

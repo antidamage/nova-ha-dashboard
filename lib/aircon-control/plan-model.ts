@@ -1,6 +1,7 @@
 import { settlingTrendSupportsSameDirectionRestart } from "../climate-control-policy";
 import {
   AIRCON_AUTO_DIRECTION_CHANGE_DEGREES,
+  AIRCON_AUTO_LARGE_ERROR_DEGREES,
   AIRCON_AUTO_MIN_CYCLE_MS,
   AIRCON_AUTO_MODE_HOLD_MS,
   AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES,
@@ -10,7 +11,7 @@ import {
   AIRCON_USER_REQUEST_MAX_AGE_MS,
 } from "./constants";
 import type { ActiveAirconMode, AirconAutoPlan, AirconAutoPlanInput, AirconAutoReason, AirconAutoState } from "./types";
-import { climateTargetTemperature, isClimateEntityOn } from "./entity-model";
+import { climateTargetTemperature } from "./entity-model";
 import {
   airconFanStepForTemperatureDelta,
   airconSupportsHvacMode,
@@ -22,6 +23,7 @@ import {
 import { autoPlanState, noAirconActions, normalizeAirconAutoState, startsInWindow } from "./cycle-model";
 import { planAirconSensorGapTick } from "./sensor-gap-model";
 import { activeAutoActions, offAutoActions } from "./action-model";
+import { airconCompressorActive } from "./park-model";
 
 export function planAirconAutoTick({
   currentTemperature,
@@ -169,12 +171,15 @@ export function planAirconAutoTick({
       ? {}
       : served;
     const base = autoPlanState(cycleBase, { ...settles, ...overrides });
-    if (!isClimateEntityOn(entity)) {
-      return { actions: [], nextState: base, reason };
+    if (!airconCompressorActive(entity)) {
+      // Off or already parked: no compressor to stop, so no transition to stamp.
+      // offAutoActions parks a unit that is fully off (spec §8) and is empty once
+      // it has.
+      return { actions: offAutoActions({ cycle: base, entity, selectedMode, targetTemperature }), nextState: base, reason };
     }
     // Stopping is never rate-limited, but it IS a transition: the dwell before the
     // next start counts from here. Stamp it BEFORE building the actions, because
-    // the stamped value is what rides out on the turn_off's remember payload.
+    // the stamped value is what rides out on the park's remember payload.
     const cycle = autoPlanState(base, {
       lastTransitionAt: now,
       settlingFromTemperature: currentTemperature,
@@ -230,6 +235,10 @@ export function planAirconAutoTick({
   // from the room at all. Normal same-direction cycling resumes on the first
   // whole degree after the off sensor has settled; a reversal needs three.
   const wantedMode = desiredModeForDelta(delta);
+  // An error larger than the thermistor's transient is the room, not the sensor
+  // (AIRCON_AUTO_LARGE_ERROR_DEGREES): the holds below that exist to ignore the
+  // transient step aside. The compressor dwell does not.
+  const largeError = absDelta >= AIRCON_AUTO_LARGE_ERROR_DEGREES;
   const resumeDegrees = currentState.lastMode && currentState.lastMode !== wantedMode
     ? AIRCON_AUTO_DIRECTION_CHANGE_DEGREES
     : AIRCON_AUTO_SAME_DIRECTION_RESUME_DEGREES;
@@ -252,6 +261,7 @@ export function planAirconAutoTick({
   // A user who actually wants the other direction clears it (ClimateControls).
   if (
     !reopened &&
+    !largeError &&
     currentState.lastMode &&
     currentState.lastMode !== wantedMode &&
     currentState.lastModeAt !== null &&
@@ -283,6 +293,7 @@ export function planAirconAutoTick({
   // unmet in the SAME direction. Ambiguous traces wait the full 30 minutes.
   if (
     !reopened &&
+    !largeError &&
     !sensorJustReturned &&
     currentState.lastTransitionAt !== null &&
     settlingElapsedMs < AIRCON_SENSOR_SETTLE_MS &&

@@ -176,6 +176,12 @@ export function planManualAirconTick(input: {
   lastTransitionAt: number | null;
   settlingFromTemperature: number | null;
   minOffMs: number;
+  /**
+   * Aggressive fan speed (spec §9): the post-stop settling wait does not apply,
+   * because a parked unit's sensor is awake and reads the room. The compressor
+   * dwell (`minOffMs`) still does. The band is the caller's, in `resumeDriftC`.
+   */
+  aggressive?: boolean;
   sensorSettleMs: number;
   sensorTimeConstantMs: number;
   sensorResolutionC: number;
@@ -219,7 +225,7 @@ export function planManualAirconTick(input: {
     resumeDriftC: input.resumeDriftC,
     measurementResolutionC: input.sensorResolutionC,
   });
-  return drifted && dwellDone && (sensorSettled || trendSupportsRestart)
+  return drifted && dwellDone && (input.aggressive || sensorSettled || trendSupportsRestart)
     ? "start" as const
     : "hold" as const;
 }

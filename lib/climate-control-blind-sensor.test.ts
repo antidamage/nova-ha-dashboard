@@ -50,7 +50,10 @@ describe("a lost temperature reading", () => {
     setWorld({ acState: "heat", roomTemperature: 18, sensorAgeMinutes: STALE });
     await settle(control);
 
-    expect(offCalls().length).toBeGreaterThanOrEqual(1);
+    // Parked on fan only: the compressor stops, and the sensor stays awake so the
+    // reading can come back (specs/aircon-auto-control.md §8).
+    expect(hvacCalls("fan_only").length).toBeGreaterThanOrEqual(1);
+    expect(offCalls()).toHaveLength(0);
     const room = await lounge(control);
     expect(room.mode).toBe("manual");
     expect(room.phase).toBe("grace");
@@ -65,9 +68,10 @@ describe("a lost temperature reading", () => {
     await settle(control);
     world.calls.length = 0;
 
-    // An hour and a half later, still nothing from the sensor.
+    // An hour and a half later, still nothing from the sensor. The unit is parked
+    // by now, and a parked unit with nothing to act on is left alone.
     vi.setSystemTime(new Date("2026-09-19T09:30:00Z"));
-    setWorld({ acState: "off", roomTemperature: 18, sensorAgeMinutes: STALE });
+    setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 18, sensorAgeMinutes: STALE });
     await settle(control);
 
     expect(world.calls).toHaveLength(0);
@@ -114,7 +118,7 @@ describe("a lost temperature reading", () => {
     setWorld({ acState: "heat", roomTemperature: 18, sensorAgeMinutes: STALE });
     await settle(control);
 
-    expect(offCalls().length).toBeGreaterThanOrEqual(1);
+    expect(hvacCalls("fan_only").length).toBeGreaterThanOrEqual(1);
     const room = await lounge(control);
     expect(room.mode).toBe("manual");
     expect(room.phase).toBe("grace");
@@ -126,7 +130,7 @@ describe("a lost temperature reading", () => {
     setWorld({ acState: "heat", roomTemperature: 18, sensorAgeMinutes: STALE });
     await settle(control);
 
-    expect(offCalls().length).toBeGreaterThanOrEqual(1);
+    expect(hvacCalls("fan_only").length).toBeGreaterThanOrEqual(1);
     const room = await lounge(control);
     expect(room.mode).toBe("auto");
     expect(room.phase).toBe("grace");

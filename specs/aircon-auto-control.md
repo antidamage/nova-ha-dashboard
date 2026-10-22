@@ -29,8 +29,14 @@ attribute for display only and must never feed control.
 
 Supported modes are heat, cool, fan-only and auto; Auto only ever commands
 heat or cool (Dry, native or emulated, is covered separately — see Dry
-emulation, below). Fan steps range from quiet through turbo; while driving,
-the planner picks fan strength from the absolute delta.
+emulation, below). Fan steps range from quiet through turbo, then Aggressive
+(§9, Manual only); while driving, Auto picks fan strength from the absolute
+delta and never goes past turbo.
+
+**Resting is parking, not switching off** (§8): wherever this document says the
+thermostat stops the unit, it means the compressor stops and the unit waits on
+fan only at its lowest speed, so the sensor keeps reading the room. Off, the sleep
+timer and a unit with no fan-only mode are the only ways the unit is switched off.
 
 ## 1. The incident this comes from
 
@@ -319,7 +325,7 @@ number, from an entity that is not `unavailable`, reported within
 `AUTONOMOUS_CLIMATE_INPUT_MAX_AGE_MS` (30 minutes). With no such reading there is
 no direction to choose and nothing to stop at, so:
 
-- **The unit switches off.** Immediately, on the tick the reading goes — not after
+- **The unit stops its compressor** (parks, §8; switched off only where it cannot park). Immediately, on the tick the reading goes — not after
   a grace window, and never on a guessed direction. `driveAircon` also drops the
   median buffer when the raw reading is null, so the filtered value cannot keep a
   start alive on half-hour-old data. Manual stops through the same rule
@@ -518,6 +524,105 @@ at anything the owner asked for — which is why that stop keeps the request ali
    still command the quiet switch — that is the fan setting it is choosing — but
    it commands it only when the switch is already the wrong way
    (`useAirconCommands.setOn`), never as housekeeping.
+
+## 8. Parking: the sensor stays awake (Adeline, 2026-10-23)
+
+> "when the air con is in auto and manual mode, find a way to keep the temp sensor
+> awake. I've noticed auto showing a very off-target temp and not responding to it
+> (5 degrees difference). check what we're doing here as it goes against the basic
+> purpose of auto mode."
+
+**What we were doing.** Both thermostats rested the unit with `turn_off`. The
+Gree's return-air thermistor sits in the indoor unit and reads the room only while
+air moves over it; an off unit keeps reporting a number (HA stamps it fresh, so it
+passes the 30-minute freshness test) that no longer follows the room. Every guard
+in §6 was sized against that frozen, heat-soaked reading — 30 minutes of settling
+wait, 30 minutes of direction hold — so a reading that was simply wrong was treated
+as the transient it resembles, and Auto, correctly by its own rules, did not
+respond. On 2026-10-22 the lounge unit sat off five minutes after "target reached"
+with its reading two degrees above the target. The 5 °C case itself was reported by
+the owner and could not be replayed from history.
+
+**The rule.** Between cycles a thermostat *parks* the unit
+(`lib/aircon-control/park-model.ts`): `set_hvac_mode: fan_only`, then
+`set_fan_mode: low`. The compressor is stopped, the fan keeps air moving over the
+thermistor, and the reading follows the room.
+
+- **Where it applies.** Auto at target and while a guard holds a start
+  (`rest()` in `plan-model.ts`); Auto with no usable reading (§5.2 — a parked unit
+  is what brings a reading back, so a stale sensor no longer waits indefinitely);
+  Manual at target, Manual holding, and Manual on arrival (`drive-aircon-manual.ts`).
+- **Where it does not.** Off (the owner's: `turn_off`, `autoMode: false`); the sleep
+  timer (`stopAndCancel`); an owner who has taken the unit by hand; Dry emulation;
+  and a unit whose `hvac_modes` lists no `fan_only`, which is switched off exactly
+  as before.
+- **From off.** A unit that is fully off while Auto or Manual is selected is parked
+  too — that is the point; it is not left asleep.
+- **Idempotent.** A parked unit yields no actions, so the one-second loop sends
+  nothing once it has parked. The fan speed is set with no `remember`: the lowest
+  speed is where the unit waits, not the owner's setting.
+- **A parked unit is resting.** Only `heat`/`cool` count as the compressor running
+  (`airconCompressorActive`): parking a running unit is a transition (it starts the
+  dwell and the settling origin); parking an off or parked unit is not. The public
+  state publishes `phase: "resting"`, the mode row does not light Fan, and the knob
+  ring does not glow (`useAirconCommands.parked`). Fan only chosen by the owner
+  (direction `fan_only`) is still `driving`.
+- **Starting restores the fan.** Auto's drive sets its delta-based step. Manual's
+  start sends the owner's remembered step (`airconOwnerFanStep`) as a fan-mode
+  command only; the Quiet and Turbo switches are never touched by parking, so a
+  change made on the remote is not undone.
+- **The cost.** The fan runs at its lowest speed whenever Auto or Manual is selected
+  and the room is at rest. Off is how to silence it.
+
+### 8.1 A large error is the room, not the transient
+
+The thermistor's observed swing on a compressor transition is 2–3 °C
+(`constants.ts`). `AIRCON_AUTO_LARGE_ERROR_DEGREES` = **4**: at or beyond that, the
+30-minute settling wait and the 30-minute direction hold step aside — the compressor
+dwell (10 minutes) does not. With the sensor awake the guards rarely matter; this
+is the backstop for the case where a reading is far off and the unit is not yet
+parked, as in the report above. Both holds apply unchanged below 4 °C.
+
+## 9. Aggressive fan speed (Adeline, 2026-10-23)
+
+> "a new fan speed setting for manual: aggressive. it will sit after Turbo, and it
+> will be Turbo but also with a smaller homeostasis band. it should respond to
+> temperature changes as soon as the sensor drifts."
+
+- **Step.** The eighth and last fan step, after Turbo (`AIRCON_FAN_STEPS`), labelled
+  AGGRESSIVE on the knob. On the unit it is Turbo (Turbo switch on, `fan_mode: high`)
+  — there is nothing past it. Nova tells the two apart by `aggressiveMode`, saved
+  with the press even when the unit would not change (Turbo to Aggressive), and
+  honoured only while the unit's Turbo switch is actually on.
+- **Manual only.** Auto picks its fan from the error and stops at turbo; its drive
+  writes `aggressiveMode: false`.
+- **The smaller band.** Normal Manual restarts when the room is
+  `AIRCON_SAME_DIRECTION_RESUME_DRIFT_C` = 1 °C past the target. Aggressive restarts
+  at `AIRCON_AGGRESSIVE_RESUME_DRIFT_C` = 0.5 °C, the first reading past it, and
+  drops the post-stop settling wait: the parked sensor is awake (§8), so there is
+  no transient to wait out. Stopping is unchanged — at the target, immediately, on
+  the raw reading.
+- **The dwell is shorter, not gone.** The sensor reads whole degrees, so on a
+  whole-degree target the first drift is one degree under either band; the half
+  degree only matters on half-degree targets. What is left to wait for is the
+  compressor dwell, so Aggressive uses `AIRCON_AGGRESSIVE_MIN_OFF_MS` = **3 minutes**
+  in place of `AIRCON_MIN_OFF_MS` (10): the usual minimum compressor off-time, and the
+  Gree enforces its own in firmware regardless (§3.1). "As soon as the sensor drifts"
+  therefore means the next 5-second tick once three minutes have passed since the
+  stop. A band this small with no dwell at all would short-cycle, so a dwell stays.
+  This is a judgment call (Adeline did not name a number); one constant changes it.
+  Auto's dwell is untouched.
+
+## 10. Done, 2026-10-23
+
+1. `npm run test:aircon` covers parking (an off unit is parked, a running unit
+   parks as a transition, a parked unit is silent, a unit with no fan-only mode
+   is switched off), the large-error rule, and the Aggressive fan step.
+2. `lib/climate-control-policy.test.ts` and `lib/climate-control-manual.test.ts`
+   cover Aggressive's band and settling wait, and Manual parking.
+3. Live on the lounge unit: with Auto or Manual selected and the room at target,
+   `climate.c6780cad` rests in `fan_only` at `low`, not `off`, and its
+   `current_temperature` keeps following the room; choosing Off turns it off.
 
 ## Dry emulation (Adeline, 2026-09-15)
 

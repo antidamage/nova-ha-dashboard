@@ -4,23 +4,32 @@ import type { ActiveAirconMode, AirconAutoState, EntityActionInput } from "./typ
 import { climateTargetTemperature, isClimateEntityOn } from "./entity-model";
 import { airconFanModeServiceValue } from "./mode-model";
 import { activeAutoRemember, inactiveAutoRemember } from "./cycle-model";
+import { airconParkActions } from "./park-model";
 
 export function airconFanStepActions({
   entity,
   quietSwitch,
   remember,
+  rememberWhenUnchanged = false,
   step,
   turboSwitch,
 }: {
   entity: DashboardEntity;
   quietSwitch?: DashboardEntity;
   remember?: AirconPreferences;
+  /**
+   * Send the fan mode again when nothing else differs, so `remember` still goes
+   * out. Turbo and Aggressive are the same state on the unit, so choosing one
+   * while the other is selected changes nothing there and would otherwise save
+   * nothing. Only a press sets this; Auto's per-tick call must not.
+   */
+  rememberWhenUnchanged?: boolean;
   step: AirconFanStep;
   turboSwitch?: DashboardEntity;
 }) {
   const actions: EntityActionInput[] = [];
   const quietEnabled = step === "quiet";
-  const turboEnabled = step === "turbo";
+  const turboEnabled = step === "turbo" || step === "aggressive";
   const fanMode = airconFanModeServiceValue(step);
 
   if (quietSwitch && (quietSwitch.state === "on") !== quietEnabled) {
@@ -38,6 +47,15 @@ export function airconFanStepActions({
     });
   }
   if (String(entity.attributes.fan_mode ?? "").toLowerCase() !== fanMode) {
+    actions.push({
+      entityId: entity.entity_id,
+      domain: "climate",
+      service: "set_fan_mode",
+      data: { fan_mode: fanMode },
+    });
+  }
+
+  if (remember && rememberWhenUnchanged && !actions.length) {
     actions.push({
       entityId: entity.entity_id,
       domain: "climate",
@@ -119,10 +137,12 @@ export function activeAutoActions({
 }
 
 // When the room reaches target (or auto is not allowed to drive it in the needed
-// direction), the loop switches the unit OFF. This is idempotent: an already-off
-// unit yields no actions, so the 1s loop stops re-sending once it has switched
-// off. The remembered preference keeps autoMode:true, so the dashboard still
-// reads "Auto" while the unit rests off rather than flipping to "Off".
+// direction), the loop PARKS the unit: fan only at the lowest speed, so the
+// sensor keeps reading the room (park-model.ts, spec §8). A unit with no fan-only
+// mode is switched off as before. This is idempotent: a parked unit yields no
+// actions, so the 1s loop stops re-sending once it has parked. The remembered
+// preference keeps autoMode:true, so the dashboard still reads "Auto" while the
+// unit rests rather than flipping to "Off".
 export function offAutoActions({
   cycle,
   entity,
@@ -134,17 +154,16 @@ export function offAutoActions({
   selectedMode?: string;
   targetTemperature: number;
 }): EntityActionInput[] {
-  if (!isClimateEntityOn(entity)) {
+  const actions = airconParkActions(entity);
+  if (!actions.length) {
     return [];
   }
 
-  return [
-    {
-      entityId: entity.entity_id,
-      domain: "climate",
-      service: "turn_off",
-      remember: { aircon: inactiveAutoRemember(targetTemperature, selectedMode, cycle) },
-    },
-  ];
+  // The remember rides on the last action, as it does for a fan step.
+  actions[actions.length - 1] = {
+    ...actions[actions.length - 1],
+    remember: { aircon: inactiveAutoRemember(targetTemperature, selectedMode, cycle) },
+  };
+  return actions;
 }
 

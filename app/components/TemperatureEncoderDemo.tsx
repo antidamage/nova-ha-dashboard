@@ -20,7 +20,7 @@ import {
   timerValueText,
 } from "./temperatureEncoderModel";
 
-const FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"];
+const FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo", "aggressive"];
 const MODE_COLOURS = [MODE_COOL_COLOUR, MODE_FAN_COLOUR, MODE_HEAT_COLOUR];
 
 export type DemoTemperatureDialProps = {

@@ -86,8 +86,12 @@ export function useAirconCommands({
   // Heat/Cool row keeps its light from the controller rather than going blank
   // every time the compressor stops (Adeline, 2026-09-19).
   const restingDirection = controlState?.direction ?? undefined;
+  // A parked unit runs fan only to keep its sensor awake (spec §8). That is the
+  // thermostat resting, not the owner choosing Fan, so the mode row must not
+  // light it.
+  const parked = entity?.state === "fan_only" && controlState?.phase === "resting";
   const observedMode: AirconMode | null =
-    entity && isClimateEntityOn(entity)
+    entity && isClimateEntityOn(entity) && !parked
       // Emulated Dry runs the unit in cool/fan_only; the mode is still Dry.
       ? controlState?.direction === "dry" ? "dry" : airconEntityMode(entity) ?? rememberedMode
       : controlState && controlState.mode !== "off"
@@ -229,6 +233,7 @@ export function useAirconCommands({
     fanMode: preferences?.fanMode ?? String(entity?.attributes.fan_mode ?? "medium"),
     quietMode: preferences?.quietMode ?? quietSwitch?.state === "on",
     turboMode: preferences?.turboMode ?? turboSwitch?.state === "on",
+    aggressiveMode: preferences?.aggressiveMode ?? false,
     // Carried through untouched: Auto's cycle bookkeeping, so the handlers below
     // can read the held direction without reaching past airconSettings.
     autoLastMode: preferences?.autoLastMode ?? null,
@@ -508,7 +513,7 @@ export function useAirconCommands({
   /** What the mode lights show: the tapped mode until it is sent, then the unit's. */
   const displayedPowerState: ClimateControlMode = pendingPower ?? activePowerState;
 
-  const fanStep = entity ? airconFanStep(entity, quietSwitch, turboSwitch) : "medium";
+  const fanStep = entity ? airconFanStep(entity, quietSwitch, turboSwitch, preferences?.aggressiveMode === true) : "medium";
 
   // A setting chosen by hand while the unit is off starts it in Manual with
   // that setting (Adeline, 2026-09-12).
@@ -525,8 +530,10 @@ export function useAirconCommands({
         autoMode: false,
         fanMode,
         quietMode: step === "quiet",
-        turboMode: step === "turbo",
+        turboMode: step === "turbo" || step === "aggressive",
+        aggressiveMode: step === "aggressive",
       },
+      rememberWhenUnchanged: step === "turbo" || step === "aggressive",
       step,
       turboSwitch,
     });
@@ -586,6 +593,7 @@ export function useAirconCommands({
     choosePowerStateAfterTaps,
     commandControl,
     displayedPowerState,
+    parked,
     entityUnavailable,
     fanStep,
     freshAirOn,

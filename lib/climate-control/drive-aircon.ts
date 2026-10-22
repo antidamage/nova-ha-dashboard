@@ -96,12 +96,15 @@ export async function driveAircon(
     : null;
   const targetTemperature = prefs?.temperature ?? (aircon ? climateTargetTemperature(aircon) : undefined) ?? null;
   const seated = mode === "manual" ? room.manualDirection : null;
+  // Fan only under a selected mode is the thermostat's own park, not a direction
+  // the owner chose (spec §8): the room answers, as it does for any unit at rest.
+  const parkedByThermostat = aircon?.state === "fan_only" && mode !== "off" && seated !== "fan_only";
   const direction = airconTickDirection({
     filteredTemperature,
     mode,
     preferences: prefs,
     rawTemperature,
-    running: runningDirection,
+    running: parkedByThermostat ? null : runningDirection,
     seated,
     target: targetTemperature,
   });
@@ -200,6 +203,9 @@ export async function driveAircon(
       }
     } else if (mode === "manual" && (direction === "heat" || direction === "cool")) {
       restingNow = await driveManualAircon({
+        // Aggressive is Turbo with a tighter thermostat. It counts only while the
+        // unit's Turbo is actually on, so a Turbo cleared on the remote ends it.
+        aggressive: Boolean(prefs?.aggressiveMode && turbo?.state === "on"),
         aircon,
         direction,
         filteredTemperature,

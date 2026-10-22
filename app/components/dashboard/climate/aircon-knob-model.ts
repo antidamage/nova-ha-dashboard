@@ -33,8 +33,11 @@ export function targetRange(entity?: DashboardEntity) {
   };
 }
 
-/** Running means the ring glows: heating, cooling or moving air right now. */
-export function airconRunning(entity: DashboardEntity | undefined, powerOff: boolean) {
-  if (!entity || powerOff) return false;
+/**
+ * Running means the ring glows: heating, cooling or moving air right now. A unit
+ * parked on fan only between cycles is resting (spec §8), so it does not glow.
+ */
+export function airconRunning(entity: DashboardEntity | undefined, powerOff: boolean, parked = false) {
+  if (!entity || powerOff || parked) return false;
   return ["heat", "cool", "fan_only", "dry"].includes(entity.state) && isClimateEntityOn(entity);
 }

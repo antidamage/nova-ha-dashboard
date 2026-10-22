@@ -197,7 +197,8 @@ timing and motion.
    glides, it never snaps").
 2. **Fan** — a stepped `slider` over `AIRCON_FAN_STEPS`, filled behind the
    thumb. Value text: `QUIET`, `LOW`, `MED LOW`, `MEDIUM`, `MED HIGH`,
-   `HIGH`, `TURBO`. The ring's length fits the widest of them.
+   `HIGH`, `TURBO`, `AGGRESSIVE` (Turbo with a tighter Manual thermostat,
+   specs/aircon-auto-control.md §9). The ring's length fits the widest of them.
 3. **Fresh Air** — a `toggle` labelled `Fresh Air`, no value text (Adeline).
    Tapping it flips `freshAirSwitch`; the fill fades in or out over 500ms.
    Omitted when the home has no fresh-air switch *(decided)*.

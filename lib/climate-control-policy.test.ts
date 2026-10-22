@@ -239,3 +239,44 @@ describe("first-order sensor settling estimate", () => {
     })).toBe(false);
   });
 });
+
+describe("Aggressive Manual thermostat (specs/aircon-auto-control.md §9)", () => {
+  const common = {
+    direction: "heat" as const,
+    isOn: false,
+    rawTemperature: 20,
+    filteredTemperature: 20,
+    targetTemperature: 21,
+    // Past the 10-minute dwell, inside the 30-minute settling wait.
+    now: 20 * 60_000,
+    lastTransitionAt: 0,
+    settlingFromTemperature: null,
+    minOffMs: 10 * 60_000,
+    sensorSettleMs: 30 * 60_000,
+    sensorResolutionC: 1,
+    sensorTimeConstantMs: 10 * 60_000,
+    resumeDriftC: 0.5,
+  };
+
+  it("restarts inside the settling wait, where normal Manual holds", () => {
+    expect(planManualAirconTick({ ...common })).toBe("hold");
+    expect(planManualAirconTick({ ...common, aggressive: true })).toBe("start");
+  });
+
+  it("uses the smaller band", () => {
+    const halfDegree = { ...common, aggressive: true, filteredTemperature: 20.5, rawTemperature: 20.5 };
+    expect(planManualAirconTick(halfDegree)).toBe("start");
+    expect(planManualAirconTick({ ...halfDegree, resumeDriftC: 1 })).toBe("hold");
+  });
+
+  it("never skips the compressor dwell it is given", () => {
+    const threeMinutes = { ...common, aggressive: true, minOffMs: 3 * 60_000 };
+    expect(planManualAirconTick({ ...threeMinutes, now: 2 * 60_000 })).toBe("hold");
+    expect(planManualAirconTick({ ...threeMinutes, now: 3 * 60_000 })).toBe("start");
+  });
+
+  it("stops at the target exactly as before", () => {
+    expect(planManualAirconTick({ ...common, aggressive: true, isOn: true, rawTemperature: 21 })).toBe("stop");
+    expect(planManualAirconTick({ ...common, aggressive: true, isOn: true, rawTemperature: 20 })).toBe("hold");
+  });
+});
