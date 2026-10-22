@@ -205,7 +205,7 @@ Modules are built with esbuild to ESM.
   API. Two React copies break hooks — this is the single most likely way to
   get a module wrong, so the loader checks for a bundled React and refuses
   the module with a specific error rather than letting it fail at render time.
-- Server bundles target Node 20 (the container is `node:20-trixie-slim`; there
+- Server bundles target Node 22 (the container is `node:22-trixie-slim`; there
   is no global `WebSocket`, so anything needing one bundles `ws`).
 - No top-level side effects beyond defining the default export. All work
   happens inside `register()`.

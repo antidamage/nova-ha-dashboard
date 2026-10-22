@@ -6,7 +6,7 @@ Primary deployment target:
 - Host: the Nova box (hostname: see `PRIVATEREF.md#1.1`).
 - Application directory: `/opt/nova-ha-dashboard`.
 - Service: `nova-ha-dashboard.service`.
-- Node runtime: Node 20 in the current recovered host setup.
+- Node runtime: Node 22 (container image `node:22-*`).
 - Home Assistant: local container on port `8123`.
 - Matter server: port `5580`.
 - Mosquitto: localhost port `1883`.

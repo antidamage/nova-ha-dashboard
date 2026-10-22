@@ -63,7 +63,7 @@ HTTP-only capture host as a blocked mixed-content subresource. The scrubber is d
 
 ## Deployment requirement (Nova)
 
-The dashboard runs on Nova inside a `node:20-bookworm-slim` **Docker container**
+The dashboard runs on Nova inside a `node:22-bookworm-slim` **Docker container**
 (no ffmpeg, no fonts, and no host sudo), with `/opt/nova-ha-dashboard` bind-mounted
 to `/app`. So ffmpeg is provided to the container as a **vendored static binary**
 rather than an apt package:

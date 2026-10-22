@@ -70,7 +70,7 @@ package must inline all deps.
   the DM, `POST /channels/{id}/messages` to send, `PATCH /webhooks/…/messages/…`
   to edit a message after an interaction. Respects `X-RateLimit-*` and `429`
   `retry_after`.
-- Bundles `ws` — the container is `node:20-trixie-slim` and has no stable global
+- Bundles `ws` — the container is `node:22-trixie-slim` and has no stable global
   `WebSocket`.
 
 `ws` is CommonJS and calls `require("events")`. Bundled into ESM that becomes a

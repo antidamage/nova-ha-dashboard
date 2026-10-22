@@ -16,7 +16,7 @@
 # staging builds produced by nova-release (Node major is identical).
 #
 #   docker build -t nova-ha-dashboard:plain -f ops/Dockerfile ops/
-FROM node:20-trixie-slim
+FROM node:22-trixie-slim
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg \
