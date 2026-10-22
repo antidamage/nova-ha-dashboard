@@ -46,8 +46,10 @@ describe("Manual mode", () => {
     await settle(control);
 
     // Home Assistant is mocked and keeps reporting "heat", so the guard-free stop
-    // repeats; what matters is that it stopped and stayed in Manual.
-    expect(offCalls().length).toBeGreaterThanOrEqual(1);
+    // repeats; what matters is that it parked on fan only (not off, so the sensor
+    // stays awake) and stayed in Manual.
+    expect(hvacCalls("fan_only").length).toBeGreaterThanOrEqual(1);
+    expect(offCalls()).toHaveLength(0);
     const room = await lounge(control);
     expect(room.mode).toBe("manual");
     expect(room.phase).toBe("resting");
@@ -59,8 +61,8 @@ describe("Manual mode", () => {
     await pressManual(control);
     setWorld({ acState: "heat", roomTemperature: 22 });
     await settle(control);
-    // The unit has now actually switched off, which is what used to read as Off.
-    setWorld({ acState: "off", roomTemperature: 22 });
+    // The unit has now actually parked on fan only, which is what used to read as Off.
+    setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 22 });
     world.calls.length = 0;
     await settle(control);
 
@@ -134,6 +136,106 @@ describe("Manual mode", () => {
 
     expect(offCalls().length).toBeGreaterThanOrEqual(1);
     expect((await lounge(control)).mode).toBe("off");
+  });
+
+  test("a room at target is parked on fan only, not switched off, and Manual stays selected", async () => {
+    resetWorld({ aircon: { autoMode: false, hvacMode: "heat", temperature: 22 } });
+    const control = await loadController();
+    await pressManual(control);
+    setWorld({ acState: "off", roomTemperature: 22 });
+    await settle(control);
+
+    expect(hvacCalls("fan_only").length).toBeGreaterThanOrEqual(1);
+    expect(world.calls.some((call) => call.service === "set_fan_mode" && call.data.fan_mode === "low")).toBe(true);
+    expect(offCalls()).toHaveLength(0);
+    expect((await lounge(control)).mode).toBe("manual");
+  });
+
+  test("a parked unit reads as resting, not driving", async () => {
+    const control = await loadController();
+    await pressManual(control);
+    await settle(control);
+    setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 21 });
+    await settle(control);
+    world.calls.length = 0;
+    await settle(control);
+
+    expect(world.calls).toHaveLength(0);
+    const room = await lounge(control);
+    expect(room.mode).toBe("manual");
+    expect(room.phase).toBe("resting");
+  });
+
+  test("a parked unit with no seated direction is driven by the room, not mistaken for Fan", async () => {
+    const control = await loadController();
+    setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 18 });
+    await settle(control);
+
+    expect(hvacCalls("heat").length).toBeGreaterThanOrEqual(1);
+    expect((await lounge(control)).mode).toBe("manual");
+  });
+
+  test("starting from parked puts the owner's fan speed back", async () => {
+    resetWorld({ aircon: { autoMode: false, hvacMode: "heat", temperature: 21, fanMode: "high" } });
+    const control = await loadController();
+    await pressManual(control);
+    setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 18 });
+    await settle(control);
+
+    expect(hvacCalls("heat").length).toBeGreaterThanOrEqual(1);
+    expect(world.calls.some((call) => call.service === "set_fan_mode" && call.data.fan_mode === "high")).toBe(true);
+  });
+
+  describe("Aggressive", () => {
+    /** Stopped at 08:00, then the room drifts at 08:05: past Aggressive's 3-minute dwell, inside the normal 10. */
+    async function driftAfterStop(preferences: Record<string, unknown>) {
+      resetWorld({ aircon: { autoMode: false, hvacMode: "heat", temperature: 21, ...preferences } });
+      const control = await loadController();
+      await pressManual(control);
+      setWorld({ acState: "heat", roomTemperature: 22, turbo: "on" });
+      await settle(control);
+      // The unit parks, which is what the loop then observes.
+      setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 22, turbo: "on" });
+      await settle(control);
+      world.calls.length = 0;
+
+      vi.setSystemTime(new Date("2026-09-19T08:05:00Z"));
+      setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 20, turbo: "on" });
+      await settle(control);
+      await settle(control);
+      return control;
+    }
+
+    test("restarts after three minutes where normal Manual waits ten", async () => {
+      const control = await driftAfterStop({ turboMode: true, aggressiveMode: true });
+
+      expect(hvacCalls("heat")).toHaveLength(1);
+      expect((await lounge(control)).mode).toBe("manual");
+    });
+
+    test("Turbo alone still waits out the ten-minute dwell", async () => {
+      await driftAfterStop({ turboMode: true });
+
+      expect(hvacCalls("heat")).toHaveLength(0);
+    });
+
+    test("does not apply once the unit's Turbo is off", async () => {
+      resetWorld({ aircon: { autoMode: false, hvacMode: "heat", temperature: 21, turboMode: true, aggressiveMode: true } });
+      const control = await loadController();
+      await pressManual(control);
+      setWorld({ acState: "heat", roomTemperature: 22, turbo: "off" });
+      await settle(control);
+      setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 22, turbo: "off" });
+      await settle(control);
+      world.calls.length = 0;
+
+      vi.setSystemTime(new Date("2026-09-19T08:05:00Z"));
+      setWorld({ acState: "fan_only", fanMode: "low", roomTemperature: 20, turbo: "off" });
+      await settle(control);
+      await settle(control);
+
+      expect(hvacCalls("heat")).toHaveLength(0);
+    });
   });
 
   test("Auto still rests as Auto", async () => {

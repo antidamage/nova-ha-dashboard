@@ -92,7 +92,28 @@ export const AIRCON_BLIND_USER_START_MS = 2 * 60_000;
 export const AIRCON_USER_REQUEST_MAX_AGE_MS = 30 * 60_000;
 
 export const AIRCON_MODES = ["heat", "cool", "dry", "fan_only", "auto"] as const;
-export const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo"] as const;
+/**
+ * "aggressive" is Turbo on the wire (the unit has no step past it) with a tighter
+ * Manual thermostat; see specs/aircon-auto-control.md §9. It is last, and Auto
+ * never picks it: airconFanStepForTemperatureDelta stops at turbo.
+ */
+export const AIRCON_FAN_STEPS = ["quiet", "low", "medium low", "medium", "medium high", "high", "turbo", "aggressive"] as const;
+
+/**
+ * A reading this far from the target is not the post-stop transient. The
+ * thermistor's observed swing on compressor transitions is 2-3 C (see above), so
+ * an error of 4 C or more is the room, and the settling and direction holds that
+ * exist to ignore that swing no longer apply. The compressor dwell still does.
+ */
+export const AIRCON_AUTO_LARGE_ERROR_DEGREES = 4;
+
+/**
+ * Where a thermostat parks the unit between cycles: fan only, at its lowest
+ * speed, so air keeps moving over the return-air thermistor and it keeps reading
+ * the room. A unit switched fully off stops reporting a live room temperature
+ * (specs/aircon-auto-control.md §8).
+ */
+export const AIRCON_PARK_FAN_MODE = "low";
 
 export type AirconMode = (typeof AIRCON_MODES)[number];
 export type AirconFanStep = (typeof AIRCON_FAN_STEPS)[number];

@@ -4,12 +4,19 @@ import {
   AIRCON_SENSOR_SETTLE_MS,
   AIRCON_SENSOR_TIME_CONSTANT_MS,
   AIRCON_USER_REQUEST_MAX_AGE_MS,
-  isClimateEntityOn,
+  airconFanStepActions,
+  airconOwnerFanStep,
+  airconParkActions,
 } from "../aircon-control";
 import { planManualAirconTick } from "../climate-control-policy";
 import type { AirconInstance } from "../climate-instances";
 import type { AirconPreferences, DashboardEntity } from "../types";
-import { AIRCON_MIN_OFF_MS, AIRCON_SAME_DIRECTION_RESUME_DRIFT_C } from "./constants";
+import {
+  AIRCON_AGGRESSIVE_MIN_OFF_MS,
+  AIRCON_AGGRESSIVE_RESUME_DRIFT_C,
+  AIRCON_MIN_OFF_MS,
+  AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
+} from "./constants";
 import { emitClimateControllerWrite } from "./attribution";
 import { executeActions } from "./commands";
 import { pruneStarts } from "./device-model";
@@ -27,9 +34,14 @@ import type { PersistedRoom } from "./types";
  * The direction it starts on comes from the room (manual-direction-model.ts), so
  * a unit off with the room away from its target is always driven toward it.
  *
+ * Between cycles the unit is parked on fan only, not switched off, so its sensor
+ * keeps reading the room (spec §8). Aggressive (spec §9) tightens the resume band,
+ * drops the settling wait and shortens the compressor dwell to three minutes.
+ *
  * Returns whether this tick rested the unit.
  */
 export async function driveManualAircon({
+  aggressive,
   aircon,
   direction,
   filteredTemperature,
@@ -41,6 +53,8 @@ export async function driveManualAircon({
   targetTemperature,
   unit,
 }: {
+  /** The owner's fan step is Aggressive and the unit's Turbo is on. */
+  aggressive: boolean;
   aircon: DashboardEntity;
   /** The direction the room asks for: what an off unit starts on. */
   direction: "heat" | "cool";
@@ -82,7 +96,9 @@ export async function driveManualAircon({
     ? planManualAirconTick({
         direction,
         runningDirection,
-        isOn: isClimateEntityOn(aircon),
+        // The compressor, not the unit: a parked unit is on (fan only) and is
+        // exactly the "off" this thermostat starts from.
+        isOn: runningDirection !== null,
         userRequested,
         blindStartAllowed,
         rawTemperature,
@@ -91,11 +107,12 @@ export async function driveManualAircon({
         now,
         lastTransitionAt: room.lastTransitionAt,
         settlingFromTemperature: room.settlingFromTemperature,
-        minOffMs: AIRCON_MIN_OFF_MS,
+        minOffMs: aggressive ? AIRCON_AGGRESSIVE_MIN_OFF_MS : AIRCON_MIN_OFF_MS,
+        aggressive,
         sensorSettleMs: AIRCON_SENSOR_SETTLE_MS,
         sensorResolutionC: AIRCON_SENSOR_RESOLUTION_DEGREES,
         sensorTimeConstantMs: AIRCON_SENSOR_TIME_CONSTANT_MS,
-        resumeDriftC: AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
+        resumeDriftC: aggressive ? AIRCON_AGGRESSIVE_RESUME_DRIFT_C : AIRCON_SAME_DIRECTION_RESUME_DRIFT_C,
       })
     : "hold";
   // Every outcome above is an answer once a request is latched — driving already,
@@ -132,7 +149,7 @@ export async function driveManualAircon({
         sensorUnusableReason: blind ? "stale-or-non-numeric" : null,
       });
     }
-    await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
+    await executeActions(unit, airconParkActions(aircon));
     // Manual stays selected and keeps running its rules; only the phase changes.
     return true;
   }
@@ -146,8 +163,29 @@ export async function driveManualAircon({
       domain: "climate",
       service: "set_hvac_mode",
       data: { hvac_mode: direction },
-    }]);
+    }, ...restoreFanActions(aircon, prefs)]);
+    return false;
+  }
+
+  // Holding with the compressor stopped: make sure the unit is parked, not off
+  // (a press of Manual on a room already at target, a restart, a unit that was
+  // off when Manual was chosen). Empty once it is, so this is one write.
+  if (runningDirection === null) {
+    const park = airconParkActions(aircon);
+    if (park.length) {
+      await executeActions(unit, park);
+      return true;
+    }
   }
 
   return false;
+}
+
+/**
+ * Parking lowers the fan to its lowest speed. Starting again puts back the speed
+ * the owner left selected. Only the fan mode: the Quiet and Turbo switches are
+ * never touched here, so a change made on the remote is not undone.
+ */
+function restoreFanActions(aircon: DashboardEntity, prefs?: AirconPreferences) {
+  return airconFanStepActions({ entity: aircon, step: airconOwnerFanStep(prefs) });
 }

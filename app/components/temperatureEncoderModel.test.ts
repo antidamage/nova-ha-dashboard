@@ -119,7 +119,8 @@ describe("the fan ring", () => {
     expect(fanStepText("medium low")).toBe("MED LOW");
     expect(fanStepText("medium high")).toBe("MED HIGH");
     expect(fanStepText("turbo")).toBe("TURBO");
-    expect(FAN_VALUE_WIDEST).toBe("MED HIGH");
+    expect(fanStepText("aggressive")).toBe("AGGRESSIVE");
+    expect(FAN_VALUE_WIDEST).toBe("AGGRESSIVE");
   });
 });
 

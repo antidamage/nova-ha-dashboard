@@ -6,7 +6,7 @@ import type {
   EntityActionInput,
 } from "./types";
 import type { DashboardEntity } from "../types";
-import { isClimateEntityOn } from "./entity-model";
+import { airconCompressorActive } from "./park-model";
 import { airconSupportsHvacMode, drivingMode } from "./mode-model";
 import { autoPlanState } from "./cycle-model";
 import { activeAutoActions, offAutoActions } from "./action-model";
@@ -81,12 +81,13 @@ export function planAirconSensorGapTick(input: {
     return { actions, nextState: cycle, reason: "sensor-pending", wantedMode: attemptMode };
   }
 
-  // Otherwise: stop, and wait with the mode selected. offAutoActions carries
-  // autoMode:true and yields nothing once the unit is already off, so the loop can
-  // sit here indefinitely without touching it. The owner's request latch is
+  // Otherwise: stop, and wait with the mode selected. offAutoActions parks the
+  // unit on fan only, which is also what wakes a sleeping thermistor and brings the
+  // reading back (spec §8). It carries autoMode:true and yields nothing once the
+  // unit is parked, so the loop can sit here indefinitely without touching it. The owner's request latch is
   // deliberately NOT consumed — a target moved while the sensor was missing is
   // served as soon as a reading arrives (§4).
-  const stopping = isClimateEntityOn(entity);
+  const stopping = airconCompressorActive(entity);
   const cycle = autoPlanState(state, {
     recentStartsAt,
     lastTargetTemperature: targetTemperature,

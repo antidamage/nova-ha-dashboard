@@ -94,6 +94,9 @@ export function activeAutoRemember(
     quietMode: fanStep === "quiet",
     temperature: targetTemperature,
     turboMode: fanStep === "turbo",
+    // Auto picks its own fan; leaving Manual's Aggressive behind would tighten
+    // nothing here and mislabel the knob.
+    aggressiveMode: false,
     ...airconAutoCycleRemember(cycle),
   };
 }

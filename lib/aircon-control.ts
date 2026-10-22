@@ -67,5 +67,11 @@ export {
   createInitialAirconAutoState,
 } from "./aircon-control/cycle-model";
 export { airconFanStepActions } from "./aircon-control/action-model";
+export {
+  airconCanPark,
+  airconCompressorActive,
+  airconOwnerFanStep,
+  airconParkActions,
+} from "./aircon-control/park-model";
 export { buildAirconAutoActions, planAirconAutoTick } from "./aircon-control/plan-model";
 export { AirconAutoThermostat } from "./aircon-control/thermostat";

@@ -99,14 +99,18 @@ export const dashboardConfigMock = ({ heater = false }: { heater?: boolean } = {
  */
 export function setWorld({
   acState = "off",
+  fanMode,
   roomTemperature = 22,
   quiet,
+  turbo,
   sensorAgeMinutes = 0,
   heater,
 }: {
   acState?: string;
+  fanMode?: string;
   roomTemperature?: number;
   quiet?: "on" | "off";
+  turbo?: "on" | "off";
   sensorAgeMinutes?: number;
   heater?: { state: "on" | "off"; roomTemperature?: number };
 } = {}) {
@@ -133,6 +137,7 @@ export function setWorld({
         friendly_name: "Air Conditioner",
         hvac_modes: ["auto", "cool", "dry", "fan_only", "heat", "off"],
         fan_modes: ["low", "medium", "high"],
+        ...(fanMode ? { fan_mode: fanMode } : {}),
         min_temp: 16,
         temperature: 21,
         current_temperature: roomTemperature,
@@ -145,11 +150,12 @@ export function setWorld({
       attributes: {},
       last_changed: at, last_updated: at, last_reported: at,
     },
-    ...(quiet
+    // The aircon's companion switches, when the test asks for them.
+    ...Object.entries({ quiet, turbo }).flatMap(([name, state]) => state
       ? [{
-          entity_id: "switch.ac_quiet_mode",
-          state: quiet,
-          attributes: { friendly_name: "Air Conditioner Quiet mode" },
+          entity_id: `switch.ac_${name}_mode`,
+          state,
+          attributes: { friendly_name: `Air Conditioner ${name === "quiet" ? "Quiet" : "Turbo"} mode` },
           last_changed: at, last_updated: at, last_reported: at,
         }]
       : []),

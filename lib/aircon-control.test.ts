@@ -6,6 +6,10 @@ import {
   AirconAutoThermostat,
   airconAutoCycleStateFromPreferences,
   airconAutoMeasuredTemperature,
+  airconFanModeServiceValue,
+  airconFanStep,
+  airconFanStepActions,
+  airconFanStepForTemperatureDelta,
   airconUserModeIntent,
   buildAirconAutoActions,
   dashboardAirconEntity,
@@ -45,6 +49,14 @@ function climateEntity(overrides: Partial<DashboardEntity> = {}): DashboardEntit
     state: "off",
     ...entityOverrides,
   };
+}
+
+/**
+ * A unit parked on fan only at its lowest speed: where Auto rests it between
+ * cycles so the sensor stays awake (spec section 8). Nothing is left to send.
+ */
+function parkedEntity(attributes: Record<string, unknown> = {}): DashboardEntity {
+  return climateEntity({ state: "fan_only", attributes: { fan_mode: "low", ...attributes } });
 }
 
 /** A unit resting off, having last driven `mode` at `modeAt`. */
@@ -102,7 +114,7 @@ test("the shared aircon selector cannot mistake a panel heater for Auto's input"
 test("missing temperature input never starts the unit", () => {
   const plan = planAirconAutoTick({
     currentTemperature: null,
-    entity: climateEntity({ state: "off" }),
+    entity: parkedEntity(),
     now: NOW,
     preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
   });
@@ -122,11 +134,14 @@ test("missing temperature input stops a running unit at once, and keeps Auto arm
   });
 
   assert.equal(plan.reason, "sensor-pending");
-  assert.equal(plan.actions.length, 1);
-  assert.equal(plan.actions[0]?.service, "turn_off");
+  // The compressor stops by parking on fan only, never by switching off.
+  assert.equal(plan.actions.length, 2);
+  assert.equal(plan.actions[0]?.service, "set_hvac_mode");
+  assert.deepEqual(plan.actions[0]?.data, { hvac_mode: "fan_only" });
+  assert.equal(actionFor(plan.actions, "turn_off"), undefined);
   // The mode is the owner's: the stop carries autoMode:true, so Auto is still
   // selected and simply waiting for a reading.
-  assert.equal(plan.actions[0]?.remember?.aircon?.autoMode, true);
+  assert.equal(plan.actions.at(-1)?.remember?.aircon?.autoMode, true);
   assert.equal(plan.nextState.lastTransitionAt, NOW + MINUTE);
   // The wait has no deadline; the clock only says how long it has been waiting.
   assert.equal(plan.nextState.sensorPendingSinceAt, NOW);
@@ -143,7 +158,7 @@ test("a blind wait never becomes a blind retry, however long it lasts", () => {
 
   const muchLater = planAirconAutoTick({
     currentTemperature: null,
-    entity: climateEntity({ state: "off" }),
+    entity: parkedEntity(),
     now: NOW + MINUTE + 60 * MINUTE,
     preferences: { autoMode: true, hvacMode: "heat", temperature: 22 },
     state: stopped.nextState,
@@ -240,9 +255,11 @@ test("auto switches a running unit off the moment the reading reaches target", (
   });
 
   assert.equal(plan.reason, "reached-target");
-  assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
-  assert.equal(actionFor(plan.actions, "turn_off")?.remember?.aircon?.autoMode, true);
-  assert.equal(actionFor(plan.actions, "set_hvac_mode"), undefined);
+  // Parked, not off: fan only at the lowest speed keeps the sensor reading.
+  assert.equal(actionFor(plan.actions, "turn_off"), undefined);
+  assert.deepEqual(actionFor(plan.actions, "set_hvac_mode")?.data, { hvac_mode: "fan_only" });
+  assert.deepEqual(actionFor(plan.actions, "set_fan_mode")?.data, { fan_mode: "low" });
+  assert.equal(actionFor(plan.actions, "set_fan_mode")?.remember?.aircon?.autoMode, true);
 });
 
 test("a resting unit ignores even a large same-direction drift while the sensor is settling", () => {
@@ -250,7 +267,7 @@ test("a resting unit ignores even a large same-direction drift while the sensor 
   // make an unsettled reading trustworthy.
   const plan = planAirconAutoTick({
     currentTemperature: 19,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 19, temperature: 22 } }),
+    entity: parkedEntity({ current_temperature: 19, temperature: 22 }),
     now: NOW,
     preferences: { autoMode: true },
     state: restingState({
@@ -306,7 +323,7 @@ test("a known downward settling trend resumes the original heating cycle after t
 test("the same heating trend cannot bypass the ten-minute compressor dwell", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 23,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 23, temperature: 24 } }),
+    entity: parkedEntity({ current_temperature: 23, temperature: 24 }),
     now: NOW,
     preferences: { autoMode: true, hvacMode: "heat" },
     state: restingState({
@@ -378,7 +395,7 @@ test("a flat or opposite post-stop trace cannot earn an early restart", () => {
 test("a one-degree recovery from an overshot heating stop does not restart early", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 24,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 24, temperature: 24 } }),
+    entity: parkedEntity({ current_temperature: 24, temperature: 24 }),
     now: NOW,
     preferences: { autoMode: true, hvacMode: "heat" },
     state: restingState({
@@ -508,7 +525,7 @@ test("serving a request clears it, and the next cycle is guarded again", () => {
   // Same room, same target, no new request: the sensor guards are back.
   const guarded = planAirconAutoTick({
     currentTemperature: 24,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 24, temperature: 26 } }),
+    entity: parkedEntity({ current_temperature: 24, temperature: 26 }),
     now: NOW + 4 * MINUTE,
     preferences: { autoMode: true },
     state: { ...served.nextState, settlingFromTemperature: 24 },
@@ -604,10 +621,10 @@ test("a fresh state is not mistaken for a target the user moved, but responds to
   assert.equal(plan.wantedMode, "heat");
 });
 
-test("auto stops re-issuing off commands once the unit is already off", () => {
+test("auto stops re-issuing park commands once the unit is already parked", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 22,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 22 } }),
+    entity: parkedEntity({ current_temperature: 22, temperature: 22 }),
     now: NOW,
     preferences: { autoMode: true, temperature: 22 },
   });
@@ -624,8 +641,8 @@ test("auto refuses to reverse direction inside the 30-minute hold", () => {
   // several degrees while the fan is stopped, and the old planner read that as
   // "cool the room" seven seconds later. In mid-winter.
   const plan = planAirconAutoTick({
-    currentTemperature: 26,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 26, temperature: 22 } }),
+    currentTemperature: 25,
+    entity: parkedEntity({ current_temperature: 25, temperature: 22 }),
     now: NOW,
     preferences: { autoMode: true },
     state: restingState({
@@ -665,7 +682,7 @@ test("auto reverses direction once the 30-minute hold has run out", () => {
 test("a settled reading still needs three degrees of evidence to reverse direction", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 24,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 24, temperature: 22 } }),
+    entity: parkedEntity({ current_temperature: 24, temperature: 22 }),
     now: NOW,
     preferences: { autoMode: true },
     state: restingState({
@@ -689,11 +706,11 @@ test("being blocked by the hold does not extend the hold", () => {
     lastTransitionAt: NOW - 20 * MINUTE,
     lastTargetTemperature: 22,
   });
-  const entity = climateEntity({ state: "off", attributes: { current_temperature: 26, temperature: 22 } });
+  const entity = parkedEntity({ current_temperature: 25, temperature: 22 });
 
-  const first = planAirconAutoTick({ currentTemperature: 26, entity, now: NOW, state });
+  const first = planAirconAutoTick({ currentTemperature: 25, entity, now: NOW, state });
   const second = planAirconAutoTick({
-    currentTemperature: 26,
+    currentTemperature: 25,
     entity,
     now: NOW + MINUTE,
     state: first.nextState,
@@ -771,7 +788,7 @@ test("the minimum cycle never delays turning the unit OFF", () => {
   });
 
   assert.equal(plan.reason, "reached-target");
-  assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
+  assert.deepEqual(actionFor(plan.actions, "set_hvac_mode")?.data, { hvac_mode: "fan_only" });
 });
 
 test("the mode hold never delays turning the unit OFF either", () => {
@@ -785,8 +802,9 @@ test("the mode hold never delays turning the unit OFF either", () => {
     state: restingState({ lastMode: "heat", lastModeAt: NOW - MINUTE, lastTransitionAt: NOW - MINUTE, lastTargetTemperature: 22 }),
   });
 
-  assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
-  assert.equal(actionFor(plan.actions, "set_hvac_mode"), undefined);
+  // It parks on fan only; it neither runs on nor flips to cool.
+  assert.deepEqual(actionFor(plan.actions, "set_hvac_mode")?.data, { hvac_mode: "fan_only" });
+  assert.equal(plan.actions.some((action) => action.data?.hvac_mode === "cool"), false);
 });
 
 test("same-direction heating is not capped after three starts in an hour", () => {
@@ -850,18 +868,18 @@ test("start telemetry still prunes entries older than an hour", () => {
 });
 
 test("being held off a start still stops a unit left in a mode auto never picks", () => {
-  // fan_only/dry can only have come from someone else. A settling hold is a
+  // dry can only have come from someone else. A settling hold is a
   // reason not to START the compressor, not a reason to leave the unit running.
   const plan = planAirconAutoTick({
-    currentTemperature: 18,
-    entity: climateEntity({ state: "fan_only", attributes: { current_temperature: 18, temperature: 22 } }),
+    currentTemperature: 19,
+    entity: climateEntity({ state: "dry", attributes: { current_temperature: 19, temperature: 22 } }),
     now: NOW,
     preferences: { autoMode: true },
     state: restingState({ lastTransitionAt: NOW - MINUTE, lastTargetTemperature: 22 }),
   });
 
   assert.equal(plan.reason, "sensor-settling-hold");
-  assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
+  assert.deepEqual(actionFor(plan.actions, "set_hvac_mode")?.data, { hvac_mode: "fan_only" });
 });
 
 test("a fan step is not a compressor cycle", () => {
@@ -934,8 +952,8 @@ test("a sensor-driven reversal still stops first and observes the direction hold
   });
 
   assert.equal(plan.reason, "reached-target");
-  assert.equal(actionFor(plan.actions, "turn_off")?.service, "turn_off");
-  assert.equal(actionFor(plan.actions, "set_hvac_mode"), undefined);
+  assert.deepEqual(actionFor(plan.actions, "set_hvac_mode")?.data, { hvac_mode: "fan_only" });
+  assert.equal(plan.actions.some((action) => action.data?.hvac_mode === "cool"), false);
 });
 
 test("a setpoint past the room reading reads as asking for the other direction", () => {
@@ -1005,10 +1023,10 @@ test("pressing Auto acts immediately, dwell or not", () => {
   assert.equal(actionFor(insideDwell, "set_hvac_mode")?.data?.hvac_mode, "heat");
 });
 
-test("auto leaves an already-off unit off when the room is at target", () => {
+test("auto leaves an already-parked unit alone when the room is at target", () => {
   const actions = buildAirconAutoActions({
     currentTemperature: 22,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 22 } }),
+    entity: parkedEntity({ current_temperature: 22, temperature: 22 }),
     forceRemember: true,
     now: NOW,
     preferences: { autoMode: true, temperature: 22 },
@@ -1062,7 +1080,7 @@ test("the cycle guards are carried on the remember payload of every transition",
   assert.deepEqual(remembered?.autoRecentStartsAt, [NOW]);
 });
 
-test("a turn_off carries the guards too, so the dwell survives a reload", () => {
+test("the park carries the guards too, so the dwell survives a reload", () => {
   const plan = planAirconAutoTick({
     currentTemperature: 22,
     entity: climateEntity({ state: "heat", attributes: { current_temperature: 22, temperature: 22 } }),
@@ -1071,8 +1089,8 @@ test("a turn_off carries the guards too, so the dwell survives a reload", () => 
     state: restingState({ lastMode: "heat", lastModeAt: NOW - MINUTE, lastTransitionAt: NOW - MINUTE, lastTargetTemperature: 22 }),
   });
 
-  assert.equal(actionFor(plan.actions, "turn_off")?.remember?.aircon?.autoLastTransitionAt, NOW);
-  assert.equal(actionFor(plan.actions, "turn_off")?.remember?.aircon?.autoSettlingFromTemperature, 22);
+  assert.equal(plan.actions.at(-1)?.remember?.aircon?.autoLastTransitionAt, NOW);
+  assert.equal(plan.actions.at(-1)?.remember?.aircon?.autoSettlingFromTemperature, 22);
 });
 
 test("cycle state read back out of preferences round-trips", () => {
@@ -1225,8 +1243,8 @@ test("a fresh tab picks the guards up from preferences on its first tick", () =>
   );
 
   const plan = thermostat.plan({
-    currentTemperature: 18,
-    entity: climateEntity({ state: "off", attributes: { current_temperature: 18, temperature: 22 } }),
+    currentTemperature: 19,
+    entity: parkedEntity({ current_temperature: 19, temperature: 22 }),
     now: NOW,
     preferences: { autoMode: true },
   });
@@ -1256,4 +1274,222 @@ test("a fresh tab can use the persisted settling origin for an early same-mode r
   assert.equal(plan.reason, "driving");
   assert.equal(plan.wantedMode, "heat");
   assert.deepEqual(actionFor(plan.actions, "set_temperature")?.data, { hvac_mode: "heat", temperature: 24 });
+});
+
+// ---------------------------------------------------------------------------
+// Parking: the sensor stays awake between cycles (spec section 8).
+// ---------------------------------------------------------------------------
+
+test("an off unit under Auto is parked on fan only, which is what keeps the sensor reading", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 22,
+    entity: climateEntity({ state: "off", attributes: { current_temperature: 22, temperature: 22 } }),
+    now: NOW,
+    preferences: { autoMode: true, temperature: 22 },
+  });
+
+  assert.equal(plan.reason, "resting");
+  assert.deepEqual(plan.actions.map((action) => action.service), ["set_hvac_mode", "set_fan_mode"]);
+  assert.deepEqual(plan.actions[0]?.data, { hvac_mode: "fan_only" });
+  assert.deepEqual(plan.actions[1]?.data, { fan_mode: "low" });
+  // The lowest speed is where the unit waits, not the owner's setting: it is not
+  // remembered over the speed they chose.
+  assert.equal(plan.actions[1]?.remember?.aircon?.fanMode, undefined);
+  assert.equal(plan.actions[1]?.remember?.aircon?.autoMode, true);
+  assert.equal(actionFor(plan.actions, "turn_on"), undefined);
+});
+
+test("parking a running unit is a compressor stop and starts the dwell", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 22,
+    entity: climateEntity({ state: "cool", attributes: { current_temperature: 22, temperature: 22 } }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({ lastMode: "cool", lastModeAt: NOW - 20 * MINUTE, lastTargetTemperature: 22 }),
+  });
+
+  assert.equal(plan.nextState.lastTransitionAt, NOW);
+  assert.equal(plan.nextState.settlingFromTemperature, 22);
+});
+
+test("parking a unit that is already parked is not a transition", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 22,
+    entity: parkedEntity({ current_temperature: 22, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({ lastMode: "cool", lastTransitionAt: NOW - 5 * MINUTE, lastTargetTemperature: 22 }),
+  });
+
+  assert.deepEqual(plan.actions, []);
+  assert.equal(plan.nextState.lastTransitionAt, NOW - 5 * MINUTE);
+});
+
+test("a unit with no fan-only mode is switched off instead", () => {
+  const noFan = { hvac_modes: ["auto", "cool", "heat", "off"], current_temperature: 22, temperature: 22 };
+  const running = planAirconAutoTick({
+    currentTemperature: 22,
+    entity: climateEntity({ state: "heat", attributes: noFan }),
+    now: NOW,
+    preferences: { autoMode: true },
+  });
+  assert.deepEqual(running.actions.map((action) => action.service), ["turn_off"]);
+
+  const off = planAirconAutoTick({
+    currentTemperature: 22,
+    entity: climateEntity({ state: "off", attributes: noFan }),
+    now: NOW,
+    preferences: { autoMode: true },
+  });
+  assert.deepEqual(off.actions, []);
+});
+
+test("a parked unit starts again from a settled reading, restoring its mode", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 20,
+    entity: parkedEntity({ current_temperature: 20, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 90 * MINUTE,
+      lastTransitionAt: NOW - AIRCON_SENSOR_SETTLE_MS - 1,
+      lastTargetTemperature: 22,
+    }),
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.deepEqual(actionFor(plan.actions, "set_hvac_mode")?.data, { hvac_mode: "heat" });
+});
+
+// ---------------------------------------------------------------------------
+// A large error is the room, not the thermistor's transient.
+// ---------------------------------------------------------------------------
+
+test("an error past the thermistor swing steps aside for the settling hold", () => {
+  const state = restingState({
+    lastMode: "heat",
+    lastModeAt: NOW - 90 * MINUTE,
+    lastTransitionAt: NOW - 20 * MINUTE,
+    lastTargetTemperature: 22,
+  });
+  const small = planAirconAutoTick({
+    currentTemperature: 19,
+    entity: parkedEntity({ current_temperature: 19, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state,
+  });
+  const large = planAirconAutoTick({
+    currentTemperature: 18,
+    entity: parkedEntity({ current_temperature: 18, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state,
+  });
+
+  assert.equal(small.reason, "sensor-settling-hold");
+  assert.equal(large.reason, "driving");
+  assert.deepEqual(actionFor(large.actions, "set_hvac_mode")?.data, { hvac_mode: "heat" });
+});
+
+test("an error past the thermistor swing reverses through the direction hold", () => {
+  const state = restingState({
+    lastMode: "heat",
+    lastModeAt: NOW - 5 * MINUTE,
+    lastTransitionAt: NOW - 11 * MINUTE,
+    lastTargetTemperature: 22,
+  });
+  const plan = planAirconAutoTick({
+    currentTemperature: 27,
+    entity: parkedEntity({ current_temperature: 27, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state,
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(plan.wantedMode, "cool");
+});
+
+test("a large error never bypasses the compressor dwell", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 17,
+    entity: parkedEntity({ current_temperature: 17, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true },
+    state: restingState({
+      lastMode: "heat",
+      lastModeAt: NOW - 90 * MINUTE,
+      lastTransitionAt: NOW - 5 * MINUTE,
+      lastTargetTemperature: 22,
+    }),
+  });
+
+  assert.equal(plan.reason, "min-cycle-hold");
+  assert.deepEqual(plan.actions, []);
+});
+
+// ---------------------------------------------------------------------------
+// Aggressive: Turbo on the unit, its own step in Nova (spec section 9).
+// ---------------------------------------------------------------------------
+
+test("Aggressive is Turbo on the unit and a separate step in Nova", () => {
+  const entity = climateEntity({ state: "heat", attributes: { fan_mode: "high" } });
+  const turboOn = climateEntity({ entity_id: "switch.c6780cad_turbo", domain: "switch", state: "on" });
+
+  assert.equal(airconFanModeServiceValue("aggressive"), "high");
+  assert.equal(airconFanStep(entity, undefined, turboOn), "turbo");
+  assert.equal(airconFanStep(entity, undefined, turboOn, true), "aggressive");
+  // The flag means nothing once the unit Turbo is off.
+  assert.equal(airconFanStep(entity, undefined, undefined, true), "high");
+});
+
+test("choosing Aggressive switches Turbo on and sends the same fan mode", () => {
+  const entity = climateEntity({ state: "cool", attributes: { fan_mode: "medium" } });
+  const turboOff = climateEntity({ entity_id: "switch.c6780cad_turbo", domain: "switch", state: "off" });
+  const actions = airconFanStepActions({
+    entity,
+    remember: { aggressiveMode: true, turboMode: true },
+    step: "aggressive",
+    turboSwitch: turboOff,
+  });
+
+  assert.deepEqual(actions.map((action) => action.service), ["turn_on", "set_fan_mode"]);
+  assert.deepEqual(actions[1]?.data, { fan_mode: "high" });
+  assert.equal(actions[1]?.remember?.aircon?.aggressiveMode, true);
+});
+
+test("moving between Turbo and Aggressive still saves the choice, though the unit is unchanged", () => {
+  const entity = climateEntity({ state: "cool", attributes: { fan_mode: "high" } });
+  const turboOn = climateEntity({ entity_id: "switch.c6780cad_turbo", domain: "switch", state: "on" });
+  const args = {
+    entity,
+    remember: { aggressiveMode: true, turboMode: true },
+    step: "aggressive" as const,
+    turboSwitch: turboOn,
+  };
+
+  assert.deepEqual(airconFanStepActions(args), []);
+  const saved = airconFanStepActions({ ...args, rememberWhenUnchanged: true });
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0]?.remember?.aircon?.aggressiveMode, true);
+});
+
+test("Auto never picks Aggressive, however large the error", () => {
+  assert.equal(airconFanStepForTemperatureDelta(20), "turbo");
+  assert.equal(airconFanStepForTemperatureDelta(-20), "turbo");
+});
+
+test("Auto drive clears a remembered Aggressive", () => {
+  const plan = planAirconAutoTick({
+    currentTemperature: 18,
+    entity: parkedEntity({ current_temperature: 18, temperature: 22 }),
+    now: NOW,
+    preferences: { autoMode: true, aggressiveMode: true },
+    state: restingState({ lastTargetTemperature: 22 }),
+  });
+
+  assert.equal(plan.reason, "driving");
+  assert.equal(actionFor(plan.actions, "set_hvac_mode")?.remember?.aircon?.aggressiveMode, false);
 });

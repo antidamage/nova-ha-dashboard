@@ -202,10 +202,11 @@ const FAN_STEP_TEXT: Record<string, string> = {
   "medium high": "MED HIGH",
   high: "HIGH",
   turbo: "TURBO",
+  aggressive: "AGGRESSIVE",
 };
 
 export function fanStepText(step: string) {
   return FAN_STEP_TEXT[step] ?? step.toUpperCase();
 }
 
-export const FAN_VALUE_WIDEST = "MED HIGH";
+export const FAN_VALUE_WIDEST = "AGGRESSIVE";

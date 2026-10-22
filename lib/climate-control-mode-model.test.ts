@@ -32,6 +32,14 @@ const intent = (input: Partial<Parameters<typeof airconLegacyActionIntent>[0]>) 
   airconLegacyActionIntent({ service: "turn_on", speaksForTheUnit: true, storedMode: null, storedDirection: null, ...input });
 
 describe("airconLegacyActionIntent", () => {
+  test("a unit parked on fan only is not the owner choosing Fan", () => {
+    const press = { service: "set_fan_mode", remembered: { autoMode: false }, unitState: "fan_only" };
+    expect(intent({ ...press, storedMode: "auto" })).toEqual({ mode: "manual", manualDirection: null });
+    expect(intent({ ...press, storedMode: "manual" }).manualDirection).toBeNull();
+    // With no mode selected, fan only is whatever the owner left it on.
+    expect(intent({ ...press, storedMode: "off" }).manualDirection).toBe("fan_only");
+  });
+
   test("choosing Heat by hand selects Manual and seats the direction", () => {
     expect(intent({
       service: "set_hvac_mode",

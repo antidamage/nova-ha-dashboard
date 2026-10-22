@@ -197,7 +197,7 @@ export function AirconKnob({
       onModeChange={(next) => aircon.choosePowerStateAfterTaps(next as "auto" | "manual" | "off")}
       onTargetChange={(next) => void aircon.setTemperature(next)}
       room={airconAutoMeasuredTemperature(entity)}
-      running={airconRunning(entity, off)}
+      running={airconRunning(entity, off, aircon.parked)}
       rings={rings}
       size={size}
       target={clampTargetForDisplay(aircon.airconSettings.temperature, range)}

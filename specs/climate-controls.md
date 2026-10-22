@@ -35,7 +35,8 @@ Air conditioner UI:
 - Manual HVAC mode buttons: Heat, Cool, Fan.
 - Current source code uses whole-degree target steps.
 - Fan speed control across quiet, low, medium low, medium, medium high, high,
-  and turbo. The fan speed slider previews the step locally while dragging and
+  turbo, and aggressive (Turbo on the unit, a tighter Manual thermostat; see
+  aircon-auto-control.md §9). The fan speed slider previews the step locally while dragging and
   sends the command only when the slider is released.
 - Fresh air switch.
 - The timer counts down in real time, can be cleared from the timer row, and

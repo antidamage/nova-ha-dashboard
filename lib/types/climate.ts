@@ -6,6 +6,8 @@ export type AirconPreferences = {
   swingMode?: "off" | "both";
   quietMode?: boolean;
   turboMode?: boolean;
+  /** Turbo with the tighter Manual thermostat (specs/aircon-auto-control.md §9). */
+  aggressiveMode?: boolean;
   offTimerEndsAt?: string | null;
   /*
    * Auto's cycle bookkeeping (see AirconAutoState in lib/aircon-control.ts).
