@@ -93,13 +93,15 @@ for (const viewport of VIEWPORTS) {
     // it.
     expect(drawn.overflowX, "nothing runs past the card's edge").toBeLessThanOrEqual(1);
 
-    // Every dial row is filled edge to edge.
+    // Every dial row is LAID OUT edge to edge. The dials are then drawn moved in
+    // by their even spread (`shift`, e2e/quick-access-spacing.spec.ts), which is
+    // taken back out here.
     for (const row of drawn.rows) {
       if (row.slots.includes(line)) continue;
       const first = row.slots[0];
       const last = row.slots[row.slots.length - 1];
-      expect(first.x, "a full row starts at the row's left edge").toBeLessThanOrEqual(1);
-      expect(drawn.rowWidth - (last.x + last.w), "a full row ends at its right edge").toBeLessThanOrEqual(1);
+      expect(first.x - first.shift, "a full row starts at the row's left edge").toBeLessThanOrEqual(1);
+      expect(drawn.rowWidth - (last.x - last.shift + last.w), "a full row ends at its right edge").toBeLessThanOrEqual(1);
     }
 
     // Controls are top-aligned in their slot, not centred in it: every dial

@@ -15,6 +15,8 @@ type Slot = {
   /** How far the slot's own content reaches down its box. */
   needs: number;
   rightGap: number | null;
+  /** How far the slot is drawn moved across by the dials' even spread. */
+  shift: number;
   /** The heights the slot's own readings' captions sit at. */
   captionTops: number[];
   /** How far the slot's own text reaches below the box it was given (negative). */
@@ -109,6 +111,8 @@ export async function drawnRows(page: import("@playwright/test").Page) {
         leftGap: contentBox ? round(contentBox.left - innerLeft) : null,
         needs: round(needs),
         rightGap: contentBox ? round((innerLeft + innerWidth) - contentBox.right) : null,
+        // How far the slot is drawn moved across by the dials' even spread.
+        shift: round(parseFloat(styles.translate) || 0),
         textRoom: Number.isFinite(textRoom) ? round(textRoom) : 0,
         valueTops: tops(".quick-current-number"),
         w: round(box.width),
