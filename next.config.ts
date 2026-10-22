@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
   // package-lock.json, so Turbopack otherwise infers the repo root as the
   // workspace root and traces the whole monorepo.
   turbopack: { root: path.resolve(__dirname) },
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   poweredByHeader: false,
   serverExternalPackages: ["ssh2"],
 };
