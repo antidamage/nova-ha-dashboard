@@ -520,6 +520,15 @@ The face service calls `face.session.opened` after a successful signature and
 before returning the assertion to the browser. Failure to deliver the DM is
 logged and does not block the response — a Discord outage must not become a
 household lockout — but it is recorded in `attempts` as an undelivered veto.
+The module retries the DM until Discord takes it; one still retrying after 3 s
+is answered `503` with `reason: send_pending` (recorded as undelivered, which it
+is at that moment) and arrives once Discord answers. Its two expiry clocks start
+when the notice came in, not when the DM lands: the buttons last
+`faceVeto.tokenTtlMs` (1 h by default) and the fallback link
+`faceVeto.linkTtlMs` (15 min by default). A late DM has whatever is left of
+each, so one landing 20 minutes late with the defaults has working buttons and
+a dead link, and one landing after both has neither.
+A stop or reload before it lands drops it: it is not persisted.
 
 ```json
 {
