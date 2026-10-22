@@ -84,7 +84,8 @@ export function QuickAccessCard({
         ref={rowRef}
         className="panel-slots panel-slots-divides-height quick-access-row"
         data-slot-fit={fits ? "scale" : "scroll"}
-        style={slotGridStyle(layout, scale, { fits, wideScale })}
+        data-slot-columns={layout.columns}
+        style={slotGridStyle(layout, scale, { fits, spread: true, wideScale })}
       >
         {slotItemsInOrder(placed, true).map((item) =>
           isDialKind(item.kind) ? renderSlotItem(item, view) : renderWideSlotItem(item, view),

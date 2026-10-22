@@ -120,10 +120,27 @@ fits in a row:
   the dial rows divide the column's own height between them, so the grid fills the
   panel in both directions. Portrait has no height to divide — the card is as tall
   as its content and the page scrolls under it, which is what a phone does.
-- **The content is centred across its slot and starts at its top** (Adeline,
-  2026-09-25: "centre-top aligned"). A dial's left and right gaps to its slot's
-  edges are equal, and every dial starts at the same height within its own slot
-  rather than floating in the middle of it.
+- **The content starts at the top of its slot** (Adeline, 2026-09-25:
+  "centre-top aligned"): every dial starts at the same height within its own slot
+  rather than floating in the middle of it. A single column is centred across its
+  slot.
+- **The dials are spread evenly across the card** (Adeline, 2026-10-23, on the
+  kiosk: the controls sat "a bit too far spaced to the outside"; the gaps between
+  controls and to the card's edges must be the same). Centred in equal slots, the
+  middle gap was twice the edge gaps — 205px against 91px on the 1080x1920 kiosk.
+  The slots are still laid out edge to edge; each dial slot is then drawn moved
+  in by `--dial-spread` (`dialSpreadStep`, `panel-slots/slotGrid.ts`) times its
+  column's distance from the row's middle, so the gaps come out equal (~129px
+  each on the kiosk). The middle column of three does not move, and nothing moves
+  where a dial already fills its slot.
+  - **The slot moves, not its content.** Content translated inside a slot counts
+    as the slot's overflow, and `useSlotScale` then shrinks every dial to fit it
+    (seen as an intermittent scale-down in the first version). The slot's own CSS
+    `translate` is applied outside its `--slot-scale`, so the step is in screen
+    pixels and is not scaled again on a scaled-down card (found by the review of
+    PR #109).
+  - Checked by `slotGrid.test.ts` and `e2e/quick-access-spacing.spec.ts`,
+    including two short landscape windows drawn at ~0.89 and ~0.79 scale.
 - **The content scales to its slot.** `quickDialSizeForCell` returns the largest
   dial that fits the slot's width (a knob's rings in portrait, its titled box in
   landscape) and its height (`quickSlotHeight`), never below the temperature

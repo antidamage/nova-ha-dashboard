@@ -25,9 +25,9 @@ export function slotGridStyle(
    * wide line slots use — theirs rather than the dials', because one line of
    * readings must not shrink every dial on the card.
    */
-  options: { fits?: boolean; wideScale?: number } = {},
+  options: { fits?: boolean; spread?: boolean; wideScale?: number } = {},
 ): CSSProperties {
-  const { fits = true, wideScale = 1 } = options;
+  const { fits = true, spread = false, wideScale = 1 } = options;
   // A card with wide line slots states its own rows: its dials divide the height
   // that is left once each line under them has taken its one line, so those rows
   // are shares and the lines are not. A panel with no wide slots states nothing
@@ -57,10 +57,36 @@ export function slotGridStyle(
     // (it is 1 then), so the stylesheet never has to guess.
     "--slot-columns": `${Math.max(1, layout.columns)}`,
     "--slot-gap": `${layout.gap}px`,
+    ...(spread ? { "--dial-spread": `${dialSpreadStep(layout, scale).toFixed(2)}px` } : {}),
     "--dial-box": `${ringGeometry(layout.size, 0, true).titleFootprint.toFixed(2)}px`,
     // The air under a titled dial's box: its preset row takes it back, so a
     // dial's buttons sit just under it rather than a whole knob-slack away
     // (specs/dial-preset-band.md).
     "--dial-pull": `${dialPresetPull(layout.size).toFixed(2)}px`,
   } as CSSProperties;
+}
+
+/**
+ * How far each dial column moves from its slot's centre so the dials are spread
+ * evenly across the row: the gap between two dials equals the gap between the
+ * outer dials and the row's edges (Adeline, 2026-10-23, on the kiosk: the four
+ * controls sat "a bit too far spaced to the outside" — centred in their slots,
+ * the middle gap was twice the edge gaps, 205px against 91px).
+ *
+ * Column `i` of `n` moves by this step times `i - (n - 1) / 2`, so the middle
+ * stays put and the outer columns come in (quick-access-dials.css). 0 for a
+ * single column, and 0 where the dials already fill their slots, so a dial is
+ * never pushed outward past its slot.
+ */
+export function dialSpreadStep(layout: QuickSlotLayout, scale = 1): number {
+  const { columns, gap, slot } = layout;
+  if (columns < 2 || slot <= 0) {
+    return 0;
+  }
+  const dial = ringGeometry(layout.size, 0, true).titleFootprint * scale;
+  const row = columns * slot + (columns - 1) * gap;
+  const even = (row - columns * dial) / (columns + 1);
+  const step = even + dial - slot - gap;
+  // Screen pixels: the slot's `translate` is applied outside its own scale.
+  return even > 0 && step < 0 ? step : 0;
 }

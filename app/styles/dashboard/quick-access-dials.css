@@ -8,6 +8,29 @@
    exactly as another panel's do. What is left here is what belongs to a dial's
    own slot. */
 
+/* The dials are spread evenly across the row: the gap between two dials is the
+   gap between the outer dials and the card's edges (Adeline, 2026-10-23). Centred
+   in equal slots, the middle gap was twice the edge gaps. Each column moves by
+   `--dial-spread` (slotGrid.ts, `dialSpreadStep`) times its distance from the
+   row's middle; the dials come first in the row, so a dial's column is its
+   position among the children. The slots are laid out edge to edge as before
+   and DRAWN moved in. The slot moves, not its content: content translated inside
+   a slot counts as the slot's overflow, and useSlotScale then shrinks every dial
+   to fit it. `translate`, not `transform`: it applies outside the slot's own
+   scale, so the step is screen pixels and is never scaled. */
+.quick-access-row > :not(.panel-slot-wide) {
+  translate: calc(var(--dial-spread, 0px) * var(--dial-column-offset, 0)) 0;
+}
+
+.quick-access-row[data-slot-columns="2"] > :nth-child(2n + 1) { --dial-column-offset: -0.5; }
+.quick-access-row[data-slot-columns="2"] > :nth-child(2n) { --dial-column-offset: 0.5; }
+.quick-access-row[data-slot-columns="3"] > :nth-child(3n + 1) { --dial-column-offset: -1; }
+.quick-access-row[data-slot-columns="3"] > :nth-child(3n) { --dial-column-offset: 1; }
+.quick-access-row[data-slot-columns="4"] > :nth-child(4n + 1) { --dial-column-offset: -1.5; }
+.quick-access-row[data-slot-columns="4"] > :nth-child(4n + 2) { --dial-column-offset: -0.5; }
+.quick-access-row[data-slot-columns="4"] > :nth-child(4n + 3) { --dial-column-offset: 0.5; }
+.quick-access-row[data-slot-columns="4"] > :nth-child(4n) { --dial-column-offset: 1.5; }
+
 /* Each dial's preset row takes back the air a titled dial's box keeps under its
    knob (`--dial-pull`, set by QuickAccessCard from the dial's own
    geometry), so the buttons sit just under the dial they belong to instead of a
