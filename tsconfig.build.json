@@ -1,0 +1,13 @@
+{
+  // The production build type-checks application code only. Test and e2e files
+  // are checked by `tsc --noEmit` against tsconfig.json; Next 16.4 started
+  // failing `next build` on their mock typings.
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "data",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "e2e"
+  ]
+}
