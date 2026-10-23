@@ -20,9 +20,24 @@ import type { AppleTVRepeatMode } from "./apple-tv/playlists";
  * running it then would start music nobody asked for.
  */
 
+/**
+ * The player a command is for: the Nova TV app on the television, or the Nova
+ * app on the phone (`specs/apple-tv-volume.md` §Play). A record written before
+ * targets existed was the TV's.
+ */
+export type PlayTarget = "appletv" | "iphone";
+export const PLAY_TARGETS: readonly PlayTarget[] = ["appletv", "iphone"];
+
+export function playTarget(value: unknown): PlayTarget | null {
+  if (value === undefined || value === null || value === "") return "appletv";
+  return PLAY_TARGETS.includes(value as PlayTarget) ? (value as PlayTarget) : null;
+}
+
 export type AppleTVPlayCommand = {
   /** Rising, so the app can run each press once and skip what it has run. */
   id: number;
+  /** Which player runs it; each app asks only for its own. */
+  target: PlayTarget;
   /** The preset's name — what the app resolves against the library. */
   name: string;
   shuffle: boolean;
@@ -49,8 +64,11 @@ function parse(value: unknown): AppleTVPlayCommand | null {
   if (typeof record.name !== "string" || !record.name) return null;
   if (typeof record.at !== "string") return null;
   const repeat = record.repeat;
+  const target = playTarget(record.target);
+  if (!target) return null;
   return {
     id: record.id,
+    target,
     name: record.name,
     shuffle: record.shuffle === true,
     repeat: repeat === "all" || repeat === "infinite" ? repeat : "off",
@@ -63,7 +81,10 @@ function parse(value: unknown): AppleTVPlayCommand | null {
  * A command past its window is not handed over at all, so a press made while
  * the television was asleep cannot start music when it next wakes.
  */
-export async function readPendingPlayCommand(now = new Date()): Promise<AppleTVPlayCommand | null> {
+export async function readPendingPlayCommand(
+  now = new Date(),
+  target: PlayTarget = "appletv",
+): Promise<AppleTVPlayCommand | null> {
   let command: AppleTVPlayCommand | null = null;
   try {
     command = parse(JSON.parse(await readFile(statePath(), "utf8")));
@@ -71,7 +92,7 @@ export async function readPendingPlayCommand(now = new Date()): Promise<AppleTVP
     // No file yet, or one that will not parse: there is no command.
     return null;
   }
-  if (!command) return null;
+  if (!command || command.target !== target) return null;
   const age = now.getTime() - Date.parse(command.at);
   // Refused at both ends: a command dated in the future — a hand-edited file,
   // or a clock that moved back — would otherwise never age out and would be
@@ -96,11 +117,13 @@ let writes: Promise<void> = Promise.resolve();
 export async function writePlayCommand(
   preset: { name: string; shuffle: boolean; repeat: AppleTVRepeatMode },
   now = new Date(),
+  target: PlayTarget = "appletv",
 ): Promise<AppleTVPlayCommand> {
   const write = writes.then(async () => {
     const previous = await readCommandFile();
     const command: AppleTVPlayCommand = {
       id: Math.max((previous?.id ?? 0) + 1, now.getTime()),
+      target,
       name: preset.name,
       shuffle: preset.shuffle,
       repeat: preset.repeat,
