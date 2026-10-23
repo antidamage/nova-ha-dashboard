@@ -7,6 +7,11 @@
 // few times a second, and everything downstream — beat timeline, theme
 // rotation, house-party lighting, the render itself — is derived here.
 //
+// More than one player can report: the Apple TV (`appletv`) and the Nova phone
+// app (`iphone`). Each source keeps its own report, and the visualiser follows
+// the one that most recently started playing; a paused or silent source yields
+// to one that is playing (nova-appletv-dashboard `specs/ios-touch-app.md`).
+//
 // State is deliberately in-process and unpersisted. It describes "what is
 // playing right now", which has no meaning across a restart.
 import { publishPhonoscopeConfig } from "./dashboard-events";
@@ -41,7 +46,22 @@ export type PhonoscopeNowPlaying = {
 // the song is merely long.
 const STALE_AFTER_MS = 8_000;
 
-type Store = { current: PhonoscopeNowPlaying | null };
+// A source silent this long is forgotten, so the table holds only live players.
+const FORGET_AFTER_MS = 60_000;
+
+type SourceReport = {
+  report: PhonoscopeNowPlaying;
+  /** When this source last went from stopped to playing. A new track while it plays is not a start. */
+  startedAtMs: number;
+  /** When it last reported playing; 0 if it never has. */
+  lastPlayingAtMs: number;
+};
+
+type Store = {
+  sources: Record<string, SourceReport>;
+  /** The source the visualiser is following, kept until another one wins. */
+  selected?: string;
+};
 
 const globalWithNowPlaying = globalThis as typeof globalThis & {
   __novaPhonoscopeNowPlaying?: Store;
@@ -49,7 +69,9 @@ const globalWithNowPlaying = globalThis as typeof globalThis & {
 
 const store =
   globalWithNowPlaying.__novaPhonoscopeNowPlaying ??
-  (globalWithNowPlaying.__novaPhonoscopeNowPlaying = { current: null });
+  (globalWithNowPlaying.__novaPhonoscopeNowPlaying = { sources: {} });
+// A store created by an older module version during a dev hot reload.
+if (!store.sources) store.sources = {};
 
 function numberOr(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
@@ -112,22 +134,64 @@ export function normalizePhonoscopeNowPlaying(value: unknown): PhonoscopeNowPlay
   };
 }
 
+/**
+ * The source the visualiser follows, of those heard from in the last
+ * `STALE_AFTER_MS`: the playing one that started most recently. With nothing
+ * playing it stays on the source it was following while that one still reports,
+ * else the one that played last — never on whichever paused player posted last,
+ * which at 4 Hz from two paused players would swap on every post.
+ */
+function selectedSource(now: number): string | null {
+  const live = Object.entries(store.sources).filter(([, entry]) => now - entry.report.receivedAtMs <= STALE_AFTER_MS);
+  if (!live.length) return null;
+  const isSelected = (name: string) => (name === store.selected ? 1 : 0);
+  const playing = live.filter(([, entry]) => entry.report.playing);
+  if (playing.length) {
+    return playing.reduce((a, b) =>
+      b[1].startedAtMs > a[1].startedAtMs || (b[1].startedAtMs === a[1].startedAtMs && isSelected(b[0]) > isSelected(a[0]))
+        ? b : a)[0];
+  }
+  if (store.selected && live.some(([name]) => name === store.selected)) return store.selected;
+  return live.reduce((a, b) =>
+    b[1].lastPlayingAtMs > a[1].lastPlayingAtMs
+    || (b[1].lastPlayingAtMs === a[1].lastPlayingAtMs && b[1].report.receivedAtMs > a[1].report.receivedAtMs)
+      ? b : a)[0];
+}
+
+function selectedReport(now: number): PhonoscopeNowPlaying | null {
+  const name = selectedSource(now);
+  return name ? store.sources[name].report : null;
+}
+
 export function writePhonoscopeNowPlaying(value: unknown): PhonoscopeNowPlaying {
   const next = normalizePhonoscopeNowPlaying(value);
-  const previous = store.current;
-  store.current = next;
+  const now = next.receivedAtMs;
+  const previous = selectedReport(now);
+  for (const [name, entry] of Object.entries(store.sources)) {
+    if (now - entry.report.receivedAtMs > FORGET_AFTER_MS) delete store.sources[name];
+  }
+  const before = store.sources[next.source];
+  const wasPlaying = before !== undefined && before.report.playing
+    && now - before.report.receivedAtMs <= STALE_AFTER_MS;
+  store.sources[next.source] = {
+    report: next,
+    startedAtMs: next.playing && !wasPlaying ? now : before?.startedAtMs ?? now,
+    lastPlayingAtMs: next.playing ? now : before?.lastPlayingAtMs ?? 0,
+  };
+  store.selected = selectedSource(now) ?? undefined;
+  const selected = selectedReport(now);
 
   // Only a track change is worth waking the renderer's config path; position
   // updates arrive on its own poll and would otherwise spam the SSE bus at 4 Hz.
   const previousKey = previous?.track ? trackKey(previous.track) : "";
-  const nextKey = next.track ? trackKey(next.track) : "";
+  const nextKey = selected?.track ? trackKey(selected.track) : "";
   if (previousKey !== nextKey) publishPhonoscopeConfig("now-playing");
   return next;
 }
 
 export function readPhonoscopeNowPlaying(now = Date.now()): PhonoscopeNowPlaying {
-  const current = store.current;
-  if (!current || now - current.receivedAtMs > STALE_AFTER_MS) {
+  const current = selectedReport(now);
+  if (!current) {
     return {
       track: null,
       position: 0,
@@ -156,5 +220,6 @@ export function trackKey(track: PhonoscopeNowPlayingTrack) {
 }
 
 export function resetPhonoscopeNowPlayingForTest() {
-  store.current = null;
+  store.sources = {};
+  store.selected = undefined;
 }

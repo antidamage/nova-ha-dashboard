@@ -110,6 +110,19 @@ matched case- and accent-insensitively) and plays **that playlist** through
 rather than a queue of loose songs, playback carries on after our app leaves the
 screen, and the phonoscope keeps visualising it.
 
+**Each command names its player** (Adeline, 2026-10-23, the Nova phone app). A
+command carries `target`: `appletv`, the Nova TV app, or `iphone`, the Nova app
+on her phone (`nova-appletv-dashboard/specs/ios-touch-app.md`). Each app polls
+with `?target=<itself>` and is handed only its own; a poll without one is the
+television's, and a record written before targets existed reads as the
+television's, so an old record never starts on the phone. The preset buttons
+here still address the television; a "play on phone" control is not built yet.
+Both apps report now-playing under their own `source`, and the visualiser
+follows the one that most recently started playing (stopped to playing; a new
+track on a player already playing is not a start). With nothing playing it stays
+on the player it was following, so two paused players cannot swap it back and
+forth (`lib/phonoscope-now-playing.ts`).
+
 **Shuffle starts somewhere in the playlist, not at its first song** (Adeline,
 2026-09-22). Queuing the playlist takes the entry playback begins on, so a preset
 with its shuffle switch on starts on a **random entry** and an unshuffled one

@@ -93,7 +93,19 @@ describe("the command a preset press leaves for the app", () => {
       name: "Cool",
       repeat: "off",
       shuffle: false,
+      // A record from before targets was the television's.
+      target: "appletv",
     });
+  });
+
+  it("hands each player only the commands addressed to it", async () => {
+    const now = new Date();
+    writeFileSync(statePath(), JSON.stringify({ at: now.toISOString(), id: 5, name: "Cool", target: "iphone" }), "utf8");
+    expect(await readPendingPlayCommand(now)).toBeNull();
+    expect(await readPendingPlayCommand(now, "iphone")).toMatchObject({ id: 5, target: "iphone" });
+
+    writeFileSync(statePath(), JSON.stringify({ at: now.toISOString(), id: 6, name: "Cool", target: "toaster" }), "utf8");
+    expect(await readPendingPlayCommand(now)).toBeNull();
   });
 
   it("hands over nothing for a record that is not one", async () => {

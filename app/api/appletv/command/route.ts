@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readPendingPlayCommand } from "../../../../lib/appletv-command";
+import { playTarget, readPendingPlayCommand } from "../../../../lib/appletv-command";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,10 +13,17 @@ export const runtime = "nodejs";
  * not handed over at all, so a press made while the television was asleep
  * cannot start music when it next wakes; `specs/apple-tv-volume.md` §Play has
  * why the dashboard cannot do this itself.
+ *
+ * `?target=` names the asking player (`appletv`, the default, or `iphone`), and
+ * each is handed only the commands addressed to it.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const target = playTarget(new URL(request.url).searchParams.get("target"));
+  if (!target) {
+    return NextResponse.json({ error: "target must be appletv or iphone" }, { status: 400 });
+  }
   return NextResponse.json(
-    { command: await readPendingPlayCommand() },
+    { command: await readPendingPlayCommand(new Date(), target) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
