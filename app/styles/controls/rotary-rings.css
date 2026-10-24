@@ -22,8 +22,31 @@
 }
 
 .rotary-encoder-ring-slider {
-  cursor: pointer;
   outline: none;
+}
+
+/* Only the thumb is a handle; a toggle's whole track is its button. */
+.rotary-encoder-ring-slider[data-ring-kind="toggle"] {
+  cursor: pointer;
+}
+
+/* The thumb's grab target: invisible, but a real shape under the pointer so a
+   touch OS can steer a press onto the nearest one. */
+.rotary-encoder-rings .rotary-encoder-thumb-hotspot {
+  fill: transparent;
+  stroke: none;
+  pointer-events: all;
+  cursor: grab;
+}
+
+.rotary-encoder-rings:active .rotary-encoder-thumb-hotspot {
+  cursor: grabbing;
+}
+
+/* `pointer-events: all` above would otherwise override the folded layer's
+   `none`, and a tucking ring's thumb would still take presses. */
+.rotary-encoder-rings[data-collapsed="true"] .rotary-encoder-thumb-hotspot {
+  pointer-events: none;
 }
 
 .rotary-encoder-ring-slider[data-disabled="true"] {
@@ -67,23 +90,26 @@
   filter: drop-shadow(0 0 max(4px, calc(var(--re-track) * 0.3)) var(--re-color));
 }
 
-/* The thumb is a small piece of the knob: its tint, a lighter crown, a dark
-   edge and a drop shadow. No theme colour. */
+/* The thumb is a small piece of the knob cut from its ring's annulus: its
+   tint, a lighter crown, a dark edge and a drop shadow. No theme colour. */
 .rotary-encoder-thumb {
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
 }
 
 .rotary-encoder-rings .rotary-encoder-thumb-edge {
-  stroke: rgba(0, 0, 0, 0.6);
+  fill: rgba(0, 0, 0, 0.6);
+  stroke: none;
 }
 
 .rotary-encoder-rings .rotary-encoder-thumb-body {
-  stroke: color-mix(in srgb, var(--re-tint) 78%, #fff 22%);
+  fill: color-mix(in srgb, var(--re-tint) 78%, #fff 22%);
+  stroke: none;
 }
 
 .rotary-encoder-rings .rotary-encoder-thumb-crown {
-  stroke: color-mix(in srgb, var(--re-tint) 62%, #fff 38%);
-  stroke-opacity: 0.7;
+  fill: color-mix(in srgb, var(--re-tint) 62%, #fff 38%);
+  stroke: none;
+  fill-opacity: 0.7;
 }
 
 /* Ring labels: curved through the bottom gap, etched like the dial's caption.

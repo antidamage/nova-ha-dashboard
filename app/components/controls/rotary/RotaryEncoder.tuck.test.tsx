@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RotaryEncoder, TUCK_RING_MS, TUCK_RING_STAGGER_MS, type RotaryEncoderRing } from "../../RotaryEncoder";
-import { CENTRE, Dial, THREE, svgOf, useDialHarness } from "./RotaryEncoder.fixtures";
+import { CENTRE, Dial, THREE, at, svgOf, useDialHarness } from "./RotaryEncoder.fixtures";
+import { ringGeometry, thumbAngle } from "./geometry-model";
 
 useDialHarness();
 
@@ -78,6 +79,33 @@ describe("tuck-away", () => {
     tap(screen.getByRole("slider"), 120, 0, time);
     fireEvent.pointerDown(document.body, { buttons: 1, pointerId: 2 });
     expect(container.querySelector(".rotary-encoder")?.getAttribute("data-locked")).toBe("true");
+  });
+
+  it("lets no ring thumb be grabbed once locked, while the rings are still tucking away", () => {
+    vi.useFakeTimers();
+    const time = clock();
+    const change = vi.fn();
+    const grabbable: RotaryEncoderRing[] = [rings[0], { ...rings[1], onChange: change }];
+    const { container } = render(<Dial rings={grabbable} tuckAfterMs={5000} />);
+    const geometry = ringGeometry(200, 2);
+    const radius = geometry.radii[1];
+    const grab = thumbAngle(0.2, geometry.thumbHalfAngle[1]);
+    const drag = () => {
+      const hotspot = svgOf(container).querySelector('[data-thumb-hotspot="1"]') as Element;
+      fireEvent.pointerDown(hotspot, { buttons: 1, pointerId: 3, ...at(radius, grab) });
+      fireEvent.pointerMove(svgOf(container), { buttons: 1, pointerId: 3, ...at(radius, grab + 40) });
+      fireEvent.pointerUp(svgOf(container), { pointerId: 3, ...at(radius, grab + 40) });
+    };
+    tap(screen.getByRole("slider"), 120, 0, time);
+    drag();
+    // Unlocked, the same drag reaches the ring...
+    expect(change).toHaveBeenCalled();
+    change.mockClear();
+    // ...and locked, with the rings still drawn as they tuck, it does not.
+    fireEvent.pointerDown(document.body, { buttons: 1, pointerId: 2 });
+    expect(container.querySelector(".rotary-encoder")?.getAttribute("data-locked")).toBe("true");
+    drag();
+    expect(change).not.toHaveBeenCalled();
   });
 
   it("takes no turn while locked", () => {

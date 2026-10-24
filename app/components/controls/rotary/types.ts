@@ -196,6 +196,8 @@ export type RotaryEncoderProps = {
 export type RingPress = {
   index: number;
   drag: RingDrag;
+  /** Degrees from the thumb's centre to where the press landed on it. */
+  offset: number;
   /** Value before the press, so release can tell whether anything changed. */
   start: number;
   at: number;

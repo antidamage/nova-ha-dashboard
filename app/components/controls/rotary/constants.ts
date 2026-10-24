@@ -41,9 +41,18 @@ export const DIAL_RADIUS_SHARE = 0.5 + UNLOCK_RING_SHARE + RING_SHARE + BEVEL_SH
  */
 export const DIAL_OUTER_RATIO = 2 * DIAL_RADIUS_SHARE;
 
-/** Thumb thickness and visible length (round ends included), in track widths. */
+/**
+ * Thumb thickness and length, in track widths. The length was 2.4 until
+ * 2026-10-24, when Adeline asked for a thumb about half as big again so it can
+ * be grabbed reliably; the thickness stays, because at 1.3 tracks a thumb is
+ * already within a few px of the next ring's, and its hotspot is the ring's
+ * whole band across regardless.
+ */
 export const THUMB_THICKNESS = 1.3;
-export const THUMB_LENGTH = 2.4;
+export const THUMB_LENGTH = 3.6;
+
+/** How far a thumb's hotspot reaches past each end of the thumb, in track widths. */
+export const THUMB_HOTSPOT_PAD = 1;
 
 /** Clearance between a ring's label and its value, in label font sizes. */
 export const LABEL_VALUE_CLEARANCE = 1.5;

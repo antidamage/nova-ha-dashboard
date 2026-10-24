@@ -333,10 +333,16 @@ layout, but overriding those does not move the rings.
   A single tight bloom, `max(4px, 30% of T)`, keeping the LED's px floor so it
   still reads at small sizes. The fill is about 60% of `T` so the well's edges
   still show it as a channel. At `min` the fill is empty.
-- The **thumb** is a raised arc segment that bends with its track: `1.3 × T`
-  thick, `2.4 × T` long including its rounded ends — a constant length, so it
-  reads the same on every ring. Painted in the knob's tint with a light top
-  edge and a drop shadow. No theme colour.
+- The **thumb** is a piece of its ring's annulus: two arcs on the dial's
+  centre and two **radial** ends, corners rounded by 30% of its thickness, so it
+  bends with its track and never reads as a rotated pill or rectangle (Adeline,
+  2026-10-24). `1.3 × T` thick and `3.6 × T` long — half as long again as the
+  `2.4 × T` it was, so it can be grabbed reliably (Adeline, 2026-10-24). The
+  thickness stays: at `1.3 × T` it is already within about `0.08 × P` of the
+  next ring's thumb, and the hotspot is the ring's whole band across anyway. A
+  constant length, so it reads the same on every ring. Painted in the knob's
+  tint with a lighter crown (55% of its thickness), a dark 0.5px edge and a drop
+  shadow. No theme colour.
 - Each **ring label** is curved along its own ring through the bottom gap,
   reading left to right and upright, in font `F` with the caption's etched
   treatment. It is **left-aligned to where its ring's track starts** (7:30),
@@ -367,8 +373,8 @@ Adeline, 2026-09-12.
 
 - **`slider`** — everything above. The default.
 - **`selector`** — discrete stops spaced evenly across the arc (thumb
-  centres inset as for a slider). Tap to jump to the nearest stop, drag to
-  snap between stops — the value snaps at once and the thumb glides to it. It
+  centres inset as for a slider). Grab the thumb and drag it to snap between
+  stops — the value snaps at once and the thumb glides to it. It
   **does not fill behind the thumb**: the caller gives
   the whole track one fill colour for the current stop, or none, which leaves
   an empty well. Arrows move one stop.
@@ -434,7 +440,28 @@ space (Adeline).
 
 Rings share the dial's pointer surface.
 
-- **Which ring**: by distance `d` from the centre. **Only the knob's own disc
+- **The thumb is the only handle** (Adeline, 2026-10-24, after two months of
+  use: with every thumb in one place the old tap-anywhere bands made the right
+  one hard to get). A press grabs a slider or selector only on its thumb's
+  **hotspot**; a press anywhere else on a track does nothing.
+  - The hotspot is an annular sector: radially, the ring's **band** below;
+    angularly, the thumb plus **one track** (`THUMB_HOTSPOT_PAD`) past each
+    end. Bands of neighbouring rings meet and never overlap, so neither can
+    two hotspots — thumbs lined up on every ring still give each press exactly
+    one owner.
+  - Each hotspot is a real, invisible SVG shape on top of its ring. When the
+    browser reports a hotspot as the press's target, that ring wins; otherwise
+    the dial tests the same shapes by geometry, which is what decides most
+    presses — browsers retarget taps and clicks onto nearby targets far more
+    readily than they do a pointer press. Whether that is enough on the
+    dashboard's touch screens is to be tested (Adeline, 2026-10-24).
+  - **Grabbing never moves the thumb.** The angle between the press and the
+    thumb's centre is kept for the whole drag, so a grab near one end does not
+    jump the thumb to the finger. The press clicks once; release clicks again
+    only if the value changed.
+  - A toggle ring has no thumb, so a tap anywhere on its track still toggles it.
+  - Hidden and disabled rings have no hotspot.
+- **Which ring a band belongs to**: by distance `d` from the centre. **Only the knob's own disc
   is the knob** — `d ≤ size / 2`. The colour ring and the bevel around it
   belong to the **innermost ring**, which otherwise offered a few pixels of
   target hard against the knob's edge and lost nearly every press to it,
@@ -442,10 +469,14 @@ Rings share the dial's pointer surface.
   everything up to `R₀ + P/2`, and beyond that ring `i = 1 + floor((d − (R₀ +
   P/2)) / P)`, each keeping a band of one pitch centred on its own track; past
   the last ring, nothing.
-- **The label gap is dead**: a press in the bottom 90° does nothing.
-- **Tap the track to jump.** Unlike the knob, a ring is absolute: a press sets
-  the ring's **value** from the press angle straight away, and the drag follows
-  the pointer's angle. On a ring that steps, the thumb then glides to the new
+- **The label gap is dead**: a press in the bottom 90° does nothing — except
+  within a thumb's hotspot, whose pad reaches one track past the track's end
+  when the thumb sits at `min` or `max`. That press grabs the thumb and moves
+  nothing until the drag does.
+- **No tap-to-jump.** Until 2026-10-24 a tap on the track jumped the thumb to
+  it; that is gone (see "The thumb is the only handle"). Once grabbed, the drag
+  follows the pointer's angle, less the grab offset, so the value is absolute to
+  where the thumb is dragged. On a ring that steps, the thumb glides to each new
   stop rather than teleporting to it (see "A step glides, it never snaps"). A
   ring is a slider bent round a circle, not a knob.
 - **The gap pins, it never jumps.** Dragging into the gap pins the value at the
@@ -455,8 +486,8 @@ Rings share the dial's pointer surface.
   label. Arrows move by `step` (or 1% of the range without one), Shift is 8×
   finer, `onCommit` on key up.
 - **Clicks** follow the dial's rule: one on press, none while dragging, one on
-  release only if the gesture changed the value. A quick tap that jumped the
-  thumb is one gesture and clicks once.
+  release only if the gesture changed the value. A tap on a thumb changes
+  nothing and clicks once.
 - No tap-to-type: rings do not open `NumericEntryPopover`.
 
 ### A step glides, it never snaps

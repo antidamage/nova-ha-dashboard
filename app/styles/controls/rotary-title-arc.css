@@ -39,15 +39,15 @@
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-edge {
-  stroke: rgba(0, 0, 0, 0.26);
+  fill: rgba(0, 0, 0, 0.26);
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-body {
-  stroke: var(--re-tint);
+  fill: var(--re-tint);
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-crown {
-  stroke: #ffffff;
+  fill: #ffffff;
 }
 
 /* A ring's value, right-aligned so it ends where its track ends

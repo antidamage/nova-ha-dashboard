@@ -9,7 +9,7 @@
  * sunken ring the caller paints, and outside that up to five arc slider rings.
  * The knob turns like a real knob: a drag applies the angle swept about the
  * centre since the last sample, never jumping to meet the pointer. Rings are
- * sliders bent round a circle and their value is absolute to the press; a ring
+ * sliders bent round a circle, moved only by grabbing the thumb; a ring
  * with a step then glides its thumb to the stop it was aimed at rather than
  * snapping to it (specs/color-encoder.md, "A step glides, it never snaps").
  *
@@ -64,6 +64,7 @@ import {
   titlePath,
 } from "./geometry-model";
 import { dragStep, fractionOf, valueAt } from "./ring-drag-model";
+import { grabbedAngle, hotspotPath, sectorPath, thumbAt as thumbHit } from "./thumb-model";
 import { glidesOnStep } from "./ring-glide-model";
 import type { RingPress, RotaryEncoderProps, RotaryEncoderRing } from "./types";
 import { FaceText } from "./faceText";
@@ -465,21 +466,36 @@ export function RotaryEncoder({
     const ring = shown[press.index];
     const [min, max] = ringRange(ring);
     const half = geometry.thumbHalfAngle[press.index];
-    press.drag = dragStep(press.drag, angleAt, half, endOf(press.index));
+    press.drag = dragStep(press.drag, grabbedAngle(angleAt, press.offset), half, endOf(press.index));
     return setRing(ring, valueAt(press.drag.t, min, max, ringStep(ring)));
   };
 
   const ringHandlers = {
     onPointerDown: (event: React.PointerEvent<SVGSVGElement>) => {
+      // A locked dial's rings stay drawn while they tuck away, and must not
+      // be grabbed in that time.
+      if (tuckable && locked) return;
       const { distance, angle: at } = locate(event);
-      const index = ringAt(geometry, distance);
-      if (index === null || at < ARC_START || at > endOf(index)) return;
-      const ring = shown[index];
-      if (ringInert(ring)) return;
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      noteInput();
-      if (ringKind(ring) === "toggle") {
-        // No thumb and no drag: the press is the whole gesture.
+      // Only a thumb is a handle: a press on a track away from its thumb does
+      // nothing (specs/color-encoder.md, "The thumb is the only handle"). The
+      // hotspot the browser picked wins — a touch OS nudges a fat-finger press
+      // onto the nearest target — and otherwise the same shapes are tested
+      // by geometry.
+      const thumbAngles = shown.map((ring, index) =>
+        ringKind(ring) === "toggle" || ringInert(ring)
+          ? null
+          : thumbAngle(ringDrawn(ring), geometry.thumbHalfAngle[index], endOf(index)));
+      const hotspot = (event.target as Element | null)?.closest?.("[data-thumb-hotspot]");
+      const picked = hotspot ? Number(hotspot.getAttribute("data-thumb-hotspot")) : NaN;
+      const grabbed = Number.isInteger(picked) && thumbAngles[picked] != null ? picked : thumbHit(geometry, distance, at, thumbAngles);
+      if (grabbed === null) {
+        // A toggle has no thumb: a tap anywhere on its track is the gesture.
+        const index = ringAt(geometry, distance);
+        if (index === null || at < ARC_START || at > endOf(index)) return;
+        const ring = shown[index];
+        if (ringInert(ring) || ringKind(ring) !== "toggle") return;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        noteInput();
         const [min, max] = ringRange(ring);
         selectionHaptic("dialClick");
         const next = ringValue(ring) > (min + max) / 2 ? min : max;
@@ -487,10 +503,16 @@ export function RotaryEncoder({
         ring.onCommit?.(next);
         return;
       }
+      const ring = shown[grabbed];
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      noteInput();
       const [min, max] = ringRange(ring);
       const press: RingPress = {
-        index,
+        index: grabbed,
         drag: { pinned: null, t: fractionOf(ring.value, min, max) },
+        // Measured against the thumb's centre as drawn, so where on the thumb
+        // the press landed is kept for the whole drag and nothing moves yet.
+        offset: at - (thumbAngles[grabbed] as number),
         start: ring.value,
         at: now(),
         x: event.clientX,
@@ -500,9 +522,7 @@ export function RotaryEncoder({
       ringPressRef.current = press;
       ringLiveRef.current[ring.id] = ring.value;
       selectionHaptic("dialClick");
-      // A tap on the track jumps the thumb there.
-      applyRingAngle(press, at);
-      (event.currentTarget.querySelector(`[data-ring-index="${index}"]`) as SVGElement | null)?.focus?.({ preventScroll: true });
+      (event.currentTarget.querySelector(`[data-ring-index="${grabbed}"]`) as SVGElement | null)?.focus?.({ preventScroll: true });
     },
     onPointerMove: (event: React.PointerEvent<SVGSVGElement>) => {
       const press = ringPressRef.current;
@@ -520,11 +540,9 @@ export function RotaryEncoder({
       const final = ringValue(ring);
       delete ringLiveRef.current[ring.id];
       noteInput();
-      // A quick tap that jumped the thumb is one gesture and clicks once, as a
-      // tap on the dial does; a drag or a held press clicks again on release
-      // if it changed the value.
-      const tap = press.travel < TAP_MOVE_THRESHOLD_PX && now() - press.at < TAP_MAX_MS;
-      if (!tap && final !== press.start) selectionHaptic("dialClick");
+      // A press clicks once; a drag clicks again on release if it changed the
+      // value. A tap on a thumb no longer moves it, so it clicks once.
+      if (final !== press.start) selectionHaptic("dialClick");
       ring.onCommit?.(final);
     },
     onPointerCancel: () => {
@@ -733,10 +751,12 @@ export function RotaryEncoder({
         const thumbAt = thumbAngle(fraction, half, end);
         const labelText = fitted[index] ?? ring.label.toUpperCase();
         const trackPath = arcPath(centre, centre, radius, ARC_START, end);
-        // The path between the thumb's round ends: its visible length is
-        // THUMB_LENGTH tracks, of which the two caps take THUMB_THICKNESS.
-        const thumbCore = ((THUMB_LENGTH - THUMB_THICKNESS) * track) / 2 / radius * (180 / Math.PI);
-        const thumbPath = arcPath(centre, centre, radius, thumbAt - thumbCore, thumbAt + thumbCore);
+        // A piece of the annulus, bending with its track and with radial
+        // ends, so it never reads as a rotated pill (Adeline, 2026-10-24).
+        const thumbLong = THUMB_LENGTH * track;
+        const thumbThick = THUMB_THICKNESS * track;
+        const thumbPath = (grow: number, thickness: number) =>
+          sectorPath(centre, centre, radius, thumbAt, thumbLong + grow, thickness, thickness * 0.3);
         const off = ringDisabled(ring);
         const away = ringHidden(ring);
         const on = kind === "toggle" && item > (min + max) / 2;
@@ -809,10 +829,16 @@ export function RotaryEncoder({
             )}
             {kind === "toggle" ? null : (
               <g className="rotary-encoder-thumb">
-                <path className="rotary-encoder-thumb-edge" d={thumbPath} strokeWidth={track * THUMB_THICKNESS + 1} />
-                <path className="rotary-encoder-thumb-body" d={thumbPath} strokeWidth={track * THUMB_THICKNESS} />
-                <path className="rotary-encoder-thumb-crown" d={thumbPath} strokeWidth={track * THUMB_THICKNESS * 0.55} />
+                <path className="rotary-encoder-thumb-edge" d={thumbPath(1, thumbThick + 1)} />
+                <path className="rotary-encoder-thumb-body" d={thumbPath(0, thumbThick)} />
+                <path className="rotary-encoder-thumb-crown" d={thumbPath(-thumbThick * 0.45, thumbThick * 0.55)} />
               </g>
+            )}
+            {/* The thumb's grab target: this ring's whole band across and the
+                thumb plus a pad along it. Bands never overlap, so neither do
+                these. Drawn last so it is the topmost thing under a press. */}
+            {kind === "toggle" || off || away ? null : (
+              <path className="rotary-encoder-thumb-hotspot" data-thumb-hotspot={index} d={hotspotPath(geometry, index, centre, thumbAt)} />
             )}
             {/* Flat, unembossed (Adeline, 2026-09-12): the offset copies that
                 used to etch this read as black shadows above and below it. */}
