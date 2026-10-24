@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import * as haptics from "./haptics";
 import { ColorEncoder } from "./ColorEncoder";
 import { ringGeometry } from "./rotaryEncoderGeometry";
-import { Controlled, at, onKnob, start, svgOf, useDialHarness } from "./ColorEncoderRings.fixtures";
+import { Controlled, at, onKnob, start, svgOf, thumbOf, useDialHarness } from "./ColorEncoderRings.fixtures";
 
 useDialHarness();
 
@@ -85,15 +85,16 @@ describe("ColorEncoder", () => {
       expect(click).toHaveBeenCalledTimes(1);
     });
 
-    it("ring: a quick tap that jumps the thumb clicks once", () => {
+    it("ring: a quick tap on the thumb clicks once and leaves it where it is", () => {
       const click = vi.spyOn(haptics, "selectionHaptic").mockReturnValue(true);
       const advance = clock();
       const { container } = render(<Controlled initial={[10]} />);
-      const radius = ringGeometry(200, 1, true).radii[0];
-      fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(radius, 0) });
+      const { radius, angle } = thumbOf(10);
+      fireEvent.pointerDown(svgOf(container), { buttons: 1, pointerId: 1, ...at(radius, angle) });
       advance(80);
-      fireEvent.pointerUp(svgOf(container), { pointerId: 1, ...at(radius, 0) });
+      fireEvent.pointerUp(svgOf(container), { pointerId: 1, ...at(radius, angle) });
       expect(click).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("slider", { name: "Ring 0" }).getAttribute("aria-valuenow")).toBe("10");
     });
   });
 });

@@ -7,6 +7,7 @@ import { afterEach, beforeAll, vi } from "vitest";
 import { ColorEncoder, type ColorEncoderRing } from "./ColorEncoder";
 import type { Hsva } from "./colorEncoderModel";
 import { DIAL_OUTER_RATIO } from "./controls/rotary/constants";
+import { ringGeometry, thumbAngle } from "./controls/rotary/geometry-model";
 
 /** The 200px dial's box: --re-outer is DIAL_OUTER_RATIO knob diameters. */
 export const DIAL_BOX = 200 * DIAL_OUTER_RATIO;
@@ -49,6 +50,12 @@ export function onKnob(angle: number) {
 }
 
 export const start: Hsva = { h: 200, s: 50, v: 50, a: 100 };
+
+/** Where a titled 200px dial draws ring `index`'s thumb for `value` out of 0–100. */
+export function thumbOf(value: number, index = 0, rings = 1) {
+  const geometry = ringGeometry(200, rings, true);
+  return { radius: geometry.radii[index], angle: thumbAngle(value / 100, geometry.thumbHalfAngle[index]) };
+}
 
 /**
  * jsdom lays nothing out, so the rings' SVG reports a zero box at the origin:

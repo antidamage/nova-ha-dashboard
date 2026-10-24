@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ringGeometry } from "./controls/rotary/geometry-model";
+import { ringGeometry, thumbAngle } from "./controls/rotary/geometry-model";
 import { timerMinutesToFraction } from "./timerEncoderMath";
 import { DIAL_BOX, at, useDialHarness } from "./controls/rotary/RotaryEncoder.fixtures";
 
@@ -74,11 +74,15 @@ describe("TimerEncoder", () => {
     turnKnob(from, from + sweepFor(0, timerMinutesToFraction(10)));
   }
 
-  function pressRing(index = 130) {
+  /** Grabs the icon ring's thumb at its first stop and drags it to `angle`. */
+  function pressRing(angle = 130) {
     const svg = document.querySelector("svg.rotary-encoder-rings")!;
-    const radius = ringGeometry(200, 1, true).radii[0];
-    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 2, ...at(radius, index) });
-    fireEvent.pointerUp(svg, { pointerId: 2, ...at(radius, index) });
+    const rings = ringGeometry(200, 1, true);
+    const radius = rings.radii[0];
+    const grab = thumbAngle(0, rings.thumbHalfAngle[0]);
+    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 2, ...at(radius, grab) });
+    fireEvent.pointerMove(svg, { buttons: 1, pointerId: 2, ...at(radius, angle) });
+    fireEvent.pointerUp(svg, { pointerId: 2, ...at(radius, angle) });
   }
 
   beforeEach(() => {
@@ -119,7 +123,7 @@ describe("TimerEncoder", () => {
     expect(svg?.querySelector(".rotary-encoder-ring-value")).toBeNull();
 
     pressRing();
-    // A press on the ring is not a tap on the knob: the field stays shut.
+    // A drag on the ring is not a tap on the knob: the field stays shut.
     expect(screen.queryByRole("dialog", { name: "Timer minutes" })).toBeNull();
     // The last icon of the three is a text glyph, so it shows on the face.
     expect(document.querySelector(".reminder-glyph-text")?.textContent).toBe("T");

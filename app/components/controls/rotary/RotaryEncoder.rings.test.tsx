@@ -39,8 +39,10 @@ describe("ring kinds", () => {
     }];
     const { container } = render(<Dial rings={rings} />);
     const svg = svgOf(container);
-    // A press just past the middle stop lands on it, not between stops.
-    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 10) });
+    // Grabbed at the first stop and let go just past the middle one: it lands
+    // on that stop, not between stops.
+    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, thumbAngle(0, geometry.thumbHalfAngle[0])) });
+    fireEvent.pointerMove(svg, { buttons: 1, pointerId: 1, ...at(radius, 10) });
     fireEvent.pointerUp(svg, { pointerId: 1, ...at(radius, 10) });
     expect(onCommit.mock.lastCall?.[0]).toBe(1);
     expect(container.querySelector(".rotary-encoder-fill")).toBeNull();
@@ -103,7 +105,7 @@ describe("ring kinds", () => {
     const reading = () => svg.querySelector(".rotary-encoder-ring-value")?.textContent;
 
     expect(reading()).toBe("0 MIN");
-    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, 0) });
+    fireEvent.pointerDown(svg, { buttons: 1, pointerId: 1, ...at(radius, thumbAngle(0, geometry.thumbHalfAngle[0])) });
     fireEvent.pointerMove(svg, { buttons: 1, pointerId: 1, ...at(radius, 120) });
     expect(reading()).not.toBe("0 MIN");
     expect(onCommit).not.toHaveBeenCalled();
