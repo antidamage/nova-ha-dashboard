@@ -1,48 +1,52 @@
 "use client";
 
-import { X } from "lucide-react";
-import type { NotificationSeverity } from "../../../lib/notifications";
+import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import { useNotifications } from "./useNotifications";
-
-const SEVERITY_BORDER: Record<NotificationSeverity, string> = {
-  info: "border-cyan-300/60",
-  success: "border-emerald-400/70",
-  warning: "border-amber-400/80",
-  critical: "border-red-500/90",
-};
 
 /**
  * One-off notifications raised through POST /api/notifications (see
- * specs/notifications.md). Stacked top-right on every screen; tap the X to
- * dismiss it everywhere. Plain markup, no animation or canvas, so it is the
- * same in rich and lite experience modes.
+ * specs/notifications.md), drawn with the reminder alert banner's own classes
+ * (`task-alert-banner`, `task-alert-title`; app/styles/tasks/task-alerts.css)
+ * and stacked on every screen. Tap a banner to dismiss it everywhere; with two
+ * or more showing, "Clear all" dismisses every one this screen is showing.
+ * Both keep the banner class on the tapped element so the reminder alert's
+ * capture-phase tap swallow (useTaskAlerts) lets the tap through. Plain markup,
+ * no glow or animation, so it is the same in rich and lite experience modes.
  */
 export function NotificationStack() {
-  const { dismiss, notifications } = useNotifications();
+  const { dismiss, dismissMany, notifications } = useNotifications();
   if (notifications.length === 0) return null;
 
   return (
-    <div
-      aria-live="polite"
-      className="nova-notification-stack fixed right-5 top-5 z-[60] flex w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-2"
-    >
-      {notifications.map((entry) => (
-        <div
-          className={`nova-notification border bg-neutral-950 px-4 py-3 text-sm text-cyan-50 shadow-2xl ${SEVERITY_BORDER[entry.severity]}`}
-          data-severity={entry.severity}
-          key={entry.id}
-          role={entry.severity === "critical" ? "alert" : "status"}
+    <div className="task-alert-stack">
+      {notifications.length >= 2 ? (
+        <MomentaryFeedbackButton
+          aria-label="Clear all notifications"
+          className="task-alert-banner task-alert-clear-all"
+          onClick={() => dismissMany(notifications.map((entry) => entry.id))}
+          type="button"
         >
-          <div className="flex items-start justify-between gap-3">
-            <p className="font-black uppercase">{entry.title}</p>
-            <button aria-label="Dismiss notification" className="shrink-0 opacity-70" onClick={() => dismiss(entry.id)} type="button">
-              <X size={16} />
+          Clear all ({notifications.length})
+        </MomentaryFeedbackButton>
+      ) : null}
+      {notifications.map((entry) => {
+        const meta = [entry.severity === "info" ? null : entry.severity, entry.source].filter(Boolean).join(" · ");
+        return (
+          <div key={entry.id} role={entry.severity === "critical" ? "alert" : "status"}>
+            <button
+              aria-label={`Dismiss ${entry.title} notification`}
+              className="task-alert-banner"
+              data-severity={entry.severity}
+              onClick={() => dismiss(entry.id)}
+              type="button"
+            >
+              <span className="task-alert-title">{entry.title}</span>
+              {entry.body ? <span className="task-alert-body">{entry.body}</span> : null}
+              {meta ? <span className="task-alert-meta">{meta}</span> : null}
             </button>
           </div>
-          {entry.body ? <p className="mt-1 whitespace-pre-wrap">{entry.body}</p> : null}
-          {entry.source ? <p className="mt-1 text-xs opacity-60">{entry.source}</p> : null}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

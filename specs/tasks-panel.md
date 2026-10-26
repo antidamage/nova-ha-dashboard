@@ -166,6 +166,9 @@ highlighted Reminders menu item already names it.
   - Disabled: no bottom bar or overlay renders, and the capture-phase tap
     swallow is not installed, so it doesn't eat taps meant for the reminder
     icon bar.
+- The banner's classes (`task-alert-banner`, `task-alert-title`) are shared with
+  the one-off notification stack (`specs/notifications.md`); the capture-phase tap
+  swallow above lets a tap through only on an element carrying `task-alert-banner`.
 - Audio plays from `/api/tasks/audio` when an MP3 exists. A reminder chimes
   **once per occurrence, household-wide**: the first screen to play it
   claims the occurrence via `POST /api/tasks/:id/chimed`, which sets

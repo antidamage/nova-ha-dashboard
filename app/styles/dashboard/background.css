@@ -109,7 +109,7 @@ html[data-nova-no-background] .dashboard-shell::after {
    context: the breadcrumb trail inside it has to compete with the header fade
    strip's 90 at the shell's level (specs/config-page-header.md). The column's own
    children carry the lift instead — `app/styles/config/layout.css`. */
-.dashboard-shell > *:not(.fluid-background):not(.dashboard-wallpaper-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date):not(.config-header-band):not(.config-layout) {
+.dashboard-shell > *:not(.fluid-background):not(.dashboard-wallpaper-background):not(.dashboard-config-link):not(.header-fade-strip):not(.header-mini-clock):not(.header-mini-date):not(.config-header-band):not(.config-layout):not(.task-alert-stack) {
   position: relative;
   z-index: 1;
 }

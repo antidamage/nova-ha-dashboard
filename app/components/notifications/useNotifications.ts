@@ -45,16 +45,21 @@ export function useNotifications() {
     });
   }, []);
 
-  const dismiss = useCallback((id: string) => {
-    setNotifications((current) => current.filter((entry) => entry.id !== id));
-    void fetch(`/api/notifications?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {
-      // The server drops it at expiry regardless; a failed dismiss only means
-      // other screens keep it until then.
-    });
+  const dismissMany = useCallback((ids: string[]) => {
+    const dismissed = new Set(ids);
+    setNotifications((current) => current.filter((entry) => !dismissed.has(entry.id)));
+    for (const id of ids) {
+      // A 404 means it already expired or was dismissed elsewhere: nothing to
+      // do. The server drops it at expiry regardless; a failed dismiss only
+      // means other screens keep it until then.
+      void fetch(`/api/notifications?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => undefined);
+    }
   }, []);
+
+  const dismiss = useCallback((id: string) => dismissMany([id]), [dismissMany]);
 
   const visible = notifications.filter(
     (entry) => entry.expiresAt === null || Date.parse(entry.expiresAt) > nowMs,
   );
-  return { dismiss, notifications: visible };
+  return { dismiss, dismissMany, notifications: visible };
 }

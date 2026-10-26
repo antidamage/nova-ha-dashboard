@@ -118,6 +118,74 @@ body.task-glow-preview::after {
   }
 }
 
+/* One-off notifications (NotificationStack): the banner above, stacked and
+   compact. Not an overlay: the container ignores pointer events and only the
+   banners take them, so the dashboard stays usable. z-index sits above the
+   reminder overlay (1500) so a notification stays tappable while a reminder
+   shows. No glow is added here, so lite mode has nothing extra to flatten. */
+.task-alert-stack {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  z-index: 1510;
+  display: flex;
+  width: min(720px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.task-alert-stack > * {
+  pointer-events: auto;
+}
+
+.task-alert-stack .task-alert-banner {
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-family: var(--cyber-mono);
+  font-weight: 900;
+  line-height: 1.1;
+  padding: 14px 18px;
+  touch-action: manipulation;
+}
+
+.task-alert-stack .task-alert-title {
+  max-width: 100%;
+  font-size: 1.5rem;
+}
+
+.task-alert-body,
+.task-alert-meta {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: none;
+  white-space: pre-wrap;
+}
+
+.task-alert-meta {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+}
+
+.task-alert-stack .task-alert-clear-all {
+  width: auto;
+  align-self: flex-end;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
 @keyframes task-alert-pulse {
   0%,
   100% {
