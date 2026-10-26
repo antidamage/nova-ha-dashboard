@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DashboardEntity, DashboardState } from "./types";
 
 const buildDashboardState = vi.fn<() => Promise<DashboardState>>();
-const callService = vi.fn(async () => undefined);
-const mergeDashboardPreferences = vi.fn(async () => undefined);
+const callService = vi.fn(async (..._args: unknown[]) => undefined);
+const mergeDashboardPreferences = vi.fn(async (..._args: unknown[]) => undefined);
 
 vi.mock("./state", () => ({
   buildDashboardState: () => buildDashboardState(),

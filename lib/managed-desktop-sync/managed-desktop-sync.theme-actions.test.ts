@@ -19,10 +19,12 @@ describe("managed desktop sync", () => {
   });
 
   it("replaces the lock screen on Windows targets that opt in, and only there", async () => {
-    const windows = { ...testComputer(), capabilities: { lockScreen: true, sleep: true, wallpaper: true } };
+    // The fixture's capabilities type predates `lockScreen`; the test opts in on purpose.
+    const lockScreenCapabilities = { lockScreen: true, sleep: true, wallpaper: true } as { sleep: boolean; wallpaper: boolean };
+    const windows = { ...testComputer(), capabilities: lockScreenCapabilities };
     const linux = {
       ...testComputer(),
-      capabilities: { lockScreen: true, sleep: true, wallpaper: true },
+      capabilities: lockScreenCapabilities,
       id: "kde-box",
       name: "KDE Box",
       platform: "kde-linux" as const,

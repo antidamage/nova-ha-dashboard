@@ -38,7 +38,7 @@ describe("companion routes", () => {
   it("drops an unknown choice", () => {
     const settings = normalizeVoiceSettings({
       companionRoutes: { interpret: "phone-only", classify_icon: "local" },
-    });
+    } as never);
 
     expect(settings.companionRoutes).toEqual({ classify_icon: "local" });
   });

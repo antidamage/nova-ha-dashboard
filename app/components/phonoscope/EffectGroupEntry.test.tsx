@@ -14,7 +14,7 @@ import type { PhonoscopeDriver, PhonoscopeEffectBinding } from "../../../lib/typ
 
 const catalogue = effectCatalogue([]);
 const groups = effectGroups(catalogue, []);
-const driver: PhonoscopeDriver = { type: "beat", every: 1 };
+const driver: PhonoscopeDriver = { type: "beat", every: 1, offset: 0, divide: 1, intervalSeconds: 1, cadence: "beat" };
 
 const groupNamed = (id: string) => {
   const group = groups.find((entry) => entry.id === id);

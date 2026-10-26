@@ -100,7 +100,7 @@ describe("managed desktop sync", () => {
   it("keeps retrying the webhook after a failure, and never fails the sync for it", async () => {
     const { mod, sendThemeChangeNotification, tempDir } = await importSyncModule();
     try {
-      sendThemeChangeNotification.mockResolvedValueOnce({ error: "boom", ok: false, sent: false });
+      sendThemeChangeNotification.mockResolvedValueOnce({ error: "boom", ok: false, sent: false } as { ok: boolean; sent: boolean });
       const results = await mod.syncManagedDesktopWallpapers(themeWithWallpaper(ASSET_1));
       expect(results[0]).toMatchObject({ action: "wallpaper", ok: true });
 

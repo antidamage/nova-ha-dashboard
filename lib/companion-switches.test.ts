@@ -33,7 +33,7 @@ describe("companion kill switches", () => {
     const settings = normalizeVoiceSettings({
       companionEnabled: "false",
       companionForceLocal: 1,
-    });
+    } as never);
 
     expect(settings.companionEnabled).toBeUndefined();
     expect(settings.companionForceLocal).toBeUndefined();

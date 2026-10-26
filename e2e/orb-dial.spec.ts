@@ -66,7 +66,7 @@ test.describe("status orb dial", () => {
       const host = orb(page);
       const box = (await host.boundingBox())!;
       const cdp = await context.newCDPSession(page);
-      const touch = (type: string, point?: [number, number]) => cdp.send("Input.dispatchTouchEvent", {
+      const touch = (type: "touchStart" | "touchMove" | "touchEnd" | "touchCancel", point?: [number, number]) => cdp.send("Input.dispatchTouchEvent", {
         type, touchPoints: point ? [{ x: point[0], y: point[1], id: 1, radiusX: 4, radiusY: 4, force: 1 }] : [],
       });
       await touch("touchStart", ringPoint(box, 0));
