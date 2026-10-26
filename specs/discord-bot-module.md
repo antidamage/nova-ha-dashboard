@@ -324,6 +324,13 @@ Never a quiet `200`: the calling agent has to know whether anyone was told.
 The rule that obliges agents to call it is in `AGENTS.md`, "Ping Discord before
 you stop for the owner".
 
+An optional `kind` field selects the stamp (module 0.3.2). Absent or
+`"attention"` is the ping above. `"preview"` is a scheduled agent's heads-up
+about what it is about to build — the nightly self-upgrade's one message a
+night (`nightly-self-upgrade.md`) — and reads `✨ **Tonight on Nova** —
+<summary>`, trimmed to 800 characters, with no Needs-you stamp, because nothing
+is waiting on her. Any other `kind` is `400`, never sent as a ping.
+
 ---
 
 ## Inbound commands

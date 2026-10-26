@@ -59,6 +59,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | [self-update-channel.md](self-update-channel.md) | Where the dashboard looks for a new version, which config layer decides it, and the host-side apply half |
 | [update-force-endpoint.md](update-force-endpoint.md) | OAuth-protected `POST /api/update/force`: client-credentials tokens, the client registry, scopes, and how an agent forces an update now |
 | [testing.md](testing.md) | Test layers, what each one guards, and how to run them |
+| [nightly-self-upgrade.md](nightly-self-upgrade.md) | The nightly agent run that ships one reviewed, revertable improvement a night, its Discord preview and its report |
 | [mcp-and-agent-interface.md](mcp-and-agent-interface.md) | The MCP surface the dashboard exposes to agents |
 | [system-power-controls.md](system-power-controls.md) | Host power actions and the reconnect blocker |
 | [product-decisions.md](product-decisions.md) | Decisions carried forward from prior work, with their reasons |
