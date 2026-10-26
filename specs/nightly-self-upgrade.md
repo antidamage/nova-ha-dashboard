@@ -1,9 +1,11 @@
 <!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Nightly self-upgrade
 
-A headless agent run that improves this dashboard by one thing every night:
-it picks the item, has the choice attacked before writing any code, ships it
-through the normal PR flow, deploys it, verifies it live, and leaves a report.
+A headless agent run that works on this dashboard every night. The nights
+follow a three-night cycle: cleanup and bug fixing, then a new feature, then a
+ticket from the agents' board. Each night it picks the item, has the choice
+attacked before writing any code, ships it through the normal PR flow, deploys
+it, verifies it live, and leaves a report.
 
 Requested by alex on 2026-10-26: *"you'll be reviewing and picking one thing
 to improve on the dashboard each night. these can be efficiency, technical debt
@@ -20,10 +22,10 @@ spec.
   headless (`claude -p`).
 - **Hard stop at 02:30.** A separate nightly job starts at 03:00 and may touch
   the same repositories and hosts. The clock:
-  - **01:00** — last time implementation may start. Later than that, the night
-    is a no-change night.
-  - **02:00** — last time the night's change PR may start merging. A change PR
-    not ready by then is abandoned. A no-change record PR may merge until 02:30.
+  - **01:00** — last time implementation of any step may start. A step not
+    started by then ships nothing.
+  - **02:00** — last time any change PR may start merging. A change PR not
+    ready by then is abandoned. A no-change record PR may merge until 02:30.
   - **02:30** — everything is in one of the end states in
     [What done means](#what-done-means), and the report is published.
 - **Abandon** means: close the PR with a comment saying why, delete its branch,
@@ -32,21 +34,129 @@ spec.
 - One run at a time. The runner holds a lock; a run that finds another one
   active exits without doing anything.
 
-## What a night may work on
+## What a night may work on: the three-night cycle
 
-In priority order. Prefer the cheapest item that is genuinely worth having.
+alex, 2026-10-26: *"tonight we're doing code cleanup and bug fixing. tomorrow
+night YOU will design and implement a new feature for the dashboard, one of your
+choosing. on the third night you'll pick up a task from the messageboard and
+either advance it or complete it. from then on this cycle repeats every three
+nights. if there are no bugs worth fixing or if the task is over too quickly
+(PLEASE avoid churn) then you can skip forward to the next step in the cycle
+that night, e.g. make a new feature."*
 
-1. **Quick wins — efficiency.** Bundle or route size, render cost, needless
-   re-renders, polling cadence, API latency, slow or flaky tests, wasted network
-   requests, console errors and warnings in the demo build.
-2. **Small features** the agent judges good for the household: a clear,
-   self-contained improvement to an existing surface. Not a new area, not a new
-   integration, nothing that needs a credential or a hardware change.
-3. **Campaign steps.** A night may instead write a multi-night plan into
-   [Campaign](#campaign) below, and later nights work through it one step each.
-   Each step is still one night's item and obeys every rule here. Early nights
-   should prefer quick wins over starting a campaign.
-4. **Technical debt — last, and gated.** See [Debt gate](#debt-gate).
+The nights run in a fixed order, repeating:
+
+1. **Cleanup and bug fixing.**
+   - Bugs come first: errors and warnings in the host's dashboard log, console
+     errors and failed requests in the demo build, hydration errors, failing or
+     flaky tests, type errors.
+   - Then cleanup: build warnings, dead code with no callers, stale `TODO` /
+     `FIXME` markers, wasted requests or renders, and other efficiency quick
+     wins.
+   - Splitting, size-ratchet work and refactor-only changes are debt. They wait
+     for the [Debt gate](#debt-gate), and once it opens they come last on this
+     night.
+2. **A new feature of the agent's own choosing.** The agent designs and
+   implements something good for the household: a clear, self-contained
+   addition to an existing surface. Not a new area, not a new integration, and
+   nothing that needs a credential or a hardware change. A feature too big for
+   one night becomes a [Campaign](#campaign), and later feature nights work
+   through it one step at a time. Each step obeys every rule here.
+3. **A ticket from the board.** Pick up one ticket from the agents' ticket
+   board (the `tickets` command, `skills/tickets` in the workspace) and either
+   complete it or advance it. See [Ticket nights](#ticket-nights).
+
+**Which step tonight is.** Each ledger entry records its `Step`, and the ledger
+is newest first.
+
+- Find the topmost entry dated 2026-10-27 or later. Tonight is the step after
+  that entry's step, and step 3 wraps round to step 1.
+- When there is no such entry, tonight is step 1. The first cycle night,
+  2026-10-27, is step 1.
+- Entries dated before 2026-10-27 predate the cycle and do not count.
+- A skipped step's entry counts like any other.
+
+So a night that skipped forward moves the whole cycle with it: the following
+night picks up after the step that night actually reached.
+
+**Skipping forward, and avoiding churn.** A night may move to the next step
+when:
+
+- its step has nothing worth doing, such as no bug worth fixing and no cleanup
+  that would be more than churn; or
+- its step finished early, with time left on the clock.
+
+Two rules limit this:
+
+- **Never invent work to fill a step.** A trivial change made only so the
+  night ships something is churn. Skipping is the right answer, and the ledger
+  records the step as `skipped` with the evidence that nothing was worth doing.
+- **At most two steps a night.** The second step needs its own pre-execution
+  review, its own PR and its own ledger entry, and it obeys the same clock: no
+  implementation starts after 01:00.
+
+### Ticket nights
+
+- **Choosing.** Run `tickets list` and choose by list, in this order:
+  - `Ready`;
+  - an unclaimed ticket that is `In progress`;
+  - `Inbox`, then `Needs plan`.
+
+  Never choose any of these:
+  - a ticket someone else has claimed (`tickets claim` exits 3);
+  - a ticket in `Done`;
+  - the board's own how-to card;
+  - a ticket labelled `needs-human` or `blocked` whose questions have no answer
+    in a comment from alex posted after them;
+  - a `Needs plan` ticket whose plan comment is still awaiting her answers.
+
+  Prefer a ticket that can be completed tonight; failing that, prefer the one
+  this night can move furthest. The size cap and the rule against operating
+  real devices apply on any board. A ticket in another repository follows that
+  repository's own rules and specs as well as this one's.
+- **Claiming.** Read the whole ticket and every comment with `tickets show`,
+  then `tickets claim` it, as the skill says.
+- **What completing means.** A `Ready` ticket whose work fits the size cap and
+  the clock is implemented and delivered under that repo's normal rules: a
+  branch and PR, or a direct commit where the repo policy says so. The night's
+  pre-execution review, rollback contract and off-limits list still apply. The
+  dashboard is force-updated as in [Delivery](#delivery). Then:
+  - when the PR opens, comment `DONE <PR link>` on the ticket and move it to
+    `In review` (in a direct-commit repo, `DONE <commit>` once pushed);
+  - once the PR is merged and verified, leave a `SUMMARY:` comment and move the
+    ticket to `Done`.
+- **What advancing means.** For anything else, the night does the next useful
+  piece and records it on the ticket.
+  - For an `Inbox` or `Needs plan` ticket, that piece is the plan:
+    - research what the ticket asks;
+    - post a `STATUS` comment with a proposed scope, an approach, the files
+      or systems involved, and the open questions only alex can answer;
+    - move the ticket to `Needs plan`.
+
+    An unspecified ticket gets no code; the interview that AGENTS.md requires
+    before a plan happens with alex, not at night.
+  - For a ticket too big for one night, the piece is one deliverable step,
+    taken through its PR. Then post a `STATUS` comment saying what is left.
+  - When the night ends without the ticket done, run `tickets release` with a
+    note of what is left, and always name the list with `--to`, because a bare
+    `release` puts the ticket back in `Ready`:
+    - a planned ticket goes to `--to "Needs plan"`;
+    - a ticket waiting on alex goes to the list it was in before the night
+      claimed it;
+    - only a ticket that is genuinely specified and ready to build goes to
+      `--to Ready`.
+- **What never happens at night.** The night does not complete a ticket that
+  needs any of these:
+  - a deploy other than the dashboard's force-update;
+  - a hardware action;
+  - a credential;
+  - an answer from alex.
+
+  It advances that ticket as far as it can, adds the `needs-human` label
+  with a `QUESTION` comment, and lists it at the top of the report. It sends
+  no attention ping (see [Discord](#discord-previews-nothing-else)).
+- **When nothing can be picked.** If no ticket can be picked or moved forward,
+  the night skips forward to step 1.
 
 ### Size cap
 
@@ -106,17 +216,23 @@ No code is written until the choice has been attacked.
    (with the reason), recorded in the ledger entry.
 3. REVISE: revise once and resubmit. A second REVISE counts as REJECT.
 4. REJECT: move the item to [Rejected](#rejected) with the reason, pick the next
-   candidate. After **two** rejected candidates the night ends with no change
-   and a report saying why.
+   candidate. After **two** rejected candidates the step ends with no change
+   (a step merged earlier that night stands), and the report says why.
 5. Only an APPROVE starts implementation. The implementation must stay inside
    what was approved; a material change goes back to step 2.
 
 ### The no-change record
 
-A night that ships nothing still owes `main` its record. The ledger entry (with
-the reviewer's verdicts) and any new Rejected items go in a **docs-only PR** to
-this file, taken through the same `pr-review.ps1` review and `merge-worker.ps1`
-merge. That PR is the night's one PR. If even that cannot merge before 02:30,
+A step that ships nothing still owes `main` its record. That covers a skipped
+step, a rejected step and an abandoned step, including a second step after a
+first that merged. Its ledger entry, with the reviewer's verdicts, and any new
+Rejected items reach `main` in one of two ways:
+
+- inside the other step's change PR, if that PR has not merged yet;
+- otherwise, in a **docs-only PR** to this file, taken through the same
+  `pr-review.ps1` review and `merge-worker.ps1` merge.
+
+If even that cannot merge before 02:30,
 the report carries the entry and the Rejected items verbatim, and the next night
 lands them first, before choosing anything. Each night reads the last three
 reports as well as this file, so nothing rejected is proposed again in between.
@@ -125,10 +241,13 @@ reports as well as this file, so nothing rejected is proposed again in between.
 
 AGENTS.md governs; this is the order for this job.
 
-1. Open a task-log entry (`Dashboard`).
+1. Open a task-log entry (`Dashboard`). Give each step a ticket on the board,
+   as the AGENTS.md ticket rule requires: on the `Web` board for cleanup and
+   feature steps, and the picked ticket itself on a ticket night. An issue found
+   but not fixed gets its own ticket, as well as a [Backlog](#backlog) line.
 2. Create a worktree branch with `pi-agent/scripts/start-branch.ps1`.
 3. Pre-execution review, above. On APPROVE, send the night's Discord preview
-   ([Discord](#discord-one-preview-nothing-else)).
+   ([Discord](#discord-previews-nothing-else)).
 4. Implement. Update the owning area spec in place with the behaviour change
    (one spec per area); this file holds only the ledger entry.
 5. Test per `testing.md`, throttled per AGENTS.md (a quarter of the cores,
@@ -147,7 +266,8 @@ AGENTS.md governs; this is the order for this job.
     healthily.
 11. Screenshot the affected surface live, headless. Never open a window and
     never touch an existing browser tab on any screen.
-12. Finish the task-log entry. The ledger entry is completed on the branch
+12. Finish the task-log entry. Leave a `SUMMARY:` comment on the step's ticket
+    and move it to `Done`, or release it with what is left. The ledger entry is completed on the branch
     before the merge (outcome "merged; live verification in the report"); the
     merge commit and the live result are recorded in the report, never in a
     direct commit to `main`.
@@ -164,17 +284,20 @@ live `/api/update` commit with `main` and reporting any difference. A rollback n
 
 ## Rollback contract
 
-Every night's change must be removable in two ways, and the report names both:
+Every step's change must be removable in two ways, and the report names both:
 
 - **Instant:** the host updater's rollback, which repoints to the previous
-  release with no rebuild.
-- **Permanent:** a revert PR of the night's single squash commit.
+  release with no rebuild. On a two-step night, a rollback after the second
+  deploy returns to the first step's release.
+- **Permanent:** a revert PR of that step's squash commit.
 
 So:
 
-- One night, one change PR, one squash commit. A revert or record PR carried
-  over from the night before is finished first and does not count against it. No change spans nights except through a
-  campaign, and each campaign step is its own commit.
+- One step, one change PR, one squash commit, and at most two steps a night.
+  A revert or record PR carried over from the night before is finished first
+  and does not count against it. A change spans nights only as a campaign or as
+  a ticket worked over several nights, and each step of either is its own
+  commit.
 - **No irreversible data change.** Anything persisted under `data/`, in
   preferences or in dashboard-config must stay readable by the previous
   release: add fields, never rename or remove them, never rewrite stored
@@ -202,18 +325,19 @@ hold, checked at the start of each night:
 
 A night that finds both true writes OPEN here inside that night's own PR (or
 its no-change record) and says so in the report. While CLOSED: no file splitting, no size-ratchet work, no refactor-only
-change. When OPEN, debt is still the last category, after quick wins, features
-and campaign steps.
+change. When OPEN, debt work belongs to the cleanup night and comes last on
+it, after bugs and cleanup.
 
-## Discord: one preview, nothing else
+## Discord: previews, nothing else
 
 alex, 2026-10-26: *"You SHOULD message me on discord with a brief overview of
 your planned improvement each night before beginning. the peripheral goal for
 this process is to generate dopamine in my brain with free, fun new things to a
 core system I use every day, so feel free to upsell it and make it exciting."*
 
-**Exactly one message a night: the preview.** Sent once the pre-execution review
-has approved the item and before any code is written, with
+**One message per approved step: the preview.** That is at most two a night,
+and usually one. Each preview is sent once the pre-execution review has
+approved that step's item, and before any code is written, with
 
 ```
 notify.ps1 -Kind preview -Summary "<the pitch>"
@@ -262,13 +386,16 @@ and no credential.
 
 ## What done means
 
-A night is done when one of these is true and the report is published:
+A night is done when the report is published and every step the night took is
+in one of these states:
 
 - the change is merged, live, verified and its ledger entry complete; or
 - a live failure was rolled back, the revert merged, and both verified; or
 - a live failure was rolled back and verified, and the revert PR is still open,
   named in the report's first line for the next night to finish; or
-- no change shipped, and the report says exactly why.
+- the step shipped nothing, its record is merged or carried in the report as
+  [The no-change record](#the-no-change-record) says, and the report says
+  exactly why.
 
 ## Backlog
 
@@ -278,7 +405,7 @@ Candidates noticed but not yet taken. Any night may add to it.
 
 ## Campaign
 
-A multi-night plan, if one is running. One step per night.
+A multi-night feature plan, if one is running. One step per feature night.
 
 - _(none)_
 
@@ -290,11 +417,12 @@ Items a pre-execution review rejected, with the reason. Never retried.
 
 ## Ledger
 
-One entry per night, newest first:
+One entry per step, so one or two a night, newest first. On a two-step night
+the second step's entry sits above the first's:
 
 ```
 ### YYYY-MM-DD — <item>
-Category: quick win | feature | campaign | debt
+Step: 1 cleanup | 2 feature | 3 ticket <id> — or "<step> skipped: <evidence nothing was worth doing>"
 Evidence: …
 Proposal: what · files · risk · rollback · verification
 Pre-execution review: APPROVE | REVISE → APPROVE | REJECT — <reviewer's points>
