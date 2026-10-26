@@ -201,31 +201,70 @@ Before choosing, gather evidence, cheaply:
 Never repeat a Rejected item. Never redo what a Ledger entry shipped. A
 candidate that came from evidence beats one that came from taste.
 
-## Pre-execution adversarial review
+## Pre-execution adversarial review: idea review
 
-No code is written until the choice has been attacked.
+No code is written until the choice has been attacked. This is the job's
+**idea review**, as AGENTS.md defines it. Code review is the separate PR review in
+Delivery step 8.
 
 1. Write the **proposal** into [Ledger](#ledger) on the night's branch: what,
    why (the evidence), the files it touches, the risks, how it rolls back, and
    how it will be verified.
-2. A **separate sub-agent** that did not write the proposal reads it, the files
-   it names and this spec, and argues against it: off-limits areas, hidden
-   coupling, experience-mode parity, data compatibility, whether the evidence
-   holds, whether it fits the size cap and the clock. Its verdict is one of
-   **APPROVE**, **REVISE** (with the concrete change needed) or **REJECT**
-   (with the reason), recorded in the ledger entry.
-3. REVISE: revise once and resubmit. A second REVISE counts as REJECT.
-4. REJECT: move the item to [Rejected](#rejected) with the reason, pick the next
+2. **The idea review.**
+   - **Its own ticket.** Each candidate gets its own ticket for the review, so
+     a rejected candidate never uses up the next one's rounds. On a ticket
+     night, the picked ticket is that ticket.
+   - **Post and run.** Post the proposal on that ticket as a `PLAN:` comment,
+     then run the workspace's `skills/tickets/scripts/idea-review.ps1` on it
+     with `-TimeoutMinutes 15`. Pass a `-Pr` context line telling the peers to
+     also hold the proposal to this spec: the off-limits list, the size cap,
+     the clock and the rollback contract.
+   - **Answer.** Two adversarial peers, a UX expert and a history agent,
+     attack the design. Answer both reviews as AGENTS.md says.
+   - **Skipping.** The night never uses `-Skip`: every item gets a review.
+   - **Record the outcome** in the ledger entry, with each peer's verdict line,
+     as one of:
+     - **APPROVE**: both peers posted a verdict, and either both say HOLDS or
+       every CHANGE objection is answered: taken into the proposal, or
+       rejected with a reason that holds.
+     - **REVISE**: an accepted objection changes the proposal materially.
+     - **REJECT**: an objection shows the item breaks this spec (off limits,
+       size cap, clock, rollback contract), or its premise fails.
+   - **A FAILED peer is not a verdict.** If a peer is reported FAILED, run the
+     round once more if the clock and the ticket's rounds allow. A round where
+     both peers failed does not count; one where only one failed does.
+   - **No review possible.** The outcome is **NO REVIEW** when the rerun also
+     fails, cannot be run, or the script refuses to run at all (the peer cap,
+     a lock, the round limit, a missing tool). NO REVIEW is not a rejection:
+     - the item does not go on [Rejected](#rejected), and may come back on a
+       later night;
+     - the step ends with no change;
+     - the ledger records NO REVIEW, and the report quotes the script's
+       message.
+
+     On a ticket night, the picked ticket is also released to the list it came
+     from with a `STATUS:` comment saying why. A round-limit refusal also adds
+     `needs-human`, because only alex can move a ticket past its rounds. No
+     item is ever approved on one review or none.
+3. REVISE: revise the proposal once and run one `-Stage change` round on it. A
+   second material revision counts as REJECT, because the clock leaves no room
+   for a third round. A refused change round is NO REVIEW.
+4. REJECT: move the item to [Rejected](#rejected) with the reason. Close its
+   review ticket with a `SUMMARY:` saying it was rejected and why, and move it
+   to `Done`. On a ticket night, the picked ticket is released instead (its
+   work is not rejected, only tonight's approach). Then pick the next
    candidate. After **two** rejected candidates the step ends with no change
    (a step merged earlier that night stands), and the report says why.
-5. Only an APPROVE starts implementation. The implementation must stay inside
-   what was approved; a material change goes back to step 2.
+5. Only an APPROVE starts implementation. The approved candidate's ticket
+   becomes the step's ticket from Delivery step 1, and the PR names it. The
+   implementation must stay inside what was approved; a material change goes
+   back to step 2.
 
 ### The no-change record
 
 A step that ships nothing still owes `main` its record. That covers a skipped
 step, a rejected step and an abandoned step, including a second step after a
-first that merged. Its ledger entry, with the reviewer's verdicts, and any new
+first that merged. Its ledger entry, with the reviewers' verdicts, and any new
 Rejected items reach `main` in one of two ways:
 
 - inside the other step's change PR, if that PR has not merged yet;
@@ -255,8 +294,9 @@ AGENTS.md governs; this is the order for this job.
    must pass.
 6. Screenshots of the affected surface in the demo build, before (from `main`)
    and after (from the branch).
-7. Open the PR (`open-pr.ps1`). The body carries the ledger entry and the
-   rollback instructions.
+7. Open the PR with `open-pr.ps1 -Ticket <step ticket>`, so its code review and merge
+   post to the ticket. The body carries the ledger entry and the rollback
+   instructions.
 8. Independent adversarial PR review through `pr-review.ps1`; fix what it finds;
    re-review when the fixes pass the `reReview` threshold.
 9. Merge `main` into the branch, verify, push; then merge with
@@ -427,7 +467,7 @@ the second step's entry sits above the first's:
 Step: 1 cleanup | 2 feature | 3 ticket <id> — or "<step> skipped: <evidence nothing was worth doing>"
 Evidence: …
 Proposal: what · files · risk · rollback · verification
-Pre-execution review: APPROVE | REVISE → APPROVE | REJECT — <reviewer's points>
+Idea review: APPROVE | REVISE → APPROVE | REVISE → REJECT | REJECT | NO REVIEW — ux <verdict>, history <verdict>; <the points>
 PR: #n · PR review: PASS | BLOCKING → PASS
 Outcome: live and verified | rolled back | no change — <why>
 ```
