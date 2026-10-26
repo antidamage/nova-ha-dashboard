@@ -26,6 +26,8 @@ export function defaultRoom(): PersistedRoom {
     dryUserRequestAt: null,
     dryOffByEmulation: false,
     drySetpointChanged: false,
+    offRequestedAt: null,
+    offResends: 0,
   };
 }
 
@@ -35,6 +37,8 @@ type ClimateControlRuntime = {
   writeQueue: Promise<void>;
   timer: ReturnType<typeof setInterval> | null;
   running: boolean;
+  /** Serialises the loop against the owner's presses (withClimateLock). */
+  lock: Promise<void>;
   /**
    * One thermostat per instance. Each carries its own cycle state (last
    * transition, sensor-pending clock), so sharing one across devices would let
@@ -57,12 +61,25 @@ export const runtime: ClimateControlRuntime = climateGlobal.__novaClimateControl
   writeQueue: Promise.resolve(),
   timer: null,
   running: false,
+  lock: Promise.resolve(),
   airconThermostats: new Map(),
   heaterThermostats: new Map(),
   samples: new Map(),
   publicState: {},
 };
 const persisted = runtime.persisted;
+
+/**
+ * Run `work` with nothing else touching the climate controller. A tick reads the
+ * stored mode once and then awaits several Home Assistant calls; an Off pressed
+ * in that gap used to be followed by the tick's own set_hvac_mode, which started
+ * the unit again behind the press. Ticks and presses now queue behind each other.
+ */
+export function withClimateLock<T>(work: () => Promise<T>): Promise<T> {
+  const run = runtime.lock.then(work, work);
+  runtime.lock = run.then(() => undefined, () => undefined);
+  return run;
+}
 
 /** This instance's control state, created on first use. */
 export function roomState(id: RoomId): PersistedRoom {

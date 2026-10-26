@@ -278,6 +278,23 @@ The rules, all of them server-side (`lib/climate-control/`):
   running — that is a `turn_off` the Gree has not acknowledged yet, not a mode.
   Someone working the unit itself takes ownership away from Nova instead, which
   the public state reports separately.
+- **Off reaches the unit** (alex, 2026-10-26: "I set it to off and nothing
+  happens, the aircon stays on"). Three causes, three rules:
+  - *The loop and a press never interleave.* A tick reads the stored mode, then
+    awaits Home Assistant; an Off pressed in that gap used to be followed by the
+    tick's own `set_hvac_mode`, which started the unit again. Ticks and presses
+    queue behind each other (`withClimateLock`, `store.ts`).
+  - *An unobeyed Off is sent again.* The Gree drops commands. For two minutes
+    after the press, while the room is Nova's and the unit still reports on, the
+    loop re-sends `turn_off` every ten seconds, eight times at most
+    (`off-verify-model.ts`).
+  - *The card sends Off over a running unit* even when its light already reads
+    Off; the selection can say Off while the unit never obeyed.
+- **A slow acknowledgement is not the remote** (same date, "manual mode is losing
+  its cool/heat/fan mode"). The Gree reports a command late and in steps, and a
+  change after the settle window reads as someone using the unit, which stands
+  Nova down and leaves the mode unmanaged. The aircon's settle window is 45 s
+  (`AIRCON_COMMAND_SETTLE_MS`), the heater's stays 12 s.
 - **The card follows.** `useAirconCommands` keeps the Heat/Cool light on the
   controller's `direction` while the room rests, instead of blanking the mode row
   every time the compressor stops.

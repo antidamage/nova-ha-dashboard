@@ -39,6 +39,13 @@ export type PersistedRoom = {
   dryOffByEmulation: boolean;
   /** Emulation changed the setpoint; restore the owner's target on leaving Dry. */
   drySetpointChanged: boolean;
+  /**
+   * When the owner last pressed Off, and how many times the loop has re-sent it
+   * since. The Gree drops commands now and then, and nothing else watches a unit
+   * that Off left running (off-verify-model.ts).
+   */
+  offRequestedAt?: number | null;
+  offResends?: number;
 };
 
 export type PersistedState = {

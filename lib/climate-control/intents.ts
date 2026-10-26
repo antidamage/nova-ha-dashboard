@@ -1,48 +1,38 @@
-import { readDashboardConfig } from "../dashboard-config";
-import { airconInstances, heaterInstances, type ClimateInstance } from "../climate-instances";
+import { airconInstances, heaterInstances } from "../climate-instances";
 import { airconPreferencesPatch, heaterPreferencesPatch } from "../climate-preferences";
 import { mergeDashboardPreferences } from "../preferences";
 import type { AirconPreferences, BedroomHeaterPreferences, DashboardPreferences, HaDomain } from "../types";
 import { climateActionReclaimsOwnership } from "../climate-control-policy";
-import { COMMAND_SETTLE_MS } from "./constants";
-import type { ClimateControlIntent, RoomId } from "./types";
+import type { ClimateControlIntent } from "./types";
 import {
-  airconThermostatFor,
   climateControlState,
+  persistSoon,
   heaterThermostatFor,
   loadPersisted,
-  persistSoon,
   roomState,
+  withClimateLock,
 } from "./store";
 import { airconLegacyActionIntent } from "./action-intent-model";
+import { noteOffRequest } from "./off-verify-model";
 import { airconEntityFor, emulatesDry, heaterEntityFor } from "./device-model";
 import { executeActions, leaveEmulatedDry, requestEmulatedDry, statesAndDevices } from "./commands";
+import { claimClimateControl, instanceById } from "./claim";
 import { tick } from "./tick";
 
-async function instanceById(id: RoomId): Promise<ClimateInstance | undefined> {
-  const config = await readDashboardConfig();
-  return [...airconInstances(config), ...heaterInstances(config)].find((instance) => instance.id === id);
+export { claimClimateControl };
+
+/** The owner's own press: queued behind a tick in flight, never interleaved with one. */
+export function handleLegacyClimateAction(action: Parameters<typeof applyLegacyClimateAction>[0]) {
+  return withClimateLock(() => applyLegacyClimateAction(action));
 }
 
-export async function claimClimateControl(room: RoomId) {
-  await loadPersisted();
-  const state = roomState(room);
-  state.owner = "nova";
-  state.overrideReason = null;
-  // A mode the owner just chose is a request, and on the aircon it is what allows
-  // a cold unit to run long enough to report a temperature (§5.2). Manual's latch
-  // lives here rather than only on a target change.
-  state.manualUserRequestAt = Date.now();
-  state.commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
-  const instance = await instanceById(room);
-  // Reset only this instance's own thermostat; the others are mid-cycle on
-  // their own devices and must not have their timings cleared.
-  if (instance?.kind === "heater") heaterThermostatFor(room).resetForUserRequest();
-  else airconThermostatFor(room).resetForUserRequest();
-  await persistSoon();
+export async function applyClimateControlIntent(intent: ClimateControlIntent) {
+  const result = await withClimateLock(() => applyIntent(intent));
+  await tick();
+  return result;
 }
 
-export async function handleLegacyClimateAction(action: {
+async function applyLegacyClimateAction(action: {
   entityId: string;
   domain: HaDomain;
   service: string;
@@ -107,7 +97,10 @@ export async function handleLegacyClimateAction(action: {
       storedDirection: state.manualDirection,
     });
     state.manualDirection = intent.manualDirection;
-    if (intent.mode) state.mode = intent.mode;
+    if (intent.mode) {
+      state.mode = intent.mode;
+      noteOffRequest(state, intent.mode);
+    }
     if (leavingDry && instance.kind === "aircon") {
       await leaveEmulatedDry(instance, aircon?.entity_id);
     }
@@ -152,7 +145,7 @@ export async function handleLegacyClimateAction(action: {
   return true;
 }
 
-export async function applyClimateControlIntent(intent: ClimateControlIntent) {
+async function applyIntent(intent: ClimateControlIntent) {
   if (intent.mode) await claimClimateControl(intent.room);
   else await loadPersisted();
   const { states } = await statesAndDevices();
@@ -176,7 +169,10 @@ export async function applyClimateControlIntent(intent: ClimateControlIntent) {
     if (intent.mode === "manual" && intent.direction) state.manualDirection = intent.direction;
     // Manual asked for without a direction is still Manual: it runs on the
     // remembered hvacMode, and the selection is the owner's to change.
-    if (intent.mode) state.mode = intent.mode;
+    if (intent.mode) {
+      state.mode = intent.mode;
+      noteOffRequest(state, intent.mode);
+    }
     if (aircon && intent.mode === "off") {
       await executeActions(instance, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
     }
@@ -197,7 +193,6 @@ export async function applyClimateControlIntent(intent: ClimateControlIntent) {
       await executeActions(instance, [{ entityId: heater.entity_id, domain: "switch", service: "turn_off" }]);
     }
   }
-  await tick();
   return climateControlState();
 }
 

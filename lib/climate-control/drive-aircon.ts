@@ -24,6 +24,7 @@ import { executeActions, observeActuator, stopAndCancel } from "./commands";
 import { driveDryEmulation } from "./drive-aircon-dry";
 import { driveManualAircon } from "./drive-aircon-manual";
 import { airconTickDirection } from "./aircon-direction-model";
+import { offNeedsResending } from "./off-verify-model";
 
 /** What driving one instance produced, for building its public state after. */
 export type AirconTickResult = {
@@ -120,7 +121,10 @@ export async function driveAircon(
   // does is turn the unit off, so honouring it cannot fight the person holding
   // the remote. See specs/aircon-auto-control.md, "Sleep timer".
   if (aircon && usable(aircon) && (!external || sleepTimerExpired)) {
-    if (sleepTimerExpired) {
+    if (!sleepTimerExpired && offNeedsResending({ room, unitOn: isClimateEntityOn(aircon), now })) {
+      room.offResends = (room.offResends ?? 0) + 1;
+      await executeActions(unit, [{ entityId: aircon.entity_id, domain: "climate", service: "turn_off" }]);
+    } else if (sleepTimerExpired) {
       await stopAndCancel(unit, aircon.entity_id, "timer-expired", {}, { whileSuspended: true });
       forcedOff = true;
     } else if (prefs?.autoMode) {

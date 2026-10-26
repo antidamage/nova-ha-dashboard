@@ -5,7 +5,15 @@ import { emitModuleEvent } from "../modules/runtime/hooks";
 import { readDashboardPreferences } from "../preferences";
 import type { ClimateControlRoomState, ClimateControlState } from "../types";
 import { POLL_MS } from "./constants";
-import { airconThermostatFor, heaterThermostatFor, loadPersisted, persistSoon, roomState, runtime } from "./store";
+import {
+  airconThermostatFor,
+  heaterThermostatFor,
+  loadPersisted,
+  persistSoon,
+  roomState,
+  runtime,
+  withClimateLock,
+} from "./store";
 import { emulatesDry, stateReportTime, usable } from "./device-model";
 import { statesAndDevices } from "./commands";
 import { driveAircon, type AirconTickResult } from "./drive-aircon";
@@ -93,95 +101,99 @@ export async function tick() {
   if (runtime.running) return;
   runtime.running = true;
   try {
-    await loadPersisted();
-    const now = Date.now();
-    const { config, states, quiet, turbo } = await statesAndDevices();
-    const preferences = await readDashboardPreferences();
-
-    const airconResults: AirconTickResult[] = [];
-    for (const unit of airconInstances(config)) {
-      airconResults.push(await driveAircon(unit, states, quiet, turbo, preferences, now));
-    }
-
-    const heaterResults: HeaterTickResult[] = [];
-    for (const instance of heaterInstances(config)) {
-      heaterResults.push(await driveHeater(instance, states, preferences, now));
-    }
-
-    const latest = await readDashboardPreferences();
-    const publicState: ClimateControlState = {};
-    // Enough to describe a transition to a module: which device, what it is
-    // aiming at. Collected as the rooms are built because the loops below are
-    // the only place the instance config is in hand.
-    const transitionMeta = new Map<string, { title: string; target?: number }>();
-
-    for (const { unit, aircon, mode, direction, external, rawTemperature, forcedOff, restingNow } of airconResults) {
-      const room = roomState(unit.id);
-      const prefs = airconPreferencesFor(latest, unit.id);
-      const snapshot = airconThermostatFor(unit.id).snapshot();
-      transitionMeta.set(unit.id, { title: unit.title, target: prefs?.temperature });
-      publicState[unit.id] = publicRoom({
-        owner: room.owner,
-        // forcedOff means stopAndCancel just ran: the `aircon`/`mode` above were
-        // read before that turn_off, so trusting them here would report the
-        // pre-stop direction/auto for a beat — a real HA stop that still reads
-        // as internally driving. Report the stop immediately instead.
-        mode: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : mode,
-        // `restingNow` beats the HA snapshot both ways: it was read before this
-        // tick's own turn_off, so the unit still looks like it is driving, and
-        // the mode it rested is still selected.
-        phase: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
-          // No usable reading, whichever mode is selected: the unit is off and the
-          // mode is waiting for one. "grace" reads as "waiting" to a module.
-          : mode !== "off" && rawTemperature === null ? "grace"
-          : restingNow ? "resting"
-          // A unit parked on fan only is resting, not driving (spec §8) — unless
-          // fan only is the direction the owner chose.
-          : aircon && isClimateEntityOn(aircon) &&
-              !(aircon.state === "fan_only" && direction !== "fan_only" && direction !== "dry") ? "driving"
-          : mode === "off" ? "off" : "resting",
-        direction,
-        dryEmulatable: emulatesDry(unit, aircon),
-        sensorAvailable: rawTemperature !== null,
-        sensorReportedAt: stateReportTime(aircon),
-        actuatorAvailable: usable(aircon),
-        overrideReason: room.overrideReason,
-        lastStopReason: room.lastStopReason,
-        pendingUserRequestAt: snapshot.userRequestAt === null
-          ? null
-          : new Date(snapshot.userRequestAt).toISOString(),
-      });
-    }
-
-    for (const { instance, heater, sensor, mode, sensorAvailable } of heaterResults) {
-      const room = roomState(instance.id);
-      transitionMeta.set(instance.id, {
-        title: instance.title,
-        target: heaterPreferencesFor(latest, instance.id)?.temperature,
-      });
-      publicState[instance.id] = publicRoom({
-        owner: room.owner,
-        mode: room.owner === "external" ? (heater?.state === "on" ? "manual" : "off") : mode,
-        phase: room.owner === "external" ? (heater?.state === "on" ? "driving" : "off")
-          : mode === "auto" && !sensorAvailable ? "grace"
-          : heater?.state === "on" ? "driving" : mode === "auto" ? "resting" : "off",
-        direction: heater?.state === "on" ? "heat" : null,
-        sensorAvailable,
-        sensorReportedAt: stateReportTime(sensor),
-        actuatorAvailable: usable(heater),
-        overrideReason: room.overrideReason,
-        lastStopReason: room.lastStopReason,
-      });
-    }
-
-    emitClimateTransitions(runtime.publicState, publicState, transitionMeta);
-    runtime.publicState = publicState;
-    await persistSoon();
+    await withClimateLock(tickLocked);
   } catch (error) {
     console.error("[climate-control] tick failed", error);
   } finally {
     runtime.running = false;
   }
+}
+
+async function tickLocked() {
+  await loadPersisted();
+  const now = Date.now();
+  const { config, states, quiet, turbo } = await statesAndDevices();
+  const preferences = await readDashboardPreferences();
+
+  const airconResults: AirconTickResult[] = [];
+  for (const unit of airconInstances(config)) {
+    airconResults.push(await driveAircon(unit, states, quiet, turbo, preferences, now));
+  }
+
+  const heaterResults: HeaterTickResult[] = [];
+  for (const instance of heaterInstances(config)) {
+    heaterResults.push(await driveHeater(instance, states, preferences, now));
+  }
+
+  const latest = await readDashboardPreferences();
+  const publicState: ClimateControlState = {};
+  // Enough to describe a transition to a module: which device, what it is
+  // aiming at. Collected as the rooms are built because the loops below are
+  // the only place the instance config is in hand.
+  const transitionMeta = new Map<string, { title: string; target?: number }>();
+
+  for (const { unit, aircon, mode, direction, external, rawTemperature, forcedOff, restingNow } of airconResults) {
+    const room = roomState(unit.id);
+    const prefs = airconPreferencesFor(latest, unit.id);
+    const snapshot = airconThermostatFor(unit.id).snapshot();
+    transitionMeta.set(unit.id, { title: unit.title, target: prefs?.temperature });
+    publicState[unit.id] = publicRoom({
+      owner: room.owner,
+      // forcedOff means stopAndCancel just ran: the `aircon`/`mode` above were
+      // read before that turn_off, so trusting them here would report the
+      // pre-stop direction/auto for a beat — a real HA stop that still reads
+      // as internally driving. Report the stop immediately instead.
+      mode: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "manual" : "off") : mode,
+      // `restingNow` beats the HA snapshot both ways: it was read before this
+      // tick's own turn_off, so the unit still looks like it is driving, and
+      // the mode it rested is still selected.
+      phase: forcedOff ? "off" : external ? (aircon && isClimateEntityOn(aircon) ? "driving" : "off")
+        // No usable reading, whichever mode is selected: the unit is off and the
+        // mode is waiting for one. "grace" reads as "waiting" to a module.
+        : mode !== "off" && rawTemperature === null ? "grace"
+        : restingNow ? "resting"
+        // A unit parked on fan only is resting, not driving (spec §8) — unless
+        // fan only is the direction the owner chose.
+        : aircon && isClimateEntityOn(aircon) &&
+            !(aircon.state === "fan_only" && direction !== "fan_only" && direction !== "dry") ? "driving"
+        : mode === "off" ? "off" : "resting",
+      direction,
+      dryEmulatable: emulatesDry(unit, aircon),
+      sensorAvailable: rawTemperature !== null,
+      sensorReportedAt: stateReportTime(aircon),
+      actuatorAvailable: usable(aircon),
+      overrideReason: room.overrideReason,
+      lastStopReason: room.lastStopReason,
+      pendingUserRequestAt: snapshot.userRequestAt === null
+        ? null
+        : new Date(snapshot.userRequestAt).toISOString(),
+    });
+  }
+
+  for (const { instance, heater, sensor, mode, sensorAvailable } of heaterResults) {
+    const room = roomState(instance.id);
+    transitionMeta.set(instance.id, {
+      title: instance.title,
+      target: heaterPreferencesFor(latest, instance.id)?.temperature,
+    });
+    publicState[instance.id] = publicRoom({
+      owner: room.owner,
+      mode: room.owner === "external" ? (heater?.state === "on" ? "manual" : "off") : mode,
+      phase: room.owner === "external" ? (heater?.state === "on" ? "driving" : "off")
+        : mode === "auto" && !sensorAvailable ? "grace"
+        : heater?.state === "on" ? "driving" : mode === "auto" ? "resting" : "off",
+      direction: heater?.state === "on" ? "heat" : null,
+      sensorAvailable,
+      sensorReportedAt: stateReportTime(sensor),
+      actuatorAvailable: usable(heater),
+      overrideReason: room.overrideReason,
+      lastStopReason: room.lastStopReason,
+    });
+  }
+
+  emitClimateTransitions(runtime.publicState, publicState, transitionMeta);
+  runtime.publicState = publicState;
+  await persistSoon();
 }
 
 export async function evaluateClimateControlNow() {

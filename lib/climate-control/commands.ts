@@ -7,7 +7,7 @@ import { mergeDashboardPreferences, readDashboardPreferences } from "../preferen
 import type { DashboardPreferences, HaState } from "../types";
 import { actuatorChangeIsExternal, poweredActuatorRecoveryIsExternal } from "../climate-control-policy";
 import { emitClimateControllerWrite } from "./attribution";
-import { COMMAND_SETTLE_MS } from "./constants";
+import { AIRCON_COMMAND_SETTLE_MS, COMMAND_SETTLE_MS } from "./constants";
 import { airconThermostatFor, heaterThermostatFor, persistSoon, roomState } from "./store";
 import { findNamedSwitch, rawAsDashboardEntity, signatureFor } from "./device-model";
 
@@ -118,7 +118,8 @@ export async function executeActions(
     const before = await haRest<HaState[]>("/api/states");
     observeActuator(instance, signatureFor(instance, before, action.entityId), Date.now());
     if (roomState(room).owner !== "nova" && !allowWhileExternal) return;
-    roomState(room).commandSettleUntil = Date.now() + COMMAND_SETTLE_MS;
+    roomState(room).commandSettleUntil =
+      Date.now() + (instance.kind === "aircon" ? AIRCON_COMMAND_SETTLE_MS : COMMAND_SETTLE_MS);
     const result = await callService(action.domain, action.service, {
       entity_id: action.entityId,
       ...(action.data ?? {}),

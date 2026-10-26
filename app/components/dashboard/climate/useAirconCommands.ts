@@ -504,7 +504,9 @@ export function useAirconCommands({
       const from = modeRunStartRef.current;
       modeRunStartRef.current = null;
       setPendingPower(null);
-      if (state !== from) {
+      // Off over a unit that is still running is a press worth sending: the
+      // selection can read Off while the unit never obeyed the last one.
+      if (state !== from || (state === "off" && isOn)) {
         void choosePowerState(state);
       }
     }, CLIMATE_MODE_COMMIT_DEBOUNCE_MS);
