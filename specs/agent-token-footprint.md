@@ -38,9 +38,11 @@ cheap, which comes from four things:
 The 2026-10-20 column is the measurement the burn-down plan started from
 (`dashboard-debt-and-size-burndown`); only the size rows were taken then. The
 three size rows of the last two columns are `node scripts/check-file-sizes.mjs`. Flat
-top-level counts rose because each split keeps a facade at the original path,
-and because new features since 2026-09-17 added files there; moving facades
-into their packages is the plan's optional step 7, not done.
+top-level counts rose because each split keeps a facade at the original path
+(section 3.3), and because new features since 2026-09-17 added files there.
+The plan's optional step 7, moving facades into their packages, was dropped on
+2026-10-26: it contradicts section 3.3 (the facade stays put so no call site
+changes) and would rewrite hundreds of imports for no size win.
 
 Total size barely moved — this campaign relocates code, it does not delete it.
 What changed is the cost of a read: the median file is under 3 KB, and a facade

@@ -4,18 +4,15 @@ import {
   climateTargetTemperature,
   isClimateEntityOn,
 } from "../aircon-control";
-import { firstState, freshSensorValue, planDryEmulationTick } from "../aircon-dry";
 import type { AirconInstance } from "../climate-instances";
 import { airconPreferencesFor } from "../climate-preferences";
 import type { DashboardEntity, DashboardPreferences, HaState } from "../types";
-import { AIRCON_MIN_OFF_MS } from "./constants";
 import type { Direction } from "./types";
 import { airconControlMode } from "./mode-model";
 import { airconThermostatFor, roomState, samplesFor } from "./store";
 import {
   airconEntityFor,
   airconSignature,
-  airconSupportedModes,
   emulatesDry,
   median,
   noteSample,
@@ -24,6 +21,7 @@ import {
 } from "./device-model";
 import { emitClimateControllerWrite } from "./attribution";
 import { executeActions, observeActuator, stopAndCancel } from "./commands";
+import { driveDryEmulation } from "./drive-aircon-dry";
 import { driveManualAircon } from "./drive-aircon-manual";
 import { airconTickDirection } from "./aircon-direction-model";
 
@@ -164,43 +162,7 @@ export async function driveAircon(
       direction === "dry" &&
       emulatesDry(unit, aircon)
     ) {
-      // specs/aircon-auto-control.md, "Dry emulation".
-      const minTemperature = Number(aircon.attributes.min_temp);
-      const decision = planDryEmulationTick({
-        humidityPct: freshSensorValue(firstState(states, unit.humidityEntityIds), now),
-        roomTemperatureC: freshSensorValue(firstState(states, unit.temperatureEntityIds), now),
-        targetHumidityPct: unit.dryTargetHumidityPct ?? 55,
-        entityState: aircon.state,
-        supportedModes: airconSupportedModes(aircon),
-        fanModes: Array.isArray(aircon.attributes.fan_modes) ? aircon.attributes.fan_modes.map(String) : [],
-        minTemperatureC: Number.isFinite(minTemperature) ? minTemperature : 16,
-        now,
-        lastTransitionAt: room.lastTransitionAt,
-        minDwellMs: AIRCON_MIN_OFF_MS,
-        mayStartFromOff: typeof room.dryUserRequestAt === "number" || room.dryOffByEmulation,
-      });
-      if (decision.kind !== "hold") {
-        room.dryUserRequestAt = null;
-        room.dryOffByEmulation = decision.kind === "off";
-      }
-      if (decision.kind === "cool") {
-        room.lastTransitionAt = now;
-        room.recentStartsAt.push(now);
-        room.drySetpointChanged = true;
-        await executeActions(unit, [
-          { entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: "cool" } },
-          { entityId: aircon.entity_id, domain: "climate", service: "set_temperature", data: { temperature: decision.setpointC } },
-          ...(decision.fanMode
-            ? [{ entityId: aircon.entity_id, domain: "climate" as const, service: "set_fan_mode", data: { fan_mode: decision.fanMode } }]
-            : []),
-        ]);
-      } else if (decision.kind === "fan_only" || decision.kind === "off") {
-        if (aircon.state === "cool") room.lastTransitionAt = now;
-        room.lastStopReason = "target-reached";
-        await executeActions(unit, [decision.kind === "off"
-          ? { entityId: aircon.entity_id, domain: "climate", service: "turn_off" }
-          : { entityId: aircon.entity_id, domain: "climate", service: "set_hvac_mode", data: { hvac_mode: "fan_only" } }]);
-      }
+      await driveDryEmulation({ aircon, now, room, states, unit });
     } else if (mode === "manual" && (direction === "heat" || direction === "cool")) {
       restingNow = await driveManualAircon({
         // Aggressive is Turbo with a tighter thermostat. It counts only while the
