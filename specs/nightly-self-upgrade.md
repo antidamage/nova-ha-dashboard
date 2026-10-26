@@ -274,7 +274,7 @@ A night is done when one of these is true and the report is published:
 
 Candidates noticed but not yet taken. Any night may add to it.
 
-- _(empty)_
+- Turbopack warnings left after the 2026-10-26 pass (12 of 32): `lib/tasks/store.ts`, `lib/reminder-icons/store.ts`, `lib/camera/snapshots.ts` (4), `lib/camera/recorder/host.ts`, `lib/phonoscope-images/store.ts` (2), `lib/wallpaper-assets.ts` are computed paths below an already-marked root. `lib/climate-control/store.ts` (2) is off limits to this job.
 
 ## Campaign
 
@@ -302,4 +302,10 @@ PR: #n · PR review: PASS | BLOCKING → PASS
 Outcome: live and verified | rolled back | no change — <why>
 ```
 
-- _(no nights yet)_
+### 2026-10-26 — Silence the Turbopack file-tracing warnings on the data-file paths
+Category: quick win
+Evidence: `npm run build` on main (31cbcec) prints 32 Turbopack warnings. 31 of them are "Dynamic filesystem access causes tracing of the whole project", across 16 files; 12 sites in 9 of those files are `path.join(process.cwd(), "data"|"config", ...)` roots this change marks, and one says the `lib/phonoscope-store/store.ts` pattern "matches 15316 files". The repo already marks the same root with `/*turbopackIgnore: true*/` in `lib/camera/config.ts`, `lib/dashboard-config/constants.ts`, `lib/dashboard-secrets.ts`, `lib/phonoscope-images/store.ts` and `lib/wallpaper-assets.ts`.
+Proposal: add the `/*turbopackIgnore: true*/` marker inside `process.cwd()` call sites that build runtime data/config paths · files: `lib/phonoscope-store/store.ts`, `lib/appletv-command.ts` (2 sites), `lib/default-preferences.ts` (3), `lib/doorbell-secrets.ts`, `lib/light-event-state.ts`, `lib/notifications/store.ts`, `lib/orb-modules-disk.ts`, `lib/orb-timer.ts`, `lib/preferences/store.ts` · risk: a comment only, no runtime change; the paths resolve from `process.cwd()` at run time exactly as before. `lib/climate-control/store.ts` is left alone (climate is off limits); the expected warning count after the change is the before count minus the cleared sites, read from the build rather than predicted · rollback: release rollback, or revert the squash commit · verification: unit suite, tsc, production build with the warning count compared before/after, size ratchet, demo e2e smoke.
+Pre-execution review: REVISE (drop lib/climate-control/store.ts as off limits; fix the warning count) → APPROVE
+PR: (pending) · PR review: (pending)
+Outcome: merged; live verification in the report. Build warnings 32 → 12; the "matches 15316 files" warning is gone.

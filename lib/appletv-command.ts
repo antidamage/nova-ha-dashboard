@@ -54,7 +54,7 @@ export const COMMAND_WINDOW_MS = 2 * 60 * 1000;
  * test, or a host that moves its data directory, can point it elsewhere.
  */
 const statePath = () =>
-  process.env.NOVA_APPLETV_COMMAND_STATE ?? path.join(process.cwd(), "data", "appletv-command.json");
+  process.env.NOVA_APPLETV_COMMAND_STATE ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "appletv-command.json");
 
 /** Whatever is in the file, as a command or nothing at all. */
 function parse(value: unknown): AppleTVPlayCommand | null {
@@ -169,7 +169,7 @@ export type AppleTVPlayResult = {
 };
 
 const resultPath = () =>
-  process.env.NOVA_APPLETV_PLAY_RESULT ?? path.join(process.cwd(), "data", "appletv-play-result.json");
+  process.env.NOVA_APPLETV_PLAY_RESULT ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "appletv-play-result.json");
 
 /** The last outcome the app reported, or nothing if it has not reported one. */
 export async function readPlayResult(): Promise<AppleTVPlayResult | null> {

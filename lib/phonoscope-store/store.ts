@@ -29,7 +29,7 @@ import { readPhonoscopeConfig } from "./read-config";
 import type { StoredManifest } from "./types";
 
 const MODULE_ROOT =
-  process.env.NOVA_PHONOSCOPE_MODULES_DIR ?? path.join(process.cwd(), "data", "phonoscope", "modules");
+  process.env.NOVA_PHONOSCOPE_MODULES_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "phonoscope", "modules");
 
 function safeSegment(value: string, pattern: RegExp, label: string) {
   if (!pattern.test(value)) throw new Error(`Invalid ${label}`);

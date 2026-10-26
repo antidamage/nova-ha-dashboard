@@ -10,7 +10,7 @@ import path from "path";
 
 const STATE_PATH =
   process.env.NOVA_DASHBOARD_LIGHT_EVENT_STATE ??
-  path.join(process.cwd(), "data", "light-events.json");
+  path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "light-events.json");
 
 export type StagedLightValue = {
   /** What the light comes up at next time it is switched on. */

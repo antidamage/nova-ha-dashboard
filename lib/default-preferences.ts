@@ -4,9 +4,9 @@ import type { DashboardPreferences } from "./types";
 
 const DEFAULT_PREFERENCES_PATH =
   process.env.NOVA_DASHBOARD_DEFAULT_PREFERENCES ??
-  path.join(process.cwd(), "config", "dashboard-preferences.default.json");
-const DEFAULT_THEME_PATH = path.join(process.cwd(), "config", "demo-theme.default.json");
-const DEFAULT_THEME_LIBRARY_PATH = path.join(process.cwd(), "config", "demo-theme-library.default.json");
+  path.join(/*turbopackIgnore: true*/ process.cwd(), "config", "dashboard-preferences.default.json");
+const DEFAULT_THEME_PATH = path.join(/*turbopackIgnore: true*/ process.cwd(), "config", "demo-theme.default.json");
+const DEFAULT_THEME_LIBRARY_PATH = path.join(/*turbopackIgnore: true*/ process.cwd(), "config", "demo-theme-library.default.json");
 
 export async function readDefaultDashboardPreferences(): Promise<DashboardPreferences> {
   try {

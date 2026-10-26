@@ -8,7 +8,7 @@ import { ensureGenesis, recordPreferencesRevision } from "../preferences-history
 import { DashboardPreferences } from "../types";
 
 const PREFERENCES_PATH =
-  process.env.NOVA_DASHBOARD_PREFERENCES ?? path.join(process.cwd(), "data", "dashboard-preferences.json");
+  process.env.NOVA_DASHBOARD_PREFERENCES ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "dashboard-preferences.json");
 
 let writeQueue = Promise.resolve();
 

@@ -11,7 +11,7 @@ import path from "path";
 import { normalizeOrbModule, type OrbModule } from "./orb-modules";
 
 const ORB_MODULE_DIR =
-  process.env.NOVA_ORB_MODULES_DIR ?? path.join(process.cwd(), "config", "orb-modules");
+  process.env.NOVA_ORB_MODULES_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "config", "orb-modules");
 
 export type OrbModuleFileError = { file: string; error: string };
 

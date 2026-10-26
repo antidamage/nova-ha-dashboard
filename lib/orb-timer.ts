@@ -10,7 +10,7 @@ type StoredFile = { notified?: boolean; soundSlot?: number; timer?: (Omit<OrbTim
 type Store = { queue: Promise<unknown>; ticker?: ReturnType<typeof setInterval> };
 const globalStore = globalThis as typeof globalThis & { __novaOrbTimer?: Store };
 const store = globalStore.__novaOrbTimer ??= { queue: Promise.resolve() };
-const file = () => process.env.NOVA_ORB_TIMER_FILE ?? path.join(process.cwd(), "data", "orb-timer.json");
+const file = () => process.env.NOVA_ORB_TIMER_FILE ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "orb-timer.json");
 async function read(): Promise<Stored> {
   try {
     const state = JSON.parse(await readFile(file(), "utf8")) as StoredFile;

@@ -8,7 +8,7 @@ import { activeNotifications, notificationFromInput } from "./model";
 import type { DashboardNotification, NotificationFile } from "./types";
 
 export const NOTIFICATIONS_PATH =
-  process.env.NOVA_DASHBOARD_NOTIFICATIONS ?? path.join(process.cwd(), "data", "dashboard-notifications.json");
+  process.env.NOVA_DASHBOARD_NOTIFICATIONS ?? path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "dashboard-notifications.json");
 
 let writeQueue = Promise.resolve();
 

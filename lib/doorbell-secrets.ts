@@ -16,7 +16,7 @@ import path from "node:path";
 import type { DoorbellSecretTemplate } from "./doorbell";
 
 const KEY_ENV = "NOVA_DOORBELL_SECRET_KEY";
-const DEFAULT_PATH = path.join(process.cwd(), "data", "doorbell-secrets.json.enc");
+const DEFAULT_PATH = path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "doorbell-secrets.json.enc");
 const ALGORITHM = "aes-256-gcm";
 const IV_BYTES = 12;
 
