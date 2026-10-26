@@ -1,6 +1,6 @@
 // SOLE state owner for the map package: the per-map tile-template caches that
 // keep the radar and satellite sources from re-requesting unchanged tiles.
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import {
   RADAR_REFRESH_INTERVAL_MS,
   RADAR_SOURCE_ID,

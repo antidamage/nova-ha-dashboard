@@ -1,4 +1,4 @@
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import { MAP_COLOR_FALLBACKS, RADAR_LAYER_ID, SATELLITE_LAYER_ID } from "./constants";
 import {
   buildingExtrusionOpacity,

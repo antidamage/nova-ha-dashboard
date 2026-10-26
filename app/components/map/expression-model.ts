@@ -1,5 +1,6 @@
 // MapLibre paint/layout expressions: building colour and opacity ramps, land
 // use, street label size, radar opacity.
+import type { ExpressionSpecification } from "maplibre-gl";
 import {
   BUILDING_EXTRUSION_OPACITY,
   BUILDING_FOOTPRINT_OPACITY,
@@ -7,7 +8,7 @@ import {
   LOW_BUILDING_HEIGHT_METERS,
 } from "./constants";
 
-export function buildingHeightColorExpression(lowColor: string, highColor: string) {
+export function buildingHeightColorExpression(lowColor: string, highColor: string): ExpressionSpecification {
   return [
     "interpolate",
     ["linear"],
@@ -16,10 +17,10 @@ export function buildingHeightColorExpression(lowColor: string, highColor: strin
     lowColor,
     HIGH_BUILDING_HEIGHT_METERS,
     highColor,
-  ];
+  ] as unknown as ExpressionSpecification;
 }
 
-export function buildingExtrusionOpacityExpression(baseOpacity = BUILDING_EXTRUSION_OPACITY) {
+export function buildingExtrusionOpacityExpression(baseOpacity = BUILDING_EXTRUSION_OPACITY): ExpressionSpecification {
   return [
     "interpolate",
     ["linear"],
@@ -44,10 +45,10 @@ export function buildingExtrusionOpacityExpression(baseOpacity = BUILDING_EXTRUS
     baseOpacity * 0.86,
     15,
     baseOpacity,
-  ] as const;
+  ] as unknown as ExpressionSpecification;
 }
 
-export function buildingFootprintOpacityExpression(baseOpacity = BUILDING_FOOTPRINT_OPACITY) {
+export function buildingFootprintOpacityExpression(baseOpacity = BUILDING_FOOTPRINT_OPACITY): ExpressionSpecification {
   return [
     "interpolate",
     ["linear"],
@@ -74,10 +75,10 @@ export function buildingFootprintOpacityExpression(baseOpacity = BUILDING_FOOTPR
     baseOpacity * 0.14,
     16.4,
     0,
-  ] as const;
+  ] as unknown as ExpressionSpecification;
 }
 
-export function landuseOpacityExpression(baseOpacity = 0.6) {
+export function landuseOpacityExpression(baseOpacity = 0.6): ExpressionSpecification {
   return [
     "interpolate",
     ["linear"],
@@ -104,13 +105,13 @@ export function landuseOpacityExpression(baseOpacity = 0.6) {
     baseOpacity * 0.12,
     16.3,
     0,
-  ] as const;
+  ] as unknown as ExpressionSpecification;
 }
 export function scaledLabelSize(value: number, multiplier: number) {
   return Math.round(value * multiplier * 100) / 100;
 }
 
-export function streetLabelSizeExpression(multiplier = 1) {
+export function streetLabelSizeExpression(multiplier = 1): ExpressionSpecification {
   return [
     "interpolate",
     ["linear"],
@@ -119,9 +120,9 @@ export function streetLabelSizeExpression(multiplier = 1) {
     scaledLabelSize(9, multiplier),
     16,
     scaledLabelSize(12, multiplier),
-  ] as const;
+  ] as unknown as ExpressionSpecification;
 }
-export function radarOpacityExpression(opacityMultiplier: number) {
+export function radarOpacityExpression(opacityMultiplier: number): ExpressionSpecification {
   return [
     "interpolate",
     ["linear"],
@@ -146,5 +147,5 @@ export function radarOpacityExpression(opacityMultiplier: number) {
     0.02 * opacityMultiplier,
     15.2,
     0,
-  ] as const;
+  ] as unknown as ExpressionSpecification;
 }

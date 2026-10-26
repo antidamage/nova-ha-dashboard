@@ -29,16 +29,16 @@
     "hls.js": "^1.6.16",
     "ical.js": "^2.2.1",
     "lucide-react": "latest",
-    "maplibre-gl": "^5.24.0",
+    "maplibre-gl": "^6.16.0",
     "next": "^16.4.2",
     "react": "latest",
     "react-dom": "latest",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.5",
     "ssh2": "^1.17.0",
     "tsdav": "^2.2.0",
-    "ws": "latest",
+    "ws": "^8.22.0",
     "yaml": "^2.8.1",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
