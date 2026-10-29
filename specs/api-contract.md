@@ -390,6 +390,12 @@ Configuration:
 
 Voice agent:
 
+- `POST /api/voice/typed-turn`: `{ text }` (1-2000 chars) from the live
+  transcript's typed input, relayed to nova-voice `POST /v1/typed-turns`, which
+  runs it after STT as the primary user and speaks the reply. Returns the voice
+  host's `{ ok, handled, roomId, satelliteId, spoken, responseText }`; 400 for
+  empty text, the voice host's status or 502 when it fails. See
+  `specs/voice-typed-input.md`.
 - `POST /api/voice/speaking`: nova-voice announces spoken-response start/end
   (`phase`, `turnId`, and on start the consonant `timingsMs`,
   `estimatedDurationMs`, `audibleOffsetMs`; on end `playedDurationMs`).

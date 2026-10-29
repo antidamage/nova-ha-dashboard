@@ -78,6 +78,22 @@ export async function sendVoiceHostUtterance(options: {
   return { result: (response.payload ?? {}) as VoiceUtteranceResult };
 }
 
+/**
+ * The transcript panel's typed input: the words enter the voice host's audio
+ * turn after STT, as the primary user, so they show in the live transcript and
+ * the reply is spoken. Unlike `sendVoiceHostUtterance` this is never a dry run.
+ */
+export async function sendVoiceHostTypedTurn(
+  text: string,
+  timeoutMs: number,
+): Promise<VoiceHostJsonResult> {
+  return requestVoiceHostJson("/v1/typed-turns", "typed turn", {
+    method: "POST",
+    body: { text },
+    timeoutMs,
+  });
+}
+
 // Clearing the transcript log clears the assistant's working context too: the
 // visible record and what the model is still reasoning from are one thing to
 // the person pressing clear. Best-effort — a voice server that is unreachable

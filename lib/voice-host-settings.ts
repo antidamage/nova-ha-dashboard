@@ -69,6 +69,7 @@ export {
 export {
   classifyReminderIcon,
   endVoiceHostConversations,
+  sendVoiceHostTypedTurn,
   sendVoiceHostUtterance,
 } from "./voice-host-settings/conversation";
 export {

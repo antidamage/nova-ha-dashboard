@@ -11,6 +11,7 @@ import {
 import { subscribeToDashboardEvents } from "./sharedDashboardEvents";
 import { useAgentName } from "./AgentNameContext";
 import { HorizontalAccordion, useWideDashboard } from "./dashboard/HorizontalAccordion";
+import { VoiceTypedInput } from "./VoiceTypedInput";
 
 function mergeTranscripts(
   current: VoiceTranscriptEvent[],
@@ -145,6 +146,7 @@ export function VoiceTranscriptPanel() {
 
   const body = (
         <div id={bodyId} className="voice-transcript-body grid gap-2 border-t border-cyan-300/20 p-3">
+          <VoiceTypedInput />
           <div className="voice-transcript-screen">
             <div
               ref={logRef}
