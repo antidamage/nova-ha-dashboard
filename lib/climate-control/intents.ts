@@ -167,8 +167,8 @@ async function applyIntent(intent: ClimateControlIntent) {
       (intent.mode === "off" || intent.mode === "auto" || (intent.direction !== undefined && intent.direction !== "dry"));
     if (intent.mode === "off" || intent.mode === "auto") state.manualDirection = null;
     if (intent.mode === "manual" && intent.direction) state.manualDirection = intent.direction;
-    // Manual asked for without a direction is still Manual: it runs on the
-    // remembered hvacMode, and the selection is the owner's to change.
+    // Manual asked for without a direction is still Manual: the next tick seats
+    // one once (seatManualDirection), and only the owner changes it after that.
     if (intent.mode) {
       state.mode = intent.mode;
       noteOffRequest(state, intent.mode);

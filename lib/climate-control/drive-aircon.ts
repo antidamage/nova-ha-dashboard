@@ -24,6 +24,7 @@ import { executeActions, observeActuator, stopAndCancel } from "./commands";
 import { driveDryEmulation } from "./drive-aircon-dry";
 import { driveManualAircon } from "./drive-aircon-manual";
 import { airconTickDirection } from "./aircon-direction-model";
+import { seatManualDirection } from "./manual-direction-model";
 import { offNeedsResending } from "./off-verify-model";
 
 /** What driving one instance produced, for building its public state after. */
@@ -94,18 +95,25 @@ export async function driveAircon(
     ? (aircon.state as Direction)
     : null;
   const targetTemperature = prefs?.temperature ?? (aircon ? climateTargetTemperature(aircon) : undefined) ?? null;
-  const seated = mode === "manual" ? room.manualDirection : null;
   // Fan only under a selected mode is the thermostat's own park, not a direction
-  // the owner chose (spec §8): the room answers, as it does for any unit at rest.
-  const parkedByThermostat = aircon?.state === "fan_only" && mode !== "off" && seated !== "fan_only";
+  // the owner chose (spec §8).
+  const parkedByThermostat = aircon?.state === "fan_only" && mode !== "off" && room.manualDirection !== "fan_only";
+  // Manual selected without a direction gets one seated once, then never changed
+  // by anything but the owner (spec §5.0, inviolable).
+  if (mode === "manual" && room.manualDirection === null && room.owner !== "external") {
+    room.manualDirection = seatManualDirection({
+      running: parkedByThermostat ? null : runningDirection,
+      measured: filteredTemperature ?? rawTemperature,
+      target: targetTemperature,
+      remembered: prefs?.hvacMode,
+    });
+  }
+  const seated = mode === "manual" ? room.manualDirection : null;
   const direction = airconTickDirection({
-    filteredTemperature,
     mode,
     preferences: prefs,
-    rawTemperature,
     running: parkedByThermostat ? null : runningDirection,
     seated,
-    target: targetTemperature,
   });
   const external = room.owner === "external";
   let forcedOff = false;

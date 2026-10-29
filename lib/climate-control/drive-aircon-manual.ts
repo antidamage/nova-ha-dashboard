@@ -31,8 +31,9 @@ import type { PersistedRoom } from "./types";
  * settling rules as Auto. It never changes the selected mode; the caller reports
  * `restingNow` as a phase, not as Off.
  *
- * The direction it starts on comes from the room (manual-direction-model.ts), so
- * a unit off with the room away from its target is always driven toward it.
+ * The direction is the one the owner seated, and nothing here changes it — not
+ * the room, not a moved target (spec §5.0, inviolable). A target the seat has
+ * already reached parks the unit; it never runs the other direction.
  *
  * Between cycles the unit is parked on fan only, not switched off, so its sensor
  * keeps reading the room (spec §8). Aggressive (spec §9) tightens the resume band,
@@ -56,7 +57,7 @@ export async function driveManualAircon({
   /** The owner's fan step is Aggressive and the unit's Turbo is on. */
   aggressive: boolean;
   aircon: DashboardEntity;
-  /** The direction the room asks for: what an off unit starts on. */
+  /** The direction the owner seated: what an off unit starts on. */
   direction: "heat" | "cool";
   filteredTemperature: number | null;
   now: number;
@@ -121,10 +122,10 @@ export async function driveManualAircon({
   // A blind start: the latch is what is keeping the unit running, and clearing it
   // would stop the unit on the very next tick.
   //
-  // A stop of a unit running the direction the room contradicts. That arrival is
-  // not the owner's target being met — the room is still away from it — so the
-  // request stays latched and the next tick starts the direction the room needs
-  // instead of waiting out a dwell for a request it had already thrown away.
+  // A stop of a unit running other than the seated direction. That arrival is
+  // not the owner's target being met, so the request stays latched and the next
+  // tick starts the seated direction instead of waiting out a dwell for a request
+  // it had already thrown away.
   const stoppedWrongDirection = !blind && decision === "stop" &&
     runningDirection !== null && runningDirection !== direction;
   if (userRequested && !blindStartAllowed && !stoppedWrongDirection) room.manualUserRequestAt = null;

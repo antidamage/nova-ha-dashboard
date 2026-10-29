@@ -235,6 +235,69 @@ and it had no concept of a user-initiated target change at all. A target moved i
 Manual now starts the unit on the same terms as Auto — §3.1 applies identically.
 Manual has no direction to reverse, so §3.3 does not arise.
 
+### 5.0 Manual only ever does what the owner set — INVIOLABLE (alex, 2026-10-30)
+
+> "manual mode cannot ever change its own settings. this is the point of having a
+> manual mode … manual mode only ever does what the user set it to and NOTHING
+> ELSE."
+
+**This rule is inviolable.** No later decision, guard, fail-safe, convenience or
+"the room obviously wants" reasoning may weaken it. A change that would let
+Manual alter a setting the owner made is wrong by definition, whatever it fixes;
+raise it with alex instead of writing it.
+
+What Manual's settings are: the mode (Manual itself), the direction (heat, cool,
+dry or fan), the target, the fan step, and the Quiet/Turbo/Aggressive choice.
+Manual's thermostat may only:
+
+- start the unit in the **seated** direction when the room is on the wrong side
+  of the target for that direction;
+- park it (§8) when that direction reaches the target, and stop it where §5.2
+  says to;
+- restore the owner's own fan step when it starts again after a park.
+
+It may **never**:
+
+- change the direction — not because the target moved, not because the room is
+  on the other side of the target, not because the unit is running something
+  else. **A target is never a direction.** Cool with the target raised above the
+  room is a floor the room may warm up to on its own — a power-saving comfort
+  setting — and the unit simply parks; it is not a request to heat. Heat with the
+  target dropped below the room likewise parks and waits (§5.3);
+- change the mode, the target, or the fan/Quiet/Turbo choice;
+- run any direction other than the seated one, even for one tick.
+
+**The incident.** 2026-10-29: Manual with Cool lit, target 22, room 22. She moved
+the target to 23, and the loop quietly ran the unit in **heat**. Cause: nothing
+had been seated. Manual can be selected without a direction (a bare `turn_on`, an
+app sending `mode: "manual"` alone), and `manualAirconDirection` then let the room
+choose the direction **on every tick** — so the Cool on the card was only the
+room's answer of the moment, and a target one degree above the room turned it
+into Heat.
+
+**The rules that make it structural** (`climate-control/manual-direction-model.ts`):
+
+- **The tick reads the seat and nothing else.** `manualAirconDirection` returns
+  the seated heat or cool; with nothing seated it returns no direction, and the
+  room, the target and `prefs.hvacMode` are not inputs to it at all.
+- **An empty seat is filled once, then frozen.** When Manual is selected without
+  a direction, the next tick seats one with `seatManualDirection` and stores it in
+  `PersistedRoom.manualDirection`: the heat, cool or dry the unit is already
+  running (what she sees it doing is what she selected — a Dry is seated as Dry,
+  never overridden by a heat or cool from the room); failing that, the side of the
+  target the room is on; failing that, and only over a usable reading, the
+  remembered `prefs.hvacMode`. With no reading it seats nothing and waits — never a
+  guess between heat and cool (§5.2). It does not run while someone else holds the
+  unit (`owner: "external"`). Once seated, only the owner moves it: a press of
+  Heat/Cool, Dry or Fan, a `set_hvac_mode` from voice/automation/MCP (§5.1), or
+  leaving Manual.
+- **The card shows the seat.** The public `direction` in Manual is the seat, so
+  the light she reads is the setting the loop will hold, never a guess.
+
+Tests: `lib/climate-control-manual-inviolable.test.ts` (the incident, and seated
+Heat/Cool held through targets moved either way), with the model pinned in
+`lib/climate-control-manual-direction.test.ts`.
+
 ### 5.1 The mode switch is the owner's (alex, 2026-09-19)
 
 > "the auto/manual/mode toggle is a switch that the user sets, nobody else. if
@@ -424,12 +487,11 @@ The unit beeped twice per press and never ran. Two independent causes:
 
 - **One place decides the direction.** `manualAirconDirection`
   (`climate-control/manual-direction-model.ts`): the direction the owner seated is
-  the answer; with nothing seated, a room below its target runs heat, above it runs
-  cool, and a room exactly on the target has nothing to choose, so the unit runs on
-  in whatever direction it is already running — which is what still lets a running
-  unit stop.
+  the answer, and with nothing seated there is none. *Superseded 2026-10-30:* this
+  used to let the room choose on every tick while nothing was seated, which is
+  what heated a Cool room (§5.0); the room now only fills an empty seat, once.
 - **A target never changes the mode.** A seated heat or cool holds whatever the
-  room does; the room only answers when nothing is seated. alex, 2026-09-25:
+  room does. alex, 2026-09-25:
 
   > "if the mode is set to heat and I set a temp below the room temp … check that
   > it doesn't change the mode on me. if the mode is wrong for the desired outcome
@@ -453,22 +515,26 @@ The unit beeped twice per press and never ran. Two independent causes:
   `turn_on` rather than guessing: the old fallback was the unit's first supported
   mode, which for this Gree is `auto`, a mode Manual cannot run, leaving Manual
   with no direction and nothing to start.
-- **A stop in a direction the room contradicts does not serve the request.** The
+- **A stop in a direction other than the seat does not serve the request.** The
   request latch (`manualUserRequestAt`) survives it, so the next tick starts the
-  direction the room needs instead of waiting out a compressor dwell for a request
+  seated direction instead of waiting out a compressor dwell for a request
   it had already thrown away. `lastStopReason` reports `wrong-direction` rather
   than claiming the target was reached.
-- **A remembered direction is not a fallback for it either.** With nothing seated
-  and no usable reading there is no direction to run, so `driveAircon` drives
-  nothing until one of the two exists — §5.2's "never a guess between heat and
-  cool". Passing `prefs.hvacMode` in as a last-resort direction was tried on
-  2026-09-24 and reverted the same day: it chose a direction with no reading to
-  check it against. The press is what seats a direction, and a press with a seated
-  direction is what runs blind (§5.2).
+- **A remembered direction is never a tick's fallback, and never blind.** With
+  nothing seated and no usable reading there is no direction to run, so
+  `driveAircon` drives nothing until one exists — §5.2's "never a guess between
+  heat and cool". Passing `prefs.hvacMode` in as a last-resort direction on every
+  tick was tried on 2026-09-24 and reverted the same day: it chose a direction
+  with no reading to check it against. Since 2026-10-30 it has exactly one use:
+  `seatManualDirection` (§5.0) takes it once to fill an empty seat, only when the
+  unit is not running heat, cool or dry **and** a usable reading sits exactly on
+  the target — the one case where neither the unit nor the room says anything.
+  The press is what seats a direction, and a press with a seated direction is
+  what runs blind (§5.2).
 - **Auto's own guard sizes are untouched** (§6). Every one of them bounds the
-  sensor; none of them may make a selected mode inert, and with the direction
-  coming from the seat when there is one and the room when there is not, an off
-  unit away from its target never lacks one.
+  sensor; none of them may make a selected mode inert, and with an empty seat
+  filled once from the unit or the room (§5.0), an off unit with a reading never
+  lacks one.
 
 ### 5.4 A stop is judged by the direction the unit is running
 
