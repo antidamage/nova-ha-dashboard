@@ -198,7 +198,7 @@ Before choosing, gather evidence, cheaply:
 - this file's [Backlog](#backlog), [Rejected](#rejected) and
   [Ledger](#ledger).
 
-Never repeat a Rejected item. Never redo what a Ledger entry shipped. A
+Never repeat a Rejected item (on a ticket night, a rejected approach). Never redo what a Ledger entry shipped. A
 candidate that came from evidence beats one that came from taste.
 
 ## Pre-execution adversarial review: idea review
@@ -226,7 +226,8 @@ Delivery step 8.
      as one of:
      - **APPROVE**: both peers posted a verdict, and either both say HOLDS or
        every CHANGE objection is answered: taken into the proposal, or
-       rejected with a reason that holds.
+       rejected with a reason that holds. After a rerun, both verdicts come
+       from the same round.
      - **REVISE**: an accepted objection changes the proposal materially.
      - **REJECT**: an objection shows the item breaks this spec (off limits,
        size cap, clock, rollback contract), or its premise fails.
@@ -240,7 +241,14 @@ Delivery step 8.
        later night;
      - the step ends with no change;
      - the ledger records NO REVIEW, and the report quotes the script's
-       message.
+       message;
+     - on a cleanup or feature night, the candidate's own review ticket is
+       closed with a `SUMMARY:` saying NO REVIEW and why, and moved to `Done`,
+       when the cause was a failure (both peers FAILED, a missing tool or
+       script). After a refusal (the peer cap, a lock, the round limit) the
+       ticket stays open, with `needs-human` for the round limit. If the item
+       comes back on a later night, its new ticket links the old one in the
+       first comment.
 
      On a ticket night, the picked ticket is also released to the list it came
      from with a `STATUS:` comment saying why. A round-limit refusal also adds
@@ -251,10 +259,22 @@ Delivery step 8.
    for a third round. A refused change round is NO REVIEW.
 4. REJECT: move the item to [Rejected](#rejected) with the reason. Close its
    review ticket with a `SUMMARY:` saying it was rejected and why, and move it
-   to `Done`. On a ticket night, the picked ticket is released instead (its
-   work is not rejected, only tonight's approach). Then pick the next
-   candidate. After **two** rejected candidates the step ends with no change
-   (a step merged earlier that night stands), and the report says why.
+   to `Done`. On a ticket night, the picked ticket is released instead of
+   closed (its work is not rejected, only tonight's approach):
+   - [Rejected](#rejected) gets the ticket id and the rejected approach.
+   - If the objection was to the approach, the ticket is released with `--to`
+     the list it came from.
+   - If the premise failed or the item breaks this spec, it is released to
+     `Needs plan` with `needs-human` and a `QUESTION` comment saying what would
+     have to change, so the Choosing order skips it until alex answers.
+   - The next candidate is either another ticket, with its own rounds, or a
+     different approach to the same ticket, which uses the rounds that ticket
+     has left as `idea-review.ps1` counts them across nights. Each `STATUS:`
+     comment on the ticket states the rounds used. With none left it is NO
+     REVIEW.
+
+   After **two** rejected candidates the step ends with no change (a step
+   merged earlier that night stands), and the report says why.
 5. Only an APPROVE starts implementation. The approved candidate's ticket
    becomes the step's ticket from Delivery step 1, and the PR names it. The
    implementation must stay inside what was approved; a material change goes
@@ -281,8 +301,10 @@ reports as well as this file, so nothing rejected is proposed again in between.
 AGENTS.md governs; this is the order for this job.
 
 1. Open a task-log entry (`Dashboard`). Give each step a ticket on the board,
-   as the AGENTS.md ticket rule requires: on the `Web` board for cleanup and
-   feature steps, and the picked ticket itself on a ticket night. An issue found
+   as the AGENTS.md ticket rule requires. The step's ticket is the approved
+   candidate's review ticket (step 5 of the idea review), on the `Web` board for
+   cleanup and feature steps, and the picked ticket itself on a ticket night.
+   The task-log entry opens first, before any candidate exists. An issue found
    but not fixed gets its own ticket, as well as a [Backlog](#backlog) line.
 2. Create a worktree branch with `pi-agent/scripts/start-branch.ps1`.
 3. Pre-execution review, above. On APPROVE, send the night's Discord preview
@@ -453,7 +475,7 @@ A multi-night feature plan, if one is running. One step per feature night.
 
 ## Rejected
 
-Items a pre-execution review rejected, with the reason. Never retried.
+Items a pre-execution review rejected, with the reason. Never retried. On a ticket night the entry is the ticket id plus the rejected approach: "never retried" applies to that approach, not to the ticket.
 
 - _(none)_
 
@@ -467,10 +489,18 @@ the second step's entry sits above the first's:
 Step: 1 cleanup | 2 feature | 3 ticket <id> — or "<step> skipped: <evidence nothing was worth doing>"
 Evidence: …
 Proposal: what · files · risk · rollback · verification
-Idea review: APPROVE | REVISE → APPROVE | REVISE → REJECT | REJECT | NO REVIEW — ux <verdict>, history <verdict>; <the points>
+Idea review: APPROVE | REVISE → APPROVE | REVISE → REJECT | REJECT | NO REVIEW — ux <verdict>, history <verdict>; <the points> (after a rerun, both verdicts are from one round: add `rerun r<round>`)
 PR: #n · PR review: PASS | BLOCKING → PASS
 Outcome: live and verified | rolled back | no change — <why>
 ```
+
+### 2026-10-28 — Tidy four edge cases in the idea review section
+Step: 3 ticket 142532
+Evidence: ticket 142532 (Ready, board Web) lists four non-blocking notes from the PR #123 code review of this spec. N1: on cleanup and feature nights a NO REVIEW candidate's review ticket is left open. N2: Delivery step 1 creates a ticket per step before any candidate exists. N3: on a ticket night, REJECT does not say what goes on Rejected, where the ticket is released to, or whether the next candidate shares the ticket's rounds. N4: after a rerun it is not stated that both verdicts must come from one round. The previous night's report and the Ledger show no overlap with these.
+Proposal: four wording edits in the idea review section and Delivery step 1 of this spec, no other file and no behaviour of the dashboard · N1: a NO REVIEW candidate's own review ticket (cleanup and feature nights) is closed with a `SUMMARY:` saying NO REVIEW and moved to `Done`; if the item comes back it gets a fresh ticket · N2: Delivery step 1 says the step's ticket is the approved candidate's review ticket, and a task-log entry is opened first · N3: on a ticket night a REJECT names the ticket id and the rejected approach on Rejected, releases the ticket with `--to` the list it came from, and the next candidate is either another ticket (own rounds) or a different approach to the same ticket, which shares that ticket's rounds · N4: after a rerun, the APPROVE needs both peers' verdicts from the same round · files: `specs/nightly-self-upgrade.md` · risk: none at runtime; wording could contradict an existing line, checked by rereading the section · rollback: release rollback (nothing to roll back at runtime), or revert the squash commit · verification: reread of the section, repo unit suite and architecture ratchet unchanged, no build-affecting file changed.
+Idea review: REVISE → APPROVE (3 rounds; round 1 history peer FAILED, so rounds 2 and 3 re-asked both) — ux CHANGE, history CHANGE in round 3, every objection taken in except the outcomes table (a restructure, separate ticket). Changes from the posted plan: a round-limit NO REVIEW keeps the ticket open with `needs-human` (Done only on a failure); a premise or spec REJECT releases to `Needs plan` with `needs-human`; Rejected keys a ticket-night entry by approach; the ledger line gains `rerun r<round>`.
+PR: #124 · PR review: PASS
+Outcome: no change — spec wording only, nothing to roll back at runtime
 
 ### 2026-10-27 — Notification stack uses the reminder banner, stacks, and gets Clear all
 Step: 2 feature (a second run the same day: the midnight run did step 1)
