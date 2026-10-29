@@ -631,25 +631,6 @@ body,
     margin-top: 0;
   }
 
-  /* As an accordion the panel stops being the bordered box — the accordion's
-     content is, exactly as it is for Home and Systems. Its content is a column
-     of transcript, not a grid of zone buttons, so the zone sizing comes off. */
-  .dashboard-home .voice-transcript-panel:has(.horizontal-accordion) {
-    width: auto;
-    border: 0;
-    background: transparent;
-  }
-
-  .dashboard-home .horizontal-accordion[data-group="transcript"] .horizontal-accordion-content:not([hidden]) {
-    display: flex;
-    flex-direction: column;
-    grid-template-columns: none;
-    grid-auto-rows: auto;
-    width: 560px;
-    gap: 0;
-    padding: 0;
-  }
-
   .dashboard-home .zone-panel {
     min-height: 100% !important;
   }

@@ -49,9 +49,9 @@ behavior unless explicitly changed:
   interpretation, speech to text, text to speech, the dashboard link, and the
   noise-suppression sidecar when reported. The readout is hidden in demo mode.
 - Iridium posts accepted user speech and spoken replies to
-  `/api/voice/transcript`. A standalone accordion on the main dashboard shows the bounded, live
-  two-sided transcript; new lines share the dashboard SSE stream. The panel can be
-  collapsed, and its Clear action erases the server snapshot and broadcasts
+  `/api/voice/transcript`. The Voice section of the main dashboard shows the bounded, live
+  two-sided transcript, with no heading of its own and no fold; new lines share the
+  dashboard SSE stream. Its Clear action erases the server snapshot and broadcasts
   the reset to every open dashboard. Voice Agent config does not contain the
   transcript display. Each entry renders as a two-line box decoration: a
   templated header line and a fixed `╰─ ` body lead-in before the message

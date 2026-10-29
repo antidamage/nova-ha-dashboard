@@ -25,14 +25,8 @@ function findTranscriptLine(pattern: RegExp) {
     element?.tagName.toLowerCase() === "p" && pattern.test(element.textContent ?? ""));
 }
 
-/**
- * The panel is collapsed on load (alex, 2026-09-12), so anything that wants
- * to read the log has to open it first.
- */
 function renderOpen() {
-  const result = render(<VoiceTranscriptPanel />);
-  fireEvent.click(screen.getByRole("button", { name: /Live transcript/ }));
-  return result;
+  return render(<VoiceTranscriptPanel />);
 }
 
 function queryTranscriptLine(pattern: RegExp) {
@@ -130,7 +124,6 @@ describe("VoiceTranscriptPanel", () => {
         <VoiceTranscriptPanel />
       </AgentNameProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Live transcript/ }));
 
     const userLine = await findTranscriptLine(/╰─ Turn it on$/);
     // The provider fetches /api/voice after mount, so the custom decoration
@@ -218,23 +211,15 @@ describe("VoiceTranscriptPanel", () => {
     expect(reply.querySelector(".voice-transcript-status")).toBeNull();
   });
 
-  it("opens and collapses the log, and clears the shared history", async () => {
+  it("has no heading or fold, and clears the shared history", async () => {
     render(<VoiceTranscriptPanel />);
 
-    // Collapsed on load, so there is nothing to read until it is opened.
-    const accordion = screen.getByRole("button", { name: /Live transcript/ });
-    expect(accordion).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("log")).not.toBeInTheDocument();
-
-    fireEvent.click(accordion);
-    expect(accordion).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByText(/Live transcript/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /transcript/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("log")).toBeInTheDocument();
     await findTranscriptLine(/╰─ Turn it on$/);
 
-    fireEvent.click(accordion);
-    expect(accordion).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("log")).not.toBeInTheDocument();
-
-    fireEvent.click(accordion);
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     await screen.findByText(/Waiting for a voice turn/);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(

@@ -14,8 +14,7 @@ heard. Added 2026-10-30 for testing input handling by hand and by agents.
 - **Nothing is echoed locally.** The sent line and the agent's reply reach the
   log through the normal `voice-transcript` SSE events, so the log shows exactly
   what the voice host processed.
-- Both layouts get it: portrait shows it when the panel is expanded, landscape
-  inside the transcript accordion.
+- Both layouts get it, always visible at the top of the transcript area.
 
 ## What the voice host does with it
 
