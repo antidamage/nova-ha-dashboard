@@ -17,6 +17,7 @@
  *   voice-host-settings/relay.ts         engine voice upload, training relay
  *   voice-host-settings/engine.ts        satellites, engine status/switch,
  *                                        voice catalogues, health probe
+ *   voice-host-settings/llm.ts           interpretation model status/switch
  *   voice-host-settings/conversation.ts  reminder icon, utterances, context clear
  *   voice-host-settings/companion.ts     companion routes and status summary
  *   voice-host-settings/speakers.ts      speaker profiles and templates
@@ -66,6 +67,8 @@ export {
   probeVoiceHostHealth,
   requestVoiceHostEngineSwitch,
 } from "./voice-host-settings/engine";
+export type { VoiceHostLlmDescriptor, VoiceHostLlmStatus } from "./voice-host-settings/llm";
+export { fetchVoiceHostLlmStatus, requestVoiceHostLlmSwitch } from "./voice-host-settings/llm";
 export {
   classifyReminderIcon,
   endVoiceHostConversations,

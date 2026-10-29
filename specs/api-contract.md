@@ -396,6 +396,10 @@ Voice agent:
   host's `{ ok, handled, roomId, satelliteId, spoken, responseText }`; 400 for
   empty text, the voice host's status or 502 when it fails. See
   `specs/voice-typed-input.md`.
+- `GET /api/voice/llm`, `POST /api/voice/llm` `{ llm }`: the interpretation
+  model picker. Relays nova-voice `GET`/`POST /v1/llm` (routed model, model
+  list with availability, switcher status; a switch request). See
+  `specs/voice-llm-selector.md`.
 - `POST /api/voice/speaking`: nova-voice announces spoken-response start/end
   (`phase`, `turnId`, and on start the consonant `timingsMs`,
   `estimatedDurationMs`, `audibleOffsetMs`; on end `playedDurationMs`).

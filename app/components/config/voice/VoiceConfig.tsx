@@ -8,6 +8,7 @@ import { useVoiceAgentActions } from "./useVoiceAgentActions";
 import { useVoiceAgentPersonality } from "./useVoiceAgentPersonality";
 import { useVoiceAgentState } from "./useVoiceAgentState";
 import { VoiceEngineSection } from "./VoiceEngineSection";
+import { VoiceLlmSection } from "./VoiceLlmSection";
 import { VoicePersonalitySection } from "./VoicePersonalitySection";
 import { VoiceReplySliders } from "./VoiceReplySliders";
 import { VoiceSpeechSliders } from "./VoiceSpeechSliders";
@@ -36,6 +37,8 @@ export function VoiceConfig({ initialSettings }: { initialSettings?: VoicePrefer
       </p>
 
       <VoiceEngineSection voice={voice} />
+
+      <VoiceLlmSection />
 
       <VoicePersonalitySection voice={voice} />
 
