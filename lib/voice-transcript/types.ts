@@ -45,6 +45,8 @@ export type VoiceTranscriptEvent = {
    * to tell apart from a single slow turn.
    */
   routes?: VoiceTranscriptRoute[];
+  /** Tools/actions the interpreter chose for this turn, e.g. `light.turn_on kitchen`. */
+  actions?: string[];
 };
 
 export type VoiceTranscriptRoute = {
@@ -87,4 +89,9 @@ export type VoiceTranscriptLineParts = {
    * line rather than only while comparison mode is on.
    */
   routeLines?: string[];
+  /**
+   * Everything shown under the collapsed "Stats" label: how the command was
+   * interpreted, the tools chosen, then the per-stack timing lines.
+   */
+  statsLines?: string[];
 };

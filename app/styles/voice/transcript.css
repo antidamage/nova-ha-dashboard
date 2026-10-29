@@ -152,6 +152,17 @@
   opacity: 0.7;
 }
 
+/* The "Stats" label that folds the block below it. */
+.voice-transcript-stats-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--cyber-text-dim, #8b9bb4);
+  cursor: pointer;
+}
+
 /* Which stack ran each reasoning pass of the turn, one line per stack.
    Deliberately the SAME size and colour as the words above it: this is meant
    to be read and compared against the other stack, and a dimmed, shrunken

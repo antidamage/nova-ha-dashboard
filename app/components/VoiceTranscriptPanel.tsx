@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { ChevronDown, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MAX_VOICE_TRANSCRIPTS,
@@ -30,6 +30,14 @@ function mergeTranscripts(
 export function VoiceTranscriptPanel() {
   const { agentName, transcriptTemplate } = useAgentName();
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEvent[]>([]);
+  // Lines whose "Stats" block is expanded; collapsed by default.
+  const [openStats, setOpenStats] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleStats = (id: string) =>
+    setOpenStats((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
   // Drives the working -> failed handover for a turn that never came back.
@@ -150,8 +158,8 @@ export function VoiceTranscriptPanel() {
             >
               {lines.length ? (
                 lines.map((line) => (
+                  <div key={line.id}>
                   <p
-                    key={line.id}
                     className={`voice-transcript-line voice-transcript-line--${line.role} whitespace-pre-wrap break-words`}
                   >
                     <span
@@ -173,17 +181,29 @@ export function VoiceTranscriptPanel() {
                         {line.statusGlyph}
                       </span>
                     ) : null}
-                    {/* One line per stack that ran something, at the same size
-                        and colour as the words above: this is meant to be read
-                        and compared, not skimmed past. Both lines present means
-                        both stacks processed the turn. */}
-                    {line.routeLines?.map((routeLine) => (
-                      <span key={routeLine} className="voice-transcript-routes">
-                        {"\n"}
-                        {routeLine}
-                      </span>
-                    ))}
                   </p>
+                  {line.statsLines?.length ? (
+                    <div className="voice-transcript-stats">
+                      <button
+                        type="button"
+                        className="voice-transcript-stats-toggle"
+                        aria-expanded={openStats.has(line.id)}
+                        onClick={() => toggleStats(line.id)}
+                      >
+                        <ChevronDown
+                          className={`h-3 w-3 shrink-0 transition-transform ${openStats.has(line.id) ? "rotate-0" : "-rotate-90"}`}
+                          aria-hidden="true"
+                        />
+                        Stats
+                      </button>
+                      {openStats.has(line.id) ? (
+                        <p className="voice-transcript-routes whitespace-pre-wrap break-words">
+                          {line.statsLines.join("\n")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  </div>
                 ))
               ) : (
                 <p className="text-neutral-600">Waiting for a voice turn from the voice host...</p>

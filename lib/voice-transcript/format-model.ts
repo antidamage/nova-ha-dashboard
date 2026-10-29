@@ -154,7 +154,21 @@ export function formatVoiceTranscriptParts(
     ...(formatRouteLines(entry.routes).length
       ? { routeLines: formatRouteLines(entry.routes) }
       : {}),
+    ...(formatStatsLines(entry).length ? { statsLines: formatStatsLines(entry) } : {}),
   };
+}
+
+/** Interpretation, tool choices, then timings: the body of the "Stats" toggle. */
+export function formatStatsLines(entry: VoiceTranscriptEvent): string[] {
+  const lines: string[] = [];
+  const interpreted = [entry.decision, entry.kind, entry.outcome].filter(Boolean);
+  if (interpreted.length) {
+    lines.push(`interpreted  ${interpreted.join(" · ")}`);
+  }
+  if (entry.actions?.length) {
+    lines.push(`tools  ${entry.actions.join(" · ")}`);
+  }
+  return [...lines, ...formatRouteLines(entry.routes)];
 }
 
 export function formatVoiceTranscriptLine(

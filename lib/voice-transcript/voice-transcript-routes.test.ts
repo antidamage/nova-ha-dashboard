@@ -88,4 +88,32 @@ describe("route chain on a transcript line", () => {
 
     expect(parts.routeLines).toEqual(["server  interpret 3.0s", "device  interpret 900ms"]);
   });
+
+  it("leads the stats with the interpretation and tool choices, then the timings", () => {
+    const parts = formatVoiceTranscriptParts(
+      {
+        id: "1",
+        at: "2026-07-18T02:57:00.000Z",
+        role: "user",
+        text: "Lights on.",
+        kind: "command",
+        outcome: "executed",
+        decision: "execute",
+        actions: ["light.turn_on kitchen"],
+        routes: [{ pass: "interpret", source: "local", ms: 3000 }],
+      } as VoiceTranscriptEvent,
+      "Nova",
+    );
+
+    expect(parts.statsLines).toEqual([
+      "interpreted  execute · command · executed",
+      "tools  light.turn_on kitchen",
+      "server  interpret 3.0s",
+    ]);
+  });
+
+  it("parses and caps the actions a turn carries", () => {
+    const input = parseVoiceTranscriptInput({ role: "user", text: "x", actions: [" a ", 7, "", "b"] });
+    expect(input.actions).toEqual(["a", "b"]);
+  });
 });

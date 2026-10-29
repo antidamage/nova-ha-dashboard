@@ -77,6 +77,18 @@ function optionalWords(value: unknown): string[] | undefined {
   return words.length ? words : undefined;
 }
 
+function optionalActions(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const actions = value
+    .filter((action): action is string => typeof action === "string")
+    .map((action) => action.trim().slice(0, 120))
+    .filter(Boolean)
+    .slice(0, 8);
+  return actions.length ? actions : undefined;
+}
+
 export function parseVoiceTranscriptInput(
   value: unknown,
   now: Date = new Date(),
@@ -112,10 +124,12 @@ export function parseVoiceTranscriptInput(
   const satelliteId = optionalLabel(source.satelliteId);
   const roomId = optionalLabel(source.roomId);
   const routes = optionalRoutes(source.routes);
+  const actions = optionalActions(source.actions);
   return {
     at: at.toISOString(),
     role: source.role,
     text,
+    ...(actions ? { actions } : {}),
     ...(id ? { id } : {}),
     ...(agentName ? { agentName } : {}),
     ...(speakerName ? { speakerName } : {}),
