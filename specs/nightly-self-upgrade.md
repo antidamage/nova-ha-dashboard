@@ -207,6 +207,30 @@ No code is written until the choice has been attacked. This is the job's
 **idea review**, as AGENTS.md defines it. Code review is the separate PR review in
 Delivery step 8.
 
+The outcomes are defined in step 2. This table is the one place the board
+actions for each outcome are written; the steps below keep what triggers an
+outcome and what else follows it.
+
+| Outcome           | Candidate night | Ticket night                | Rejected |
+|-------------------|-----------------|-----------------------------|----------|
+| APPROVE           | none, step 5    | none, step 5                | no       |
+| REVISE            | none, step 3    | none, step 3                | no       |
+| REJECT: approach  | close           | release, origin             | yes      |
+| REJECT: premise   | close           | release Needs plan, NH+Q    | yes      |
+| NO REVIEW: failed | close           | release, origin             | no       |
+| NO REVIEW: capped | leave open      | release, origin             | no       |
+| NO REVIEW: rounds | leave open, NH  | release, origin, NH         | no       |
+
+- **close**: a `SUMMARY:` comment saying the outcome and why, then move the
+  review ticket to `Done`.
+- **release**: `tickets release --to` the list shown, always named, with a
+  `STATUS:` comment saying why. Ticket nights lists the lists.
+- **origin**: the list the ticket was in before the night claimed it.
+- **candidate night**: a cleanup or feature night; the review ticket is the
+  candidate's own.
+- **NH**: the `needs-human` label. **NH+Q**: NH and a `QUESTION:` comment
+  saying what would have to change.
+
 1. Write the **proposal** into [Ledger](#ledger) on the night's branch: what,
    why (the evidence), the files it touches, the risks, how it rolls back, and
    how it will be verified.
@@ -242,31 +266,26 @@ Delivery step 8.
      - the step ends with no change;
      - the ledger records NO REVIEW, and the report quotes the script's
        message;
-     - on a cleanup or feature night, the candidate's own review ticket is
-       closed with a `SUMMARY:` saying NO REVIEW and why, and moved to `Done`,
-       when the cause was a failure (both peers FAILED, a missing tool or
-       script). After a refusal (the peer cap, a lock, the round limit) the
-       ticket stays open, with `needs-human` for the round limit. If the item
-       comes back on a later night, its new ticket links the old one in the
-       first comment.
+     - the board action is in the table, and the cause picks the row: both
+       peers FAILED or a missing tool or script is `failed`, the peer cap or
+       a lock is `capped`, the round limit is `rounds`. A round-limit refusal
+       adds `needs-human` because only alex can move a ticket past its
+       rounds;
+     - if the item comes back on a later night, its new ticket links the old
+       one in the first comment.
 
-     On a ticket night, the picked ticket is also released to the list it came
-     from with a `STATUS:` comment saying why. A round-limit refusal also adds
-     `needs-human`, because only alex can move a ticket past its rounds. No
-     item is ever approved on one review or none.
+     No item is ever approved on one review or none.
 3. REVISE: revise the proposal once and run one `-Stage change` round on it. A
    second material revision counts as REJECT, because the clock leaves no room
    for a third round. A refused change round is NO REVIEW.
-4. REJECT: move the item to [Rejected](#rejected) with the reason. Close its
-   review ticket with a `SUMMARY:` saying it was rejected and why, and move it
-   to `Done`. On a ticket night, the picked ticket is released instead of
-   closed (its work is not rejected, only tonight's approach):
-   - [Rejected](#rejected) gets the ticket id and the rejected approach.
-   - If the objection was to the approach, the ticket is released with `--to`
-     the list it came from.
-   - If the premise failed or the item breaks this spec, it is released to
-     `Needs plan` with `needs-human` and a `QUESTION` comment saying what would
-     have to change, so the Choosing order skips it until alex answers.
+4. REJECT: move the item to [Rejected](#rejected) with the reason; on a ticket
+   night, with the ticket id and the rejected approach. The board action is in
+   the table: `REJECT: approach` when the objection was to the approach,
+   `REJECT: premise` when the premise failed or the item breaks this spec. A
+   ticket night releases the ticket instead of closing it, because its work is
+   not rejected, only tonight's approach. The premise row carries `needs-human`
+   and a `QUESTION:` so the Choosing order skips the ticket until alex
+   answers.
    - The next candidate is either another ticket, with its own rounds, or a
      different approach to the same ticket, which uses the rounds that ticket
      has left as `idea-review.ps1` counts them across nights. Each `STATUS:`
@@ -478,7 +497,7 @@ A multi-night feature plan, if one is running. One step per feature night.
 
 Items a pre-execution review rejected, with the reason. Never retried. On a ticket night the entry is the ticket id plus the rejected approach: "never retried" applies to that approach, not to the ticket.
 
-- _(none)_
+- 2026-10-31, ticket 167725: a severity colour accent (an 8px edge bar in a new --cyber-success / --cyber-warning / --cyber-danger colour) on the notification banners. It reverses the per-severity colour that PR #122 removed on purpose at alex's request, rests on no notification anyone missed, and a colour-only cue is weak on a wall panel and on theme highlights. A different approach to severity legibility needs a usage example first.
 
 ## Ledger
 
@@ -495,6 +514,20 @@ PR: #n · PR review: PASS | BLOCKING → PASS
 Outcome: live and verified | rolled back | no change — <why>
 ```
 
+### 2026-10-31 — Put the idea review outcomes in one table
+Step: 3 ticket 940396 (second step of the night: step 2 was rejected above, and no feature candidate with usage evidence was left)
+Evidence: ticket 940396 (Inbox, board Web), from the ux peer's item 4 on ticket 142532 (c305683), rejected on 2026-10-28 as a restructure and not wording. What REJECT, REVISE and NO REVIEW do to the board is spread over three places in the idea review section (the NO REVIEW bullets, the REJECT paragraph, and the ticket-night variants), so a reader has to assemble one outcome from several bullets. The ticket names the shape: one table, columns for the candidate night and the ticket night, with the board action in the cells. Ticket 479850 is a duplicate of it.
+Proposal (revised once after round 1, where both peers said CHANGE): add an outcomes table to the idea review section and make it the one place the board actions are written · placement: directly under the section's opening paragraph, before the numbered steps · authority: the table is authoritative for board actions; the bullets keep only what triggers each outcome and point at the table; no "prose wins" clause is added · rows (seven): APPROVE; REVISE; REJECT, objection to the approach; REJECT, premise failed or spec broken; NO REVIEW, both peers failed or a tool or script missing; NO REVIEW, refused by the peer cap or a lock; NO REVIEW, refused at the round limit · columns: Outcome, Cleanup or feature night, Ticket night, On Rejected? (the ticket named "candidate night, ticket night, board action", which can be read as three columns; this uses the first two as columns and puts the board action in the cells, with the Rejected column added because NO REVIEW is not a rejection) · cells are short verb phrases (for example `close, Done`, `leave open`, `release --to origin list`); conditions stay in the bullets; REVISE's row holds `one -Stage change round; second material revision = REJECT; refused change round = NO REVIEW`; APPROVE's row holds `ticket becomes the step's ticket; send preview` · the "after two rejected candidates the step ends" limit stays in the bullets and is named under the table in one line · base: edited from main after PR #124 (the text at forge/main 30a62d9), so the `rerun r<round>` marker and the rounds-counted-across-nights rule are kept · verification: a before/after list written into the PR body and the report: for every sentence removed from a bullet, the table row and cell that now holds it; `lib/docs-entry-point.test.ts` and the unit suite unchanged · delivery also closes duplicate ticket 479850 with a link to 940396 (one attempt through the documented tickets command; a refusal is reported) · files: `specs/nightly-self-upgrade.md` only; no dashboard code, so no build, deploy or runtime change · risk: a dropped condition (the round limit and the two NO REVIEW causes are the easy ones; the seven rows exist for them) · rollback: nothing at runtime; revert the squash commit; no force-update because no shipped file changes.
+Idea review: REVISE → APPROVE — round 1 ux CHANGE (c858441), history CHANGE (c197451); revised once (table is the sole authority for board actions, seven rows split by cause, base on main after PR #124, before/after list); round 2 (`-Stage change`) ux CHANGE (c757973), history CHANGE (c745431), every objection taken in and none changes the scope: the table holds board actions only (APPROVE and REVISE rows point at steps 5 and 3), a key line defines NH and origin, short row labels at 80 columns, a line above the table pointing at step 2 for the definitions, release cells point at Ticket nights, every bullet sentence is classed trigger, board action or other, the premise row names `needs-human` and QUESTION exactly, and closing duplicate 479850 is recorded here (done or refused). Delivery steps 6, 10 and 11 are skipped: no shipped file changes.
+PR: #132 · PR review: PASS (review 341 at 37b1748)
+Outcome: no change — spec wording only, nothing to roll back at runtime; the 2026-10-31 step 2 record above is carried in this PR
+### 2026-10-31 — Severity accent on notification banners
+Step: 2 feature (the midnight run on 2026-10-31 did step 1; this run started by hand at 12:13). Review ticket 167725.
+Evidence: `NotificationStack` writes `data-severity` on every banner (`app/components/notifications/NotificationStack.tsx`), but no stylesheet reads it (`grep data-severity app lib` finds only that write). A `success`, `warning` or `critical` notification therefore looks the same as `info`; only the small `severity · source` line differs. `specs/notifications.md` defines four severities and says `critical` uses `role="alert"`, so the severity is meant to mean something on screen.
+Proposal: a solid bar down the left edge of each banner in the stack, coloured by severity, and nothing else changed. `info` has no bar (unchanged look). `success` uses `--cyber-success`, `warning` uses `--cyber-warning`, `critical` uses the existing `--cyber-danger`; the two new tokens go beside `--cyber-danger` in `app/styles/tokens/root-variables.css`. The bar is `border-left: 8px solid` on `.task-alert-stack .task-alert-banner[data-severity=...]`, so the banner's theme highlight background and title colour are untouched and contrast does not depend on the severity colour. Plain CSS: no animation, glow or filter, so rich and lite are identical. No change to the component, the API, the stored data, the tap target, `task-alert-banner` on the tappable element or the reminder tap swallow. `specs/notifications.md` gets one sentence, and a component test asserts each severity reaches the banner as `data-severity` (the CSS itself is checked in the demo screenshot) · files: `app/styles/tasks/task-alerts.css`, `app/styles/tokens/root-variables.css`, `app/components/notifications/NotificationStack.test.tsx`, `specs/notifications.md`, this file (about 20 changed lines outside tests and spec text) · risk: the new tokens must not collide with an existing name (checked: no `--cyber-warning` or `--cyber-success` exists); a bar colour on a very light theme highlight could be low contrast, which is why it is an edge bar and not a fill; the Plain design's own notification mount (`Root.tsx`) uses the same component, so it gets the same bar, and its look is checked in the screenshot · rollback: release rollback, or revert the squash commit; no data is persisted or changed · verification: unit suite, tsc error count unchanged (13), production build, size ratchet; a demo-build page cannot show notifications (static export), so the before and after screenshots come from a dev server with four notifications posted to it, one per severity (the same method the 2026-10-27 notification PR used); then read-only live checks after the force-update: `/api/update` on the merged commit and the home page answering. The live screenshot shows whatever notifications exist, and no notification is posted to the live dashboard.
+Idea review: REJECT — ux CHANGE (c676726), history CHANGE (c229624), both round 1. Both objections hold: the per-severity colour was removed on purpose in PR #122 at alex's request (one banner look, no second layout), the evidence was a code gap and not a notification anyone missed, and a colour-only 8px edge bar is weak across a room and on theme highlights. Fixing all of that is a second material revision, which counts as REJECT. No code was written and no preview was sent.
+PR: none · PR review: none
+Outcome: no change — rejected before implementation; the record is carried in the ticket-night PR below.
 ### 2026-10-31 — Silence the ten remaining non-climate Turbopack tracing warnings
 Step: 1 cleanup
 Sites: `npm run build` on main (673e8e4) prints 12 "Dynamic filesystem access causes tracing of the whole project" warnings (the 2026-10-26 pass cleared 20 of 32 and left these in Backlog). Ten are outside the off-limits list: `lib/camera/recorder/host.ts:43` (existsSync), `lib/camera/snapshots.ts` 128/133/199/227 (stat, readFile), `lib/phonoscope-images/store.ts` 70/87 (path built in filePath, readFile), `lib/reminder-icons/store.ts:55`, `lib/tasks/store.ts:22`, `lib/wallpaper-assets.ts:183`. The other two are in `lib/climate-control/store.ts` (off limits).
