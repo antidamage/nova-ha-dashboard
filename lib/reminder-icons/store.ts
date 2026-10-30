@@ -52,7 +52,7 @@ export function sortEntries(entries: ReminderIconEntry[]) {
 
 async function readIconFile(): Promise<ReminderIconEntry[]> {
   try {
-    const raw = await readFile(ICONS_PATH, "utf8");
+    const raw = await readFile(/*turbopackIgnore: true*/ ICONS_PATH, "utf8");
     const parsed = JSON.parse(raw) as IconFile;
     if (!Array.isArray(parsed.entries)) {
       return [];

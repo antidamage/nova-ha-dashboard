@@ -19,7 +19,7 @@ export let writeQueue = Promise.resolve();
 
 export async function readTaskFile(): Promise<Task[]> {
   try {
-    const data = JSON.parse(await readFile(TASKS_PATH, "utf8")) as TaskFile;
+    const data = JSON.parse(await readFile(/*turbopackIgnore: true*/ TASKS_PATH, "utf8")) as TaskFile;
     if (!Array.isArray(data.tasks)) {
       return [];
     }

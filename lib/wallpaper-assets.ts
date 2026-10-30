@@ -180,7 +180,7 @@ function normalizeAsset(value: unknown): WallpaperAsset | null {
 
 async function readIndex(): Promise<WallpaperAssetIndex> {
   try {
-    const value = JSON.parse(await readFile(WALLPAPER_INDEX_PATH, "utf8")) as unknown;
+    const value = JSON.parse(await readFile(/*turbopackIgnore: true*/ WALLPAPER_INDEX_PATH, "utf8")) as unknown;
     const assets = isRecord(value) && Array.isArray(value.assets)
       ? value.assets.map(normalizeAsset).filter((asset): asset is WallpaperAsset => Boolean(asset))
       : [];

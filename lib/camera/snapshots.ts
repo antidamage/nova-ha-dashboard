@@ -125,12 +125,12 @@ export async function listSnapshots(camera: CameraConfig): Promise<SnapshotMeta[
       const { ts, meta } = snapshotPaths(camera, id);
       let size = 0;
       try {
-        size = (await stat(ts)).size;
+        size = (await stat(/*turbopackIgnore: true*/ ts)).size;
       } catch {
         return null; // .ts gone — not a real snapshot
       }
       try {
-        const parsed = JSON.parse(await readFile(meta, "utf8")) as Partial<SnapshotMeta>;
+        const parsed = JSON.parse(await readFile(/*turbopackIgnore: true*/ meta, "utf8")) as Partial<SnapshotMeta>;
         return {
           id,
           createdAt: parsed.createdAt ?? new Date(idEpoch(id)).toISOString(),
@@ -196,7 +196,7 @@ export async function createSnapshot(camera: CameraConfig): Promise<SnapshotMeta
     throw new Error("no-footage");
   }
 
-  const sizeBytes = (await stat(outPath)).size;
+  const sizeBytes = (await stat(/*turbopackIgnore: true*/ outPath)).size;
   const meta: SnapshotMeta = {
     id,
     createdAt: new Date().toISOString(),
@@ -224,7 +224,7 @@ export async function resolveSnapshot(
   const { ts } = snapshotPaths(camera, id);
   let sizeBytes: number;
   try {
-    sizeBytes = (await stat(ts)).size;
+    sizeBytes = (await stat(/*turbopackIgnore: true*/ ts)).size;
   } catch {
     return null;
   }

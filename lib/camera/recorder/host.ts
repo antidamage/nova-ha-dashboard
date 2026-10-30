@@ -40,7 +40,7 @@ export function ffmpegAvailable() {
   // build and ffmpeg-less hosts from crash-looping. Absolute paths are checked
   // directly, bare command names are assumed present on PATH.
   if (FFMPEG_BIN.includes("/") || FFMPEG_BIN.includes("\\")) {
-    return existsSync(FFMPEG_BIN);
+    return existsSync(/*turbopackIgnore: true*/ FFMPEG_BIN);
   }
   return true;
 }

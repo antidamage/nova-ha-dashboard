@@ -67,7 +67,7 @@ async function writeManifest(images: PhonoscopeImage[]) {
  * every entry written before the library accepted anything else is on disk.
  */
 function filePath(id: string, format: PhonoscopeImageFormat = "png") {
-  return path.join(IMAGES_DIR, `${id}.${format}`);
+  return path.join(/*turbopackIgnore: true*/ IMAGES_DIR, `${id}.${format}`);
 }
 
 /**
@@ -84,7 +84,7 @@ export async function readPhonoscopeImageFile(id: string) {
   const format = (await readPhonoscopeImages()).find((image) => image.id === id)?.format ?? "png";
   try {
     return {
-      data: await readFile(filePath(id, format)),
+      data: await readFile(/*turbopackIgnore: true*/ filePath(id, format)),
       contentType: PHONOSCOPE_IMAGE_CONTENT_TYPES[format],
     };
   } catch (error) {
