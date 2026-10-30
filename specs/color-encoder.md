@@ -236,6 +236,13 @@ often. A colour picker opens on hue, the first channel, which is the default.
   client) sweep the same way. While the pointer is down the rotor tracks the
   value with no transition, so a drag stays 1:1. No sweep under
   `prefers-reduced-motion`.
+- **A dial with coarse steps keeps sweeping under the hand** (alex,
+  2026-10-31). The index shows the step-rounded value, so tracking it 1:1 made
+  it jump a step at a time. A caller passes `indexGlide` and the rotor and
+  `--re-mark` keep their 250ms ease-out sweep while the pointer is down: each
+  new step re-aims the transition from wherever the index has reached, so it
+  slides on to the goal. Only the temperature knobs set it; colour and light
+  dials are unstepped and stay 1:1.
 - Pointer Events with `setPointerCapture`, so a drag tracks outside the
   element.
 - **Keyboard**: focusable. Right/Up and Left/Down arrows turn the knob `5.4°`

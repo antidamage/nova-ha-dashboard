@@ -159,6 +159,12 @@ export type RotaryEncoderProps = {
    */
   ringMark?: number;
   /**
+   * Keeps the index (and `--re-mark`) sweeping between detents while the dial is
+   * being turned, instead of tracking the value 1:1. For a dial whose value moves
+   * in coarse steps, where a 1:1 index would jump a step at a time.
+   */
+  indexGlide?: boolean;
+  /**
    * Light/dark treatment for the knob. Omitted, the base follows the device
    * theme's knob-skin setting (published on `<html data-knob-skin>` by
    * applyDeviceTheme), which is what every knob should do; pass it only to pin

@@ -65,6 +65,10 @@ longer change what the knob does.
 - The index runs 7:30 → over the top → 4:30 across the range, so the value
   moves at `range / 270°` per degree turned. The drag is relative, as on every
   dial.
+- **The index slides between steps** (alex, 2026-10-31). The target moves in
+  0.5°C steps, but the index (and the ring split that follows it) sweeps from
+  step to step with the base's 250ms ease-out instead of jumping, including while
+  the knob is being turned (`indexGlide`; `specs/color-encoder.md`).
 - The value previews while turning and commits on release, through the
   existing debounced setpoint sends (`AIRCON_TEMPERATURE_SEND_DEBOUNCE_MS`).
 - Keyboard arrows step 0.5°C.

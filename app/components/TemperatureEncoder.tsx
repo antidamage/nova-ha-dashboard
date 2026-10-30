@@ -104,6 +104,7 @@ export function TemperatureEncoder({
       color={temperatureColour(target)}
       ringPaint={paint}
       ringMark={temperatureRingMark(value, minTarget, maxTarget)}
+      indexGlide
       glowPaint={glowPaint}
       disabled={disabled}
       title={title}

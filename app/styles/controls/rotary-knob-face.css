@@ -53,7 +53,7 @@
   --re-ring-empty: #b4b7bd;
 }
 
-.rotary-encoder:has(> .rotary-encoder-dial[data-pressed="true"]) {
+.rotary-encoder:has(> .rotary-encoder-dial[data-pressed="true"]:not([data-index-glide="true"])) {
   transition: none;
 }
 
@@ -151,7 +151,7 @@
   opacity: 0;
 }
 
-.rotary-encoder-dial[data-pressed="true"] > .rotary-encoder-rotor {
+.rotary-encoder-dial[data-pressed="true"]:not([data-index-glide="true"]) > .rotary-encoder-rotor {
   transition: none;
 }
 

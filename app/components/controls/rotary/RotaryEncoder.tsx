@@ -99,6 +99,7 @@ export function RotaryEncoder({
   glow,
   glowPaint,
   ringMark,
+  indexGlide,
   knobSkin,
   ledLabels = false,
   rings = [],
@@ -946,6 +947,7 @@ export function RotaryEncoder({
         aria-valuetext={ariaValueText}
         data-led={led}
         data-pressed={pressed ? "true" : undefined}
+        data-index-glide={indexGlide ? "true" : undefined}
         data-demo-tooltip-title={demoTooltipTitle}
         data-demo-tooltip={demoTooltip}
         tabIndex={disabled ? -1 : 0}
