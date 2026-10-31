@@ -63,8 +63,13 @@ function formatClockDate(date: Date) {
 export function ClockPanel() {
   const { agentName } = useAgentName();
   const [now, setNow] = useState<Date | null>(null);
+  // The zone is the browser's, so the server cannot know it. Reading it during
+  // render made the server HTML say the server's zone and the first client
+  // render say the screen's, which React reports as hydration error #418.
+  const [zone, setZone] = useState("");
 
   useEffect(() => {
+    setZone(localZoneLabel());
     const update = () => setNow(new Date());
 
     update();
@@ -78,7 +83,7 @@ export function ClockPanel() {
         time: "--:--:--",
         weekday: null,
         date: "Syncing time",
-        zone: localZoneLabel(),
+        zone,
       };
     }
 
@@ -88,9 +93,9 @@ export function ClockPanel() {
         weekday: "short",
       }).format(now),
       date: formatClockDate(now),
-      zone: localZoneLabel(),
+      zone,
     };
-  }, [now]);
+  }, [now, zone]);
 
   return (
     <section className="clock-panel border border-neutral-700 bg-neutral-950/70 p-5">
