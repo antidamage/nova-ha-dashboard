@@ -459,9 +459,20 @@ power to do a wash, extend the timer by 10 minutes… if the washing machine sto
 drawing power for 2 minutes (or is so low that it's probably just alerting)
 finish the timer and play the timer notification sound."*
 
-- A wash **starts** the timer when it is **claimed**: the tap on the running wash
-  block that attributes it to the **primary** person. An unclaimed wash starts
-  nothing and is notified by nothing.
+- Every confirmed wash **starts** the timer, whoever it belongs to (alex,
+  2026-10-31: *"it's okay to show the timer for any washing machine load… but you
+  can just notify me when a profile that looks like mine is finished"*). Whether
+  the end **notifies** is the timer's `notify` flag: on when the wash is claimed by
+  the **primary** person (the tap on the running wash block, or the status orb's
+  bell), off otherwise. A wash with notify off counts down, and extends, on every
+  screen like any other, and when the machine stops its countdown is **cancelled
+  silently**: no chime, no orb flash, no Discord message.
+- Claiming or unclaiming never restarts or cancels a countdown already running; it
+  only flips `notify` (on the household timer too, as `washNotify`). A claim
+  starts a countdown only where none is running (the household replaced it).
+- A household timer already standing (their own, running or finished and awaiting
+  acknowledgement) is never replaced by the automatic start. The wash then keeps
+  its own countdown, with `orbTimerId` null, for the washing entry alone.
 - The timer's **first period** is `timer.firstPeriodMinutes`, measured from the
   claim.
 - When a period ends with the machine **still drawing power to do a wash** — above
@@ -489,13 +500,13 @@ finish the timer and play the timer notification sound."*
   alex, a t-shirt glyph labelled "Wash clothes"); a household that has
   configured none gets the default `Countdown` icon — the same fallback the timer
   control uses.
-- It is the household's single timer, so a claim **replaces** a countdown already
-  running. If the household replaces it with a timer of their own mid-wash, the
+- It is the household's single timer, so a claim that has to start one **replaces** a
+  countdown already running. If the household replaces it with a timer of their own mid-wash, the
   wash stops driving it and never takes it back; the wash's own countdown then
   continues on the orb's washing entry alone.
-- A tap that takes the wash off the primary person (**unclaiming**) releases an
-  unfinished timer silently. One that has already finished is left alone: it is
-  an alert waiting to be acknowledged, and the wash ending is not an
+- A tap that takes the wash off the primary person (**unclaiming**) turns `notify`
+  off and leaves the countdown running. A timer that has already finished is left
+  alone: it is an alert waiting to be acknowledged, and the wash ending is not an
   acknowledgement.
 - A wash whose `completion` has already been captured — or whose own timer has
   already completed — starts no timer: between that edge and the cycle closing
@@ -971,14 +982,21 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
   out with the machine quiet does not; a stalled period anchors to the present.
 - A timer that has finished is never extended, and its finish time is recorded
   once.
-- A claimed wash's timer is started for `firstPeriodMinutes` from the claim, and
-  is published to the household timer as `autoComplete: false`.
+- A confirmed wash's timer is started for `firstPeriodMinutes` from the tick that
+  confirms it (from the claim, where the claim has to start it), and is published
+  to the household timer as `autoComplete: false` with `washNotify`.
+- An unclaimed wash's timer is cancelled silently when the machine stops; a
+  claimed one's finishes and alerts. Claiming mid-wash flips `washNotify` on the
+  same timer.
+- `POST /api/power/washing-machine` with `{ "notify": true|false }` turns the
+  notification for the wash under way on (claim by the primary person) or off
+  (unassigned); 404 when no wash is running.
 - The meter tick extends the running timer while the machine draws, and finishes
   it at the machine's quiet — before the period it was counting would have run
   out.
-- A tap that takes the wash off the primary person releases an unfinished timer
-  silently; a timer that has already finished is left for the household to
-  acknowledge.
+- A tap that takes the wash off the primary person silences an unfinished timer
+  without removing it; a timer that has already finished is left for the household
+  to acknowledge.
 - A wash whose `completion` has already been captured, or whose own timer has
   already completed, starts no timer.
 - An unclaimed wash closes as `unclaimedPersonId` with `attribution.source` of
@@ -1021,8 +1039,9 @@ unknown-forecast reason. Forecast results are captured once, not recomputed on r
 
 See [status-orb-stack.md](status-orb-stack.md). Exactly one household person is
 primary; the wash's timer is that person's claim (§4.5). A configured washing orb
-entry counts down the wash's timer — the same periods the timer entry shows — and
-suppresses the temporary wash icon; the entry flashes on completion and is
+entry counts down the wash's timer — the same periods the timer entry shows, for
+any wash, with a bell on the icon (filled: will notify; struck through: will not) —
+and suppresses the temporary wash icon; the entry flashes on completion and is
 acknowledged by a tap, and it never chimes — the timer the claim started is what
 sounds. Without the entry, keep the temporary icon, which is likewise silent, and
 the timer entry carries the countdown alone. Discord completion behaviour is

@@ -71,17 +71,18 @@ export const ORB_INFO_MODULES: OrbModule[] = [
       const task = washTasks?.find((task) => !task.dismissedAt && !task.alertDismissedAt && (task.moduleData?.["washing-machine"] as { phase?: string })?.phase === "active");
       if (task) return output({ status: "ok", active: true, icon: "washing-machine", text: "Done", alert: true, alertAt: Date.parse(task.start) || 0, dismiss: { kind: "washing", id: task.id } });
       // The countdown is the wash's own timer, the same periods the household
-      // timer entry counts. A wash with no timer — one nobody claimed — has no
-      // orb entry at all: it is the other person's, and it notifies nobody
+      // timer entry counts. Every wash with a timer has an entry; the bell says
+      // whether the end will notify, which only the primary person's does
       // (specs/power-meters.md, "The wash's timer").
       const open = washing?.open;
-      if (!open?.timer || open.completion || open.person !== washing?.primaryPersonId) return output({ active: false });
+      if (!open?.timer || open.completion) return output({ active: false });
       if (open.timer.completedAt !== null) return output({ active: false });
       // Past its period with the machine still running is not an overrun: the
       // timer entry reads 0:00, and this one must read the same thing.
       const remaining = Math.max(0, Date.parse(open.timer.endsAt) - now);
       if (!Number.isFinite(remaining)) return output({ active: false });
-      return output({ status: "ok", active: true, icon: "washing-machine", text: countdownText(remaining), remainingMs: Math.max(0, remaining) });
+      return output({ status: "ok", active: true, icon: "washing-machine", text: countdownText(remaining), remainingMs: Math.max(0, remaining),
+        notify: { on: open.timer.notify ?? (Boolean(washing?.primaryPersonId) && open.person === washing?.primaryPersonId) } });
     },
   },
   ...([
@@ -107,6 +108,7 @@ export const ORB_INFO_MODULES: OrbModule[] = [
       const done = timerIsDone(timer, now);
       return output({ active: true, status: "ok", icon: timer.icon, text: done ? "Done" : countdownText(timerRemaining(timer, now)),
         alert: done, remainingMs: timerRemaining(timer, now),
+        ...(timer.washNotify === undefined || done ? {} : { notify: { on: timer.washNotify } }),
         ...(done ? { alertAt: timer.completedAt ?? timer.endsAt, dismiss: { kind: "timer" as const, id: timer.id } } : { countdownFraction: timerRemaining(timer, now) / timer.durationMs }) });
     },
   },

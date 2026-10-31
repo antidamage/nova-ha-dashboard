@@ -18,15 +18,23 @@ export function CountdownRing({ fraction, remainingMs }: { fraction: number; rem
 export function orbTextFit(text: string): number {
   return Math.max(0.45, Math.min(1, 4.5 / Math.max(1, [...text].length)));
 }
-export function OrbEventReadout({ icon, fraction, remainingMs, text }: { icon: string; fraction?: number; remainingMs?: number; text: string }) {
+/** The wash countdown's bell: filled when finishing will notify, struck through when it will not. */
+export function NotifyBell({ on }: { on: boolean }) {
+  return <svg className="orb-notify-bell" data-notify={on ? "on" : "off"} viewBox="0 0 24 24" role="img" aria-label={on ? "Will notify when done" : "Will not notify"}>
+    <path d="M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6zm-2 15a2 2 0 0 0 4 0z" fill={on ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    {!on && <path d="M4 4l16 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}
+  </svg>;
+}
+export function OrbEventReadout({ icon, fraction, remainingMs, text, notify }: { icon: string; fraction?: number; remainingMs?: number; text: string; notify?: boolean }) {
   return <span className="orb-event-readout"><span className="orb-event-icon">
     <OrbEventIcon icon={icon} />{fraction !== undefined && <CountdownRing fraction={fraction} remainingMs={remainingMs} />}
+    {notify !== undefined && <NotifyBell on={notify} />}
   </span><span className="orb-event-text" style={{ "--orb-text-fit": orbTextFit(text) } as CSSProperties}>{text}</span></span>;
 }
-type ReadoutItem = { entry: { id: string }; output: { icon?: string; countdownFraction?: number; remainingMs?: number }; text: string };
+type ReadoutItem = { entry: { id: string }; output: { icon?: string; countdownFraction?: number; remainingMs?: number; notify?: { on: boolean } }; text: string };
 function ReadoutBody({ item }: { item: ReadoutItem }) {
   return item.output.icon
-    ? <OrbEventReadout icon={item.output.icon} fraction={item.output.countdownFraction} remainingMs={item.output.remainingMs} text={item.text} />
+    ? <OrbEventReadout icon={item.output.icon} fraction={item.output.countdownFraction} remainingMs={item.output.remainingMs} text={item.text} notify={item.output.notify?.on} />
     : <>{item.text}</>;
 }
 /**

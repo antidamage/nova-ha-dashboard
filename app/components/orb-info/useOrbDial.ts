@@ -15,6 +15,9 @@ type Options = {
   /** True when that entry is alerting: a tap dismisses instead of opening. */
   shownAlerting: (id: string) => boolean;
   dismiss: (id: string) => void;
+  /** True when that entry carries a notification switch: a tap on the open dial flips it. */
+  shownSwitchable?: (id: string) => boolean;
+  toggle?: (id: string) => void;
 };
 
 /**
@@ -23,7 +26,7 @@ type Options = {
  * order at once (specs/status-orb-stack.md).
  * Drag maths reuse RotaryEncoder's `pointerAngle` (relative sweep).
  */
-export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Options) {
+export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss, shownSwitchable, toggle }: Options) {
   const count = ids.length;
   const idsRef = useRef(ids);
   idsRef.current = ids;
@@ -92,9 +95,10 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss }: Op
     // The entry actually on show at the moment of the tap, by id.
     const shown = idsRef.current[orbDialIndex(current, idsRef.current)];
     if (shown !== undefined && shownAlerting(shown)) { dismiss(shown); dispatch({ type: "touch", now: Date.now() }); return; }
+    if (current.open && shown !== undefined && shownSwitchable?.(shown)) { toggle?.(shown); dispatch({ type: "touch", now: Date.now() }); return; }
     if (!current.open) playUxSound("unlockDial");
     dispatch({ type: current.open ? "touch" : "open", now: Date.now() });
-  }, [dismiss, shownAlerting]);
+  }, [dismiss, shownAlerting, shownSwitchable, toggle]);
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
     if (!enabled || (event.pointerType === "mouse" && event.button !== 0)) return;

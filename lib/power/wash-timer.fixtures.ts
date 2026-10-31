@@ -28,7 +28,7 @@ export const HOUSEHOLD = {
 };
 
 export type TimerFile = { autoComplete: boolean; completedAt: number | null; dismissedAt: number | null;
-  durationMs: number; endsAt: number; icon: string; id: string; label: string; startedAt: number };
+  durationMs: number; endsAt: number; icon: string; id: string; label: string; startedAt: number; washNotify?: boolean };
 
 const scratchDirs: string[] = [];
 

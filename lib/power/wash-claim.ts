@@ -109,6 +109,18 @@ export async function attributeOpenWashingMachineCycle() {
 }
 
 /**
+ * Turn the notification for the wash under way on or off — the status orb's bell.
+ * It is the claim by another name: on is the primary person's wash, off hands it
+ * back to nobody, so the household's unclaimed default settles it at the close.
+ * Null where no wash is running or no primary person is configured.
+ */
+export async function setOpenWashNotify(notify: boolean) {
+  const primaryId = (readDashboardConfigSync().dashboard.people ?? []).find((person) => person.primary)?.id;
+  if (!primaryId) return null;
+  return setWashingMachineCyclePerson({ active: true, person: notify ? primaryId : null });
+}
+
+/**
  * Name one wash's owner outright, or clear it — what the laundry history's
  * dropdown does (`specs/power-meters.md` §5.3).
  *

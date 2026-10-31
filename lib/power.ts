@@ -59,6 +59,7 @@ export {
 export {
   attributeOpenWashingMachineCycle,
   attributeWashingMachineCycle,
+  setOpenWashNotify,
   setWashingMachineCyclePerson,
 } from "./power/wash-claim";
 export { readWashHistory } from "./power/washing";

@@ -14,6 +14,11 @@ export type OrbTimer = {
    * running (specs/power-meters.md, "The wash's timer").
    */
   autoComplete: boolean;
+  /**
+   * Set only on the wash's timer: whether finishing will notify the household.
+   * Absent on every other timer, which always does.
+   */
+  washNotify?: boolean;
 };
 export const TIMER_SOUND_REPEAT_MS = 30_000;
 export const TIMER_SOUND_WINDOW_MS = 300_000;

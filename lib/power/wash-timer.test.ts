@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MINUTE, NOW, cleanUp, fresh, openWash, readTimer, readWash, scratch, seed } from "./wash-timer.fixtures";
+import { MINUTE, NOW, cleanUp, fresh, openWash, readTimer, readWash, scratch, seed, tick } from "./wash-timer.fixtures";
 
 /**
  * The wash's timer is the household's own timer, driven by the machine
@@ -48,20 +48,74 @@ describe("the wash's timer", () => {
     expect(readWash(data).open?.timer?.orbTimerId).toBe(timer?.id);
   });
 
-  it("is not started when someone else's tap claims the wash, and the wash's own timer goes with it", async () => {
+  it("keeps counting when someone else's tap takes the wash off the primary person, and stops notifying", async () => {
     const { config, data, preferences, timerFile } = scratch({ runningTimer: true });
     seed(data, openWash(20));
     const { washing } = await fresh(config, data, preferences, timerFile);
     await washing.attributeOpenWashingMachineCycle();
-    expect(readTimer(timerFile)?.label).toBe("Wash clothes");
+    const claimedTimer = readTimer(timerFile);
+    expect(claimedTimer?.label).toBe("Wash clothes");
+    expect(claimedTimer?.washNotify).toBe(true);
 
-    // alex -> sam: the tap is a claim, just not the primary person's, and the
-    // timer the wash had started is taken off every screen.
+    // alex -> sam: the countdown stays on every screen, but finishing is quiet.
     await washing.attributeOpenWashingMachineCycle();
 
-    expect(readTimer(timerFile)).toBeNull();
+    expect(readTimer(timerFile)?.id).toBe(claimedTimer?.id);
+    expect(readTimer(timerFile)?.washNotify).toBe(false);
     expect(readWash(data).open?.person).toBe("sam");
-    expect(readWash(data).open?.timer).toBeUndefined();
+    expect(readWash(data).open?.timer?.notify).toBe(false);
+  });
+
+  it("counts down any confirmed wash, quietly until it is claimed", async () => {
+    const { config, data, preferences, timerFile } = scratch();
+    seed(data, openWash(20));
+    const { washing } = await fresh(config, data, preferences, timerFile);
+
+    await tick(washing, data, NOW + 30_000, 220);
+
+    const started = readTimer(timerFile);
+    expect(started?.durationMs).toBe(70 * MINUTE);
+    expect(started?.washNotify).toBe(false);
+    expect(readWash(data).open?.timer?.orbTimerId).toBe(started?.id);
+
+    // The orb's bell: the same timer, now one that will notify.
+    await washing.setOpenWashNotify(true);
+    expect(readTimer(timerFile)?.id).toBe(started?.id);
+    expect(readTimer(timerFile)?.washNotify).toBe(true);
+    expect(readWash(data).open?.person).toBe("alex");
+    await washing.setOpenWashNotify(false);
+    expect(readTimer(timerFile)?.washNotify).toBe(false);
+    expect(readWash(data).open?.person).toBeNull();
+  });
+
+  it("does not replace a timer the household already has running", async () => {
+    const { config, data, preferences, timerFile } = scratch({ runningTimer: true });
+    seed(data, openWash(20));
+    const { washing } = await fresh(config, data, preferences, timerFile);
+
+    await tick(washing, data, NOW + 30_000, 220);
+
+    expect(readTimer(timerFile)?.label).toBe("Check oven");
+    // The wash still has its own countdown, for the washing entry alone.
+    expect(readWash(data).open?.timer?.orbTimerId).toBeNull();
+    expect(readWash(data).open?.timer?.notify).toBe(false);
+  });
+
+  it("finishes an unclaimed wash silently: the countdown goes without an alert", async () => {
+    const { config, data, preferences, timerFile } = scratch();
+    seed(data, openWash(20));
+    const { washing } = await fresh(config, data, preferences, timerFile);
+    await tick(washing, data, NOW + 30_000, 220);
+    expect(readTimer(timerFile)).not.toBeNull();
+
+    let at = NOW + 30_000;
+    for (let i = 0; i < 6; i += 1) {
+      at += 30_000;
+      await tick(washing, data, at, 0);
+    }
+
+    expect(readTimer(timerFile)).toBeNull();
+    expect(readWash(data).open?.timer?.completedAt).not.toBeNull();
   });
 
   it("is not started for a wash whose completion has already been captured", async () => {

@@ -50,13 +50,14 @@ async function publish(timer: OrbTimer | null) {
  */
 const DISMISS_CLOCK_SKEW_MS = 5_000;
 export function readOrbTimer() { return serial(async () => (await read()).timer); }
-export function setOrbTimer(durationMs: number, icon: string, label: string, options: { autoComplete?: boolean } = {}) {
+export function setOrbTimer(durationMs: number, icon: string, label: string, options: { autoComplete?: boolean; washNotify?: boolean } = {}) {
   return serial(async () => {
     if (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 8 * 3_600_000) throw new Error("Timer must be between Off and eight hours");
     const now = Date.now();
     const timer: OrbTimer | null = durationMs === 0 ? null : {
       id: randomUUID(), icon, label, durationMs, startedAt: now, endsAt: now + durationMs,
       completedAt: null, dismissedAt: null, autoComplete: options.autoComplete ?? true,
+      ...(options.washNotify === undefined ? {} : { washNotify: options.washNotify }),
     };
     await write({ timer, notified: false, soundSlot: -1 });
     await publish(timer);
@@ -79,6 +80,18 @@ export function extendOrbTimer(id: string, endsAt: number) {
     const timer = state.timer;
     if (!timer || timer.id !== id || timer.completedAt !== null || timer.dismissedAt !== null) return null;
     const next: OrbTimer = { ...timer, durationMs: Math.max(0, timer.durationMs + (endsAt - timer.endsAt)), endsAt };
+    await write({ ...state, timer: next });
+    await publish(next);
+    return next;
+  });
+}
+/** Change whether the running wash's timer will notify when it finishes. */
+export function setOrbTimerWashNotify(id: string, washNotify: boolean) {
+  return serial(async () => {
+    const state = await read();
+    const timer = state.timer;
+    if (!timer || timer.id !== id || timer.completedAt !== null || timer.dismissedAt !== null) return null;
+    const next: OrbTimer = { ...timer, washNotify };
     await write({ ...state, timer: next });
     await publish(next);
     return next;

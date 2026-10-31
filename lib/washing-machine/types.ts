@@ -27,6 +27,12 @@ export type WashTimer = {
    * wash's timer then counts down on the washing entry alone.
    */
   orbTimerId: string | null;
+  /**
+   * Whether finishing sounds and announces. On when the primary person owns the
+   * wash; off for anyone else's, which counts down and then goes quietly. Absent
+   * on a timer written before the setting existed, which notified.
+   */
+  notify?: boolean;
 };
 
 export type WashingMachineCycle = {

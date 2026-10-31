@@ -4,6 +4,7 @@ import {
   attributeWashingMachineCycle,
   readWashHistory,
   samplePowerNow,
+  setOpenWashNotify,
   setWashingMachineCyclePerson,
 } from "../../../../lib/power";
 
@@ -51,7 +52,13 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { active?: unknown; cycleId?: unknown; person?: unknown };
+    const body = (await request.json()) as { active?: unknown; cycleId?: unknown; notify?: unknown; person?: unknown };
+    if (body.notify !== undefined) {
+      // The status orb's bell: `{ notify }` alone, for the wash under way.
+      if (typeof body.notify !== "boolean") return NextResponse.json({ error: "notify must be true or false" }, { status: 400 });
+      if (!await setOpenWashNotify(body.notify)) return NextResponse.json({ error: "No active wash" }, { status: 404 });
+      return NextResponse.json(await samplePowerNow(), { headers: { "Cache-Control": "no-store" } });
+    }
     if (body.person !== undefined && body.person !== null && typeof body.person !== "string") {
       return NextResponse.json({ error: "person must be a person id or null" }, { status: 400 });
     }

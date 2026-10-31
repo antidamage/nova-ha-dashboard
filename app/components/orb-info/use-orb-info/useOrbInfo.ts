@@ -15,6 +15,7 @@ import { orderOrbStack } from "../../../../lib/orb-info/stack";
 import type { Task } from "../../../../lib/types";
 import { applyTaskDismissal, dismissalKey, tasksSourceFrom } from "./source-model";
 import type { DashboardSource, NovaLoadSample, OrbStackView, PowerSource, UseOrbInfoOptions, WatchfaceSource } from "./types";
+import { useWashNotify } from "./useWashNotify";
 import { useDashboardFeed, usePowerFeed, usePreferencesFeed, useTasksFeed, useWatchfaceFeed } from "./useSourceFeeds";
 
 /**
@@ -176,6 +177,8 @@ export function useOrbInfo({
     }
   }, [timerCommand]);
 
+  const setWashNotify = useWashNotify(setWashing);
+
   const stack: OrbStackView[] = ordered.map((item) => {
     const itemModule = orbModuleById(item.entry.moduleId);
     const itemDisplay = resolveOrbDisplay({ modules: { [itemModule.id]: item.entry } }, itemModule.id);
@@ -188,6 +191,7 @@ export function useOrbInfo({
     dismiss: outputValue.dismiss ? () => dismissTarget(outputValue) : undefined,
     /** Dismiss a specific stack item's alert everywhere. */
     dismissTarget,
+    setWashNotify,
     /** The full ordered stack for the dial; index 0 is what the orb shows at rest. */
     stack,
     module,

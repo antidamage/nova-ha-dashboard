@@ -21,7 +21,7 @@ import {
   WASHING_MACHINE_PATH,
   writeJsonAtomic,
 } from "./store";
-import { syncWashTimer } from "./wash-timer";
+import { startWashTimer, syncWashTimer } from "./wash-timer";
 import { buildWashHistory } from "./wash-history";
 import type { PowerWashingMachineSummary } from "./types";
 
@@ -59,6 +59,12 @@ export async function recordWashingMachineTick(
   // extended it, finished it, or removed it with the wash — reaches the timer
   // every screen reads (specs/power-meters.md, "The wash's timer").
   await syncWashTimer(beforeTimer, next.open?.timer);
+  // Every confirmed wash counts down, claimed or not; the claim decides only
+  // whether the end notifies (specs/power-meters.md, "The wash's timer").
+  if (next.open?.startedAt && !next.open.timer) {
+    const started = await startWashTimer(next.open, now);
+    if (started) next.open.timer = started;
+  }
   const cutoff = new Date(now.getTime() - WASHING_MACHINE_HISTORY_DAYS * 86_400_000).toISOString();
   return pruneWashingMachineCycles(next, cutoff);
 }
@@ -110,7 +116,7 @@ export async function readWashHistory(atMs: number | null) {
  * Attribution is a store write of its own — see ./wash-claim — re-exported here
  * so its callers (the API route, the facade and the suites) keep their import.
  */
-export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle, setWashingMachineCyclePerson } from "./wash-claim";
+export { attributeOpenWashingMachineCycle, attributeWashingMachineCycle, setOpenWashNotify, setWashingMachineCyclePerson } from "./wash-claim";
 
 export function washReconcileSignature(state: WashingMachineState) {
   const open = state.open;

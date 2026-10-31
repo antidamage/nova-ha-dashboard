@@ -94,6 +94,11 @@ export type OrbModuleOutput = {
   icon?: string;
   countdownFraction?: number;
   dismiss?: { kind: "timer" | "washing" | "reminder"; id: string };
+  /**
+   * A wash countdown only: whether finishing will notify. The orb draws a bell
+   * for it, and a tap with the dial open turns it on or off.
+   */
+  notify?: { on: boolean };
   /** Countdown entries: milliseconds left (an overrun counts as 0). */
   remainingMs?: number;
   /** Epoch ms the alert began; most recent alert orders first. */
@@ -205,7 +210,7 @@ export type OrbInfoSources = {
   now: number;
   orbTimer?: OrbTimer | null;
   events?: Record<string, OrbModuleOutput>;
-  washing?: { primaryPersonId?: string; open: { startedAt: string | null; person?: string | null; completion?: unknown; timer?: { endsAt: string; completedAt: string | null } | null } | null } | null;
+  washing?: { primaryPersonId?: string; open: { startedAt: string | null; person?: string | null; completion?: unknown; timer?: { endsAt: string; completedAt: string | null; notify?: boolean } | null } | null } | null;
   washTasks?: Array<{ id: string; start: string; dismissedAt?: string; alertDismissedAt?: string; moduleData?: Record<string, unknown> }>;
 
   watchface: {

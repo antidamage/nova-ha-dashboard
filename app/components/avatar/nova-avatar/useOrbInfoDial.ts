@@ -45,6 +45,11 @@ export function useOrbInfoDial({
       const item = orbInfo.stack.find((candidate) => candidate.entry.id === id);
       if (item?.output.dismiss) void orbInfo.dismissTarget(item.output).catch(console.error);
     },
+    shownSwitchable: (id) => Boolean(orbInfo.stack.find((candidate) => candidate.entry.id === id)?.output.notify),
+    toggle: (id) => {
+      const on = orbInfo.stack.find((candidate) => candidate.entry.id === id)?.output.notify?.on;
+      if (on !== undefined) void orbInfo.setWashNotify(!on).catch(console.error);
+    },
   });
   const shownItem = orbInfo.stack[dial.index] ?? orbInfo.stack[0];
   return { orbInfo, dialEnabled, dial, shownItem };

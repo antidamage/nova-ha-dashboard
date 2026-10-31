@@ -171,3 +171,23 @@ describe("none module", () => {
     expect(output.alert).toBe(false);
   });
 });
+
+describe("washing module", () => {
+  const washing = (person: string | null, notify?: boolean) => sources({
+    now: NOW,
+    washing: { primaryPersonId: "alex", open: { startedAt: "2026-09-22T01:00:00Z", person,
+      timer: { endsAt: new Date(NOW + 20 * 60_000).toISOString(), completedAt: null, ...(notify === undefined ? {} : { notify }) } } },
+  });
+
+  it("counts down a wash nobody claimed, with its bell off", () => {
+    const output = orbModuleById("washing").read(washing(null, false));
+    expect(output.active).toBe(true);
+    expect(output.text).toBe("20:00");
+    expect(output.notify).toEqual({ on: false });
+  });
+
+  it("shows the bell on for the primary person's wash, including a timer from before the setting", () => {
+    expect(orbModuleById("washing").read(washing("alex", true)).notify).toEqual({ on: true });
+    expect(orbModuleById("washing").read(washing("alex")).notify).toEqual({ on: true });
+  });
+});

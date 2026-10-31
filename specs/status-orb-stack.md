@@ -256,9 +256,9 @@ format each entry's module follows.
 - While any tap-to-dismiss alert (timer or wash) is showing, an orb tap **dismisses** it everywhere and does not start push-to-talk.
 
 **Washing entry**
-- Active while a wash claimed by the **primary user** is running, and after it completes until acknowledged.
+- Active while a wash is running (any wash, with its countdown), and after it completes until acknowledged where it notifies. A **bell** on the icon shows whether finishing will notify: filled for the **primary user's** wash, struck through otherwise. With the dial open, a tap on a washing or timer entry that shows a bell turns that notification on or off (`POST /api/power/washing-machine` `{ notify }`); with the dial closed a tap opens it as usual.
 - Config: `dashboard.people` gains a `primary` flag (exactly one); the dashboard serves that user, and only that user's claim starts the wash's timer.
-- Countdown: the wash's own timer, the same periods the timer entry above shows (specs/power-meters.md, "The wash's timer"). It is the wash's timer that is extended while the machine still draws and finished when the machine stops, so the two entries can never disagree — and a wash nobody claimed has neither.
+- Countdown: the wash's own timer, the same periods the timer entry above shows (specs/power-meters.md, "The wash's timer"). It is the wash's timer that is extended while the machine still draws and finished when the machine stops, so the two entries can never disagree — and a wash nobody claimed has a timer that finishes silently.
 - On completion: orb flashes; orb tap acknowledges the wash (same effect as acknowledging its reminder).
 - **If the stack contains a washing entry, the temporary wash reminder icon is not displayed.** The Discord message stays. The wash is silent however the stack is configured: its notification is the household timer the claim starts (specs/power-meters.md, "The wash's timer") and the timer's own entry is what repeats a sound, as below.
 
