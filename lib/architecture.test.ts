@@ -49,7 +49,7 @@ const ALLOWED: Allowance[] = [
   { file: "lib/aircon-control.test.ts", bytes: 47984, permanent: "section 2 criterion 1 — one table-driven test" },
   { file: "app/components/controls/rotary/RotaryEncoder.tsx", bytes: 39072, permanent: "individual component (alex, 2026-09-17): one component — the dial every knob is built on" },
   { file: "app/components/config/accent/AccentConfig.tsx", bytes: 32485, permanent: "individual component (alex, 2026-09-17): one component — the accent configuration section" },
-  { file: "app/components/dashboard/camera/CameraPanel.tsx", bytes: 30655, permanent: "individual component (alex, 2026-09-17): one component — the camera player and timeline" },
+  { file: "app/components/dashboard/camera/CameraPanel.tsx", bytes: 23878, permanent: "individual component (alex, 2026-09-17): one component — the camera player and timeline" },
   { file: "lib/orb-info/catalogue.data.ts", bytes: 26282, permanent: "section 2 criterion 1 — the orb-info catalogue table" },
   { file: "app/components/dashboard/advanced-fold/AdvancedFold.tsx", bytes: 25249, permanent: "individual component (alex, 2026-09-17): one component — the advanced fold and its gestures" },
   { file: "lib/config-schema/dashboard-config.ts", bytes: 24110, permanent: "section 2 criterion 3 — DashboardConfigSchema composes ~15 inline nested objects; extracting them forces a dozen single-consumer exports" },

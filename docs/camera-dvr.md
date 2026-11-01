@@ -54,12 +54,57 @@ is no ffmpeg or API, so `CameraPanel` renders an equivalent live clock on a
 - `GET /api/camera/<id>/status` — JSON: source, recording state, device
   connectivity, retention window and the oldest/newest segment timestamps.
 
-The browser player (`app/components/dashboard/CameraPanel.tsx`) uses native HLS
-first on Safari/WebKit and **hls.js** on browsers without native HLS. Remote
-camera bytes are relayed through `/api/camera-proxy/...`, keeping HTTPS iPhone
+The browser player (`app/components/dashboard/camera/CameraPanel.tsx`) uses native
+HLS on Safari/WebKit and **hls.js** everywhere else, Chromium included. Chromium
+reports native HLS support too (seen on Chrome 156), but its engine exposes an empty
+`seekable` on this live playlist, so `canPlayType` alone cannot decide this
+(`camera/hls-engine-model.ts`). Remote camera bytes are relayed through `/api/camera-proxy/...`, keeping HTTPS iPhone
 and iPad clients on the dashboard's secure origin instead of exposing the
 HTTP-only capture host as a blocked mixed-content subresource. The scrubber is driven by the
 `<video>` element's `seekable` range; **Live** seeks just behind the live edge.
+
+## Jog dial
+
+`CameraJogDial` is a small `RotaryEncoder` in the player's controls. Its logic is
+`camera/jog-model.ts` and `camera/useCameraJog.ts`.
+
+- **Tap** toggles play/pause. Two lights show which, labelled with play and pause
+  icons.
+- **Turning** sets the rate. The stops are -10 to -1, -0.5, +0.5, then 1 to 10;
+  there is no 0, because the tap is how playback stops. Turning does not change
+  whether playback is running or paused.
+- **No jog set:** the dial rests on 1x and the older rules apply: live-follow at
+  the live edge, and 1.5x catch-up when more than 60 s behind. The face reads the
+  rate actually running, so it can say 1.5x with the mark on 1.
+- **A jog set:** any turn sets one and it overrides those rules, 1x included. It
+  leaves live-follow, survives scrubbing, and turns off hls.js's own rate nudging,
+  which would otherwise write `playbackRate` back to 1 on every `timeupdate`.
+- **Ending a jog:** the Live button ends it. A forward jog above 1x also ends when
+  it catches the place Live sits; playback goes live and the dial returns to 1x.
+- **Reverse:** `<video>` cannot play backwards, so a negative jog pauses the element
+  and seeks, at most every 66 ms and only once the last seek has finished. Each step
+  covers all the time since the last one, so a slow seek shows fewer frames rather
+  than a slower rate. Each seek decodes from the segment's keyframe, so reverse is
+  visibly less smooth than forward. It pauses at the start of the seekable range.
+
+## Frame rate and smooth motion
+
+Measured on 2026-11-02. The capture host reads the grabber at 1080p30 and encodes at
+15 fps, set by `NOVA_CAMERA_OUTSIDE_ENCODE_FRAME_RATE=15` in its `.env.local`. That
+cap dates from software encoding; the VAAPI pipeline runs the encoder at about 10%
+CPU. Setting it to 0 records every captured frame, which is real motion rather than
+synthesised frames, at the cost of more disk for the DVR window (7 GB at 15 fps).
+
+Interpolating frames was measured on 1 s of this feed, using 6 cores of a desktop:
+
+| Method | Time for 1 s of video | Result |
+|---|---|---|
+| ffmpeg `minterpolate`, motion compensated | 13 s | Far too slow for live, and runs on the CPU, against the VAAPI contract |
+| ffmpeg `minterpolate`, `mi_mode=blend` | 0.2 s | Fast, but a crossfade between frames: moving objects ghost |
+
+VLC has no built-in motion interpolation that could be found; the usual tools are
+SVP and mpv's `interpolation` option, which are desktop players and cannot run in the
+dashboard's `<video>` element.
 
 ## Deployment requirement (Nova)
 

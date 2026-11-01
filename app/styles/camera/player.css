@@ -145,6 +145,19 @@
   flex: none;
 }
 
+/* The jog dial. Its light labels are icons, which need more room than the
+   base's text size gives at this knob size. */
+.rotary-encoder.camera-jog-dial {
+  --re-led-name-size: 9px;
+  flex: none;
+}
+
+.camera-jog-dial .rotary-encoder-led-name svg {
+  display: block;
+  width: var(--re-led-name-size);
+  height: var(--re-led-name-size);
+}
+
 .camera-live-button {
   height: 40px;
   padding: 0 14px;

@@ -32,3 +32,10 @@ export const STUCK_STREAM_TIMEOUT_MS = 12000;
 // rate-nudging there via maxLiveSyncPlaybackRate.)
 export const FAST_PLAYBACK_RATE = 1.5;
 export const FAST_PLAYBACK_THRESHOLD_SECONDS = 60;
+
+// How far hls.js may speed playback up to hold live latency. A set jog turns this
+// off, because hls.js otherwise writes playbackRate back to 1 on every timeupdate.
+export const LIVE_SYNC_MAX_RATE = 1.5;
+// A negative jog seeks backwards at most this often. Each seek decodes from the
+// segment's keyframe, so asking for more only queues decoding.
+export const JOG_REVERSE_SEEK_INTERVAL_MS = 66;

@@ -38,6 +38,8 @@ export type EncoderLed = {
   id: string;
   /** Spoken name for the value the light selects. */
   label: string;
+  /** Drawn in place of `label` under the light when `ledLabels` is on. */
+  icon?: ReactNode;
   /** A light the tap cycle steps over (an unsupported mode, say). */
   skip?: boolean;
 };

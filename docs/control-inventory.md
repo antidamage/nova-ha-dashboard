@@ -164,6 +164,10 @@ the named component before introducing a one-off equivalent.
   zone's controls to the list as one unit: to the right in landscape, below it
   in portrait; `useWideDashboard` is the layout test. See
   `specs/landscape-layout.md` and `specs/portrait-layout.md`.
+- `CameraJogDial` — `app/components/dashboard/camera/CameraJogDial.tsx`. The camera
+  player's jog: a 64px `RotaryEncoder` whose stops are playback rates and whose tap
+  is play/pause. Its lights are labelled with icons, through `EncoderLed.icon`, which
+  any `ledLabels` dial can use. See `docs/camera-dvr.md`, "Jog dial".
 - `CameraEventReport` (`dashboard/camera/CameraEventReport.tsx`), `CameraAnalysisConfig`
   (`config/camera/`), and `VehicleReferenceEditor` — the Outside-camera activity review, visual polygon editor, and photo-region
   vehicle reference editor. These use the shared `ModalOverlay`; scene and

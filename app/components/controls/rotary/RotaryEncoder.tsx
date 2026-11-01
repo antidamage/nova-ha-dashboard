@@ -995,7 +995,7 @@ export function RotaryEncoder({
                 data-lit={item.id === led ? "true" : "false"}
                 data-channel={item.id}
               />
-              {ledLabels ? <span className="rotary-encoder-led-name">{item.label}</span> : null}
+              {ledLabels ? <span className="rotary-encoder-led-name">{item.icon ?? item.label}</span> : null}
             </span>
           ))}
         </span>

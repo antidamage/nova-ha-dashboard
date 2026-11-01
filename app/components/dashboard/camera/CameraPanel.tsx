@@ -1,8 +1,7 @@
 "use client";
 
-import { Camera, ChevronDown, Download, Loader2, Pause, Play, Radio, Video, VideoOff } from "lucide-react";
+import { Pause, Play, Radio, Video, VideoOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import * as Slider from "@radix-ui/react-slider";
 import { classNames } from "../shared";
 import { cameraUrl } from "../cameraHost";
@@ -10,20 +9,25 @@ import { arePageUpdatesPaused } from "../pageUpdatePause";
 import { SliderHapticController } from "../../haptics";
 import { AdvancedFold } from "../AdvancedFold";
 import { CameraEventReport } from "./CameraEventReport";
+import { CameraJogDial } from "./CameraJogDial";
+import { CameraSnapshotConfirm, CameraSnapshots } from "./CameraSnapshots";
+import { useCameraJog } from "./useCameraJog";
+import { useCameraSnapshots } from "./useCameraSnapshots";
 import { demoAssetUrl } from "../../../../lib/demo-assets";
 import {
   DEMO_MODE,
-  FAST_PLAYBACK_RATE,
-  FAST_PLAYBACK_THRESHOLD_SECONDS,
   LIVE_EDGE_THRESHOLD_SECONDS,
   LIVE_RESYNC_DRIFT_SECONDS,
+  LIVE_SYNC_MAX_RATE,
   LIVE_TARGET_LATENCY_SECONDS,
   STATUS_POLL_MS,
   STUCK_STREAM_TIMEOUT_MS,
 } from "./constants";
-import type { CameraStatus, Hls, SnapshotMeta } from "./types";
-import { formatBytes, formatClock, formatCreated, formatDuration, formatOffset, sourceLabel } from "./format-model";
+import type { CameraStatus, Hls } from "./types";
+import { formatClock, formatOffset, sourceLabel } from "./format-model";
 import { useCanvasClock } from "./useCanvasClock";
+import { forwardPlaybackRate, jogReachedLiveEdge } from "./jog-model";
+import { prefersNativeHls } from "./hls-engine-model";
 
 export function CameraPanel({ cameraId, className }: { cameraId: string; className?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -57,6 +61,8 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     setIsLive(live);
   }, []);
 
+  const { jog, jogRef, reversing, selectRate, clearJog, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive });
+
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
@@ -65,14 +71,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     streamStartAtRef.current = streamStartAt;
   }, [streamStartAt]);
 
-  // Saved-capture ("snapshot") state. The whole group lives behind a closed-by-
-  // default accordion, so this stays idle until the user opens it.
-  const [snapshotsOpen, setSnapshotsOpen] = useState(false);
-  const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
-  const [snapshotMax, setSnapshotMax] = useState(3);
-  const [snapshotBusy, setSnapshotBusy] = useState(false);
-  const [snapshotMessage, setSnapshotMessage] = useState<string | null>(null);
-  const [confirmSnapshot, setConfirmSnapshot] = useState(false);
+  const snapshotState = useCameraSnapshots(cameraId);
 
   // "No signal": a real (non-demo) feed that isn't recording and has no live
   // stream — the capture device is absent. Computed here so the placeholder clock
@@ -145,7 +144,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     };
 
     (async () => {
-      const canNativeHls = video.canPlayType("application/vnd.apple.mpegurl");
+      const canNativeHls = prefersNativeHls(video.canPlayType("application/vnd.apple.mpegurl"), navigator.userAgent);
 
       // Prefer native HLS whenever the platform offers it (Safari/WebKit on
       // macOS and iOS). Hls.isSupported() only checks for a MediaSource
@@ -156,7 +155,8 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       // repro — currentSrc stayed "", zero manifest requests). Safari's
       // native engine (this canPlayType branch) is the reliable, hardware-
       // backed one; hls.js/MSE is the correct choice only where there is no
-      // native engine at all (Chrome, Firefox, Brave, desktop generally).
+      // native engine worth using (Chrome, Firefox, Brave, desktop generally);
+      // see hls-engine-model.ts for why Chromium's own does not count.
       if (canNativeHls) {
         video.src = src;
         video.addEventListener("loadedmetadata", onReady);
@@ -180,7 +180,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           // when we fall behind, instead of seeking to the edge — seeking is
           // what flashed black every segment. The feed is muted so the faster
           // rate is imperceptible.
-          maxLiveSyncPlaybackRate: 1.5,
+          maxLiveSyncPlaybackRate: LIVE_SYNC_MAX_RATE,
           maxBufferLength: 30,
           manifestLoadingMaxRetry: 8,
           manifestLoadingRetryDelay: 1000,
@@ -251,6 +251,31 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [streamReady]);
 
+  const jumpToLive = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    clearJog();
+    if (streamStartAtRef.current !== null) {
+      setStreamStartAt(null);
+      setScrubTargetMs(null);
+      video.playbackRate = 1;
+      setLive(true);
+      return;
+    }
+    const seekableRange = video.seekable;
+    if (seekableRange.length > 0) {
+      const end = seekableRange.end(seekableRange.length - 1);
+      video.currentTime = Math.max(end - LIVE_TARGET_LATENCY_SECONDS, seekableRange.start(0));
+    }
+    scrubbingRef.current = false;
+    video.playbackRate = 1;
+    setLive(true);
+    setScrubTargetMs(null);
+    void video.play().catch(() => {});
+  }, [clearJog, setLive]);
+
   // Track playback position + seekable window from the <video> element.
   useEffect(() => {
     const video = videoRef.current;
@@ -269,6 +294,9 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         const start = seekableRange.start(0);
         const end = seekableRange.end(seekableRange.length - 1);
         setSeekable({ start, end });
+        if (hlsRef.current) {
+          hlsRef.current.config.maxLiveSyncPlaybackRate = jogRef.current === null ? LIVE_SYNC_MAX_RATE : 1;
+        }
         // hls.js keeps us ~LIVE_TARGET_LATENCY_SECONDS behind the edge on its own
         // (rate-nudging via maxLiveSyncPlaybackRate, no seeks). We only step in to
         // HARD-seek when we've fallen so far back that catch-up can't recover, and
@@ -289,11 +317,14 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           // nudging up to maxLiveSyncPlaybackRate to hold latency without seeking
           // (jumpToLive already reset us to 1x before latching live).
         } else if (!scrubbingRef.current && !video.paused && !video.seeking) {
-          // Rewound playback: race toward the present at FAST_PLAYBACK_RATE, then
-          // ease back to 1x within the last minute so the catch-up lands smoothly.
+          // Rewound playback: a set jog is obeyed. Otherwise race toward the present
+          // at FAST_PLAYBACK_RATE, then ease back to 1x within the last minute so the
+          // catch-up lands smoothly.
           const behind = end - video.currentTime;
-          const desired = behind > FAST_PLAYBACK_THRESHOLD_SECONDS ? FAST_PLAYBACK_RATE : 1;
-          if (Math.abs(video.playbackRate - desired) > 0.01) {
+          const desired = forwardPlaybackRate(jogRef.current, behind);
+          if (jogReachedLiveEdge(jogRef.current, behind)) {
+            jumpToLive();
+          } else if (Math.abs(video.playbackRate - desired) > 0.01) {
             video.playbackRate = desired;
           }
         }
@@ -326,34 +357,14 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
     };
-  }, []);
-
-  const jumpToLive = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) {
-      return;
-    }
-    if (streamStartAtRef.current !== null) {
-      setStreamStartAt(null);
-      setScrubTargetMs(null);
-      setLive(true);
-      return;
-    }
-    const seekableRange = video.seekable;
-    if (seekableRange.length > 0) {
-      const end = seekableRange.end(seekableRange.length - 1);
-      video.currentTime = Math.max(end - LIVE_TARGET_LATENCY_SECONDS, seekableRange.start(0));
-    }
-    scrubbingRef.current = false;
-    video.playbackRate = 1;
-    setLive(true);
-    setScrubTargetMs(null);
-    void video.play().catch(() => {});
-  }, [setLive]);
+  }, [jogRef, jumpToLive]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) {
+      return;
+    }
+    if (toggleReverse()) {
       return;
     }
     if (video.paused) {
@@ -363,7 +374,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       setLive(false);
       video.pause();
     }
-  }, [setLive]);
+  }, [setLive, toggleReverse]);
 
   const handleScrub = useCallback((values: number[]) => {
     const video = videoRef.current;
@@ -425,69 +436,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     }
   }, [status?.newestSegment]);
 
-  const refreshSnapshots = useCallback(async () => {
-    try {
-      const response = await fetch(cameraUrl(cameraId, "snapshots"), { cache: "no-store" });
-      if (!response.ok) {
-        return;
-      }
-      const payload = (await response.json()) as { snapshots?: SnapshotMeta[]; max?: number };
-      setSnapshots(payload.snapshots ?? []);
-      if (typeof payload.max === "number") {
-        setSnapshotMax(payload.max);
-      }
-    } catch {
-      /* keep last known list */
-    }
-  }, [cameraId]);
-
-  // Load the stored captures once (live mode only — the static demo has no API).
-  useEffect(() => {
-    if (DEMO_MODE) {
-      return;
-    }
-    void refreshSnapshots();
-  }, [refreshSnapshots]);
-
-  const fireSnapshot = useCallback(async () => {
-    setSnapshotBusy(true);
-    setSnapshotMessage(null);
-    try {
-      const response = await fetch(cameraUrl(cameraId, "snapshots"), { method: "POST" });
-      const payload = (await response.json().catch(() => null)) as
-        | { snapshots?: SnapshotMeta[]; max?: number; error?: string }
-        | null;
-      if (response.ok) {
-        setSnapshots(payload?.snapshots ?? []);
-        if (typeof payload?.max === "number") {
-          setSnapshotMax(payload.max);
-        }
-        setSnapshotMessage("Capture saved.");
-      } else {
-        setSnapshotMessage(payload?.error ?? "Failed to save the capture.");
-      }
-    } catch {
-      setSnapshotMessage("Failed to save the capture.");
-    } finally {
-      setSnapshotBusy(false);
-      setConfirmSnapshot(false);
-    }
-  }, [cameraId]);
-
-  // Dismiss the confirm modal on Escape.
-  useEffect(() => {
-    if (!confirmSnapshot) {
-      return;
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !snapshotBusy) {
-        setConfirmSnapshot(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [confirmSnapshot, snapshotBusy]);
-
   const oldestMs = status?.oldestSegment ? Date.parse(status.oldestSegment) : Number.NaN;
   const newestMs = status?.newestSegment ? Date.parse(status.newestSegment) : Number.NaN;
   const hasAuthoritativeWindow = Number.isFinite(oldestMs) && Number.isFinite(newestMs) && newestMs > oldestMs;
@@ -500,88 +448,14 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const hasDvr = !DEMO_MODE && streamReady && windowSeconds > LIVE_EDGE_THRESHOLD_SECONDS;
   // While following live the player constantly re-seeks, which fires transient
   // pause/play events; treat live as "playing" so the control icon stays stable.
-  const showAsPlaying = isLive || playing;
+  const showAsPlaying = isLive || playing || reversing;
+  const runningRate = isLive ? 1 : forwardPlaybackRate(jog, behindLiveSeconds);
 
   const advancedContent = (
     <>
         <CameraEventReport cameraId={cameraId} />
 
-        {!DEMO_MODE ? (
-          <div className="advanced-fold-row camera-snapshots">
-            <button
-              type="button"
-              className="camera-snapshots-toggle"
-              aria-expanded={snapshotsOpen}
-              onClick={() => setSnapshotsOpen((open) => !open)}
-            >
-              <ChevronDown
-                className={classNames("camera-snapshots-chevron h-4 w-4", snapshotsOpen && "is-open")}
-                aria-hidden="true"
-              />
-              <Camera className="h-4 w-4" aria-hidden="true" />
-              <span className="camera-snapshots-title">Saved Captures</span>
-              <span className="camera-snapshots-count">
-                {snapshots.length}/{snapshotMax}
-              </span>
-            </button>
-
-            {snapshotsOpen ? (
-              <div className="camera-snapshots-body">
-                <div className="camera-snapshots-actions">
-                  <button
-                    type="button"
-                    className="camera-snapshot-save"
-                    disabled={!hasDvr || snapshotBusy}
-                    onClick={() => {
-                      setSnapshotMessage(null);
-                      setConfirmSnapshot(true);
-                    }}
-                  >
-                    {snapshotBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <Camera className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    Save last 2 hours
-                  </button>
-                  {snapshotMessage ? (
-                    <span className="camera-snapshots-message">{snapshotMessage}</span>
-                  ) : null}
-                </div>
-
-                <p className="camera-snapshots-hint">
-                  Freezes the buffered footage to disk. Only the {snapshotMax} most recent captures are kept — saving a
-                  new one deletes the oldest.
-                </p>
-
-                {snapshots.length === 0 ? (
-                  <p className="camera-snapshots-empty">No saved captures yet.</p>
-                ) : (
-                  <ul className="camera-snapshots-list">
-                    {snapshots.map((snapshot) => (
-                      <li key={snapshot.id} className="camera-snapshot-item">
-                        <div className="camera-snapshot-meta">
-                          <span className="camera-snapshot-when">{formatCreated(snapshot.createdAt)}</span>
-                          <span className="camera-snapshot-size">
-                            {formatDuration(snapshot.durationSeconds)} · {formatBytes(snapshot.sizeBytes)}
-                          </span>
-                        </div>
-                        <a
-                          className="camera-snapshot-download"
-                          href={cameraUrl(cameraId, `snapshots/${snapshot.id}`)}
-                          download
-                        >
-                          <Download className="h-4 w-4" aria-hidden="true" />
-                          Download
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        {!DEMO_MODE ? <CameraSnapshots cameraId={cameraId} hasDvr={hasDvr} state={snapshotState} /> : null}
     </>
   );
 
@@ -626,6 +500,15 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         <button type="button" className="camera-control-button" onClick={togglePlay} aria-label={showAsPlaying ? "Pause" : "Play"}>
           {showAsPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </button>
+
+        <CameraJogDial
+          jog={jog}
+          runningRate={runningRate}
+          playing={showAsPlaying}
+          disabled={!streamReady}
+          onRateChange={selectRate}
+          onToggle={togglePlay}
+        />
 
         <div className="camera-timeline">
           <Slider.Root
@@ -677,60 +560,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
       </AdvancedFold>
 
-      {confirmSnapshot && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="system-confirm-overlay"
-              role="presentation"
-              onClick={() => {
-                if (!snapshotBusy) {
-                  setConfirmSnapshot(false);
-                }
-              }}
-            >
-              <div
-                className="system-confirm-card"
-                role="alertdialog"
-                aria-modal="true"
-                aria-labelledby="camera-snapshot-title"
-                aria-describedby="camera-snapshot-body"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <span className="system-stripe system-stripe-top" aria-hidden="true" />
-                <span className="system-stripe system-stripe-bottom" aria-hidden="true" />
-                <p className="system-confirm-step">Save capture</p>
-                <h3 id="camera-snapshot-title" className="system-confirm-title">
-                  Save the last two hours?
-                </h3>
-                <p id="camera-snapshot-body" className="system-confirm-body">
-                  This writes the currently buffered footage to disk as a downloadable capture. Only the {snapshotMax}{" "}
-                  most recent captures are kept — saving this one deletes the oldest if there are already {snapshotMax}.
-                </p>
-                <div className="system-confirm-actions">
-                  <button
-                    type="button"
-                    className="system-confirm-cancel"
-                    disabled={snapshotBusy}
-                    onClick={() => setConfirmSnapshot(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="system-confirm-go"
-                    disabled={snapshotBusy}
-                    onClick={() => void fireSnapshot()}
-                  >
-                    {snapshotBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Save capture now
-                  </button>
-                </div>
-                <p className="system-confirm-dismiss-hint">Tap anywhere outside this box to cancel.</p>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <CameraSnapshotConfirm state={snapshotState} />
     </section>
   );
 }
