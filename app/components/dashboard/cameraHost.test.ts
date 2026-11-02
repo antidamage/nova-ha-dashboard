@@ -22,8 +22,8 @@ describe("cameraHost", () => {
 
     expect(cameraHostBase()).toBe("http://nocturnium.local:8080");
     expect(cameraUrl("outside", "index.m3u8")).toBe("/api/camera-proxy/outside/index.m3u8");
-    expect(cameraUrl("outside", "snapshots/capture.mp4")).toBe(
-      "/api/camera-proxy/outside/snapshots/capture.mp4",
+    expect(cameraUrl("outside", "seg_000001.ts")).toBe(
+      "/api/camera-proxy/outside/seg_000001.ts",
     );
   });
 

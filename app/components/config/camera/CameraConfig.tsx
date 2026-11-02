@@ -3,6 +3,7 @@
 import { Camera } from "lucide-react";
 import { ConfigAccordion } from "../../ConfigControls";
 import { useAgentName } from "../../AgentNameContext";
+import { cameraAdvancedModuleEnabled } from "../../dashboard/camera/advanced-modules";
 import { CameraAnalysisConfig } from "./CameraAnalysisConfig";
 import { DEMO_MODE, FALLBACK } from "./constants";
 import { FeedStatusPanel } from "./FeedStatusPanel";
@@ -82,7 +83,7 @@ export function CameraConfig() {
         </div>
       </div>
 
-      {!DEMO_MODE ? <CameraAnalysisConfig cameraId="outside" /> : null}
+      {!DEMO_MODE && cameraAdvancedModuleEnabled("categorisation") ? <CameraAnalysisConfig cameraId="outside" /> : null}
 
       <ReinitConfirmDialog
         agentName={agentName}

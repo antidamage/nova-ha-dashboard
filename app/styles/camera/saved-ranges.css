@@ -1,20 +1,23 @@
-/* Saved captures accordion and the snapshot list. */
+/* The Saved Ranges module in the camera's Advanced fold. */
 
-.camera-snapshots {
+.saved-ranges {
+  display: grid;
+  gap: 10px;
   margin-top: 10px;
+  padding: 10px;
   border: 1px solid var(--cyber-border-dim);
   background: var(--cyber-panel-soft);
 }
 
-.camera-snapshots-toggle {
+.saved-ranges-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  background: transparent;
   color: var(--cyber-accent-on-bg);
-  cursor: pointer;
+}
+
+.saved-ranges-title {
+  flex: 1 1 auto;
   font-family: var(--cyber-mono);
   font-size: 0.72rem;
   font-weight: 800;
@@ -22,47 +25,20 @@
   letter-spacing: 0.06em;
 }
 
-.camera-snapshots-toggle:hover {
-  color: var(--cyber-title-on-bg);
-}
-
-.camera-snapshots-chevron {
-  flex: none;
-  transition: transform 150ms ease;
-}
-
-.camera-snapshots-chevron.is-open {
-  transform: rotate(180deg);
-}
-
-.camera-snapshots-title {
-  flex: 1 1 auto;
-  text-align: left;
-}
-
-.camera-snapshots-count {
-  flex: none;
-  font-family: var(--cyber-mono);
-  color: var(--cyber-text-dim, rgba(180, 200, 210, 0.7));
-}
-
-.camera-snapshots-body {
+.saved-range-selector,
+.saved-range-player {
   display: grid;
   gap: 10px;
-  padding: 10px;
-  border-top: 1px solid var(--cyber-border-dim);
 }
 
-.camera-snapshots-actions {
+.saved-range-actions {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.camera-snapshot-save,
-.camera-snapshot-download {
+.saved-range-button {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -77,38 +53,36 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  text-decoration: none;
   transition:
     border-color 150ms ease,
     color 150ms ease;
 }
 
-.camera-snapshot-save:hover:not(:disabled),
-.camera-snapshot-download:hover {
+.saved-range-button:hover:not(:disabled) {
   border-color: var(--cyber-cyan);
   color: var(--cyber-accent-on-bg);
 }
 
-.camera-snapshot-save:disabled {
+.saved-range-button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.camera-snapshots-message {
+.saved-ranges-message {
+  margin: 0;
   font-family: var(--cyber-mono);
   font-size: 0.7rem;
   color: var(--cyber-accent-on-bg);
 }
 
-.camera-snapshots-hint,
-.camera-snapshots-empty {
+.saved-ranges-empty {
   margin: 0;
   font-size: 0.72rem;
   line-height: 1.4;
   color: var(--cyber-text-dim, rgba(180, 200, 210, 0.6));
 }
 
-.camera-snapshots-list {
+.saved-ranges-list {
   display: grid;
   gap: 6px;
   margin: 0;
@@ -116,32 +90,40 @@
   list-style: none;
 }
 
-.camera-snapshot-item {
+.saved-range-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   padding: 6px 8px;
   border: 1px solid var(--cyber-border-dim);
   background: var(--cyber-bg);
 }
 
-.camera-snapshot-meta {
+.saved-range-meta {
   display: flex;
+  flex: 1 1 120px;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.camera-snapshot-when {
+.saved-range-when {
   font-family: var(--cyber-mono);
   font-size: 0.74rem;
   font-weight: 800;
   color: var(--cyber-title-on-bg, #e5f6ff);
 }
 
-.camera-snapshot-size {
+.saved-range-detail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-family: var(--cyber-mono);
   font-size: 0.66rem;
   color: var(--cyber-text-dim, rgba(180, 200, 210, 0.6));
+}
+
+.saved-range-spinner {
+  flex: none;
 }

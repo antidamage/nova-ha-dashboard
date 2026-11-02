@@ -5,122 +5,17 @@ Holds no GPU resources itself. specs/camera-smooth-delivery.md.
 
 import json
 import os
-import shutil
 import signal
-import subprocess
-import sys
 import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
-from core import RESTART_BACKOFF_SECONDS, enough_gpu_memory, has_stalled, idle_expired, is_served_name
+from core import parse_render_path, parse_stream_path
+from supervisor import OUTPUT, Supervisor
 
-HERE = Path(__file__).resolve().parent
 PORT = int(os.environ.get("NOVA_CAMERA_SMOOTH_PORT", "8095"))
-SOURCE = os.environ.get("NOVA_CAMERA_SMOOTH_SOURCE", "http://127.0.0.1:3001/api/camera-proxy/outside/index.m3u8")
-MODELS = Path(os.environ.get("NOVA_CAMERA_SMOOTH_MODELS", "/opt/nova-camera-smooth/models"))
-MODEL = os.environ.get("NOVA_CAMERA_SMOOTH_MODEL", "rife-v4.26")
-OUTPUT = Path(os.environ.get("NOVA_CAMERA_SMOOTH_OUTPUT", "/dev/shm/nova-camera-smooth"))
 CONTENT_TYPES = {".m3u8": "application/vnd.apple.mpegurl", ".ts": "video/mp2t"}
-
-
-def free_gpu_mib():
-    try:
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=5, check=True,
-        )
-        return int(result.stdout.split()[0])
-    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
-        return None
-
-
-def kill_group(pid):
-    # Its ffmpeg children go with it: they share its process group.
-    try:
-        os.killpg(pid, signal.SIGKILL)
-    except ProcessLookupError:
-        pass
-
-
-class Supervisor:
-    """Starts the pipeline on demand, and stops it on idle, on a stall or when it exits."""
-
-    def __init__(self):
-        self.lock = threading.Lock()
-        self.process = None
-        self.started_at = 0.0
-        self.last_demand = None
-        self.next_start = 0.0
-        self.last_refusal = None
-
-    def note_demand(self):
-        with self.lock:
-            self.last_demand = time.monotonic()
-
-    def _stop(self):
-        if self.process is not None:
-            kill_group(self.process.pid)
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                print("pipeline did not exit after SIGKILL", file=sys.stderr, flush=True)
-            self.process = None
-        shutil.rmtree(OUTPUT, ignore_errors=True)
-
-    def _start(self, now):
-        free = free_gpu_mib()
-        if not enough_gpu_memory(free):
-            self.last_refusal = f"not enough free GPU memory: {free} MiB"
-            print(self.last_refusal, file=sys.stderr, flush=True)
-            self.next_start = now + RESTART_BACKOFF_SECONDS
-            return
-        self.last_refusal = None
-        shutil.rmtree(OUTPUT, ignore_errors=True)
-        OUTPUT.mkdir(parents=True)
-        self.process = subprocess.Popen(
-            [sys.executable, str(HERE / "pipeline.py"), "--source", SOURCE, "--out", str(OUTPUT), "--model", str(MODELS / MODEL)],
-            start_new_session=True,
-        )
-        self.started_at = now
-
-    def _last_output(self, now):
-        """When the playlist was last written, on the same clock as `now`."""
-        try:
-            return now - (time.time() - (OUTPUT / "index.m3u8").stat().st_mtime)
-        except OSError:
-            return None
-
-    def tick(self):
-        with self.lock:
-            now = time.monotonic()
-            if idle_expired(now, self.last_demand):
-                self._stop()
-            elif self.process is None:
-                if now >= self.next_start:
-                    self._start(now)
-            elif self.process.poll() is not None or has_stalled(now, self.started_at, self._last_output(now)):
-                print(f"pipeline ended or stalled, exit {self.process.poll()}", file=sys.stderr, flush=True)
-                self._stop()
-                self.next_start = now + RESTART_BACKOFF_SECONDS
-
-    def status(self):
-        with self.lock:
-            return {
-                "running": self.process is not None and self.process.poll() is None,
-                "model": MODEL,
-                "lastRefusal": self.last_refusal,
-            }
-
-    def kill_from_signal(self):
-        """Takes no lock and waits on nothing: a signal handler can interrupt either."""
-        process = self.process
-        if process is not None:
-            kill_group(process.pid)
-        shutil.rmtree(OUTPUT, ignore_errors=True)
-
 
 supervisor = Supervisor()
 
@@ -141,15 +36,48 @@ class Handler(BaseHTTPRequestHandler):
     def _unavailable(self):
         self._send(503, b'{"error":"not ready"}', "application/json")
 
+    def _render(self, range_id):
+        if self.command == "HEAD":
+            self._send(200, b"", "video/mp4")
+            return
+        process = supervisor.start_render(range_id)
+        if process is None:
+            self._unavailable()
+            return
+        try:
+            # No length: it is not known until it has been made, so the connection's
+            # close ends the response.
+            self.send_response(200)
+            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            while True:
+                chunk = process.stdout.read(1 << 16)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        finally:
+            supervisor.finish_render(process)
+
     def do_GET(self):
-        name = self.path.split("?", 1)[0].lstrip("/")
-        if name == "status":
+        path = self.path.split("?", 1)[0].lstrip("/")
+        if path == "status":
             self._send(200, json.dumps(supervisor.status()).encode(), "application/json")
             return
-        if not is_served_name(name):
+        range_id = parse_render_path(path)
+        if range_id is not None:
+            self._render(range_id)
+            return
+        parsed = parse_stream_path(path)
+        if parsed is None:
             self._send(404, b'{"error":"not found"}', "application/json")
             return
-        supervisor.note_demand()
+        job, name = parsed
+        if not supervisor.note_demand(job, may_claim=name == "index.m3u8") or not supervisor.is_running(job):
+            self._unavailable()
+            return
         target = OUTPUT / name
         try:
             body = target.read_bytes()

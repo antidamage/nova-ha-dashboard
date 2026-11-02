@@ -11,14 +11,6 @@ export type CameraStatus = {
   lastError: string | null;
 };
 
-export type SnapshotMeta = {
-  id: string;
-  createdAt: string;
-  durationSeconds: number;
-  sizeBytes: number;
-  segmentCount: number;
-};
-
 export type Hls = import("hls.js").default;
 
 export type CameraEvent = {

@@ -8,7 +8,7 @@ MODELS_RELEASE=https://github.com/TNTwise/rife-ncnn-vulkan/releases/download/202
 MODELS=(rife-v4.26 rife-v4.25)
 
 install -d "$ROOT/app" "$ROOT/models"
-install -m 0644 camera-smooth/core.py camera-smooth/pipeline.py camera-smooth/service.py "$ROOT/app/"
+install -m 0644 camera-smooth/core.py camera-smooth/pipeline.py camera-smooth/service.py camera-smooth/supervisor.py "$ROOT/app/"
 
 if [ ! -x "$ROOT/venv/bin/python" ]; then
   python3 -m venv "$ROOT/venv"

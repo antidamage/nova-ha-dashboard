@@ -41,7 +41,7 @@
 @import "./styles/camera/player.css";
 @import "./styles/camera/events.css";
 @import "./styles/camera/analysis.css";
-@import "./styles/camera/snapshots.css";
+@import "./styles/camera/saved-ranges.css";
 @import "./styles/dashboard/world-map.css";
 @import "./styles/dashboard/router.css";
 @import "./styles/dashboard/power.css";

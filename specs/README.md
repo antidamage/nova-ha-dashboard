@@ -129,7 +129,8 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 |---|---|
 | [login-surface.md](login-surface.md) · [face-auth.md](face-auth.md) | The login screen and face-released passkeys |
 | [kiosk-attribution.md](kiosk-attribution.md) · [kiosk-display-rotation.md](kiosk-display-rotation.md) | Kiosk identity, and the rotate button |
-| [camera-smooth-delivery.md](camera-smooth-delivery.md) | The live camera at 60 fps on delivery, never stored; planned multi-camera grid and region crop. The recording is `docs/camera-dvr.md` |
+| [camera-smooth-delivery.md](camera-smooth-delivery.md) | The camera at 60 fps on delivery, never stored: live, 1x and 0.5x; planned multi-camera grid and region crop. The recording is `docs/camera-dvr.md` |
+| [camera-saved-ranges.md](camera-saved-ranges.md) | Saving a time range of the DVR with preview, the Saved Ranges module, its player and 60 fps download; categorisation retired |
 
 ## Not in this directory
 

@@ -8,11 +8,9 @@ import { cameraUrl } from "../cameraHost";
 import { arePageUpdatesPaused } from "../pageUpdatePause";
 import { SliderHapticController } from "../../haptics";
 import { AdvancedFold } from "../AdvancedFold";
-import { CameraEventReport } from "./CameraEventReport";
+import { CAMERA_ADVANCED_MODULES } from "./advanced-modules";
 import { CameraJogDial } from "./CameraJogDial";
-import { CameraSnapshotConfirm, CameraSnapshots } from "./CameraSnapshots";
 import { useCameraJog } from "./useCameraJog";
-import { useCameraSnapshots } from "./useCameraSnapshots";
 import { demoAssetUrl } from "../../../../lib/demo-assets";
 import {
   DEMO_MODE,
@@ -29,11 +27,14 @@ import { useCanvasClock } from "./useCanvasClock";
 import { forwardPlaybackRate, jogReachedLiveEdge } from "./jog-model";
 import { useHlsAttach } from "./useHlsAttach";
 import { useSmoothLive } from "./useSmoothLive";
+import { useSmoothPosition } from "./useSmoothPosition";
+import { smoothRateFor, type SmoothRate } from "./smooth-position-model";
 
 export function CameraPanel({ cameraId, className }: { cameraId: string; className?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const smoothVideoRef = useRef<HTMLVideoElement>(null);
+  const positionVideoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
   const [status, setStatus] = useState<CameraStatus | null>(null);
@@ -72,8 +73,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   useEffect(() => {
     streamStartAtRef.current = streamStartAt;
   }, [streamStartAt]);
-
-  const snapshotState = useCameraSnapshots(cameraId);
 
   // "No signal": a real (non-demo) feed that isn't recording and has no live
   // stream — the capture device is absent. Computed here so the placeholder clock
@@ -350,12 +349,22 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     scrubbingRef,
   });
   const runningRate = isLive ? 1 : forwardPlaybackRate(jog, behindLiveSeconds);
+  const positionStreamPath = useCallback((fragment: { programDateTime?: number | null }, rate: SmoothRate) => (
+    fragment.programDateTime ? `/api/camera-proxy/${encodeURIComponent(cameraId)}/smooth/at/recording/${Math.round(fragment.programDateTime)}/${rate}/index.m3u8` : null
+  ), [cameraId]);
+  const { showing: showingPosition } = useSmoothPosition({
+    rate: !DEMO_MODE && !isLive && playing && scrubTargetMs === null ? smoothRateFor(runningRate) : null,
+    baseVideoRef: videoRef,
+    baseHlsRef: hlsRef,
+    overlayRef: positionVideoRef,
+    streamPath: positionStreamPath,
+  });
 
-  const advancedContent = (
+  const advancedContent = DEMO_MODE ? null : (
     <>
-        <CameraEventReport cameraId={cameraId} />
-
-        {!DEMO_MODE ? <CameraSnapshots cameraId={cameraId} hasDvr={hasDvr} state={snapshotState} /> : null}
+      {CAMERA_ADVANCED_MODULES.filter((entry) => entry.enabled).map(({ id, Component }) => (
+        <Component key={id} cameraId={cameraId} oldestMs={oldestMs} newestMs={newestMs} />
+      ))}
     </>
   );
 
@@ -380,6 +389,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           autoPlay
         />
         <video ref={smoothVideoRef} className={classNames("camera-video", !showingSmooth && "opacity-0")} playsInline muted autoPlay aria-hidden={!showingSmooth} />
+        <video ref={positionVideoRef} className={classNames("camera-video", !showingPosition && "opacity-0")} playsInline muted aria-hidden={!showingPosition} />
         <canvas ref={canvasRef} className={classNames("camera-canvas", !showPlaceholderClock && "hidden")} />
 
         <div className={classNames("camera-live-pill", isLive ? "is-live" : "is-rewound")}>
@@ -396,7 +406,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         ) : null}
       </div>
 
-      {DEMO_MODE ? <p className="px-3 py-2 text-xs text-neutral-400">AI-generated sample scene. Explore event review below; recording and playback require a connected camera.</p> : null}
+      {DEMO_MODE ? <p className="px-3 py-2 text-xs text-neutral-400">AI-generated sample scene. Recording and playback require a connected camera.</p> : null}
       <div className={classNames("camera-controls", DEMO_MODE && "hidden")}>
         <button type="button" className="camera-control-button" onClick={togglePlay} aria-label={showAsPlaying ? "Pause" : "Play"}>
           {showAsPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
@@ -460,8 +470,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       </div>
 
       </AdvancedFold>
-
-      <CameraSnapshotConfirm state={snapshotState} />
     </section>
   );
 }

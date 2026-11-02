@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { readDashboardConfig } from "../../../../../lib/dashboard-config";
 import { sliceLivePlaylist } from "../../../../../lib/camera/hls-playlist";
 import { proxySmoothRequest } from "../../../../../lib/camera/smooth-proxy";
+import { configuredVideoHost, videoHostAuthHeaders } from "../../../../../lib/camera/video-host";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,17 +28,6 @@ const FORWARDED_RESPONSE_HEADERS = [
 ] as const;
 
 type RouteContext = { params: Promise<{ id: string; path: string[] }> };
-
-function configuredVideoHost(raw: unknown): URL | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  try {
-    const url = new URL(raw.trim().replace(/\/+$/, ""));
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
-    return url;
-  } catch {
-    return null;
-  }
-}
 
 async function proxyCameraRequest(request: Request, context: RouteContext) {
   const { id, path } = await context.params;
@@ -69,11 +59,7 @@ async function proxyCameraRequest(request: Request, context: RouteContext) {
   // Undici transparently decompresses upstream bodies. Requesting identity
   // keeps Content-Length valid when we relay the response unchanged.
   headers.set("accept-encoding", "identity");
-  // Server-side only — the video host requires this token and it must never
-  // reach client JS. See authentik/specs/authentik-sso.md "Camera bypass
-  // contract".
-  const cameraToken = process.env.NOVA_CAMERA_TOKEN?.trim();
-  if (cameraToken) headers.set("authorization", `Bearer ${cameraToken}`);
+  for (const [name, value] of Object.entries(videoHostAuthHeaders())) headers.set(name, value);
 
   const method = request.method.toUpperCase();
   const hasBody = !["GET", "HEAD"].includes(method);

@@ -81,8 +81,8 @@ sub-panel horizontally and shortens the non-advanced display area."
 - Advanced is a grid of cells wrapping to fill the width:
   `repeat(auto-fill, minmax(min(100%, 240px), 1fr))`, rows as needed.
 - List-shaped cells span the full row and wrap their own items inside: the
-  light events, the per-light switch-on settings, the forecast days, the camera
-  events, Saved Captures, the power device list and summary rows.
+  light events, the per-light switch-on settings, the forecast days, Saved Ranges,
+  the power device list and summary rows.
 - Nothing inside Advanced is wider than the sub-panel's default view.
 
 ### Portrait advanced layout
@@ -133,7 +133,7 @@ to be scrolled through first.
   There is no resistance on the way back.
 - Offsets the fold writes itself (the break) never count as a return to the
   boundary. Nor does a clamp caused by Advanced's own content shrinking (a
-  collapsed "Inferred base loads", a deleted capture): only a scroll the user
+  collapsed "Inferred base loads", a deleted range): only a scroll the user
   made closes the fold.
 - If opening would leave nothing past the boundary to scroll to (the advanced
   content is empty), the fold does not open.
@@ -186,7 +186,7 @@ to be scrolled through first.
 | Lighting zones and subzones (Home, Bedroom, Lounge, Kitchen, Conservatory) | the colour dial, centred in the space above; the preset buttons (On / Adaptive / White / Off) in a row along the bottom, spaced above the line | the room's readouts (temperature, humidity, target temperature) — readouts only; House Party; the zone's light events; the per-light "may be switched on by an event" settings |
 | Outside — light | the colour knob with On / Off | the Outside zone's light events |
 | Outside — weather | every tile it shows today | the daily forecast, one entry per day |
-| Outside — camera | the camera stage | the latest five events as a list (first), then Saved Captures |
+| Outside — camera | the camera stage | the camera's Advanced modules (`camera/advanced-modules.tsx`): Saved Ranges. Categorisation is one, disabled: `specs/camera-saved-ranges.md` |
 | Network — router | the router's name (TP-Link) and WAN state badge, router gauge, throughput, and the WAN status card | **no fold** |
 | Network — Computers | Computers with Sleep and Wake | **no fold** |
 | Power | the three charts, the current-use strip, the daily estimate, the metering plugs | the numeric readouts: billing estimate, billing to date, the summary rows, base loads, the device list, and the calibration and tariff text |
