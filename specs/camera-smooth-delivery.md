@@ -150,8 +150,16 @@ Brave on real footage:
   was still up, and a cut stream fell back to the recording in 4 s.
 - GPU memory was 7319 MiB while running and back to 6385 MiB after the idle stop.
 
-Not yet measured: how much later the smooth picture is than the recording's, how generated
-frames look on real movement, Safari and iOS, and the wall kiosks.
+Then installed as the service, through the live dashboard:
+
+- 3600 frames generated and none repeated over two minutes.
+- On the deployed page, `LIVE 60` 8 s after opening the zone, decoding 59.8 fps.
+- By the clock burned into the footage, the newest smooth segment was a steady 4-5 s behind
+  the newest recorded segment. The panel already holds the recording about 6 s behind that
+  edge, so this is what a smooth viewer sees on top of the recording's own delay.
+
+Not yet measured: how generated frames look on real movement, Safari and iOS (the wait
+for WebKit has not been run), a real screen, and the wall kiosks.
 
 ## What done means
 
