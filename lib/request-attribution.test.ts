@@ -14,19 +14,19 @@ function requestWith(headers: Record<string, string>) {
 
 test("takes the leftmost address from a forwarded chain", () => {
   const caller = callerAttribution(
-    requestWith({ "x-forwarded-for": "100.64.0.14, 192.168.50.20" }),
+    requestWith({ "x-forwarded-for": "203.0.113.53, 198.51.100.20" }),
   );
-  expect(caller.ip).toBe("100.64.0.14");
+  expect(caller.ip).toBe("203.0.113.53");
 });
 
 test("tolerates whitespace in the forwarded chain", () => {
-  const caller = callerAttribution(requestWith({ "x-forwarded-for": "  100.64.0.14  " }));
-  expect(caller.ip).toBe("100.64.0.14");
+  const caller = callerAttribution(requestWith({ "x-forwarded-for": "  203.0.113.53  " }));
+  expect(caller.ip).toBe("203.0.113.53");
 });
 
 test("falls back to x-real-ip when there is no forwarded chain", () => {
-  const caller = callerAttribution(requestWith({ "x-real-ip": "192.168.50.30" }));
-  expect(caller.ip).toBe("192.168.50.30");
+  const caller = callerAttribution(requestWith({ "x-real-ip": "198.51.100.30" }));
+  expect(caller.ip).toBe("198.51.100.30");
 });
 
 test("reports null rather than guessing when no header identifies the caller", () => {
@@ -37,7 +37,7 @@ test("reports null rather than guessing when no header identifies the caller", (
 
 test("carries the user agent through, so a phone can be told from a kiosk", () => {
   const caller = callerAttribution(
-    requestWith({ "x-forwarded-for": "100.64.0.14", "user-agent": "Mozilla/5.0 (iPhone)" }),
+    requestWith({ "x-forwarded-for": "203.0.113.53", "user-agent": "Mozilla/5.0 (iPhone)" }),
   );
   expect(caller.userAgent).toBe("Mozilla/5.0 (iPhone)");
 });
