@@ -1,7 +1,7 @@
 "use client";
 
 import * as Slider from "@radix-ui/react-slider";
-import { Loader2, Pause, Play, Save, X } from "lucide-react";
+import { Loader2, Pause, Play, Save, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cameraUrl } from "../cameraHost";
 import { formatClock, formatDuration } from "./format-model";
@@ -11,6 +11,8 @@ import type { Hls } from "./types";
 const DEFAULT_SELECTION_MS = 60_000;
 const MIN_SELECTION_MS = 2_000;
 const SELECTION_STEP_MS = 1_000;
+// Two hours across a panel is many seconds per pixel, so the slider works on this much of it.
+const ZOOM_SPAN_MS = 10 * 60_000;
 
 /**
  * Choosing a range out of the DVR window: two thumbs and a preview of the recording.
@@ -34,8 +36,11 @@ export function SavedRangeSelector({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   // The window keeps moving; the selection is chosen against where it stood on opening.
-  const [bounds] = useState({ min: oldestMs, max: newestMs });
+  const [windowBounds] = useState({ min: oldestMs, max: newestMs });
   const [selection, setSelection] = useState<[number, number]>([Math.max(oldestMs, newestMs - DEFAULT_SELECTION_MS), newestMs]);
+  // Set when toggled rather than following the selection, so the slider never moves under a drag.
+  const [zoom, setZoom] = useState<{ min: number; max: number } | null>({ min: Math.max(oldestMs, newestMs - ZOOM_SPAN_MS), max: newestMs });
+  const bounds = zoom ?? windowBounds;
   const [previewing, setPreviewing] = useState(false);
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -146,6 +151,16 @@ export function SavedRangeSelector({
     seekTo(moved);
   };
 
+  const toggleZoom = () => {
+    if (zoom) {
+      setZoom(null);
+      return;
+    }
+    const span = Math.max(ZOOM_SPAN_MS, selection[1] - selection[0]);
+    const min = Math.max(windowBounds.min, Math.min((selection[0] + selection[1] - span) / 2, windowBounds.max - span));
+    setZoom({ min, max: Math.min(windowBounds.max, min + span) });
+  };
+
   const [start, end] = selection;
   return (
     <div className="saved-range-selector">
@@ -159,8 +174,8 @@ export function SavedRangeSelector({
         <div className="camera-timeline">
           <Slider.Root
             className="camera-slider"
-            min={bounds.min}
-            max={bounds.max}
+            min={Math.min(bounds.min, start)}
+            max={Math.max(bounds.max, end)}
             step={SELECTION_STEP_MS}
             minStepsBetweenThumbs={MIN_SELECTION_MS / SELECTION_STEP_MS}
             value={selection}
@@ -178,6 +193,9 @@ export function SavedRangeSelector({
             <span>{formatClock(new Date(end))}</span>
           </div>
         </div>
+        <button type="button" className="camera-control-button" onClick={toggleZoom} aria-label={zoom ? "Show the whole window" : "Zoom in on the selection"}>
+          {zoom ? <ZoomOut className="h-5 w-5" /> : <ZoomIn className="h-5 w-5" />}
+        </button>
       </div>
       <div className="saved-range-actions">
         <button type="button" className="saved-range-button" disabled={busy} onClick={() => onSave(start, end)}>

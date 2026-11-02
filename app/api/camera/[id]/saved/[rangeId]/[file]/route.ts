@@ -25,7 +25,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   if (file !== "video.ts") return NextResponse.json({ error: "Unknown file" }, { status: 404 });
 
   const videoPath = rangeVideoPath(camera, rangeId);
-  const { size } = await stat(/*turbopackIgnore: true*/ videoPath);
+  const size = await stat(/*turbopackIgnore: true*/ videoPath).then((stats) => stats.size, () => null);
+  if (size === null) return NextResponse.json({ error: "Range not found" }, { status: 404 });
   const headers = { "Content-Type": "video/mp2t", "Accept-Ranges": "bytes", "Cache-Control": "no-store" };
   const rangeHeader = request.headers.get("range");
   if (rangeHeader === null) {

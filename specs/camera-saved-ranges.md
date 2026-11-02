@@ -36,7 +36,9 @@ player. It replaces Saved Captures, whose "save the last two hours" is one case 
 
 - **Save a range** opens the selector: a two-thumb slider over the current DVR window, a
   preview `<video>` of the recording, and the start, end and length in numbers.
-- It opens selecting the last 60 s.
+- It opens selecting the last 60 s, with the slider across the last 10 minutes. A zoom button
+  switches between that and the whole window, centring the 10 minutes on the selection. Across
+  the whole two hours one pixel is many seconds.
 - Dragging a thumb shows that moment in the preview, paused. Its play button plays the
   selection and loops inside it.
 - **Save** stores it and closes the selector. The preview's stream is detached when the
