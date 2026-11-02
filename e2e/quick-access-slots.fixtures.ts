@@ -67,7 +67,12 @@ export async function drawnRows(page: import("@playwright/test").Page) {
     const row = document.querySelector(".quick-access-row");
     if (!row) return null;
     const rowRect = row.getBoundingClientRect();
-    const scale = parseFloat(getComputedStyle(row).getPropertyValue("--wide-scale")) || 1;
+    // A weather line scaled UP to the card's width is scaled inside its slot, whose
+    // own box is the card's width (`data-wide-grown`); only a line scaled DOWN is
+    // drawn smaller as a whole.
+    const scale = row.hasAttribute("data-wide-grown")
+      ? 1
+      : parseFloat(getComputedStyle(row).getPropertyValue("--wide-scale")) || 1;
     const slots: Slot[] = [];
     for (const slot of [...row.children]) {
       const box = slot.getBoundingClientRect();

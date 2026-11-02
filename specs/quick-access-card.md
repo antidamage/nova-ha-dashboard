@@ -345,8 +345,19 @@ From `DashboardState.weather`:
   reading on its own line).
 - **The readings never wrap (alex, 2026-11-02).** Temp, Feels and UV stay on
   one row; where that row is wider than the segment it scales down to fit
-  (`useFitWidth`, `--fit-width-scale`, a `transform`, no floor). In the wide line
-  slot the slot's own scale does this, so the readings are left at full size there.
+  (`useFitWidth`, `--fit-width-scale`, a `transform`, no floor).
+- **The weather line fills the panel's width (alex, 2026-11-02, "it should
+  scale up to the width of the quick access panel").** In the wide line slot the
+  whole line (icon, name, readings) is scaled UP as well as down to the card's
+  width: `useSlotScale`'s `growWeather` measures the segment's natural width
+  against the slot's and sets `--wide-scale` (cap `LINE_SLOT_GROW_MAX`, 3, no
+  floor). Scaled up, the segment is scaled about its centre inside its slot, and
+  the line's row is as tall as the scaled line (`wideHeight` → `wideLineHeight`
+  in `quickSlotLayout`, never under `QUICK_WIDE_LINE`); the dials divide what is
+  left. Scaled down, the slot is scaled as before. Only the weather line grows.
+  Checked by `e2e/quick-access-weather-line.spec.ts` at the kiosk, a phone, a
+  desktop and a tablet: the drawn extent reaches both edges, UV ends inside the
+  panel, and the readings share one row.
 
 ## Round: two dial lines, and the Apple TV (alex, 2026-09-22)
 

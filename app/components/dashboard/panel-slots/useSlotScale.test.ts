@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { LINE_SLOT_SCALE_MIN, SLOT_SCALE_FLOOR, dialScaleFactor, lineScaleFactor } from "./useSlotScale";
+import {
+  LINE_SLOT_GROW_MAX,
+  LINE_SLOT_SCALE_MIN,
+  SLOT_SCALE_FLOOR,
+  dialScaleFactor,
+  lineFillFactor,
+  lineScaleFactor,
+} from "./useSlotScale";
 
 // The two factors a panel's slots draw themselves at (specs/control-modules.md,
 // "Every panel holds slots"). The dials stop at a legibility floor and the panel
@@ -49,5 +56,23 @@ describe("the factor a wide line slot draws itself at", () => {
   it("keeps a sanity clamp, so a degenerate measurement cannot collapse it", () => {
     expect(lineScaleFactor(0)).toBe(LINE_SLOT_SCALE_MIN);
     expect(LINE_SLOT_SCALE_MIN).toBeGreaterThan(0);
+  });
+});
+
+describe("the factor the weather line fills its slot's width at", () => {
+  it("scales up to the slot's width and down to it", () => {
+    expect(lineFillFactor(1000, 400)).toBe(2.5);
+    expect(lineFillFactor(300, 400)).toBe(0.75);
+    expect(lineFillFactor(400, 400)).toBe(1);
+  });
+
+  it("caps the growth and keeps the sanity clamp below", () => {
+    expect(lineFillFactor(1000, 100)).toBe(LINE_SLOT_GROW_MAX);
+    expect(lineFillFactor(1, 10000)).toBe(LINE_SLOT_SCALE_MIN);
+  });
+
+  it("does nothing before anything is measured", () => {
+    expect(lineFillFactor(0, 400)).toBe(1);
+    expect(lineFillFactor(400, 0)).toBe(1);
   });
 });

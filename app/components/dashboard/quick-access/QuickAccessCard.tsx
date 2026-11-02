@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DashboardZone, SunStatus, WeatherStatus } from "../../../../lib/types";
 import type { EntityActionsHandler } from "../climateCommands";
 import { isDialKind, slotCounts, slotItemsInOrder, useSlotLayout } from "../panel-slots/useSlotLayout";
@@ -68,8 +68,12 @@ export function QuickAccessCard({
   // The card divides a height of its own — it is a column of the page's fixed
   // column height in landscape — and it groups its slots: the dials take the grid
   // and everything else the wide line under it (app/styles/responsive/landscape.css).
-  const layout = useSlotLayout(rowRef, slotCounts(placed), { dividesHeight: true, wideBottom: true });
-  const { fits, scale, wideScale } = useSlotScale(rowRef, {
+  // The weather line scales up to the card's width, and its row grows with it: the
+  // height comes from the scale's measurement, so it is fed back into the layout.
+  const [wideLineHeight, setWideLineHeight] = useState(0);
+  const layout = useSlotLayout(rowRef, slotCounts(placed), { dividesHeight: true, wideBottom: true, wideLineHeight });
+  const { fits, scale, wideHeight, wideScale } = useSlotScale(rowRef, {
+    growWeather: true,
     // The model has already taken the wide lines out of the card's height, so a
     // dial's share is the row it was drawn for.
     available: layout.rowHeight,
@@ -77,6 +81,7 @@ export function QuickAccessCard({
     gap: layout.gap,
     rows: Math.max(1, layout.rows + layout.wide),
   });
+  useEffect(() => setWideLineHeight(wideHeight), [wideHeight]);
   const view = { dialSize: layout.size, knobSkin, onEntityActions, onNotice, onZoneAction, sun, weather };
   return (
     <section className="quick-access" aria-label="Quick Access" data-card-id="quick-access">
@@ -84,6 +89,7 @@ export function QuickAccessCard({
         ref={rowRef}
         className="panel-slots panel-slots-divides-height quick-access-row"
         data-slot-fit={fits ? "scale" : "scroll"}
+        data-wide-grown={wideHeight > 0 ? "true" : undefined}
         data-slot-columns={layout.columns}
         style={slotGridStyle(layout, scale, { fits, spread: true, wideScale })}
       >

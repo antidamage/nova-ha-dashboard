@@ -41,6 +41,23 @@ export const SLOT_SCALE_FLOOR = 0.7;
 /** The smallest a line slot may be drawn at. A sanity clamp, not a floor. */
 export const LINE_SLOT_SCALE_MIN = 0.05;
 
+/** The most a growing line (the weather line) is scaled UP to fill its width. */
+export const LINE_SLOT_GROW_MAX = 3;
+
+/**
+ * The factor a weather line draws itself at to fill the slot's width: above 1 where
+ * the line is narrower than the slot, below it where it is wider. Width only — the
+ * line's height follows the factor (`wideHeight`), so nothing measured here depends
+ * on the height it is given.
+ */
+export function lineFillFactor(slotWidth: number, contentWidth: number): number {
+  if (!(slotWidth > 0) || !(contentWidth > 0)) {
+    return 1;
+  }
+  const factor = Math.round((slotWidth / contentWidth) * 1000) / 1000;
+  return Math.min(LINE_SLOT_GROW_MAX, Math.max(LINE_SLOT_SCALE_MIN, factor));
+}
+
 /**
  * The factor a DIAL slot draws itself at: the size it needs, unless it fits
  * already or is below the legibility floor — and below the floor it keeps its own
@@ -79,6 +96,11 @@ export type SlotScaleState = {
   scale: number;
   /** The factor the wide line slots use, measured against their own line. */
   wideScale: number;
+  /**
+   * The height a growing weather line needs at `wideScale`, or 0 where no line
+   * grows. The card gives the line's row this height.
+   */
+  wideHeight: number;
 };
 
 export function useSlotScale(
@@ -90,13 +112,18 @@ export function useSlotScale(
      * Omitted, the share is derived from the panel's rows as before.
      */
     available?: number;
+    /**
+     * Scale a wide slot holding the weather line UP to the panel's width, not only
+     * down (Quick Access, alex 2026-11-02). Other lines still only shrink.
+     */
+    growWeather?: boolean;
     dividesHeight: boolean;
     gap: number;
     rows: number;
   },
 ): SlotScaleState {
-  const { available: given, dividesHeight, gap, rows } = options;
-  const [state, setState] = useState<SlotScaleState>({ fits: true, scale: 1, wideScale: 1 });
+  const { available: given, dividesHeight, gap, growWeather = false, rows } = options;
+  const [state, setState] = useState<SlotScaleState>({ fits: true, scale: 1, wideScale: 1, wideHeight: 0 });
 
   useEffect(() => {
     const row = rowRef.current;
@@ -113,7 +140,7 @@ export function useSlotScale(
     const measure = () => {
       const slots = [...row.children] as HTMLElement[];
       if (!slots.length) {
-        setState({ fits: true, scale: 1, wideScale: 1 });
+        setState({ fits: true, scale: 1, wideScale: 1, wideHeight: 0 });
         return;
       }
       // The share a row has when the rows are shares — computed from the
@@ -129,7 +156,20 @@ export function useSlotScale(
           : (row.clientHeight - Math.max(0, rows - 1) * gap) / Math.max(1, rows);
       let needed = 1;
       let wide = 1;
+      let fill = 0;
+      let fillHeight = 0;
       for (const slot of slots) {
+        // The weather line fills the panel's width: scaled up as well as down. Its
+        // natural size is its segment's, which a transform does not change.
+        const segment = slot.firstElementChild as HTMLElement | null;
+        if (growWeather && slot.dataset.slotRegion === "wide" && segment?.classList.contains("quick-segment-weather")) {
+          // The segment can be squeezed to the slot's width with its content
+          // spilling past it, so its natural width is the larger of its box and
+          // its scroll width.
+          fill = lineFillFactor(slot.offsetWidth, Math.max(segment.offsetWidth, segment.scrollWidth));
+          fillHeight = Math.ceil(segment.offsetHeight * fill);
+          continue;
+        }
         // scrollWidth/scrollHeight are the content's own size whatever the box it
         // was given, and neither is affected by the transform. The BOX measured
         // against is the offset one — the element's own border box, the box it
@@ -154,7 +194,9 @@ export function useSlotScale(
       setState({
         fits: needed >= 1 || needed > SLOT_SCALE_FLOOR,
         scale: dialScaleFactor(needed),
-        wideScale: lineScaleFactor(wide),
+        // A growing line has a factor of its own and the height that goes with it.
+        wideScale: fill > 0 ? fill : lineScaleFactor(wide),
+        wideHeight: fill > 1 ? fillHeight : 0,
       });
     };
     const observer = new ResizeObserver(measure);
@@ -170,7 +212,7 @@ export function useSlotScale(
       observer.disconnect();
       portrait.removeEventListener("change", measure);
     };
-  }, [rowRef, dividesHeight, gap, rows, given]);
+  }, [rowRef, dividesHeight, gap, growWeather, rows, given]);
 
   return state;
 }

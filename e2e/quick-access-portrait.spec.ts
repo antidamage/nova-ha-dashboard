@@ -105,7 +105,9 @@ test("wide portrait: the card is the 2x2 with the readings line under it", async
   if (!line || !row) throw new Error("no line slot");
   expect(line.y, "the readings line sits under both dial rows").toBeGreaterThan(aircon.y);
   expect(line.width, "and is the card's whole width").toBeCloseTo(row.width, 0);
-  expect(line.height, "as ONE line").toBeLessThanOrEqual(58);
+  // One row of readings, scaled up to the card's width (at most 3x, 2026-11-02),
+  // so its row is at most three lines tall.
+  expect(line.height, "as ONE line").toBeLessThanOrEqual(58 * 3);
   // The slots are one size, so every dial is drawn at one size.
   for (const dial of [lights, amp, aircon, heater]) expect(dial.size).toBeCloseTo(lights.size, 0);
 

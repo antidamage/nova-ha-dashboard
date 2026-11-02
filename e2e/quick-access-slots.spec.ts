@@ -34,8 +34,13 @@ const VIEWPORTS = [
   { columns: 2, dialRows: 2, fits: false, height: 393, name: "phone landscape 852x393", width: 852 },
 ];
 
-/** The card's own height a line slot may take: one line, and the row's gap. */
-const LINE_SLOT_MAX = 58;
+/**
+ * The card's own height a line slot may take: one line, and the row's gap — times
+ * the most the weather line is scaled up to fill the card's width
+ * (`LINE_SLOT_GROW_MAX`, 2026-11-02). Whether it is ONE line is the captions and
+ * values sharing a row, asserted below.
+ */
+const LINE_SLOT_MAX = 58 * 3;
 
 for (const viewport of VIEWPORTS) {
   test(`the dial grid and its line at ${viewport.name}`, async ({ page }) => {

@@ -72,10 +72,12 @@ export function useSlotLayout(
      * wide line slot under it (the Quick Access card).
      */
     wideBottom?: boolean;
+    /** The height a growing weather line needs (`useSlotScale`'s `wideHeight`), or 0. */
+    wideLineHeight?: number;
   } = {},
 ): QuickSlotLayout {
   const { count, dials, readings } = counts;
-  const { dividesHeight = false, wideBottom = false } = options;
+  const { dividesHeight = false, wideBottom = false, wideLineHeight = 0 } = options;
   const [layout, setLayout] = useState<QuickSlotLayout>(() =>
     quickSlotLayout({ count, dials, height: 0, portrait: false, readings, wideBottom, width: 0 }),
   );
@@ -101,6 +103,7 @@ export function useSlotLayout(
           // A wide line slot is one line, not a share of the panel's height, so
           // the dials divide what the lines leave rather than the whole box.
           wideBottom,
+          wideLineHeight,
           width: row.clientWidth,
         }),
       );
@@ -113,7 +116,7 @@ export function useSlotLayout(
       observer.disconnect();
       portrait.removeEventListener("change", update);
     };
-  }, [rowRef, count, dials, readings, dividesHeight, wideBottom]);
+  }, [rowRef, count, dials, readings, dividesHeight, wideBottom, wideLineHeight]);
 
   return layout;
 }

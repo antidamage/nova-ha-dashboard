@@ -128,3 +128,16 @@
   transform: scale(var(--wide-scale, 1));
   transform-origin: left center;
 }
+
+/* A line that is scaled UP to fill the panel (the weather line, useSlotScale's
+   `growWeather`): scaling the slot would widen its box past the panel, so the
+   segment inside is scaled instead, about its centre, in a row the layout made as
+   tall as the scaled line. */
+[data-wide-grown] > .panel-slot-wide {
+  transform: none;
+}
+
+[data-wide-grown] > .panel-slot-wide > .quick-segment-weather {
+  transform: scale(var(--wide-scale, 1));
+  transform-origin: center;
+}

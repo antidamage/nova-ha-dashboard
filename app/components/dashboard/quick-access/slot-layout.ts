@@ -67,6 +67,12 @@ export type QuickSlotRequest = {
    * grid. True for the card (alex, 2026-09-25).
    */
   wideBottom: boolean;
+  /**
+   * The height a growing weather line needs, measured by the card
+   * (`useSlotScale`); the line is never shorter than `QUICK_WIDE_LINE`. Omitted,
+   * every line is one `QUICK_WIDE_LINE` tall.
+   */
+  wideLineHeight?: number;
 };
 
 /**
@@ -94,7 +100,7 @@ export function quickSlotLayout(request: QuickSlotRequest): QuickSlotLayout {
   const grid = panelSlotGrid({ count, dials, minWidth, portrait, wideBottom: request.wideBottom, width });
   // Each wide line slot is its own height, whatever the card's own is: it is a
   // line, not a share of them.
-  const lineHeight = grid.wide > 0 ? QUICK_WIDE_LINE : 0;
+  const lineHeight = grid.wide > 0 ? Math.max(QUICK_WIDE_LINE, request.wideLineHeight ?? 0) : 0;
   if (grid.columns === 0 || grid.slot <= 0) {
     // Nothing placed, or nothing measured yet. The card's own design size, so the
     // first painted frame is a card rather than dials at their floor.
