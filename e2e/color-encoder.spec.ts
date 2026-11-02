@@ -94,7 +94,8 @@ test.describe("colour encoder", () => {
     const ledsBefore = await transform(".rotary-encoder-leds");
     const rotorBefore = await transform(".rotary-encoder-rotor");
 
-    await turnDial(page, dial, 45);
+    // Downwards: the demo's lights start at full brightness, where up cannot turn it.
+    await turnDial(page, dial, -45);
 
     expect(await transform(".rotary-encoder-rotor")).not.toBe(rotorBefore);
     expect(await transform(".rotary-encoder-knob")).toBe(knobBefore);

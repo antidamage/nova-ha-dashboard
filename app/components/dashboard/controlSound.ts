@@ -63,7 +63,7 @@ function urlForSoundId(id: string): string | null {
   }
   // Built-ins are static files at a derivable path, so they play even before
   // the library fetch lands — which is exactly when a chime tends to fire.
-  return isBuiltinSoundId(id) ? `/sounds/ux/${id}.mp3` : null;
+  return isBuiltinSoundId(id) ? `${process.env.NEXT_PUBLIC_NOVA_DEMO_BASE_PATH ?? ""}/sounds/ux/${id}.mp3` : null;
 }
 
 /**

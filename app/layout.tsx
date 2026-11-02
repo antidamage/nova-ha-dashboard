@@ -55,7 +55,7 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const agentName = await readInitialAgentName();
   return {
-    title: isDemoMode ? "Nova — Interactive Smart Home Demo" : `${agentName} Control`,
+    title: `${agentName} Control`,
     description: isDemoMode ? "Explore Nova's room controls, energy dashboard, reminders, camera review and custom voice personalities in an interactive fictional household." : `Zone-based Home Assistant controls for ${agentName}`,
     // Added to the iOS Home Screen, the dashboard runs as a standalone web app.
     // Without `black-translucent` iOS reserves the clock/battery strip and fills

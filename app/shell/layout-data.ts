@@ -98,7 +98,7 @@ export async function readInitialOrbTheme(): Promise<ThemeStorageValue | null> {
 
 export async function readInitialAgentName(): Promise<string> {
   if (isDemoMode) {
-    return "Johnny Silverhand";
+    return "[◯_◯]";
   }
   try {
     return normalizeVoiceSettings((await readDashboardPreferences()).voice).agentName;

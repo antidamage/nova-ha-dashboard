@@ -93,19 +93,20 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     streamStartAtRef.current = streamStartAt;
   }, [streamStartAt]);
 
-  // "No signal": a real (non-demo) feed that isn't recording and has no live
-  // stream — the capture device is absent. Computed here so the placeholder clock
-  // can be suppressed in that state (we show a plain "No signal", never a clock).
-  const offline = !DEMO_MODE && status !== null && !status.recording && !streamReady;
-  // The canvas clock is only a warming-up/demo placeholder — never a stand-in for
-  // a missing camera. Suppress it when offline so the panel reads "No signal".
-  const showPlaceholder = DEMO_MODE || !streamReady;
+  // "No signal": a feed that isn't recording and has no live stream — the capture
+  // device is absent. Computed here so the placeholder clock can be suppressed in
+  // that state (we show a plain "No signal", never a clock).
+  const offline = status !== null && !status.recording && !streamReady;
+  // The canvas clock is only a warming-up placeholder — never a stand-in for a
+  // missing camera. Suppress it when offline so the panel reads "No signal". The
+  // demo holds a still until its sample feed is ready instead.
+  const showPlaceholder = !streamReady;
   const showPlaceholderClock = showPlaceholder && !offline && !DEMO_MODE;
   useCanvasClock(canvasRef, showPlaceholderClock && onScreen);
 
-  // Poll backend status (live mode only — the static demo has no API).
+  // Poll backend status; in the demo the provider answers.
   useEffect(() => {
-    if (DEMO_MODE || !onScreen) {
+    if (!onScreen) {
       return;
     }
     let alive = true;
@@ -136,7 +137,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // web-app has no hard-refresh gesture, and even a soft reload can rehydrate
   // into the same stuck hls.js state).
   useEffect(() => {
-    if (DEMO_MODE || !onScreen || streamReady || !status?.recording) {
+    if (!onScreen || streamReady || !status?.recording) {
       return;
     }
     const timer = window.setTimeout(() => {
@@ -149,9 +150,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // devices suspend timers while backgrounded, so a stream that died while the
   // screen was locked would otherwise wait for the next natural re-render.
   useEffect(() => {
-    if (DEMO_MODE) {
-      return;
-    }
     const onVisible = () => {
       if (document.visibilityState === "visible" && !streamReady) {
         setReattachToken((token) => token + 1);
@@ -189,7 +187,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // Track playback position + seekable window from the <video> element.
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || DEMO_MODE) {
+    if (!video) {
       return;
     }
 
@@ -361,7 +359,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const liveEdgeDate = status?.newestSegment ? new Date(status.newestSegment) : new Date();
   const currentDate = Number.isFinite(selectedWallClockMs) ? new Date(selectedWallClockMs) : playingDate ?? liveEdgeDate;
   const windowStartDate = hasAuthoritativeWindow ? new Date(oldestMs) : new Date(liveEdgeDate.getTime() - windowSeconds * 1000);
-  const hasDvr = !DEMO_MODE && streamReady && windowSeconds > LIVE_EDGE_THRESHOLD_SECONDS;
+  const hasDvr = streamReady && windowSeconds > LIVE_EDGE_THRESHOLD_SECONDS;
   // While following live the player constantly re-seeks, which fires transient
   // pause/play events; treat live as "playing" so the control icon stays stable.
   const showAsPlaying = isLive || playing || reversing;
@@ -407,7 +405,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       </header>
 
       <div ref={stageRef} className="camera-stage">
-        {DEMO_MODE ? <img className="camera-video" src={demoAssetUrl("assets/outside-demo.png")} alt="Fictional demo camera scene: front garden, ginger cat and parked car" /> : null}
+        {DEMO_MODE && !streamReady ? <img className="camera-video" src={demoAssetUrl("assets/outside-demo.png")} alt="Fictional demo camera scene: front garden, ginger cat and parked car" /> : null}
         <video
           ref={videoRef}
           className={classNames("camera-video", showPlaceholder && "opacity-0")}
@@ -421,7 +419,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
         <div className={classNames("camera-live-pill", isLive ? "is-live" : "is-rewound")}>
           <span className="camera-live-dot" />
-          {DEMO_MODE ? "SAMPLE SCENE" : isLive ? (showingSmooth ? "LIVE 60" : "LIVE") : formatOffset(behindLiveSeconds)}
+          {isLive ? (showingSmooth ? "LIVE 60" : "LIVE") : formatOffset(behindLiveSeconds)}
         </div>
 
         {offline ? (
@@ -433,8 +431,15 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         ) : null}
       </div>
 
-      {DEMO_MODE ? <p className="px-3 py-2 text-xs text-neutral-400">AI-generated sample scene. Recording and playback require a connected camera.</p> : null}
-      <div className={classNames("camera-controls", DEMO_MODE && "hidden")}>
+      {DEMO_MODE ? (
+        <p className="px-3 py-2 text-xs text-neutral-400">
+          Sample footage looping for this demo:{" "}
+          <a className="underline" href="https://mevadata.org/" target="_blank" rel="noreferrer">MEVA dataset</a>{" "}
+          (Kitware, IARPA),{" "}
+          <a className="underline" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>, downscaled and re-encoded.
+        </p>
+      ) : null}
+      <div className="camera-controls">
         <CameraJogDial
           jog={jog}
           runningRate={runningRate}
@@ -485,7 +490,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           type="button"
           className={classNames("camera-live-button", isLive && "is-active")}
           onClick={jumpToLive}
-          disabled={DEMO_MODE}
         >
           <Radio className="h-4 w-4" />
           Live

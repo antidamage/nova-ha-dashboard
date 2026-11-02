@@ -98,7 +98,7 @@ for (const viewport of [
     });
 
     test("an icon chosen in the editor becomes the reminder bar's tile glyph", async ({ page }) => {
-      const name = "Water the balcony plants";
+      const name = "Re-order supplies";
       const fold = await openReminders(page);
       const tile = page.locator(`.reminder-tile[aria-label^="${name}"]`);
       await expect(tile).toHaveCount(1);

@@ -45,8 +45,12 @@ hot-reload never spawns duplicate encoders for the same device.
   real device is plugged in nothing else changes.
 
 In the **static demo build** (`NEXT_PUBLIC_NOVA_DEMO_MODE=true`, no server) there
-is no ffmpeg or API, so `CameraPanel` renders an equivalent live clock on a
-`<canvas>` and the scrubber is inert.
+is no ffmpeg or API. `nova-dummy-data-provider` publishes ten minutes of sample
+footage as 2 s segments and writes a rolling live playlist and status from the clock,
+in the page, so the same player, scrubber, Live button and jog dial run against it.
+hls.js reads that playlist through the demo's fetch shim, which is why the demo never
+uses a native HLS engine. A browser with no MSE keeps the still image. The 60 fps
+stream and the Advanced modules need a server and stay off.
 
 ## Serving
 

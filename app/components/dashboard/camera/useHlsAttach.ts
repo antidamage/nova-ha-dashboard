@@ -1,3 +1,4 @@
+import type { HlsConfig } from "hls.js";
 import { useEffect, type RefObject } from "react";
 import { cameraUrl } from "../cameraHost";
 import { DEMO_MODE, LIVE_SYNC_MAX_RATE } from "./constants";
@@ -31,7 +32,7 @@ export function useHlsAttach({
 }) {
   // Attach the HLS stream (live mode only).
   useEffect(() => {
-    if (DEMO_MODE || !enabled) {
+    if (!enabled) {
       return;
     }
     const video = videoRef.current;
@@ -66,7 +67,9 @@ export function useHlsAttach({
     };
 
     (async () => {
-      const canNativeHls = prefersNativeHls(video.canPlayType("application/vnd.apple.mpegurl"), navigator.userAgent);
+      // The demo's playlist is written in the page by the fetch shim, which a
+      // native player's own requests never pass through.
+      const canNativeHls = !DEMO_MODE && prefersNativeHls(video.canPlayType("application/vnd.apple.mpegurl"), navigator.userAgent);
 
       // Prefer native HLS whenever the platform offers it (Safari/WebKit on
       // macOS and iOS). Hls.isSupported() only checks for a MediaSource
@@ -90,7 +93,7 @@ export function useHlsAttach({
         return;
       }
 
-      const { default: HlsLib } = await import("hls.js");
+      const { default: HlsLib, FetchLoader } = await import("hls.js");
 
       if (HlsLib.isSupported()) {
         const hls = new HlsLib({
@@ -106,6 +109,7 @@ export function useHlsAttach({
           maxBufferLength: 30,
           manifestLoadingMaxRetry: 8,
           manifestLoadingRetryDelay: 1000,
+          ...(DEMO_MODE ? { pLoader: FetchLoader as unknown as HlsConfig["pLoader"] } : {}),
         });
         hlsRef.current = hls;
         hls.loadSource(src);

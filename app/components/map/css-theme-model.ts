@@ -4,6 +4,7 @@ import {
   BUILDING_EXTRUSION_OPACITY,
   BUILDING_FOOTPRINT_OPACITY,
   DEMO_MODE,
+  DEMO_SATELLITE_TILES,
   MAP_COLOR_FALLBACKS,
   RADAR_PALETTE_MODE_FALLBACK,
   RADAR_REFRESH_INTERVAL_MS,
@@ -74,7 +75,7 @@ export function waterOpacityMultiplier() {
 }
 export function satelliteTileTemplate() {
   if (DEMO_MODE) {
-    return TRANSPARENT_TILE;
+    return DEMO_SATELLITE_TILES;
   }
   const base = encodeURIComponent(cssRgbCsv("--cyber-map-base-rgb", MAP_COLOR_FALLBACKS.base));
   return `/api/satellite/{z}/{x}/{y}?base=${base}`;

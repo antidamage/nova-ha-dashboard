@@ -1,6 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 import {
   DEMO_MODE,
+  DEMO_SATELLITE_TILES,
   MAJOR_ROAD_CLASSES,
   MAP_COLOR_FALLBACKS,
   RADAR_LAYER_ID,
@@ -52,7 +53,7 @@ export function buildCyberpunkStyle(): StyleSpecification {
     },
     [SATELLITE_SOURCE_ID]: {
       type: "raster",
-      tiles: [DEMO_MODE ? TRANSPARENT_TILE : "/api/satellite/{z}/{x}/{y}"],
+      tiles: [DEMO_MODE ? DEMO_SATELLITE_TILES : "/api/satellite/{z}/{x}/{y}"],
       tileSize: 256,
       maxzoom: 19,
       attribution: SATELLITE_ATTRIBUTION,
@@ -89,6 +90,8 @@ export function buildCyberpunkStyle(): StyleSpecification {
       paint: {
         "raster-opacity": 1,
         "raster-resampling": "linear",
+        // The live route tints its tiles on the server; this is the demo's stand-in.
+        ...(DEMO_MODE ? { "raster-saturation": -1, "raster-brightness-max": 0.7 } : {}),
       },
     },
     {

@@ -29,6 +29,7 @@ jobs:
         env:
           NEXT_PUBLIC_NOVA_DEMO_PROVIDER_BASE: ${{ vars.NOVA_DEMO_PROVIDER_BASE || 'https://antidamage.github.io/nova-dummy-data-provider/' }}
           NEXT_PUBLIC_NOVA_DEMO_BASE_PATH: ${{ vars.NOVA_DEMO_BASE_PATH || '/nova-ha-dashboard' }}
+          NEXT_PUBLIC_NOVA_DEMO_WALL_DISPLAY: "true"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v5
         with:

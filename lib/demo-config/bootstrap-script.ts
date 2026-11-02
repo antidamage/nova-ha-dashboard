@@ -14,6 +14,7 @@ import {
 } from "./constants";
 import { CONTROL_MODULES } from "../control-modules/catalogue";
 import { effectiveControls } from "../control-modules/presets";
+import demoDevices from "../../config/demo-devices.default.json";
 import { demoDashboardConfig } from "./fixtures-model";
 import type { DemoThemeEnvelope, DemoThemeLibrary } from "./types";
 import type { DashboardConfig } from "../config-schema";
@@ -40,6 +41,14 @@ export function demoConfigBootstrapScript(
     // Devices tab would be an empty section — see specs/control-modules.md.
     controls: effectiveControls(demoConfig),
     modules: CONTROL_MODULES,
+    appleTVPlaylists: process.env.NEXT_PUBLIC_NOVA_DEMO_WALL_DISPLAY === "true" ? demoDevices.appleTV.playlists : null,
+    deviceDefaults: process.env.NEXT_PUBLIC_NOVA_DEMO_WALL_DISPLAY === "true"
+      ? {
+          "nova.dashboard.experienceMode.v1": JSON.stringify({ statusOrb: true, background: false, camera: true, worldMap: true }),
+          "nova.dashboard.groupZones.v1": JSON.stringify({ home: "everything", systems: "outside" }),
+          "nova.dashboard.themeOverride.v1": "dark",
+        }
+      : {},
   };
 
   return `
@@ -500,6 +509,21 @@ export function demoConfigBootstrapScript(
   readDemoConfig();
   readDemoTheme();
   readDemoThemeLibrary();
+
+  // The demo's Apple TV store is this tab's sessionStorage (appleTVAmpDemo.ts).
+  try {
+    if (bootstrap.appleTVPlaylists && window.sessionStorage.getItem("nova.dashboard.demoAppleTVAmp.v1") === null) {
+      window.sessionStorage.setItem("nova.dashboard.demoAppleTVAmp.v1", JSON.stringify({ playlists: bootstrap.appleTVPlaylists }));
+    }
+  } catch (_) {}
+
+  // Set by the public site's build only: a visitor opens the dashboard as a wall
+  // display has it, rather than at the first-run chooser. Never overwrites a choice.
+  Object.keys(bootstrap.deviceDefaults).forEach(function (key) {
+    try {
+      if (window.localStorage.getItem(key) === null) window.localStorage.setItem(key, bootstrap.deviceDefaults[key]);
+    } catch (_) {}
+  });
 
   window.fetch = function (input, init) {
     if (!shouldHandle(input)) return nativeFetch(input, init);

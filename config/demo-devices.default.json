@@ -1,8 +1,373 @@
 {
-  "aircon": { "matchTokens": ["c6780cad"] },
+  "appleTV": {
+    "playlists": [
+      { "name": "Favourites", "icon": "skull", "shuffle": true, "repeat": "infinite" },
+      { "name": "Rainy Day", "icon": "cloud-rain", "shuffle": true, "repeat": "infinite" },
+      { "name": "Cool", "icon": "ghost", "shuffle": true, "repeat": "infinite" }
+    ]
+  },
+  "aircon": {
+    "matchTokens": [
+      "demo_aircon"
+    ],
+    "title": "Lounge"
+  },
   "bedroomHeater": {
-    "switchEntityIds": ["switch.bedroom_heater"],
-    "temperatureEntityIds": ["sensor.bedroom_temperature"],
-    "humidityEntityIds": ["sensor.bedroom_humidity"]
+    "switchEntityIds": [
+      "switch.bedroom_heater"
+    ],
+    "temperatureEntityIds": [
+      "sensor.bedroom_temperature"
+    ],
+    "humidityEntityIds": [
+      "sensor.bedroom_humidity"
+    ],
+    "title": "Bedroom"
+  },
+  "controls": {
+    "configured": true,
+    "presets": [
+      {
+        "id": "lounge",
+        "moduleId": "aircon-heater-control",
+        "name": "Lounge",
+        "roomId": null,
+        "driverId": "gree-air-conditioner",
+        "variant": "aircon",
+        "features": {},
+        "binding": {
+          "matchTokens": [
+            "demo_aircon"
+          ],
+          "switchEntityIds": [],
+          "temperatureEntityIds": [],
+          "humidityEntityIds": [],
+          "dryTargetHumidityPct": 55
+        }
+      },
+      {
+        "id": "bedroom",
+        "moduleId": "aircon-heater-control",
+        "name": "Bedroom",
+        "roomId": null,
+        "driverId": "sample-heater-wifi-switch",
+        "variant": "heater",
+        "features": {},
+        "binding": {
+          "matchTokens": [],
+          "switchEntityIds": [
+            "switch.bedroom_heater"
+          ],
+          "temperatureEntityIds": [
+            "sensor.bedroom_temperature"
+          ],
+          "humidityEntityIds": [
+            "sensor.bedroom_humidity"
+          ]
+        }
+      },
+      {
+        "id": "home-lights",
+        "moduleId": "room-lighting",
+        "name": "Lights",
+        "roomId": "everything",
+        "driverId": null,
+        "variant": null,
+        "features": {},
+        "binding": {
+          "matchTokens": [],
+          "switchEntityIds": [],
+          "temperatureEntityIds": [],
+          "humidityEntityIds": []
+        }
+      },
+      {
+        "id": "amplifier",
+        "moduleId": "amplifier-control",
+        "name": "Amplifier",
+        "roomId": null,
+        "driverId": null,
+        "variant": null,
+        "features": {},
+        "binding": {
+          "matchTokens": [],
+          "switchEntityIds": [],
+          "temperatureEntityIds": [],
+          "humidityEntityIds": []
+        }
+      },
+      {
+        "id": "outside",
+        "moduleId": "outside-weather",
+        "name": "Outside",
+        "roomId": null,
+        "driverId": null,
+        "variant": null,
+        "features": {},
+        "binding": {
+          "matchTokens": [],
+          "switchEntityIds": [],
+          "temperatureEntityIds": [],
+          "humidityEntityIds": []
+        }
+      }
+    ],
+    "slots": [
+      {
+        "id": "quick-access-lights",
+        "surface": "quick-access",
+        "presetId": "home-lights",
+        "roomId": "everything",
+        "visible": true
+      },
+      {
+        "id": "quick-access-amplifier",
+        "surface": "quick-access",
+        "presetId": "amplifier",
+        "roomId": null,
+        "visible": true
+      },
+      {
+        "id": "quick-access-climate-lounge",
+        "surface": "quick-access",
+        "presetId": "lounge",
+        "roomId": null,
+        "visible": true
+      },
+      {
+        "id": "quick-access-climate-bedroom",
+        "surface": "quick-access",
+        "presetId": "bedroom",
+        "roomId": null,
+        "visible": true
+      },
+      {
+        "id": "quick-access-outside",
+        "surface": "quick-access",
+        "presetId": "outside",
+        "roomId": null,
+        "visible": true
+      }
+    ]
+  },
+  "lighting": {
+    "intensityThresholds": [
+      {
+        "name": "Neon Lights",
+        "thresholdPct": 61,
+        "minLightsOn": 3,
+        "entityIds": [
+          "light.neon_lights"
+        ]
+      }
+    ],
+    "entityPresets": [
+      {
+        "entityId": "light.conservatory_light",
+        "targetBrightnessPct": {
+          "daytime": 100,
+          "evening": 100
+        },
+        "colorTemperatureOverrideKelvin": {
+          "candlelight": 3000,
+          "daylight": 3000
+        },
+        "pinned": true
+      }
+    ],
+    "zoneRules": [
+      {
+        "id": "threshold-neon-lights",
+        "zoneId": "lounge",
+        "name": "Neon Lights",
+        "enabled": true,
+        "kind": "threshold",
+        "thresholdPct": 61,
+        "minLightsOn": 3,
+        "entityIds": [
+          "light.neon_lights"
+        ]
+      },
+      {
+        "id": "pinned-conservatory",
+        "zoneId": "conservatory",
+        "name": "Pinned",
+        "enabled": true,
+        "kind": "pinned",
+        "entityIds": [
+          "light.conservatory_light"
+        ]
+      },
+      {
+        "id": "adaptive-everything",
+        "zoneId": "everything",
+        "name": "Adaptive",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 1
+        },
+        "kind": "adaptive"
+      },
+      {
+        "id": "white-everything",
+        "zoneId": "everything",
+        "name": "White",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 2
+        },
+        "kind": "preset",
+        "value": {
+          "hue": 0,
+          "saturation": 0,
+          "brightnessPct": 100
+        }
+      },
+      {
+        "id": "adaptive-bedroom",
+        "zoneId": "bedroom",
+        "name": "Adaptive",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 1
+        },
+        "kind": "adaptive"
+      },
+      {
+        "id": "white-bedroom",
+        "zoneId": "bedroom",
+        "name": "White",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 2
+        },
+        "kind": "preset",
+        "value": {
+          "hue": 0,
+          "saturation": 0,
+          "brightnessPct": 100
+        }
+      },
+      {
+        "id": "adaptive-conservatory",
+        "zoneId": "conservatory",
+        "name": "Adaptive",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 1
+        },
+        "kind": "adaptive"
+      },
+      {
+        "id": "white-conservatory",
+        "zoneId": "conservatory",
+        "name": "White",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 2
+        },
+        "kind": "preset",
+        "value": {
+          "hue": 0,
+          "saturation": 0,
+          "brightnessPct": 100
+        }
+      },
+      {
+        "id": "adaptive-kitchen",
+        "zoneId": "kitchen",
+        "name": "Adaptive",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 1
+        },
+        "kind": "adaptive"
+      },
+      {
+        "id": "white-kitchen",
+        "zoneId": "kitchen",
+        "name": "White",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 2
+        },
+        "kind": "preset",
+        "value": {
+          "hue": 0,
+          "saturation": 0,
+          "brightnessPct": 100
+        }
+      },
+      {
+        "id": "adaptive-lounge",
+        "zoneId": "lounge",
+        "name": "Adaptive",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 1
+        },
+        "kind": "adaptive"
+      },
+      {
+        "id": "white-lounge",
+        "zoneId": "lounge",
+        "name": "White",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 2
+        },
+        "kind": "preset",
+        "value": {
+          "hue": 0,
+          "saturation": 0,
+          "brightnessPct": 100
+        }
+      },
+      {
+        "id": "adaptive-outside",
+        "zoneId": "outside",
+        "name": "Adaptive",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 1
+        },
+        "kind": "adaptive"
+      },
+      {
+        "id": "white-outside",
+        "zoneId": "outside",
+        "name": "White",
+        "enabled": true,
+        "preset": {
+          "show": true,
+          "order": 2
+        },
+        "kind": "preset",
+        "value": {
+          "hue": 0,
+          "saturation": 0,
+          "brightnessPct": 100
+        }
+      }
+    ],
+    "zoneRulesSeededZoneIds": [
+      "everything",
+      "bedroom",
+      "conservatory",
+      "kitchen",
+      "lounge",
+      "outside"
+    ]
   }
 }

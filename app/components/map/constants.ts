@@ -40,4 +40,6 @@ export const RAIN_RADAR_ATTRIBUTION_LABEL = "Radar: RainViewer / MetService";
 export const RAIN_RADAR_ATTRIBUTION_URL = "https://www.rainviewer.com/";
 export const RADAR_PALETTE_MODE_FALLBACK = "custom";
 export const DEMO_MODE = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
+/** The demo has no tile route to tint through, so it reads the imagery directly. */
+export const DEMO_SATELLITE_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 export const TRANSPARENT_TILE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";

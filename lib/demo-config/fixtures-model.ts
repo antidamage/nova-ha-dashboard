@@ -10,6 +10,14 @@ export function demoDashboardConfig(config: DashboardConfig): DashboardConfig {
   next.dashboard.bedroomHeater.temperatureEntityIds = demoDevices.bedroomHeater.temperatureEntityIds;
   next.dashboard.bedroomHeater.humidityEntityIds = demoDevices.bedroomHeater.humidityEntityIds;
   next.dashboard.bedroomHeater.title = "Bedroom Heater";
+  // The public site shows the panels of a configured home. Other demo builds, the
+  // e2e suite among them, keep the derivation a fresh install starts from.
+  if (process.env.NEXT_PUBLIC_NOVA_DEMO_WALL_DISPLAY === "true") {
+    next.dashboard.aircon.title = demoDevices.aircon.title;
+    next.dashboard.bedroomHeater.title = demoDevices.bedroomHeater.title;
+    next.dashboard.controls = demoDevices.controls as DashboardConfig["dashboard"]["controls"];
+    next.dashboard.lighting = { ...next.dashboard.lighting, ...demoDevices.lighting } as DashboardConfig["dashboard"]["lighting"];
+  }
   return next;
 }
 

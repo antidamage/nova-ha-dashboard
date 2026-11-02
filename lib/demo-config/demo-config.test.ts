@@ -20,16 +20,31 @@ const DEMO_THEME = {
 };
 
 describe("demo config storage", () => {
-  it("wires the fictional devices without changing fresh-install defaults and starts in Psionyk 1977", async () => {
+  it("wires the fictional devices without changing fresh-install defaults and starts in Psionyk 1990", async () => {
     const config = await readDefaultDashboardConfig();
     const original = structuredClone(config);
     const demo = demoDashboardConfig(config);
     expect(config).toEqual(original);
     expect(demo.dashboard.bedroomHeater.switchEntityIds).toEqual(["switch.bedroom_heater"]);
-    expect(demo.dashboard.aircon.matchTokens).toContain("c6780cad");
+    expect(demo.dashboard.aircon.matchTokens).toEqual(["demo_aircon"]);
+    expect(demo.dashboard.aircon.title).toBe("Air Conditioner");
     const active = demoLibrary.entries.find((entry) => entry.id === demoLibrary.activeId);
-    expect(active?.name).toBe("Psionyk 1977");
+    expect(active?.name).toBe("Psionyk 1990");
     expect(demoTheme.theme).toEqual(active?.themeSet);
+  });
+  it("gives the public site a configured home and a wall display's first view", async () => {
+    vi.stubEnv("NEXT_PUBLIC_NOVA_DEMO_WALL_DISPLAY", "true");
+    const config = await readDefaultDashboardConfig();
+    const demo = demoDashboardConfig(config);
+    expect(demo.dashboard.controls?.presets?.map((preset) => preset.id)).toEqual(["lounge", "bedroom", "home-lights", "amplifier", "outside"]);
+    expect(demo.dashboard.aircon.title).toBe("Lounge");
+    window.localStorage.setItem("nova.dashboard.themeOverride.v1", "light");
+    window.eval(demoConfigBootstrapScript(config, "http://127.0.0.1:4174/"));
+    expect(JSON.parse(window.localStorage.getItem("nova.dashboard.experienceMode.v1") ?? "{}").background).toBe(false);
+    // A visitor's own choice stands.
+    expect(window.localStorage.getItem("nova.dashboard.themeOverride.v1")).toBe("light");
+    expect(JSON.parse(window.sessionStorage.getItem("nova.dashboard.demoAppleTVAmp.v1") ?? "{}").playlists[0].icon).toBe("skull");
+    vi.unstubAllEnvs();
   });
   afterEach(() => {
     window.sessionStorage.clear();

@@ -52,7 +52,7 @@ export function formatCreated(iso: string) {
 
 export function sourceLabel(status: CameraStatus | null) {
   if (DEMO_MODE) {
-    return "Demo";
+    return "Sample Feed";
   }
   if (!status) {
     return "—";

@@ -61,7 +61,7 @@ test.describe("tasks and reminders", () => {
     await selectZone(page, /Reminders/);
     // A local task opens its editor in place of the lists; Back returns to them.
     const advanced = await openReminderLists(page);
-    await advanced.locator(".task-row-main", { hasText: "Water the balcony plants" }).click();
+    await advanced.locator(".task-row-main", { hasText: "Re-order supplies" }).click();
     await expect(advanced.locator(".task-inline-editor")).toBeVisible();
     await expect(advanced.locator("[data-task-list]")).toHaveCount(0);
     await advanced.getByRole("button", { name: "Back" }).click();
