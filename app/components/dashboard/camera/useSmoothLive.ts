@@ -21,6 +21,7 @@ export function useSmoothLive({
   mainVideoRef,
   mainHlsRef,
   scrubbingRef,
+  suspended,
 }: {
   cameraId: string;
   wanted: boolean;
@@ -28,6 +29,8 @@ export function useSmoothLive({
   mainVideoRef: RefObject<HTMLVideoElement | null>;
   mainHlsRef: RefObject<Hls | null>;
   scrubbingRef: RefObject<boolean>;
+  /** Off-screen: let go at once, with no handoff, because the recording stops too. */
+  suspended: boolean;
 }) {
   const [showing, setShowing] = useState(false);
   const [resting, setResting] = useState(false);
@@ -157,6 +160,11 @@ export function useSmoothLive({
     if (!attached && !showing) {
       return;
     }
+    if (suspended) {
+      mainStoppedRef.current = false;
+      release.current();
+      return;
+    }
     if (!showing) {
       release.current();
       return;
@@ -196,7 +204,7 @@ export function useSmoothLive({
       window.clearTimeout(timeout);
       main?.removeEventListener("seeked", finish);
     };
-  }, [attached, mainHlsRef, mainVideoRef, playing, scrubbingRef, showing, smoothRef]);
+  }, [attached, mainHlsRef, mainVideoRef, playing, scrubbingRef, showing, smoothRef, suspended]);
 
   // After a failure, wait before trying again.
   useEffect(() => {

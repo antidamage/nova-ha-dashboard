@@ -26,6 +26,8 @@ import { formatClock, formatOffset, sourceLabel } from "./format-model";
 import { useCanvasClock } from "./useCanvasClock";
 import { forwardPlaybackRate, jogReachedLiveEdge, oldestSafePosition, overtakenByWindow } from "./jog-model";
 import { useHlsAttach } from "./useHlsAttach";
+import { useOnScreen } from "./useOnScreen";
+import { useSuspendOffScreen } from "./useSuspendOffScreen";
 import { useSmoothLive } from "./useSmoothLive";
 import { useSmoothPosition } from "./useSmoothPosition";
 import { smoothRateFor, type SmoothRate } from "./smooth-position-model";
@@ -36,6 +38,10 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const smoothVideoRef = useRef<HTMLVideoElement>(null);
   const positionVideoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(stageRef);
+  const onScreenRef = useRef(false);
+  const [everOnScreen, setEverOnScreen] = useState(false);
 
   const [status, setStatus] = useState<CameraStatus | null>(null);
   const [streamReady, setStreamReady] = useState(false);
@@ -72,7 +78,12 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     return oldestSafePosition(range.start(0), range.end(range.length - 1), hlsRef.current?.latestLevelDetails?.fragments[0]?.start);
   }, []);
 
-  const { jog, jogRef, reversing, selectRate, clearJog, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive, oldestPosition });
+  const { jog, jogRef, reversing, selectRate, clearJog, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive, oldestPosition, suspended: !onScreen });
+
+  useEffect(() => {
+    onScreenRef.current = onScreen;
+    if (onScreen) setEverOnScreen(true);
+  }, [onScreen]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -90,11 +101,11 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // a missing camera. Suppress it when offline so the panel reads "No signal".
   const showPlaceholder = DEMO_MODE || !streamReady;
   const showPlaceholderClock = showPlaceholder && !offline && !DEMO_MODE;
-  useCanvasClock(canvasRef, showPlaceholderClock);
+  useCanvasClock(canvasRef, showPlaceholderClock && onScreen);
 
   // Poll backend status (live mode only — the static demo has no API).
   useEffect(() => {
-    if (DEMO_MODE) {
+    if (DEMO_MODE || !onScreen) {
       return;
     }
     let alive = true;
@@ -114,9 +125,9 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       alive = false;
       window.clearInterval(timer);
     };
-  }, [cameraId]);
+  }, [cameraId, onScreen]);
 
-  useHlsAttach({ cameraId, videoRef, hlsRef, reattachToken, streamStartAt, setLive, setStreamReady, setPlayingDate, setScrubTargetMs });
+  useHlsAttach({ cameraId, enabled: everOnScreen, videoRef, hlsRef, reattachToken, streamStartAt, setLive, setStreamReady, setPlayingDate, setScrubTargetMs });
 
   // Self-heal a stuck stream: if the backend says the device is recording but
   // this tab's hls.js never reaches LEVEL_LOADED within STUCK_STREAM_TIMEOUT_MS,
@@ -125,14 +136,14 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   // web-app has no hard-refresh gesture, and even a soft reload can rehydrate
   // into the same stuck hls.js state).
   useEffect(() => {
-    if (DEMO_MODE || streamReady || !status?.recording) {
+    if (DEMO_MODE || !onScreen || streamReady || !status?.recording) {
       return;
     }
     const timer = window.setTimeout(() => {
       setReattachToken((token) => token + 1);
     }, STUCK_STREAM_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
-  }, [status?.recording, streamReady]);
+  }, [onScreen, status?.recording, streamReady]);
 
   // Also re-attach whenever the tab/PWA comes back to the foreground — mobile
   // devices suspend timers while backgrounded, so a stream that died while the
@@ -184,7 +195,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
     let raf = 0;
     const sample = () => {
-      if (arePageUpdatesPaused()) {
+      if (arePageUpdatesPaused() || !onScreenRef.current) {
         raf = requestAnimationFrame(sample);
         return;
       }
@@ -356,18 +367,20 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const showAsPlaying = isLive || playing || reversing;
   const { showing: showingSmooth } = useSmoothLive({
     cameraId,
-    wanted: !DEMO_MODE && streamReady && isLive && jog === null,
+    wanted: !DEMO_MODE && onScreen && streamReady && isLive && jog === null,
     smoothRef: smoothVideoRef,
     mainVideoRef: videoRef,
     mainHlsRef: hlsRef,
     scrubbingRef,
+    suspended: !onScreen,
   });
+  useSuspendOffScreen({ onScreen, videoRef, hlsRef });
   const runningRate = isLive ? 1 : forwardPlaybackRate(jog, behindLiveSeconds);
   const positionStreamPath = useCallback((fragment: { programDateTime?: number | null }, rate: SmoothRate) => (
     fragment.programDateTime ? `/api/camera-proxy/${encodeURIComponent(cameraId)}/smooth/at/recording/${Math.round(fragment.programDateTime)}/${rate}/index.m3u8` : null
   ), [cameraId]);
   const { showing: showingPosition } = useSmoothPosition({
-    rate: !DEMO_MODE && !isLive && playing && scrubTargetMs === null ? smoothRateFor(runningRate) : null,
+    rate: !DEMO_MODE && onScreen && !isLive && playing && scrubTargetMs === null ? smoothRateFor(runningRate) : null,
     baseVideoRef: videoRef,
     baseHlsRef: hlsRef,
     overlayRef: positionVideoRef,
@@ -393,7 +406,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         <span className="camera-source-badge">{sourceLabel(status)}</span>
       </header>
 
-      <div className="camera-stage">
+      <div ref={stageRef} className="camera-stage">
         {DEMO_MODE ? <img className="camera-video" src={demoAssetUrl("assets/outside-demo.png")} alt="Fictional demo camera scene: front garden, ginger cat and parked car" /> : null}
         <video
           ref={videoRef}

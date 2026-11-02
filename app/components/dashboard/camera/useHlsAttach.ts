@@ -7,6 +7,7 @@ import type { Hls } from "./types";
 /** Attaches the recording's HLS stream to the panel's `<video>`. */
 export function useHlsAttach({
   cameraId,
+  enabled,
   videoRef,
   hlsRef,
   reattachToken,
@@ -17,6 +18,8 @@ export function useHlsAttach({
   setScrubTargetMs,
 }: {
   cameraId: string;
+  /** False until the panel is first on-screen. */
+  enabled: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   hlsRef: RefObject<Hls | null>;
   reattachToken: number;
@@ -28,7 +31,7 @@ export function useHlsAttach({
 }) {
   // Attach the HLS stream (live mode only).
   useEffect(() => {
-    if (DEMO_MODE) {
+    if (DEMO_MODE || !enabled) {
       return;
     }
     const video = videoRef.current;
@@ -136,5 +139,5 @@ export function useHlsAttach({
       cleanup();
       setStreamReady(false);
     };
-  }, [cameraId, hlsRef, reattachToken, setLive, setPlayingDate, setScrubTargetMs, setStreamReady, streamStartAt, videoRef]);
+  }, [cameraId, enabled, hlsRef, reattachToken, setLive, setPlayingDate, setScrubTargetMs, setStreamReady, streamStartAt, videoRef]);
 }

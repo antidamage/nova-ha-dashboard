@@ -7,6 +7,8 @@ import { cameraUrl } from "../cameraHost";
 import { formatClock, formatDuration } from "./format-model";
 import { prefersNativeHls } from "./hls-engine-model";
 import type { Hls } from "./types";
+import { useOnScreen } from "./useOnScreen";
+import { useSuspendOffScreen } from "./useSuspendOffScreen";
 
 const DEFAULT_SELECTION_MS = 60_000;
 const MIN_SELECTION_MS = 2_000;
@@ -35,6 +37,8 @@ export function SavedRangeSelector({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(stageRef);
   // The window keeps moving; the selection is chosen against where it stood on opening.
   const [windowBounds] = useState({ min: oldestMs, max: newestMs });
   const [selection, setSelection] = useState<[number, number]>([Math.max(oldestMs, newestMs - DEFAULT_SELECTION_MS), newestMs]);
@@ -113,6 +117,12 @@ export function SavedRangeSelector({
     return () => video.removeEventListener("loadedmetadata", show);
   }, [seekTo]);
 
+  // A preview no one can see stops; it is started again by hand.
+  useEffect(() => {
+    if (!onScreen) setPreviewing(false);
+  }, [onScreen]);
+  useSuspendOffScreen({ onScreen, videoRef, hlsRef });
+
   // While previewing, loop inside the selection.
   useEffect(() => {
     if (!previewing) {
@@ -164,7 +174,7 @@ export function SavedRangeSelector({
   const [start, end] = selection;
   return (
     <div className="saved-range-selector">
-      <div className="camera-stage">
+      <div ref={stageRef} className="camera-stage">
         <video ref={videoRef} className="camera-video" playsInline muted />
       </div>
       <div className="camera-controls">

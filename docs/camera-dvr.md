@@ -99,6 +99,19 @@ then read as a jump to Live. The panel now uses the oldest segment in hls.js's
 playlist, plus a 6 s margin, as the limit for scrubbing and reverse. Playback the
 window catches, such as 0.5x at the very start, moves forward to that limit.
 
+## Off-screen
+
+Nobody looking means nothing streamed to this browser. `camera/useOnScreen.ts` watches
+the picture itself, so scrolling the page until only Quick Access shows counts, as does a
+hidden tab. After 5 s away the panel pauses the video, stops downloading segments, and
+drops the 60 fps stream, which lets the GPU pipeline exit when no other viewer wants it.
+It also stops its status poll. A panel that loads off-screen starts nothing. Coming back,
+it wakes 200 px before it is visible and resumes as it was: Live goes back to the live
+edge, a rewound position holds, and paused stays paused. Saved range playback and the
+range preview follow the same rule; a download does not, because someone asked for it.
+
+The capture host's recording never stops for this: it is the DVR.
+
 ## Burned-in date and time
 
 `NOVA_CAMERA_OUTSIDE_TIME_BLOCKS` draws black rectangles into the recording itself,

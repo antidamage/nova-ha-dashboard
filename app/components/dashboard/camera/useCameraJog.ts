@@ -15,6 +15,7 @@ export function useCameraJog({
   isLiveRef,
   setLive,
   oldestPosition,
+  suspended = false,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   scrubbingRef: RefObject<boolean>;
@@ -22,6 +23,8 @@ export function useCameraJog({
   setLive: (live: boolean) => void;
   /** Where reverse must stop, for a recording whose real start is not `seekable`'s. */
   oldestPosition?: () => number;
+  /** Off-screen: reverse holds its place and resumes on return. */
+  suspended?: boolean;
 }) {
   const [jog, setJogState] = useState<number | null>(null);
   const [reverseRunning, setReverseRunningState] = useState(false);
@@ -78,7 +81,7 @@ export function useCameraJog({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!reversing || !video) {
+    if (!reversing || suspended || !video) {
       return;
     }
     let raf = 0;
@@ -111,7 +114,7 @@ export function useCameraJog({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [oldestPosition, reversing, scrubbingRef, setReverseRunning, videoRef]);
+  }, [oldestPosition, reversing, scrubbingRef, setReverseRunning, suspended, videoRef]);
 
   return { jog, jogRef, reversing, selectRate, clearJog, toggleReverse };
 }

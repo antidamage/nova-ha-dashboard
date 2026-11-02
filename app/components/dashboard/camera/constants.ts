@@ -47,6 +47,11 @@ export const OLDEST_POSITION_MARGIN_SECONDS = 6;
 // Playback overtaken to within this of the oldest segment is moved back to the margin.
 export const OLDEST_POSITION_RESCUE_SECONDS = 2;
 
+// Off-screen, the panel stops streaming. Scrolling past inside this long stops nothing,
+// and it wakes this far before it comes into view.
+export const OFF_SCREEN_GRACE_MS = 5000;
+export const ON_SCREEN_MARGIN_PX = 200;
+
 // The smooth stream (specs/camera-smooth-delivery.md). It has this long to start
 // playing, which covers the service starting its pipeline on the first request.
 export const SMOOTH_START_TIMEOUT_MS = 30000;

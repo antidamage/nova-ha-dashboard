@@ -12,7 +12,9 @@ import { JOG_DEFAULT_RATE } from "./jog-model";
 import { smoothRateFor, type SmoothRate } from "./smooth-position-model";
 import type { Hls } from "./types";
 import { useCameraJog } from "./useCameraJog";
+import { useOnScreen } from "./useOnScreen";
 import { useSmoothPosition } from "./useSmoothPosition";
+import { useSuspendOffScreen } from "./useSuspendOffScreen";
 
 const noLive = () => {};
 
@@ -21,6 +23,8 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(stageRef);
   const scrubbingRef = useRef(false);
   const isLiveRef = useRef(false);
   const [ready, setReady] = useState(false);
@@ -29,7 +33,7 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(range.durationSeconds);
 
-  const { jog, jogRef, reversing, selectRate, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive: noLive });
+  const { jog, jogRef, reversing, selectRate, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive: noLive, suspended: !onScreen });
   const runningRate = jog ?? JOG_DEFAULT_RATE;
 
   useEffect(() => {
@@ -63,6 +67,8 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
       video.load();
     };
   }, [cameraId, range.id]);
+
+  useSuspendOffScreen({ onScreen, videoRef, hlsRef });
 
   // Follow the element. A jog's forward rate is applied here; its reverse is useCameraJog's.
   useEffect(() => {
@@ -108,7 +114,7 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
   }, [cameraId, range.id]);
 
   const { showing } = useSmoothPosition({
-    rate: playing && !scrubbing ? smoothRateFor(runningRate) : null,
+    rate: onScreen && playing && !scrubbing ? smoothRateFor(runningRate) : null,
     baseVideoRef: videoRef,
     baseHlsRef: hlsRef,
     overlayRef,
@@ -119,7 +125,7 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
   const clockAt = (seconds: number) => formatClock(new Date(range.startMs + seconds * 1000));
   return (
     <div className="saved-range-player">
-      <div className="camera-stage">
+      <div ref={stageRef} className="camera-stage">
         <video ref={videoRef} className="camera-video" playsInline muted />
         <video ref={overlayRef} className={classNames("camera-video", !showing && "opacity-0")} playsInline muted aria-hidden={!showing} />
         {showing ? <div className="camera-live-pill is-rewound"><span className="camera-live-dot" />60</div> : null}
