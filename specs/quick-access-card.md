@@ -343,6 +343,10 @@ From `DashboardState.weather`:
   and its title centred, and the three readings centred beneath them in one row
   of their own (`.quick-weather-readings`, so a column layout does not put each
   reading on its own line).
+- **The readings never wrap (alex, 2026-11-02).** Temp, Feels and UV stay on
+  one row; where that row is wider than the segment it scales down to fit
+  (`useFitWidth`, `--fit-width-scale`, a `transform`, no floor). In the wide line
+  slot the slot's own scale does this, so the readings are left at full size there.
 
 ## Round: two dial lines, and the Apple TV (alex, 2026-09-22)
 

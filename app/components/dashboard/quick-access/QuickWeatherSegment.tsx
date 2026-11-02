@@ -12,9 +12,11 @@ import {
   Wind,
   type LucideIcon,
 } from "lucide-react";
+import { useRef } from "react";
 import type { WeatherStatus } from "../../../../lib/types";
 import { formatWeatherNumber, weatherLabel } from "../shared";
 import { QuickSegment, SegmentTitle } from "./QuickSegment";
+import { useFitWidth } from "./useFitWidth";
 
 const WEATHER_ICONS: Array<[RegExp, LucideIcon]> = [
   [/lightning|thunder/, CloudLightning],
@@ -43,6 +45,8 @@ export function QuickWeatherSegment({
   weather: WeatherStatus | null | undefined;
 }) {
   const Icon = weatherIcon(weather?.condition);
+  const readingsRef = useRef<HTMLDivElement>(null);
+  useFitWidth(readingsRef);
   const showFeelsLike = features["feels-like"] !== false;
   const showUv = features["uv"] !== false;
 
@@ -54,7 +58,7 @@ export function QuickWeatherSegment({
       </div>
       {/* The three readings stay one row of their own, so the stacked segment
           puts them together beneath the icon rather than one per line. */}
-      <div className="quick-weather-readings">
+      <div className="quick-weather-readings" ref={readingsRef}>
         <div className="quick-current">
           <span className="quick-stepper-caption">Temp</span>
           <span className="quick-current-number">

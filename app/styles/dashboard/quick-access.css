@@ -214,13 +214,21 @@
   padding-inline: 9px;
 }
 
+/* The readings stay on one row and scale down to the segment's width
+   (`useFitWidth`) rather than wrapping. */
 .quick-weather-readings {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: safe center;
   gap: 8px 14px;
   min-width: 0;
+  transform: scale(var(--fit-width-scale, 1));
+  transform-origin: top center;
+}
+
+.quick-weather-readings > * {
+  flex: none;
 }
 
 /* No label to make room for: a square button holding its icon. */
