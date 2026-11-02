@@ -40,6 +40,13 @@ export const LIVE_SYNC_MAX_RATE = 1.5;
 // segment's keyframe, so asking for more only queues decoding.
 export const JOG_REVERSE_SEEK_INTERVAL_MS = 66;
 
+// The recording's oldest segments are deleted as it runs, while hls.js reports the
+// seekable range from 0 regardless. Positions stay this far inside the real window,
+// because hls.js sends a position it finds outside that window to the live edge.
+export const OLDEST_POSITION_MARGIN_SECONDS = 6;
+// Playback overtaken to within this of the oldest segment is moved back to the margin.
+export const OLDEST_POSITION_RESCUE_SECONDS = 2;
+
 // The smooth stream (specs/camera-smooth-delivery.md). It has this long to start
 // playing, which covers the service starting its pipeline on the first request.
 export const SMOOTH_START_TIMEOUT_MS = 30000;

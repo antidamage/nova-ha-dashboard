@@ -8,6 +8,8 @@ import {
   jogRateAt,
   jogReachedLiveEdge,
   jogStopIndex,
+  oldestSafePosition,
+  overtakenByWindow,
   reverseStep,
 } from "./jog-model";
 
@@ -84,5 +86,26 @@ describe("reverse step", () => {
 
   it("stops at the start of the recording", () => {
     expect(reverseStep(10, -10, 2, 5)).toEqual({ time: 5, atStart: true });
+  });
+});
+
+describe("oldest position", () => {
+  it("sits inside the live playlist, not at hls.js's seekable start of 0", () => {
+    expect(oldestSafePosition(0, 7300, 100)).toBe(106);
+  });
+
+  it("uses the seekable start where the player reports a real one", () => {
+    expect(oldestSafePosition(50, 7300)).toBe(56);
+    expect(oldestSafePosition(50, 7300, null)).toBe(56);
+  });
+
+  it("never passes the end of a short window", () => {
+    expect(oldestSafePosition(0, 3, 0)).toBe(3);
+  });
+
+  it("is overtaken only once the window has nearly reached the position", () => {
+    expect(overtakenByWindow(106, 106)).toBe(false);
+    expect(overtakenByWindow(102.5, 106)).toBe(false);
+    expect(overtakenByWindow(101.5, 106)).toBe(true);
   });
 });

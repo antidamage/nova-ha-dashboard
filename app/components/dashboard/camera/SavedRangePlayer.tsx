@@ -1,7 +1,7 @@
 "use client";
 
 import * as Slider from "@radix-ui/react-slider";
-import { Pause, Play, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SavedRangeSummary } from "../../../../lib/camera/saved-ranges-model";
 import { classNames } from "../shared";
@@ -125,9 +125,6 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
         {showing ? <div className="camera-live-pill is-rewound"><span className="camera-live-dot" />60</div> : null}
       </div>
       <div className="camera-controls">
-        <button type="button" className="camera-control-button" onClick={togglePlay} aria-label={showAsPlaying ? "Pause" : "Play"}>
-          {showAsPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-        </button>
         <CameraJogDial jog={jog} runningRate={runningRate} playing={showAsPlaying} disabled={!ready} onRateChange={selectRate} onToggle={togglePlay} />
         <div className="camera-timeline">
           <Slider.Root

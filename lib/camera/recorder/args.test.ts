@@ -20,6 +20,7 @@ const camera: CameraConfig = {
   brightness: -0.1,
   contrast: 1.2,
   sharpness: 0.8,
+  timeBlocks: "",
   segmentSeconds: 2,
   retentionSeconds: 7200,
 };
@@ -83,6 +84,22 @@ describe("camera ffmpeg arguments", () => {
     expect(joined).not.toContain("libx264");
     expect(joined).not.toContain("-preset");
     expect(joined).not.toContain("-tune");
+  });
+
+  it("keeps decoding on the GPU and round-trips the frame to draw time blocks", () => {
+    const args = ffmpegArgs(
+      { ...camera, encoder: "vaapi", hwaccel: "vaapi", encodeFrameRate: 0, brightness: 0, contrast: 1, sharpness: 0, timeBlocks: "10,20,100,40,12" },
+      "device",
+    );
+    const chain = args[args.indexOf("-vf") + 1];
+    expect(args).toEqual(expect.arrayContaining(["-hwaccel", "vaapi"]));
+    expect(chain.startsWith("scale_vaapi=format=nv12,hwdownload,format=nv12,drawbox=x=10:y=20:w=100:h=40:color=black:t=fill,")).toBe(true);
+    expect(chain.endsWith(",format=nv12,hwupload")).toBe(true);
+  });
+
+  it("draws time blocks only on the real device", () => {
+    const args = ffmpegArgs({ ...camera, timeBlocks: "10,20,100,40,12" }, "demo-clock");
+    expect(args.join(" ")).not.toContain("drawbox=x=10");
   });
 
   it("keeps frames on the GPU end-to-end when hwaccel=vaapi and no CPU filter is needed", () => {

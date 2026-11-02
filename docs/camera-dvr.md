@@ -2,7 +2,7 @@
 # Outside camera DVR
 
 The Outside zone embeds a security-camera viewer with a two-hour DVR: live view,
-play/pause, a scrubber to scan back through the last two hours, and a **Live**
+play/pause on the jog dial, a scrubber to scan back through the last two hours, and a **Live**
 button to jump back to the live edge.
 
 ## Recording scheme (rolling HLS window)
@@ -87,7 +87,25 @@ HTTP-only capture host as a blocked mixed-content subresource. The scrubber is d
   and seeks, at most every 66 ms and only once the last seek has finished. Each step
   covers all the time since the last one, so a slow seek shows fewer frames rather
   than a slower rate. Each seek decodes from the segment's keyframe, so reverse is
-  visibly less smooth than forward. It pauses at the start of the seekable range.
+  visibly less smooth than forward. It pauses at the oldest position, below.
+
+## The oldest position
+
+The recording's oldest segments are deleted as it runs, but hls.js reports `seekable`
+from 0 regardless, and sends a position outside the playlist that has run short of
+buffer to the live edge. Dragging to the start used to land there, usually once the
+window had moved on during the drag or a stale status poll placed it too early, and it
+then read as a jump to Live. The panel now uses the oldest segment in hls.js's
+playlist, plus a 6 s margin, as the limit for scrubbing and reverse. Playback the
+window catches, such as 0.5x at the very start, moves forward to that limit.
+
+## Burned-in date and time
+
+`NOVA_CAMERA_OUTSIDE_TIME_BLOCKS` draws black rectangles into the recording itself,
+each with the capture host's date and time in white, to cover a clock the source burns
+in when that clock is wrong: `x,y,width,height,fontSize;...` in source pixels. Unset,
+nothing is drawn and frames stay on the GPU; set, decoding stays on the GPU and each
+frame makes a round trip to memory to be drawn on. `lib/camera/recorder/time-blocks.ts`.
 
 ## Frame rate and smooth motion
 

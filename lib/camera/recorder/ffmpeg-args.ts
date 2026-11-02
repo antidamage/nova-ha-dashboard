@@ -3,6 +3,7 @@
 import { existsSync } from "fs";
 import path from "path";
 import { cameraDir, PLAYLIST_FILENAME, retentionSeconds, SEGMENT_PREFIX, type CameraConfig, type CameraSource } from "../config";
+import { parseTimeBlocks, timeBlockFilters, timeBlockFontFile } from "./time-blocks";
 
 /**
  * The demo clock overlay uses ffmpeg's `drawtext`, which needs a real font file
@@ -130,6 +131,11 @@ export function ffmpegArgs(
   const cappedFilters =
     outFrameRate < camera.frameRate ? [...baseFilters, `fps=${outFrameRate}`] : baseFilters;
 
+  // Drawn after any fps cap.
+  const blocks = source === "device" ? parseTimeBlocks(camera.timeBlocks) : [];
+  const stampFont = blocks.length ? timeBlockFontFile(resolveFontFile) : null;
+  const stampFilters = timeBlockFilters(blocks, stampFont && drawtextFontfile(stampFont));
+
   const useVaapi = camera.encoder === "vaapi";
   // Full-GPU path: hardware-decode the capture stream and hand the encoder frames
   // that are already on the GPU, so the CPU does almost nothing. Only possible when
@@ -151,15 +157,18 @@ export function ffmpegArgs(
   // `h264_vaapi` can consume it. Software x264 keeps the plain chain.
   let videoFilters: string[];
   if (!useVaapi) {
-    videoFilters = cappedFilters;
+    videoFilters = [...cappedFilters, ...stampFilters];
   } else if (hwDecode) {
     // Frames are already GPU surfaces from the decoder. Normalise them to NV12 on
     // the GPU (VPP): MJPEG captures are commonly 4:2:2, which h264_vaapi refuses —
     // scale_vaapi converts to the 4:2:0 NV12 the encoder needs without a CPU round
     // trip.
-    videoFilters = [...cappedFilters, "scale_vaapi=format=nv12"];
+    // Stamping alone needs system memory, so only the decoded frame round-trips.
+    videoFilters = stampFilters.length
+      ? [...cappedFilters, "scale_vaapi=format=nv12", "hwdownload", "format=nv12", ...stampFilters, "format=nv12", "hwupload"]
+      : [...cappedFilters, "scale_vaapi=format=nv12"];
   } else {
-    videoFilters = [...cappedFilters, "format=nv12", "hwupload"];
+    videoFilters = [...cappedFilters, ...stampFilters, "format=nv12", "hwupload"];
   }
 
   const encoder = useVaapi

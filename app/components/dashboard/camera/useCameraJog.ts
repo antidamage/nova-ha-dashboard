@@ -14,11 +14,14 @@ export function useCameraJog({
   scrubbingRef,
   isLiveRef,
   setLive,
+  oldestPosition,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   scrubbingRef: RefObject<boolean>;
   isLiveRef: RefObject<boolean>;
   setLive: (live: boolean) => void;
+  /** Where reverse must stop, for a recording whose real start is not `seekable`'s. */
+  oldestPosition?: () => number;
 }) {
   const [jog, setJogState] = useState<number | null>(null);
   const [reverseRunning, setReverseRunningState] = useState(false);
@@ -101,14 +104,14 @@ export function useCameraJog({
         last = now;
         return;
       }
-      const step = reverseStep(video.currentTime, jogRef.current, (now - last) / 1000, range.start(0));
+      const step = reverseStep(video.currentTime, jogRef.current, (now - last) / 1000, oldestPosition?.() ?? range.start(0));
       last = now;
       video.currentTime = step.time;
       if (step.atStart) setReverseRunning(false);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reversing, scrubbingRef, setReverseRunning, videoRef]);
+  }, [oldestPosition, reversing, scrubbingRef, setReverseRunning, videoRef]);
 
   return { jog, jogRef, reversing, selectRate, clearJog, toggleReverse };
 }

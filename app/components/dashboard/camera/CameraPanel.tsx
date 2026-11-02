@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, Radio, Video, VideoOff } from "lucide-react";
+import { Radio, Video, VideoOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as Slider from "@radix-ui/react-slider";
 import { classNames } from "../shared";
@@ -24,7 +24,7 @@ import {
 import type { CameraStatus, Hls } from "./types";
 import { formatClock, formatOffset, sourceLabel } from "./format-model";
 import { useCanvasClock } from "./useCanvasClock";
-import { forwardPlaybackRate, jogReachedLiveEdge } from "./jog-model";
+import { forwardPlaybackRate, jogReachedLiveEdge, oldestSafePosition, overtakenByWindow } from "./jog-model";
 import { useHlsAttach } from "./useHlsAttach";
 import { useSmoothLive } from "./useSmoothLive";
 import { useSmoothPosition } from "./useSmoothPosition";
@@ -64,7 +64,15 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     setIsLive(live);
   }, []);
 
-  const { jog, jogRef, reversing, selectRate, clearJog, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive });
+  const oldestPosition = useCallback(() => {
+    const range = videoRef.current?.seekable;
+    if (!range || range.length === 0) {
+      return 0;
+    }
+    return oldestSafePosition(range.start(0), range.end(range.length - 1), hlsRef.current?.latestLevelDetails?.fragments[0]?.start);
+  }, []);
+
+  const { jog, jogRef, reversing, selectRate, clearJog, toggleReverse } = useCameraJog({ videoRef, scrubbingRef, isLiveRef, setLive, oldestPosition });
 
   useEffect(() => {
     statusRef.current = status;
@@ -213,8 +221,11 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
           // catch-up lands smoothly.
           const behind = end - video.currentTime;
           const desired = forwardPlaybackRate(jogRef.current, behind);
+          const oldest = oldestPosition();
           if (jogReachedLiveEdge(jogRef.current, behind)) {
             jumpToLive();
+          } else if (overtakenByWindow(video.currentTime, oldest)) {
+            video.currentTime = oldest;
           } else if (Math.abs(video.playbackRate - desired) > 0.01) {
             video.playbackRate = desired;
           }
@@ -248,7 +259,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
     };
-  }, [jogRef, jumpToLive]);
+  }, [jogRef, jumpToLive, oldestPosition]);
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
@@ -259,13 +270,16 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       return;
     }
     if (video.paused) {
+      // The window may have passed a position while it sat paused.
+      const oldest = oldestPosition();
+      if (overtakenByWindow(video.currentTime, oldest)) video.currentTime = oldest;
       void video.play().catch(() => {});
     } else {
       // A user pause drops us out of live-follow so the frame stays put.
       setLive(false);
       video.pause();
     }
-  }, [setLive, toggleReverse]);
+  }, [oldestPosition, setLive, toggleReverse]);
 
   const handleScrub = useCallback((values: number[]) => {
     const video = videoRef.current;
@@ -291,13 +305,13 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
     setScrubTargetMs(values[0]);
     const range = video.seekable;
     if (range.length > 0 && newestMs > 0) {
-      const candidate = range.end(range.length - 1) - (newestMs - values[0]) / 1000;
-      if (candidate >= range.start(0) && candidate <= range.end(range.length - 1)) {
+      const candidate = Math.max(range.end(range.length - 1) - (newestMs - values[0]) / 1000, oldestPosition());
+      if (candidate <= range.end(range.length - 1)) {
         video.currentTime = candidate;
         setCurrentTime(candidate);
       }
     }
-  }, [setLive, status?.newestSegment, status?.oldestSegment]);
+  }, [oldestPosition, setLive, status?.newestSegment, status?.oldestSegment]);
 
   const commitScrub = useCallback((values: number[]) => {
     const video = videoRef.current;
@@ -314,9 +328,9 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
       }
       const range = video.seekable;
       const candidate = range.length > 0 && newestMs > 0
-        ? range.end(range.length - 1) - (newestMs - values[0]) / 1000
+        ? Math.max(range.end(range.length - 1) - (newestMs - values[0]) / 1000, oldestPosition())
         : Number.NaN;
-      if (range.length > 0 && candidate >= range.start(0) && candidate <= range.end(range.length - 1)) {
+      if (range.length > 0 && candidate <= range.end(range.length - 1)) {
         video.currentTime = candidate;
         setScrubTargetMs(null);
         void video.play().catch(() => {});
@@ -325,7 +339,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
         setReattachToken((token) => token + 1);
       }
     }
-  }, [status?.newestSegment]);
+  }, [oldestPosition, status?.newestSegment]);
 
   const oldestMs = status?.oldestSegment ? Date.parse(status.oldestSegment) : Number.NaN;
   const newestMs = status?.newestSegment ? Date.parse(status.newestSegment) : Number.NaN;
@@ -408,10 +422,6 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
 
       {DEMO_MODE ? <p className="px-3 py-2 text-xs text-neutral-400">AI-generated sample scene. Recording and playback require a connected camera.</p> : null}
       <div className={classNames("camera-controls", DEMO_MODE && "hidden")}>
-        <button type="button" className="camera-control-button" onClick={togglePlay} aria-label={showAsPlaying ? "Pause" : "Play"}>
-          {showAsPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-        </button>
-
         <CameraJogDial
           jog={jog}
           runningRate={runningRate}

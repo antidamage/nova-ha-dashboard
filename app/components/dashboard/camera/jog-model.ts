@@ -1,4 +1,4 @@
-import { FAST_PLAYBACK_RATE, FAST_PLAYBACK_THRESHOLD_SECONDS, LIVE_TARGET_LATENCY_SECONDS } from "./constants";
+import { FAST_PLAYBACK_RATE, FAST_PLAYBACK_THRESHOLD_SECONDS, LIVE_TARGET_LATENCY_SECONDS, OLDEST_POSITION_MARGIN_SECONDS, OLDEST_POSITION_RESCUE_SECONDS } from "./constants";
 
 /**
  * The jog dial's stops, in dial order: whole rates, plus 0.5x each side of a
@@ -55,4 +55,17 @@ export function reverseStep(
 ): { time: number; atStart: boolean } {
   const time = currentTime + rate * elapsedSeconds;
   return time <= rangeStart ? { time: rangeStart, atStart: true } : { time, atStart: false };
+}
+
+/**
+ * The oldest position worth asking for. `playlistStart` is the oldest segment still
+ * in the live playlist, where the player knows it; otherwise `seekableStart` is real.
+ */
+export function oldestSafePosition(seekableStart: number, seekableEnd: number, playlistStart?: number | null): number {
+  return Math.min(Math.max(seekableStart, playlistStart ?? seekableStart) + OLDEST_POSITION_MARGIN_SECONDS, seekableEnd);
+}
+
+/** Playback the deleting window has nearly caught, where `oldest` is oldestSafePosition. */
+export function overtakenByWindow(currentTime: number, oldest: number): boolean {
+  return currentTime < oldest - OLDEST_POSITION_MARGIN_SECONDS + OLDEST_POSITION_RESCUE_SECONDS;
 }

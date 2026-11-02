@@ -83,6 +83,8 @@ export type CameraConfig = {
   contrast: number;
   /** ffmpeg unsharp luma amount (0 to 5, neutral 0). */
   sharpness: number;
+  /** Black date and time blocks burned into the recording: "x,y,width,height,fontSize;...". */
+  timeBlocks: string;
   /** HLS segment length in seconds. Short = faster seek, smaller recovery loss. */
   segmentSeconds: number;
   /** How far back the DVR window reaches, in seconds. */
@@ -136,6 +138,7 @@ export const CAMERAS: CameraConfig[] = [
     brightness: envNumberRange("NOVA_CAMERA_OUTSIDE_BRIGHTNESS", 0, -1, 1),
     contrast: envNumberRange("NOVA_CAMERA_OUTSIDE_CONTRAST", 1, 0, 2),
     sharpness: envNumberRange("NOVA_CAMERA_OUTSIDE_SHARPNESS", 0, 0, 5),
+    timeBlocks: envString("NOVA_CAMERA_OUTSIDE_TIME_BLOCKS", ""),
     segmentSeconds: envNumber("NOVA_CAMERA_OUTSIDE_SEGMENT_SECONDS", 2),
     retentionSeconds: envNumber("NOVA_CAMERA_OUTSIDE_RETENTION_SECONDS", TWO_HOURS_SECONDS),
   },
