@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readDashboardConfig } from "../../../../../lib/dashboard-config";
 import { sliceLivePlaylist } from "../../../../../lib/camera/hls-playlist";
+import { proxySmoothRequest } from "../../../../../lib/camera/smooth-proxy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,6 +43,9 @@ async function proxyCameraRequest(request: Request, context: RouteContext) {
   const { id, path } = await context.params;
   if (id !== "outside" || path.length === 0) {
     return NextResponse.json({ error: "Unknown camera" }, { status: 404 });
+  }
+  if (path[0] === "smooth") {
+    return proxySmoothRequest(request, path.slice(1));
   }
 
   const config = await readDashboardConfig();

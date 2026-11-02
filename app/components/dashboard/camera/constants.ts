@@ -39,3 +39,12 @@ export const LIVE_SYNC_MAX_RATE = 1.5;
 // A negative jog seeks backwards at most this often. Each seek decodes from the
 // segment's keyframe, so asking for more only queues decoding.
 export const JOG_REVERSE_SEEK_INTERVAL_MS = 66;
+
+// The smooth stream (specs/camera-smooth-delivery.md). It has this long to start
+// playing, which covers the service starting its pipeline on the first request.
+export const SMOOTH_START_TIMEOUT_MS = 30000;
+// Once showing, this long without the picture moving means it has stalled.
+export const SMOOTH_STALL_MS = 3000;
+export const SMOOTH_RETRY_AFTER_MS = 30000;
+// Leaving the smooth stream, the recording has this long to catch up before it is shown anyway.
+export const SMOOTH_HANDOFF_TIMEOUT_MS = 2500;

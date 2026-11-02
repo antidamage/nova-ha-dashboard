@@ -1,0 +1,24 @@
+[Unit]
+Description=Nova camera smooth delivery: 60 fps on demand, never stored
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+DynamicUser=yes
+SupplementaryGroups=video render
+Environment=HOME=/tmp
+Nice=5
+WorkingDirectory=/opt/nova-camera-smooth/app
+EnvironmentFile=-/etc/nova-camera-smooth.env
+ExecStart=/opt/nova-camera-smooth/venv/bin/python /opt/nova-camera-smooth/app/service.py
+KillMode=control-group
+TimeoutStopSec=15
+Restart=always
+RestartSec=5
+MemoryMax=3G
+
+[Install]
+WantedBy=multi-user.target

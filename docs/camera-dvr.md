@@ -101,7 +101,9 @@ Over the dashboard's camera proxy, from a desktop, 24 segments in sequence took 
 9.7 MB/s, or about 5x real time at this bitrate. A jog above that runs on what is
 already buffered, then can stall until more arrives.
 
-Interpolating frames was measured on 1 s of the 15 fps feed, using 6 cores of a desktop:
+The live view is interpolated to 60 fps on delivery on the GPU host, never stored:
+`specs/camera-smooth-delivery.md`. The two methods below were measured first, on 1 s of
+the 15 fps feed, using 6 cores of a desktop, and were not used:
 
 | Method | Time for 1 s of video | Result |
 |---|---|---|

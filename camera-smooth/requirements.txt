@@ -1,0 +1,3 @@
+numpy==2.4.6
+opencv-python-headless==5.0.0.93
+rife-ncnn-vulkan-python-tntwise==1.4.5
