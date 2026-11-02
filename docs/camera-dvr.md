@@ -19,8 +19,10 @@ This is a standard NVR-style design — nothing bespoke:
     `EXT-X-PROGRAM-DATE-TIME` tags so the scrubber maps to wall-clock time,
   - **automatic retention** — ffmpeg deletes rolled-off segments, so we never
     keep (or serve) more than two hours,
-  - **crash recovery** — segments live on disk; the supervisor restarts ffmpeg
-    with exponential backoff and resumes the rolling window.
+  - **crash recovery** — the supervisor restarts ffmpeg with exponential backoff
+    and resumes the rolling window. Starting the recorder afresh is different: it
+    purges the recording directory (`lib/camera/recorder/lifecycle.ts`), so
+    restarting the dashboard service on the capture host loses the DVR window.
 - A 60 s retention sweep (`lib/camera/recorder.ts`) deletes anything ffmpeg
   orphaned after an unclean exit, and the segment route refuses files older than
   the window — defence in depth for the "never older than two hours" rule.
@@ -89,13 +91,17 @@ HTTP-only capture host as a blocked mixed-content subresource. The scrubber is d
 
 ## Frame rate and smooth motion
 
-Measured on 2026-11-02. The capture host reads the grabber at 1080p30 and encodes at
-15 fps, set by `NOVA_CAMERA_OUTSIDE_ENCODE_FRAME_RATE=15` in its `.env.local`. That
-cap dates from software encoding; the VAAPI pipeline runs the encoder at about 10%
-CPU. Setting it to 0 records every captured frame, which is real motion rather than
-synthesised frames, at the cost of more disk for the DVR window (7 GB at 15 fps).
+The capture host reads the grabber at 1080p30 and, since 2026-11-02, encodes every
+frame (`NOVA_CAMERA_OUTSIDE_ENCODE_FRAME_RATE=30` in its `.env.local`; it was 15, a
+cap from the software-encoding days). Measured after the change: 60 distinct frames
+per 2 s segment, the encoder at about 9-20% CPU, 3.8 MB per segment, which is 13.7 GB
+for the two-hour window (about 7.6 GB at 15 fps).
 
-Interpolating frames was measured on 1 s of this feed, using 6 cores of a desktop:
+Over the dashboard's camera proxy, from a desktop, 24 segments in sequence took 9.1 s:
+9.7 MB/s, or about 5x real time at this bitrate. A jog above that runs on what is
+already buffered, then can stall until more arrives.
+
+Interpolating frames was measured on 1 s of the 15 fps feed, using 6 cores of a desktop:
 
 | Method | Time for 1 s of video | Result |
 |---|---|---|
