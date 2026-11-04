@@ -15,7 +15,7 @@ Two jobs:
    Discord DMs, so what the house did is legible away from the dashboard.
 2. **Inbound.** Let a DM be interpreted as a dashboard command, without a chatty
    message ever becoming an action by accident — or, by default now, answered by
-   Hermes so that a conversation started on a phone can be continued at a desk.
+   a headless Claude Code session (`agent.agent`).
 
 ## Repository
 
@@ -176,7 +176,7 @@ handle is what is configured; the id is what is displayed.
 | `hermes.workspace` | string | blank | where a Discord-started session works; blank uses the WebUI's own |
 | `hermes.model` | string | blank | blank ⇒ the profile default (deepseek) |
 | `hermes.chatTimeoutMs` | number 30000–3600000 | `600000` | how long one turn may take |
-| `agent.agent` | `claude` \| `codex` \| `hermes` | `claude` | who handles a fresh DM (§ Fresh messages) |
+| `agent.agent` | `claude` \| `codex` \| `hermes` | `claude` | who handles every DM except a reply that resumes a Claude Code or Codex session (§ Fresh messages) |
 | `agent.model` | string | `sonnet` | passed to the agent's CLI as-is; blank ⇒ the CLI's default |
 | `agent.effort` | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| blank | `medium` | blank ⇒ the CLI's default |
 | `agent.runnerUrl` | string | — | the agent runner, e.g. `https://<host>:8444`; needed for `claude` and `codex` |
@@ -365,12 +365,13 @@ Before anything reaches the LLM:
 
 ### Hermes mode
 
-`inbound.mode` decides what a DM does. `hermes` (the default) answers it with
-Hermes; `confirm` is the dry-run house-command path described from here on. An
-unrecognised value uses `confirm` — a typo must never silently choose the path
-with no gate in front of it — and the value is reported in the module status.
+`inbound.mode` decides what a DM does. `hermes` (the default) answers it with an
+agent, chosen by `agent.agent` (§ Fresh messages); `confirm` is the dry-run
+house-command path described from here on. An unrecognised value uses `confirm`
+— a typo must never silently choose the path with no gate in front of it — and
+the value is reported in the module status.
 
-In `hermes` mode the text goes to the **Hermes WebUI** on Ununhexium, reached
+With `agent.agent: hermes`, the text goes to the **Hermes WebUI** on Ununhexium, reached
 over the tailnet (`hermes.baseUrl`; the WebUI binds loopback and is published by
 `tailscale serve`). Two calls:
 
@@ -383,9 +384,10 @@ The module answers with `answer`, posted as a **Discord reply** to her message.
 A turn runs under Hermes' own approval policy; the module adds no gate of its
 own, which is what `confirm` is for.
 
-**Which session.** Every message the bot sends is recorded against the Hermes
-session that produced it. A DM that is a Discord reply to one of those messages
-continues that session; anything else starts a new one.
+**Which session.** This applies with `agent.agent: hermes`. Every message the bot
+sends is recorded against the Hermes session that produced it. A DM that is a
+Discord reply to one of those messages continues that session; anything else
+starts a new one.
 
 Two ways a link can be lost, and they do not behave the same way:
 
@@ -449,16 +451,22 @@ default is used. An unrecognised agent runs nothing: the DM is answered with the
 not understood, and the status names it (`agentWarning`). A typo must not
 quietly pick an agent.
 
-**Replies are unchanged.** A DM that replies to a message the bot sent continues
-the session that sent it, as in § Hermes mode. The link now records which agent
-owns the session, so a reply to a Claude Code answer resumes that Claude Code
-session (`claude -p --resume`), a reply to a Codex answer resumes that Codex
-session, and a reply to a Hermes answer — or to a message with no link, such as
-an attention ping — takes the Hermes path exactly as before. A link with no
-agent recorded (every link written before this change) is a Hermes link.
-`agent.model` and `agent.effort` belong to the configured agent: a reply that
-resumes a different agent's session (the setting changed since) is sent with
+**Replies.** The link records which agent owns the session, so a reply to a
+Claude Code answer resumes that Claude Code session (`claude -p --resume`) and a
+reply to a Codex answer resumes that Codex session. Every other reply follows
+`agent.agent`, as a fresh DM does: a reply to a Hermes answer, or to a message
+with no link, such as an attention ping or a notification. With `claude` or
+`codex` configured that starts a new session, which gets the replied-to text and
+the chat history as context; it does not continue a Hermes session and does not
+resume whichever session sent a ping. Only `agent.agent: hermes` reaches § Hermes
+mode. An unrecognised agent refuses a reply just as it refuses a fresh DM. A link
+with no agent recorded (every link written before agents existed) is a Hermes
+link. `agent.model` and `agent.effort` belong to the configured agent: a reply
+that resumes a different agent's session (the setting changed since) is sent with
 neither, so that CLI uses its own defaults — `sonnet` means nothing to Codex.
+
+alex, 2026-11-05: Discord answers from Claude, never from the Ollama model that
+is Hermes' default. That is why these replies do not go back to Hermes.
 
 **Only her messages.** The § Filtering rules apply unchanged: only the
 configured `userId` (resolved from the handle `antidamage`) is read, and every
@@ -525,11 +533,14 @@ fresh or a reply) carries the DM channel's recent history as context.
   It is told that her message may nevertheless continue an earlier request ("yes
   do that", "try again"), to infer that from the history where the message only
   makes sense against it, and to ignore the history where it stands alone.
-- **A Discord reply is a continuation.** A reply resumes the session established
-  by the message it replies to. That is either Nova's answer (linked when it was
-  sent) or her own original message (linked to the session when the answer
-  arrives, so replying to her own earlier message works the same way). The prompt
-  names the replied-to message and its session. Where the target is older than
+- **A Discord reply.** A reply to a message linked to a Claude Code or Codex
+  session resumes that session, and with `agent.agent: hermes` a reply to a Hermes
+  answer continues its session (§ Fresh messages). That message is either Nova's answer
+  (linked when it was sent) or her own original message (linked to the session
+  when the answer arrives, so replying to her own earlier message works the same
+  way), and the prompt names the replied-to message and its session. A reply that
+  starts a new session has its target quoted, and the prompt says the session has
+  no memory of what sent it and names no session. Where the target is older than
   the 30-message window the prompt says its text is not in the history.
 - **Session tags.** A history line whose message is linked to a session carries
   the first 8 characters of its id, so the agent can see which lines belong to one
@@ -668,7 +679,7 @@ With `inbound.mode: confirm` (the default is `hermes`; its own list follows):
 - Restarting the dashboard mid-window loses no queued lines.
 - The public repo contains no token, id, or household detail.
 
-### Done means — Hermes mode (the default)
+### Done means — Hermes (`agent.agent: hermes`)
 
 - A DM is answered by Hermes within the WebUI's own turn time, and the answer
   arrives as a **reply** to the message she sent.
@@ -690,8 +701,11 @@ With `inbound.mode: confirm` (the default is `hermes`; its own list follows):
 - A fresh DM gets 👀 within seconds, and later the agent's answer as a reply to
   it; with defaults, the session is Claude Code on `sonnet` at `medium` effort.
 - Replying to that answer resumes the same Claude Code session.
-- Replying to a Hermes answer still continues its Hermes session.
-- `agent.agent: hermes` makes a fresh DM behave exactly as before this change.
+- With `agent.agent: claude`, replying to a Hermes answer, a notification or an
+  attention ping starts a Claude Code session whose prompt quotes that message,
+  and nothing reaches the Hermes WebUI.
+- `agent.agent: hermes` sends fresh DMs and those replies down the Hermes path,
+  where a reply to a Hermes answer continues its session.
 - A DM from any account other than the configured handle starts nothing.
 - With the runner stopped, a fresh DM is answered with the reason, and the
   module reports `state: "error"`.
@@ -702,4 +716,4 @@ With `inbound.mode: confirm` (the default is `hermes`; its own list follows):
   across a stop, a chunk re-sent within Discord's few-minute nonce window is
   not posted twice either.
 - A fresh DM's session sees the last 30 messages as context, and a DM replying to
-  her own earlier message resumes the session that answered it.
+  her own earlier message resumes the Claude Code or Codex session that answered it.
