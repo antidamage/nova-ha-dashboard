@@ -57,6 +57,14 @@
   padding: 6px 8px;
 }
 
+/* A tile that holds a rotary dial takes no tint of its own, in any orientation:
+   the dial sits straight on the section panel. A faint square behind a round
+   control read as a colour-matching error (alex, 2026-11-05). The border
+   stays; only the fill goes. */
+.quick-segment:has(.rotary-encoder) {
+  background: none;
+}
+
 /* The climate knobs are not tiles. A 100px knob's dial is 124px across, half
    again as tall as a tile's row, so boxing each one made it spill past its own
    border and collide with the tile below. Each knob takes the same slot a tile

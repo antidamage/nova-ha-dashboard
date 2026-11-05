@@ -253,6 +253,10 @@ outside lighting through `homeAssistant.everythingExcludedEntityIds`
   zone's name is still the group's `aria-label`, so the segment is still named
   for assistive tech. `lightsOnLabel` stays in `quickAccessModel.ts`, tested
   but now unused by this card.
+- **A tile with a rotary dial has no fill (alex, 2026-11-05).** The faint
+  square tint behind a round dial read as a colour-matching error, so
+  `.quick-segment:has(.rotary-encoder)` is transparent in every orientation and
+  the dial sits on the section panel. The tile's border stays.
 - **Stacked and icon-only (alex, 2026-09-12, later the same day).** The
   lighting segment is the one segment that reads top-to-bottom rather than
   left-to-right: the dial is centred, and the two preset buttons sit centred
