@@ -29,6 +29,7 @@ tokens:
     xs: "rgba(0, 0, 0, 0.65) 0px 1px 2px 0px inset, rgba(59, 66, 42, 0.18) 0px 1px 0px 0px"
     sm: "rgba(0, 0, 0, 0.5) 0px 0px 0px 1px, rgba(255, 255, 255, 0.16) 0px 1px 1px 0px inset, rgba(0, 0, 0, 0.4) 0px -0.912px 2.28px 0px"
 ---
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 
 # Overview
 

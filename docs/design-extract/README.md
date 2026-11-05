@@ -1,3 +1,4 @@
+<!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Dashboard design extract
 
 A measured snapshot of the live dashboard's visual system, read off the rendered DOM
@@ -58,7 +59,7 @@ or feature, so values come from one place instead of being re-measured per surfa
 
 designlang (npm package `designlang`, Node 20+, needs a Playwright Chromium) was
 installed on the agent workstation outside every repo. Command:
-`npx designlang <url> --out <dir> --full`. A full-mode run takes several minutes,
+`npx designlang <url> --out <dir> --full`. After a run, put the START HERE line back as the first line of README.md and as the first line after the front matter of DESIGN.md; the unit suite fails otherwise. A full-mode run takes several minutes,
 so start it in the background with output to a log. The generated component-anatomy
 scaffold was left out because a `.tsx` file here would be type-checked with the app.
 `design-tokens.json` carries an older generator version in its metadata than
