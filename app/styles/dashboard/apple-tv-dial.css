@@ -4,7 +4,7 @@
 /* ── The dial ───────────────────────────────────────────────────────────────
    Built on RotaryEncoder. The volume percent sits on the face where the
    climate knob keeps its target, the mode word below the lights, and the name
-   curves over the top. The ring is the blue-green `volumeRingPaint` draws. */
+   curves over the top. The ring is the status orb's colour ring colour (`--cyber-line`). */
 .apple-tv-encoder .rotary-encoder-dial > .rotary-encoder-label.apple-tv-encoder-level {
   font-size: clamp(14px, calc(var(--re-size) * 0.11), 24px);
   letter-spacing: 0.04em;

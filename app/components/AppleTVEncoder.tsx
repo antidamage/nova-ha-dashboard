@@ -27,7 +27,6 @@ import {
   volumeColour,
   volumeGlow,
   volumeLevelText,
-  volumeRingPaint,
 } from "./appleTVEncoderModel";
 
 /** The two modes, left to right. The lit one is the dial's mode. */
@@ -95,8 +94,7 @@ export function AppleTVEncoder({
       className={className}
       ariaLabel={ariaLabel}
       ariaValueText={`volume ${level} percent, ${muted ? "muted" : "unmuted"}`}
-      color={volumeColour(level)}
-      ringPaint={volumeRingPaint(level, dialSize)}
+      color={volumeColour()}
       disabled={disabled}
       title={title}
       faceTop={volumeLevelText(level)}

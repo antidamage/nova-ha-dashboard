@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppleTVEncoder } from "./AppleTVEncoder";
-import { VOLUME_RING_MID } from "./appleTVEncoderModel";
 
 /** The 133px dial's box: --re-outer is DIAL_OUTER_RATIO knob diameters. */
 const DIAL_BOX = 133 * 1.314;
@@ -43,26 +42,15 @@ describe("the Apple TV dial", () => {
     expect(screen.getByRole("slider").getAttribute("aria-valuetext")).toBe("volume 42 percent, unmuted");
   });
 
-  it("paints its ring in the blue-green, top to bottom, with the level's shift", () => {
+  it("paints its ring in the status orb's ring colour, with a glow in the same colour", () => {
     const { container } = render(
       <AppleTVEncoder muted={false} volume={60} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
     );
     const root = container.querySelector<HTMLElement>(".apple-tv-encoder");
-    const paint = root?.style.getPropertyValue("--re-ring-paint") ?? "";
-    // The dials' usual direction, never the angular sweep this shipped with.
-    expect(paint.startsWith("linear-gradient(180deg")).toBe(true);
-    expect(paint).not.toContain("conic-gradient");
-    // The boundary runs 40% at rest to 64% at full: at 60% it is 54.40%.
-    expect(paint).toContain("54.40%");
-    // volumeColour(60): 20% from the blue-green toward the pale mint.
-    expect(root?.style.getPropertyValue("--re-color")).toBe("rgb(47, 209, 174)");
-    // And the glow reads that same colour: a malformed one is dropped by the
-    // browser, which is how this dial lost its glow layer while every sibling
-    // kept theirs.
-    const glow = root?.style.getPropertyValue("--re-glow") ?? "";
-    expect(glow).not.toContain("NaN");
+    expect(root?.style.getPropertyValue("--re-color")).toBe("var(--cyber-line)");
+    expect(root?.style.getPropertyValue("--re-ring-paint")).toBe("");
     // size 200 (the dial's default): blur 200*0.12*0.6, spread 200*0.012*0.6.
-    expect(glow).toBe("0 0 14.4px 1.4px rgba(47, 209, 174, 0.372)");
+    expect(root?.style.getPropertyValue("--re-glow")).toBe("0 0 14.4px 1.4px rgb(var(--cyber-line-rgb) / 0.372)");
   });
 
   it("lights the volume mode, and the mute mode while muted", () => {
@@ -153,15 +141,6 @@ describe("the Apple TV dial", () => {
     const atCeiling = reads(200);
     expect(oversize).toEqual(atCeiling);
     // And the glow really does scale with the dial it was drawn at: 200*0.12.
-    expect(atCeiling.glow).toBe("0 0 24.0px 2.4px rgba(110, 240, 207, 0.620)");
-  });
-
-  it("is still blue-green at rest, at the deep end of the family", () => {
-    const { container } = render(
-      <AppleTVEncoder muted={false} volume={0} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
-    );
-    const colour = container.querySelector<HTMLElement>(".apple-tv-encoder")?.style.getPropertyValue("--re-color");
-    expect(colour).toBe("rgb(14, 127, 122)");
-    expect(colour).not.toBe(VOLUME_RING_MID);
+    expect(atCeiling.glow).toBe("0 0 24.0px 2.4px rgb(var(--cyber-line-rgb) / 0.620)");
   });
 });

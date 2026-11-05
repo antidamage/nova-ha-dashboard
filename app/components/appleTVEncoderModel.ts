@@ -18,13 +18,11 @@ export const VOLUME_STEP = 1;
 export const VOLUME_WIDEST = `${VOLUME_MAX}%`;
 
 /**
- * Blue-green (alex, 2026-09-22), one family of three so the ring can carry
- * the usual subtle gradient rather than a flat colour: a deep teal at the dark
- * end, the blue-green in the middle and a pale mint at the top.
+ * The ring takes the status orb's colour ring colour, `--cyber-line` (alex,
+ * 2026-11-05; it was a fixed blue-green before). It follows the theme, so there
+ * is no ramp here: the ring is that one colour at every level.
  */
-export const VOLUME_RING_DEEP = "#0e7f7a";
-export const VOLUME_RING_MID = "#1fc9a6";
-export const VOLUME_RING_PALE = "#6ef0cf";
+export const VOLUME_RING_COLOUR = "var(--cyber-line)";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -41,65 +39,25 @@ export function volumeLevelText(volume: number) {
   return `${clampVolume(volume)}%`;
 }
 
-/**
- * The ring's paint: the dials' usual colour gradient, **top to bottom**
- * (`180deg`), the same direction every other ring in the app takes — the band
- * lands brightest at 12 o'clock and deepest at 6, with the knob's own shading
- * over it (`rotary-knob-face.css`, "Sunken shading over the ring";
- * `rotary-unlock-ring.css` for the same convention written out). Never a conic
- * or radial sweep: the dials must not vary from each other.
- *
- * It carries the same three blue-greens at every level, and the pale band's
- * share grows with the volume — the usual subtle gradient shift, and a quiet
- * read of the level under the knob.
- */
-export function volumeRingPaint(volume: number, _size: number) {
-  const level = clamp(clampVolume(volume) / VOLUME_MAX, 0, 1);
-  // The pale-to-blue-green boundary moves down the band as the level rises, and
-  // never reaches an end: even at rest the gradient is a gradient.
-  const mid = 40 + 24 * level;
-  return [
-    "linear-gradient(180deg",
-    `${VOLUME_RING_PALE} 2%`,
-    `${VOLUME_RING_MID} ${mid.toFixed(2)}%`,
-    `${VOLUME_RING_DEEP} 100%)`,
-  ].join(", ");
-}
-
-/** The single colour the dial's fill, index and glow are keyed to. */
-export function volumeColour(volume: number) {
-  const level = clamp(clampVolume(volume) / VOLUME_MAX, 0, 1);
-  if (level <= 0.5) return mixHex(VOLUME_RING_DEEP, VOLUME_RING_MID, level * 2);
-  return mixHex(VOLUME_RING_MID, VOLUME_RING_PALE, (level - 0.5) * 2);
+/** The single colour the dial's ring, fill, index and glow are keyed to. */
+export function volumeColour() {
+  return VOLUME_RING_COLOUR;
 }
 
 /**
  * The ring's glow: the colour dial's full-glow figures, scaled by the level and
  * gone entirely while muted — a muted amplifier is not lighting anything up.
  *
- * The channels come straight off `volumeColour`, which is already an `rgb()`
- * string, exactly as the temperature knob's glow reads its own colour. Running
- * that through `hexToRgb` produced `rgba(NaN, …)`, which the browser drops — so
- * the dial had no glow at all while every sibling had one (alex,
- * 2026-09-22: "these components should never vary from each other").
+ * The channels are the theme's `--cyber-line-rgb`, so the glow matches the ring.
  */
 export function volumeGlow(volume: number, size: number, muted: boolean) {
   const level = clamp(clampVolume(volume) / VOLUME_MAX, 0, 1);
   if (muted || level <= 0) return "0 0 0 rgba(0, 0, 0, 0)";
-  const rgb = volumeColour(volume).replace(/rgba?\(|\)/g, "");
-  return `0 0 ${(size * 0.12 * level).toFixed(1)}px ${(size * 0.012 * level).toFixed(1)}px rgba(${rgb}, ${(0.62 * level).toFixed(3)})`;
+  return `0 0 ${(size * 0.12 * level).toFixed(1)}px ${(size * 0.012 * level).toFixed(1)}px rgb(var(--cyber-line-rgb) / ${(0.62 * level).toFixed(3)})`;
 }
 
 export function hexToRgb(hex: string): [number, number, number] {
   const value = hex.replace("#", "");
   const full = value.length === 3 ? value.split("").map((part) => part + part).join("") : value;
   return [0, 2, 4].map((offset) => parseInt(full.slice(offset, offset + 2), 16)) as [number, number, number];
-}
-
-/** `rgb(...)`, the form `--re-color` is read back as. */
-export function mixHex(from: string, to: string, t: number) {
-  const a = hexToRgb(from);
-  const b = hexToRgb(to);
-  const channel = (index: number) => Math.round(a[index] + (b[index] - a[index]) * clamp(t, 0, 1));
-  return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
 }
