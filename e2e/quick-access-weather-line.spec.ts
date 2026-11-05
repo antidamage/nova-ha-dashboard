@@ -39,9 +39,11 @@ for (const viewport of VIEWPORTS) {
       const rects = [...el.querySelectorAll("*")].map((child) => child.getBoundingClientRect()).filter((r) => r.width > 0);
       return { left: Math.min(...rects.map((r) => r.left)), right: Math.max(...rects.map((r) => r.right)) };
     });
-    expect(extent.left, "left edge inside the panel").toBeGreaterThanOrEqual(rowBox.x - 1);
-    expect(extent.right, "right edge inside the panel").toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
-    expect(extent.right - extent.left, "fills the panel's width").toBeGreaterThanOrEqual(rowBox.width * 0.85);
+    // A full HD desktop in portrait keeps 5% of the panel clear on each side.
+    const margin = viewport.width >= 1060 && viewport.height > viewport.width ? rowBox.width * 0.05 : 0;
+    expect(extent.left, "left edge inside the panel").toBeGreaterThanOrEqual(rowBox.x + margin - 1);
+    expect(extent.right, "right edge inside the panel").toBeLessThanOrEqual(rowBox.x + rowBox.width - margin + 1);
+    expect(extent.right - extent.left, "fills the panel's width").toBeGreaterThanOrEqual((rowBox.width - 2 * margin) * 0.85);
 
     // One line: the three readings share a top, and the last of them (UV) ends
     // inside the panel rather than being cut off by it.

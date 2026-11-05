@@ -358,6 +358,12 @@ From `DashboardState.weather`:
   Checked by `e2e/quick-access-weather-line.spec.ts` at the kiosk, a phone, a
   desktop and a tablet: the drawn extent reaches both edges, UV ends inside the
   panel, and the readings share one row.
+- **5% side margin on a full HD portrait desktop (alex, 2026-11-05).** When
+  the viewport is portrait and at least 1060px wide (the 1080x1920 screen), the
+  wide line slot has `margin-inline: 5%` (`quick-access-dials.css`), so the
+  weather line is scaled to the width left between the margins. Phones and
+  tablets in portrait are narrower and keep the line edge to edge. The e2e
+  expects the drawn extent inside the margins at the 1080x1920 viewport.
 
 ## Round: two dial lines, and the Apple TV (alex, 2026-09-22)
 

@@ -80,3 +80,14 @@
 .panel-slot-wide .quick-weather-readings > * {
   flex: none;
 }
+
+/* A full HD desktop in portrait (1080px wide and up) keeps 5% of the panel clear
+   either side of the weather line (alex, 2026-11-05). The margin is on the
+   slot, so its box is narrower and `useSlotScale`'s growWeather fits the line to
+   what is left rather than to the panel. A phone or tablet in portrait is under
+   this width and keeps the line edge to edge. */
+@media (orientation: portrait) and (min-width: 1060px) {
+  .quick-access-row > .panel-slot-wide {
+    margin-inline: 5%;
+  }
+}
