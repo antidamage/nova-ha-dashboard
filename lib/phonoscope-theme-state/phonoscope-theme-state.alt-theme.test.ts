@@ -121,16 +121,16 @@ describe("the alt colour theme", () => {
       }],
     };
 
-    writePhonoscopeNowPlaying({ playing: true, track: { id: "a", title: "a", artist: "a" } }, 1_000);
+    writePhonoscopeNowPlaying({ playing: true, track: { id: "a", title: "a", artist: "a" } });
     expect(readPhonoscopeThemeState(withBoth, 1_000).themeId).toBe("red");
 
-    writePhonoscopeNowPlaying({ playing: true, track: { id: "b", title: "b", artist: "b" } }, 2_000);
+    writePhonoscopeNowPlaying({ playing: true, track: { id: "b", title: "b", artist: "b" } });
     // The rotation moved to `blue`, which has no alt, and the state stayed on.
     expect(readPhonoscopeThemeState(withBoth, 2_000)).toMatchObject({
       themeId: "blue", altActive: true,
     });
 
-    writePhonoscopeNowPlaying({ playing: true, track: { id: "c", title: "c", artist: "c" } }, 3_000);
+    writePhonoscopeNowPlaying({ playing: true, track: { id: "c", title: "c", artist: "c" } });
     // Flipped off again by its own firing, so `green` shows its own colours.
     expect(readPhonoscopeThemeState(withBoth, 3_000)).toMatchObject({
       themeId: "green", altActive: false,
