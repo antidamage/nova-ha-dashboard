@@ -493,11 +493,32 @@ export function demoConfigBootstrapScript(
     }
   }
 
+  // The provider's simulation reaches the page under the real /api/events names.
+  var demoEventSources = [];
+
+  function demoEvent(name, data) {
+    // As on the fetch path below: the provider knows nothing of control presets.
+    if (name === "state" && isRecord(data)) {
+      if (!data.controls) data.controls = demoControls();
+      if (!data.controlModules) data.controlModules = DEFAULT_MODULES;
+    }
+    return { type: name, data: JSON.stringify(data) };
+  }
+
+  function deliverDemoEvent(name, data) {
+    var event = demoEvent(name, data);
+    demoEventSources.slice().forEach(function (source) { source.dispatchEvent(event); });
+  }
+
   function loadProvider() {
     if (!providerPromise) {
       providerPromise = import(new URL("provider.mjs", bootstrap.providerBase).href)
         .then(function (module) {
-          return module.createNovaDummyProvider({ baseUrl: bootstrap.providerBase });
+          var provider = module.createNovaDummyProvider({ baseUrl: bootstrap.providerBase });
+          // A provider too old to push events is left to the page's polling, so
+          // the two Pages sites can deploy in either order.
+          if (typeof provider.subscribe === "function") provider.subscribe(deliverDemoEvent);
+          return provider;
         }).catch(function (error) {
           providerPromise = null;
           throw error;
@@ -563,9 +584,17 @@ export function demoConfigBootstrapScript(
     this.readyState = 1;
     this.listeners = {};
     var self = this;
+    demoEventSources.push(self);
     setTimeout(function () {
       self.dispatchEvent({ type: "open" });
       self.dispatchEvent({ type: "client-id", data: JSON.stringify({ id: 1 }) });
+      loadProvider().then(function (provider) {
+        if (typeof provider.eventSnapshot !== "function") return;
+        return provider.eventSnapshot().then(function (events) {
+          if (self.readyState !== 1) return;
+          events.forEach(function (entry) { self.dispatchEvent(demoEvent(entry[0], entry[1])); });
+        });
+      }).catch(function () {});
     }, 0);
   };
   DemoEventSource.prototype.addEventListener = function (type, listener) {
@@ -581,6 +610,8 @@ export function demoConfigBootstrapScript(
   DemoEventSource.prototype.close = function () {
     this.readyState = 2;
     this.listeners = {};
+    var self = this;
+    demoEventSources = demoEventSources.filter(function (source) { return source !== self; });
   };
   window.EventSource = DemoEventSource;
 })()

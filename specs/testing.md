@@ -37,6 +37,16 @@ Coverage is available via `npm run test:coverage` (v8 provider, report under
 `coverage/`). `lib/` logic is the primary coverage target; `app/` UI behaviour is
 covered mainly by the E2E suite below rather than jsdom.
 
+### The demo's event stream
+
+`lib/demo-config/bootstrap-script.ts` replaces `EventSource` in the demo. Since card
+137856 it delivers what the dummy provider's simulation pushes (`provider.subscribe`,
+`eventSnapshot`) under the real `/api/events` names, with control presets merged into
+`state` as the fetch path does. A provider with no `subscribe` gets polling only, so
+the two Pages sites can deploy in either order. What the simulation does is
+`nova-dummy-data-provider/SPEC.md`, "Live simulation". `lib/demo-config/demo-events.test.ts`
+covers the shim.
+
 ### End-to-end tests (Playwright)
 
 `e2e/*.spec.ts` exercise the dashboard in demo mode

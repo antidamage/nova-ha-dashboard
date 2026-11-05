@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SavedRangeSummary } from "../../../../lib/camera/saved-ranges-model";
 import { downloadName } from "../../../../lib/camera/saved-ranges-model";
-import { DEMO_MODE } from "./constants";
 
 const SAVING_POLL_MS = 2000;
 
@@ -25,7 +24,7 @@ export function useSavedRanges(cameraId: string) {
   }, [cameraId]);
 
   useEffect(() => {
-    if (!DEMO_MODE) void refresh();
+    void refresh();
   }, [refresh]);
 
   const saving = ranges.some((range) => range.state === "saving");

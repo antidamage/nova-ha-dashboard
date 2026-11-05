@@ -1,11 +1,13 @@
 "use client";
 
 import * as Slider from "@radix-ui/react-slider";
+import type { HlsConfig } from "hls.js";
 import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SavedRangeSummary } from "../../../../lib/camera/saved-ranges-model";
 import { classNames } from "../shared";
 import { CameraJogDial } from "./CameraJogDial";
+import { DEMO_MODE } from "./constants";
 import { formatClock } from "./format-model";
 import { prefersNativeHls } from "./hls-engine-model";
 import { JOG_DEFAULT_RATE } from "./jog-model";
@@ -46,12 +48,13 @@ export function SavedRangePlayer({ cameraId, range, onClose }: { cameraId: strin
     const onMetadata = () => setReady(true);
     video.addEventListener("loadedmetadata", onMetadata);
     void (async () => {
-      if (prefersNativeHls(video.canPlayType("application/vnd.apple.mpegurl"), navigator.userAgent)) {
+      if (!DEMO_MODE && prefersNativeHls(video.canPlayType("application/vnd.apple.mpegurl"), navigator.userAgent)) {
         video.src = src;
       } else {
-        const { default: HlsLib } = await import("hls.js");
+        const { default: HlsLib, FetchLoader } = await import("hls.js");
         if (cancelled || !HlsLib.isSupported()) return;
-        const hls = new HlsLib({ backBufferLength: 30, maxBufferLength: 30 });
+        // The demo's playlists come from its fetch shim, as on the main player.
+        const hls = new HlsLib({ backBufferLength: 30, maxBufferLength: 30, ...(DEMO_MODE ? { pLoader: FetchLoader as unknown as HlsConfig["pLoader"] } : {}) });
         hlsRef.current = hls;
         hls.loadSource(src);
         hls.attachMedia(video);
