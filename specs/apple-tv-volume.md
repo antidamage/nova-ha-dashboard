@@ -24,10 +24,14 @@ do).
   them. Entering the mute light mutes and cycling back to volume unmutes, so one
   piece of state (`muted`) is the whole of it: the lit light, the face word, the
   ring's glow and what a caller is told can never disagree.
-- **The ring is the status orb's colour ring colour**, `--cyber-line` (alex,
-  2026-11-05; it was a blue-green ramp). It follows the theme and is the same at
-  every level; the glow reads `--cyber-line-rgb`, scales with the level and is
-  out entirely while the amp is muted.
+- **The ring is the status orb's colour ring colour**: the avatar theme's first
+  line colour at its opacity (`--nova-orb-ring-color`, channels in
+  `--nova-orb-ring-rgb`, set by `theme/accent/apply.ts`). *Corrected 2026-11-06:*
+  the 2026-11-05 version used `--cyber-line`, the accent slot, which is not what
+  the orb draws; side by side on the rendered dashboard the orb was green and the
+  dial was not. It follows the theme and is the same at every level; the glow
+  reads `--nova-orb-ring-rgb`, scales with the level and is out entirely while
+  the amp is muted.
 - **The glow is the same glow every dial has**: keyed to the dial's own colour
   and scaled by the level, gone while muted. *Corrected 2026-09-22:* it shipped
   reading that colour back through the hex parser, which produced `rgba(NaN, …)`

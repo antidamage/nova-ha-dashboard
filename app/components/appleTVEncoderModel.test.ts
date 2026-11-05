@@ -26,8 +26,8 @@ describe("the volume reading", () => {
 
 describe("the ring's colour", () => {
   it("is the status orb's colour ring colour, at every level", () => {
-    expect(VOLUME_RING_COLOUR).toBe("var(--cyber-line)");
-    expect(volumeColour()).toBe("var(--cyber-line)");
+    expect(VOLUME_RING_COLOUR).toBe("var(--nova-orb-ring-color, var(--cyber-line))");
+    expect(volumeColour()).toBe("var(--nova-orb-ring-color, var(--cyber-line))");
   });
 });
 
@@ -49,7 +49,7 @@ describe("the ring's glow", () => {
     for (const volume of [1, 25, 50, 75, 100]) {
       const glow = volumeGlow(volume, 133, false);
       expect(glow).not.toContain("NaN");
-      expect(glow).toMatch(/^0 0 \d+(\.\d+)?px \d+(\.\d+)?px rgb\(var\(--cyber-line-rgb\) \/ 0\.\d+\)$/);
+      expect(glow).toMatch(/^0 0 \d+(\.\d+)?px \d+(\.\d+)?px rgb\(var\(--nova-orb-ring-rgb, var\(--cyber-line-rgb\)\) \/ 0\.\d+\)$/);
     }
   });
 });

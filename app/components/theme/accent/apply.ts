@@ -103,6 +103,21 @@ function applyCssKnobLightColors(ledColor: ThemeColorValue, unlockRingColor: The
   applyCssRgbPair("nova-unlock-ring", appliedThemeRgb(normalizeColor(unlockRingColor, led)));
 }
 
+/**
+ * The status orb's colour ring colour: the orb draws its status ring in the
+ * avatar's first line colour (`line1`) at that line's own opacity
+ * (`buildOrbPalette`). Controls that must match the orb's ring (the Apple TV
+ * volume dial) read these instead of the accent, which is a different slot.
+ */
+function applyCssOrbRingColor(avatar: DeviceTheme["avatar"]) {
+  const rgb = appliedThemeRgb(avatar.lineColors[0]);
+  const alpha = Math.max(0, Math.min(1, avatar.lineOpacities[0] / 100));
+  const channels = `${rgb[0]} ${rgb[1]} ${rgb[2]}`;
+  const root = document.documentElement;
+  root.style.setProperty("--nova-orb-ring-rgb", channels);
+  root.style.setProperty("--nova-orb-ring-color", `rgb(${channels} / ${alpha})`);
+}
+
 function applyCssAlertColor(value: ThemeColorValue) {
   const applied = appliedThemeRgb(value);
   const hue = normalizeColor(value, DEFAULT_THEME.accent).rgb;
@@ -148,6 +163,7 @@ export function applyDeviceTheme(theme: DeviceTheme) {
   applyCssRadarOpacity(normalized.radarOpacity);
   applyCssTaskGlowIntensity(normalized.taskGlowIntensity);
   applyCssAlertColor(normalized.avatar.gradientAlert);
+  applyCssOrbRingColor(normalized.avatar);
   applyCssKnobLightColors(normalized.ledColor, normalized.unlockRingColor);
   setActiveControlSound(normalized.controlSound, normalized.uxSounds);
   applyThemeFontVars("display", normalized.font);

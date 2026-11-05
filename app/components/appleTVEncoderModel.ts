@@ -18,11 +18,13 @@ export const VOLUME_STEP = 1;
 export const VOLUME_WIDEST = `${VOLUME_MAX}%`;
 
 /**
- * The ring takes the status orb's colour ring colour, `--cyber-line` (alex,
- * 2026-11-05; it was a fixed blue-green before). It follows the theme, so there
- * is no ramp here: the ring is that one colour at every level.
+ * The ring takes the status orb's colour ring colour: the avatar theme's first
+ * line colour at its opacity, published as `--nova-orb-ring-color`
+ * (theme/accent/apply.ts). Not `--cyber-line`, which is the accent slot and is
+ * a different colour (alex, 2026-11-06, from the rendered dashboard). It
+ * follows the theme, so there is no ramp: the ring is that colour at every level.
  */
-export const VOLUME_RING_COLOUR = "var(--cyber-line)";
+export const VOLUME_RING_COLOUR = "var(--nova-orb-ring-color, var(--cyber-line))";
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -48,12 +50,12 @@ export function volumeColour() {
  * The ring's glow: the colour dial's full-glow figures, scaled by the level and
  * gone entirely while muted — a muted amplifier is not lighting anything up.
  *
- * The channels are the theme's `--cyber-line-rgb`, so the glow matches the ring.
+ * The channels are the orb ring's `--nova-orb-ring-rgb`, so the glow matches the ring.
  */
 export function volumeGlow(volume: number, size: number, muted: boolean) {
   const level = clamp(clampVolume(volume) / VOLUME_MAX, 0, 1);
   if (muted || level <= 0) return "0 0 0 rgba(0, 0, 0, 0)";
-  return `0 0 ${(size * 0.12 * level).toFixed(1)}px ${(size * 0.012 * level).toFixed(1)}px rgb(var(--cyber-line-rgb) / ${(0.62 * level).toFixed(3)})`;
+  return `0 0 ${(size * 0.12 * level).toFixed(1)}px ${(size * 0.012 * level).toFixed(1)}px rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)) / ${(0.62 * level).toFixed(3)})`;
 }
 
 export function hexToRgb(hex: string): [number, number, number] {

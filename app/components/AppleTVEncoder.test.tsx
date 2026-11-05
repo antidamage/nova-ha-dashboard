@@ -47,10 +47,10 @@ describe("the Apple TV dial", () => {
       <AppleTVEncoder muted={false} volume={60} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
     );
     const root = container.querySelector<HTMLElement>(".apple-tv-encoder");
-    expect(root?.style.getPropertyValue("--re-color")).toBe("var(--cyber-line)");
+    expect(root?.style.getPropertyValue("--re-color")).toBe("var(--nova-orb-ring-color, var(--cyber-line))");
     expect(root?.style.getPropertyValue("--re-ring-paint")).toBe("");
     // size 200 (the dial's default): blur 200*0.12*0.6, spread 200*0.012*0.6.
-    expect(root?.style.getPropertyValue("--re-glow")).toBe("0 0 14.4px 1.4px rgb(var(--cyber-line-rgb) / 0.372)");
+    expect(root?.style.getPropertyValue("--re-glow")).toBe("0 0 14.4px 1.4px rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)) / 0.372)");
   });
 
   it("lights the volume mode, and the mute mode while muted", () => {
@@ -141,6 +141,6 @@ describe("the Apple TV dial", () => {
     const atCeiling = reads(200);
     expect(oversize).toEqual(atCeiling);
     // And the glow really does scale with the dial it was drawn at: 200*0.12.
-    expect(atCeiling.glow).toBe("0 0 24.0px 2.4px rgb(var(--cyber-line-rgb) / 0.620)");
+    expect(atCeiling.glow).toBe("0 0 24.0px 2.4px rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)) / 0.620)");
   });
 });
