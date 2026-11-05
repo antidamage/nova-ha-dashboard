@@ -1,0 +1,186 @@
+{
+  "library": "heroicons-outline",
+  "confidence": 0.8,
+  "alternates": [
+    {
+      "id": "phosphor",
+      "score": 0.7
+    },
+    {
+      "id": "feather",
+      "score": 0.7
+    },
+    {
+      "id": "tabler",
+      "score": 0.6
+    }
+  ],
+  "stats": {
+    "count": 25,
+    "strokeOnly": 17,
+    "fillOnly": 8,
+    "mixed": 0,
+    "avgStrokeWidth": 2,
+    "gridDistribution": {
+      "24": 17
+    },
+    "roundedCapsFraction": 0.68
+  },
+  "signals": [
+    "strokeDominant",
+    "roundedCaps",
+    "grid24"
+  ],
+  "icons": [
+    {
+      "class": "lucide lucide-rotate-cw h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-contrast h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-settings h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "reminder-glyph-mark",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "reminder-glyph-mark",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "reminder-glyph-mark",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "reminder-glyph-mark",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "rotary-encoder-title-arc",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "lucide lucide-flame h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-sun h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-power-off h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "rotary-encoder-title-arc",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "lucide lucide-skull h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-cloud-rain h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-ghost h-5 w-5",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "rotary-encoder-title-arc",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "rotary-encoder-title-arc",
+      "grid": null,
+      "strokeWidth": null,
+      "style": "fill"
+    },
+    {
+      "class": "lucide lucide-cloud-rain quick-weather-icon",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-chevron-left",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-power",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-flame",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-sun",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-power-off",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-chevron-left",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    },
+    {
+      "class": "lucide lucide-plug-zap h-4 w-4",
+      "grid": 24,
+      "strokeWidth": 2,
+      "style": "stroke"
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "materialLanguage": {
+    "label": "material-you",
+    "confidence": 0.45,
+    "signals": [
+      {
+        "label": "material-you",
+        "weight": 0.45,
+        "detail": "pill shapes + soft shadows"
+      }
+    ],
+    "metrics": {
+      "saturation": 0.31,
+      "shadowProfile": "soft",
+      "avgShadowBlur": 0,
+      "maxShadowBlur": 0,
+      "insetShadows": 0,
+      "avgRadius": 266,
+      "maxRadius": 999,
+      "hasPill": true,
+      "hasBackdropBlur": false,
+      "gradientCount": 26
+    },
+    "alternates": []
+  },
+  "imageryStyle": {
+    "label": "none",
+    "confidence": 0,
+    "counts": {},
+    "aspectRatios": [],
+    "radiusProfile": "none",
+    "signals": []
+  },
+  "backgroundPatterns": {
+    "labels": [
+      "line-grid",
+      "gradient-mesh"
+    ],
+    "counts": {
+      "noise": 0,
+      "dotGrid": 0,
+      "lineGrid": 2,
+      "meshCount": 7,
+      "svgPattern": 0
+    },
+    "gradientTotals": {
+      "radial": 29,
+      "linear": 68
+    },
+    "samples": [
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "gradient-mesh",
+        "value": "radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 58%), radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 62%), radial-gradient(circle at 50% 42"
+      },
+      {
+        "tag": "line-grid",
+        "value": "repeating-linear-gradient(-45deg, rgba(94, 128, 0, 0.6) 0px, rgba(94, 128, 0, 0.6) 2px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0) 8px)"
+      }
+    ]
+  }
+}

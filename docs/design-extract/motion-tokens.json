@@ -1,0 +1,89 @@
+{
+  "$description": "Motion tokens extracted by designlang",
+  "duration": {
+    "xs": {
+      "$value": "150ms",
+      "$type": "duration",
+      "ms": 150,
+      "$extensions": {
+        "designlang.observed": true
+      }
+    },
+    "sm": {
+      "$value": "160ms",
+      "$type": "duration",
+      "ms": 160
+    },
+    "md": {
+      "$value": "300ms",
+      "$type": "duration",
+      "ms": 300
+    },
+    "lg": {
+      "$value": "450ms",
+      "$type": "duration",
+      "ms": 450
+    },
+    "xl": {
+      "$value": "1.2s",
+      "$type": "duration",
+      "ms": 1200
+    },
+    "xxl": {
+      "$value": "3.2s",
+      "$type": "duration",
+      "ms": 3200,
+      "$extensions": {
+        "designlang.observed": true
+      }
+    }
+  },
+  "easing": {
+    "ease-out-4": {
+      "$value": "cubic-bezier(0.22, 1, 0.36, 1)",
+      "$type": "cubicBezier",
+      "family": "ease-out"
+    },
+    "ease-in-out": {
+      "$value": "ease",
+      "$type": "cubicBezier",
+      "family": "ease-in-out"
+    },
+    "linear": {
+      "$value": "linear",
+      "$type": "cubicBezier",
+      "family": "linear"
+    },
+    "custom-900": {
+      "$value": "cubic-bezier(0.4, 0, 0.2, 1)",
+      "$type": "cubicBezier",
+      "family": "custom"
+    }
+  },
+  "spring": {},
+  "$meta": {
+    "feel": "mixed",
+    "scrollLinked": true,
+    "runtime": {
+      "triggers": [
+        "load",
+        "focus",
+        "scroll"
+      ],
+      "observed": 4
+    }
+  },
+  "choreography": {},
+  "scroll": {
+    "reveal-1": {
+      "$type": "designlang.scrollRecipe",
+      "kind": "reveal",
+      "properties": [
+        "box-shadow"
+      ],
+      "durationMs": 3200,
+      "easing": "linear",
+      "selector": "div:nth-of-type(5) > div:nth-of-type(1) > div > button:nth-of-type(1)"
+    }
+  }
+}

@@ -1,0 +1,386 @@
+:root {
+  /* Colors — Primary */
+  --color-primary: #5e8000;
+  --color-secondary: #b5ff00;
+  --color-accent: #ffa04d;
+
+  /* Ramp — primary (base is 600) */
+  --color-primary-50: #e7ffc3;
+  --color-primary-100: #daf6b2;
+  --color-primary-200: #c8e69a;
+  --color-primary-300: #adce77;
+  --color-primary-400: #8bae4a;
+  --color-primary-500: #6d9021;
+  --color-primary-600: #5e8000;
+  --color-primary-700: #456200;
+  --color-primary-800: #375000;
+  --color-primary-900: #2c4100;
+  --color-primary-950: #162400;
+
+  /* Ramp — secondary (base is 100) */
+  --color-secondary-50: #daff9d;
+  --color-secondary-100: #b5ff00;
+  --color-secondary-200: #b7ef63;
+  --color-secondary-300: #9ad71e;
+  --color-secondary-400: #75b700;
+  --color-secondary-500: #579800;
+  --color-secondary-600: #448000;
+  --color-secondary-700: #326800;
+  --color-secondary-800: #265500;
+  --color-secondary-900: #1c4500;
+  --color-secondary-950: #0b2700;
+
+  /* Ramp — accent (base is 300) */
+  --color-accent-50: #ffe8ba;
+  --color-accent-100: #ffdaa8;
+  --color-accent-200: #ffc78e;
+  --color-accent-300: #ffa04d;
+  --color-accent-400: #e08736;
+  --color-accent-500: #c16700;
+  --color-accent-600: #a65200;
+  --color-accent-700: #893f00;
+  --color-accent-800: #733100;
+  --color-accent-900: #5f2500;
+  --color-accent-950: #391100;
+
+  /* Ramp — neutral (base is 950) */
+  --color-neutral-50: #f4f5fa;
+  --color-neutral-100: #e8eaee;
+  --color-neutral-200: #d7d9de;
+  --color-neutral-300: #bec0c6;
+  --color-neutral-400: #9da0a6;
+  --color-neutral-500: #7f8288;
+  --color-neutral-600: #6a6c72;
+  --color-neutral-700: #54575c;
+  --color-neutral-800: #45474b;
+  --color-neutral-900: #37393d;
+  --color-neutral-950: #191b20;
+
+  /* Colors — Neutrals */
+  --color-neutral-50: #191b20;
+  --color-neutral-100: #919191;
+  --color-neutral-200: #ffffff;
+  --color-neutral-300: #87907d;
+  --color-neutral-400: #171717;
+  --color-neutral-500: #d6d6d6;
+  --color-neutral-600: #000000;
+
+  /* Colors — Backgrounds */
+  --color-bg: #121212;
+  --color-bg-1: #171717;
+  --color-bg-2: #3b422a;
+  --color-bg-3: #1e2024;
+  --color-bg-4: #b5ff00;
+  --color-bg-5: #ffa04d;
+  --color-bg-6: #000000;
+
+  /* Colors — Text */
+  --color-text: #919191;
+  --color-text-1: #d6d6d6;
+  --color-text-2: #ffffff;
+  --color-text-3: #191b20;
+  --color-text-4: #3b422a;
+
+  /* Semantic pairs */
+  --surface-page-bg: #121212;
+  --surface-page-fg: #ffffff; /* 18.73:1 AAA */
+  --surface-raised-bg: #171717;
+  --surface-raised-fg: #ffffff; /* 17.93:1 AAA */
+  --action-primary-bg: #5e8000;
+  --action-primary-fg: #ffffff; /* 4.6:1 AA */
+  --action-secondary-bg: #b5ff00;
+  --action-secondary-fg: #121212; /* 15.41:1 AAA */
+  --action-accent-bg: #ffa04d;
+  --action-accent-fg: #121212; /* 9.27:1 AAA */
+
+  /* Typography — Families */
+  --font-sans: 'Chakra Petch', sans-serif;
+  --font-mono: 'Share Tech Mono', sans-serif;
+
+  /* Typography — Named scale */
+  --font-size-display: 51.52px;
+  --font-size-h1: 48px;
+  --font-size-title-1: 44px;
+  --font-size-title-2: 38.448px;
+  --font-size-h2: 30px;
+  --font-size-title-3: 28px;
+  --font-size-title-4: 27.2px;
+  --font-size-title-5: 21.6px;
+  --font-size-title-6: 21.36px;
+  --font-size-h3: 20.8px;
+  --font-size-title-7: 20px;
+  --font-size-body: 16px;
+  --font-size-body-sm: 15.2px;
+  --font-size-micro: 14.72px;
+
+  /* Layout */
+  --container-width: 460px;
+  --container-gutter: 26px;
+  --section-rhythm: 20px;
+  --grid-columns: 2;
+
+  /* Spacing */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-28: 28px;
+  --spacing-32: 32px;
+  --spacing-48: 48px;
+
+  /* Border Radius */
+  --radius-xs: 2px;
+  --radius-lg: 13px;
+  --radius-full: 50px;
+  --radius-full: 999px;
+
+  /* Box Shadows */
+  --shadow-xs: rgba(28, 186, 157, 0.247) 0px 0px 5.5px 0.5px;
+
+  /* Original Site Variables */
+  /* — colors — */
+  --foreground: #333;
+  --cyber-bg: #1a1a1a;
+  --cyber-border-rgb: 255 255 255;
+  --cyber-border-dim: rgb(var(--cyber-border-rgb) / .19);
+  --cyber-border-strong: rgb(var(--cyber-border-rgb) / .73);
+  --cyber-title-on-bg: var(--cyber-title-light);
+  --cyber-clock-color: var(--cyber-title-on-bg);
+  --cyber-title-glow-bg: var(--cyber-title-on-bg);
+  --cyber-muted: var(--cyber-title-on-bg);
+  --cyber-accent-on-bg: var(--cyber-cyan);
+  --cyber-voice-transcript-bg: rgb(31 31 31);
+  --color-cyan-300: lab(85.3886% -36.7636 -21.5716);
+  --color-amber-400: lab(80.1641% 16.6016 99.2089);
+  --tw-ring-shadow: 0 0 #0000;
+  --color-cyan-400: lab(76.6045% -40.9406 -29.6231);
+  --color-rose-200: lab(86.806% 19.1909 4.07754);
+  --color-emerald-300: lab(83.9203% -48.7124 13.8849);
+  --color-red-900: lab(28.5139% 44.5539 29.0463);
+  --color-neutral-600: lab(34.924% 0 0);
+  --nova-unlock-ring-color: rgb(181 255 0);
+  --color-neutral-500: lab(48.496% 0 0);
+  --color-neutral-300: lab(84.92% 0 -.0000119209);
+  --tw-inset-ring-shadow: 0 0 #0000;
+  --color-red-200: lab(86.017% 19.8815 7.75869);
+  --color-neutral-200: lab(90.952% 0 -.0000119209);
+  --color-cyan-200: lab(91.0821% -24.0435 -12.8306);
+  --color-amber-300: lab(86.4156% 6.13147 78.3961);
+  --tw-ring-offset-color: #fff;
+  --color-red-400: lab(63.7053% 60.745 31.3109);
+  --color-white: #fff;
+  --color-yellow-300: lab(89.7033% -.480294 84.4917);
+  --color-rose-100: lab(92.8221% 9.86832 2.60075);
+  --color-emerald-100: lab(94.9004% -17.0769 5.63836);
+  --color-red-500: lab(55.4814% 75.0732 48.8528);
+  --tw-ring-offset-width: 0px;
+  --color-neutral-700: lab(27.036% 0 0);
+  --color-neutral-50: lab(98.26% 0 0);
+  --color-fuchsia-200: lab(87.7108% 19.9958 -18.2054);
+  --color-neutral-900: lab(7.78201% -.0000149012 0);
+  --color-yellow-100: lab(97.3564% -4.51407 27.344);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --color-neutral-100: lab(96.52% -.0000298023 .0000119209);
+  --color-red-300: lab(76.5514% 36.422 15.5335);
+  --color-cyan-500: lab(67.805% -35.3952 -30.2018);
+  --color-amber-500: lab(72.7183% 31.8672 97.9407);
+  --color-cyan-100: lab(95.3146% -13.8285 -6.84732);
+  --color-rose-300: lab(76.6339% 38.3549 9.68835);
+  --color-rose-500: lab(56.101% 79.4328 31.4532);
+  --nova-led-color: rgb(172 255 0);
+  --color-fuchsia-950: lab(15.7348% 39.0235 -27.4073);
+  --nova-unlock-ring-rgb: 181 255 0;
+  --color-amber-900: lab(31.2288% 30.2627 40.0378);
+  --color-lime-100: lab(96.8662% -11.7133 22.0854);
+  --color-yellow-200: lab(94.3433% -5.00429 52.9663);
+  --color-red-100: lab(92.243% 10.2865 3.83865);
+  --tw-border-style: solid;
+  --color-amber-950: lab(15.8111% 20.9107 23.3752);
+  --color-black: #000;
+  --color-red-950: lab(13.003% 29.04 16.7519);
+  --color-neutral-950: lab(2.75381% 0 0);
+  --color-neutral-400: lab(66.128% -.0000298023 .0000119209);
+  --color-emerald-400: lab(75.0771% -60.7313 19.4147);
+  --color-fuchsia-100: lab(93.9419% 9.57647 -9.08735);
+  --color-fuchsia-400: lab(66.1178% 66.0652 -52.4733);
+  --color-fuchsia-300: lab(78.5378% 39.3533 -32.9615);
+  --color-neutral-800: lab(15.204% 0 -.00000596046);
+  --color-amber-200: lab(91.7203% -.505269 49.9084);
+  /* — spacing — */
+  --cyber-map-label-size: 150;
+  --dial-preset-gap: 8px;
+  --climate-temp-size: calc(clamp(3rem, 8vw, 5.5rem) * 0.89);
+  --spacing: .25rem;
+  --cyber-voice-transcript-glow-size: 8px;
+  --tw-space-y-reverse: 0;
+  /* — typography — */
+  --cyber-clock-text-fill: var(--cyber-title-on-bg);
+  --cyber-text: var(--cyber-title-on-bg);
+  --cyber-text-dim: var(--cyber-title-on-bg);
+  --text-2xl: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-5xl--line-height: 1;
+  --text-base--line-height: calc(1.5 / 1);
+  --cyber-voice-transcript-text: rgb(99 99 99);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-weight-bold: 700;
+  --text-xs--line-height: calc(1 / .75);
+  --default-font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --cyber-voice-transcript-text-rgb: 99 99 99;
+  --text-xl: 1.25rem;
+  --leading-relaxed: 1.625;
+  --leading-snug: 1.375;
+  --font-weight-black: 900;
+  --text-2xl--line-height: calc(2 / 1.5);
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --font-weight-semibold: 600;
+  --tracking-wide: .025em;
+  --text-sm: .875rem;
+  --text-4xl: 2.25rem;
+  --tracking-normal: 0em;
+  --text-sm--line-height: calc(1.25 / .875);
+  --text-3xl--line-height: calc(2.25 / 1.875);
+  --text-5xl: 3rem;
+  --text-3xl: 1.875rem;
+  --text-xs: .75rem;
+  --tracking-widest: .1em;
+  --font-weight-normal: 400;
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-base: 1rem;
+  --default-mono-font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* — shadows — */
+  --tw-inset-shadow-alpha: 100%;
+  --tw-drop-shadow-alpha: 100%;
+  --tw-inset-shadow: 0 0 #0000;
+  --tw-shadow-alpha: 100%;
+  --tw-shadow: 0 0 #0000;
+  /* — radii — */
+  --radius-2xl: 1rem;
+  --radius-lg: .5rem;
+  --radius-3xl: 1.5rem;
+  --radius-xl: .75rem;
+  /* — other — */
+  --lightningcss-light: ;
+  --lightningcss-dark: initial;
+  --nova-status-bar-clearance: env(safe-area-inset-top,0px);
+  --background: #1a1a1a;
+  --cyber-panel: #161616;
+  --cyber-panel-soft: #2a2a2a;
+  --cyber-line: #333;
+  --cyber-line-rgb: 51 51 51;
+  --cyber-line-dim: rgb(var(--cyber-line-rgb) / .36);
+  --cyber-cyan: #4b0075;
+  --cyber-cyan-rgb: 75 0 117;
+  --cyber-highlight: var(--cyber-cyan);
+  --cyber-highlight-rgb: var(--cyber-cyan-rgb);
+  --cyber-map-base: #1a1a1a;
+  --cyber-map-base-rgb: 26 26 26;
+  --cyber-map-water: #8c00ff;
+  --cyber-map-water-rgb: 140 0 255;
+  --cyber-map-water-enabled: 1;
+  --cyber-map-water-opacity: 10;
+  --cyber-map-land: #1e2020;
+  --cyber-map-land-rgb: 30 32 32;
+  --cyber-map-building-low: #4800a1;
+  --cyber-map-building-low-rgb: 72 0 161;
+  --cyber-map-building-high: #7300ff;
+  --cyber-map-building-high-rgb: 115 0 255;
+  --cyber-map-building-opacity: 66;
+  --cyber-map-roads: #b19adf;
+  --cyber-map-roads-rgb: 177 154 223;
+  --cyber-map-labels: #a8a8a8;
+  --cyber-map-labels-rgb: 168 168 168;
+  --cyber-map-radar-low: #fff200;
+  --cyber-map-radar-low-rgb: 255 242 0;
+  --cyber-map-radar-high: #6aff00;
+  --cyber-map-radar-high-rgb: 106 255 0;
+  --cyber-map-radar-opacity: 87;
+  --cyber-map-radar-mode: custom;
+  --cyber-danger: #ff405b;
+  --cyber-title-dark: #2a003d;
+  --cyber-title-light: #adadad;
+  --cyber-title-on-line: var(--cyber-title-light);
+  --cyber-title-on-cyan: var(--cyber-title-light);
+  --cyber-title-on-highlight: var(--cyber-title-on-cyan);
+  --cyber-title-on-clock-fill: var(--cyber-title-dark);
+  --cyber-title-glow-line: var(--cyber-title-on-line);
+  --cyber-title-glow-cyan: var(--cyber-title-on-cyan);
+  --cyber-display: "Rajdhani", "Share Tech Mono", "Arial Narrow", system-ui, sans-serif;
+  --cyber-mono: "Share Tech Mono", "Consolas", "Courier New", monospace;
+  --cyber-clock: "Share Tech Mono", "Consolas", "Courier New", monospace;
+  --task-glow-intensity: 100;
+  --task-glow-cyan-blur: 128px;
+  --task-glow-cyan-spread: 42px;
+  --task-glow-line-blur: 72px;
+  --task-glow-line-spread: 18px;
+  --task-glow-cyan-alpha: .7;
+  --task-glow-line-alpha: .72;
+  --dial-preset-band: 44px;
+  --dial-preset-pull: 22px;
+  --cyber-panel-rgb: 23 23 23;
+  --tw-outline-style: solid;
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --nova-lighting-tint-strength: 36;
+  --cyber-clock-scale: 0.89;
+  --nova-header-fade: 1.0000;
+  --container-sm: 24rem;
+  --cyber-gym: "Chakra Petch", system-ui, sans-serif;
+  --cyber-voice-transcript-scanline-scale: 1.000;
+  --default-transition-duration: .15s;
+  --animate-pulse: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
+  --cyber-map-satellite: 1;
+  --cyber-voice-transcript-glow-alpha: 1.000;
+  --re-mark: 0deg;
+  --cyber-header-fade: rgb(18 18 18 / 1);
+  --nova-alert-rgb: 208 255 0;
+  --cyber-voice-transcript-scanline-rgb: 255 255 255;
+  --default-transition-timing-function: cubic-bezier(.4, 0, .2, 1);
+  --cyber-transcript-scale: 1;
+  --cyber-display-weight: 100;
+  --container-5xl: 64rem;
+  --tw-translate-z: 0;
+  --cyber-gym-weight: 900;
+  --cyber-gym-scale: 0.48;
+  --container-3xl: 48rem;
+  --tw-translate-y: 0;
+  --ease-out: cubic-bezier(0, 0, .2, 1);
+  --animate-spin: spin 1s linear infinite;
+  --cyber-transcript-weight: 500;
+  --cyber-display-scale: 1;
+  --nova-led-rgb: 172 255 0;
+  --cyber-clock-weight: 100;
+  --tw-translate-x: 0;
+  --cyber-voice-transcript-scanline-opacity: 0.210;
+  --cyber-header-fade-rgb: 18 18 18;
+  --cyber-transcript: "Rajdhani", "Arial Narrow", system-ui, sans-serif;
+  /* — dependencies — */
+  --cyber-line-dim: --cyber-line-rgb;
+  --cyber-border-dim: --cyber-border-rgb;
+  --cyber-border-strong: --cyber-border-rgb;
+  --cyber-highlight: --cyber-cyan;
+  --cyber-highlight-rgb: --cyber-cyan-rgb;
+  --cyber-title-on-line: --cyber-title-light;
+  --cyber-title-on-cyan: --cyber-title-light;
+  --cyber-title-on-highlight: --cyber-title-on-cyan;
+  --cyber-title-on-bg: --cyber-title-light;
+  --cyber-clock-text-fill: --cyber-title-on-bg;
+  --cyber-clock-color: --cyber-title-on-bg;
+  --cyber-title-on-clock-fill: --cyber-title-dark;
+  --cyber-title-glow-bg: --cyber-title-on-bg;
+  --cyber-title-glow-line: --cyber-title-on-line;
+  --cyber-title-glow-cyan: --cyber-title-on-cyan;
+  --cyber-text: --cyber-title-on-bg;
+  --cyber-muted: --cyber-title-on-bg;
+  --cyber-text-dim: --cyber-title-on-bg;
+  --cyber-accent-on-bg: --cyber-cyan;
+  /* — semantic — */
+  success: [object Object];
+  warning: [object Object];
+  error: [object Object];
+  info: [object Object];
+
+}

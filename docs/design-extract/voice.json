@@ -1,0 +1,126 @@
+{
+  "tone": "neutral",
+  "pronoun": "third-person",
+  "headingStyle": "Sentence case",
+  "headingLengthClass": "tight",
+  "ctaVerbs": [
+    {
+      "value": "home",
+      "count": 2
+    },
+    {
+      "value": "bedroom",
+      "count": 1
+    },
+    {
+      "value": "conservatory",
+      "count": 1
+    },
+    {
+      "value": "kitchen",
+      "count": 1
+    },
+    {
+      "value": "lounge",
+      "count": 1
+    },
+    {
+      "value": "on",
+      "count": 1
+    },
+    {
+      "value": "adaptive",
+      "count": 1
+    },
+    {
+      "value": "white",
+      "count": 1
+    },
+    {
+      "value": "off",
+      "count": 1
+    },
+    {
+      "value": "systems",
+      "count": 1
+    }
+  ],
+  "buttonPatterns": [
+    {
+      "value": "home",
+      "count": 2
+    },
+    {
+      "value": "bedroom",
+      "count": 1
+    },
+    {
+      "value": "conservatory",
+      "count": 1
+    },
+    {
+      "value": "kitchen",
+      "count": 1
+    },
+    {
+      "value": "lounge",
+      "count": 1
+    },
+    {
+      "value": "on",
+      "count": 1
+    },
+    {
+      "value": "adaptive",
+      "count": 1
+    },
+    {
+      "value": "white",
+      "count": 1
+    },
+    {
+      "value": "off",
+      "count": 1
+    },
+    {
+      "value": "systems",
+      "count": 1
+    },
+    {
+      "value": "climate",
+      "count": 1
+    },
+    {
+      "value": "outside",
+      "count": 1
+    },
+    {
+      "value": "world",
+      "count": 1
+    },
+    {
+      "value": "network\nconnected",
+      "count": 1
+    },
+    {
+      "value": "grid\nlive kwh",
+      "count": 1
+    }
+  ],
+  "sampleHeadings": [
+    "[◯_◯]",
+    "Zones",
+    "Home",
+    "Climate",
+    "[◯_◯]",
+    "[◯_◯]",
+    "Zones",
+    "Home",
+    "Climate",
+    "Home"
+  ],
+  "stats": {
+    "buttons": 20,
+    "headings": 15
+  }
+}
