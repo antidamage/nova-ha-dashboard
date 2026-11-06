@@ -91,3 +91,21 @@
     margin-inline: 5%;
   }
 }
+
+/* A slot waiting for the first live snapshot (specs/quick-access-card.md, "First
+   paint"): the real dial in the box its control will take, inert. A touch on it
+   falls through to the page so the phone still scrolls, and the dial keeps full
+   strength rather than the disabled dimming, so loading does not read as a dead
+   device beside the live amplifier dial. */
+.quick-slot-pending {
+  pointer-events: none;
+}
+
+.quick-slot-pending-dial {
+  display: contents;
+}
+
+.quick-slot-pending .rotary-encoder-disabled .rotary-encoder-dial {
+  cursor: default;
+  opacity: 1;
+}

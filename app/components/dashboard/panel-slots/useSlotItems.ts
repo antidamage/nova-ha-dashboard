@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { CONTROL_MODULES } from "../../../../lib/control-modules/catalogue";
 import { HOME_ZONE_ID } from "../../../../lib/control-modules/rooms";
 import type { ControlModule, ControlSlotSurface, ControlsConfig } from "../../../../lib/control-modules/types";
@@ -32,7 +32,16 @@ function readPayload(payload: unknown): ControlConfig {
 }
 
 function useSharedControlConfig(): ControlConfig {
-  const [config, setConfig] = useState<ControlConfig>(() => readPayload(readCachedClientConfig()));
+  // Empty on the first render, which is what the static HTML was built with, and
+  // filled from the cache in a layout effect: that keeps hydration matching
+  // (specs/maintenance-rule.md) and commits every slot in the same pass before the
+  // first paint, rather than the amplifier first (specs/quick-access-card.md,
+  // "First paint").
+  const [config, setConfig] = useState<ControlConfig>({});
+  useLayoutEffect(() => {
+    const cached = readCachedClientConfig();
+    if (cached) setConfig(readPayload(cached));
+  }, []);
   useEffect(() => {
     let alive = true;
     void loadSharedClientConfig()

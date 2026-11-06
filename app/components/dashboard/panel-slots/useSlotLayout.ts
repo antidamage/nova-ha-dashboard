@@ -18,10 +18,12 @@ export type SlotCounts = {
  * Whether a module is a DIAL CONTROL — the one kind of thing a panel's slot grid
  * is for (alex, 2026-09-25: "the first four slots (strictly for dial
  * controls)"). A lighting dial, the amplifier dial and a climate knob are; the
- * readings tile and a panel's own content are not.
+ * readings tile and a panel's own content are not. A `pending` slot is the
+ * lighting or climate dial it is waiting to become, so the grid is final from the
+ * first frame (specs/quick-access-card.md, "First paint").
  */
 export function isDialKind(kind: string): boolean {
-  return kind === "lighting" || kind === "amplifier" || kind === "climate";
+  return kind === "lighting" || kind === "amplifier" || kind === "climate" || kind === "pending";
 }
 
 /** The counts a list of items makes, for {@link useSlotLayout}. */

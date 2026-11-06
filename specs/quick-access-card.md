@@ -215,6 +215,73 @@ fits in a row:
 - A segment whose device is absent in this home is **not rendered** (same rule
   as `ClimateControls`: no empty card for a room the home does not have).
 
+## First paint
+
+alex, 2026-11-06: *"I'm still seeing it load with a volume control, then a
+moment later the other three controls appear ... it needs to be dynamic, but it
+also needs to be able to render on the first pass, not later on."* Ticket 554285;
+the design went through three idea-review rounds there.
+
+**Cause.** The amplifier dial needs no Home Assistant data, so it was built as
+soon as the cached shared config was read. Lighting and climate slots need the
+live `/api/state` snapshot to find their devices, and were dropped while it had
+not arrived. The page is static (`app/page.tsx`, `force-static`), so the server
+cannot paint live state.
+
+**Rule: every configured slot is in the card from its first painted frame.**
+
+- Before the first live snapshot, a lighting or climate slot is a **pending**
+  item (`quick-access/quickSlotPending.ts`), not a missing one. It counts as a
+  dial, so the grid (2x2, 1x4, 4x1) and every slot's size are final from that
+  frame, and filling it in moves nothing.
+- A pending slot draws the real dial (`RotaryEncoder`) at the slot's dial size,
+  inert and without a value, in the same wrapper its control will use
+  (`QuickPendingSegment.tsx`). A climate slot carries its title arc, as the knob
+  does; a lighting slot is untitled, as its dial is, and keeps its preset row's
+  height. The dial is drawn at **full strength**, not the dimmed disabled look,
+  so a loading dial does not read as a dead device beside the live amplifier
+  dial; no new colour, easing or motion.
+- **Pending is inert.** No HA value is cached or painted, so nothing can be sent
+  from stale state: the dial takes no pointer, key or focus, its segment is
+  `pointer-events: none` so a touch on it scrolls the page, and the dial is
+  `aria-hidden` inside a group labelled "<title> loading" with `aria-busy`.
+- When the snapshot lands, each pending slot becomes its real control in the
+  same keyed slot. If the live snapshot never arrives (the snapshot fetch has
+  its own timeout), the slots stay pending and the dashboard's error banner
+  reports the outage.
+- The amplifier dial is live from the first frame: it reads its own amp client
+  (`specs/apple-tv-volume.md`), not `/api/state`. The Outside line renders from
+  configuration with no data and fills its readings later.
+- **Hydration.** The cached shared config is read in a layout effect, not a
+  `useState` initializer, so the first client render matches the static HTML
+  (`specs/maintenance-rule.md`), and every slot is committed in the same
+  pre-paint pass. The static HTML itself, painted before scripts run, holds an
+  empty card: the server never sees the household's config, and painting a
+  default grid would flash the wrong one.
+- **Cold start** (no cached config: first visit, cleared storage): the card draws
+  nothing until the config or the live state arrives. Both are fetched in
+  parallel and the state carries the controls too, so whichever lands first
+  fills every slot at once, never a partial set.
+- A slot whose device is missing from the live state is still dropped, as above,
+  not drawn as an "unavailable" dial (ticket 554285, DECISION). That happens on a
+  broken configuration or when Home Assistant momentarily does not report an
+  entity, and it is the one way the grid changes after data.
+- Within a slot, the weather line's height follows its words ("Unavailable"
+  before the reading, the condition after), and in landscape the dials divide
+  what the line leaves, so they can follow it by a pixel or two, as they do
+  whenever the condition changes.
+
+Verified by `e2e/quick-access-first-paint.spec.ts`, with the demo's state held
+back 8 s and the CPU throttled 4x: the card's slot count, recorded on every
+animation frame from navigation, only ever goes from 0 to the full card; every
+slot is present and inert while pending; and each slot's box within the card is
+the same in the pending and live frames (dials within 3px, the line within 8px)
+at phone portrait, phone landscape and kiosk landscape. A first visit with
+nothing cached, and a state that never arrives, are covered too.
+
+Measured 2026-11-06: `/api/state` is 209 KB uncompressed and took 135 ms by
+curl from a desktop on the LAN. Not measured from a phone.
+
 
 ## Lights segment
 

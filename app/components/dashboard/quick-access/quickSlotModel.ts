@@ -14,6 +14,7 @@ import { resolvedSurface } from "../../../../lib/control-modules/slots";
 import { airconPreferencesFor, heaterPreferencesFor } from "../../../../lib/climate-preferences";
 import { airconDevices, heaterDevices, zoneById } from "./quickSlotDevices";
 import type { QuickAirconDevices, QuickHeaterDevices } from "./quickSlotDevices";
+import { pendingItem, waitsForData, type QuickPendingItem } from "./quickSlotPending";
 
 /** The features a placed preset actually has; see lib/control-modules/features.ts. */
 function resolveFeaturesOf(resolved: ResolvedSlot): Record<string, boolean> {
@@ -117,7 +118,15 @@ export type QuickOutsideItem = {
   features: Record<string, boolean>;
 };
 
-export type QuickItem = QuickAmplifierItem | QuickLightingItem | QuickClimateItem | QuickOutsideItem | QuickPanelItem;
+export type { QuickPendingItem };
+
+export type QuickItem =
+  | QuickAmplifierItem
+  | QuickLightingItem
+  | QuickClimateItem
+  | QuickOutsideItem
+  | QuickPanelItem
+  | QuickPendingItem;
 
 export type QuickSlotInput = {
   /** Which panel's slots to build: it decides which placements are read. */
@@ -192,10 +201,19 @@ function lightingItem(resolved: ResolvedSlot, data: DashboardState | null, inher
   };
 }
 
-/** Every slot on a panel, resolved, in order, unusable ones dropped. */
+/**
+ * Every slot on a panel, resolved, in order, unusable ones dropped. Before the
+ * first live snapshot a slot that needs one is PENDING, not unusable
+ * (specs/quick-access-card.md, "First paint").
+ */
 export function buildSlotItems(input: QuickSlotInput): QuickItem[] {
   const items: QuickItem[] = [];
   for (const resolved of resolvedSurface(input.controls, input.surface, input.controlModules)) {
+    const renderer = resolved.module.renderer;
+    if (input.data === null && waitsForData(renderer)) {
+      items.push(pendingItem(resolved, renderer));
+      continue;
+    }
     if (resolved.module.renderer === "panel-content") {
       items.push({
         key: resolved.slot.id,

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { QuickAppleTVSegment } from "../quick-access/QuickAppleTVSegment";
 import { QuickAirconSegment, QuickHeaterSegment } from "../quick-access/QuickClimateSegments";
 import { QuickLightsSegment } from "../quick-access/QuickLightsSegment";
+import { QuickPendingSegment } from "../quick-access/QuickPendingSegment";
 import { QuickWeatherSegment } from "../quick-access/QuickWeatherSegment";
 import type { QuickItem } from "../quick-access/quickSlotModel";
 import type { SlotView } from "./slotViewContext";
@@ -49,6 +50,9 @@ export function renderSlotItem(
         onZoneAction={(action, body) => onZoneAction(item.zone, action, body)}
       />
     );
+  }
+  if (item.kind === "pending") {
+    return <QuickPendingSegment item={item} key={item.key} knobSkin={knobSkin} size={dialSize} />;
   }
   if (item.kind === "amplifier") {
     return <QuickAppleTVSegment key={item.key} knobSkin={knobSkin} size={dialSize} />;
