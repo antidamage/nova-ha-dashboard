@@ -64,7 +64,9 @@ import {
   titlePath,
 } from "./geometry-model";
 import { dragStep, fractionOf, valueAt } from "./ring-drag-model";
-import { grabbedAngle, hotspotPath, sectorPath, thumbAt as thumbHit } from "./thumb-model";
+import { grabbedAngle, hotspotPath, thumbAt as thumbHit } from "./thumb-model";
+import { thumbLed } from "./thumb-led-model";
+import { RingThumb } from "./RingThumb";
 import { glidesOnStep } from "./ring-glide-model";
 import type { RingPress, RotaryEncoderProps, RotaryEncoderRing } from "./types";
 import { FaceText } from "./faceText";
@@ -381,6 +383,8 @@ export function RotaryEncoder({
   // drawn from the pointer, not from the caller's (possibly rounded) echo.
   const ringPressRef = useRef<RingPress | null>(null);
   const ringLiveRef = useRef<Record<string, number>>({});
+  // The ring whose thumb is held, for its LED line's brighter glow.
+  const [grabbedRing, setGrabbedRing] = useState<number | null>(null);
 
   const ringKind = (ring: RotaryEncoderRing) => ring.kind ?? "slider";
   const ringValue = (ring: RotaryEncoderRing) => ringLiveRef.current[ring.id] ?? ring.value;
@@ -522,6 +526,7 @@ export function RotaryEncoder({
       };
       ringPressRef.current = press;
       ringLiveRef.current[ring.id] = ring.value;
+      setGrabbedRing(grabbed);
       selectionHaptic("dialClick");
       (event.currentTarget.querySelector(`[data-ring-index="${grabbed}"]`) as SVGElement | null)?.focus?.({ preventScroll: true });
     },
@@ -536,6 +541,7 @@ export function RotaryEncoder({
     onPointerUp: () => {
       const press = ringPressRef.current;
       ringPressRef.current = null;
+      setGrabbedRing(null);
       if (!press) return;
       const ring = shown[press.index];
       const final = ringValue(ring);
@@ -549,6 +555,7 @@ export function RotaryEncoder({
     onPointerCancel: () => {
       const press = ringPressRef.current;
       ringPressRef.current = null;
+      setGrabbedRing(null);
       if (press) delete ringLiveRef.current[shown[press.index].id];
       rerender((count) => count + 1);
     },
@@ -752,12 +759,6 @@ export function RotaryEncoder({
         const thumbAt = thumbAngle(fraction, half, end);
         const labelText = fitted[index] ?? ring.label.toUpperCase();
         const trackPath = arcPath(centre, centre, radius, ARC_START, end);
-        // A piece of the annulus, bending with its track and with radial
-        // ends, so it never reads as a rotated pill (alex, 2026-10-24).
-        const thumbLong = THUMB_LENGTH * track;
-        const thumbThick = THUMB_THICKNESS * track;
-        const thumbPath = (grow: number, thickness: number) =>
-          sectorPath(centre, centre, radius, thumbAt, thumbLong + grow, thickness, thickness * 0.3);
         const off = ringDisabled(ring);
         const away = ringHidden(ring);
         const on = kind === "toggle" && item > (min + max) / 2;
@@ -829,11 +830,15 @@ export function RotaryEncoder({
               />
             )}
             {kind === "toggle" ? null : (
-              <g className="rotary-encoder-thumb">
-                <path className="rotary-encoder-thumb-edge" d={thumbPath(1, thumbThick + 1)} />
-                <path className="rotary-encoder-thumb-body" d={thumbPath(0, thumbThick)} />
-                <path className="rotary-encoder-thumb-crown" d={thumbPath(-thumbThick * 0.45, thumbThick * 0.55)} />
-              </g>
+              <RingThumb
+                centre={centre}
+                radius={radius}
+                angle={thumbAt}
+                length={THUMB_LENGTH * track}
+                thickness={THUMB_THICKNESS * track}
+                led={thumbLed({ kind, fraction, fill: wholeTrackFill, disabled: off, grabbed: grabbedRing === index })}
+                lipGradient={`${ringIdBase}-lip`}
+              />
             )}
             {/* The thumb's grab target: this ring's whole band across and the
                 thumb plus a pad along it. Bands never overlap, so neither do

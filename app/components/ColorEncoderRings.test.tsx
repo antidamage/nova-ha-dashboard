@@ -28,14 +28,15 @@ describe("ring geometry", () => {
   // layout maths built on them — pitch, track, gap and the title band.
   const radius200 = 200 * DIAL_RADIUS_SHARE;
 
-  it("is 6% track and 2.5% gap at 200px", () => {
+  it("is a 6% track at 200px, with the pitch a thumb and a half", () => {
     const geometry = ringGeometry(200, 5);
-    expect(geometry.pitch).toBeCloseTo(17);
+    // 12px track, 1.3 x 12 = 15.6px thumb, half a thumb (7.8px) between thumbs.
     expect(geometry.track).toBeCloseTo(12);
-    expect(geometry.gap).toBeCloseTo(5);
+    expect(geometry.pitch).toBeCloseTo(23.4);
+    expect(geometry.gap).toBeCloseTo(11.4);
     expect(geometry.dialRadius).toBeCloseTo(radius200);
-    expect(geometry.radii[0]).toBeCloseTo(radius200 + 5 + 6);
-    geometry.radii.slice(1).forEach((radius, index) => expect(radius - geometry.radii[index]).toBeCloseTo(17));
+    expect(geometry.radii[0]).toBeCloseTo(radius200 + 11.4 + 6);
+    geometry.radii.slice(1).forEach((radius, index) => expect(radius - geometry.radii[index]).toBeCloseTo(23.4));
   });
 
   it("gives a title its own band and pushes every ring out by it", () => {
@@ -61,12 +62,13 @@ describe("ring geometry", () => {
     expect(titleRoom(geometry)).toBeCloseTo(arc - 2 * 14);
   });
 
-  it("floors the pitch at the label font plus 2px, keeping the track share", () => {
+  it("floors the track at what the old pitch floor gave it, and spaces from there", () => {
     for (const size of [56, 100]) {
       const geometry = ringGeometry(size, 5);
       expect(geometry.font).toBe(10);
-      expect(geometry.pitch).toBe(12);
-      expect(geometry.track / geometry.pitch).toBeCloseTo(6 / 8.5);
+      // 12px x 6/8.5: the track these sizes had before the rings moved apart.
+      expect(geometry.track).toBeCloseTo(12 * (6 / 8.5));
+      expect(geometry.pitch).toBeCloseTo(geometry.track * 1.95);
     }
   });
 

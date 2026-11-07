@@ -143,12 +143,14 @@ describe("a ring's value", () => {
 });
 
 describe("the ring label font", () => {
-  it("shrinks on a dial with four or more rings, without moving the rings", () => {
+  it("is the pitch less 6px on four or more rings, capped at the caption, without moving the rings", () => {
     const three = ringGeometry(200, 3);
     const four = ringGeometry(200, 4);
     expect(three.font).toBe(14);
-    // 11px at 200px: the pitch less 6, so neighbouring labels clear each other.
-    expect(four.font).toBe(11);
+    // The 23.4px pitch less 6 is above the 14px caption, so the cap wins: the
+    // labels have had room since the rings moved apart (2026-11-07).
+    expect(four.font).toBe(14);
+    expect(ringLabelFont(200, 4, 17)).toBe(11);
     expect(four.pitch).toBe(three.pitch);
     expect(four.track).toBe(three.track);
   });

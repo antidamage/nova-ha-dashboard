@@ -112,7 +112,9 @@ the named component before introducing a one-off equivalent.
   brightness, pickers on hue. Scaled by one `size` prop, 50–200px.
   Pass `rings` for up to five arc sliders round the colour ring (270° tracks,
   arc-sector thumbs that are the only handle — a press on the track away from
-  one does nothing — curved labels in the bottom gap); geometry maths is in `colorEncoderGeometry.ts` and
+  one does nothing — spaced so neighbouring thumbs are half a thumb apart, each
+  carrying a 2px LED line drawn by `controls/rotary/RingThumb.tsx`, curved labels
+  in the bottom gap); geometry maths is in `colorEncoderGeometry.ts` and
   the demo is at `/color-encoder-rings`. Use a ring instead of stacking a
   slider under the dial. `RingedColorEncoder`, the copy the rings were built
   in, was merged back here on 2026-09-11 and is gone. Use

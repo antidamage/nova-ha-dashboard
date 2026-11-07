@@ -91,7 +91,8 @@
 }
 
 /* The thumb is a small piece of the knob cut from its ring's annulus: its
-   tint, a lighter crown, a dark edge and a drop shadow. No theme colour. */
+   tint, a lighter crown, a dark edge and a drop shadow. Its LED line, below, is
+   the only theme colour on it. */
 .rotary-encoder-thumb {
   filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.6));
 }
@@ -110,6 +111,66 @@
   fill: color-mix(in srgb, var(--re-tint) 62%, #fff 38%);
   stroke: none;
   fill-opacity: 0.7;
+}
+
+/* The thumb's LED line (alex, 2026-11-07; specs/color-encoder.md, "The
+   thumb's LED line"): 2px in the LED Lights colour, sunk in a groove — a dark
+   cut inside a lip lit like the track's own. Lit with a filled track, brighter
+   while held, and an unlit LED's near-black otherwise. */
+.rotary-encoder-rings .rotary-encoder-thumb-groove {
+  stroke: rgba(0, 0, 0, 0.62);
+}
+
+.rotary-encoder-rings .rotary-encoder-thumb-led {
+  stroke: color-mix(in srgb, var(--re-tint) 30%, #000 70%);
+  transition: stroke 160ms linear, filter 160ms linear;
+}
+
+.rotary-encoder-rings .rotary-encoder-thumb[data-led="lit"] .rotary-encoder-thumb-led {
+  stroke: var(--re-led-on, #ffffff);
+  filter: drop-shadow(0 0 max(1.5px, calc(var(--re-track) * 0.12)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.6));
+}
+
+/* Held: a bloom that spills past the thumb onto the track, so the difference
+   from rest reads with a white LED too, where a whiter core changes nothing.
+   Three stacked shadows, because each one blurs the last: a single wide blur
+   spreads a 2px line too thin to see. */
+.rotary-encoder-rings .rotary-encoder-thumb[data-led="grabbed"] .rotary-encoder-thumb-led {
+  stroke: color-mix(in srgb, var(--re-led-on, #ffffff) 65%, #fff 35%);
+  filter:
+    drop-shadow(0 0 max(1.5px, calc(var(--re-track) * 0.12)) rgb(var(--re-led-on-rgb, 255 255 255) / 1))
+    drop-shadow(0 0 max(3px, calc(var(--re-track) * 0.3)) rgb(var(--re-led-on-rgb, 255 255 255) / 1))
+    drop-shadow(0 0 max(5px, calc(var(--re-track) * 0.6)) rgb(var(--re-led-on-rgb, 255 255 255) / 0.85));
+}
+
+/* On a pale knob the groove is the contrast edge and the unlit line takes the
+   light skin's darker unlit well, as the knob's own lights do. */
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-groove {
+  stroke: rgba(0, 0, 0, 0.42);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb-led {
+  stroke: rgb(24 27 32 / 0.8);
+}
+
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb[data-led="lit"] .rotary-encoder-thumb-led {
+  stroke: var(--re-led-on, #ffffff);
+}
+
+/* A pale bloom vanishes on a pale thumb, so held reads by a neutral grey ring
+   round the lit line instead, as the knob's own lit light does. */
+.rotary-encoder[data-mode="light"] .rotary-encoder-rings .rotary-encoder-thumb[data-led="grabbed"] .rotary-encoder-thumb-led {
+  stroke: color-mix(in srgb, var(--re-led-on, #ffffff) 65%, #fff 35%);
+  filter:
+    drop-shadow(0 0 max(1.5px, calc(var(--re-track) * 0.12)) rgb(var(--re-led-on-rgb, 255 255 255) / 1))
+    drop-shadow(0 0 max(2px, calc(var(--re-track) * 0.2)) rgba(80, 86, 96, 0.7))
+    drop-shadow(0 0 max(4px, calc(var(--re-track) * 0.45)) rgba(80, 86, 96, 0.5));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotary-encoder-rings .rotary-encoder-thumb-led {
+    transition: none;
+  }
 }
 
 /* Ring labels: curved through the bottom gap, etched like the dial's caption.

@@ -297,27 +297,48 @@ type ColorEncoderRing = {
 | Quantity | Value |
 |---|---|
 | Label font `F` | `clamp(10px, 0.075 × S, 14px)` — the caption rule; **on a dial with four or more rings, `clamp(10px, P − 6, caption)`** (alex, 2026-09-12) |
-| Ring pitch `P` | `max(0.085 × S, F + 2px)` |
-| Track thickness `T` | `P × 6 / 8.5` — 6% of `S` when the pitch is proportional |
-| Gap `G` | `P − T` — 2.5% of `S` when proportional |
+| Track thickness `T` | `max(0.06 × S, (C + 2px) × 6 / 8.5)`, `C` the caption font — 6% of `S`, floored at 8.47px |
+| Ring pitch `P` | `1.95 × T` — a thumb (`1.3 × T`) plus half a thumb of clearance |
+| Gap `G` | `P − T`, which is `0.95 × T` |
 | Ring `i` centreline radius | `R0 + G + T/2 + i × P` |
 | Footprint diameter, `n` rings | `2 × (R0 + n × P) + thumb overhang` |
 
-The pitch floor exists because a curved label is `F` tall and sits on its
-ring's centreline: with a proportional pitch, a 100px dial puts rings 8.5px
-apart while the label font is pinned at its 10px floor, and neighbouring
-labels would overlap.
+**Neighbouring thumbs are half a thumb apart.** alex, 2026-11-07: *"put a bit
+more space between the outer ring sliders on the rotary control, both the track
+and the thumb, perhaps 50% of their overall width. it's too hard to select the
+right ring."* The track and the thumb keep the thickness they had; the pitch grows
+until the space between two neighbouring thumbs is half a thumb's thickness
+(`THUMB_CLEARANCE = 0.5`). The rings reach further out to make that room — her
+choice over keeping the footprint and thinning the rings.
 
-**Four labels in one gap shrink instead of spreading.** alex, 2026-09-12,
-after an adversarial review of the temperature knob: at 200px the pitch is
-17px against a 14px caption, so four curved labels sat 3px apart and read as a
-block rather than a column. On a dial with four or more rings the label font
-drops to `P − 6` (11px at 200px, a 6px gap), never below the 10px floor. The
-**pitch is unchanged** — it is measured against the caption, not the label
-font, so a fourth ring never pulls the rings closer together, and the knob
-keeps its size. Her call over spacing the rings further apart, which would have
-widened the control. Rings keep their 6 : 2.5 track-to-gap proportion and
-grow relatively thicker below 200px.
+| Knob `S` | Pitch, before → after | Thumb gap | Track gap | Four-ring stack diameter |
+|---|---|---|---|---|
+| 100–133px | 12 → 16.5px | 1.0 → 5.5px | 3.5 → 8px | +36px |
+| 150px | 13.3 → 18.2px | 1.1 → 6.1px | 3.9 → 8.9px | +40px |
+| 200px | 17 → 23.4px | 1.4 → 7.8px | 5 → 11.4px | +51px |
+
+Each ring's hit band is one pitch across (see "Ring interaction"), so the bands
+widen by the same amount. Only consumers that measure a dial **with** its rings
+move: the portrait Quick Access slot (`quickDialSlot`, the four-ring footprint)
+gives its knob a little less size to keep fitting. The landscape dial box,
+`slotGrid.ts` and the preset band read the zero-ring title footprint and do not
+change. If the rings are still hard to tell apart, `THUMB_CLEARANCE` is the one
+number to raise.
+
+The track's floor is what the pitch floor used to give it: before 2026-11-07
+the pitch was `max(0.085 × S, C + 2px)` with the track `6 / 8.5` of it, so the
+track stopped thinning at 8.47px. That floor is kept on the track itself. The
+pitch, at `1.95 × T`, is then always at least `1.376 × (C + 2px)`, so a curved
+label — `F` tall, on its ring's centreline — never overlaps its neighbour.
+
+**Four labels in one gap.** alex, 2026-09-12, after an adversarial review of
+the temperature knob: at the old 17px pitch four 14px labels sat 3px apart and
+read as a block, so on a dial with four or more rings the label font drops to
+`P − 6`, never below the 10px floor. Her call then was to shrink the labels
+rather than space the rings further apart; **that is superseded** by the wider
+spacing of 2026-11-07. At a 23.4px pitch `P − 6` is above the caption, so the
+labels are back at the caption size (14px at 200px, 9.4px between them). The
+rule stays, for any pitch that crowds them again.
 
 Ring geometry is computed from `size` in `app/components/rotaryEncoderGeometry.ts`,
 because hit-testing and the SVG paths need it as numbers. It is published on
@@ -345,11 +366,12 @@ layout, but overriding those does not move the rings.
   bends with its track and never reads as a rotated pill or rectangle (alex,
   2026-10-24). `1.3 × T` thick and `3.6 × T` long — half as long again as the
   `2.4 × T` it was, so it can be grabbed reliably (alex, 2026-10-24). The
-  thickness stays: at `1.3 × T` it is already within about `0.08 × P` of the
-  next ring's thumb, and the hotspot is the ring's whole band across anyway. A
-  constant length, so it reads the same on every ring. Painted in the knob's
-  tint with a lighter crown (55% of its thickness), a dark 0.5px edge and a drop
-  shadow. No theme colour.
+  thickness stays at `1.3 × T`; since 2026-11-07 the rings are spaced so that
+  neighbouring thumbs are half a thumb apart (see Geometry), and the hotspot is
+  the ring's whole band across anyway. A constant length, so it reads the same on
+  every ring. Painted in the knob's tint with a lighter crown (55% of its
+  thickness), a dark 0.5px edge and a drop shadow, and carrying the LED line
+  below. The theme's LED Lights colour is the only theme colour on it.
 - Each **ring label** is curved along its own ring through the bottom gap,
   reading left to right and upright, in font `F` with the caption's etched
   treatment. It is **left-aligned to where its ring's track starts** (7:30),
@@ -357,6 +379,52 @@ layout, but overriding those does not move the rings.
   on the same radius and they stack into a readable column. A label
   longer than the gap's arc length, less half a track of clearance at each end,
   is cut and ends in three periods (not `…`, which reads as a dash at 10px).
+
+### The thumb's LED line
+
+alex, 2026-11-07: *"use the LEG line colour to put a two-pixel line along the
+length of the slider thumbs as a decoration, and make it sunken/embossed if
+there's room. it should glow brighter when being dragged, or turn off when the
+slider is inactive (e.g. timer is at zero)"*. "LEG" is the LED Lights slot,
+confirmed in the interview. Planned on ticket 675712 (plan and idea review on the
+card); this section and the Geometry changes above are what it produced.
+
+- **What it is.** Every slider and selector thumb carries a **2px** line along
+  its centreline radius, the arc following the thumb, in the LED Lights colour
+  (`--re-led-on`, the knob lights' slot — see "The LED colour"). It runs the
+  thumb's length less one thumb thickness (half at each end), with round caps.
+  Toggle rings have no thumb and no line. Drawn by `RingThumb.tsx`.
+- **Sunk into the thumb.** The line sits in a groove: a dark cut 1px wider than
+  the line on each side, inside a lip 1px wider again whose lighting follows the
+  track's own lip gradient (light top-left, dark across, light bottom-right). The
+  groove needs a thumb at least **10px** thick (`THUMB_GROOVE_MIN_PX`); the track
+  floor makes the thinnest thumb 11px, so in practice it is always drawn, and a
+  thinner thumb would carry the bare line.
+- **Three states**, on the thumb as `data-led`:
+  - `lit` — the ring's track carries a fill: a slider above its minimum, or a
+    selector with a fill colour. The line is the LED colour with a tight glow in
+    it, `max(2px, …)` like the lights' px floors.
+  - `grabbed` — the thumb is held by a pointer. **Brighter**: a bloom of three
+    stacked shadows that fills the thumb's crown and spills past it, and a
+    whiter core. Stacked because each shadow blurs the one before; a single
+    wide blur spread a 2px line too thin to see (measured in the render check).
+    Grabbed wins over dark, so a thumb held at its minimum still shows that it
+    is held; it goes dark on release.
+  - `dark` — at rest with an empty track: a slider at its minimum (Timer at 0,
+    and Fan at Quiet, its lowest step, which reads dark too — alex's choice of
+    rule, "dark when the track is empty"), a selector with no fill (the aircon
+    Mode ring while the unit is Off), or a disabled ring or dial. The line takes
+    the unlit LED's glossy near-black and no glow. Only the line goes dark: the
+    thumb keeps its full-contrast body and its groove, so a Timer at 0 still reads
+    as a thumb to grab. A disabled ring keeps its 45% fade and `not-allowed`
+    cursor, which is what tells it apart.
+- A disabled dial emits nothing, as everywhere else: its line is dark.
+- Changes between states fade over **160ms**, the lights' own transition; none
+  under `prefers-reduced-motion`.
+- **Light mode** follows the lights' light treatment: the unlit line is the light
+  skin's darker unlit well, and the lit line's glow keeps the LED colour. A pale
+  bloom vanishes on the pale thumb, so a held line on the light skin reads by a
+  neutral grey ring round it instead, as the knob's own lit light does.
 
 ### Value on the right, and rings that shorten to fit
 
@@ -1084,6 +1152,13 @@ deleted, along with its exports, README row and showcase card. alex,
   past several stops, a mid-travel reverse, a release part-way and the lite
   snap — is measured off the **drawn** thumb in
   `RotaryEncoder.glide.test.tsx`, not off the ring's value.
+- Neighbouring ring thumbs are half a thumb apart at every size, each ring's
+  hit band is one pitch, and with four thumbs lined up at one angle a press at
+  either edge of a band grabs that band's ring (`ring-spacing.test.ts`).
+- Every slider and selector thumb carries the 2px LED line in its groove: lit
+  with a filled track, brighter while grabbed (at any value), dark at rest with
+  an empty track or when disabled — seen in screenshots at 100px and 200px, dark
+  and light, rest beside grabbed.
 - An adversarial visual gauntlet passes: the control screenshotted at 50px,
   120px and 200px, in dark and light themes, in every channel state, with
   opacity at 100 and 40 — reviewed against this spec until a reviewer finds

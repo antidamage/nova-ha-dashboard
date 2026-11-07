@@ -15,13 +15,14 @@ import {
   ARC_SPAN,
   ARC_START,
   DIAL_RADIUS_SHARE,
-  GAP_SHARE,
   LABEL_VALUE_CLEARANCE,
   RING_LIMIT,
+  RING_PITCH_TRACKS,
   THUMB_LENGTH,
   THUMB_THICKNESS,
   TITLE_CLEARANCE_SHARE,
   TITLE_END_CLEARANCE,
+  TRACK_FLOOR_SHARE,
   TRACK_SHARE,
 } from "./constants";
 import type { RingGeometry } from "./types";
@@ -38,12 +39,10 @@ export function captionFont(size: number) {
 /**
  * The label font on a ring.
  *
- * Four labels sharing the bottom gap crowd each other: at 200px the rings are
- * 17px apart and the caption font is 14px, which left 3px between neighbouring
- * labels and they read as a block rather than a column. alex, 2026-09-12:
- * shrink the labels on a dial carrying four or more rings rather than moving
- * the rings apart, so the knob keeps its size. The 10px floor still wins — the
- * labels never shrink past legibility, they just stop growing.
+ * Four labels sharing the bottom gap crowded each other at the old 17px pitch
+ * (alex, 2026-09-12), so on a dial with four or more rings the font is the
+ * pitch less 6px. Since the rings moved apart (2026-11-07) that is above the
+ * caption, so it rarely bites. The 10px floor still wins.
  */
 export function ringLabelFont(size: number, count: number, pitch: number) {
   const caption = captionFont(size);
@@ -61,14 +60,12 @@ export function ringGeometry(size: number, count: number, titled = false): RingG
   const titleClearance = size * TITLE_CLEARANCE_SHARE;
   const titleBand = titled ? caption + 2 * titleClearance : 0;
   const titleRadius = dialRadius + titleClearance + caption / 2;
-  // A curved label is a caption tall and sits on its ring's centreline, so the
-  // pitch may never drop under it — at 100px a proportional pitch is 8.5px
-  // against a 10px font. The track keeps its 6 : 2.5 share of the pitch. The
-  // pitch is measured against the caption, not the (possibly smaller) label
-  // font, so adding a fourth ring never pulls the rings closer together.
-  const pitch = Math.max(size * (TRACK_SHARE + GAP_SHARE), caption + 2);
+  // The track first, floored against the caption; the pitch is a thumb plus
+  // half a thumb (specs/color-encoder.md, Geometry), which keeps it well clear
+  // of a curved label's height at every size.
+  const track = Math.max(size * TRACK_SHARE, (caption + 2) * TRACK_FLOOR_SHARE);
+  const pitch = track * RING_PITCH_TRACKS;
   const font = ringLabelFont(size, rings, pitch);
-  const track = (pitch * TRACK_SHARE) / (TRACK_SHARE + GAP_SHARE);
   const gap = pitch - track;
   const radii = Array.from({ length: rings }, (_, index) => dialRadius + titleBand + gap + track / 2 + index * pitch);
   const thumbHalfAngle = radii.map((radius) => ((THUMB_LENGTH * track) / 2 / radius) * (180 / Math.PI));

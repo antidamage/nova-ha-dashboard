@@ -11,9 +11,14 @@ export const ARC_SPAN = ARC_END - ARC_START;
 /** A shortened ring never gets smaller than this, or it stops reading as a ring. */
 export const ARC_MIN_SPAN = 180;
 
-/** Track and gap as fractions of the knob diameter, before the pitch floor. */
+/** Track thickness as a fraction of the knob diameter, before its floor. */
 export const TRACK_SHARE = 0.06;
-export const GAP_SHARE = 0.025;
+/**
+ * The track's floor, as a share of the caption font plus 2px. Until 2026-11-07
+ * the PITCH was floored at caption + 2px with the track 6/8.5 of it; when the
+ * rings moved apart the track kept that thickness, so the old ratio is its floor.
+ */
+export const TRACK_FLOOR_SHARE = 6 / 8.5;
 
 /**
  * The dial's ring stack, as shares of the knob diameter. `rotary-encoder.css`
@@ -44,12 +49,26 @@ export const DIAL_OUTER_RATIO = 2 * DIAL_RADIUS_SHARE;
 /**
  * Thumb thickness and length, in track widths. The length was 2.4 until
  * 2026-10-24, when alex asked for a thumb about half as big again so it can
- * be grabbed reliably; the thickness stays, because at 1.3 tracks a thumb is
- * already within a few px of the next ring's, and its hotspot is the ring's
- * whole band across regardless.
+ * be grabbed reliably; the thickness stays, and the rings moved apart instead
+ * (THUMB_CLEARANCE).
  */
 export const THUMB_THICKNESS = 1.3;
 export const THUMB_LENGTH = 3.6;
+
+/**
+ * The space between neighbouring rings' thumbs, in thumb thicknesses. alex,
+ * 2026-11-07: "put a bit more space between the outer ring sliders ... perhaps
+ * 50% of their overall width. it's too hard to select the right ring." Before
+ * this the thumbs were about 0.08 of a pitch apart and nearly touched.
+ */
+export const THUMB_CLEARANCE = 0.5;
+
+/** Ring pitch in track widths: one thumb plus its clearance (1.95). */
+export const RING_PITCH_TRACKS = THUMB_THICKNESS * (1 + THUMB_CLEARANCE);
+
+/** The LED line along each thumb, and the thinnest thumb its groove fits in (px). */
+export const THUMB_LED_LINE_PX = 2;
+export const THUMB_GROOVE_MIN_PX = 10;
 
 /** How far a thumb's hotspot reaches past each end of the thumb, in track widths. */
 export const THUMB_HOTSPOT_PAD = 1;
