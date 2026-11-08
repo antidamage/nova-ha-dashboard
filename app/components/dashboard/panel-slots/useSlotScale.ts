@@ -118,7 +118,10 @@ export function useSlotScale(
           // The segment can be squeezed to the slot's width with its content
           // spilling past it, so its natural width is the larger of its box and
           // its scroll width.
-          fill = lineFillFactor(slot.offsetWidth, Math.max(segment.offsetWidth, segment.scrollWidth));
+          // offsetWidth and scrollWidth are whole pixels, so the real width can be
+          // up to 1px more than measured; counting that pixel keeps the scaled line
+          // from ending a fraction of a pixel past the slot (375px phone).
+          fill = lineFillFactor(slot.offsetWidth, Math.max(segment.offsetWidth, segment.scrollWidth) + 1);
           fillHeight = Math.ceil(segment.offsetHeight * fill);
           continue;
         }

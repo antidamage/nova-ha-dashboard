@@ -104,7 +104,8 @@ test("wide portrait: the card is the 2x2 with the readings line under it", async
   const row = await page.locator(".quick-access-row").boundingBox();
   if (!line || !row) throw new Error("no line slot");
   expect(line.y, "the readings line sits under both dial rows").toBeGreaterThan(aircon.y);
-  expect(line.width, "and is the card's whole width").toBeCloseTo(row.width, 0);
+  // Wide portrait (1060px and up) keeps 5% of the card clear on each side.
+  expect(line.width, "and is the card's width less its 5% margins").toBeCloseTo(row.width * 0.9, 0);
   // One row of readings, scaled up to the card's width (at most 3x, 2026-11-02),
   // so its row is at most three lines tall.
   expect(line.height, "as ONE line").toBeLessThanOrEqual(58 * 3);

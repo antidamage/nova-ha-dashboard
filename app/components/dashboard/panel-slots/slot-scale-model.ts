@@ -27,7 +27,9 @@ export function lineFillFactor(slotWidth: number, contentWidth: number): number 
   if (!(slotWidth > 0) || !(contentWidth > 0)) {
     return 1;
   }
-  const factor = Math.round((slotWidth / contentWidth) * 1000) / 1000;
+  // Rounded DOWN: rounding to the nearest thousandth can round up, and a 540px line
+  // drawn 0.0005 too large ends 0.27px past the slot (375px phone, 2026-11-08).
+  const factor = Math.floor((slotWidth / contentWidth) * 1000 + 1e-9) / 1000;
   return Math.min(LINE_SLOT_GROW_MAX, Math.max(LINE_SLOT_SCALE_MIN, factor));
 }
 

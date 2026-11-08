@@ -63,8 +63,11 @@ for (const viewport of VIEWPORTS) {
     // that is not a dial does not take a column off the dials (2026-09-25).
     const line = lines[0];
     expect(line.y, "the line sits under the dials").toBeGreaterThan(Math.max(...dials.map((slot) => slot.y)));
-    expect(line.layoutW, "the line is the card's whole width").toBeCloseTo(drawn.rowWidth, 0);
-    expect(line.x, "the line starts at the card's left edge").toBeLessThanOrEqual(1);
+    // A full HD desktop in portrait keeps 5% of the card clear on each side
+    // (quick-access-dials.css), so there the line is the card less both margins.
+    const margin = viewport.width >= 1060 && viewport.height > viewport.width ? drawn.rowWidth * 0.05 : 0;
+    expect(line.layoutW, "the line is the card's whole width").toBeCloseTo(drawn.rowWidth - 2 * margin, 0);
+    expect(line.x, "the line starts at the card's left edge").toBeLessThanOrEqual(margin + 1);
     expect(line.h, "and it is ONE line tall").toBeLessThanOrEqual(LINE_SLOT_MAX);
     // Drawn ACROSS that line rather than as a column of words: the three readings'
     // captions share one row, their numbers the row under them, and every word is
