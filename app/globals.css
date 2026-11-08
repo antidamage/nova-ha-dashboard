@@ -1,4 +1,4 @@
-﻿/* Theme fonts (Rajdhani, Share Tech Mono, and every selectable font) are loaded
+/* Theme fonts (Rajdhani, Share Tech Mono, and every selectable font) are loaded
    via the combined Google Fonts <link> in app/layout.tsx, generated from the
    registry in app/components/themeFonts.ts. The active --cyber-display /
    --cyber-clock stacks are seeded on first paint by the head bootstrap. */
@@ -16,6 +16,7 @@
 @import "./styles/avatar/listening-glow.css";
 @import "./styles/voice/transcript.css";
 @import "./styles/reminders/icon-bar.css";
+@import "./styles/reminders/daily-tasks-tile.css";
 @import "./styles/tasks/task-alerts.css";
 @import "./styles/avatar/avatar-config.css";
 @import "./styles/dashboard/map.css";

@@ -362,6 +362,8 @@ export const DashboardConfigSchema = z.object({
         undoWindowMs: millisecondsSchema.default(600_000),
         /** How long the press must be held to fire the undo. */
         undoHoldMs: millisecondsSchema.default(2_000),
+        /** A separate daily tasks site; its unfinished count is a tile at the end of the bar. Empty: no tile. */
+        dailyTasksUrl: z.string().trim().max(500).default(""),
         classifier: z
           .object({
             enabled: z.boolean().default(true),

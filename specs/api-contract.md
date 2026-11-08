@@ -437,6 +437,9 @@ Tasks:
 - `GET /api/tasks/icloud-status`: return iCloud sync status.
 - `POST /api/tasks/sync-icloud`: force iCloud sync.
 - `ALL /api/tasks/mcp`: compatibility shim to `/api/mcp`.
+- `GET /api/daily-tasks/count`: the unfinished count from the daily tasks site
+  at `dashboard.reminders.dailyTasksUrl`, as `{ configured, unfinished, url }`
+  (`unfinished` null when unreadable). See `specs/tasks-panel.md`, "Daily tasks count".
 
 Notifications (one-off, not reminders; see `notifications.md`):
 

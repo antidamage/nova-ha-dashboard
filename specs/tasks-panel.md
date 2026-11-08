@@ -232,3 +232,31 @@ regardless of the banner setting.
 - Lite mode: everything here is CSS, so `html[data-nova-lite] *`
   neutralises the pulse; no rAF, no canvas, no polling of its own (the 1s
   tick and task feed are shared), so no `useLiteMode()` gate is required.
+  The daily tasks tile below is the one exception: it polls its count once a
+  minute while the screen is visible.
+
+## Daily tasks count
+
+A separate daily tasks site (a checklist with carry-over; not these
+reminders) can be shown as one tile at the end of the reminder icon bar.
+alex, 2026-11-08: *"on the dashboard in line with the reminder icons, I
+want a single number that shows the number of unfinished tasks"*.
+
+- Config `dashboard.reminders.dailyTasksUrl`: the site's address, default
+  empty. Empty means no tile. Set on the config page under Reminders →
+  "Daily Tasks Address" (`app/components/config/reminders/DailyTasksAddressField.tsx`);
+  only http(s) addresses are accepted. This repo holds no household address.
+- `GET /api/daily-tasks/count` (`lib/daily-tasks/count.ts`) fetches
+  `<url>/api/count` server-side with a 3 s timeout and answers
+  `{ configured, unfinished, url }`; `unfinished` is null when the site cannot
+  be read. The site must answer `{ "unfinished": <integer> }`.
+- The tile (`app/components/dashboard/reminders/DailyTasksTile.tsx`) wears the
+  reminder tile's box and outline setting, with a small check glyph over the
+  count in Share Tech Mono, so it does not read as a reminder sigil. It shows
+  `0` too. A site that cannot be read shows a dimmed dash. Accessible name and
+  tooltip: "Tasks: N unfinished".
+- Tapping it opens the site in the same tab; the site has its own button back
+  to the dashboard.
+- It refreshes every 60 s while the screen is visible and whenever the screen
+  becomes visible.
+- With the address set, the bar renders even when there are no reminder tiles.

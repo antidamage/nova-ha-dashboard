@@ -1,0 +1,28 @@
+/* The daily tasks tile at the end of the reminder bar (specs/tasks-panel.md,
+   "Daily tasks count"). It wears the reminder tile's box (.reminder-tile) and
+   adds a small check glyph over a mono number, so it does not read as one more
+   reminder sigil. */
+.daily-tasks-tile {
+  display: grid;
+  grid-template-rows: auto auto;
+  align-content: center;
+  justify-items: center;
+  gap: calc(var(--reminder-tile-size) * 0.04);
+  text-decoration: none;
+}
+
+.daily-tasks-tile-glyph {
+  width: calc(var(--reminder-tile-size) * 0.32);
+  height: calc(var(--reminder-tile-size) * 0.32);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: square;
+}
+
+.daily-tasks-tile-count {
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-size: calc(var(--reminder-tile-size) * 0.5);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}

@@ -29,6 +29,7 @@ import { ReminderGlyphMark, reminderGlyphLabel } from "../../reminders/icon-regi
 import { useReminderBarSettings } from "../reminderBarSettings";
 import { useModuleIntercepts } from "../../modules/ModuleHost";
 import { ModuleSlot } from "../../modules/ModuleSlot";
+import { DailyTasksTile } from "./DailyTasksTile";
 import { buildReminderTiles, TICK_MS } from "./tile-model";
 import type { Tile } from "./types";
 import { useReminderFeed } from "./useReminderFeed";
@@ -187,7 +188,7 @@ export function ReminderIconBar() {
     [clearHold, completeTile],
   );
 
-  if (loaded && tiles.length === 0) {
+  if (loaded && tiles.length === 0 && !settings.dailyTasksUrl) {
     return null;
   }
 
@@ -240,6 +241,7 @@ export function ReminderIconBar() {
           </button>
         );
       })}
+      {settings.dailyTasksUrl ? <DailyTasksTile url={settings.dailyTasksUrl} /> : null}
       </PanelSlots>
     </div>
   );
