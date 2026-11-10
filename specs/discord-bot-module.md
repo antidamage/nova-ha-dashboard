@@ -489,8 +489,11 @@ Codex. Its wording is `src/agent-brief.ts`, and it says:
    review, merge). *Action* — a task on a PC, the network, a device, a service
    or an account. *Information* — a question. Only a site change gets a pull
    request; an action or a question is done directly, as quickly as possible.
-4. **Reply briefly.** The final message is the Discord reply, read on a phone:
-   outcome first, then what was verified, then anything left. No narration.
+4. **Reply with a full summary.** The final message is the Discord reply, read
+   on a phone, but detailed rather than a one-liner: outcome first, then what was
+   done or found (names, paths, numbers, links, PR numbers), what was verified and
+   how, judgement calls, and anything left. Roughly 150-400 words unless the task
+   was trivial. No step-by-step narration and no preamble.
 
 **It is asynchronous.** A site change can take an hour, far past any HTTP wait,
 so the module does not hold a request open:
