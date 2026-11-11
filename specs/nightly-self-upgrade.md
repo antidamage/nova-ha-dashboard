@@ -498,6 +498,7 @@ A multi-night feature plan, if one is running. One step per feature night.
 Items a pre-execution review rejected, with the reason. Never retried. On a ticket night the entry is the ticket id plus the rejected approach: "never retried" applies to that approach, not to the ticket.
 
 - 2026-10-31, ticket 167725: a severity colour accent (an 8px edge bar in a new --cyber-success / --cyber-warning / --cyber-danger colour) on the notification banners. It reverses the per-severity colour that PR #122 removed on purpose at alex's request, rests on no notification anyone missed, and a colour-only cue is weak on a wall panel and on theme highlights. A different approach to severity legibility needs a usage example first.
+- 2026-11-11, step 2 candidate (review ticket 282021): the creation age ("12 min ago", from `createdAt`) in the notification banner's meta line. Rests on a code gap (`createdAt` unread), not on a notification anyone found ambiguous: the washer case goes through chime, flash and Discord, not the stack; the 1 h default TTL means almost every banner is under an hour old; the line would appear on plain info banners and reflow the stack at 60 s, inside an aria-live wrapper; screens with a behind-skewed clock show a false age. Needs a real ambiguous sticky notification first, and the server time carried in the SSE event.
 
 ## Ledger
 
@@ -513,6 +514,18 @@ Idea review: APPROVE | REVISE → APPROVE | REVISE → REJECT | REJECT | NO REVI
 PR: #n · PR review: PASS | BLOCKING → PASS
 Outcome: live and verified | rolled back | no change — <why>
 ```
+
+### 2026-11-11 — step skipped: no ticket and no cleanup worth a night
+Step: 3 skipped (the second step of the night, after the step 2 rejection below). Tickets: `Ready` holds only 463394 (a second climate controller on a local dev server: climate, off limits). Every `In progress` ticket is claimed. The `Inbox` ones are not dashboard work this job can advance: 868399 changes the idea-review machinery itself, 116047 is a child of the parameterisation effort in 892602, which holds `needs-human`, and the rest are host, mail, Docker or private-data tasks. Step 1 was also checked and has nothing: since the 2026-11-06 cleanup, main moved by four UI PRs (#157 to #160, each merged with its own tests) and one spec edit (#161); `tsc --noEmit` on main (38a7dee7) reports 12 errors, 10 in the same off-limits or awaiting-a-decision test files as before and 2 in `.next-layout-preview/`, a git-ignored local dev artifact; no real TODO/FIXME markers; the build warnings are the known climate-control pair. Nothing to fix without churn. The cycle moves on: the next night is step 1.
+Idea review: none. PR: this record only (docs) · PR review: see the report
+Outcome: no change — nothing worth doing; the record is carried in this docs-only PR.
+### 2026-11-11 — Notification banners show their age
+Step: 2 feature (the run started by hand at 20:05). Review ticket 282021.
+Evidence: `createdAt` is in every notification and no screen reads it, so a sticky or long-TTL banner on the wall display cannot say how old it is. That is a code gap only: no posted notification was shown to be ambiguous, and the only stack banners found in the workspace come from one interview-watch script.
+Proposal: the notification banner's meta line gains "N min ago" / "N h ago" / "N d ago" (nothing under a minute), from `createdAt`, with a 30 s tick while a banner shows · files: `lib/notifications/age.ts` (new), `app/components/notifications/NotificationStack.tsx`, tests, `specs/notifications.md` (about 45 lines) · risk: reflow when the meta line appears at 60 s, aria-live re-announcement, skewed kiosk clocks, a new recurring timer on kiosks · rollback: release rollback, or revert the squash commit; no data written · verification: formatter boundary tests, a fake-timer component test, tsc, build, size ratchet, a dev-server screenshot with notifications posted.
+Idea review: REJECT — ux CHANGE (c252590), history CHANGE (c979824), both round 1. The history peer's first objection holds and fails the premise: this is the pattern of the 2026-10-31 rejected severity accent (a banner change justified by a code gap), the default 1 h TTL makes the benefit narrow, and the line reflows plain info banners. The ux peer's points (aria-live noise, layout shift, behind-skewed clocks, Plain and lite checks) are real costs that the missing benefit does not pay for. No code was written and no preview was sent.
+PR: none · PR review: none
+Outcome: no change — rejected before implementation; added to Rejected above.
 
 ### 2026-11-06 — Entry-point marker on the design-extract docs
 Step: 1 cleanup (run started by hand at 07:01)
