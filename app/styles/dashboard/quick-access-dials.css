@@ -92,6 +92,16 @@
   }
 }
 
+/* The same 5% on a touch tablet held sideways (alex, 2026-11-14: "too wide on
+   ipad landscape ... without changing the layout for everything else"). A
+   1440x900 desktop window is the same geometry, so the touch pointer is what
+   keeps it, a laptop and a landscape kiosk (wider than 1400px) as they were. */
+@media (aspect-ratio > 1) and (pointer: coarse) and (min-width: 1000px) and (max-width: 1400px) {
+  .quick-access-row > .panel-slot-wide {
+    margin-inline: 5%;
+  }
+}
+
 /* A slot waiting for the first live snapshot (specs/quick-access-card.md, "First
    paint"): the real dial in the box its control will take, inert. A touch on it
    falls through to the page so the phone still scrolls, and the dial keeps full

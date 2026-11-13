@@ -435,6 +435,17 @@ From `DashboardState.weather`:
   weather line is scaled to the width left between the margins. Phones and
   tablets in portrait are narrower and keep the line edge to edge. The e2e
   expects the drawn extent inside the margins at the 1080x1920 viewport.
+- **The same 5% side margin on a tablet in landscape (alex, 2026-11-14:
+  "outside weather line is too wide on ipad landscape layout still, fix it
+  without changing the layout for everything else").** In landscape the card is
+  the fixed 520px column, and the weather line was grown edge to edge across
+  its 496px slot on every iPad (measured in WebKit at 1366x1024, 1194x834,
+  1180x820 and 1133x744). The rule: `(aspect-ratio > 1) and (pointer: coarse)
+  and (min-width: 1000px) and (max-width: 1400px)` gives the wide line slots
+  `margin-inline: 5%`. Only a touch tablet held sideways matches: a desktop
+  or laptop has a fine pointer, a phone in landscape is under 1000px, and a
+  landscape kiosk is wider than 1400px. Everything else keeps exactly the
+  layout it had.
 
 ## Round: two dial lines, and the Apple TV (alex, 2026-09-22)
 

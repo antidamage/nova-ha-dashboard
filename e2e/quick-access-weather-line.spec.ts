@@ -14,9 +14,14 @@ const VIEWPORTS = [
   { name: "iphone", width: 375, height: 812 },
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "tablet-landscape", width: 1366, height: 1024 },
+  // An iPad held sideways: touch, so the landscape 5% margin applies (2026-11-14).
+  { name: "ipad-landscape-touch", width: 1194, height: 834, touch: true },
 ];
 
 for (const viewport of VIEWPORTS) {
+  test.describe(viewport.name, () => {
+  // A touch viewport reports pointer: coarse, which is what the tablet margin keys on.
+  if ("touch" in viewport) test.use({ hasTouch: true, isMobile: true });
   test(`weather line fills the panel on one line at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await gotoDashboard(page);
@@ -39,8 +44,11 @@ for (const viewport of VIEWPORTS) {
       const rects = [...el.querySelectorAll("*")].map((child) => child.getBoundingClientRect()).filter((r) => r.width > 0);
       return { left: Math.min(...rects.map((r) => r.left)), right: Math.max(...rects.map((r) => r.right)) };
     });
-    // A full HD desktop in portrait keeps 5% of the panel clear on each side.
-    const margin = viewport.width >= 1060 && viewport.height > viewport.width ? rowBox.width * 0.05 : 0;
+    // A full HD desktop in portrait, and a touch tablet in landscape, keep 5% of
+    // the panel clear on each side; every other viewport is edge to edge.
+    const portraitDesktop = viewport.width >= 1060 && viewport.height > viewport.width;
+    const touchTablet = "touch" in viewport && viewport.width > viewport.height && viewport.width >= 1000 && viewport.width <= 1400;
+    const margin = portraitDesktop || touchTablet ? rowBox.width * 0.05 : 0;
     expect(extent.left, "left edge inside the panel").toBeGreaterThanOrEqual(rowBox.x + margin - 1);
     expect(extent.right, "right edge inside the panel").toBeLessThanOrEqual(rowBox.x + rowBox.width - margin + 1);
     expect(extent.right - extent.left, "fills the panel's width").toBeGreaterThanOrEqual((rowBox.width - 2 * margin) * 0.85);
@@ -64,5 +72,6 @@ for (const viewport of VIEWPORTS) {
     if (SHOTS) {
       await page.locator(".quick-access").screenshot({ path: `${SHOTS}/weather-line-${viewport.name}.png` });
     }
+  });
   });
 }
