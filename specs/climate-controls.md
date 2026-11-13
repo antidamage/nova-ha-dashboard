@@ -44,3 +44,10 @@ Air conditioner UI:
 - Quiet and turbo fan endpoints coordinate with dedicated quiet/turbo switches.
 - Manual turn-on reapplies remembered mode, temperature, fan, quiet/turbo, and
   fresh air preferences where available.
+
+## Server controller start
+
+- The server climate controller starts only in production. Under `next dev`, e2e or a
+  render check it stays off, because the checkout's `.env.local` may hold real Home
+  Assistant credentials and a second controller would act on the real house. Set
+  `NOVA_CLIMATE_CONTROL_DEV=1` to run it outside production on purpose.

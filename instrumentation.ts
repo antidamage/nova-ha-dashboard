@@ -33,9 +33,17 @@ export async function register() {
 
   // One server authority owns both thermostats, command correlation, external
   // overrides, schedules, sensor grace, and hardware dwell.
+  // Outside production (`next dev`, e2e, render checks) the checkout's
+  // .env.local can hold real Home Assistant credentials, which would make this
+  // a second thermostat controller on the LAN beside the host's. It only
+  // starts there when NOVA_CLIMATE_CONTROL_DEV=1 is set on purpose.
   try {
-    const { startClimateControl } = await import("@/lib/climate-control");
-    startClimateControl();
+    if (process.env.NODE_ENV !== "production" && process.env.NOVA_CLIMATE_CONTROL_DEV !== "1") {
+      console.log("[climate-control] not started outside production (set NOVA_CLIMATE_CONTROL_DEV=1 to run it)");
+    } else {
+      const { startClimateControl } = await import("@/lib/climate-control");
+      startClimateControl();
+    }
   } catch (error) {
     console.error("[climate-control] failed to start", error);
   }
