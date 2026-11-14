@@ -99,6 +99,13 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
   not a dial takes its own full-width line track in slot order, so the gauges
   line is the bottom row. With the module not placed, nothing changes: no
   element, no track.
+- **On its baseline, with room under it (alex, 2026-11-14, on the iPad:
+  "don't line up. align them to their baseline" and "put some space below
+  the slot ... too close to the panel edge"):** the gauges sit on the line's
+  floor (`align-items: flex-end`) instead of floating in its middle, and a
+  card holding the line has 12px (`--spacing-12`) of padding under it. The
+  dial rows give that space up: `useSlotLayout` measures the row's content
+  box, so padding is never counted as height the dials can have.
 - **Evenly distributed:** the gauges spread across the line's full width with
   equal space around each (equal grid columns).
 - **The slot model as it is.** Every module that is not a dial already takes

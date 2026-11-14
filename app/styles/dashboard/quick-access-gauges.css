@@ -7,6 +7,16 @@
 
 .panel-slots > .panel-slot-wide:has(> .quick-segment-gauges) {
   transform: none;
+  /* The gauges sit on the line's floor, their baseline, rather than floating
+     in the middle of it (alex, 2026-11-14, on the iPad). */
+  align-items: flex-end;
+}
+
+/* Room under the gauges line so it is off the panel's edge (alex,
+   2026-11-14: "they're too close to the panel edge"); the extract's 12px step.
+   The dial rows give it up: useSlotLayout measures the row inside its padding. */
+.panel-slots:has(> .panel-slot-wide > .quick-segment-gauges) {
+  padding-bottom: var(--spacing-12, 12px);
 }
 
 .quick-segment.quick-segment-gauges {

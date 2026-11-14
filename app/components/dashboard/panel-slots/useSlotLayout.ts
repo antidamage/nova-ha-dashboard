@@ -99,7 +99,9 @@ export function useSlotLayout(
           // tall as its content, so a measured height would describe the result
           // of the dial size about to be chosen from it — a loop, and a jittering
           // one.
-          height: dividesHeight && !portrait.matches ? row.clientHeight : 0,
+          // The CONTENT box: padding the row carries (the gauges line's room
+          // under it, quick-access-gauges.css) is not height the dials can have.
+          height: dividesHeight && !portrait.matches ? contentHeight(row) : 0,
           portrait: portrait.matches,
           readings,
           // A wide line slot is one line, not a share of the panel's height, so
@@ -121,4 +123,11 @@ export function useSlotLayout(
   }, [rowRef, count, dials, readings, dividesHeight, wideBottom, wideLineHeight]);
 
   return layout;
+}
+
+/** An element's height inside its padding: clientHeight counts the padding. */
+function contentHeight(element: HTMLElement): number {
+  const style = getComputedStyle(element);
+  const padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+  return Math.max(0, element.clientHeight - padding);
 }
