@@ -52,19 +52,23 @@
   height: 100%;
 }
 
+/* The track is the card's reading colour at low strength (the skin's faint
+   white track); --cyber-border-dim is near-black in the dark themes and vanished. */
 .quick-temp-gauge-track {
   fill: none;
-  stroke: var(--cyber-border-dim);
+  stroke: color-mix(in srgb, var(--cyber-title-on-bg) 18%, transparent);
 }
 
+/* The lit colour (the knob LEDs' slot), like the skin's lit fill. The accent
+   slot (--cyber-line) is a dark brown in the live theme and did not read. */
 .quick-temp-gauge-fill {
   fill: none;
-  stroke: var(--cyber-line);
+  stroke: var(--nova-led-color, var(--cyber-line));
 }
 
 .quick-temp-gauge-value {
   position: relative;
-  color: var(--cyber-line);
+  color: var(--cyber-title-on-bg);
   font-family: var(--cyber-mono);
   font-size: 0.7rem;
   font-weight: 900;

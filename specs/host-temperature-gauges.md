@@ -58,15 +58,22 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
 - **A filled ring:** outer radius 50 and inner radius 35 in a 120 viewBox, so
   the band is 30% of the radius ("relatively thick"). The extract has no
   ring-thickness value, so this is the Rainmeter geometry alex asked to
-  copy. The track is the full circle in `--cyber-border-dim`, the extract's
-  dim stroke (19% white), in place of the skin's 8% white. The fill is the
-  accent (`--cyber-line`), starting at 12 o'clock and running clockwise.
-  **One colour**: no gradient and no warning colours.
+  copy. The track is the full circle in the card's reading colour
+  (`--cyber-title-on-bg`) at 18%, the skin's faint track. The fill is the
+  theme's lit colour, `--nova-led-color` (the knob LEDs' slot), starting at 12
+  o'clock and running clockwise. **One colour**: no gradient and no warning
+  colours. *Render check, 2026-11-14:* the first build used the accent slot
+  `--cyber-line` and `--cyber-border-dim`; on the live theme those are
+  `rgb(66 50 42)` and near-black, so the ring and number barely showed. The
+  interview answer was "the theme's accent/LED token", and the LED slot is the
+  one that reads as lit.
 - **Fill = temperature / 100 °C**, clamped 0–1. Because one colour carries no
   warning, the fill and the number are the whole signal, and the scale is
   fixed so that 85 °C always looks the same.
 - **The number in the middle:** whole degrees with a `°`, 0.7rem, weight 900,
-  monospace (`--cyber-mono`), in the accent, inside the ring's ~28px hole.
+  monospace (`--cyber-mono`), in the card's reading colour
+  (`--cyber-title-on-bg`, as the skin's white text), inside the ring's ~28px
+  hole.
 - **Caption under the ring:** the source label and the part, e.g.
   `IRIDIUM CPU`, using `.quick-stepper-caption` (0.7rem mono 900,
   `--cyber-muted`), one line, with an ellipsis if it does not fit.
