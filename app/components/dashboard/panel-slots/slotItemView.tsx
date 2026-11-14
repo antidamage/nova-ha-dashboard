@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { QuickAppleTVSegment } from "../quick-access/QuickAppleTVSegment";
 import { QuickAirconSegment, QuickHeaterSegment } from "../quick-access/QuickClimateSegments";
+import { QuickHostTempsSegment } from "../quick-access/QuickHostTempsSegment";
 import { QuickLightsSegment } from "../quick-access/QuickLightsSegment";
 import { QuickPendingSegment } from "../quick-access/QuickPendingSegment";
 import { QuickWeatherSegment } from "../quick-access/QuickWeatherSegment";
@@ -63,6 +64,9 @@ export function renderSlotItem(
     ) : (
       <QuickAirconSegment item={item} key={item.key} size={dialSize} onEntityActions={onEntityActions} />
     );
+  }
+  if (item.kind === "host-temps") {
+    return <QuickHostTempsSegment key={item.key} title={item.title} sources={item.sources} />;
   }
   return <QuickWeatherSegment key={item.key} features={item.features} weather={weather} />;
 }

@@ -56,11 +56,20 @@ export const FIELD_DRY_HUMIDITY: ControlModuleField = {
   kind: "number",
 };
 
+export const FIELD_METRIC_SOURCES: ControlModuleField = {
+  id: "metricSources",
+  label: "Machines",
+  detail: "One per machine, as Label=URL of its host-metrics /flat endpoint, in the order to show them",
+  kind: "token-list",
+  required: true,
+};
+
 const BY_ID: Record<ControlModuleFieldId, ControlModuleField> = {
   dryTargetHumidityPct: FIELD_DRY_HUMIDITY,
   entityId: FIELD_ENTITY,
   humidityEntityIds: FIELD_HUMIDITY_IDS,
   matchTokens: FIELD_MATCH_TOKENS,
+  metricSources: FIELD_METRIC_SOURCES,
   switchEntityIds: FIELD_SWITCH_IDS,
   temperatureEntityIds: FIELD_TEMPERATURE_IDS,
 };

@@ -30,6 +30,7 @@ export const SHIPPED_RENDERER_IDS = [
   "lighting-dial",
   "amplifier-dial",
   "weather-readings",
+  "temperature-gauges",
   // The odd one out, deliberately: it draws the content the PANEL hands it,
   // which is how every panel's own content becomes a module that can be placed,
   // moved or taken off (alex, 2026-09-25).
@@ -63,6 +64,7 @@ export const CONTROL_MODULE_FIELD_IDS = [
   "temperatureEntityIds",
   "humidityEntityIds",
   "dryTargetHumidityPct",
+  "metricSources",
 ] as const;
 export type ControlModuleFieldId = (typeof CONTROL_MODULE_FIELD_IDS)[number];
 
@@ -157,6 +159,8 @@ export type ControlPresetBinding = {
   temperatureEntityIds?: string[];
   humidityEntityIds?: string[];
   dryTargetHumidityPct?: number;
+  /** `Label=URL` per host-metrics source (specs/host-temperature-gauges.md). */
+  metricSources?: string[];
 };
 
 /**

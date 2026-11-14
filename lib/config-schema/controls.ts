@@ -27,6 +27,7 @@ export const ControlPresetBindingSchema = z
     temperatureEntityIds: stringListSchema.optional(),
     humidityEntityIds: stringListSchema.optional(),
     dryTargetHumidityPct: z.number().min(20).max(90).optional(),
+    metricSources: stringListSchema.optional(),
   })
   .default({});
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ControlModule, ControlSlotSurface, ControlsConfig, ResolvedSlot } from "../../../../lib/control-modules/types";
+import { parseMetricSources, type MetricSource } from "../../../../lib/host-temperatures/sources";
 import type {
   BedroomHeaterPreferences,
   AirconPreferences,
@@ -110,6 +111,15 @@ export type QuickPanelItem = {
   title: string;
 };
 
+/** Host Temperatures: one gauge per CPU/GPU of each configured machine. */
+export type QuickHostTempsItem = {
+  key: string;
+  kind: "host-temps";
+  presetId: string;
+  title: string;
+  sources: MetricSource[];
+};
+
 export type QuickOutsideItem = {
   key: string;
   kind: "outside";
@@ -125,6 +135,7 @@ export type QuickItem =
   | QuickLightingItem
   | QuickClimateItem
   | QuickOutsideItem
+  | QuickHostTempsItem
   | QuickPanelItem
   | QuickPendingItem;
 
@@ -250,6 +261,16 @@ export function buildSlotItems(input: QuickSlotInput): QuickItem[] {
         kind: "amplifier",
         presetId: resolved.preset.id,
         title: resolved.preset.name,
+      });
+      continue;
+    }
+    if (resolved.module.renderer === "temperature-gauges") {
+      items.push({
+        key: resolved.slot.id,
+        kind: "host-temps",
+        presetId: resolved.preset.id,
+        title: resolved.preset.name,
+        sources: parseMetricSources(resolved.preset.binding.metricSources),
       });
       continue;
     }

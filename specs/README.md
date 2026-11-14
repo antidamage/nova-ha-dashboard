@@ -100,6 +100,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | [amp-appletv-power.md](amp-appletv-power.md) | The amp's own meter category, its power following the Apple TV, the "Auto On"/"Auto Off" switches and the audio-output condition |
 | [appletv-audio-outputs.md](appletv-audio-outputs.md) | The HA-side bridge that publishes which speakers the Apple TV is playing through |
 | [outside-weather-and-map.md](outside-weather-and-map.md) | Outside panel, weather and map |
+| [host-temperature-gauges.md](host-temperature-gauges.md) | Quick Access CPU/GPU temperature ring gauges per machine |
 | [outside-card.md](outside-card.md) · [weather-refresh.md](weather-refresh.md) | Narrower siblings of the above |
 | [router-and-network-panel.md](router-and-network-panel.md) | Router and network panel |
 | [quick-access-card.md](quick-access-card.md) | The home card and its slot grid |

@@ -66,6 +66,7 @@
 @import "./styles/dashboard/panel-slots.css";
 @import "./styles/dashboard/quick-access.css";
 @import "./styles/dashboard/quick-access-dials.css";
+@import "./styles/dashboard/quick-access-gauges.css";
 @import "./styles/dashboard/apple-tv-dial.css";
 @import "./styles/dashboard/lighting-tint.css";
 @import "./styles/dashboard/advanced-fold.css";
