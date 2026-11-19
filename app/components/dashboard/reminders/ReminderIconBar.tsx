@@ -30,6 +30,8 @@ import { useReminderBarSettings } from "../reminderBarSettings";
 import { useModuleIntercepts } from "../../modules/ModuleHost";
 import { ModuleSlot } from "../../modules/ModuleSlot";
 import { DailyTasksTile } from "./DailyTasksTile";
+import { clusterOverflowTiles } from "./cluster-model";
+import { useRowCapacity } from "./useRowCapacity";
 import { buildReminderTiles, tileTooltip, TICK_MS } from "./tile-model";
 import type { Tile } from "./types";
 import { useReminderFeed } from "./useReminderFeed";
@@ -72,6 +74,10 @@ export function ReminderIconBar() {
     }),
     [hasWashing, hasTimer, timer, nowMs, recentCompletions, roster, settings.maxTiles, settings.overduePulseAfterMs, tasks],
   );
+
+  const barRef = useRef<HTMLDivElement>(null);
+  const capacity = useRowCapacity(barRef, tiles.length, settings.dailyTasksUrl ? 1 : 0);
+  const shown = useMemo(() => clusterOverflowTiles(tiles, capacity), [tiles, capacity]);
 
   const markBusy = useCallback((key: string, busy: boolean) => {
     setBusyKeys((current) => {
@@ -194,6 +200,7 @@ export function ReminderIconBar() {
 
   return (
     <div
+      ref={barRef}
       className="reminder-icon-bar"
       data-outline={settings.outlineShape}
       style={{ "--reminder-idle-opacity": settings.inactiveOpacity } as React.CSSProperties}
@@ -203,7 +210,25 @@ export function ReminderIconBar() {
       {/* The bar is a panel: its tiles are its content, drawn inside the bar's own
           box (alex, 2026-09-25). */}
       <PanelSlots className="panel-slots-fill" dividesHeight surface="reminders">
-      {tiles.map((tile) => {
+      {shown.map((tile) => {
+        if (tile.cluster) {
+          return (
+            <div
+              key={tile.key}
+              className="reminder-tile reminder-tile-cluster"
+              data-state="idle"
+              role="group"
+              title={tileTooltip(tile, "upcoming")}
+              aria-label={`${tile.displayName} — upcoming`}
+            >
+              {tile.cluster.map((part) => (
+                <span key={part.key} className="reminder-tile-mini">
+                  <span className="reminder-tile-glyph"><ReminderGlyphMark glyph={part.glyph} /></span>
+                </span>
+              ))}
+            </div>
+          );
+        }
         const busy = busyKeys.has(tile.key);
         const undoable = Boolean(tile.undoUntil);
         const label = undoable

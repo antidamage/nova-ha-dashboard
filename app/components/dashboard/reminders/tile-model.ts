@@ -83,8 +83,11 @@ export function mergeUpcomingTiles(tiles: Tile[]): Tile[] {
 }
 
 export function tileTooltip(tile: Tile, glyphLabel: string): string {
-  if (!tile.members) return `${tile.displayName} (${glyphLabel})`;
-  const lines = tile.members.map((member) =>
+  const listed = tile.cluster
+    ? tile.cluster.flatMap((part) => part.members ?? [{ name: part.displayName, nextDueMs: part.nextDueMs }])
+    : tile.members;
+  if (!listed) return `${tile.displayName} (${glyphLabel})`;
+  const lines = listed.map((member) =>
     Number.isFinite(member.nextDueMs)
       ? `${member.name} — ${new Date(member.nextDueMs).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`
       : `${member.name} — nothing due`,

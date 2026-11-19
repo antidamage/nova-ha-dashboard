@@ -235,6 +235,31 @@ regardless of the banner setting.
   The daily tasks tile below is the one exception: it polls its count once a
   minute while the screen is visible.
 
+## Overflow cluster
+
+When the bar has more tiles than fit in one row (it would wrap, or run past the
+column), the last upcoming tiles fold into one cluster tile. alex,
+2026-11-20: *"take the last four upcoming reminders and make them quarter-size
+and arrange them into a square so that they take the same space as an original
+full-size notification icon."*
+
+- Code: `cluster-model.ts` (`clusterOverflowTiles`), measured by
+  `useRowCapacity.ts`, drawn in `ReminderIconBar.tsx`, styled in
+  `app/styles/reminders/icon-bar.css` (`.reminder-tile-cluster`).
+- Capacity is whole tiles per row, from the row's inner width, a rendered tile's
+  width and the row gap; the daily tasks tile reserves one place. Tiles no longer
+  shrink, so the measure is exact.
+- Only upcoming tiles are taken: idle, no tappable reminder, nothing to undo.
+  Active, due, overdue and just-completed tiles are always full-size.
+- Only the tiles that overflow are taken, and the cluster occupies one place, so
+  it holds `tiles - capacity + 1`, at most four and at least two. With fewer than
+  two upcoming tiles to take, nothing clusters.
+- Population order is top-left, bottom-left, top-right, bottom-right, filled
+  from the soonest of the taken tiles. Each part is half the tile's width and
+  height. A cluster of two or three leaves the remaining corners empty.
+- The cluster is last in the row, is not tappable, and its tooltip lists every
+  member with its next due time.
+
 ## Daily tasks count
 
 A separate daily tasks site (a checklist with carry-over; not these

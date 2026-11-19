@@ -25,6 +25,8 @@ export type Tile = {
   order: number;
   /** Set on a tile standing for several upcoming reminders that share one icon. */
   members?: { name: string; nextDueMs: number }[];
+  /** Set on the overflow cluster: the upcoming tiles drawn quarter-size inside this one, in population order. */
+  cluster?: Tile[];
 };
 
 export type TileOrder = Pick<Tile, "key" | "nextDueMs" | "order">;

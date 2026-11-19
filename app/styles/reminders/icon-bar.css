@@ -44,7 +44,10 @@
 .reminder-tile {
   display: grid;
   place-items: center;
-  flex: 0 1 auto;
+  /* Never shrinks: the bar folds overflowing tiles into a cluster instead
+     (specs/tasks-panel.md, "Overflow cluster"), and that count is measured
+     against the full tile width. */
+  flex: 0 0 auto;
   width: calc(var(--reminder-tile-size) * 1.45);
   height: calc(var(--reminder-tile-size) * 1.45);
   border: calc(var(--reminder-tile-size) * 0.075) solid currentColor;
@@ -110,6 +113,33 @@
 .reminder-glyph-mark {
   width: 0.72em;
   height: 0.72em;
+}
+
+/* Overflow cluster: the last upcoming tiles at quarter size in a 2x2 square that
+   takes the space of one full tile. Filled top-left, bottom-left, top-right,
+   bottom-right, which is column-first. Each part keeps the tile's proportions at
+   half the width and height. */
+.reminder-tile.reminder-tile-cluster {
+  grid-template: 1fr 1fr / 1fr 1fr;
+  grid-auto-flow: column;
+  place-items: stretch;
+  gap: calc(var(--reminder-tile-size) * 0.1);
+  border: 0;
+  cursor: default;
+}
+
+.reminder-tile-mini {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: calc(var(--reminder-tile-size) * 0.0375) solid currentColor;
+  border-radius: calc(var(--reminder-tile-radius) * 0.5);
+}
+
+.reminder-tile-mini .reminder-tile-glyph {
+  font-size: calc(var(--reminder-tile-size) * 0.7);
 }
 
 /* Config-page surfaces for the same sigils. Sized in absolute units rather
