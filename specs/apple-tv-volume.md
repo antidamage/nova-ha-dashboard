@@ -32,6 +32,14 @@ do).
   dial was not. It follows the theme and is the same at every level; the glow
   reads `--nova-orb-ring-rgb`, scales with the level and is out entirely while
   the amp is muted.
+  *Revised 2026-11-20:* the ring is **one opaque hue in brightness steps**. The
+  orb's ring colour carries its line opacity (25% shipped), and that translucent
+  colour over the channel shading and glow blended with the unlock ring's 5deg
+  hue shift into a muddy brown on a deep red theme, on the iPad. The band now
+  paints a top-to-bottom gradient of `--nova-orb-ring-rgb` mixed with white
+  (crown) and black (shades) only, `--re-color` is that opaque colour, the unlock
+  ring's lit band takes it too with the hue shift removed, and the outer lip and
+  ring shading carry the same emboss on every surface (`apple-tv-dial.css`).
 - **The glow is the same glow every dial has**: keyed to the dial's own colour
   and scaled by the level, gone while muted. *Corrected 2026-09-22:* it shipped
   reading that colour back through the hex parser, which produced `rgba(NaN, …)`

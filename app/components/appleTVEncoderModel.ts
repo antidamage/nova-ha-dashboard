@@ -24,7 +24,23 @@ export const VOLUME_WIDEST = `${VOLUME_MAX}%`;
  * a different colour (alex, 2026-11-06, from the rendered dashboard). It
  * follows the theme, so there is no ramp: the ring is that colour at every level.
  */
-export const VOLUME_RING_COLOUR = "var(--nova-orb-ring-color, var(--cyber-line))";
+export const VOLUME_RING_COLOUR = "rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)))";
+
+/**
+ * The ring's one hue, opaque. The orb's ring colour carries its line opacity
+ * (25% on the shipped theme), and a translucent ring over the dial's channel
+ * shading and glow blends into a muddy brown. Every paint on this dial is a
+ * brightness variant of this single colour, never a second hue
+ * (alex, 2026-11-20).
+ */
+export const VOLUME_BASE_RGB = VOLUME_RING_COLOUR;
+
+/** Brightness variants of the base: a lit crown, the base, and two shades. */
+export const VOLUME_RING_PAINT = `linear-gradient(180deg,
+  color-mix(in srgb, ${VOLUME_BASE_RGB} 82%, #fff 18%) 0%,
+  ${VOLUME_BASE_RGB} 38%,
+  color-mix(in srgb, ${VOLUME_BASE_RGB} 62%, #000 38%) 78%,
+  color-mix(in srgb, ${VOLUME_BASE_RGB} 42%, #000 58%) 100%)`;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -44,6 +60,11 @@ export function volumeLevelText(volume: number) {
 /** The single colour the dial's ring, fill, index and glow are keyed to. */
 export function volumeColour() {
   return VOLUME_RING_COLOUR;
+}
+
+/** The ring band's paint: the base colour as brightness steps, top to bottom. */
+export function volumeRingPaint() {
+  return VOLUME_RING_PAINT;
 }
 
 /**

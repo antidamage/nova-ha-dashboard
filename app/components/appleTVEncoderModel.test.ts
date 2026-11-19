@@ -26,8 +26,8 @@ describe("the volume reading", () => {
 
 describe("the ring's colour", () => {
   it("is the status orb's colour ring colour, at every level", () => {
-    expect(VOLUME_RING_COLOUR).toBe("var(--nova-orb-ring-color, var(--cyber-line))");
-    expect(volumeColour()).toBe("var(--nova-orb-ring-color, var(--cyber-line))");
+    expect(VOLUME_RING_COLOUR).toBe("rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)))");
+    expect(volumeColour()).toBe("rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)))");
   });
 });
 

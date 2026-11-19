@@ -4,7 +4,37 @@
 /* ── The dial ───────────────────────────────────────────────────────────────
    Built on RotaryEncoder. The volume percent sits on the face where the
    climate knob keeps its target, the mode word below the lights, and the name
-   curves over the top. The ring is the status orb's colour ring colour (`--cyber-line`). */
+   curves over the top. The ring is the status orb's colour ring colour, as opaque brightness steps. */
+/* One hue, brightness only (alex, 2026-11-20). The unlock ring's lit band
+   takes the ring's base colour instead of the LED colour, and its 5deg hue
+   shift is dropped: on a deep red it drifted toward orange and read as muddy
+   brown. The shade it keeps is the same hue, darker. */
+.apple-tv-encoder.rotary-encoder {
+  --re-unlock-on: rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)));
+  --re-unlock-on-rgb: var(--nova-orb-ring-rgb, var(--cyber-line-rgb));
+}
+
+.apple-tv-encoder .rotary-encoder-unlock-shift {
+  filter: brightness(0.78);
+}
+
+/* The embossed lip round the outside, the same on every surface: a raised
+   edge catching light at the top left and a cast shadow at the bottom right,
+   so the ring reads as a moulded band whatever the device. */
+.apple-tv-encoder .rotary-encoder-outer-bevel {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.34), rgba(0, 0, 0, 0.3) 55%, rgba(255, 255, 255, 0.16));
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22);
+}
+
+.apple-tv-encoder .rotary-encoder-ring-shade {
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0) 42%, rgba(255, 255, 255, 0.22));
+  box-shadow:
+    inset 0 0 calc(var(--re-ring) * 0.5) rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
 .apple-tv-encoder .rotary-encoder-dial > .rotary-encoder-label.apple-tv-encoder-level {
   font-size: clamp(14px, calc(var(--re-size) * 0.11), 24px);
   letter-spacing: 0.04em;

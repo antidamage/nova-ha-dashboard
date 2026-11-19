@@ -47,8 +47,8 @@ describe("the Apple TV dial", () => {
       <AppleTVEncoder muted={false} volume={60} onMuteChange={() => undefined} onVolumeChange={() => undefined} />,
     );
     const root = container.querySelector<HTMLElement>(".apple-tv-encoder");
-    expect(root?.style.getPropertyValue("--re-color")).toBe("var(--nova-orb-ring-color, var(--cyber-line))");
-    expect(root?.style.getPropertyValue("--re-ring-paint")).toBe("");
+    expect(root?.style.getPropertyValue("--re-color")).toBe("rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)))");
+    expect(root?.style.getPropertyValue("--re-ring-paint")).toContain("linear-gradient");
     // size 200 (the dial's default): blur 200*0.12*0.6, spread 200*0.012*0.6.
     expect(root?.style.getPropertyValue("--re-glow")).toBe("0 0 14.4px 1.4px rgb(var(--nova-orb-ring-rgb, var(--cyber-line-rgb)) / 0.372)");
   });
