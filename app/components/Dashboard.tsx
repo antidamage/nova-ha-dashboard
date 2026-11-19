@@ -32,6 +32,7 @@ import { useScrollAnchor } from "./dashboard/useScrollAnchor";
 import { useScrollRestore } from "./dashboard/useScrollRestore";
 import { useManagedDesktopWallpaperSync } from "./dashboard/useManagedDesktopWallpaperSync";
 import { useExperienceFeature } from "./dashboard/experienceModeSetting";
+import { useKioskBacklight } from "./dashboard/useKioskBacklight";
 import { TasksPanel } from "./TasksPanel";
 import { useBuildReload } from "./useBuildReload";
 import { ModuleSlot } from "./modules/ModuleSlot";
@@ -66,6 +67,7 @@ export function Dashboard() {
   const showBackground = useExperienceFeature("background");
   useRadarPreload();
   useScrollRestore(data !== null);
+  useKioskBacklight(data?.sun);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("nova-sun-change", { detail: data?.sun ?? null }));
   }, [data?.sun]);

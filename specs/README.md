@@ -129,7 +129,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | Spec | Covers |
 |---|---|
 | [login-surface.md](login-surface.md) · [face-auth.md](face-auth.md) | The login screen and face-released passkeys |
-| [kiosk-attribution.md](kiosk-attribution.md) · [kiosk-display-rotation.md](kiosk-display-rotation.md) | Kiosk identity, and the rotate button |
+| [kiosk-attribution.md](kiosk-attribution.md) · [kiosk-display-rotation.md](kiosk-display-rotation.md) · [kiosk-backlight.md](kiosk-backlight.md) | Kiosk identity, the rotate button, and the backlight that wakes on touch and dims to off |
 | [camera-smooth-delivery.md](camera-smooth-delivery.md) | The camera at 60 fps on delivery, never stored: live, 1x and 0.5x; planned multi-camera grid and region crop. The recording is `docs/camera-dvr.md` |
 | [camera-saved-ranges.md](camera-saved-ranges.md) | Saving a time range of the DVR with preview, the Saved Ranges module, its player and 60 fps download; categorisation retired |
 

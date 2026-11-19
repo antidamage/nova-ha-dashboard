@@ -1,0 +1,17 @@
+[Unit]
+Description=Nova kiosk backlight (wake on touch, dim, then off)
+# A USER unit: brightness and display power go through the Wayland session.
+# See specs/kiosk-backlight.md.
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/nova-ha-dashboard/ops/kiosk/nova-kiosk-backlight.py
+# Never leave a black panel behind: a stop or a crash turns the display on at
+# the last target.
+ExecStopPost=/usr/bin/python3 /opt/nova-ha-dashboard/ops/kiosk/nova-kiosk-backlight.py restore
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,4 @@
+# Lets the seat's active user read the touchscreen, so nova-kiosk-backlight can
+# wake a powered-off panel on one tap (KWin wakes it only on a double tap).
+# Read only: the service never grabs the device. See specs/kiosk-backlight.md.
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_TOUCHSCREEN}=="1", TAG+="uaccess"
