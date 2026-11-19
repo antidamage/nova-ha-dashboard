@@ -23,6 +23,8 @@ export type Tile = {
   nextDueMs: number;
   /** The roster's manual position, kept as a stable tiebreak. */
   order: number;
+  /** Set on a tile standing for several upcoming reminders that share one icon. */
+  members?: { name: string; nextDueMs: number }[];
 };
 
 export type TileOrder = Pick<Tile, "key" | "nextDueMs" | "order">;

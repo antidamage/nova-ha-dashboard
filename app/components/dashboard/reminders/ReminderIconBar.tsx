@@ -30,7 +30,7 @@ import { useReminderBarSettings } from "../reminderBarSettings";
 import { useModuleIntercepts } from "../../modules/ModuleHost";
 import { ModuleSlot } from "../../modules/ModuleSlot";
 import { DailyTasksTile } from "./DailyTasksTile";
-import { buildReminderTiles, TICK_MS } from "./tile-model";
+import { buildReminderTiles, tileTooltip, TICK_MS } from "./tile-model";
 import type { Tile } from "./types";
 import { useReminderFeed } from "./useReminderFeed";
 
@@ -228,7 +228,7 @@ export function ReminderIconBar() {
             onPointerCancel={clearHold}
             onContextMenu={(event) => event.preventDefault()}
             onClick={() => onClick(tile)}
-            title={`${tile.displayName} (${reminderGlyphLabel(tile.glyph)})`}
+            title={tileTooltip(tile, reminderGlyphLabel(tile.glyph))}
             aria-label={label}
           >
             <span className="reminder-tile-glyph">

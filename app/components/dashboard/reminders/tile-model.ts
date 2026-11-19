@@ -48,6 +48,50 @@ export function parseRoster(raw: string): RosterEntry[] {
   });
 }
 
+/**
+ * Upcoming reminders that share an icon collapse into one tile. A tile that is
+ * due, overdue or undoable stays on its own, so merging never hides anything
+ * that needs a tap; the merged tile lists every member in its tooltip.
+ */
+export function mergeUpcomingTiles(tiles: Tile[]): Tile[] {
+  const groups = new Map<string, Tile[]>();
+  const result: (Tile | string)[] = [];
+  for (const tile of tiles) {
+    if (tile.state !== "idle" || tile.undoUntil || tile.taskId || tile.order < 0) {
+      result.push(tile);
+      continue;
+    }
+    const id = JSON.stringify(tile.glyph);
+    const group = groups.get(id);
+    if (group) {
+      group.push(tile);
+    } else {
+      groups.set(id, [tile]);
+      result.push(id);
+    }
+  }
+  return result.map((entry) => {
+    if (typeof entry !== "string") return entry;
+    const group = groups.get(entry) as Tile[];
+    if (group.length === 1) return group[0];
+    const members = group
+      .map((tile) => ({ name: tile.displayName, nextDueMs: tile.nextDueMs }))
+      .sort((left, right) => left.nextDueMs - right.nextDueMs);
+    const first = group.reduce((best, tile) => (compareReminderTiles(tile, best) < 0 ? tile : best));
+    return { ...first, displayName: members.map((member) => member.name).join(" + "), members };
+  });
+}
+
+export function tileTooltip(tile: Tile, glyphLabel: string): string {
+  if (!tile.members) return `${tile.displayName} (${glyphLabel})`;
+  const lines = tile.members.map((member) =>
+    Number.isFinite(member.nextDueMs)
+      ? `${member.name} — ${new Date(member.nextDueMs).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`
+      : `${member.name} — nothing due`,
+  );
+  return [...lines, `(${glyphLabel})`].join("\n");
+}
+
 export type BuildTilesInput = {
   tasks: Task[];
   roster: RosterEntry[];
@@ -88,7 +132,7 @@ export function buildReminderTiles({
     }
   }
 
-  return roster
+  const built = roster
     // Icon assignments are persisted independently of reminders so a
     // recurring iCloud mirror can keep its chosen glyph across resyncs.
     // They are only presentation metadata, though: an entry without a live
@@ -140,6 +184,7 @@ export function buildReminderTiles({
       state: timer.completedAt !== null ? "due" as const : "idle" as const,
       taskId: timer.completedAt !== null ? `timer-${timer.id}` : null, undoUntil: null, nextDueMs: timer.endsAt, order: -1,
     }] : [])
-    .sort(compareReminderTiles)
-    .slice(0, maxTiles);
+    .sort(compareReminderTiles);
+
+  return mergeUpcomingTiles(built).sort(compareReminderTiles).slice(0, maxTiles);
 }

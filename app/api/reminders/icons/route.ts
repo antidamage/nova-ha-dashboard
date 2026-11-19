@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { readTasks } from "../../../../lib/tasks/store";
 import {
   deleteReminderIcon,
+  ensureReminderIcons,
   patchReminderIcon,
   readReminderIcons,
   reorderReminderIcons,
@@ -12,6 +14,10 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    // The roster grows as reminders are written, so one that predates it (or
+    // arrived by a path that never assigned an icon) would be missing from the
+    // config list. Assign from the live tasks on every read.
+    await ensureReminderIcons(await readTasks());
     return NextResponse.json({ entries: await readReminderIcons() });
   } catch (error) {
     return NextResponse.json(
