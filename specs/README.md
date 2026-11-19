@@ -61,7 +61,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | [testing.md](testing.md) | Test layers, what each one guards, and how to run them |
 | [nightly-self-upgrade.md](nightly-self-upgrade.md) | The nightly agent run that ships one reviewed, revertable improvement a night, its Discord preview and its report |
 | [mcp-and-agent-interface.md](mcp-and-agent-interface.md) | The MCP surface the dashboard exposes to agents |
-| [system-power-controls.md](system-power-controls.md) | Host power actions and the reconnect blocker |
+| [system-power-controls.md](system-power-controls.md) | Host power actions, the Network zone Computers panel (sleep, wake, shut down), and the reconnect blocker |
 | [product-decisions.md](product-decisions.md) | Decisions carried forward from prior work, with their reasons |
 
 ## Layout and shell

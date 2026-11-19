@@ -119,16 +119,11 @@ export function parseDesktopSleepRequest(value: unknown) {
 }
 
 export function parseDesktopWakeRequest(value: unknown) {
-  const body = requestRecord(value);
-  const id = String(body.id ?? "").trim();
-  if (!id) {
-    throw new Error("Desktop target id is required");
-  }
+  return parseDesktopSleepRequest(value);
+}
 
-  return {
-    id,
-    sourceClientId: clientIdFrom(body.sourceClientId),
-  };
+export function parseDesktopShutdownRequest(value: unknown) {
+  return parseDesktopSleepRequest(value);
 }
 
 function recordValue(value: unknown): Record<string, unknown> | null {

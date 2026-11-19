@@ -103,6 +103,39 @@
   opacity: 0.5;
 }
 
+/* Timed stages (ConfirmDialog armDelayMs/expireMs): a locked confirm keeps
+   focus (aria-disabled, not disabled) but looks and acts inert. */
+.system-confirm-go[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.system-confirm-countdown {
+  display: grid;
+  gap: 6px;
+  font-family: var(--cyber-mono);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--cyber-highlight) 60%, #ffffff);
+}
+
+.system-confirm-countdown-bar {
+  display: block;
+  height: 4px;
+  background: rgb(var(--cyber-highlight-rgb) / 0.18);
+}
+
+.system-confirm-countdown-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--cyber-highlight);
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+}
+
 .system-confirm-dismiss-hint {
   margin-top: 2px;
   font-family: var(--cyber-mono);

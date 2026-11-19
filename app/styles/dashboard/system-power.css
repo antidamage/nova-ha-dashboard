@@ -114,3 +114,29 @@
   letter-spacing: 0.04em;
   color: color-mix(in srgb, var(--cyber-highlight) 68%, #ffffff);
 }
+
+/* Destructive box (Computers panel Shut down): every highlight-derived rule
+   above re-resolves to the design extract's --cyber-danger (#ff405b), so it
+   cannot be mistaken for the Sleep and Wake boxes beside it. */
+.system-power-button-danger {
+  --cyber-highlight: var(--cyber-danger);
+  --cyber-highlight-rgb: 255 64 91;
+}
+
+/* The Computers panel's one-line result; out of layout while empty, but kept
+   mounted so its live region still announces. */
+.desktop-power-status {
+  font-family: var(--cyber-mono);
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--cyber-highlight) 60%, #ffffff);
+}
+
+.desktop-power-status:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

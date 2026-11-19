@@ -1,7 +1,7 @@
-// Power actions: sleep over SSH, wake over Wake-on-LAN.
+// Power actions: sleep and shut down over SSH, wake over Wake-on-LAN.
 import { createSocket } from "dgram";
 import { clearComputerSleeping, markComputerSleeping } from "../sleeping-computers";
-import { remoteSleepCommand } from "./remote-commands";
+import { remoteShutdownCommand, remoteSleepCommand } from "./remote-commands";
 import { connectManagedComputer } from "./ssh";
 import { getManagedComputer } from "./store";
 import type { ManagedComputer } from "./types";
@@ -50,23 +50,42 @@ async function dispatchSleepCommand(computer: ManagedComputer, remoteCommand: st
   });
 }
 
+/**
+ * Send a terminal power command (sleep or shut down). The machine is marked
+ * sleeping up-front so any wallpaper sync racing this request stands down
+ * instead of waking it, or poking a machine on its way off.
+ */
+async function dispatchTerminalPowerCommand(computer: ManagedComputer, remoteCommand: string) {
+  markComputerSleeping(computer.id);
+  try {
+    await dispatchSleepCommand(computer, remoteCommand);
+  } catch (error) {
+    // The connection itself failed: nothing was sent, so nothing happened.
+    // Drop the suppression and report the failure to the caller.
+    clearComputerSleeping(computer.id);
+    throw error;
+  }
+}
+
 export async function sleepManagedComputer(id: string) {
   const computer = await getManagedComputer(id);
   if (!computer.capabilities.sleep) {
     throw new Error(`${computer.name} is not configured for sleep`);
   }
-  // Mark it sleeping up-front so any wallpaper sync racing this request stands
-  // down instead of waking the machine back up.
-  markComputerSleeping(computer.id);
-  try {
-    await dispatchSleepCommand(computer, remoteSleepCommand(computer.platform));
-  } catch (error) {
-    // The connection itself failed: nothing was sent, so it never slept. Drop
-    // the suppression and report the failure to the caller.
-    clearComputerSleeping(computer.id);
-    throw error;
-  }
+  await dispatchTerminalPowerCommand(computer, remoteSleepCommand(computer.platform));
   return { action: "sleep" as const, id: computer.id, name: computer.name };
+}
+
+export async function shutdownManagedComputer(id: string) {
+  const computer = await getManagedComputer(id);
+  if (!computer.capabilities.shutdown) {
+    throw new Error(`${computer.name} is not configured for shut down`);
+  }
+  // Built before anything is marked or sent, so an unsupported platform is
+  // refused without touching the machine.
+  const command = remoteShutdownCommand(computer.platform);
+  await dispatchTerminalPowerCommand(computer, command);
+  return { action: "shutdown" as const, id: computer.id, name: computer.name };
 }
 
 // Where the dashboard broadcasts the wake packet. A sleeping machine answers no

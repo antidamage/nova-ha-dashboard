@@ -8,6 +8,8 @@ export type ManagedComputerCapabilities = {
   // image. Needs an administrator SSH session, since it writes HKLM.
   lockScreen: boolean;
   sleep: boolean;
+  // Full power-off from the Computers panel (Windows only). Default off.
+  shutdown: boolean;
   wake: boolean;
   wallpaper: boolean;
   voiceSatellite: boolean;

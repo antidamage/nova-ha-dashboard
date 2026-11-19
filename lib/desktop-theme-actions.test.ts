@@ -14,7 +14,7 @@ function context(platform: "kde-linux" | "macos" | "windows" = "windows"): Theme
     assetId: "wallpaper_00000000-0000-0000-0000-000000000001",
     computer: {
       address: "computer.local",
-      capabilities: { lockScreen: true, sleep: false, voiceSatellite: false, wake: false, wallpaper: true },
+      capabilities: { lockScreen: true, sleep: false, shutdown: false, voiceSatellite: false, wake: false, wallpaper: true },
       commandTimeoutMs: 15_000,
       enabled: true,
       hostKey: "SHA256:test",

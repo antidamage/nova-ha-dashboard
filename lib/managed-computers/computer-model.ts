@@ -66,6 +66,7 @@ export function normalizedCapabilities(value: unknown, id: string): ManagedCompu
   return {
     lockScreen: record.lockScreen !== false,
     sleep: record.sleep === true,
+    shutdown: record.shutdown === true,
     wake: record.wake === true,
     wallpaper: record.wallpaper !== false,
     voiceSatellite: record.voiceSatellite === true,

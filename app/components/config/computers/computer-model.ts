@@ -6,7 +6,7 @@ export function newComputer(): ManagedComputerFormValue {
   const now = new Date().toISOString();
   return {
     address: "",
-    capabilities: { lockScreen: true, sleep: false, wake: false, wallpaper: true, voiceSatellite: false },
+    capabilities: { lockScreen: true, sleep: false, shutdown: false, wake: false, wallpaper: true, voiceSatellite: false },
     commandTimeoutMs: 15000,
     enabled: true,
     hostKey: "",

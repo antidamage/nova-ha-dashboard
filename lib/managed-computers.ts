@@ -8,10 +8,11 @@
  *   managed-computers/computer-model.ts    record normalisation
  *   managed-computers/store.ts             SOLE owner of state and disk: write
  *                                          queue, JSON store, SSH key pairs
- *   managed-computers/remote-commands.ts   PowerShell wrapper, wallpaper, sleep
+ *   managed-computers/remote-commands.ts   PowerShell wrapper, wallpaper, sleep,
+ *                                          shut down
  *   managed-computers/windows-commands.ts  lock screen, Terminal refresh
  *   managed-computers/ssh.ts               host-key pinning, exec, SFTP
- *   managed-computers/power.ts             sleep and Wake-on-LAN
+ *   managed-computers/power.ts             sleep, shut down and Wake-on-LAN
  */
 export type {
   CommandResult,
@@ -30,6 +31,7 @@ export {
 } from "./managed-computers/store";
 export {
   remotePrepareCommand,
+  remoteShutdownCommand,
   remoteSleepCommand,
   remoteWallpaperCommand,
   remoteWallpaperFileName,
@@ -37,4 +39,9 @@ export {
 } from "./managed-computers/remote-commands";
 export { remoteLockScreenCommand, remoteTerminalRefreshCommand } from "./managed-computers/windows-commands";
 export { copyFileToManagedComputer, runManagedComputerSsh } from "./managed-computers/ssh";
-export { buildWakeOnLanPacket, sleepManagedComputer, wakeManagedComputer } from "./managed-computers/power";
+export {
+  buildWakeOnLanPacket,
+  shutdownManagedComputer,
+  sleepManagedComputer,
+  wakeManagedComputer,
+} from "./managed-computers/power";

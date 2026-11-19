@@ -91,3 +91,16 @@ export function remoteSleepCommand(platform: ManagedComputerPlatform) {
   }
   throw new Error("Sleep is not supported for this platform");
 }
+
+/**
+ * A full power-off. `/s` without `/hybrid` is a complete shutdown, not Fast
+ * Startup's hibernate-the-kernel variant; `/f` closes apps without waiting,
+ * because an app holding unsaved work would otherwise block a remote shutdown
+ * behind a dialog nobody at the panel can see (specs/system-power-controls.md).
+ */
+export function remoteShutdownCommand(platform: ManagedComputerPlatform) {
+  if (platform === "windows") {
+    return "shutdown.exe /s /f /t 0";
+  }
+  throw new Error("Shut down is not supported for this platform");
+}

@@ -49,6 +49,8 @@ describe("managed computers", () => {
         // Absent in the stored record: lock screen defaults on, like wallpaper.
         lockScreen: true,
         sleep: true,
+        // Absent in the stored record: shut down defaults off.
+        shutdown: false,
         wake: true,
         wallpaper: true,
         voiceSatellite: false,
@@ -92,6 +94,11 @@ describe("managed computers", () => {
       expect(decodeWindowsCommand(mod.remoteSleepCommand("windows"))).toContain("SetSuspendState");
       expect(mod.remoteSleepCommand("macos")).toBe("pmset sleepnow");
       expect(() => mod.remoteSleepCommand("kde-linux")).toThrow(/not supported/i);
+      // A full shutdown: /s without /hybrid (not Fast Startup), forced, now.
+      expect(mod.remoteShutdownCommand("windows")).toBe("shutdown.exe /s /f /t 0");
+      expect(mod.remoteShutdownCommand("windows")).not.toMatch(/\/hybrid|\/r\b/);
+      expect(() => mod.remoteShutdownCommand("macos")).toThrow(/not supported/i);
+      expect(() => mod.remoteShutdownCommand("kde-linux")).toThrow(/not supported/i);
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }
@@ -185,6 +192,31 @@ describe("managed computers", () => {
     });
     try {
       await expect(mod.wakeManagedComputer("studio-desktop")).rejects.toThrow(/not configured for wake/i);
+    } finally {
+      await rm(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("refuses to shut down without the capability, or off Windows, before any SSH", async () => {
+    const base = {
+      address: "desktop.local",
+      username: "desktop",
+      orientation: "landscape",
+      enabled: true,
+      hostKey: "SHA256:example",
+    };
+    const { mod, tempDir } = await importWithTempStore({
+      version: 1,
+      computers: [
+        { ...base, id: "no-cap", name: "No Cap", platform: "windows", capabilities: { sleep: true } },
+        { ...base, id: "mac", name: "Mac", platform: "macos", capabilities: { shutdown: true } },
+      ],
+    });
+    try {
+      await expect(mod.shutdownManagedComputer("no-cap")).rejects.toThrow(/not configured for shut down/i);
+      // The platform check runs before the machine is marked or contacted.
+      await expect(mod.shutdownManagedComputer("mac")).rejects.toThrow(/not supported/i);
+      await expect(mod.shutdownManagedComputer("missing")).rejects.toThrow();
     } finally {
       await rm(tempDir, { force: true, recursive: true });
     }

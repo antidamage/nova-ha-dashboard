@@ -1,6 +1,6 @@
 "use client";
 
-import { Laptop, Moon, Power, Satellite, Trash2 } from "lucide-react";
+import { Laptop, Moon, Power, PowerOff, Satellite, Trash2 } from "lucide-react";
 import type { MutableRefObject } from "react";
 import { MomentaryFeedbackButton } from "../../MomentaryFeedbackButton";
 import type { ManagedComputerFormValue } from "../../managed-computers-client";
@@ -116,6 +116,21 @@ export function ComputerCard({
               Wake
             </span>
           </ToggleButton>
+          {computer.platform === "windows" ? (
+            <ToggleButton
+              checked={computer.capabilities.shutdown}
+              onChange={(shutdown) =>
+                updateAndPersist(index, (item) => ({
+                  ...item,
+                  capabilities: { ...item.capabilities, shutdown },
+                }))}
+            >
+              <span className="inline-flex items-center gap-2">
+                <PowerOff className="h-4 w-4" />
+                Shut down
+              </span>
+            </ToggleButton>
+          ) : null}
           <ToggleButton
             checked={computer.capabilities.voiceSatellite}
             onChange={(voiceSatellite) =>
