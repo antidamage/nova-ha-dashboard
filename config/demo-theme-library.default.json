@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "activeId": "theme_mv3hbwlc_q5dd35t5",
+  "activeId": "theme_mty6gak1_klzps6sv",
   "entries": [
     {
       "id": "theme_mq77kutb_7vrn4x1i",
@@ -3892,9 +3892,9 @@
       "id": "theme_mty6gak1_klzps6sv",
       "name": "Psionyk 1977",
       "createdAt": "2026-09-12T09:23:05.713Z",
-      "updatedAt": "2026-09-23T10:14:35.109Z",
+      "updatedAt": "2026-11-08T07:24:16.736Z",
       "themeSet": {
-        "selection": "auto",
+        "selection": "dark",
         "themes": {
           "dark": {
             "accent": {
@@ -4873,9 +4873,9 @@
       "id": "theme_mv3hbwlc_q5dd35t5",
       "name": "Psionyk 1990",
       "createdAt": "2026-10-11T07:06:09.984Z",
-      "updatedAt": "2026-10-11T07:10:46.300Z",
+      "updatedAt": "2026-11-08T07:24:06.700Z",
       "themeSet": {
-        "selection": "auto",
+        "selection": "dark",
         "themes": {
           "dark": {
             "accent": {

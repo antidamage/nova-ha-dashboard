@@ -20,7 +20,7 @@ const DEMO_THEME = {
 };
 
 describe("demo config storage", () => {
-  it("wires the fictional devices without changing fresh-install defaults and starts in Psionyk 1990", async () => {
+  it("wires the fictional devices without changing fresh-install defaults and starts in Psionyk 1977", async () => {
     const config = await readDefaultDashboardConfig();
     const original = structuredClone(config);
     const demo = demoDashboardConfig(config);
@@ -29,7 +29,8 @@ describe("demo config storage", () => {
     expect(demo.dashboard.aircon.matchTokens).toEqual(["demo_aircon"]);
     expect(demo.dashboard.aircon.title).toBe("Air Conditioner");
     const active = demoLibrary.entries.find((entry) => entry.id === demoLibrary.activeId);
-    expect(active?.name).toBe("Psionyk 1990");
+    expect(active?.name).toBe("Psionyk 1977");
+    expect(demoTheme.theme.selection).toBe("dark");
     expect(demoTheme.theme).toEqual(active?.themeSet);
   });
   it("gives the public site a configured home and a wall display's first view", async () => {
