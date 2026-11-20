@@ -126,6 +126,8 @@ on an element sized `--ce-size + 2 × unlock + 2 × ring` — the knob's edge, t
 the unlock ring, then the colour ring's inner edge. The unlock ring's own band
 is the same mask's other half, `78.75% → 84.25%` of that element.
 
+**The emboss round the outside** (alex, 2026-11-20): the outer bevel casts a dark halo, `--re-emboss-halo` (offset 1.2%, blur 10%, spread 1.2% of the knob size, black at 0.8), and the light skin's knob keeps a drop shadow as deep as the dark skin's (0.35). The iPad had shown this and the desktop had not; it was WebKit catching the shadows mid-transition from the server render, so it is now a rule and both engines draw it.
+
 ## The embossed unlock ring
 
 alex, 2026-09-20: *"it's not totally clear when the climate rotary encoder

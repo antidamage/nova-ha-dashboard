@@ -5,7 +5,7 @@
   width: var(--re-outer);
   height: var(--re-outer);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.2), rgba(0, 0, 0, 0.3) 55%, rgba(255, 255, 255, 0.1));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--re-emboss-halo), 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .rotary-encoder-glow {

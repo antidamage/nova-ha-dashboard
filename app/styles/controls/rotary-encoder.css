@@ -42,6 +42,11 @@
   --re-checker-b: #7a7b80;
   --re-color: #ffffff;
   --re-glow: 0 0 0 rgba(0, 0, 0, 0);
+  /* The embossed shadow round the outside of every dial (alex, 2026-11-20:
+     the iPad showed it and the desktop did not). It was never a rule: Safari
+     drew it while the knob's shadows were still transitioning in from the
+     server render, and Chromium had already settled. Now it is one, in both. */
+  --re-emboss-halo: 0 calc(var(--re-size) * 0.012) calc(var(--re-size) * 0.1) calc(var(--re-size) * 0.012) rgba(0, 0, 0, 0.8);
   --re-angle: 0deg;
   /* The colour ring's annulus on an element the size of --re-ring-outer: the
      knob's edge to the ring's outer edge. `0.535 / 0.635` is the ring's inner
@@ -84,7 +89,7 @@
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-outer-bevel {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(0, 0, 0, 0.16) 55%, rgba(255, 255, 255, 0.6));
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--re-emboss-halo), 0 1px 2px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(0, 0, 0, 0.14);
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-ring-shade {
@@ -107,9 +112,11 @@
       #ffffff,
       var(--re-tint) 68%,
       color-mix(in srgb, var(--re-tint) 86%, #000 14%) 100%);
+  /* The knob's own emboss, as deep as the dark skin's: the pale face sits
+     raised off the ring rather than flush with it (alex, 2026-11-20). */
   box-shadow:
-    inset 0 0 calc(var(--re-size) * 0.08) rgba(0, 0, 0, 0.09),
-    0 calc(var(--re-size) * 0.01) calc(var(--re-size) * 0.045) rgba(0, 0, 0, 0.18);
+    inset 0 0 calc(var(--re-size) * 0.08) rgba(0, 0, 0, 0.2),
+    0 calc(var(--re-size) * 0.01) calc(var(--re-size) * 0.05) rgba(0, 0, 0, 0.35);
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-spec {

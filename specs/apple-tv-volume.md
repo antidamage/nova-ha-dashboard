@@ -40,6 +40,16 @@ do).
   (crown) and black (shades) only, `--re-color` is that opaque colour, the unlock
   ring's lit band takes it too with the hue shift removed, and the outer lip and
   ring shading carry the same emboss on every surface (`apple-tv-dial.css`).
+  *Corrected again 2026-11-20, from renders of the live page in Chromium and in
+  Safari's WebKit:* the iPad's look was not a Safari rendering rule. Settled,
+  both engines draw the same thing; WebKit was showing the dial part-way through
+  its box-shadow transitions in from the server render (heavier knob shadow, a
+  grey glow that browned the red), and the overrides above lost to the light
+  skin's own rules. Now every selector carries `[data-mode]`, the ring shading
+  only darkens (no white wash at the bottom), and the lit light, its glow and
+  the index line take the base colour (lightened 20%) instead of the theme's LED
+  colour, which is orange on the household's. The emboss is a base rule for
+  every dial (`specs/color-encoder.md`, "Layers, outside in").
 - **The glow is the same glow every dial has**: keyed to the dial's own colour
   and scaled by the level, gone while muted. *Corrected 2026-09-22:* it shipped
   reading that colour back through the hex parser, which produced `rgba(NaN, …)`
