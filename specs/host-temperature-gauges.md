@@ -60,13 +60,13 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
   ring-thickness value, so this is the Rainmeter geometry alex asked to
   copy. The track is the full circle in the card's reading colour
   (`--cyber-title-on-bg`) at 18%, the skin's faint track. The fill is the
-  theme's lit colour, `--nova-led-color` (the knob LEDs' slot), starting at 12
+  theme's highlight colour, `--cyber-highlight` (alex, 2026-11-20), starting at 12
   o'clock and running clockwise. **One colour**: no gradient and no warning
   colours. *Render check, 2026-11-14:* the first build used the accent slot
   `--cyber-line` and `--cyber-border-dim`; on the live theme those are
   `rgb(66 50 42)` and near-black, so the ring and number barely showed. The
-  interview answer was "the theme's accent/LED token", and the LED slot is the
-  one that reads as lit.
+  interview answer was "the theme's accent/LED token"; the LED slot was used
+  until 2026-11-20, when alex asked for the highlight colour instead.
 - **Fill = temperature / 100 °C**, clamped 0–1. Because one colour carries no
   warning, the fill and the number are the whole signal, and the scale is
   fixed so that 85 °C always looks the same.

@@ -69,11 +69,9 @@
   stroke: color-mix(in srgb, var(--cyber-title-on-bg) 18%, transparent);
 }
 
-/* The lit colour (the knob LEDs' slot), like the skin's lit fill. The accent
-   slot (--cyber-line) is a dark brown in the live theme and did not read. */
 .quick-temp-gauge-fill {
   fill: none;
-  stroke: var(--nova-led-color, var(--cyber-line));
+  stroke: var(--cyber-highlight);
 }
 
 .quick-temp-gauge-value {
