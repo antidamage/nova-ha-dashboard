@@ -86,6 +86,18 @@ describe("haptics", () => {
     expect(playUxSound).toHaveBeenCalledTimes(2);
   });
 
+  it("a silent slider controller vibrates but never plays the click sound", () => {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, "vibrate", { configurable: true, value: vibrate });
+    const controller = new SliderHapticController({ silent: true });
+    controller.start({ now: 0, step: 1, value: 2 });
+    controller.move(0.01, { now: 250, value: 3 });
+    controller.move(0.01, { now: 750, value: 5 });
+
+    expect(vibrate).toHaveBeenCalled();
+    expect(playUxSound).not.toHaveBeenCalled();
+  });
+
   it("uses 0.05 landmarks for hundredth-step fine tuning", () => {
     const vibrate = vi.fn(() => true);
     Object.defineProperty(navigator, "vibrate", { configurable: true, value: vibrate });

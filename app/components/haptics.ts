@@ -187,13 +187,21 @@ export class SliderHapticController {
   private lastValue: number | null = null;
   private roundInterval: number | null = null;
 
+  /** `silent` keeps the tactile tick but never plays the UI click sound. */
+  constructor(private readonly options: { silent?: boolean } = {}) {}
+
+  private tick() {
+    if (this.options.silent) triggerHaptic("selection");
+    else selectionHaptic();
+  }
+
   start({ now = performance.now(), step, value }: SliderHapticStart = {}) {
     this.accumulatedDistance = 0;
     this.lastMoveAt = now;
     this.lastPulseAt = now;
     this.lastValue = typeof value === "number" && Number.isFinite(value) ? value : null;
     this.roundInterval = typeof step === "number" ? roundHapticInterval(step) : null;
-    selectionHaptic();
+    this.tick();
   }
 
   move(normalizedDistance: number, { now = performance.now(), value }: SliderHapticMove = {}) {
@@ -225,7 +233,7 @@ export class SliderHapticController {
         return false;
       }
       this.lastPulseAt = now;
-      selectionHaptic();
+      this.tick();
       return true;
     }
 
@@ -251,7 +259,7 @@ export class SliderHapticController {
 
     this.accumulatedDistance %= pulseDistance;
     this.lastPulseAt = now;
-    selectionHaptic();
+    this.tick();
     return true;
   }
 

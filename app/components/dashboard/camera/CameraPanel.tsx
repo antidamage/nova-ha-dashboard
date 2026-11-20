@@ -59,7 +59,7 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
   const streamStartAtRef = useRef<number | null>(null);
   // Suppresses live-follow while the user is dragging the scrubber.
   const scrubbingRef = useRef(false);
-  const scrubHapticsRef = useRef(new SliderHapticController());
+  const scrubHapticsRef = useRef(new SliderHapticController({ silent: true }));
   const lastScrubHapticValueRef = useRef<number | null>(null);
   // Latched "follow live" flag read by the RAF sample loop. Set true only by the
   // Live button (and the initial mount), cleared by scrubbing or a user pause.

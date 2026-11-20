@@ -106,7 +106,7 @@ or `null`.
 | `foldBreak` | `AdvancedFold` crosses the rubber-band hurdle and opens. Not on a dead break, where there is nothing to open onto. |
 | `foldHeal` | `AdvancedFold` closes back to the boundary — by drag, inertia, wheel or manual scroll. Not on the unconditional close at mount or axis flip. |
 | `sectionChange` | A zone or menu selection changes the selected panel. Not when the same panel is re-tapped. |
-| `buttonPress` | Any other enabled `button` / `[role="button"]` click, and every shared-slider value crossing. Today's behaviour. |
+| `buttonPress` | Any other enabled `button` / `[role="button"]` click, and every shared-slider value crossing, except the camera seek bar, which is silent while dragged (haptic tick only; `SliderHapticController({ silent: true })`). Today's behaviour. |
 | `timerAlert` | The household timer completes — each repeat of the 30 s / 5 min cadence. |
 | `reminderAlert` | A task reminder alert opens, and each repeat within its audio window. |
 | `reminderConfirm` | A reminder or wash occurrence is acknowledged. |
