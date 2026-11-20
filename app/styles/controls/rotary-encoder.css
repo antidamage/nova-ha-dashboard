@@ -104,25 +104,14 @@
     0 calc(var(--re-size) * -0.008) calc(var(--re-size) * 0.02) rgba(0, 0, 0, 0.16);
 }
 
-/* The face is painted 1.275x darker than it looks and lifted back by the
-   `brightness()` filter. Brave's "Auto Dark Mode for Web Contents" inverts any
-   background or gradient colour brighter than about 204/255 and leaves darker
-   ones alone, so a face painted at #eceef1-to-white went black on a dark page
-   while the iPad webapp showed it light (alex, 2026-11-21, "Psionyk 1977").
-   Filters run after that pass, so the lifted result is the same pale face with
-   the browser feature on or off. Every painted stop stays under 200/255: white
-   is 200, and 200 x 1.275 = 255. The hover, press and disabled filters in
-   rotary-knob-face.css would replace this one, so the light skin restates each
-   of them multiplied by the same 1.275. */
 .rotary-encoder[data-mode="light"] .rotary-encoder-knob {
-  filter: brightness(1.275);
   background:
-    radial-gradient(circle at 34% 26%, rgba(200, 200, 200, 0.75), rgba(200, 200, 200, 0) 58%),
+    radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 58%),
     radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
     radial-gradient(circle at 50% 42%,
-      #c8c8c8,
-      color-mix(in srgb, var(--re-tint) 78.4%, #000 21.6%) 68%,
-      color-mix(in srgb, var(--re-tint) 67.4%, #000 32.6%) 100%);
+      #ffffff,
+      var(--re-tint) 68%,
+      color-mix(in srgb, var(--re-tint) 86%, #000 14%) 100%);
   /* The knob's own emboss, as deep as the dark skin's: the pale face sits
      raised off the ring rather than flush with it (alex, 2026-11-20). */
   box-shadow:
@@ -130,16 +119,39 @@
     0 calc(var(--re-size) * 0.01) calc(var(--re-size) * 0.05) rgba(0, 0, 0, 0.35);
 }
 
-.rotary-encoder[data-mode="light"] .rotary-encoder-dial:hover .rotary-encoder-knob {
-  filter: brightness(1.4535);
-}
+/* Brave's "Auto Dark Mode for Web Contents" (which alex has on) reports
+   prefers-color-scheme: dark and inverts any background or gradient colour
+   brighter than about 204/255, so the pale face above went black on a dark page
+   while the iPad webapp showed it light (alex, 2026-11-21, "Psionyk 1977").
+   Neither color-scheme nor a raster background layer stops it on this element.
+   Filters run after that pass, so in this block the face is painted 1.275x
+   darker (white is 200, tint is 185,187,189; 200 x 1.275 = 255) and lifted back
+   by `brightness(1.275)`; the result is the same pale face. The hover, press and
+   disabled filters in rotary-knob-face.css would replace the lift, so each is
+   restated multiplied by 1.275. */
+@media (prefers-color-scheme: dark) {
+  .rotary-encoder[data-mode="light"] .rotary-encoder-knob {
+    filter: brightness(1.275);
+    background:
+      radial-gradient(circle at 34% 26%, rgba(200, 200, 200, 0.75), rgba(200, 200, 200, 0) 58%),
+      radial-gradient(circle at 62% 88%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0) 62%),
+      radial-gradient(circle at 50% 42%,
+        #c8c8c8,
+        color-mix(in srgb, var(--re-tint) 78.4%, #000 21.6%) 68%,
+        color-mix(in srgb, var(--re-tint) 67.4%, #000 32.6%) 100%);
+  }
 
-.rotary-encoder[data-mode="light"] .rotary-encoder-dial[data-pressed="true"] .rotary-encoder-knob {
-  filter: brightness(1.173);
-}
+  .rotary-encoder[data-mode="light"] .rotary-encoder-dial:hover .rotary-encoder-knob {
+    filter: brightness(1.4535);
+  }
 
-.rotary-encoder[data-mode="light"].rotary-encoder-disabled .rotary-encoder-dial:hover .rotary-encoder-knob {
-  filter: brightness(1.275);
+  .rotary-encoder[data-mode="light"] .rotary-encoder-dial[data-pressed="true"] .rotary-encoder-knob {
+    filter: brightness(1.173);
+  }
+
+  .rotary-encoder[data-mode="light"].rotary-encoder-disabled .rotary-encoder-dial:hover .rotary-encoder-knob {
+    filter: brightness(1.275);
+  }
 }
 
 .rotary-encoder[data-mode="light"] .rotary-encoder-spec {
