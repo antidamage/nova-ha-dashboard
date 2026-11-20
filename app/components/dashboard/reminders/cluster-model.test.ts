@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clusterOverflowTiles, rowCapacity } from "./cluster-model";
+import { clusterUpcomingTiles } from "./cluster-model";
 import type { Tile } from "./types";
 
 function tile(key: string, state: Tile["state"] = "idle", extra: Partial<Tile> = {}): Tile {
@@ -18,49 +18,35 @@ function tile(key: string, state: Tile["state"] = "idle", extra: Partial<Tile> =
 }
 
 const keys = (tiles: Tile[]) => tiles.map((entry) => entry.key);
+const members = (cluster: Tile) => cluster.cluster?.map((part) => part.key);
 
-describe("rowCapacity", () => {
-  it("counts whole tiles with gaps between them", () => {
-    expect(rowCapacity(300, 50, 10)).toBe(5);
-    expect(rowCapacity(0, 50, 10)).toBeNull();
-  });
-});
-
-describe("clusterOverflowTiles", () => {
-  it("leaves a bar that fits alone", () => {
-    const tiles = [tile("a"), tile("b"), tile("c")];
-    expect(clusterOverflowTiles(tiles, 3)).toBe(tiles);
-    expect(clusterOverflowTiles(tiles, null)).toBe(tiles);
+describe("clusterUpcomingTiles", () => {
+  it("clusters every upcoming tile, leaving only due ones full-size", () => {
+    const result = clusterUpcomingTiles([tile("due", "due"), tile("late", "overdue"), tile("a"), tile("b"), tile("c")]);
+    expect(keys(result).slice(0, 2)).toEqual(["due", "late"]);
+    expect(result).toHaveLength(3);
+    expect(members(result[2])).toEqual(["a", "b", "c"]);
   });
 
-  it("takes only the tiles that overflow, plus the one the cluster occupies", () => {
-    const result = clusterOverflowTiles([tile("a"), tile("b"), tile("c"), tile("d"), tile("e")], 4);
-    expect(keys(result).slice(0, 3)).toEqual(["a", "b", "c"]);
-    expect(result).toHaveLength(4);
-    expect(result[3].cluster?.map((part) => part.key)).toEqual(["d", "e"]);
+  it("fills four at a time working backwards, leaving the soonest group short", () => {
+    const many = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"].map((key) => tile(key));
+    const result = clusterUpcomingTiles(many);
+    expect(result).toHaveLength(3);
+    expect(result.map(members)).toEqual([["a", "b"], ["c", "d", "e", "f"], ["g", "h", "i", "j"]]);
   });
 
-  it("holds at most four, in population order", () => {
-    const many = ["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => tile(key));
-    const result = clusterOverflowTiles(many, 3);
-    expect(result[result.length - 1].cluster?.map((part) => part.key)).toEqual(["e", "f", "g", "h"]);
+  it("leaves a lone upcoming tile full-size", () => {
+    const tiles = [tile("due", "due"), tile("only")];
+    expect(clusterUpcomingTiles(tiles)).toBe(tiles);
+    const five = ["a", "b", "c", "d", "e"].map((key) => tile(key));
+    const result = clusterUpcomingTiles(five);
+    expect(keys(result)[0]).toBe("a");
+    expect(members(result[1])).toEqual(["b", "c", "d", "e"]);
   });
 
-  it("never clusters active, due, overdue or undoable tiles", () => {
-    const tiles = [
-      tile("due", "due"),
-      tile("late", "overdue"),
-      tile("undo", "idle", { undoUntil: 5 }),
-      tile("x"),
-      tile("y"),
-    ];
-    const result = clusterOverflowTiles(tiles, 4);
-    expect(keys(result).slice(0, 3)).toEqual(["due", "late", "undo"]);
-    expect(result[3].cluster?.map((part) => part.key)).toEqual(["x", "y"]);
-  });
-
-  it("does not form with fewer than two upcoming tiles available", () => {
-    const tiles = [tile("due", "due"), tile("late", "overdue"), tile("only")];
-    expect(clusterOverflowTiles(tiles, 2)).toBe(tiles);
+  it("never clusters undoable tiles", () => {
+    const result = clusterUpcomingTiles([tile("undo", "idle", { undoUntil: 5 }), tile("x"), tile("y")]);
+    expect(keys(result)[0]).toBe("undo");
+    expect(members(result[1])).toEqual(["x", "y"]);
   });
 });

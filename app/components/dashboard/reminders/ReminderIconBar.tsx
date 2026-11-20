@@ -30,8 +30,7 @@ import { useReminderBarSettings } from "../reminderBarSettings";
 import { useModuleIntercepts } from "../../modules/ModuleHost";
 import { ModuleSlot } from "../../modules/ModuleSlot";
 import { DailyTasksTile } from "./DailyTasksTile";
-import { clusterOverflowTiles } from "./cluster-model";
-import { useRowCapacity } from "./useRowCapacity";
+import { clusterUpcomingTiles } from "./cluster-model";
 import { buildReminderTiles, tileTooltip, TICK_MS } from "./tile-model";
 import type { Tile } from "./types";
 import { useReminderFeed } from "./useReminderFeed";
@@ -75,9 +74,7 @@ export function ReminderIconBar() {
     [hasWashing, hasTimer, timer, nowMs, recentCompletions, roster, settings.maxTiles, settings.overduePulseAfterMs, tasks],
   );
 
-  const barRef = useRef<HTMLDivElement>(null);
-  const capacity = useRowCapacity(barRef, tiles.length, settings.dailyTasksUrl ? 1 : 0);
-  const shown = useMemo(() => clusterOverflowTiles(tiles, capacity), [tiles, capacity]);
+  const shown = useMemo(() => clusterUpcomingTiles(tiles), [tiles]);
 
   const markBusy = useCallback((key: string, busy: boolean) => {
     setBusyKeys((current) => {
@@ -200,7 +197,6 @@ export function ReminderIconBar() {
 
   return (
     <div
-      ref={barRef}
       className="reminder-icon-bar"
       data-outline={settings.outlineShape}
       style={{ "--reminder-idle-opacity": settings.inactiveOpacity } as React.CSSProperties}

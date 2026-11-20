@@ -44,9 +44,8 @@
 .reminder-tile {
   display: grid;
   place-items: center;
-  /* Never shrinks: the bar folds overflowing tiles into a cluster instead
-     (specs/tasks-panel.md, "Overflow cluster"), and that count is measured
-     against the full tile width. */
+  /* Never shrinks: upcoming tiles are folded into clusters instead
+     (specs/tasks-panel.md, "Upcoming clusters"). */
   flex: 0 0 auto;
   width: calc(var(--reminder-tile-size) * 1.45);
   height: calc(var(--reminder-tile-size) * 1.45);
@@ -115,7 +114,7 @@
   height: 0.72em;
 }
 
-/* Overflow cluster: the last upcoming tiles at quarter size in a 2x2 square that
+/* Upcoming cluster: up to four upcoming tiles at quarter size in a 2x2 square that
    takes the space of one full tile. Filled top-left, bottom-left, top-right,
    bottom-right, which is column-first. Each part keeps the tile's proportions at
    half the width and height. */
@@ -123,9 +122,21 @@
   grid-template: 1fr 1fr / 1fr 1fr;
   grid-auto-flow: column;
   place-items: stretch;
-  gap: calc(var(--reminder-tile-size) * 0.1);
+  gap: calc(var(--reminder-tile-size) * 0.1 - 1px);
   border: 0;
   cursor: default;
+}
+
+/* An idle tile is a disabled button, and the shell paints every disabled button
+   in these two greys with !important (dashboard/shell.css). The cluster is not a
+   button, so it states the same colours itself: the parts then read exactly as
+   the full-size idle tiles do, text and outline. */
+.dashboard-shell .reminder-tile.reminder-tile-cluster {
+  color: rgba(135, 144, 125, 0.65);
+}
+
+.dashboard-shell .reminder-tile-cluster .reminder-tile-mini {
+  border-color: rgba(135, 144, 125, 0.24);
 }
 
 .reminder-tile-mini {
