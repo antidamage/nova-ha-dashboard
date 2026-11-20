@@ -51,7 +51,8 @@ export function QuickLightsSegment({
           colorEnabled={hasActiveLights}
           disabled={!lighting.hasLightDevices}
           knobSkin={knobSkin}
-          label="All lights"
+          // The house-wide dial is "All lights"; a room's dial is the room (specs/home-users.md §4).
+          label={zone.id === "everything" ? "All lights" : item.title}
           size={size}
           spectrum={lighting.spectrum}
           zoneId={zone.id}

@@ -1,7 +1,7 @@
 "use client";
 
 import { User } from "lucide-react";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { decidePresenceActions, describePresenceActions } from "../../../lib/presence/rules-model";
 import type { DashboardState, HomeUserState } from "../../../lib/types";
 import { ConfirmDialog } from "../ConfirmDialog";
@@ -62,7 +62,7 @@ export function HomePresenceRow({ data }: { data: DashboardState | null }) {
             type="button"
             className="home-presence-person"
             data-home={user.home ? "" : undefined}
-            style={user.home ? { color: user.color } : undefined}
+            style={user.home ? ({ "--home-user-color": user.color } as CSSProperties) : undefined}
             aria-label={label}
             title={label}
             onClick={() => setTarget(user)}

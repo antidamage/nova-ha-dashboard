@@ -34,6 +34,12 @@
   opacity: 1;
 }
 
+/* `.dashboard-shell button` forces every button's colour with !important, so
+   the person's colour has to out-rank it the same way. */
+.dashboard-shell .home-presence-person[data-home] {
+  color: var(--home-user-color, var(--cyber-title-on-bg)) !important;
+}
+
 .home-presence-person:focus-visible {
   border-color: var(--cyber-cyan);
   outline: none;
