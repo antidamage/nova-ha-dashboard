@@ -1,4 +1,5 @@
 import { playUxSound } from "./dashboard/controlSound";
+import { isUxQuiet } from "./uxQuiet";
 import { isUxSoundAction, type UxSoundAction } from "./dashboard/uxSoundActions";
 
 const BUTTON_HAPTIC_MS = 12;
@@ -71,7 +72,7 @@ function triggerIosSwitchHaptic() {
  * remain silent.
  */
 export function triggerHaptic(style: NovaHapticStyle) {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined" || isUxQuiet()) return false;
 
   const hapticWindow = window as HapticWindow;
   try {

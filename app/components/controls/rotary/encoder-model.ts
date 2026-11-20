@@ -36,3 +36,21 @@ export function annulusClip(footprint: number, holeRadius: number) {
     `M ${c - radius} ${c} A ${radius} ${radius} 0 1 0 ${c + radius} ${c} A ${radius} ${radius} 0 1 0 ${c - radius} ${c} Z`;
   return `path(evenodd, "${ring(c * 2)} ${ring(holeRadius)}")`;
 }
+
+/**
+ * Pointer capture that tolerates a synthetic pointer: the tutorial's finger
+ * dispatches PointerEvents for a pointer the browser does not know, and
+ * capturing one throws NotFoundError (specs/tutorial-mode.md). A real
+ * (trusted) pointer is captured exactly as before, errors and all.
+ */
+export function capturePointer(event: { currentTarget: Element; pointerId: number; isTrusted: boolean }) {
+  if (event.isTrusted) {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    return;
+  }
+  try {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  } catch {
+    /* a synthetic pointer: nothing to capture */
+  }
+}

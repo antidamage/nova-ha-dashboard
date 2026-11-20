@@ -240,3 +240,5 @@ the named component before introducing a one-off equivalent.
   personalities.
 
 - `TimerEncoder` - `app/components/TimerEncoder.tsx`. Household timer on `RotaryEncoder`, icon detents, logarithmic duration ring, numeric value entry, shared countdown, and five-second tuck/commit. See `specs/status-orb-stack.md`.
+
+- `TutorialLayer` / `TutorialButton` - `app/components/tutorial/`. The "?" tour: mask and cut-out, the finger that drives a control with synthetic pointer events, and the caption panel and bar. Its copies reuse `LightEncoder`, `DemoTemperatureDial`, `IconButton`, the orb renderer, `useOrbDial` and `OrbDialIndicator` with local state; never mount a command hook in it. A subtree can tag its dials' floating ring layers through `RingPortalTagContext` (`controls/rotary/ringPortalTag.ts`). See `specs/tutorial-mode.md`.

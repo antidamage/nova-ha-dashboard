@@ -10,6 +10,8 @@ import { FluidBackground } from "./FluidBackground";
 import { ReloadButton } from "./ReloadButton";
 import { RotateDisplayButton } from "./RotateDisplayButton";
 import { ThemeOverrideButton } from "./ThemeOverrideButton";
+import { TutorialButton } from "./tutorial/TutorialButton";
+import { TutorialLayer } from "./tutorial/TutorialLayer";
 import { UpdateBanner } from "./UpdateBanner";
 import { WallpaperBackground } from "./WallpaperBackground";
 
@@ -54,6 +56,8 @@ export function DashboardChrome({
         <Settings className="h-5 w-5" aria-hidden="true" />
       </GatedLink>
       <LogoutButton users={homeUsers} />
+      <TutorialButton />
+      <TutorialLayer avatar={theme.avatar} />
 
       <UpdateBanner />
 

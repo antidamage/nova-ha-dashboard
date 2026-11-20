@@ -50,7 +50,8 @@ import {
   UNLOCK_MAX_MS,
   UNLOCK_MIN_MS,
 } from "./constants";
-import { annulusClip, clamp, nearestTurn, now } from "./encoder-model";
+import { annulusClip, capturePointer, clamp, nearestTurn, now } from "./encoder-model";
+import { useRingPortalTag } from "./ringPortalTag";
 import {
   arcPath,
   gapLength,
@@ -264,7 +265,7 @@ export function RotaryEncoder({
     ? {}
     : {
       onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
+        capturePointer(event);
         dragRef.current = {
           at: now(),
           x: event.clientX,
@@ -499,7 +500,7 @@ export function RotaryEncoder({
         if (index === null || at < ARC_START || at > endOf(index)) return;
         const ring = shown[index];
         if (ringInert(ring) || ringKind(ring) !== "toggle") return;
-        event.currentTarget.setPointerCapture?.(event.pointerId);
+        capturePointer(event);
         noteInput();
         const [min, max] = ringRange(ring);
         selectionHaptic("dialClick");
@@ -509,7 +510,7 @@ export function RotaryEncoder({
         return;
       }
       const ring = shown[grabbed];
-      event.currentTarget.setPointerCapture?.(event.pointerId);
+      capturePointer(event);
       noteInput();
       const [min, max] = ringRange(ring);
       const press: RingPress = {
@@ -682,6 +683,7 @@ export function RotaryEncoder({
   // rule). Their layer is clipped to an annulus, which keeps the knob visible,
   // tappable, and in front of a ring collapsing behind it.
   const floating = tuckable;
+  const portalTag = useRingPortalTag();
   const [mounted, setMounted] = useState(false);
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => setMounted(true), []);
@@ -895,6 +897,7 @@ export function RotaryEncoder({
         <div
           ref={ringLayerRef}
           className={["rotary-encoder", "rotary-encoder-ring-layer", disabled ? "rotary-encoder-disabled" : ""].filter(Boolean).join(" ")}
+          data-portal-tag={portalTag}
           data-mode={mode}
           data-locked={locked ? "true" : "false"}
           style={{

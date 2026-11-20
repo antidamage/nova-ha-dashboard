@@ -111,6 +111,7 @@ obedience to it; but a file that should have it cannot pass unnoticed.
 | [tasks-panel.md](tasks-panel.md) · [icloud-sync.md](icloud-sync.md) | Tasks and reminder sync |
 | [notifications.md](notifications.md) | One-off notifications raised through `/api/notifications`, shown on every screen |
 | [status-orb-stack.md](status-orb-stack.md) | Status orb priority, timer and washing ETA |
+| [tutorial-mode.md](tutorial-mode.md) | The "?" tour: masked walk-through of each control with a finger on sandbox copies |
 | [discord-bot-module.md](discord-bot-module.md) | Discord module |
 | [voice-typed-input.md](voice-typed-input.md) | The text box above the live transcript: typed lines enter the voice agent after STT and are answered aloud |
 | [voice-llm-selector.md](voice-llm-selector.md) | Config → Voice Agent's language model picker: which interpretation LLM the voice server runs |

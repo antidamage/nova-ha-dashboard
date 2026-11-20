@@ -1,0 +1,305 @@
+/* Tutorial mode (specs/tutorial-mode.md). Values from docs/design-extract/:
+   the cyber panel and border tokens, --cyber-mono, the 14px clipped corner and
+   the motion tokens (lg 450ms, md 300ms). The mask values are alex's
+   (2026-11-16); the finger has no extract value and is a recorded departure. */
+
+/* The "?" beside the cog. Portrait: the cog is top right, so the "?" is one
+   44px + 8px step in from it. */
+.dashboard-config-link.tutorial-help-button {
+  right: calc(16px + 52px + env(safe-area-inset-right, 0px));
+}
+
+/* Below ~420px wide a second button beside the cog would reach the centred
+   orb's resting box, so it drops under the cog, as theme override does under
+   Reload. */
+@media (max-aspect-ratio: 1 / 1) and (max-width: 419px) {
+  .dashboard-config-link.tutorial-help-button {
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    top: calc(16px + 52px + var(--nova-status-bar-clearance));
+  }
+}
+
+/* A signed-in home user's log-out button (specs/home-users.md) takes the step
+   beside the cog, so the "?" drops under the cog instead: one step further
+   in would reach the centred orb on a phone. The log-out button is rendered
+   just before the "?", so a sibling rule finds it. */
+@media (max-aspect-ratio: 1 / 1) {
+  .dashboard-user-logout-link ~ .dashboard-config-link.tutorial-help-button {
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    top: calc(16px + 52px + var(--nova-status-bar-clearance));
+  }
+}
+
+/* Landscape: the fourth in the sidebar's bottom row, after the cog. Ties
+   landscape.css's cog rule, which this button also matches, and wins by
+   import order (tutorial.css loads after it). */
+@media (aspect-ratio > 1) {
+  body:has(.dashboard-home) .dashboard-config-link.tutorial-help-button:not(.dashboard-reload-link):not(.dashboard-theme-override-link):not(.dashboard-rotate-link) {
+    left: calc(12px + 156px + env(safe-area-inset-left, 0px));
+  }
+
+  /* With the log-out button in that slot the sidebar row is full: the "?"
+     sits one row up, over Reload. */
+  body:has(.dashboard-home) .dashboard-user-logout-link ~ .dashboard-config-link.tutorial-help-button:not(.dashboard-reload-link):not(.dashboard-theme-override-link):not(.dashboard-rotate-link) {
+    top: auto;
+    right: auto;
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    bottom: calc(12px + 52px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.tutorial-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  pointer-events: none;
+}
+
+.tutorial-mask {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tutorial-mask path {
+  fill: rgb(0 0 0 / 0.85);
+  transition: d 450ms cubic-bezier(0.22, 1, 0.36, 1), opacity 450ms ease;
+}
+
+/* Dark variant: white at 75% (alex, 2026-11-16). */
+:root[data-theme-variant="dark"] .tutorial-mask path {
+  fill: rgb(255 255 255 / 0.75);
+}
+
+.tutorial-layer[data-lifted="true"] .tutorial-mask path {
+  opacity: 0;
+}
+
+.tutorial-copy {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 12001;
+  pointer-events: auto;
+  will-change: transform;
+}
+
+.tutorial-copy-inner {
+  position: relative;
+}
+
+/* In the copy's top-left corner, which a round knob or orb leaves empty. */
+.tutorial-copy-tag {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  z-index: 1;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+
+/* The copy's floating rings sit with the copy, above the mask; every other
+   dial's rings stay under it, out of sight. */
+.rotary-encoder-ring-layer[data-portal-tag="tutorial"] {
+  z-index: 12002;
+}
+
+html[data-tutorial-open] .rotary-encoder-ring-layer:not([data-portal-tag="tutorial"]),
+html[data-tutorial-open] .demo-tooltip {
+  visibility: hidden;
+}
+
+.tutorial-orb-host {
+  position: relative;
+  border-radius: 50%;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.tutorial-orb-readout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cyber-text);
+  font-family: var(--cyber-mono);
+  font-size: 1.4rem;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.tutorial-finger {
+  position: fixed;
+  left: -22px;
+  top: -22px;
+  z-index: 12003;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.tutorial-finger[data-visible="true"] {
+  opacity: 1;
+}
+
+.tutorial-finger-pad,
+.tutorial-finger-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.tutorial-finger-pad {
+  background: radial-gradient(circle at 40% 35%, rgb(255 255 255 / 0.35), transparent 60%),
+    color-mix(in srgb, var(--cyber-text) 70%, transparent);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.45);
+  transform: scale(0.9);
+  transition: transform 150ms ease;
+}
+
+.tutorial-finger-ring {
+  border: 3px solid var(--cyber-border-dim);
+  transform: scale(1.5);
+  opacity: 0;
+  transition: transform 300ms ease, opacity 300ms ease;
+}
+
+.tutorial-finger[data-pressed="true"] .tutorial-finger-pad {
+  transform: scale(0.78);
+}
+
+.tutorial-finger[data-pressed="true"] .tutorial-finger-ring {
+  transform: scale(1.05);
+  opacity: 1;
+}
+
+.tutorial-panel,
+.tutorial-bar {
+  pointer-events: auto;
+  background: var(--cyber-panel);
+  border: 1px solid var(--cyber-border-dim);
+  color: var(--cyber-text);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+}
+
+.tutorial-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 12004;
+  padding: 16px 52px 16px 18px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+  outline: none;
+}
+
+.tutorial-title {
+  margin: 0 0 6px;
+  color: var(--cyber-title-on-bg, var(--cyber-text));
+  font-family: var(--cyber-mono);
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tutorial-caption {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.tutorial-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tutorial-button,
+.tutorial-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.045);
+  color: var(--cyber-title-on-bg, var(--cyber-text));
+  font-family: var(--cyber-mono);
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tutorial-button {
+  min-height: 48px;
+  min-width: 96px;
+  padding: 0 16px;
+}
+
+.tutorial-button:disabled {
+  opacity: 0.4;
+}
+
+.tutorial-button:hover,
+.tutorial-button:focus-visible,
+.tutorial-close:hover,
+.tutorial-close:focus-visible {
+  border-color: var(--cyber-border-strong, var(--cyber-border-dim));
+}
+
+/* 32px visible, 44px to hit. */
+.tutorial-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.tutorial-close::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+.tutorial-close[data-flash="true"] {
+  background: var(--cyber-highlight);
+  color: var(--cyber-title-on-highlight, #000);
+}
+
+.tutorial-bar {
+  position: fixed;
+  left: calc(16px + env(safe-area-inset-left, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 12004;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 4px;
+}
+
+.tutorial-count {
+  font-family: var(--cyber-mono);
+  font-size: 0.86rem;
+  font-weight: 900;
+  color: var(--cyber-muted, var(--cyber-text));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-mask path,
+  .tutorial-panel,
+  .tutorial-finger,
+  .tutorial-finger-pad,
+  .tutorial-finger-ring {
+    transition: none;
+  }
+}
