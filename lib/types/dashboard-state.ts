@@ -5,6 +5,7 @@ import type { ControlModule, ControlsConfig } from "../control-modules/types";
 import type { AirconPreferences, BedroomHeaterPreferences, ClimateControlState, PanelHeaterPreferences } from "./climate";
 import type { DashboardEntity, DashboardZone, HaDomain, HaHealth } from "./ha";
 import type { DashboardLightingConfig, LightingPreferences, SpectrumCursor } from "./lighting";
+import type { KioskBacklightSettings } from "../kiosk-backlight/settings";
 import type { PhonoscopePreferences } from "./phonoscope";
 import type { VoicePreferences } from "./voice";
 
@@ -30,6 +31,12 @@ export type DashboardPreferences = {
    * correct. Unset = hard limits. See specs/temperature-encoder.md.
    */
   climateTargetRange?: { min: number; max: number };
+  /**
+   * The kiosk backlight's day and night settings (specs/kiosk-backlight.md).
+   * Always written whole by /api/kiosk-backlight, so the top-level merge
+   * replacing it is correct. Unset = the defaults in lib/kiosk-backlight.
+   */
+  kioskBacklight?: KioskBacklightSettings;
   /**
    * The amplifier the Apple TV plays through (alex, 2026-09-22): the Apple
    * Music playlists its dial's preset buttons offer, in order — each with the

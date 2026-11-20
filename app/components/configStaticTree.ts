@@ -49,7 +49,7 @@ export const STATIC_ACCORDION_PATHS: Record<ConfigCategoryId, StaticAccordionPat
     ["phonoscope", "phonoscope-color-themes"],
     ["phonoscope", "phonoscope-settings-groups"],
   ],
-  devices: [["controls"], ["managed-computers"], ["hardware-assistant"], ["camera"]],
+  devices: [["controls"], ["managed-computers"], ["hardware-assistant"], ["kiosk-backlight"], ["camera"]],
   modules: [["modules"]],
   "system-data": [["history"], ["secrets"], ["config-transfer"], ["updates"], ["system"]],
 };

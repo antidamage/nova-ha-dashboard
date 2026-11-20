@@ -2,13 +2,13 @@
 
 // The page half of the kiosk backlight (specs/kiosk-backlight.md). The kiosk's
 // nova-kiosk-backlight service owns the timing and the hardware; this hook
-// gives it the adaptive target, swallows a tap on a panel too dim to read, and
+// gives it the current period's settings (Kiosk Display in config), swallows a tap on a panel too dim to read, and
 // covers the page in black while the service has the panel blank.
 // It is inert unless the service has installed window.novaKioskBacklight, so
 // every other device is untouched.
 
 import { useEffect, useRef } from "react";
-import { defaultAdaptiveLightBrightnessPct } from "../../../lib/lighting-presets";
+import { kioskBacklightMessage, type KioskBacklightSettings } from "../../../lib/kiosk-backlight/settings";
 import type { SunStatus } from "../../../lib/types";
 
 export const KIOSK_BACKLIGHT_EVENT = "nova:kiosk-backlight";
@@ -28,6 +28,8 @@ export type KioskBacklightState = {
   phase?: string;
   level?: number;
   target?: number;
+  dim?: number;
+  off?: boolean;
   dark?: boolean;
   blank?: boolean;
   woke?: boolean;
@@ -75,22 +77,33 @@ function createCover(): HTMLDivElement {
   return cover;
 }
 
-function sendTarget(target: number | null) {
-  // No target until the dashboard state has loaded: a guess would be daylight,
+type BacklightMessage = ReturnType<typeof kioskBacklightMessage>;
+
+function sendTarget(message: BacklightMessage | null) {
+  // Nothing until the dashboard state has loaded: a guess would be daylight,
   // and 100% at 3am is the glow this exists to remove.
-  if (target !== null) send({ target });
+  if (message !== null) send(message);
 }
 
-export function useKioskBacklight(sun: SunStatus | null | undefined) {
-  const target = sun ? defaultAdaptiveLightBrightnessPct(sun) : null;
-  const targetRef = useRef(target);
-  targetRef.current = target;
+function disagrees(state: KioskBacklightState, message: BacklightMessage | null) {
+  if (!message || typeof state.target !== "number") return false;
+  if (state.target !== message.target) return true;
+  // An older service reports no dim or off; it is not asked again for those.
+  if (typeof state.dim === "number" && state.dim !== message.dim) return true;
+  return typeof state.off === "boolean" && state.off !== message.off;
+}
 
-  // The target: on the binding appearing, on a sun change, on a wake and on any
-  // disagreement with what the service holds.
+export function useKioskBacklight(sun: SunStatus | null | undefined, settings?: KioskBacklightSettings | null) {
+  const message = sun ? kioskBacklightMessage(settings, sun) : null;
+  const key = message ? `${message.target}/${message.dim}/${message.off}` : "";
+  const targetRef = useRef(message);
+  targetRef.current = message;
+
+  // The settings: on the binding appearing, on a sun or settings change, on a
+  // wake and on any disagreement with what the service holds.
   useEffect(() => {
-    sendTarget(target);
-  }, [target]);
+    sendTarget(targetRef.current);
+  }, [key]);
 
   useEffect(() => {
     let dark = false;
@@ -113,7 +126,7 @@ export function useKioskBacklight(sun: SunStatus | null | undefined) {
         dark = false;
         swallowUntil = Date.now() + SWALLOW_AFTER_DARK_MS;
       }
-      if (state.woke || (typeof state.target === "number" && state.target !== targetRef.current)) {
+      if (state.woke || disagrees(state, targetRef.current)) {
         sendTarget(targetRef.current);
       }
     };

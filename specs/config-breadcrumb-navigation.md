@@ -57,7 +57,7 @@ categories.
   `user-data`
 - appearance-dashboard: `appearance`, `reminders`, `status-orb-info`,
   `climate`, `phonoscope`
-- devices: `managed-computers`, `hardware-assistant`, `camera`
+- devices: `managed-computers`, `hardware-assistant`, `kiosk-backlight`, `camera`
 - modules: `modules` (per-module rows inside are plain rows, not nested
   accordions)
 - system-data: `history`, `secrets`, `config-transfer`, `updates`, `system`

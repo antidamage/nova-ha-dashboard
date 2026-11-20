@@ -53,6 +53,7 @@ const UserDataConfig = dynamic(() => import("./UserDataConfig").then((module) =>
 const VoiceConfig = dynamic(() => import("./VoiceConfig").then((module) => module.VoiceConfig));
 const VoiceInfrastructureConfig = dynamic(() => import("./VoiceInfrastructureConfig").then((module) => module.VoiceInfrastructureConfig));
 const VoiceTrainingConfig = dynamic(() => import("./VoiceTrainingConfig").then((module) => module.VoiceTrainingConfig));
+const KioskBacklightConfig = dynamic(() => import("./config/kiosk/KioskBacklightConfig").then((module) => module.KioskBacklightConfig));
 const WaveshareWatchfaceConfig = dynamic(() => import("./WaveshareWatchfaceConfig").then((module) => module.WaveshareWatchfaceConfig));
 
 export function ConfigWorkspace({
@@ -130,6 +131,7 @@ export function ConfigWorkspace({
                 <ControlsConfig />
                 <ManagedComputersConfig />
                 <WaveshareWatchfaceConfig initialSettings={initialWatchface} />
+                <KioskBacklightConfig />
                 <CameraConfig />
               </>
             ) : null}

@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { KioskBacklightSettings } from "../../../lib/kiosk-backlight/settings";
 import type { SunStatus } from "../../../lib/types";
 import { DARK_EXPIRES_MS, KIOSK_BACKLIGHT_EVENT, SWALLOW_AFTER_DARK_MS, useKioskBacklight, type KioskBacklightState } from "./useKioskBacklight";
 
@@ -7,8 +8,8 @@ const win = window as { novaKioskBacklight?: unknown; __novaKioskBacklight?: unk
 const night = { state: "below_horizon" } as SunStatus;
 const day = { state: "above_horizon" } as SunStatus;
 
-function Probe({ sun, onClick }: { sun: SunStatus | null; onClick?: () => void }) {
-  useKioskBacklight(sun);
+function Probe({ sun, onClick, settings }: { sun: SunStatus | null; onClick?: () => void; settings?: KioskBacklightSettings }) {
+  useKioskBacklight(sun, settings);
   return (
     <button type="button" onClick={onClick}>
       heater
@@ -47,9 +48,25 @@ describe("useKioskBacklight", () => {
     const binding = vi.fn();
     win.novaKioskBacklight = binding;
     const { rerender } = render(<Probe sun={night} />);
-    expect(sent(binding)).toContainEqual({ target: 60 });
+    expect(sent(binding)).toContainEqual({ target: 60, dim: 0, off: true });
     rerender(<Probe sun={day} />);
-    expect(sent(binding).at(-1)).toEqual({ target: 100 });
+    expect(sent(binding).at(-1)).toEqual({ target: 100, dim: 30, off: false });
+  });
+
+  it("sends the configured period's settings, and resends when they change", () => {
+    const binding = vi.fn();
+    win.novaKioskBacklight = binding;
+    const settings = {
+      day: { brightnessPct: 80, dimPct: 20, offWhenDim: true },
+      night: { brightnessPct: 40, dimPct: 5, offWhenDim: false },
+    };
+    const { rerender } = render(<Probe sun={night} settings={settings} />);
+    expect(sent(binding).at(-1)).toEqual({ target: 40, dim: 5, off: false });
+    rerender(<Probe sun={day} settings={settings} />);
+    expect(sent(binding).at(-1)).toEqual({ target: 80, dim: 20, off: true });
+    binding.mockClear();
+    report({ phase: "dark", level: 20, target: 80, dim: 0, off: true, dark: true });
+    expect(sent(binding)).toEqual([{ target: 80, dim: 20, off: true }]);
   });
 
   it("finds a binding the service installs after the page loaded", () => {
@@ -59,7 +76,7 @@ describe("useKioskBacklight", () => {
     act(() => {
       vi.advanceTimersByTime(2000);
     });
-    expect(sent(binding)).toContainEqual({ target: 60 });
+    expect(sent(binding)).toContainEqual({ target: 60, dim: 0, off: true });
   });
 
   it("swallows a tap on a dark panel, and for 500 ms after it lights", () => {
@@ -113,10 +130,10 @@ describe("useKioskBacklight", () => {
     render(<Probe sun={night} />);
     binding.mockClear();
     report({ phase: "rise", level: 0, target: 60, dark: true, woke: true });
-    expect(sent(binding)).toEqual([{ target: 60 }]);
+    expect(sent(binding)).toEqual([{ target: 60, dim: 0, off: true }]);
     binding.mockClear();
     report({ phase: "hold", level: 100, target: 100, dark: false });
-    expect(sent(binding)).toEqual([{ target: 60 }]);
+    expect(sent(binding)).toEqual([{ target: 60, dim: 0, off: true }]);
   });
 
   it("covers the page in black while blank, and lifts the cover on a tap or a rise", () => {

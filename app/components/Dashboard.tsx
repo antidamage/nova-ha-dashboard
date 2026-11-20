@@ -67,7 +67,7 @@ export function Dashboard() {
   const showBackground = useExperienceFeature("background");
   useRadarPreload();
   useScrollRestore(data !== null);
-  useKioskBacklight(data?.sun);
+  useKioskBacklight(data?.sun, data?.preferences?.kioskBacklight);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("nova-sun-change", { detail: data?.sun ?? null }));
   }, [data?.sun]);

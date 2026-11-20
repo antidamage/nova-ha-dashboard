@@ -1,20 +1,11 @@
 #!/usr/bin/env python3
-"""Wake the kiosk panel on touch, dim it after a while, then power it off.
+"""Kiosk backlight: a touch brightens, idle fades to the dim level, then blank.
 
-A touch rises the backlight to the dashboard's adaptive target over 2 s; 30 s
-after the last touch it dims to 0 over 30 s; 120 s at 0 powers the display off;
-one tap powers it back on. The dashboard page supplies the target over a CDP
-binding (window.novaKioskBacklight) and is told each phase, so it can swallow a
-tap on a panel too dim to read.
-
-    nova-kiosk-backlight.py           run the service
-    nova-kiosk-backlight.py restore   display on at the last target, then exit
-
-See nova-ha-dashboard/specs/kiosk-backlight.md.
+The page sends the period's settings over a CDP binding and is told each phase.
+`restore` turns the display on at the last target. See specs/kiosk-backlight.md.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import queue
@@ -25,6 +16,7 @@ from pathlib import Path
 
 from nova_kiosk_backlight_hw import Panel, Touch, ensure_powerdevil_dim_off
 from nova_kiosk_backlight_page import PageLink
+from nova_kiosk_backlight_settings import clamp_settings, save_settings, saved_settings
 
 LOG = logging.getLogger("kiosk-backlight")
 
@@ -41,42 +33,23 @@ HOLD_S = setting("BACKLIGHT_HOLD_S", 30)
 DIM_S = setting("BACKLIGHT_DIM_S", 30)
 OFF_AFTER_S = setting("BACKLIGHT_OFF_AFTER_S", 120)
 SWALLOW_BELOW = setting("BACKLIGHT_SWALLOW_BELOW_PCT", 25)
-# "blank" keeps the panel powered at minimum backlight under the page's black
-# cover; "dpms" powers it off. Nocturnium needs blank: its touchscreen is part of
-# the LCD and drops off USB when the panel is powered off.
+# "blank": minimum backlight under the page's black cover; "dpms": power off
+# (an in-LCD touchscreen drops off USB then, so it cannot wake by touch).
 OFF_MODE = os.environ.get("BACKLIGHT_OFF_MODE", "blank").strip().lower()
 POWER_OFF = OFF_MODE == "dpms"
 REPUSH_S = 5.0  # while dark, so a reloaded page goes black again and the page knows we are alive
 POWER_SETTLE_S = 2.0  # touches right after a power change are panel noise
 TICK_S = 0.05
 HOLD_FLAG = Path("~/.config/nova-kiosk/backlight.hold").expanduser()
-# Kept across reboots: a restart at night must rise to the night target, not 100%.
-STATE = Path("~/.config/nova-kiosk/backlight-target.json").expanduser()
-
-
-def saved_target() -> float:
-    try:
-        return max(1.0, min(100.0, float(json.loads(STATE.read_text())["target"])))
-    except (OSError, ValueError, KeyError, TypeError):
-        return 100.0
-
-
-def save_target(target: float) -> None:
-    try:
-        tmp = STATE.with_suffix(".tmp")
-        tmp.write_text(json.dumps({"target": target}))
-        os.replace(tmp, STATE)
-    except OSError as error:
-        LOG.warning("could not save the target: %s", error)
 
 
 class Backlight:
-    """The phases: rise, hold, dim, dark, off."""
+    """The phases: rise, hold, dim, dark (at the dim level), off (blank)."""
 
     def __init__(self, panel: Panel, page: PageLink | None) -> None:
         self.panel = panel
         self.page = page
-        self.target = saved_target()
+        self.target, self.dim, self.off = saved_settings()
         self.level = 0.0
         self.phase = "hold"
         self.phase_at = self.last_touch = time.monotonic()
@@ -86,6 +59,7 @@ class Backlight:
         self.next_dpms_check = 0.0
         self.next_repush = 0.0
         self.seen_off = False
+        self.dim_end = 0.0
 
     def dark(self) -> bool:
         return self.phase == "off" or self.level < SWALLOW_BELOW
@@ -95,18 +69,20 @@ class Backlight:
 
     def enter(self, phase: str, now: float, woke: bool = False) -> None:
         self.phase, self.phase_at, self.from_level = phase, now, self.level
+        # Fixed at the start: a later, higher dim level never brightens a fade.
+        self.dim_end = min(self.dim, self.level)
         self.panel.forget()
-        LOG.info("%s at %.0f%% (target %.0f%%)", phase, self.level, self.target)
+        LOG.info("%s at %.0f%% (target %.0f%%, dim %.0f%%, blank %s)", phase, self.level, self.target, self.dim, self.off)
         self.push(woke)
 
     def push(self, woke: bool = False) -> None:
-        key = (self.phase, self.dark(), self.target, self.blank())
+        key = (self.phase, self.dark(), self.target, self.dim, self.off, self.blank())
         if not woke and key == self.last_pushed:
             return
         self.last_pushed = key
         if self.page:
-            state = {"phase": self.phase, "level": round(self.level), "target": self.target,
-                     "dark": self.dark(), "blank": self.blank()}
+            state = {"phase": self.phase, "level": round(self.level), "target": self.target, "dim": self.dim,
+                     "off": self.off, "dark": self.dark(), "blank": self.blank()}
             if woke:
                 state["woke"] = True
             self.page.push(state)
@@ -136,16 +112,26 @@ class Backlight:
             else:
                 self.enter("rise", now)
 
-    def set_target(self, pct: float, now: float) -> None:
-        pct = max(1.0, min(100.0, round(pct)))
-        if pct == self.target:
+    def set_settings(self, target, dim, off, now: float) -> None:
+        """A change applies at once while lit; while idle only if it makes the panel darker."""
+        target, dim, off = clamp_settings(target, dim, off)
+        if (target, dim, off) == (self.target, self.dim, self.off):
             return
-        self.target = pct
-        save_target(pct)
+        target_changed = target != self.target
+        blank_set = off and not self.off
+        self.target, self.dim, self.off = target, dim, off
+        save_settings(target, dim, off)
         if self.phase in ("rise", "hold"):
-            self.enter("rise", now)
-        else:
-            self.push()
+            if target_changed:
+                self.enter("rise", now)
+        elif self.phase == "dim" and dim < self.dim_end:
+            self.enter("dim", now)  # fade on down to the new, lower level
+        elif self.phase == "dark" and dim < self.level - 0.5:
+            self.enter("dim", now)
+        elif self.phase == "dark" and blank_set:
+            self.phase_at = now  # blank newly set: its 120 s starts now
+        # Brighter waits for a touch: nothing lights an idle panel (sunrise).
+        self.push()
 
     def tick(self, now: float) -> None:
         if HOLD_FLAG.exists():
@@ -167,11 +153,11 @@ class Backlight:
                 self.enter("dim", now)
         elif self.phase == "dim":
             share = min(1.0, elapsed / DIM_S) if DIM_S > 0 else 1.0
-            self.level = self.from_level * (1 - share)
+            self.level = self.from_level + (self.dim_end - self.from_level) * share
             if share >= 1:
-                self.level = 0.0
+                self.level = self.dim_end
                 self.enter("dark", now)
-        elif self.phase == "dark" and elapsed >= OFF_AFTER_S:
+        elif self.phase == "dark" and self.off and elapsed >= OFF_AFTER_S:
             if POWER_OFF:
                 self.panel.power(False)
                 self.power_changed_at = time.monotonic()
@@ -207,7 +193,7 @@ class Backlight:
 def restore() -> int:
     panel = Panel(os.environ.get("BACKLIGHT_DRM_CONNECTOR", ""))
     panel.power(True)
-    panel.set_percent(saved_target())
+    panel.set_percent(saved_settings()[0])
     return 0
 
 
@@ -249,7 +235,7 @@ def main() -> int:
                 continue
             if "target" in message:
                 try:
-                    backlight.set_target(float(message["target"]), time.monotonic())
+                    backlight.set_settings(message["target"], message.get("dim"), message.get("off"), time.monotonic())
                 except (TypeError, ValueError):
                     pass
             if message.get("activity"):

@@ -1,7 +1,7 @@
 <!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
 # Kiosk backlight: wake on touch, dim, then off
 
-alex, 2026-11-20 (ticket 005934). No plan-mode plan file: the request named
+alex, 2026-11-20 (ticket 005934; the per-period settings, ticket 098424). No plan-mode plan file: the request named
 every number, so it went straight into this spec, the same way
 `kiosk-display-rotation.md` did. Every number below is from her message unless
 it is marked **Decision**.
@@ -15,9 +15,32 @@ it is marked **Decision**.
 |---|---|---|
 | **rise** | brightens from where it is to the target | **2 s** |
 | **hold** | stays at the target | until **30 s** after the last touch |
-| **dim** | fades linearly from the target to 0 | **30 s** |
-| **dark** | backlight at 0, display still powered | **120 s** |
-| **off** | blank: backlight at 0 and the page solid black (see below) | until a touch |
+| **dim** | fades linearly from the target to the period's **dim level** | **30 s** |
+| **dark** | holds at the dim level | **120 s**, or until a touch when "blank the screen when dim" is unset |
+| **off** | only with "blank the screen when dim": blank, backlight at 0 and the page solid black (see below) | until a touch |
+
+### Settings, per period
+
+Two periods, by the lighting's adaptive rule: **day** while the sun is up,
+**night** while `sun.sun` is `below_horizon`. Each has three settings
+(alex, 2026-11-20: *"two different dim targets for night and day, and allow
+the user to choose whether each one fully disables the backlight when dim"*;
+the first version dimmed to 0% by day too, *"that wasn't the intent"*):
+
+| setting | range | day default | night default |
+|---|---|---|---|
+| **Brightness**: the lit target | 1-100% | 100% | 60% |
+| **Dim to**: where the fade ends | 0-100%, at most Brightness | 30% | 0% |
+| **Blank the screen when dim**: go blank 120 s after reaching the dim level | on/off | off | on |
+
+The defaults are the lighting's adaptive values for Brightness and the first
+version's night behaviour; **Decision**: 30% for the day dim. A dim level above
+Brightness is clamped to it. They live in `preferences.kioskBacklight`
+(`{day, night}`, each `{brightnessPct, dimPct, offWhenDim}`), written whole by
+`POST /api/kiosk-backlight` and normalised by `lib/kiosk-backlight/settings.ts`.
+They are set in the config page's **Kiosk Display** accordion (Devices), shared
+by every screen: set from any device, acted on only by a kiosk running the
+service.
 
 **Why "off" is blank and not powered off** (measured 2026-11-20): on Nocturnium,
 powering the display off (DPMS off) disconnects the touchscreen. Its Melfas
@@ -33,18 +56,26 @@ off instead, for a panel whose touch survives that.
 - **Any touch** anywhere on the panel starts a rise, from whichever phase it is
   in. A touch during the hold restarts the 30 s. A touch during the dim rises
   from the level the dim had reached.
-- **The target is the lighting's adaptive rule**: 100% while the sun is up and
-  60% while `sun.sun` is `below_horizon`, the same values the lights use
-  (`defaultAdaptiveLightBrightnessPct` in `lib/lighting-presets.ts`). When the
-  sun changes while the panel is lit, it rises or falls to the new target over
-  2 s.
+- **The target is the current period's settings.** When the sun changes, or a
+  setting is saved, while the panel is lit it rises or falls to the new target
+  over 2 s. While it is dimmed, dark or blank, a change applies at once only if
+  it makes the panel darker: a lower dim level fades on down over 30 s, and
+  blank newly set starts its 120 s. A change that would brighten an idle panel
+  (sunrise, a higher dim level, blank turned off) waits for the next touch, so
+  nothing lights the bedroom while she sleeps. **Decision** (idea review,
+  ticket 098424).
+- **Config labels** (Devices, **Kiosk Display**): per period a "Brightness"
+  slider (1-100%, 1% steps), a "Dim to" slider (0% to Brightness, 1% steps;
+  below 25% it notes that a tap there only wakes the screen; at 0% without
+  blank, that the page still shows faintly) and a "Blank the screen when dim"
+  checkbox ("2 minutes after it dims: black, at the lowest backlight").
 - **One tap wakes the panel from off.** That tap does nothing else.
 - **In dpms mode, a wake from anything else** (KWin's own wake, a keyboard, a
   system resume) is treated as a touch: the panel rises to the target.
 - **A tap on a panel too dim to read only wakes it.** It does not reach the
   control under the finger, because she cannot see what is there. **Decision**
   (idea review, ticket 005934): "too dim" is a level, not a phase: below
-  **25%**, or dark, or off. It holds until the rise passes 25%, plus **500 ms**,
+  **25%**, or blank. It holds until the rise passes 25%, plus **500 ms**,
   so the tap that started the rise does not land on a control. A tap at or
   above 25% during the dim works normally and also brightens the panel.
 - **A wake needs a real contact** (the touchscreen's `BTN_TOUCH` going down),
@@ -101,19 +132,23 @@ go through the Wayland session.
   page (port from `BACKLIGHT_CDP`, default `http://127.0.0.1:9223`; page chosen
   by `NOVA_BACKEND_URL` in `~/.config/nova-kiosk/backend.env`, as the rotate
   service does). The page calls it with JSON:
-  - `{"target": <percent 1-100>}`: the adaptive target.
+  - `{"target": <percent 1-100>, "dim": <percent 0-100>, "off": <bool>}`: the
+    current period's Brightness, Dim to and Blank the screen when dim. `dim` and `off`
+    (Dim to, Blank the screen when dim) are optional (an older page sends only `target`; then `dim` is 0 and `off`
+    true, the first version's behaviour).
   - `{"activity": true}`: input the service could not see (a mouse or
     keyboard on a kiosk without a touchscreen).
   On every phase change, whenever `dark` flips, and when it attaches to a
   (re)loaded page, the service sets `window.__novaKioskBacklight` to
   `{"phase": "<rise|hold|dim|dark|off>", "level": <percent>, "target":
-  <percent>, "dark": <bool>, "blank": <bool>}` and dispatches a
+  <percent>, "dim": <percent>, "off": <bool>, "dark": <bool>, "blank": <bool>}` and dispatches a
   `nova:kiosk-backlight` event with the same detail. `dark` is the swallow test
   (below 25% or off). `blank` is true in the off phase in blank mode: the page
   covers itself in black. On a wake from off it adds `"woke": true`.
 - **Starting state**: when the service starts, it treats the start as a touch
-  (rise to the last target, kept across reboots in
-  `~/.config/nova-kiosk/backlight-target.json`, default 100%), so a restart
+  (rise to the last target, kept across reboots with the dim level and the
+  off setting in `~/.config/nova-kiosk/backlight-target.json`, default 100%,
+  0%, on), so a restart
   never leaves the panel dark with no timer running. The page sends no target
   until its dashboard state has loaded, so it never guesses daylight at night.
 - **Failing lit**: `Restart=always` (2 s), and `ExecStopPost` runs
@@ -144,10 +179,12 @@ Mounted once from `Dashboard.tsx`. It does nothing until
 `window.novaKioskBacklight` exists, so every other device is unaffected and no
 setting is needed: the service's presence is the switch.
 
-- Sends `{"target": …}` when the binding appears, when the sun changes, on
-  every `nova:kiosk-backlight` event carrying `woke` (that is the page
-  "looking for" the wake, so it resumes its target on a system wake), and
-  whenever the service reports a target different from its own.
+- Sends `{"target", "dim", "off"}` for the current period (from
+  `preferences.kioskBacklight`, defaults when unset) when the binding appears,
+  when the sun or the settings change, on every `nova:kiosk-backlight` event
+  carrying `woke` (that is the page "looking for" the wake, so it resumes its
+  target on a system wake), and whenever the service reports values different
+  from its own.
 - Swallows `pointerdown`, `pointerup`, `mousedown`, `mouseup`, `click`,
   `touchstart` and `touchend` in the capture phase while the service reports
   `dark`, and for 500 ms after it stops, with `preventDefault` and
