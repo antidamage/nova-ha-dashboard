@@ -15,7 +15,6 @@ function formatClockTime(date: Date) {
   return new Intl.DateTimeFormat("en-NZ", {
     hour: "numeric",
     minute: "2-digit",
-    second: "2-digit",
     hourCycle: "h12",
   }).format(date).replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
 }
@@ -80,7 +79,7 @@ export function ClockPanel() {
   const clock = useMemo(() => {
     if (!now) {
       return {
-        time: "--:--:--",
+        time: "--:--",
         weekday: null,
         date: "Syncing time",
         zone,
