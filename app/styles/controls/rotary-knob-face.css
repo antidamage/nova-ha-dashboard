@@ -15,8 +15,8 @@
   transition: box-shadow 180ms linear;
 }
 
-/* A painted glow: the caller's arc through the ring's annulus, blurred, so it
-   lights only the part of the band that is filled (specs/light-encoder.md). */
+/* A painted glow: the caller's paint through the ring's annulus, blurred, so it
+   lights the ring and not the knob (specs/light-encoder.md). */
 .rotary-encoder-glow[data-paint] {
   box-shadow: none;
   filter: blur(calc(var(--re-size) * 0.07));

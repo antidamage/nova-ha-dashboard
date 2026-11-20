@@ -4,9 +4,8 @@
  * LightEncoder — the lighting knob (specs/light-encoder.md).
  *
  * The colour picker's channels and value model (`useHsvaDial`) on the shared
- * dial, with the lights' own band: the light's colour fills from the lit
- * channel's zero point to the mark, soft at both ends, and the glow is that
- * same arc blurred. Brightness, hue, saturation, left to right; brightness is
+ * dial, with the lights' own ring: the whole ring is the light's colour, and
+ * the glow is that colour blurred. Brightness, hue, saturation, left to right; brightness is
  * lit on load.
  */
 import { useMemo } from "react";
@@ -63,7 +62,7 @@ export function LightEncoder({
     onActiveChannelChange,
   });
   const { channel, colour, dialSize } = dial;
-  const band = useMemo(() => lightBand(channel, colour), [channel, colour]);
+  const band = useMemo(() => lightBand(colour), [colour]);
 
   return (
     <RotaryEncoder
@@ -72,7 +71,6 @@ export function LightEncoder({
       ariaLabel={ariaLabel ?? (label ? undefined : "Lights")}
       ariaValueText={`${CHANNEL_LABEL[channel]} ${Math.round(dial.current)}${channel === "hue" ? "°" : "%"}`}
       ringPaint={band.paint}
-      ringMark={band.mark}
       glowPaint={band.glowPaint}
       demoTooltip={demoTooltip}
       demoTooltipTitle={demoTooltipTitle}

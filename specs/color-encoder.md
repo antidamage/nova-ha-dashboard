@@ -44,8 +44,8 @@ supplies:
 - **Size limits**: `minSize` (default 50) to 200.
 
 **Lights are a separate knob since 2026-10-21** (alex): `LightEncoder`,
-`specs/light-encoder.md`, with its own light order and a band that fills to
-the mark. This control is now the colour picker only, and is unchanged. The
+`specs/light-encoder.md`, with its own light order and a ring painted solid in
+the light's colour. This control is now the colour picker only, and is unchanged. The
 two share their channels and value model through `useHsvaDial.ts`. Where this
 spec still speaks of "the lighting dial", read `LightEncoder`.
 

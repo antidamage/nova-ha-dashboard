@@ -167,7 +167,7 @@ zone to find one.
 |---|---|---|---|---|
 | 1 | Welcome | none; the cut-out is the "?" button | — | What the tour covers; Back/Next and the close box. |
 | 2 | Tap vs turn | light knob | taps once (the lit light moves), then turns | A tap picks what the knob sets; turning changes it. Turn like a real knob: from where you grab it. |
-| 3 | Light: brightness | light knob, Brt lit | turns from 7:30 towards 4:30 | Brightness is lit when the knob loads. The band fills to the mark in the light's colour. |
+| 3 | Light: brightness | light knob, Brt lit | turns from 7:30 towards 4:30 | Brightness is lit when the knob loads. The ring shows the light's colour. |
 | 4 | Light: colour | light knob | taps to Hue, turns; taps to Sat, turns | Hue goes all the way round; saturation runs from white to full colour. |
 | 5 | Light presets | preset row | taps On, a preset, then Off | The row under the dial: On, the zone's rules in order, Off. |
 | 6 | Unlocking a dial | aircon knob, locked | one deliberate tap; the unlock ring lights and the rings unfold | Climate knobs lock themselves when idle so a brush can't change them. One tap unlocks; they lock again after a quiet spell or a tap elsewhere. A drag or a long hold does not unlock. |

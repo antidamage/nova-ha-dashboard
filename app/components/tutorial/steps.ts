@@ -62,7 +62,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: "light-brightness",
     layers: "rotary",
     title: "Brightness",
-    caption: "Brightness is lit when the knob loads. The band fills to the mark in the light's colour.",
+    caption: "Brightness is lit when the knob loads. The ring shows the light's colour.",
     target: "light",
     copy: "light",
     script: "light-brightness",
