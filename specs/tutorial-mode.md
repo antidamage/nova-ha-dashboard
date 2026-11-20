@@ -33,10 +33,9 @@ render layers apart. It runs on the demo site and on the real dashboard.
 
 ## The mask
 
-- Everything except the control being explained is covered. The light
-  variant uses **black at 85%**; the dark variant uses **white at 75%**
-  (alex, 2026-11-16: "for dark mode we'll white-out the background (75%
-  opacity)"). The variant is the one painted, `:root[data-theme-variant]`.
+- Everything except the control being explained is covered. The mask is **black at 85%** in every theme variant (alex, 2026-11-21: "I
+  don't like the white-out modal background after all. always use a dark one.";
+  this replaces the 2026-11-16 white-at-75% dark variant).
 - The uncovered area is a rounded cut-out round the control's box plus a
   12px margin, with a soft 8px edge. It eases between steps over 450ms.
 - **The page still scrolls, but nothing under the mask can be pressed.** The
@@ -224,7 +223,7 @@ start on something inside it.
   | Back, Next, Replay, "How was this control built?", Back to the control | `MomentaryFeedbackButton` in the `.dashboard-config-link` treatment | 48px min height; `--cyber-mono`, 0.86rem, weight 900 |
   | Close box | `MomentaryFeedbackButton`, lucide `X` | 32px visible, 44px hit area |
   | Caption panel and bar | the cyber panel surface (`--cyber-panel` background, `--cyber-border-dim` border, clipped corner) | opaque, so its contrast never depends on the mask |
-  | Mask | — | black 85% (light), white 75% (dark): **alex's values, 2026-11-16**, not from the extract |
+  | Mask | — | black 85% in every variant: **alex's value, 2026-11-21**, not from the extract |
   | Easing | motion tokens | `lg` 450ms for the cut-out, `md` 300ms for a tap, `xl` 1.2s rest between loops |
   | Finger | — | **no extract value**: closest fit is the text token at 70% with a `--cyber-border-dim` press ring; recorded here as a departure |
   | Layer tags | the theme highlight (CSS) and the climate knob's fixed cool (SVG), heat (Canvas 2D) and fan (WebGL) colours in `temperatureEncoderModel.ts` | four colours that stay distinct in every theme; no new ones |

@@ -55,4 +55,34 @@ describe("quickAccessControlsFor", () => {
     );
     expect(result.slots.filter((slot) => slot.surface === "quick-access")).toEqual([]);
   });
+
+  const withLines = {
+    presets: [
+      ...controls.presets,
+      { id: "weather", moduleId: "outside-weather", name: "Weather", roomId: null, driverId: null, variant: null, features: {}, binding: {} },
+      { id: "gauges", moduleId: "host-temperatures", name: "Gauges", roomId: null, driverId: null, variant: null, features: {}, binding: {} },
+    ],
+    slots: [
+      ...controls.slots,
+      { id: "qa-weather", surface: "quick-access", presetId: "weather", roomId: null, visible: true },
+      { id: "qa-gauges", surface: "quick-access", presetId: "gauges", roomId: null, visible: true },
+    ],
+  } as unknown as ControlsConfig;
+
+  it("keeps the shared weather and gauge lines when the list names none", () => {
+    const result = quickAccessControlsFor({ id: "bo", quickAccess: [{ kind: "preset", presetId: "heater" }] }, withLines, zones);
+    const quick = result.slots.filter((slot) => slot.surface === "quick-access");
+    expect(quick.map((slot) => slot.presetId)).toEqual(["heater", "weather", "gauges"]);
+  });
+
+  it("leaves an empty list empty, without the shared lines", () => {
+    const result = quickAccessControlsFor({ id: "bo", quickAccess: [] }, withLines, zones);
+    expect(result.slots.filter((slot) => slot.surface === "quick-access")).toEqual([]);
+  });
+
+  it("uses the person's own lines instead when the list names one", () => {
+    const result = quickAccessControlsFor({ id: "bo", quickAccess: [{ kind: "preset", presetId: "gauges" }] }, withLines, zones);
+    const quick = result.slots.filter((slot) => slot.surface === "quick-access");
+    expect(quick.map((slot) => slot.presetId)).toEqual(["gauges"]);
+  });
 });

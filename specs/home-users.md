@@ -154,7 +154,10 @@ experience chooser.
 synthesises a `ControlsConfig`: the stored presets, plus one generated preset for
 each `room-lights`/`all-lights` entry (ids `home-user:<person>:room:<zone>` and
 `home-user:<person>:all-lights`), plus `quick-access` slots for the entries in
-order. `useSlotItems` gets this config when a person is selected, so the card
+order. A non-empty list that names no line module (`outside-weather`, `host-temperatures`)
+keeps the shared card's line slots after its own entries, so a person's card still
+has the weather and gauges (alex, 2026-11-21); a list that names one uses its own.
+`useSlotItems` gets this config when a person is selected, so the card
 renders through the existing renderers with no new control code. An entry whose
 preset or zone no longer exists is dropped, as a slot is today. A person with an
 empty `quickAccess` gets an empty card, not the shared one.

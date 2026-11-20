@@ -14,6 +14,8 @@ import { memberZoneId } from "./model";
  */
 
 const ROOM_LIGHTING_MODULE = "room-lighting";
+/** Modules drawn on the card's wide line slots rather than as dials. */
+const LINE_MODULES = new Set(["outside-weather", "host-temperatures"]);
 
 type ZoneName = { id: string; name: string };
 
@@ -61,10 +63,20 @@ export function quickAccessControlsFor(
     slots.push({ id: `quick-access-${presetId}`, surface: "quick-access", presetId, roomId, visible: true });
   }
 
+  // The line slots under the dials (weather, host gauges) are the house's, not a
+  // person's: a list that names none of its own keeps the shared card's lines
+  // (alex, 2026-11-21: a person's card had "lost the weather and gauges").
+  const lineModule = (presetId: string | null) =>
+    LINE_MODULES.has(controls.presets.find((preset) => preset.id === presetId)?.moduleId ?? "");
+  // An empty list is an empty card (§4), so it inherits nothing.
+  const sharedLines = slots.length === 0 || slots.some((slot) => lineModule(slot.presetId))
+    ? []
+    : controls.slots.filter((slot) => slot.surface === "quick-access" && lineModule(slot.presetId));
+
   return {
     ...controls,
     presets: [...controls.presets, ...generated],
     // Every other surface keeps its shared slots; only Quick Access is personal.
-    slots: [...controls.slots.filter((slot) => slot.surface !== "quick-access"), ...slots],
+    slots: [...controls.slots.filter((slot) => slot.surface !== "quick-access"), ...slots, ...sharedLines],
   };
 }

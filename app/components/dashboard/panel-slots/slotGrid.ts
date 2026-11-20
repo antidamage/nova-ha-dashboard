@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { dialPresetPull, ringGeometry } from "../../rotaryEncoderGeometry";
+import { quickSlotHeight } from "../quick-access/dial-model";
 import type { QuickSlotLayout } from "../quick-access/slot-layout";
 
 /**
@@ -25,9 +26,22 @@ export function slotGridStyle(
    * wide line slots use — theirs rather than the dials', because one line of
    * readings must not shrink every dial on the card.
    */
-  options: { fits?: boolean; spread?: boolean; wideScale?: number } = {},
+  options: { capRows?: boolean; fits?: boolean; spread?: boolean; wideScale?: number } = {},
 ): CSSProperties {
-  const { fits = true, spread = false, wideScale = 1 } = options;
+  const { capRows = false, fits = true, spread = false, wideScale = 1 } = options;
+  // A card that caps its dial rows (Quick Access) gives each row only the height
+  // its dial needs and centres the group, so few dials on a tall card are not
+  // stretched to the card's whole height (alex, 2026-11-21: "their enclosing
+  // panels take up 100% of the height").
+  // Only where a row has more room than its dial needs: the rows then take their
+  // content's height, and the spare height goes around the group, not into it.
+  if (capRows && fits && layout.rowHeight > quickSlotHeight(layout.size)) {
+    const capped = [
+      ...Array.from({ length: layout.rows }, () => "auto"),
+      ...Array.from({ length: layout.wide }, () => `${layout.lineHeight}px`),
+    ].join(" ");
+    return { ...slotGridStyle(layout, scale, { ...options, capRows: false }), gridTemplateRows: capped, alignContent: "center" };
+  }
   // A card with wide line slots states its own rows: its dials divide the height
   // that is left once each line under them has taken its one line, so those rows
   // are shares and the lines are not. A panel with no wide slots states nothing

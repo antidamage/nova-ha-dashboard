@@ -61,14 +61,11 @@
   pointer-events: none;
 }
 
+/* Always dark, in every theme variant (alex, 2026-11-21: "I don't like the
+   white-out modal background after all. always use a dark one."). */
 .tutorial-mask path {
   fill: rgb(0 0 0 / 0.85);
   transition: d 450ms cubic-bezier(0.22, 1, 0.36, 1), opacity 450ms ease;
-}
-
-/* Dark variant: white at 75% (alex, 2026-11-16). */
-:root[data-theme-variant="dark"] .tutorial-mask path {
-  fill: rgb(255 255 255 / 0.75);
 }
 
 .tutorial-layer[data-lifted="true"] .tutorial-mask path {
