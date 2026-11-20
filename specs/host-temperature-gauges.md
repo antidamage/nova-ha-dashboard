@@ -60,8 +60,8 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
   ring-thickness value, so this is the Rainmeter geometry alex asked to
   copy. The track is the full circle in the card's reading colour
   (`--cyber-title-on-bg`) at 18%, the skin's faint track. The fill is the
-  theme's highlight colour, `--cyber-highlight` (alex, 2026-11-20), starting at 12
-  o'clock and running clockwise. **One colour**: no gradient and no warning
+  theme's highlight colour, `--cyber-highlight` (alex, 2026-11-20), starting at 6
+  o'clock (the bottom; alex, 2026-11-20) and running clockwise. **One colour**: no gradient and no warning
   colours. *Render check, 2026-11-14:* the first build used the accent slot
   `--cyber-line` and `--cyber-border-dim`; on the live theme those are
   `rgb(66 50 42)` and near-black, so the ring and number barely showed. The

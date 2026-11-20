@@ -70,6 +70,11 @@
   flex-wrap: nowrap;
 }
 
+/* The weather line reads on one baseline across icon, label and readings. */
+.panel-slot-wide > .quick-segment-weather {
+  align-items: last baseline;
+}
+
 /* Nothing on the line is squeezed. A flex row that cannot hold what it has will
    otherwise shrink its own items and let their CONTENTS spill to the right, so the
    slot's overflow — the number the scale is derived from — reads smaller than the

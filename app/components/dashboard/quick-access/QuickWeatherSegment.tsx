@@ -15,7 +15,7 @@ import {
 import { useRef } from "react";
 import type { WeatherStatus } from "../../../../lib/types";
 import { formatWeatherNumber, weatherLabel } from "../shared";
-import { QuickSegment, SegmentTitle } from "./QuickSegment";
+import { QuickSegment } from "./QuickSegment";
 import { useFitWidth } from "./useFitWidth";
 
 const WEATHER_ICONS: Array<[RegExp, LucideIcon]> = [
@@ -35,7 +35,7 @@ export function weatherIcon(condition: string | undefined): LucideIcon {
   return WEATHER_ICONS.find(([pattern]) => pattern.test(text))?.[1] ?? Cloud;
 }
 
-/** Outside: condition, temperature, feels-like and UV. */
+/** Outside: condition icon and label, temperature, feels-like and UV, all on one baseline. */
 export function QuickWeatherSegment({
   features = {},
   weather,
@@ -54,7 +54,9 @@ export function QuickWeatherSegment({
     <QuickSegment className="quick-segment-weather" label="Outside weather">
       <div className="quick-segment-lead">
         <Icon className="quick-weather-icon" aria-hidden="true" />
-        <SegmentTitle title="Outside" state={weather ? weatherLabel(weather.condition) : "Unavailable"} />
+        <span className="quick-segment-title quick-weather-label">
+          {weather ? weatherLabel(weather.condition) : "Unavailable"}
+        </span>
       </div>
       {/* The three readings stay one row of their own, so the stacked segment
           puts them together beneath the icon rather than one per line. */}

@@ -402,6 +402,9 @@ card's Off does.
 
 From `DashboardState.weather`:
 
+- **No "Outside" title (alex, 2026-11-20).** The strip is the condition icon,
+  the condition label, then Temp, Feels and UV, all on one baseline
+  (`align-items: last baseline`; a reading's number is its baseline).
 - Condition label (`weatherLabel(condition)`). That helper now humanises Home
   Assistant's ids ("partlycloudy" → "Partly cloudy", "clear-night" → "Clear")
   instead of only swapping underscores, so this card and the full weather panel

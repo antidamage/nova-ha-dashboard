@@ -3,7 +3,7 @@ import { gaugeFraction } from "../../../../lib/host-temperatures/sources";
 /**
  * One small ring gauge (specs/host-temperature-gauges.md): the geometry of
  * alex's Rainmeter CSM skin -- outer radius 50, inner 35 in a 120 box, so the
- * band is 30% of the radius -- filled clockwise from 12 o'clock against 100 C,
+ * band is 30% of the radius -- filled clockwise from 6 o'clock (the bottom) against 100 C,
  * in the accent, with the reading in the middle. Read-only.
  */
 
@@ -46,7 +46,7 @@ export function TemperatureGauge({
               r={RADIUS}
               strokeWidth={BAND}
               strokeDasharray={`${fraction * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
-              transform={`rotate(-90 ${BOX / 2} ${BOX / 2})`}
+              transform={`rotate(90 ${BOX / 2} ${BOX / 2})`}
             />
           )}
         </svg>

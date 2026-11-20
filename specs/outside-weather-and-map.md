@@ -160,6 +160,17 @@ Face recognition and face-released passkey (`specs/face-auth.md`):
   in. Design for that swap; do not build it — camera-events would need the key in
   its own env file and a fallback for when the face service is down.
 
+Feels like (`lib/modules/weather/feels-like.ts`, alex, 2026-11-20: it "always
+seems to be three degrees lower" and "doesn't feel like it's figuring out
+windchill"). The old figure was the Bureau of Meteorology shade formula
+`T + 0.33e - 0.70v - 4.00`; its -4 reads about three degrees under the air on a
+mild day and it has no wind chill. Now: a weather entity's own
+`apparent_temperature` attribute wins when it reports one; otherwise wind chill
+(JAG/TI, wind at 4.8 km/h and up) below 20 C and humidex (which only raises the
+figure) above 10 C, handed over linearly between 10 and 20 C, and the air
+temperature where neither applies. A humid, windless day feels hotter; a windy,
+cool one feels colder.
+
 Weather panel:
 
 - Displays current condition, feels-like, current temperature, min/max, rain

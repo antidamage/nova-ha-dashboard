@@ -279,6 +279,18 @@
   padding-block: 0;
 }
 
+/* The weather strip sits on one baseline (alex, 2026-11-20): the icon's foot,
+   the condition label and the three reading numbers. `last baseline` takes a
+   reading's number rather than its caption, which sits above it. */
+.quick-segment-weather .quick-segment-lead,
+.quick-segment-weather .quick-weather-readings {
+  align-items: last baseline;
+}
+
+.quick-segment-weather .quick-current {
+  align-items: center;
+}
+
 .quick-weather-icon {
   width: 28px;
   height: 28px;

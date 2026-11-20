@@ -3,6 +3,7 @@ import type { HaState, SunStatus, WeatherStatus } from "../../types";
 import { callServiceWithResponse } from "../../ha/client";
 import { readDashboardConfig } from "../../dashboard-config";
 import { stateById } from "../../ha/states";
+import { feelsLikeCelsius } from "./feels-like";
 import type { DashboardModule, ModuleStateContext, ModuleStatus } from "../types";
 
 // See specs/weather-refresh.md. The background timer asks HA once per interval;
@@ -60,16 +61,22 @@ function estimateRainChance(condition: string, precipitation: number | null) {
   return null;
 }
 
-function apparentTemperature(temperature: number | null, humidity: number | null, windSpeed: number | null, windUnit: string) {
-  if (temperature === null || humidity === null || windSpeed === null) {
+function apparentTemperature(
+  temperature: number | null,
+  humidity: number | null,
+  windSpeed: number | null,
+  windUnit: string,
+  reported: number | null,
+) {
+  // A weather entity that reports its own apparent temperature is the source.
+  if (reported !== null) {
+    return roundOne(reported);
+  }
+  if (temperature === null) {
     return null;
   }
-
-  const windKmh = windUnit.toLowerCase().includes("mph") ? windSpeed * 1.60934 : windSpeed;
-  const windMs = windKmh / 3.6;
-  const vapourPressure = (humidity / 100) * 6.105 * Math.exp((17.27 * temperature) / (237.7 + temperature));
-
-  return roundOne(temperature + 0.33 * vapourPressure - 0.7 * windMs - 4);
+  const windKmh = windSpeed === null ? null : windUnit.toLowerCase().includes("mph") ? windSpeed * 1.60934 : windSpeed;
+  return roundOne(feelsLikeCelsius(temperature, humidity, windKmh));
 }
 
 async function dailyWeatherForecast(entityId: string, cacheMs: number): Promise<WeatherForecastResult> {
@@ -195,7 +202,7 @@ function weatherStatusFrom(
     rainChancePct: estimateRainChance(condition, precipitation),
     uvIndex: roundOne(uvIndex),
     maxUvIndex: roundOne(maxUvIndex),
-    feelsLike: apparentTemperature(temperature, humidity, windSpeed, windUnit),
+    feelsLike: apparentTemperature(temperature, humidity, windSpeed, windUnit, numberOrNull(attrs.apparent_temperature)),
     forecast: forecastDays.map((day) => ({
       datetime: typeof day.datetime === "string" ? day.datetime : null,
       condition: typeof day.condition === "string" ? day.condition : null,
