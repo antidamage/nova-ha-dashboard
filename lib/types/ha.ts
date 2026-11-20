@@ -114,7 +114,8 @@ export type DashboardZone = {
   // `targetPct` is where the zone is going. Controls bind to the target and hold
   // it until this clears; the lights themselves still fade normally.
   brightnessTransition?: { targetPct: number };
-  special?: "power" | "tasks" | "world" | "voice";
+  // "member": one home user's All lights zone (specs/home-users.md 4.1).
+  special?: "power" | "tasks" | "world" | "voice" | "member";
   // HA-native area sensor bindings for this zone's room, if set. Drives the
   // environment panel without any per-home configuration.
   environment?: {

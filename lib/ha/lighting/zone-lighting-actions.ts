@@ -4,7 +4,7 @@ import { splitEntitiesByIntensityThreshold } from "../../lighting-thresholds";
 import { adaptiveLightMode } from "../../lighting-presets";
 import { setHousePartyZonePower } from "../../house-party-coordinator";
 import { buildDashboardState } from "../../state";
-import { lightLayerEntities } from "../zones";
+import { findZoneWithMembers, lightLayerEntities } from "../zones";
 import { assertLatestCommandCurrent, callLightingService, callMany, setEntityPower } from "./commands";
 import {
   addLightPresetToPayload,
@@ -32,7 +32,7 @@ export async function setZoneLightingAction(input: {
 }) {
   const dashboard = await buildDashboardState();
   assertLatestCommandCurrent(input);
-  const zone = dashboard.zones.find((candidate) => candidate.id === input.zoneId);
+  const zone = findZoneWithMembers(dashboard, input.zoneId);
 
   if (!zone) {
     throw new Error(`Unknown zone: ${input.zoneId}`);

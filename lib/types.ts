@@ -27,6 +27,8 @@ export type {
 
 export type { Task, TaskFollows, TaskRepeat, TaskSource } from "./types/tasks";
 
+export type { HomeUserQuickAccessEntry, HomeUserState, HomeZoneSetting } from "./types/home-users";
+
 export type {
   AirconPreferences,
   BedroomHeaterMode,

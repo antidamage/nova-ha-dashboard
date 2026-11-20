@@ -6,6 +6,7 @@ import {
 import { NovaAvatarConfigSchema } from "./appearance";
 import { ControlsConfigSchema } from "./controls";
 import { ArrivalsConfigSchema } from "./arrivals";
+import { HomeZoneSettingsSchema } from "./home-users";
 import { DoorbellConfigSchema } from "./doorbell";
 import { LightingEntityPresetSchema, LightingIntensityThresholdSchema, ZoneLightEventSchema, ZoneLightRuleSchema } from "./lighting";
 import {
@@ -178,6 +179,8 @@ export const DashboardConfigSchema = z.object({
      * See specs/arrival-and-departure.md.
      */
     arrivals: ArrivalsConfigSchema.default({ climatePresets: [], volumePresets: [] }),
+    // Bedroom and arrival-light flags per zone (specs/home-users.md section 2).
+    zones: HomeZoneSettingsSchema,
     specialZones: z.object({
       power: z.object({
         id: z.string().min(1),

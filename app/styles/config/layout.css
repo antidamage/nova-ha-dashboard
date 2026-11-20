@@ -213,6 +213,13 @@
   left: calc(16px + 52px + env(safe-area-inset-left, 0px));
 }
 
+/* Home-user log out (specs/home-users.md section 3): beside the cog, one
+   44px + 8px step in from the right edge. Not the config page's
+   .dashboard-logout-link, which signs out of the site. */
+.dashboard-user-logout-link {
+  right: calc(16px + 52px + env(safe-area-inset-right, 0px));
+}
+
 /* Rotate display (specs/kiosk-display-rotation.md): bottom left in portrait.
    Landscape moves it to the bottom right in responsive/landscape.css. */
 .dashboard-rotate-link {

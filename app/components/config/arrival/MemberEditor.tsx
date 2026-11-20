@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { hexToRgb } from "../../appleTVEncoderModel";
 import { ColorEncoder } from "../../ColorEncoder";
 import { hsvaToRgb, normalizeHsva, rgbToHex, rgbToHsv, type Hsva } from "../../colorEncoderModel";
@@ -25,6 +25,7 @@ import { StateList } from "./StateList";
  * `onChange` keeps the knob moving under the finger.
  */
 export function MemberEditor({
+  children,
   member,
   onColor,
   onRename,
@@ -37,6 +38,8 @@ export function MemberEditor({
   removable,
   targets,
 }: {
+  /** The Home Users fields (specs/home-users.md section 8), below Primary. */
+  children?: ReactNode;
   member: HouseholdPerson;
   onColor: (color: string) => void;
   onRename: (label: string) => void;
@@ -65,7 +68,7 @@ export function MemberEditor({
           key={`${member.id}-${member.label}`}
           onBlur={(event) => onRename(event.target.value)}
         />
-        <span className="text-xs text-neutral-500">/api/arrival/{member.id}</span>
+        <span className="text-xs text-neutral-500">/api/im-home/{member.id} · /api/im-leaving/{member.id}</span>
         <MomentaryFeedbackButton
           aria-label={`Remove ${member.label}`}
           disabled={!removable}
@@ -95,6 +98,7 @@ export function MemberEditor({
         label="Primary"
         onChange={onPrimary}
       />
+      {children}
       <StateList
         event="arrival"
         onAdd={(state) => onStateAdd("arrival", state)}

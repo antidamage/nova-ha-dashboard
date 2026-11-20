@@ -19,7 +19,10 @@ import {
 import { useBedroomHeaterConfig } from "./dashboard/useBedroomHeaterConfig";
 import { useDashboardState } from "./dashboard/state";
 import { Warnings } from "./dashboard/Warnings";
-import { buildZoneTree, ZonesPanel } from "./dashboard/ZonesPanel";
+import { ZonesPanel } from "./dashboard/ZonesPanel";
+import { HomePresenceRow } from "./home-users/HomePresenceRow";
+import { useHomeUserView } from "./home-users/useHomeUserView";
+import { visibleHomeSelection } from "./home-users/view-model";
 import { useAutoFullscreen } from "./dashboard/useAutoFullscreen";
 import { useAutoFullscreenSetting } from "./dashboard/autoFullscreenSetting";
 import { useDashboardCommands } from "./dashboard/useDashboardCommands";
@@ -50,8 +53,9 @@ export function Dashboard() {
   const { data, error, eventClientId, pausePolling, refresh, setData } = useDashboardState();
   const [toast, setToast] = useState<string | null>(null);
   const { selectedZone, selectedZoneId, selectZone } = useDashboardSelection(data);
-  const zoneTree = useMemo(() => buildZoneTree(data), [data]);
-  const quickItems = useSlotItems("quick-access", data, zoneTree.climate).items;
+  // The rooms, Systems and Quick Access this device's home user sees (specs/home-users.md).
+  const { zoneTree, quickData, emptyNotice } = useHomeUserView(data);
+  const quickItems = useSlotItems("quick-access", quickData, zoneTree.climate).items;
   const loungeEnvironment = useMemo(() => findLoungeEnvironment(data), [data]);
   const bedroomHeaterConfig = useBedroomHeaterConfig();
   const bedroomHeater = useMemo(
@@ -88,7 +92,9 @@ export function Dashboard() {
     setToast,
   });
 
-  const { homeId, systemsId } = useGroupSelection(zoneTree, selectedZoneId, data !== null);
+  const groupSelection = useGroupSelection(zoneTree, selectedZoneId, data !== null);
+  const homeId = visibleHomeSelection(zoneTree, groupSelection.homeId);
+  const systemsId = zoneTree.systemsVisible ? groupSelection.systemsId : null;
   // Selecting a zone remounts its control stage at a different size; hold the
   // page still across that (specs/landscape-layout.md).
   useScrollAnchor(`${homeId ?? ""}|${systemsId ?? ""}`);
@@ -133,7 +139,7 @@ export function Dashboard() {
     <Tooltip.Provider delayDuration={250}>
       <main className="min-h-screen bg-neutral-950 text-neutral-100">
         <div className="dashboard-shell dashboard-home min-h-screen px-4 py-5 sm:px-6" data-demo={process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true" ? "true" : undefined}>
-          <DashboardChrome haHealth={data?.haHealth} showBackground={showBackground} theme={theme} />
+          <DashboardChrome haHealth={data?.haHealth} homeUsers={data?.homeUsers} showBackground={showBackground} theme={theme} />
 
           <header className="top-banner p-0">
             <ModuleSlot id="header.banner.before" />
@@ -162,6 +168,7 @@ export function Dashboard() {
           <div className="dashboard-layout grid gap-5">
             <div className="dashboard-overview">
               <ClockPanel />
+              <HomePresenceRow data={data} />
               <ReminderIconBar />
             </div>
 
@@ -185,6 +192,8 @@ export function Dashboard() {
               /* Selecting a zone never scrolls the page, in either
                  orientation (specs/portrait-layout.md round 2). */
               onSelectZone={(zoneId) => selectZone(zoneId)}
+              showSystems={zoneTree.systemsVisible}
+              emptyNotice={emptyNotice}
             />
 
             {/* Kept mounted in one place in both orientations so reminders keep

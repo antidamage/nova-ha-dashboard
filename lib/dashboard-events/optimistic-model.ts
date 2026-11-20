@@ -7,6 +7,7 @@ import {
   adaptiveLightMode,
 } from "../lighting-presets";
 import { isEntitySuppressedByIntensity } from "../lighting-thresholds";
+import { findZoneWithMembers } from "../ha/zones";
 import type { DashboardEntity, DashboardLightingConfig, DashboardState } from "../types";
 import type { EntityActionInput, ZoneActionInput } from "./types";
 
@@ -159,7 +160,7 @@ export function isLightZoneAction(action: string) {
 }
 
 export function optimisticDashboardStateForZoneAction(state: DashboardState, input: ZoneActionInput) {
-  const zone = state.zones.find((candidate) => candidate.id === input.zoneId);
+  const zone = findZoneWithMembers(state, input.zoneId);
   if (!zone || !isLightZoneAction(input.action)) {
     return state;
   }

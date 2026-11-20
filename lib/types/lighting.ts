@@ -40,6 +40,8 @@ export type DashboardLightingConfig = {
   zoneRules?: ZoneLightRule[];
   // Zones already given their Adaptive and White preset rules.
   zoneRulesSeededZoneIds?: string[];
+  // The night cap per entity from who is home (specs/home-users.md section 6).
+  nightCapPctByEntity?: Record<string, number>;
 };
 
 export type SpectrumCursor = {

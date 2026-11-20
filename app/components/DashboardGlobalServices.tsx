@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { DemoTooltipLayer } from "./DemoTooltipLayer";
 import { ExperienceModeModal } from "./ExperienceModeModal";
+import { HomeUserChooser } from "./home-users/HomeUserChooser";
 import { HapticFeedback } from "./HapticFeedback";
 import NovaAvatar from "./NovaAvatar";
 import { SmoothScrollController } from "./SmoothScrollController";
@@ -68,6 +69,7 @@ export function DashboardGlobalServices({
       <TouchClickGuard />
       <HapticFeedback />
       <SmoothScrollController />
+      <HomeUserChooser />
       <ExperienceModeModal />
       {showStatusOrb ? (
         <NovaAvatar size={200} initialTheme={initialTheme} initialSun={initialSun} />

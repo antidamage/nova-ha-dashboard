@@ -32,6 +32,11 @@ export type LightEntityPreset = {
 export type LightingPresetConfig = {
   intensityThresholds?: unknown[];
   entityPresets?: LightEntityPreset[];
+  /**
+   * The night cap per entity, from who is home (specs/home-users.md section 6).
+   * Computed by buildDashboardState; absent means no cap.
+   */
+  nightCapPctByEntity?: Record<string, number>;
 };
 
 function clampPct(value: unknown, fallback: number) {
@@ -96,7 +101,10 @@ export function adaptiveLightBrightnessPctForEntity(
       ? preset?.targetBrightnessPct?.evening
       : preset?.targetBrightnessPct?.daytime;
 
-  return clampPct(configuredPct, clampPct(fallbackPct, defaultAdaptiveLightBrightnessPct(mode)));
+  const pct = clampPct(configuredPct, clampPct(fallbackPct, defaultAdaptiveLightBrightnessPct(mode)));
+  // A ceiling at night for the people home; pinned fixtures keep their look.
+  const cap = mode === "candlelight" && !preset?.pinned ? lighting?.nightCapPctByEntity?.[entity.entity_id] : undefined;
+  return cap === undefined ? pct : Math.min(pct, clampPct(cap, pct));
 }
 
 export function adaptiveLightColorTemperatureKelvinForEntity(

@@ -11,6 +11,13 @@ is marked *(decided)*. Change them here, in place.
 Produced by: an interactive session, 2026-09-10 (no plan file; the
 request was executed directly).
 
+## Per-user cards (2026-11-19)
+
+A device viewing as a home user shows **that person's** card, built from their
+`quickAccess` list (`specs/home-users.md` §4), not the shared slots. Undecided
+and Household devices show the shared card, exactly as below. A climate control
+on the card is titled by its room's current name, so a room rename renames it.
+
 ## Placement
 
 - Named **Quick Access**. The name is shown on the card as its kicker.

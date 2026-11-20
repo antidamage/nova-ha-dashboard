@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useHomeUserGateSettled } from "./home-users/homeUserSetting";
 import {
+  EXPERIENCE_MODE_CHANGE_EVENT,
   readStoredExperienceMode,
   writeExperienceModeSetting,
   type ExperienceMode,
@@ -24,9 +26,19 @@ export function ExperienceModeModal() {
   const [pending, setPending] = useState(false);
   const richButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // Waits for the identity chooser (specs/home-users.md section 3), and asks
+  // again after a log out clears the stored choice.
+  const homeUserSettled = useHomeUserGateSettled();
   useEffect(() => {
-    setPending(readStoredExperienceMode() === null);
-  }, []);
+    if (!homeUserSettled) {
+      setPending(false);
+      return;
+    }
+    const sync = () => setPending(readStoredExperienceMode() === null);
+    sync();
+    window.addEventListener(EXPERIENCE_MODE_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(EXPERIENCE_MODE_CHANGE_EVENT, sync);
+  }, [homeUserSettled]);
 
   useEffect(() => {
     if (pending) {

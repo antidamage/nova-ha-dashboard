@@ -41,7 +41,7 @@ function stubFetch() {
 
 /** The accordion is collapsed by default; its body only exists once opened. */
 async function openSection() {
-  const header = screen.getByRole("button", { name: /Household members/ });
+  const header = screen.getByRole("button", { name: /Home Users/ });
   fireEvent.click(header);
   return header;
 }
@@ -118,7 +118,7 @@ describe("ArrivalConfig", () => {
     await openSection();
     await screen.findByDisplayValue("Ada");
 
-    expect(screen.getByText("/api/arrival/ada")).toBeInTheDocument();
+    expect(screen.getByText("/api/im-home/ada · /api/im-leaving/ada")).toBeInTheDocument();
     // The only member cannot be removed: the endpoints need someone to answer to.
     expect(screen.getByRole("button", { name: "Remove Ada" })).toBeDisabled();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);

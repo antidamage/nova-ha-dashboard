@@ -2,8 +2,11 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ExperienceModeModal } from "./ExperienceModeModal";
 import { EXPERIENCE_MODE_STORAGE_KEY } from "./dashboard/experienceModeSetting";
+import { setHomeUserGateSettled } from "./home-users/homeUserSetting";
 
 beforeEach(() => {
+  // No home users here, so the identity step is settled (specs/home-users.md section 3).
+  setHomeUserGateSettled(true);
   window.localStorage.clear();
   document.documentElement.removeAttribute("data-nova-lite");
 });
@@ -56,5 +59,15 @@ describe("ExperienceModeModal", () => {
 
     const buttons = screen.getAllByRole("button");
     expect(buttons.map((button) => button.textContent)).toEqual(["Lite", "Full Experience"]);
+  });
+});
+
+describe("ExperienceModeModal behind the identity chooser", () => {
+  it("waits until the identity step is settled", async () => {
+    setHomeUserGateSettled(false);
+    render(<ExperienceModeModal />);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    setHomeUserGateSettled(true);
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
   });
 });

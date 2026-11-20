@@ -1,0 +1,48 @@
+/* Who is home (HomePresenceRow) and the no-rooms notice; specs/home-users.md
+   sections 3 and 7. Home: the person's own colour (set inline, her chosen
+   values). Away: the extract's muted token at reduced opacity. The name is
+   always shown, so colour is never the only signal. */
+.home-presence-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.home-presence-person {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  justify-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--cyber-muted, var(--cyber-title-on-bg));
+  opacity: 0.45;
+  font-family: var(--cyber-mono);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.home-presence-person[data-home] {
+  opacity: 1;
+}
+
+.home-presence-person:focus-visible {
+  border-color: var(--cyber-cyan);
+  outline: none;
+}
+
+.home-user-empty-notice {
+  padding: 12px 4px;
+  font-family: var(--cyber-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--cyber-title-on-bg);
+}

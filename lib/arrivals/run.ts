@@ -2,6 +2,8 @@ import { attributeControl } from "../control-attribution";
 import { readDashboardConfig } from "../dashboard-config";
 import { applyArrivalStates, type ArrivalStateResult } from "./apply-model";
 import { arrivalStatesFor, findHouseholdMember, householdMemberNames } from "./member-model";
+import { isHomeUser } from "../home-users/model";
+import { runOccupancy, type OccupancyResult } from "../presence/occupancy";
 import { ARRIVAL_TARGETS } from "./targets";
 import type { ArrivalEventKind } from "./types";
 
@@ -56,9 +58,22 @@ export async function runArrivalEvent(event: ArrivalEventKind, name: string, req
     );
   }
 
+  // A home user's arrival also records presence and runs the occupancy rules
+  // (specs/home-users.md section 5); anyone else gets exactly the old behaviour.
+  let occupancy: OccupancyResult | null = null;
+  if (isHomeUser(member)) {
+    try {
+      occupancy = await runOccupancy(event, member, config);
+    } catch (error) {
+      return jsonResponse({ member: member.id, event, ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
+    }
+  }
+
   const states = arrivalStatesFor(member, event);
   const results: ArrivalStateResult[] = await applyArrivalStates(states, ARRIVAL_TARGETS);
-  const ok = results.every((result) => result.ok);
+  const ok =
+    results.every((result) => result.ok) &&
+    (!occupancy || (occupancy.actions.every((action) => action.ok) && occupancy.nightRecheck.ok));
 
   if (request) {
     void attributeControl(request, {
@@ -71,6 +86,7 @@ export async function runArrivalEvent(event: ArrivalEventKind, name: string, req
         event,
         states: results.length,
         failed: results.filter((result) => !result.ok).length,
+        ...(occupancy ? { changed: occupancy.changed, actions: occupancy.actions.map((action) => action.kind).join(",") } : {}),
       },
     });
   }
@@ -80,6 +96,7 @@ export async function runArrivalEvent(event: ArrivalEventKind, name: string, req
       member: member.id,
       event,
       ok,
+      ...(occupancy ? occupancy : {}),
       states: results,
       ...(states.length === 0
         ? { note: `No ${event} states are configured for ${member.label}` }

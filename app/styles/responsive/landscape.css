@@ -71,8 +71,13 @@
     left: calc(12px + 52px + env(safe-area-inset-left, 0px));
   }
 
-  body:has(.dashboard-home) .dashboard-config-link:not(.dashboard-reload-link):not(.dashboard-theme-override-link):not(.dashboard-rotate-link) {
+  body:has(.dashboard-home) .dashboard-config-link:not(.dashboard-reload-link):not(.dashboard-theme-override-link):not(.dashboard-rotate-link):not(.dashboard-user-logout-link) {
     left: calc(12px + 104px + env(safe-area-inset-left, 0px));
+  }
+
+  /* Home-user log out: the next step after the cog (specs/home-users.md §3). */
+  body:has(.dashboard-home) .dashboard-config-link.dashboard-user-logout-link {
+    left: calc(12px + 156px + env(safe-area-inset-left, 0px));
   }
 
   /* Rotate display: bottom right in landscape (bottom left in portrait, in
@@ -156,7 +161,9 @@ body,
 
   .dashboard-home .dashboard-overview {
     display: grid;
+    /* Clock, who is home (absent with no home users), reminders. */
     grid-template-rows: minmax(min-content, 1fr) auto;
+    grid-auto-rows: auto;
     gap: 20px;
     width: 400px;
     flex: none;

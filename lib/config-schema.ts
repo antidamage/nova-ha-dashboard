@@ -13,6 +13,8 @@ export type {
   VolumeArrivalPreset,
 } from "./config-schema/arrivals";
 
+export type { HomeUserQuickAccessEntry, HomeZoneSetting } from "./config-schema/home-users";
+
 export type {
   AlwaysOnMeter,
   AmpPowerControlConfig,

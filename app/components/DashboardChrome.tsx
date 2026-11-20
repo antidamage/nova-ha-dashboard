@@ -2,6 +2,7 @@
 
 import { Settings } from "lucide-react";
 import type { DashboardState } from "../../lib/types";
+import { LogoutButton } from "./home-users/LogoutButton";
 import { GatedLink } from "./auth/GatedLink";
 import type { useDeviceTheme } from "./accentColor";
 import { HeaderFadeStrip } from "./dashboard/HeaderFadeStrip";
@@ -19,10 +20,12 @@ import { WallpaperBackground } from "./WallpaperBackground";
  */
 export function DashboardChrome({
   haHealth,
+  homeUsers,
   showBackground,
   theme,
 }: {
   haHealth: DashboardState["haHealth"] | undefined;
+  homeUsers?: DashboardState["homeUsers"];
   showBackground: boolean;
   theme: ReturnType<typeof useDeviceTheme>["theme"];
 }) {
@@ -50,6 +53,7 @@ export function DashboardChrome({
       >
         <Settings className="h-5 w-5" aria-hidden="true" />
       </GatedLink>
+      <LogoutButton users={homeUsers} />
 
       <UpdateBanner />
 

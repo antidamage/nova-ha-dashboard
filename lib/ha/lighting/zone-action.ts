@@ -8,6 +8,7 @@ import {
   setHousePartyZonePower,
 } from "../../house-party-coordinator";
 import { buildDashboardState } from "../../state";
+import { findZoneWithMembers } from "../zones";
 import { assertLatestCommandCurrent, callLightingService, callMany, setEntityPower } from "./commands";
 import {
   addLightPresetToPayload,
@@ -37,7 +38,7 @@ export async function setZoneAction(input: {
 }) {
   const dashboard = await buildDashboardState();
   assertLatestCommandCurrent(input);
-  const zone = dashboard.zones.find((candidate) => candidate.id === input.zoneId);
+  const zone = findZoneWithMembers(dashboard, input.zoneId);
 
   if (!zone) {
     throw new Error(`Unknown zone: ${input.zoneId}`);

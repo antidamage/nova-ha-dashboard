@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { HouseholdPerson } from "../../../../lib/config-schema";
+import type { HomeZoneSetting } from "../../../../lib/config-schema/home-users";
+import type { HomeUserPresetOption, HomeUserRoom } from "./HomeUserFields";
 import type { ArrivalPresets, ArrivalTargetOption } from "./arrival-config-model";
 
 /** The same kill-switch the lighting rules client uses: the demo has no server. */
@@ -13,6 +15,10 @@ export type ArrivalSettingsPayload = {
   members: HouseholdPerson[];
   targets: ArrivalTargetOption[];
   presets: ArrivalPresets;
+  /** Home Users (specs/home-users.md section 8). Absent from an older server. */
+  rooms?: HomeUserRoom[];
+  zones?: HomeZoneSetting[];
+  controlPresets?: HomeUserPresetOption[];
 };
 
 const EMPTY: ArrivalSettingsPayload = { members: [], targets: [], presets: {} };
@@ -76,15 +82,15 @@ export function useArrivalSettings() {
     void load();
   }, [load]);
 
-  const save = useCallback(async (members: HouseholdPerson[]) => {
+  const save = useCallback(async (members: HouseholdPerson[], zones?: HomeZoneSetting[]) => {
     if (DEMO_MODE) {
       window.sessionStorage.setItem(DEMO_KEY, JSON.stringify({ members }));
-      setData((current) => ({ ...current, members }));
+      setData((current) => ({ ...current, members, ...(zones ? { zones } : {}) }));
       return true;
     }
     try {
       const response = await fetch("/api/arrivals", {
-        body: JSON.stringify({ people: members }),
+        body: JSON.stringify(zones ? { people: members, zones } : { people: members }),
         headers: { "Content-Type": "application/json" },
         method: "PUT",
       });

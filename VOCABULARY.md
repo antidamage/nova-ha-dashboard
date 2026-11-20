@@ -41,6 +41,9 @@ MANAGES X, not the surface that shows X.
 | **reminders / tasks** | the same thing. The data is tasks; the zone is named "Reminders"; the panel is `TasksPanel`; the icon bar is `ReminderIconBar` | `lib/tasks/`, `app/components/tasks/`, `app/components/reminders/`, `app/components/dashboard/reminders/` |
 | **daily tasks** | a separate checklist site (its own repo, `daily-tasks`), not the reminders. The dashboard only shows its unfinished count: the last tile of the reminder icon bar, configured by `dashboard.reminders.dailyTasksUrl` | `lib/daily-tasks/count.ts`, `app/api/daily-tasks/count/route.ts`, `app/components/dashboard/reminders/DailyTasksTile.tsx`; `specs/tasks-panel.md`, "Daily tasks count" |
 | **notification** | a one-off message POSTed to `app/api/notifications/route.ts`, stacked top-right until dismissed or expired. NOT a reminder or task, and not the bottom-right `toast` string in `Dashboard.tsx` | `lib/notifications/`, `app/components/notifications/`; `specs/notifications.md` |
+| **home user / user / identity** | a person in `dashboard.people` with at least one room: the identity a device picks on the chooser, whose rooms and Quick Access it then shows, and who counts toward presence. "Household" is the everyone view. Not a login | `lib/home-users/`, `app/components/home-users/`, `specs/home-users.md` |
+| **presence / who is home** | the record of which home users are home, set by `/api/im-home/<name>` and `/api/im-leaving/<name>` (aliases `/api/arrival`, `/api/departure`), and the occupancy rules it runs; shown as the who-is-home row above the reminders | `lib/presence/`, `app/components/home-users/HomePresenceRow.tsx`, `specs/home-users.md` |
+| **bedroom** | (1) a zone flagged `bedroom` in `dashboard.zones`, owned by the home users who have it; (2) `isBedroomZone`, the legacy heater room's temperature panel, matched by zone id | `lib/home-users/model.ts`, `app/components/dashboard/shell/zone-model.ts` |
 | **lights** | (1) a zone's lights, which include the `switch` entities the classification calls illumination — "the lights" is not the `light` domain alone; (2) **all lights** — the whole-house command, not a zone's | `lib/ha/lighting/`, `lib/entity-semantics.ts`, `lib/ha/zones.ts`, `app/api/all-lights/` |
 | **parked / parking / Aggressive** | **Parked** is the aircon resting between cycles on fan only at its lowest speed, so its sensor keeps reading the room — what Auto and Manual do instead of switching the unit off (`lib/aircon-control/park-model.ts`). **Aggressive** is the fan step after Turbo: Turbo on the unit, with a tighter Manual thermostat | `specs/aircon-auto-control.md` §8 and §9 |
 | **house party** | the whole house's lights following one theme and clock, across clients | `lib/house-party.ts`, `lib/house-party-coordinator.ts`, `app/components/dashboard/useHouseParty*.ts` |
@@ -85,7 +88,8 @@ row says where.
 | Doorbell | `lib/doorbell/`, `lib/doorbell-coordinator.ts` — server side only, driven by a call to the sequence route rather than by any dashboard control | `app/api/doorbell/sequence` | no spec of its own yet |
 | MCP and the agent interface | `lib/mcp/`, `lib/mcp-dashboard/` | — (no dashboard surface) | `specs/mcp-and-agent-interface.md` |
 | Update channel | `lib/update/`, `lib/update-scheduler.ts` | `app/components/UpdateBanner.tsx`, `app/components/config/updates/` | `specs/self-update-channel.md` |
-| Arrival and departure | `lib/arrivals/` (member-model, apply-model, targets.ts and lib/arrivals/targets/), `lib/config-schema/arrivals.ts` | `app/components/config/arrival/` (the section under Voice & People → User Data, titled **Household members**) | `specs/arrival-and-departure.md` |
+| Arrival and departure | `lib/arrivals/` (member-model, apply-model, targets.ts and lib/arrivals/targets/), `lib/config-schema/arrivals.ts` | `app/components/config/arrival/` (the section under Voice & People → User Data, titled **Home Users**) | `specs/arrival-and-departure.md` |
+| Home users and presence | `lib/home-users/`, `lib/presence/`, `lib/config-schema/home-users.ts` | `app/components/home-users/` (chooser, log-out button, who-is-home row), `app/components/config/arrival/` (Home Users) | `specs/home-users.md` |
 | Events, attribution, monitoring spool | `lib/event-spool.ts`, `lib/control-attribution.ts`, `lib/request-attribution.ts`, `lib/household-events/` | `app/components/dashboard/useDashboardCommands.ts` | `docs/household-event-feed.md` |
 
 ## 3. Where a change goes
@@ -119,7 +123,7 @@ rule, not this file's.
 | Category | Holds |
 |---|---|
 | Assistant | identity, agent, authority |
-| Voice & People | voice infrastructure, voice, voice training, user data (face enrolment, kiosk activity, arrival & departure — the household member list and what each member's arrival and departure set) |
+| Voice & People | voice infrastructure, voice, voice training, user data (face enrolment, kiosk activity, **Home Users** — the household member list, each person's rooms, Quick Access and night maximum, the room flags, and what each member's arrival and departure set) |
 | Appearance & Dashboard | appearance (theme settings: colours, fonts, status orb, background, map, theme reminders, sound), reminders, status orb info, climate, Phonoscope |
 | Devices | managed computers, hardware assistant, kiosk display (the kiosk backlight's day/night brightness, dim level and blank), camera, **Controls & Devices** (device types, their presets, and the panel slot lists) |
 | Modules | installed installable modules, and the device-module library (download/install a package) |

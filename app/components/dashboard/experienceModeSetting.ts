@@ -47,7 +47,7 @@ const ALL_ON: ExperienceFeatures = { statusOrb: true, background: true, camera: 
 const ALL_OFF: ExperienceFeatures = { statusOrb: false, background: false, camera: false, worldMap: false };
 
 const EXPERIENCE_MODE_STORAGE_KEY = "nova.dashboard.experienceMode.v1";
-const EXPERIENCE_MODE_CHANGE_EVENT = "nova-experience-mode-change";
+export const EXPERIENCE_MODE_CHANGE_EVENT = "nova-experience-mode-change";
 
 export { EXPERIENCE_MODE_STORAGE_KEY };
 
@@ -175,6 +175,23 @@ export function setExperienceFeature(key: ExperienceFeatureKey, value: boolean) 
 /** Coarse write from the first-run modal: rich = everything on, lite = everything off. */
 export function writeExperienceModeSetting(mode: ExperienceMode) {
   writeExperienceFeatures(mode === "lite" ? { ...ALL_OFF } : { ...ALL_ON });
+}
+
+/**
+ * Forget this device's choice, so the first-run chooser asks again. Logging a
+ * home user out does this (specs/home-users.md section 3). Undecided renders as
+ * all-on, so the side effects are those of all-on.
+ */
+export function clearExperienceModeSetting() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.localStorage.removeItem(EXPERIENCE_MODE_STORAGE_KEY);
+  } catch {
+    // Storage denied: nothing was stored to clear.
+  }
+  applyExperienceSideEffects({ ...ALL_ON });
 }
 
 function useExperienceFeaturesState(): ExperienceFeatures {

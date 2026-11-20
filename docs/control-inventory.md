@@ -144,6 +144,10 @@ the named component before introducing a one-off equivalent.
 - `ModalOverlay` — `app/components/ModalOverlay.tsx`. This is the accessible
   modal/popover surface used by colour editors, reminder icon selection, and
   system confirmation flows.
+- `HomeUserTile` — the tile grid in `app/components/home-users/HomeUserChooser.tsx`
+  (`.home-user-tile`): a colour square with a name under it, one per home user,
+  in the system-confirm card. The identity chooser is its only user; reuse it for
+  any other "pick a person" surface rather than drawing a second tile.
 - `ConfirmDialog` — `app/components/ConfirmDialog.tsx`. This is the dashboard's
   one- or two-stage "are you sure" dialog, built on `ModalOverlay`. It is used by
   System Power, the desktop sleep/wake panel, and the module system's confirm

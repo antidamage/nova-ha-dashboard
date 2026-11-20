@@ -1,5 +1,7 @@
 import { arrivalTargets } from "../../../lib/arrivals/targets";
+import { effectiveControls } from "../../../lib/control-modules/presets";
 import { patchDashboardConfig, readDashboardConfig } from "../../../lib/dashboard-config";
+import { buildDashboardState } from "../../../lib/ha";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,6 +16,29 @@ export const runtime = "nodejs";
  * patchDashboardConfig, so the schema validates it and a member that does not
  * match the shape is refused with the field that is wrong.
  */
+/** The rooms a home user can be given: every real zone, Outside included. */
+async function rooms(climateAreaNames: string[]) {
+  const climate = new Set(climateAreaNames.map((name) => name.trim().toLowerCase()));
+  try {
+    const state = await buildDashboardState();
+    return state.zones
+      .filter((zone) => !zone.special && zone.id !== "everything" && zone.id !== "network")
+      .filter((zone) => !climate.has(zone.name.trim().toLowerCase()))
+      .map((zone) => ({ id: zone.id, name: zone.name }));
+  } catch {
+    return [];
+  }
+}
+
+function controlPresets(config: Awaited<ReturnType<typeof readDashboardConfig>>) {
+  try {
+    return effectiveControls(config).presets.map(({ id, moduleId, name }) => ({ id, moduleId, name }));
+  } catch {
+    // A config the control model cannot read offers no presets, not an error.
+    return [];
+  }
+}
+
 async function payload() {
   const config = await readDashboardConfig();
   const presets = await Promise.all(
@@ -21,6 +46,9 @@ async function payload() {
   );
   return {
     members: config.dashboard.people,
+    rooms: await rooms(config.homeAssistant?.climateAreaNames ?? []),
+    zones: config.dashboard.zones ?? [],
+    controlPresets: controlPresets(config),
     targets: arrivalTargets().map((target) => ({ kind: target.kind, label: target.label })),
     presets: Object.fromEntries(presets) as Record<
       string,
@@ -53,11 +81,13 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const body = (await request.json()) as { people?: unknown };
+    const body = (await request.json()) as { people?: unknown; zones?: unknown };
     if (!Array.isArray(body.people)) {
       return errorResponse("A people array is required", 400);
     }
-    const written = await patchDashboardConfig({ dashboard: { people: body.people } });
+    // The zone flags travel with the people when the section edits them.
+    const dashboard = Array.isArray(body.zones) ? { people: body.people, zones: body.zones } : { people: body.people };
+    const written = await patchDashboardConfig({ dashboard });
     if (!written.ok) {
       return errorResponse(
         written.errors.map((issue) => `${issue.path}: ${issue.message}`).join("; "),

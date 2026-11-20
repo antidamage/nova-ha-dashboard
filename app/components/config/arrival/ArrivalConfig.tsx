@@ -17,11 +17,22 @@ import {
   targetsWithoutPresets,
   updateState,
 } from "./arrival-config-model";
+import {
+  addQuickAccess,
+  moveQuickAccess,
+  patchMember,
+  removeQuickAccess,
+  setZoneFlag,
+  toggleRoom,
+} from "./home-users-config-model";
+import { HomeUserFields } from "./HomeUserFields";
 import { MemberEditor } from "./MemberEditor";
+import { RoomFlagsEditor } from "./RoomFlagsEditor";
 import { NEW_PERSON_LABEL, useArrivalSettings } from "./useArrivalSettings";
 
 /**
- * Household members (specs/arrival-and-departure.md): who lives here, what colour
+ * Home Users (specs/home-users.md section 8), formerly Household members
+ * (specs/arrival-and-departure.md): who lives here, what colour
  * they are shown in, and what each of them sets on the way in and on the way out.
  * It sits under Voice &
  * People → User Data because its members ARE the household people that section
@@ -55,15 +66,16 @@ export function ArrivalConfig() {
   return (
     <ConfigAccordion
       id="arrival"
-      title="Household members"
+      title="Home Users"
       icon={<Users className="config-accordion-icon h-5 w-5" aria-hidden="true" />}
       className="config-panel zone-panel relative border border-neutral-700 bg-neutral-950/70 shadow-2xl"
     >
       <div className="grid gap-3">
         <p className="text-sm leading-relaxed text-neutral-400">
-          What each household member&apos;s arrival and departure sets. Call{" "}
-          <code>/api/arrival/&lt;name&gt;</code> or <code>/api/departure/&lt;name&gt;</code> — the name is the
-          member&apos;s name or their id.
+          Who lives here: the rooms each person sees, their Quick Access, and what their arrival and
+          departure set. Call <code>/api/im-home/&lt;name&gt;</code> or <code>/api/im-leaving/&lt;name&gt;</code>{" "}
+          — the name is the person&apos;s name or their id. A person with no rooms is not shown on the
+          dashboard&apos;s chooser.
         </p>
         {error ? (
           <p role="status" className="text-sm text-red-300">
@@ -91,8 +103,26 @@ export function ArrivalConfig() {
             onStateUpdate={(event, index, state) => void commit(updateState(members, member.id, event, index, state))}
             presets={data.presets}
             targets={data.targets}
-          />
+          >
+            <HomeUserFields
+              member={member}
+              presets={data.controlPresets ?? []}
+              rooms={data.rooms ?? []}
+              onAddQuickAccess={(key) => void commit(addQuickAccess(members, member.id, key))}
+              onMoveQuickAccess={(index, by) => void commit(moveQuickAccess(members, member.id, index, by))}
+              onNightMax={(pct) => void commit(patchMember(members, member.id, { nightMaxBrightnessPct: pct }))}
+              onRemoveQuickAccess={(index) => void commit(removeQuickAccess(members, member.id, index))}
+              onSystemTabs={(show) => void commit(patchMember(members, member.id, { showSystemTabs: show }))}
+              onToggleRoom={(zoneId) => void commit(toggleRoom(members, member.id, zoneId))}
+            />
+          </MemberEditor>
         ))}
+
+        <RoomFlagsEditor
+          rooms={data.rooms ?? []}
+          zones={data.zones ?? []}
+          onChange={(zoneId, key, value) => void save(members, setZoneFlag(data.zones ?? [], zoneId, key, value))}
+        />
 
         <MomentaryFeedbackButton
           aria-label="Add person"

@@ -599,6 +599,10 @@ rules.
 
 ### 5.2 Washing Machine
 
+The people a wash can be attributed to are `dashboard.people`, the same list Home
+Users edits (`home-users.md`): a person added there joins the attribution cycle,
+and a renamed person keeps their washes, because attribution is stored by id.
+
 - Header: title on the left, the calendar-month total on the right in the
   panel's current display mode (the live watts instead, while a wash is running).
 - Above the graph, the day on show labels itself in the panel's small uppercase

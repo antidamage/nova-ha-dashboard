@@ -63,8 +63,14 @@ export function ZonesPanel({
   homeControls,
   systemsControls,
   onSelectZone,
+  showSystems = true,
+  emptyNotice = null,
 }: {
   data: DashboardState | null;
+  /** False hides the Systems accordion for a home user without system tabs (specs/home-users.md). */
+  showSystems?: boolean;
+  /** Shown in place of the room list when a home user has no rooms. */
+  emptyNotice?: string | null;
   homeSelectedId: string | null;
   systemsSelectedId: string | null;
   zones: ReturnType<typeof buildZoneTree>;
@@ -97,6 +103,7 @@ export function ZonesPanel({
           attached={homeControls}
           attachKey={homeSelectedId}
         >
+        {emptyNotice ? <p className="home-user-empty-notice">{emptyNotice}</p> : null}
         {zones.inside ? (
           <div className={classNames("zone-tree", zones.indoor.length > 0 && "zone-parent-widget")}>
             <ZoneButton
@@ -133,6 +140,7 @@ export function ZonesPanel({
         )}
 
         </HorizontalAccordion>
+        {showSystems ? (
         <HorizontalAccordion
           title="Systems"
           persistKey="dashboard-zones-systems"
@@ -205,6 +213,7 @@ export function ZonesPanel({
         />
         </div>
         </HorizontalAccordion>
+        ) : null}
       </div>
       </PanelSlots>
     </aside>

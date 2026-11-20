@@ -4,6 +4,7 @@ import type { AgentPreferences, DesignPreferences, LayoutPreferences, RouterStat
 import type { ControlModule, ControlsConfig } from "../control-modules/types";
 import type { AirconPreferences, BedroomHeaterPreferences, ClimateControlState, PanelHeaterPreferences } from "./climate";
 import type { DashboardEntity, DashboardZone, HaDomain, HaHealth } from "./ha";
+import type { HomeUserState, HomeZoneSetting } from "./home-users";
 import type { DashboardLightingConfig, LightingPreferences, SpectrumCursor } from "./lighting";
 import type { KioskBacklightSettings } from "../kiosk-backlight/settings";
 import type { PhonoscopePreferences } from "./phonoscope";
@@ -114,4 +115,10 @@ export type DashboardState = {
   /** HA snapshot freshness. Absent/`ok` = trust the snapshot; `degraded` = holding
    *  last-known-good through a transient HA outage (show a reconnecting hint). */
   haHealth?: HaHealth;
+  /** Home users and who is home (specs/home-users.md). Optional for older payloads. */
+  homeUsers?: HomeUserState[];
+  /** One "All lights" zone per home user; kept apart from `zones` on purpose. */
+  memberZones?: DashboardZone[];
+  /** Bedroom and arrival-light flags per zone. */
+  homeZones?: HomeZoneSetting[];
 };

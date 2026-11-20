@@ -17,6 +17,12 @@ leaves, and the place that state is configured.
 | `app/api/arrivals/route.ts` | the config section's read and write |
 | `app/components/config/arrival/` | the Household members config section |
 
+> **Home users (2026-11-19).** These routes are no longer stateless for a person
+> with rooms: they are aliases of `/api/im-home/<name>` and `/api/im-leaving/<name>`,
+> which record presence and run the occupancy rules before the preset list
+> below. A person without rooms gets exactly what this file describes. The
+> config section is now titled **Home Users**. See `home-users.md`.
+
 ## Members are `dashboard.people`
 
 There is one household member list, and this feature did not invent a second one.
@@ -110,7 +116,7 @@ silently failed to set. It is written with `mergeDashboardPreferences` exactly a
 
 ## What is not here
 
-No scheduling: nothing fires an arrival on a timer or from presence. No per-zone
+No scheduling: nothing fires an arrival on a timer. Presence itself is `home-users.md`. No per-zone
 scoping of an arrival, and no whole-house lighting preset — a "leave the house"
 set is one entry per room, because a house-wide preset would be a new rule kind
 with its own host behaviour. No authoring UI for the air-conditioning or volume

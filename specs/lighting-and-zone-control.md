@@ -64,6 +64,13 @@ Adaptive candlelight:
   Assistant, a wall switch, or voice. Pinned fixtures are excluded (their own
   pass owns them), and an active house party suspends it.
 
+Night cap (`specs/home-users.md` §6):
+
+- At night, adaptive brightness for a light is also capped at the lowest night
+  maximum among the home users who are home and count toward a zone holding it.
+  It is a ceiling; entered brightness, pinned fixtures and the Outside zone are
+  never capped. Every presence change re-checks lights that are on.
+
 Zone lighting UI:
 
 - Lighting zones show On, adaptive warm-white/candlelight, White, and Off.

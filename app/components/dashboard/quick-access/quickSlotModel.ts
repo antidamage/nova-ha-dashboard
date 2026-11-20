@@ -1,5 +1,6 @@
 "use client";
 
+import { climateTitle } from "../../home-users/climateTitle";
 import type { ControlModule, ControlSlotSurface, ControlsConfig, ResolvedSlot } from "../../../../lib/control-modules/types";
 import { parseMetricSources, type MetricSource } from "../../../../lib/host-temperatures/sources";
 import type {
@@ -179,7 +180,7 @@ function climateItem(
     preferredRange,
     presetId: resolved.preset.id,
     roomId: resolved.roomId ?? inheritedRoomId,
-    title: resolved.preset.name,
+    title: climateTitle(resolved.preset, data),
   };
   if (variant === "heater") {
     const heater = heaterDevices(resolved.preset, data, climateZone, features);

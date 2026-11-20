@@ -2,6 +2,18 @@ import type { DashboardEntity, DashboardZone, HaDomain } from "../types";
 import { isEntityOn, zoneBrightnessPct } from "../entity-semantics";
 import type { RegistrySnapshot } from "./registry";
 
+/**
+ * A zone by id, including the per-user "All lights" zones, which the state
+ * carries apart from `zones` so nothing that lists rooms ever sees them
+ * (specs/home-users.md 4.1). Lighting commands look zones up through this.
+ */
+export function findZoneWithMembers(
+  state: { zones: DashboardZone[]; memberZones?: DashboardZone[] },
+  zoneId: string,
+): DashboardZone | undefined {
+  return state.zones.find((zone) => zone.id === zoneId) ?? state.memberZones?.find((zone) => zone.id === zoneId);
+}
+
 export function lightLayerEntities(entities: DashboardEntity[]): DashboardEntity[] {
   return entities.filter((entity) => entity.domain === "light" || entity.isIllumination);
 }

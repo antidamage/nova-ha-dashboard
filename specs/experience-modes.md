@@ -40,6 +40,11 @@ must declare its lite behavior.
 
 ### First-run chooser
 
+- **Order (2026-11-19):** when the house has home users, the identity chooser
+  (`specs/home-users.md` §3) comes first, and this chooser waits until an
+  identity is stored. Logging a home user out clears this key too
+  (`clearExperienceModeSetting`), so both are asked again.
+
 - `app/components/ExperienceModeModal.tsx`, mounted in the root layout body so
   it covers every route. It renders nothing on the server and on the first
   client render; an effect reads the stored mode and reveals the dialog only

@@ -219,3 +219,52 @@
   width: 100%;
   cursor: default;
 }
+
+/* Identity chooser (HomeUserChooser, specs/home-users.md section 3): one tile
+   per home user, a colour square with the name under it. Reuses the system
+   confirm card and its chamfered button language. */
+.home-user-card {
+  max-width: 560px;
+}
+
+.home-user-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 12px;
+}
+
+.home-user-tile {
+  display: grid;
+  min-height: 88px;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 14px 10px;
+  border: 1px solid var(--cyber-border-dim);
+  background: rgb(var(--cyber-line-rgb) / 0.05);
+  color: var(--cyber-title-on-bg);
+  font-family: var(--cyber-mono);
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.home-user-tile:hover,
+.home-user-tile:focus-visible {
+  border-color: var(--cyber-line);
+  background: rgb(var(--cyber-line-rgb) / 0.14);
+  outline: none;
+}
+
+.home-user-swatch {
+  width: 48px;
+  height: 48px;
+  background: rgb(var(--cyber-line-rgb) / 0.35);
+}
+
+.home-user-tile[data-household] .home-user-swatch {
+  border: 2px solid var(--cyber-line);
+  background: transparent;
+}

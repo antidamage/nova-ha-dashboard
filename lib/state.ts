@@ -26,6 +26,7 @@ import { allControlModules } from "./control-modules/registry";
 import { readDashboardPreferences } from "./preferences";
 import { withComputedWatchfacePreferences } from "./watchface-preferences";
 import { climateControlState } from "./climate-control";
+import { homeUsersState } from "./home-users/state";
 
 function entityProjectionOptions(config: DashboardConfig): EntityProjectionOptions {
   const ha = config.homeAssistant;
@@ -137,6 +138,7 @@ export async function buildDashboardState(): Promise<DashboardState> {
   }
 
   markLightingTransitions(entities, zones);
+  const home = await homeUsersState(config, zones);
 
   const stored = withComputedWatchfacePreferences(await readDashboardPreferences());
   // Normalised here rather than on each client: the Apple TV reads its orb
@@ -155,7 +157,11 @@ export async function buildDashboardState(): Promise<DashboardState> {
       .filter((status) => status.active)
       .map((status) => status.id),
     totals: countDomains(entities, controlDomains),
-    lighting: projectLightingRules(config.dashboard.lighting),
+    lighting: {
+      ...projectLightingRules(config.dashboard.lighting),
+      // Only while someone home caps a light, so the payload is unchanged otherwise.
+      ...(Object.keys(home.nightCapPctByEntity).length ? { nightCapPctByEntity: home.nightCapPctByEntity } : {}),
+    },
     zoneEnvironmentFallbacks: ha.zoneEnvironmentFallbacks,
     router: buildRouterStatus(states, config),
     sun: buildSunStatus(states, config),
@@ -170,6 +176,9 @@ export async function buildDashboardState(): Promise<DashboardState> {
     climateControl: await climateControlState(),
     warnings,
     haHealth: context.haHealth,
+    homeUsers: home.homeUsers,
+    memberZones: home.memberZones,
+    homeZones: home.homeZones,
   };
 }
 
