@@ -16,6 +16,8 @@ type PanelProps = {
   onClose: () => void;
   onReplay: () => void;
   onBackToControl: () => void;
+  /** Opens "How was this control built?"; absent where the step has none. */
+  onLayers?: () => void;
 };
 
 /**
@@ -24,7 +26,7 @@ type PanelProps = {
  * and Replay / Back to the control when they apply.
  */
 export const TutorialPanel = forwardRef<HTMLDivElement, PanelProps>(function TutorialPanel(
-  { step, placement, width, flash, showReplay, offscreen, onClose, onReplay, onBackToControl },
+  { step, placement, width, flash, showReplay, offscreen, onClose, onReplay, onBackToControl, onLayers },
   ref,
 ) {
   const style = { transform: `translate3d(${placement.left.toFixed(1)}px, ${placement.top.toFixed(1)}px, 0)`, width } as CSSProperties;
@@ -51,13 +53,16 @@ export const TutorialPanel = forwardRef<HTMLDivElement, PanelProps>(function Tut
       </MomentaryFeedbackButton>
       <h2 id="tutorial-step-title" className="tutorial-title">{step.title}</h2>
       <p className="tutorial-caption" aria-live="polite">{step.caption}</p>
-      {showReplay || offscreen ? (
+      {showReplay || offscreen || onLayers ? (
         <div className="tutorial-panel-actions">
           {offscreen ? (
             <MomentaryFeedbackButton className="tutorial-button" onClick={onBackToControl}>Back to the control</MomentaryFeedbackButton>
           ) : null}
           {showReplay ? (
             <MomentaryFeedbackButton className="tutorial-button" onClick={onReplay}>Replay</MomentaryFeedbackButton>
+          ) : null}
+          {onLayers ? (
+            <MomentaryFeedbackButton className="tutorial-button tutorial-layers-button" onClick={onLayers}>How was this control built?</MomentaryFeedbackButton>
           ) : null}
         </div>
       ) : null}

@@ -121,4 +121,20 @@ test.describe("tutorial mode", () => {
     await page.keyboard.press("Escape");
     await expect.poll(() => page.locator(".advanced-fold[data-open='true']").count(), { timeout: 10_000 }).toBe(0);
   });
+
+  test("how was this control built? opens the layer stack and goes back to the same step", async ({ page }) => {
+    await openTour(page);
+    await page.locator(".tutorial-button-next").click();
+    expect(await stepId(page)).toBe("tap-vs-turn");
+    await page.locator(".tutorial-layers-button").click();
+    const stage = page.locator(".layer-stage");
+    await expect(stage).toBeVisible();
+    await expect.poll(() => page.locator(".layer-list-item").count(), { timeout: 15_000 }).toBeGreaterThan(5);
+    await page.locator(".layer-list-item").first().click();
+    await expect(page.locator(".layer-note-text")).not.toHaveText(/Tap a layer/);
+    await page.keyboard.press("Escape");
+    await expect(stage).toHaveCount(0);
+    await expect(page.locator(".tutorial-layer")).toBeVisible();
+    expect(await stepId(page)).toBe("tap-vs-turn");
+  });
 });

@@ -75,6 +75,7 @@
 @import "./styles/camera/event-preview.css";
 @import "./styles/orb/status-orb.css";
 @import "./styles/tutorial/tutorial.css";
+@import "./styles/tutorial/layer-stage.css";
 @import "./styles/tasks/reminders-panel.css";
 @import "./styles/responsive/standalone.css";
 @import "./styles/laundry/laundry.css";

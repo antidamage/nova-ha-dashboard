@@ -227,7 +227,7 @@ start on something inside it.
   | Mask | — | black 85% (light), white 75% (dark): **alex's values, 2026-11-16**, not from the extract |
   | Easing | motion tokens | `lg` 450ms for the cut-out, `md` 300ms for a tap, `xl` 1.2s rest between loops |
   | Finger | — | **no extract value**: closest fit is the text token at 70% with a `--cyber-border-dim` press ring; recorded here as a departure |
-  | Layer tags | the theme accent and the alert, cool and fan mode colours already in `temperatureEncoderModel.ts` | four distinct colours, no new ones |
+  | Layer tags | the theme highlight (CSS) and the climate knob's fixed cool (SVG), heat (Canvas 2D) and fan (WebGL) colours in `temperatureEncoderModel.ts` | four colours that stay distinct in every theme; no new ones |
 
   The white mask is checked on a dark theme in a render; if it reads as glare
   on the wall panel at night the value is alex's to change.
@@ -241,9 +241,12 @@ background step.
   **fanned apart in 3D like a stack of cards**: tilted back about 55° and
   rotated about 35°, each layer lifted further along the stack's axis, with a
   1s ease out of the flat stack on open. Dragging on the stage turns it.
-- Every card shows **one layer**, labelled with its name and a tag: **CSS**,
-  **SVG**, **Canvas 2D** or **WebGL**, each tag in its own colour from the
-  design extract.
+- Every card shows **one layer**. The cards carry no text (text skewed in 3D
+  cannot be read); beside the stack in landscape, and under it on a phone, a
+  flat list names each layer top-first with its tag, **CSS**, **SVG**,
+  **Canvas 2D** or **WebGL**. A layer is selected from the list or its card.
+- A layer that is not on this control (a light knob has no arc sliders or
+  title arc) is left out of the stack and the list.
 - **Previews are pre-rendered to a canvas for this view.** On open, each
   layer is rasterised once into its own 2D canvas: CSS and SVG layers are
   isolated (only that layer visible) and drawn through an SVG
@@ -258,7 +261,12 @@ background step.
   in portrait, never clipped by the viewport.
 - On a phone in portrait the stack runs vertically with a tighter lift; when
   the cards still do not fit, the stage scrolls.
-- A close box and Esc return to **the same tour step**.
+- A close box and Esc return to **the same tour step**; Back/Next wait while
+  it is open. Opening it stops the finger, and a locked climate copy is
+  unlocked first so its rings are there to draw. Lite never offers it.
+- Code: `app/components/tutorial/layers/` (catalogue, rasteriser, fluid terms,
+  card rendering, stage, `useLayerView`), styles in
+  `app/styles/tutorial/layer-stage.css`.
 
 ### Layer sets
 
@@ -286,7 +294,7 @@ background step.
 | Glass disc | CSS backdrop-filter + SVG lens filter | Refracts the real page behind it. Chromium uses the SVG filter through `backdrop-filter: url()`; WebKit gets a copy of the backdrop through the same filter. |
 | Orb body | Canvas 2D | Animated rings, fields and load easing at 60fps; one canvas redraw is cheaper than hundreds of DOM nodes. |
 | Reflection and gloss | CSS | Blend-mode layers; the reflection drifts with a transform. |
-| Dial indicator | SVG | The stack ring is exact arcs. |
+| Dial indicator | CSS | The knob's own ring and unlock-ring layers, reused, so the orb's dial lights like every knob. |
 | Counter | DOM text | Sharp at any scale. |
 
 **Background**, bottom to top:
@@ -309,10 +317,12 @@ picture of one. **One offscreen WebGL context, used once**: each term is
 drawn in turn, copied to its card's 2D canvas, and the context is then
 released with `WEBGL_lose_context` and dropped. Chromium caps live contexts
 per page and drops the oldest, which once left the real background blank
-(`specs/wallpaper-background-mode.md`, "WebGL lifecycle"); a test opens and
-closes the view and checks the live background's context survives. If the
-wallpaper replaces the fluid background, the background set is the wallpaper
-(CSS image) plus the CSS layers above it.
+(`specs/wallpaper-background-mode.md`, "WebGL lifecycle"); the offscreen context
+is released in a `finally`, so it never outlives one opening of the view. (A
+survival test is not possible headless: the test browsers have no working
+WebGL; the cards were checked under SwiftShader.) If the
+wallpaper replaces the fluid background, there is no shader to take apart:
+the five WebGL cards are left out and the CSS layers remain.
 
 ### The catalogue does not drift
 

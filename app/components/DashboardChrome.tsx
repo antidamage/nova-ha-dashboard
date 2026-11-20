@@ -57,7 +57,7 @@ export function DashboardChrome({
       </GatedLink>
       <LogoutButton users={homeUsers} />
       <TutorialButton />
-      <TutorialLayer avatar={theme.avatar} />
+      <TutorialLayer theme={theme} />
 
       <UpdateBanner />
 

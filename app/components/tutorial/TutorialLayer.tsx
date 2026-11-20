@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { NovaAvatarTheme } from "../avatarThemeModel";
+import type { DeviceTheme } from "../accentColor";
+import { LayerStage } from "./layers/LayerStage";
+import { useLayerView } from "./layers/useLayerView";
 import { Finger, type FingerHandle } from "./finger/Finger";
 import { useFingerDriver } from "./finger/useFingerDriver";
 import { BAR_HEIGHT, captionPlacement, cutoutFor, isOffscreen, maskPath, PANEL_GAP, panelWidth, unionBox, VIEWPORT_GUTTER } from "./geometry-model";
@@ -18,7 +20,8 @@ import { useTrackedRect } from "./useTrackedRect";
 
 const DEMO = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
 const FLASH_MS = 300;
-function Tour({ avatar }: { avatar: NovaAvatarTheme }) {
+function Tour({ theme }: { theme: DeviceTheme }) {
+  const avatar = theme.avatar;
   const viewport = useViewport();
   const landscape = viewport.width > viewport.height;
   // Resolved on open and again on a layout flip, so the counter never jumps.
@@ -101,7 +104,7 @@ function Tour({ avatar }: { avatar: NovaAvatarTheme }) {
   }, [step, target]);
   const draw = useCallback((view: Parameters<FingerHandle["draw"]>[0]) => fingerRef.current?.draw(view), []);
 
-  const { playing: driving, replay } = useFingerDriver({
+  const { playing: driving, replay, stop } = useFingerDriver({
     script: step && target ? step.script : "none",
     getRoot,
     within,
@@ -112,6 +115,8 @@ function Tour({ avatar }: { avatar: NovaAvatarTheme }) {
   // The driver's own state: it is false whenever no script is running, however
   // the last one ended (finished, taken over, or cut short by Next).
   const touch = useIdleExit(!DEMO, driving, exit);
+  const layers = useLayerView(step, copyRef, stop);
+  const { view: layerView, close: closeLayers, opening: layersOpening } = layers;
 
   // The guard, and the tour's own keys, which only apply with focus in the
   // panel or bar or on nothing; on the copy, arrows and Esc are the copy's.
@@ -122,6 +127,11 @@ function Tour({ avatar }: { avatar: NovaAvatarTheme }) {
       const active = document.activeElement;
       const free = !active || active === document.body || Boolean(active.closest("[data-tutorial-panel]"));
       if (!free) return;
+      // With the layer view open, Esc goes back to the step, and Back/Next wait.
+      if (layerView || layersOpening) {
+        if (event.key === "Escape") closeLayers();
+        return;
+      }
       if (event.key === "ArrowRight") go(1);
       else if (event.key === "ArrowLeft") go(-1);
       else if (event.key === "Escape") exit();
@@ -131,7 +141,7 @@ function Tour({ avatar }: { avatar: NovaAvatarTheme }) {
       window.setTimeout(() => setFlash(false), FLASH_MS);
     };
     return installInputGuard(DEMO ? "scroll-friendly" : "strict", onMaskTap, onKey);
-  }, [exit, go, touch]);
+  }, [closeLayers, exit, go, layerView, layersOpening, touch]);
 
   useLayoutEffect(() => {
     const height = panelRef.current?.offsetHeight;
@@ -166,15 +176,17 @@ function Tour({ avatar }: { avatar: NovaAvatarTheme }) {
           replay();
         }}
         onBackToControl={scrollToTarget}
+        onLayers={layers.available ? () => void layers.open() : undefined}
       />
-      <TutorialBar index={index} count={steps.length} onBack={() => go(-1)} onNext={() => go(1)} />
+      <TutorialBar index={index} count={steps.length} onBack={() => !layersOpening && go(-1)} onNext={() => !layersOpening && go(1)} />
+      {layers.view ? <LayerStage setId={layers.view.setId} control={layers.view.control} theme={theme} onClose={layers.close} /> : null}
     </div>
   );
 }
 
 /** The tour, portalled over the page while it is open (specs/tutorial-mode.md). */
-export function TutorialLayer({ avatar }: { avatar: NovaAvatarTheme }) {
+export function TutorialLayer({ theme }: { theme: DeviceTheme }) {
   const open = useTutorialOpen();
   if (!open || typeof document === "undefined") return null;
-  return createPortal(<Tour avatar={avatar} />, document.body);
+  return createPortal(<Tour theme={theme} />, document.body);
 }
