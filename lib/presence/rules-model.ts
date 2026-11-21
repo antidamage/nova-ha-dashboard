@@ -1,6 +1,6 @@
 import type { HomeZoneSetting } from "../config-schema/home-users";
 import type { HouseholdPerson } from "../config-schema/power";
-import { bedroomsOf, controlledZoneIds, homeUsers, isArrivalLight } from "../home-users/model";
+import { bedroomsOf, homeUsers, zonesFlagged } from "../home-users/model";
 
 /**
  * The occupancy rules (specs/home-users.md section 5): what the house does when
@@ -28,7 +28,8 @@ export function decidePresenceActions(input: {
   zoneSettings: readonly HomeZoneSetting[];
   /** Home user ids home before this event. */
   homeBefore: ReadonlySet<string>;
-  sunUp: boolean;
+  /** null when the sun cannot be read: the night lights then stay off. */
+  sunUp: boolean | null;
 }): PresenceAction[] {
   const { member, zoneSettings } = input;
   const wasHome = input.homeBefore.has(member.id);
@@ -38,23 +39,23 @@ export function decidePresenceActions(input: {
   const others = homeUsers(input.people).filter(
     (person) => person.id !== member.id && input.homeBefore.has(person.id),
   );
-  const bedrooms = bedroomsOf(member, zoneSettings);
+  // The rooms that follow this member (the `bedroom` flag, section 2).
+  const own = bedroomsOf(member, zoneSettings);
+  // Last, so a last-out switches the house off and then lights the way out.
+  const night = input.sunUp === false ? lightsOn(zonesFlagged(zoneSettings, "nightLight")) : [];
 
   if (input.event === "departure") {
     if (!others.length) {
-      return [{ kind: "lights-off-house" }, ...heaterOff(bedrooms)];
+      return [{ kind: "lights-off-house" }, ...heaterOff(own), ...night];
     }
-    // A bedroom someone still home also owns stays lit.
+    // A room someone still home also owns stays lit.
     const ownedByOthers = new Set(others.flatMap((person) => bedroomsOf(person, zoneSettings)));
-    const leaving = bedrooms.filter((zoneId) => !ownedByOthers.has(zoneId));
-    return [...lightsOff(leaving), ...heaterOff(leaving)];
+    const leaving = own.filter((zoneId) => !ownedByOthers.has(zoneId));
+    return [...lightsOff(leaving), ...heaterOff(leaving), ...night];
   }
 
-  const controlled = controlledZoneIds(member);
-  if (!others.length) return lightsOn(controlled);
-  if (input.sunUp) return lightsOn(bedrooms);
-  const welcome = controlled.filter((zoneId) => isArrivalLight(zoneSettings, zoneId));
-  return lightsOn([...new Set([...bedrooms, ...welcome])]);
+  const firstHome = others.length ? [] : zonesFlagged(zoneSettings, "firstHomeLight");
+  return [...lightsOn([...new Set([...own, ...firstHome])]), ...night];
 }
 
 function lightsOn(zones: string[]): PresenceAction[] {
@@ -76,7 +77,9 @@ export function describePresenceActions(name: string, event: PresenceEventKind, 
   if (actions.some((action) => action.kind === "lights-off-house")) {
     return `${verb} Nobody else is home, so every light turns off.`;
   }
-  const on = actions.find((action) => action.kind === "lights-on");
-  if (on && on.kind === "lights-on") return `${verb} Lights turn on in ${on.zones.length} room${on.zones.length === 1 ? "" : "s"}.`;
-  return `${verb} Their bedroom light turns off.`;
+  if (event === "arrival") {
+    const rooms = new Set(actions.flatMap((action) => (action.kind === "lights-on" ? action.zones : [])));
+    return `${verb} Lights turn on in ${rooms.size} room${rooms.size === 1 ? "" : "s"}.`;
+  }
+  return `${verb} Their rooms' lights turn off.`;
 }

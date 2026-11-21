@@ -32,8 +32,13 @@ describe("home users config model", () => {
 
   it("sets a zone flag, creating the zone's entry when it has none", () => {
     const zones = setZoneFlag([], "loft", "bedroom", true);
-    expect(zones).toEqual([{ zoneId: "loft", bedroom: true, arrivalLight: false }]);
-    expect(setZoneFlag(zones, "loft", "arrivalLight", true)[0]).toEqual({ zoneId: "loft", bedroom: true, arrivalLight: true });
+    expect(zones).toEqual([{ zoneId: "loft", bedroom: true, firstHomeLight: false, nightLight: false }]);
+    expect(setZoneFlag(zones, "loft", "nightLight", true)[0]).toEqual({
+      zoneId: "loft",
+      bedroom: true,
+      firstHomeLight: false,
+      nightLight: true,
+    });
   });
 
   it("offers All lights, each room's lights and every preset but panel content", () => {

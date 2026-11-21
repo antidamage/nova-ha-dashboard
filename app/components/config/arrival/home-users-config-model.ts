@@ -60,15 +60,17 @@ export function moveQuickAccess(members: HouseholdPerson[], id: string, index: n
   return patchMember(members, id, { quickAccess: list });
 }
 
+export type HomeZoneFlag = "bedroom" | "firstHomeLight" | "nightLight";
+
 export function setZoneFlag(
   zones: HomeZoneSetting[],
   zoneId: string,
-  key: "bedroom" | "arrivalLight",
+  key: HomeZoneFlag,
   value: boolean,
 ): HomeZoneSetting[] {
   const existing = zones.find((zone) => zone.zoneId === zoneId);
   if (existing) return zones.map((zone) => (zone.zoneId === zoneId ? { ...zone, [key]: value } : zone));
-  return [...zones, { zoneId, bedroom: false, arrivalLight: false, [key]: value }];
+  return [...zones, { zoneId, bedroom: false, firstHomeLight: false, nightLight: false, [key]: value }];
 }
 
 export type QuickAccessOption = { value: string; label: string; group?: string };

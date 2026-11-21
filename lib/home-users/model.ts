@@ -50,8 +50,9 @@ export function isBedroom(zones: readonly HomeZoneSetting[], zoneId: string) {
   return settingFor(zones, zoneId)?.bedroom === true;
 }
 
-export function isArrivalLight(zones: readonly HomeZoneSetting[], zoneId: string) {
-  return settingFor(zones, zoneId)?.arrivalLight === true;
+/** Zone ids carrying a presence flag, in config order. */
+export function zonesFlagged(zones: readonly HomeZoneSetting[], flag: "firstHomeLight" | "nightLight"): string[] {
+  return zones.filter((zone) => zone[flag] === true).map((zone) => zone.zoneId);
 }
 
 /** The rooms this person sees, plus every room their Quick Access lights point at. */

@@ -4,8 +4,8 @@ import { nightCapsFor } from "./night-cap-model";
 // specs/home-users.md section 6, including its worked example.
 
 const zoneSettings = [
-  { zoneId: "study", bedroom: true, arrivalLight: false },
-  { zoneId: "loft", bedroom: true, arrivalLight: false },
+  { zoneId: "study", bedroom: true, firstHomeLight: false, nightLight: false },
+  { zoneId: "loft", bedroom: true, firstHomeLight: false, nightLight: false },
 ];
 const ada = { id: "ada", rooms: ["study", "kitchen", "outside"], quickAccess: [], nightMaxBrightnessPct: 60 };
 const bo = {

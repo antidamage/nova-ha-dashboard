@@ -23,12 +23,15 @@ export type OccupancyResult = {
   nightRecheck: { ok: boolean; sent: number; error?: string };
 };
 
-async function sunIsUp() {
+/** True, false, or null when the sun cannot be read. */
+async function sunIsUp(): Promise<boolean | null> {
   try {
-    return (await buildDashboardState()).sun?.state === "above_horizon";
+    const state = (await buildDashboardState()).sun?.state;
+    if (state === "above_horizon") return true;
+    if (state === "below_horizon") return false;
+    return null;
   } catch {
-    // An unreadable sun counts as down: the generous direction, more lights on.
-    return false;
+    return null;
   }
 }
 

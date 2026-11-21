@@ -39,10 +39,15 @@ export const HouseholdPersonHomeUserFields = {
 /** Per-zone facts Home Assistant cannot express, keyed by zone (area) id. */
 export const HomeZoneSettingSchema = z.object({
   zoneId: z.string().min(1),
-  /** Someone's bedroom: owned by the home users who have it in `rooms`. */
+  /**
+   * Follows its owners, the home users who have it in `rooms`: on when one
+   * arrives, off when the last one home leaves. Named `bedroom` for old configs.
+   */
   bedroom: z.boolean().default(false),
-  /** Lit for a later arrival after sunset. */
-  arrivalLight: z.boolean().default(false),
+  /** On when the first home user arrives to an empty house. */
+  firstHomeLight: z.boolean().default(false),
+  /** On at every arrival and departure while the sun is down. */
+  nightLight: z.boolean().default(false),
 });
 export type HomeZoneSetting = z.infer<typeof HomeZoneSettingSchema>;
 

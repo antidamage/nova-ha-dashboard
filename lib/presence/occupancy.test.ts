@@ -20,7 +20,7 @@ const { readPresence } = await import("./store");
 
 const bo = { id: "bo", label: "Bo", color: "#39ff14", rooms: ["loft"], arrival: [], departure: [] };
 const config = {
-  dashboard: { people: [bo], zones: [{ zoneId: "loft", bedroom: true, arrivalLight: false }] },
+  dashboard: { people: [bo], zones: [{ zoneId: "loft", bedroom: true, firstHomeLight: false, nightLight: false }] },
 } as never;
 
 const ok = (actions: Array<Record<string, unknown>>) => actions.map((action) => ({ ...action, ok: true }));

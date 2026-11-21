@@ -53,19 +53,25 @@ renamed person keeps their history.
 `controlledZones(person)` = `rooms` ∪ the zone of every `room-lights` entry in
 their `quickAccess`. A user's lights are the light-layer entities
 (`lightLayerEntities`) in those zones, excluding the `homeAssistant.everythingExcludedEntityIds`
-list only where that list already applies (the Home zone). "All lights", the
-first-arrival rule and the night cap all use this set.
+list only where that list already applies (the Home zone). "All lights" and the
+night cap use this set.
 
 ## 2. Zone metadata: `dashboard.zones`
 
-`dashboard.zones` is an array of `{ zoneId, bedroom, arrivalLight }`, both
-booleans default `false`, ships empty. It is keyed by zone id, which is the
+`dashboard.zones` is an array of `{ zoneId, bedroom, firstHomeLight, nightLight }`,
+all booleans default `false`, ships empty. An `arrivalLight` key from an older
+config is dropped on read. It is keyed by zone id, which is the
 Home Assistant `area_id` and does not change when the area is renamed.
 
-- `bedroom`: the room is someone's bedroom. Its **owners** are the home users who
-  have it in `rooms`. Departure, arrival and the night cap treat a bedroom as its
-  owners' alone.
-- `arrivalLight`: the room is lit for a later arrival after sunset (§5).
+- `bedroom`: the room **follows its owners**, the home users who have it in
+  `rooms`. It turns on when an owner arrives and off when its last owner home
+  leaves. Any room can carry it, not only a bedroom (a conservatory that follows
+  one person, for example). The night cap treats it as its owners' alone. The
+  key keeps its old name so existing configs load unchanged.
+- `firstHomeLight`: the room turns on when the first home user arrives to an
+  empty house, at any time of day (§5).
+- `nightLight`: the room turns on at every arrival and departure while the sun is
+  down, whoever is home (§5). Typically the outside light.
 
 `isBedroomZone` in `app/components/dashboard/shell/zone-model.ts` is not this
 flag. It selects the legacy heater room's temperature panel by zone id, which
@@ -230,13 +236,19 @@ preset list, with no presence change and no occupancy actions.
 `lib/presence/rules-model.ts` returns an ordered list of actions. "Others" means
 home users other than the member who are home before the event.
 
-| Event | Others home? | Sun | Actions |
-|---|---|---|---|
-| leaving | none | any | `lights-off: house` (every light-layer entity) · `heater-off` for each heater in the member's bedrooms |
-| leaving | some | any | `lights-off` the member's bedrooms that no remaining home user also owns · `heater-off` for those bedrooms' heaters |
-| home | none | any | `lights-on` every zone in `controlledZones(member)` |
-| home | some | up | `lights-on` the member's bedrooms |
-| home | some | down | `lights-on` the member's bedrooms ∪ (`controlledZones(member)` ∩ `arrivalLight` zones) |
+"The member's rooms" means the `bedroom`-flagged zones in their `rooms` (§2).
+
+| Event | Others home? | Actions, in order |
+|---|---|---|
+| leaving | none | `lights-off: house` (every light-layer entity) · `heater-off` for each heater in the member's rooms |
+| leaving | some | `lights-off` the member's rooms that no remaining home user also owns · `heater-off` for those rooms' heaters |
+| home | none | `lights-on` the member's rooms ∪ every `firstHomeLight` zone |
+| home | some | `lights-on` the member's rooms |
+
+After any of these, while the sun is down, `lights-on` every `nightLight` zone.
+It comes last, so a last-out turns the house off and then lights the outside
+for the person leaving. Rooms outside the member's own and the flagged zones are
+never switched on by an arrival.
 
 - **Lights only.** `lights-off` goes through `setAllLightingAction` /
   `setZoneLightingAction` with action `off`, which switch only the light layer.
@@ -255,8 +267,13 @@ home users other than the member who are home before the event.
   on, which is the behaviour asked for. This is a user event, not a time of day,
   so the heater's "no clock schedule" rule holds.
 - **Aircon** is never touched by any rule.
-- `sunUp` is `sun.state === "above_horizon"`. An unreadable sun counts as down,
-  which is the generous direction (more lights on).
+- `sunUp` is true for `above_horizon`, false for `below_horizon`, and null when
+  the sun cannot be read. The `nightLight` rule runs only on false, so an
+  unreadable sun never lights the outside by day.
+- `arrivalLight` from older configs is discarded, not mapped: mapping it to
+  `nightLight` would light every room it was ticked on at every night event.
+- A person without rooms has no presence, so their events never fire the
+  `nightLight` rule and never count as first home or last out.
 
 ### Known risk: geofence flapping
 
@@ -335,8 +352,10 @@ Users** and extended. Per person it shows, in order:
    remove, and move up/down;
 6. primary, and the arrival/departure preset lists, as today.
 
-Below the people is a **Rooms** list: one row per room zone, with **Bedroom** and
-**Lit for a later arrival after sunset** switches (`dashboard.zones`). Every edit
+Below the people is a **Rooms** list: one row per room zone, with
+**Follows its people** ("on when one of its people arrives, off when the last
+leaves"), **On for the first one home** and **Night light, any arrival or departure**
+switches (`dashboard.zones`). Every edit
 writes through `app/api/arrivals/route.ts`, which now also reads and writes
 `dashboard.zones`.
 
