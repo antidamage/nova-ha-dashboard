@@ -8,6 +8,8 @@ import type { TutorialStep } from "./steps";
 
 type PanelProps = {
   step: TutorialStep;
+  /** The phase caption while one plays, else the step's own. */
+  caption: string;
   placement: Placement;
   width: number;
   flash: boolean;
@@ -26,7 +28,7 @@ type PanelProps = {
  * and Replay / Back to the control when they apply.
  */
 export const TutorialPanel = forwardRef<HTMLDivElement, PanelProps>(function TutorialPanel(
-  { step, placement, width, flash, showReplay, offscreen, onClose, onReplay, onBackToControl, onLayers },
+  { step, caption, placement, width, flash, showReplay, offscreen, onClose, onReplay, onBackToControl, onLayers },
   ref,
 ) {
   const style = { transform: `translate3d(${placement.left.toFixed(1)}px, ${placement.top.toFixed(1)}px, 0)`, width } as CSSProperties;
@@ -52,7 +54,7 @@ export const TutorialPanel = forwardRef<HTMLDivElement, PanelProps>(function Tut
         <X className="h-4 w-4" aria-hidden="true" />
       </MomentaryFeedbackButton>
       <h2 id="tutorial-step-title" className="tutorial-title">{step.title}</h2>
-      <p className="tutorial-caption" aria-live="polite">{step.caption}</p>
+      <p className="tutorial-caption" aria-live="polite">{caption}</p>
       {showReplay || offscreen || onLayers ? (
         <div className="tutorial-panel-actions">
           {offscreen ? (

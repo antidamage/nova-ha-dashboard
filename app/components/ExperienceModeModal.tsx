@@ -10,6 +10,7 @@ import {
   type ExperienceMode,
 } from "./dashboard/experienceModeSetting";
 import { useAgentName } from "./AgentNameContext";
+import { offerQuickStart } from "./tutorial/tutorialStore";
 
 // First-run experience chooser. Devices that have never chosen an experience
 // mode (no stored key) are asked once; the answer is written to localStorage
@@ -53,6 +54,8 @@ export function ExperienceModeModal() {
   const choose = (mode: ExperienceMode) => {
     writeExperienceModeSetting(mode);
     setPending(false);
+    // Someone who had to choose is new here: point them at the tour.
+    offerQuickStart();
   };
 
   return createPortal(

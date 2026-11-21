@@ -1,11 +1,9 @@
 "use client";
 
-import { Flame, Power, PowerOff, Sun } from "lucide-react";
 import { type CSSProperties, forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { NovaAvatarTheme } from "../../avatarThemeModel";
 import type { Hsva } from "../../colorEncoderModel";
 import { RingPortalTagContext } from "../../controls/rotary/ringPortalTag";
-import { IconButton } from "../../dashboard/IconButton";
 import { LightEncoder } from "../../LightEncoder";
 import { DemoTemperatureDial } from "../../TemperatureEncoderDemo";
 import type { TutorialCopyKind, TutorialStep } from "../steps";
@@ -19,25 +17,6 @@ const LIGHT_START: Hsva = { h: 36, s: 55, v: 62, a: 1 };
 function LightCopy({ size }: { size: number }) {
   const [value, setValue] = useState(LIGHT_START);
   return <LightEncoder ariaLabel="Demo light" label="Lights" size={size} value={value} onChange={setValue} />;
-}
-
-/** The zone preset row's own markup and variants (ZoneRulePresetRow), on no-op handlers. */
-function PresetsCopy() {
-  const presets = [
-    { name: "On", variant: "yellow" as const, icon: <Power aria-hidden /> },
-    { name: "Adaptive", variant: "yellow" as const, icon: <Flame aria-hidden /> },
-    { name: "White", variant: "white" as const, icon: <Sun aria-hidden /> },
-    { name: "Off", variant: "pink" as const, icon: <PowerOff aria-hidden /> },
-  ];
-  return (
-    <div className="zone-lighting-presets" role="group" aria-label="Demo lighting presets">
-      {presets.map((preset) => (
-        <IconButton key={preset.name} label={preset.name} variant={preset.variant} onClick={() => undefined}>
-          {preset.icon}<span>{preset.name}</span>
-        </IconButton>
-      ))}
-    </div>
-  );
 }
 
 const clampSize = (size: number) => Math.round(Math.max(50, Math.min(200, size)));
@@ -81,7 +60,7 @@ type Props = {
 
 /**
  * Mounts a deviceless copy over the real control: knobs line their dial's
- * centre up with the real dial's, the preset row and the orb their box.
+ * centre up with the real dial's, the orb its box.
  */
 export const SandboxCopy = forwardRef<HTMLDivElement, Props>(function SandboxCopy({ kind, target, step, avatar, resetKey }, ref) {
   const anchor = kind === "light" || kind === "aircon" ? dialOf(target) ?? target : target;
@@ -113,7 +92,6 @@ export const SandboxCopy = forwardRef<HTMLDivElement, Props>(function SandboxCop
   const top = centred ? rect.top + rect.height / 2 - offset.y : rect.top - offset.y;
   const style = {
     transform: `translate3d(${left.toFixed(1)}px, ${top.toFixed(1)}px, 0)`,
-    ...(kind === "presets" ? { width: rect.width } : {}),
   } as CSSProperties;
 
   return (
@@ -125,7 +103,6 @@ export const SandboxCopy = forwardRef<HTMLDivElement, Props>(function SandboxCop
           {kind === "aircon" ? (
             <DemoTemperatureDial id="tutorial" size={size} startMode={step.aircon?.mode ?? "auto"} target={22} room={21.4} />
           ) : null}
-          {kind === "presets" ? <PresetsCopy /> : null}
           {kind === "orb" ? <SandboxOrb size={Math.round(rect.width)} avatar={avatar} /> : null}
         </div>
       </RingPortalTagContext.Provider>

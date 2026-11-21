@@ -7,6 +7,10 @@ import { useSyncExternalStore } from "react";
  * outside it (specs/tutorial-mode.md, "Opening and closing it").
  */
 let open = false;
+// Set when someone has just had to choose an experience mode: the "?" then
+// reads "Quick-start tutorial" until the tour is opened or the page reloads
+// (alex, 2026-11-21).
+let quickStart = false;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -16,6 +20,7 @@ function emit() {
 export function openTutorial() {
   if (open) return;
   open = true;
+  quickStart = false;
   emit();
 }
 
@@ -36,4 +41,18 @@ function subscribe(listener: () => void) {
 
 export function useTutorialOpen() {
   return useSyncExternalStore(subscribe, isTutorialOpen, () => false);
+}
+
+export function offerQuickStart() {
+  if (quickStart) return;
+  quickStart = true;
+  emit();
+}
+
+function isQuickStart() {
+  return quickStart;
+}
+
+export function useQuickStart() {
+  return useSyncExternalStore(subscribe, isQuickStart, () => false);
 }

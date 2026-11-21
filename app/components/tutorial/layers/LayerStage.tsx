@@ -6,6 +6,7 @@ import type { DeviceTheme } from "../../accentColor";
 import { MomentaryFeedbackButton } from "../../MomentaryFeedbackButton";
 import { MODE_COOL_COLOUR, MODE_FAN_COLOUR, MODE_HEAT_COLOUR } from "../../temperatureEncoderModel";
 import { LAYER_SETS, type LayerMethod, type LayerSetId } from "./catalogue";
+import { fitStack, SELECT_LIFT } from "./layerFit";
 import { copyLiveCanvas, frameFor, renderCards, type Frame } from "./renderCards";
 
 /**
@@ -20,9 +21,6 @@ const METHOD_COLOUR: Record<LayerMethod, string> = {
   "Canvas 2D": MODE_HEAT_COLOUR,
   WebGL: MODE_FAN_COLOUR,
 };
-
-/** How far apart the cards sit along the stack, as a share of the card. */
-const LIFT = 0.16;
 
 type Props = {
   setId: LayerSetId;
@@ -51,6 +49,23 @@ export function LayerStage({ setId, control, theme, onClose }: Props) {
   // Read once per opening: a theme change while open must not start a second
   // offscreen render (and a second WebGL context) under the first.
   const themeRef = useRef(theme);
+  // The stage body's size, measured: the stack is sized to fit it, and
+  // re-sized on every resize or rotation, so nothing ever scrolls.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [body, setBody] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const node = bodyRef.current;
+    if (!node) return;
+    const read = () => setBody({ width: node.clientWidth, height: node.clientHeight });
+    read();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(read) : null;
+    observer?.observe(node);
+    window.addEventListener("resize", read);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", read);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -81,11 +96,9 @@ export function LayerStage({ setId, control, theme, onClose }: Props) {
   }, [control, frame, set]);
 
   const shown = set.layers.filter((layer) => !empty?.has(layer.id));
-  const narrow = typeof window !== "undefined" && window.innerWidth < 600;
-  const fit = Math.min(window.innerWidth * (narrow ? 0.55 : 0.42), window.innerHeight * (narrow ? 0.26 : 0.42));
-  const scale = fit / Math.max(frame.width, frame.height);
-  const width = frame.width * scale;
-  const height = frame.height * scale;
+  const narrow = body.width > 0 ? window.innerWidth < 600 : false;
+  const fit = fitStack(frame, Math.max(1, shown.length), body);
+  const { width, height } = fit.card;
   const active = set.layers.find((layer) => layer.id === selected) ?? null;
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -108,13 +121,13 @@ export function LayerStage({ setId, control, theme, onClose }: Props) {
           <X className="h-4 w-4" aria-hidden="true" />
         </MomentaryFeedbackButton>
       </header>
-      <div className="layer-stage-body" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
-        <div className="layer-stack" style={{ width, height, "--layer-turn": `${turn}deg` } as CSSProperties} data-spread={spread ? "true" : "false"}>
+      <div ref={bodyRef} className="layer-stage-body" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+        <div className="layer-stack" style={{ width, height, "--layer-turn": `${turn}deg`, "--layer-shift": `${fit.shift.toFixed(1)}px` } as CSSProperties} data-spread={spread ? "true" : "false"}>
           {set.layers.map((layer) => {
             const index = shown.indexOf(layer);
             const hidden = empty === null ? false : index < 0;
             const style = {
-              "--layer-lift": `${(spread ? index : 0) * height * LIFT + (layer.id === selected ? height * 0.08 : 0)}px`,
+              "--layer-lift": `${(spread ? index : 0) * fit.lift + (layer.id === selected ? height * SELECT_LIFT : 0)}px`,
               display: hidden ? "none" : undefined,
             } as CSSProperties;
             return (

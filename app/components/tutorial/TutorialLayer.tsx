@@ -34,6 +34,9 @@ function Tour({ theme }: { theme: DeviceTheme }) {
   const target = resolved && resolved.step === step ? resolved.element : null;
   const [resetKey, setResetKey] = useState(0);
   const [flash, setFlash] = useState(false);
+  // The current phase's caption, while a phased script plays (null: the step's).
+  const [phase, setPhase] = useState<string | null>(null);
+  useEffect(() => setPhase(null), [step]);
   const copyRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const fingerRef = useRef<FingerHandle | null>(null);
@@ -111,6 +114,7 @@ function Tour({ theme }: { theme: DeviceTheme }) {
     reset,
     draw,
     reducedMotion: reduced,
+    onSay: setPhase,
   });
   // The driver's own state: it is false whenever no script is running, however
   // the last one ended (finished, taken over, or cut short by Next).
@@ -165,6 +169,7 @@ function Tour({ theme }: { theme: DeviceTheme }) {
       <TutorialPanel
         ref={panelRef}
         step={step}
+        caption={phase ?? step.caption}
         placement={placement}
         width={width}
         flash={flash}

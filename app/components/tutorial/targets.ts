@@ -28,8 +28,6 @@ export function findTarget(kind: TutorialTargetKind): HTMLElement | null {
       return first(".tutorial-help-button");
     case "light":
       return first(".zone-color-encoder");
-    case "presets":
-      return first(".zone-lighting-presets");
     case "aircon":
       // The climate knob whose dial names an air conditioner (AirconKnob's
       // aria-label), not the heater's.

@@ -52,7 +52,7 @@ test.describe("tutorial mode", () => {
   test("plays on a copy over the real knob, which is hidden while covered", async ({ page }) => {
     await openTour(page);
     await page.locator(".tutorial-button-next").click();
-    expect(await stepId(page)).toBe("tap-vs-turn");
+    expect(await stepId(page)).toBe("lights");
     const copy = page.locator("[data-tutorial-copy='light']");
     await expect(copy).toBeVisible();
     await expect(copy.locator(".tutorial-copy-tag")).toHaveText("DEMO");
@@ -125,7 +125,7 @@ test.describe("tutorial mode", () => {
   test("how was this control built? opens the layer stack and goes back to the same step", async ({ page }) => {
     await openTour(page);
     await page.locator(".tutorial-button-next").click();
-    expect(await stepId(page)).toBe("tap-vs-turn");
+    expect(await stepId(page)).toBe("lights");
     await page.locator(".tutorial-layers-button").click();
     const stage = page.locator(".layer-stage");
     await expect(stage).toBeVisible();
@@ -135,6 +135,6 @@ test.describe("tutorial mode", () => {
     await page.keyboard.press("Escape");
     await expect(stage).toHaveCount(0);
     await expect(page.locator(".tutorial-layer")).toBeVisible();
-    expect(await stepId(page)).toBe("tap-vs-turn");
+    expect(await stepId(page)).toBe("lights");
   });
 });

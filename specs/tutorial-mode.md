@@ -11,6 +11,10 @@ render layers apart. It runs on the demo site and on the real dashboard.
   (`DashboardChrome.tsx`), same size and treatment as that cog. Present on
   every build: demo and live. Hidden on `/config`, as the cog's neighbours
   are.
+- **Quick-start label** (alex, 2026-11-21): when someone has just had to
+  choose an experience mode, the "?" extends into a pill reading
+  "Quick-start tutorial", label right of the icon, until the tour is opened
+  or the page reloads. In portrait it sits just below the orb's resting box.
 - Exit by the **close box** (a small "×" at the top right of the caption
   panel), by **Esc**, or by **Next** on the last step. Exit leaves the page
   as it found it: any fold the tour opened is closed, the sandbox copies are
@@ -33,9 +37,10 @@ render layers apart. It runs on the demo site and on the real dashboard.
 
 ## The mask
 
-- Everything except the control being explained is covered. The mask is **black at 85%** in every theme variant (alex, 2026-11-21: "I
-  don't like the white-out modal background after all. always use a dark one.";
-  this replaces the 2026-11-16 white-at-75% dark variant).
+- Everything except the control being explained is covered. The mask is
+  **black at 85%** in every theme variant (alex, 2026-11-21: "I don't like
+  the white-out modal background after all. always use a dark one."; this
+  replaces the 2026-11-16 white-at-75% dark variant).
 - The uncovered area is a rounded cut-out round the control's box plus a
   12px margin, with a soft 8px edge. It eases between steps over 450ms.
 - **The page still scrolls, but nothing under the mask can be pressed.** The
@@ -89,7 +94,7 @@ only. The copy tracks the real control's rect (by the same rule as the
 cut-out), so it scrolls with it. **No command leaves the dashboard during the
 tour**, on the real house or on the demo, **by construction**: the copies are
 built from the deviceless components only (`LightEncoder` with local state,
-`DemoTemperatureDial`, `IconButton` with local handlers, the orb renderer
+`DemoTemperatureDial`, the orb renderer
 with `useOrbDial` given local ids and no-op dismiss/toggle). No file under
 `app/components/tutorial/` imports a command hook, a store that writes, or
 `fetch` — not `useAirconCommands`, `useBedroomHeaterCommands`,
@@ -107,10 +112,10 @@ synthetic pointer throws `NotFoundError`, so `RotaryEncoder` and
 change to shared controls PR 1 makes). Nothing the copies listen to checks
 `isTrusted`.
 
-**Quiet while it plays.** While the finger is driving, UX sounds and haptics
-are suppressed (`controlSound.ts` and `haptics.ts` gain one suppression flag
-the tour sets), so a looping demo never chimes on a living-room display.
-When the user works the copy by hand, sounds and haptics play as normal.
+**Sounds.** The finger's actions play the controls' own UX sounds and
+haptics (dial clicks, unlock and lock, ring ticks), exactly as a person's
+would (alex, 2026-11-21: "play the right sounds when doing the UI
+actions").
 
 The copies take **no props from live or simulated state** beyond layout (the
 real control's size and rect) and the theme, so the demo's live simulation
@@ -136,8 +141,7 @@ the status orb is off, the background step when the background is off
 its layer views never create a WebGL or canvas context.
 
 The targets, by their existing hooks: the first light knob
-(`.zone-color-encoder`), the first preset row (`.zone-lighting-presets`),
-the first aircon knob (the `TemperatureEncoder` whose dial is labelled
+(`.zone-color-encoder`), the first aircon knob (the `TemperatureEncoder` whose dial is labelled
 "… air conditioner"), the status orb host (`.nova-avatar-host`), the first
 closed `.advanced-fold` with a divider. The tour never navigates to another
 zone to find one.
@@ -163,23 +167,20 @@ zone to find one.
 
 ### Steps, in order
 
+One example of a light and one of the aircon, each a single step (alex,
+2026-11-21: "we don't need to do EVERY control"); the presets step and its
+copy were dropped.
+
 | # | Step | Copy | What the finger does | Caption |
 |---|---|---|---|---|
 | 1 | Welcome | none; the cut-out is the "?" button | — | What the tour covers; Back/Next and the close box. |
-| 2 | Tap vs turn | light knob | taps once (the lit light moves), then turns | A tap picks what the knob sets; turning changes it. Turn like a real knob: from where you grab it. |
-| 3 | Light: brightness | light knob, Brt lit | turns from 7:30 towards 4:30 | Brightness is lit when the knob loads. The ring shows the light's colour. |
-| 4 | Light: colour | light knob | taps to Hue, turns; taps to Sat, turns | Hue goes all the way round; saturation runs from white to full colour. |
-| 5 | Light presets | preset row | taps On, a preset, then Off | The row under the dial: On, the zone's rules in order, Off. |
-| 6 | Unlocking a dial | aircon knob, locked | one deliberate tap; the unlock ring lights and the rings unfold | Climate knobs lock themselves when idle so a brush can't change them. One tap unlocks; they lock again after a quiet spell or a tap elsewhere. A drag or a long hold does not unlock. |
-| 7 | Target and modes | aircon knob, unlocked | turns the target; taps through Auto, Manual, Off | Turning sets the target. A tap cycles Auto, Manual and Off. The ring shows the target across the top and the room across the bottom. |
-| 8 | Fan ring | aircon knob in Manual | drags the Fan thumb along its ring | Each ring is dragged by its thumb. A press on the track away from it does nothing. |
-| 9 | Mode ring | aircon knob in Manual | drags the Mode thumb through cool, fan, heat | The Mode ring picks what the unit does. |
-| 10 | Fresh air and timer | aircon knob | taps the Fresh Air ring; drags the Timer thumb | A toggle ring flips on a tap. The timer counts down and switches the unit off. |
-| 11 | Status orb | orb copy | taps the orb; turns through the entries; taps it closed | The orb shows the most important thing first. A tap opens the stack; turning moves through it. |
-| 12 | Advanced | the first fold divider, real | drags the panel past the divider until the fold opens, then lets it close | More settings live past the ADVANCED line. Pull past it to open. (The advanced areas are being redesigned, so the tour stops at the line.) |
-| 13 | Background | the whole page, mask lifted | — | The background is a live shader. |
+| 2 | Lights | light knob, Brt lit | turns brightness; taps to Hue and turns; taps to Sat and turns | Turning sets brightness, from wherever you grab the knob. A tap switches to hue, then saturation; turn each. |
+| 3 | Air conditioner | aircon knob, locked, Auto | one tap unlocks; turns the target; taps to Manual so the rings show; drags Fan, drags Mode, taps Fresh Air, drags Timer | One tap unlocks it; turn for the target, tap to cycle Auto, Manual and Off. In Manual, drag each ring by its thumb. |
+| 4 | Status orb | orb copy with a running wash | taps the orb open; taps to turn the wash's finish bell off, then on | The orb shows what's running, like this wash. Open it with a tap; a tap then turns the finish alert off or on. |
+| 5 | Advanced | the first fold divider, real | drags the panel past the divider until the fold opens, then lets it close | More settings live past the ADVANCED line. Pull past it to open. (The advanced areas are being redesigned, so the tour stops at the line.) |
+| 6 | Background | the whole page, mask lifted | — | The background is a live shader. |
 
-Step 12 uses the real fold, because opening it changes only the view. Its
+Step 5 uses the real fold, because opening it changes only the view. Its
 target is the first **closed** fold in page order. The tour closes only the
 folds it opened, when the step ends or the tour exits; a fold the household
 already had open is left as it was. Nothing inside an advanced area is
@@ -331,6 +332,13 @@ and fails when a catalogue selector no longer matches, or when the dial
 gains an `aria-hidden` layer the catalogue does not name, so a change to the
 control's internals has to update the catalogue in the same PR.
 
+## The orb never drags the page
+
+A press on the status orb never scrolls the page, with or without the tour
+(alex, 2026-11-21). The orb host always carries `data-nova-no-drag-scroll`
+and `touch-action: none`, and its touch hold no longer waits for the dial to
+be enabled; the tour's orb copy does the same.
+
 ## Every orientation and device
 
 - Landscape and portrait layouts (`specs/landscape-layout.md`,
@@ -343,8 +351,11 @@ control's internals has to update the catalogue in the same PR.
   coordinates share one space in every rotation; the rendered checks include
   a rotated (portrait) kiosk size, with the "?" checked in its corner.
 - Safe-area insets are respected by the bottom bar and the close box.
-- The layer stage scales to fit the shorter viewport side; under 600px wide
-  the stack and its paragraph stack vertically.
+- **The layer view always fits on screen** (alex, 2026-11-21): the stage
+  and its body never scroll. The card size comes from the measured stage body
+  so the tilted card plus every lift fits inside it (`layers/layerFit.ts`),
+  re-measured on resize and rotation; on a phone the list scrolls in its own
+  capped box under the stack.
 - Rich and Lite modes both run the tour, with the orb and background steps
   skipped where those features are off (above).
 
@@ -362,7 +373,7 @@ Two PRs, each with its own review, base merge, merge and live force-update:
 
 - **PR 1, the tour**: this spec; the "?"; the mask, cut-out and input guard;
   the finger driver; the caption panel and bar; the sandbox copies; the
-  guarded pointer capture and the sound/haptic suppression flag; tests;
+  guarded pointer capture; tests;
   `VOCABULARY.md`, `docs/control-inventory.md` and `specs/README.md`. The
   edits to shared controls are kept to the minimum and listed first in the
   PR description, and a before/after render of the real rotary and orb with

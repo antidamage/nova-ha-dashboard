@@ -214,12 +214,12 @@ export function NovaAvatarVisual({
       style={hostStyle}
       data-orb-dial={dialEnabled ? (dial.open ? "open" : "closed") : undefined}
       data-orb-dial-index={dialEnabled ? dial.index : undefined}
-      /* Dialling must never drag the page: any press starting on the orb is
-         exempt from useClickDragScroll, the way .rotary-encoder-dial is.
-         touch-action alone only stops native touch scrolling, which is why
-         the orb used to pan the page under the mouse
+      /* A press on the orb never drags the page, dial or not (alex,
+         2026-11-21): it is exempt from useClickDragScroll the way
+         .rotary-encoder-dial is. touch-action alone only stops native touch
+         scrolling, which is why the orb used to pan the page under the mouse
          (specs/status-orb-stack.md, "The dial never drags the page"). */
-      data-nova-no-drag-scroll={dialEnabled ? "true" : undefined}
+      data-nova-no-drag-scroll="true"
       tabIndex={dialEnabled ? 0 : undefined}
       {...dial.handlers}
     >

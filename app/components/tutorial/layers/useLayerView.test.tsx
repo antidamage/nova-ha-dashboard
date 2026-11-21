@@ -19,14 +19,14 @@ describe("useLayerView", () => {
     document.body.appendChild(copy);
     const copyRef = { current: copy };
     const { result, rerender } = renderHook(({ step }: { step: TutorialStep }) => useLayerView(step, copyRef, () => undefined), {
-      initialProps: { step: stepById("unlock") },
+      initialProps: { step: stepById("aircon") },
     });
     let opening: Promise<void> = Promise.resolve();
     act(() => {
       opening = result.current.open();
     });
     expect(result.current.opening).toBe(true);
-    rerender({ step: stepById("target-and-modes") });
+    rerender({ step: stepById("orb") });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
       await opening;
@@ -43,7 +43,7 @@ describe("useLayerView", () => {
     copy.innerHTML = '<div class="rotary-encoder" data-locked="false"><div class="rotary-encoder-dial"></div></div>';
     document.body.appendChild(copy);
     const copyRef = { current: copy };
-    const { result } = renderHook(() => useLayerView(stepById("tap-vs-turn"), copyRef, () => undefined));
+    const { result } = renderHook(() => useLayerView(stepById("lights"), copyRef, () => undefined));
     await act(async () => {
       await result.current.open();
     });

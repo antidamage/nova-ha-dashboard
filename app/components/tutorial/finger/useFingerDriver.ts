@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { setUxQuiet } from "../../uxQuiet";
 import type { TutorialScriptId } from "../steps";
 import { FingerPress } from "./dispatch";
 import { compileGestures, durationOf, sampleAt, type Point, type Sample } from "./gesture-model";
@@ -25,6 +24,8 @@ type Options = {
   /** Draws the finger; called per frame, outside React. */
   draw: (view: FingerView) => void;
   reducedMotion: boolean;
+  /** A phase's caption as the script reaches it; null at the top of each play. */
+  onSay?: (text: string | null) => void;
 };
 
 const frame = () => new Promise<number>((resolve) => window.requestAnimationFrame(resolve));
@@ -40,19 +41,18 @@ const wait = (ms: number, alive: () => boolean) =>
  * stops. A real press on the copy cancels it at once and it never resumes on
  * its own; `replay` starts it again from a fresh copy.
  */
-export function useFingerDriver({ script, getRoot, within, reset, draw, reducedMotion }: Options) {
+export function useFingerDriver({ script, getRoot, within, reset, draw, reducedMotion, onSay }: Options) {
   const [playing, setPlaying] = useState(false);
   const [run, setRun] = useState(0);
   const runRef = useRef(0);
   const pressRef = useRef<FingerPress | null>(null);
-  const options = useRef({ getRoot, within, reset, draw, reducedMotion });
-  options.current = { getRoot, within, reset, draw, reducedMotion };
+  const options = useRef({ getRoot, within, reset, draw, reducedMotion, onSay });
+  options.current = { getRoot, within, reset, draw, reducedMotion, onSay };
 
   const stop = useCallback(() => {
     runRef.current += 1;
     pressRef.current?.cancel();
     pressRef.current = null;
-    setUxQuiet(false);
     setPlaying(false);
     options.current.draw({ point: null, pressed: false });
   }, []);
@@ -90,12 +90,16 @@ export function useFingerDriver({ script, getRoot, within, reset, draw, reducedM
 
     void (async () => {
       setPlaying(true);
-      setUxQuiet(true);
       let at: Point | null = null;
       for (let loop = 0; loop < FINGER_LOOPS && alive(); loop += 1) {
         await options.current.reset();
+        options.current.onSay?.(null);
         for (const part of SCRIPT_PARTS[script]) {
           if (!alive()) break;
+          if (typeof part !== "function") {
+            options.current.onSay?.(part.say);
+            continue;
+          }
           const root = options.current.getRoot();
           if (!root) break;
           const gestures = part(root);
@@ -108,7 +112,6 @@ export function useFingerDriver({ script, getRoot, within, reset, draw, reducedM
         if (loop < FINGER_LOOPS - 1) await wait(LOOP_REST_MS, alive);
       }
       if (!alive()) return;
-      setUxQuiet(false);
       setPlaying(false);
       options.current.draw({ point: null, pressed: false });
     })();

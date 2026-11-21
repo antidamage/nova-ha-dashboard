@@ -9,7 +9,6 @@ import {
   type UxSoundAssignments,
 } from "./uxSoundActions";
 import { isBuiltinSoundId, soundUrl, type SoundLibraryEntry } from "../../../lib/sound-library";
-import { isUxQuiet } from "../uxQuiet";
 
 // Plays the UX sound each action is assigned in the theme. Web Audio gives
 // precise control over volume and concurrency: when controls are mashed faster
@@ -203,7 +202,7 @@ export function previewSound(url: string | null) {
 }
 
 function playSource(source: string | null, volume: number) {
-  if (!source || volume <= 0 || isUxQuiet()) {
+  if (!source || volume <= 0) {
     return;
   }
 

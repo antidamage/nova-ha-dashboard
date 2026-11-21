@@ -7,6 +7,7 @@
 .layer-stage {
   position: fixed;
   inset: 0;
+  overflow: hidden;
   z-index: 12010;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -50,7 +51,8 @@
   align-items: center;
   justify-content: center;
   min-height: 0;
-  overflow: auto;
+  /* Never scrolls: the stack is sized to fit (layers/layerFit.ts). */
+  overflow: hidden;
   perspective: 1400px;
   touch-action: pan-y;
   cursor: grab;
@@ -60,9 +62,9 @@
   position: relative;
   flex: none;
   transform-style: preserve-3d;
-  transform: rotateX(55deg) rotateZ(var(--layer-turn, -35deg));
+  /* Moved down by half the lifts' height, so the whole stack is centred. */
+  transform: translateY(var(--layer-shift, 0px)) rotateX(55deg) rotateZ(var(--layer-turn, -35deg));
   transition: transform 300ms ease;
-  margin: 18% 0;
 }
 
 .layer-card {
@@ -146,9 +148,6 @@
   max-height: 26vh;
 }
 
-.layer-stage[data-narrow] .layer-stack {
-  margin: 30% 0 10%;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .layer-card,

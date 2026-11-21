@@ -70,8 +70,10 @@ export function useOrbDial({ enabled, ids, hostRef, shownAlerting, dismiss, show
   // touch that lands on the orb blocks panning for the whole gesture
   // (specs/status-orb-stack.md, "The dial never drags the page").
   useEffect(() => {
+    // Held whether or not the dial is enabled: a touch on the orb never pans
+    // the page (alex, 2026-11-21).
     const host = hostRef.current;
-    if (!enabled || !host) return;
+    if (!host) return;
     const hold = (event: TouchEvent) => { if (event.cancelable) event.preventDefault(); };
     host.addEventListener("touchmove", hold, { passive: false });
     return () => host.removeEventListener("touchmove", hold);

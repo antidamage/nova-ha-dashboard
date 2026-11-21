@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleHelp } from "lucide-react";
-import { openTutorial } from "./tutorialStore";
+import { openTutorial, useQuickStart } from "./tutorialStore";
 
 /**
  * The "?" in the corner chrome that opens the tour (specs/tutorial-mode.md).
@@ -9,16 +9,20 @@ import { openTutorial } from "./tutorialStore";
  * nothing.
  */
 export function TutorialButton() {
+  // Just after the experience chooser, the "?" extends with a label.
+  const quickStart = useQuickStart();
   return (
     <button
       type="button"
       className="dashboard-config-link tutorial-help-button"
-      aria-label="Tour the controls"
+      data-quick-start={quickStart ? "true" : undefined}
+      aria-label={quickStart ? "Quick-start tutorial" : "Tour the controls"}
       data-demo-tooltip-title="Tour"
       data-demo-tooltip="Watch how each control works."
       onClick={openTutorial}
     >
       <CircleHelp className="h-5 w-5" aria-hidden="true" />
+      {quickStart ? <span className="tutorial-quick-start-label">Quick-start tutorial</span> : null}
     </button>
   );
 }

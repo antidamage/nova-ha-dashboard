@@ -48,6 +48,32 @@
   }
 }
 
+/* Just after the experience chooser: the "?" extends into a labelled pill,
+   label right of the icon. It grows to the right from a left-anchored slot
+   (the landscape sidebar row), and sits above the page while it is out. */
+.dashboard-config-link.tutorial-help-button[data-quick-start="true"] {
+  gap: 8px;
+  padding: 0 14px 0 10px;
+  z-index: 95;
+  background: var(--cyber-panel);
+  border-color: var(--cyber-highlight);
+}
+
+.tutorial-quick-start-label {
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* Portrait: the slot is anchored right, beside or under the cog, where a pill
+   would reach the centred orb. Out, it sits below the orb's resting box,
+   still right-anchored. */
+@media (max-aspect-ratio: 1 / 1) {
+  .dashboard-config-link.tutorial-help-button[data-quick-start="true"] {
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    top: calc(14px + 200px + 12px + var(--nova-status-bar-clearance));
+  }
+}
+
 .tutorial-layer {
   position: fixed;
   inset: 0;
@@ -300,3 +326,15 @@ html[data-tutorial-open] .demo-tooltip {
     transition: none;
   }
 }
+
+/* The orb copy's wash: its countdown over the bell a tap flips. */
+.tutorial-orb-readout {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tutorial-orb-bell {
+  width: 18px;
+  height: 18px;
+}
+

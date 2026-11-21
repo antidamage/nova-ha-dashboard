@@ -19,9 +19,7 @@ describe("tutorial steps", () => {
 
   it("covers what alex asked for, in teaching order", () => {
     expect(TUTORIAL_STEPS.map((step) => step.id)).toEqual([
-      "welcome", "tap-vs-turn", "light-brightness", "light-colour", "light-presets",
-      "unlock", "target-and-modes", "fan-ring", "mode-ring", "fresh-and-timer",
-      "orb", "advanced", "background",
+      "welcome", "lights", "aircon", "orb", "advanced", "background",
     ]);
   });
 
@@ -30,6 +28,16 @@ describe("tutorial steps", () => {
       if (step.script === "none") continue;
       if (step.id === "advanced") expect(step.copy).toBeNull();
       else expect(step.copy, step.id).not.toBeNull();
+    }
+  });
+
+  it("keeps every phase caption to the same caps", () => {
+    for (const [id, parts] of Object.entries(SCRIPT_PARTS)) {
+      for (const part of parts) {
+        if (typeof part === "function") continue;
+        expect(part.say.length, id).toBeLessThanOrEqual(CAPTION_MAX_CHARS);
+        expect(sentences(part.say), id).toBeLessThanOrEqual(2);
+      }
     }
   });
 });

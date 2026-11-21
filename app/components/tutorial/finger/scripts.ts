@@ -10,6 +10,10 @@ import { angleOf, PART_REST_MS, type Gesture, type Point } from "./gesture-model
  */
 
 export type ScriptPart = (root: HTMLElement) => Gesture[];
+/** A phase caption: shown from here until the next one (specs/tutorial-mode.md). */
+export type ScriptSay = { say: string };
+export type ScriptEntry = ScriptPart | ScriptSay;
+const say = (text: string): ScriptSay => ({ say: text });
 
 const centreOf = (rect: DOMRect): Point => ({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
 
@@ -58,11 +62,6 @@ const ringTap = (ringId: string): ScriptPart => (root) => {
   return [{ kind: "tap", at: { x: at.x, y: at.y } }];
 };
 
-const tapEachButton: ScriptPart = (root) =>
-  Array.from(root.querySelectorAll<HTMLElement>("button")).flatMap((button): Gesture[] => [
-    { kind: "tap", at: centreOf(button.getBoundingClientRect()) },
-    { kind: "rest", ms: PART_REST_MS },
-  ]);
 
 function orb(root: HTMLElement) {
   const host = root.querySelector<HTMLElement>(".tutorial-orb-host") ?? root;
@@ -71,7 +70,7 @@ function orb(root: HTMLElement) {
 }
 
 const tapOrb: ScriptPart = (root) => [{ kind: "tap", at: orb(root).centre }];
-const turnOrb = (from: number, to: number): ScriptPart => (root) => {
+export const turnOrb = (from: number, to: number): ScriptPart => (root) => {
   const { centre, radius } = orb(root);
   return [{ kind: "arc", centre, radius: radius * 0.55, fromDeg: from, toDeg: to }];
 };
@@ -135,18 +134,32 @@ const foldClose: ScriptPart = (fold) => {
   return [{ kind: "rest", ms: PART_REST_MS }];
 };
 
-export const SCRIPT_PARTS: Record<TutorialScriptId, ScriptPart[]> = {
+export const SCRIPT_PARTS: Record<TutorialScriptId, ScriptEntry[]> = {
   none: [],
-  "tap-then-turn": [tapDial, rest(400), turn(-40, 70)],
-  "light-brightness": [turn(-110, 80)],
-  "light-colour": [tapDial, turn(0, 140), tapDial, turn(60, -60)],
-  presets: [tapEachButton],
-  unlock: [tapDial, rest(1600)],
-  "target-and-modes": [tapDial, rest(500), turn(-30, 60), tapDial, rest(700), tapDial, rest(700), tapDial],
-  "fan-ring": [tapDial, rest(800), ringDrag("fan", 70)],
-  "mode-ring": [tapDial, rest(800), ringDrag("mode", 45), ringDrag("mode", -90)],
-  "fresh-and-timer": [tapDial, rest(800), ringTap("fresh"), ringDrag("timer", 80)],
-  "orb-dial": [tapOrb, rest(700), turnOrb(200, 250), rest(400), turnOrb(250, 300)],
+  lights: [
+    say("Here's how you select a mode: tap to cycle through brightness, hue and saturation."),
+    rest(300), tapDial, rest(500), tapDial, rest(500), tapDial, rest(700),
+    say("Here's how to adjust one: turn the knob, from wherever you grab it."),
+    turn(-60, 70), rest(300), turn(70, -40), rest(600),
+    say("Change modes with a tap, then turn to set the hue."),
+    tapDial, rest(400), turn(0, 150),
+  ],
+  aircon: [
+    say("Climate knobs lock when idle. One tap unlocks it."),
+    tapDial, rest(900),
+    say("Here's how you select a mode: tap to cycle Auto, Manual and Off."),
+    tapDial, rest(500), tapDial, rest(500), tapDial, rest(700),
+    say("Here's how to adjust one: turn to set the target, up and down."),
+    turn(-30, 50), rest(300), turn(50, -10), rest(600),
+    say("In Manual each ring sets one thing: drag it by its thumb."),
+    tapDial, rest(900), ringDrag("fan", 70), ringDrag("mode", 45), ringTap("fresh"), rest(400), ringDrag("timer", 80),
+  ],
+  "orb-dial": [
+    say("The orb shows what's running, like this wash. Tap to open it."),
+    tapOrb, rest(900),
+    say("With it open, a tap turns the wash's finish alert off, and on again."),
+    tapOrb, rest(1200), tapOrb, rest(900),
+  ],
   "fold-open": [foldPull, rest(1800), foldClose],
 };
 
