@@ -14,6 +14,12 @@ import { memberZoneId } from "./model";
  */
 
 const ROOM_LIGHTING_MODULE = "room-lighting";
+/**
+ * The shared card's line modules a person's card inherits. The host gauges are
+ * not one: they appear only on a card whose list names them (alex,
+ * 2026-11-21: "only show this set of temp gauges for alex").
+ */
+const SHARED_LINE_MODULES = new Set(["outside-weather"]);
 /** Modules drawn on the card's wide line slots rather than as dials. */
 const LINE_MODULES = new Set(["outside-weather", "host-temperatures"]);
 
@@ -63,20 +69,31 @@ export function quickAccessControlsFor(
     slots.push({ id: `quick-access-${presetId}`, surface: "quick-access", presetId, roomId, visible: true });
   }
 
-  // The line slots under the dials (weather, host gauges) are the house's, not a
-  // person's: a list that names none of its own keeps the shared card's lines
-  // (alex, 2026-11-21: a person's card had "lost the weather and gauges").
-  const lineModule = (presetId: string | null) =>
-    LINE_MODULES.has(controls.presets.find((preset) => preset.id === presetId)?.moduleId ?? "");
+  // The weather line under the dials is the house's, not a person's: a list keeps
+  // the shared card's line of each shared module it does not name itself (alex,
+  // 2026-11-21: a person's card had "lost the weather and gauges"). Naming the
+  // gauges no longer costs a card its weather.
+  const moduleOf = (presetId: string | null) => controls.presets.find((preset) => preset.id === presetId)?.moduleId ?? "";
+  const named = new Set(slots.map((slot) => moduleOf(slot.presetId)));
   // An empty list is an empty card (§4), so it inherits nothing.
-  const sharedLines = slots.length === 0 || slots.some((slot) => lineModule(slot.presetId))
+  const sharedLines = slots.length === 0
     ? []
-    : controls.slots.filter((slot) => slot.surface === "quick-access" && lineModule(slot.presetId));
+    : controls.slots.filter((slot) => {
+        const moduleId = moduleOf(slot.presetId);
+        return slot.surface === "quick-access" && SHARED_LINE_MODULES.has(moduleId) && !named.has(moduleId);
+      });
 
   return {
     ...controls,
     presets: [...controls.presets, ...generated],
     // Every other surface keeps its shared slots; only Quick Access is personal.
-    slots: [...controls.slots.filter((slot) => slot.surface !== "quick-access"), ...slots, ...sharedLines],
+    // Inherited lines go before the person's own lines, so the gauges stay the
+    // bottom line under the weather (specs/host-temperature-gauges.md).
+    slots: [
+      ...controls.slots.filter((slot) => slot.surface !== "quick-access"),
+      ...slots.filter((slot) => !LINE_MODULES.has(moduleOf(slot.presetId))),
+      ...sharedLines,
+      ...slots.filter((slot) => LINE_MODULES.has(moduleOf(slot.presetId))),
+    ],
   };
 }

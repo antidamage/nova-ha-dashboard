@@ -69,10 +69,11 @@ describe("quickAccessControlsFor", () => {
     ],
   } as unknown as ControlsConfig;
 
-  it("keeps the shared weather and gauge lines when the list names none", () => {
+  it("keeps the shared weather line, but not the host gauges, when the list names none", () => {
+    // alex, 2026-11-21: "only show this set of temp gauges for alex".
     const result = quickAccessControlsFor({ id: "bo", quickAccess: [{ kind: "preset", presetId: "heater" }] }, withLines, zones);
     const quick = result.slots.filter((slot) => slot.surface === "quick-access");
-    expect(quick.map((slot) => slot.presetId)).toEqual(["heater", "weather", "gauges"]);
+    expect(quick.map((slot) => slot.presetId)).toEqual(["heater", "weather"]);
   });
 
   it("leaves an empty list empty, without the shared lines", () => {
@@ -80,9 +81,19 @@ describe("quickAccessControlsFor", () => {
     expect(result.slots.filter((slot) => slot.surface === "quick-access")).toEqual([]);
   });
 
-  it("uses the person's own lines instead when the list names one", () => {
-    const result = quickAccessControlsFor({ id: "bo", quickAccess: [{ kind: "preset", presetId: "gauges" }] }, withLines, zones);
+  it("shows the gauges only where the list names them, under the inherited weather", () => {
+    const result = quickAccessControlsFor(
+      { id: "bo", quickAccess: [{ kind: "preset", presetId: "gauges" }, { kind: "preset", presetId: "heater" }] },
+      withLines,
+      zones,
+    );
     const quick = result.slots.filter((slot) => slot.surface === "quick-access");
-    expect(quick.map((slot) => slot.presetId)).toEqual(["gauges"]);
+    expect(quick.map((slot) => slot.presetId)).toEqual(["heater", "weather", "gauges"]);
+  });
+
+  it("does not add the shared weather to a list that names its own", () => {
+    const result = quickAccessControlsFor({ id: "bo", quickAccess: [{ kind: "preset", presetId: "weather" }] }, withLines, zones);
+    const quick = result.slots.filter((slot) => slot.surface === "quick-access");
+    expect(quick.map((slot) => slot.presetId)).toEqual(["weather"]);
   });
 });

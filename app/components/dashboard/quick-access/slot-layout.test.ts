@@ -92,6 +92,31 @@ describe("the card's grid", () => {
   });
 });
 
+describe("the wide lines' own heights", () => {
+  it("grows only the weather line; the gauges line stays one line", () => {
+    // alex, 2026-11-21: the gauges line took the weather's grown height and the
+    // card overflowed, clipping the gauges off its bottom.
+    const layout = quickSlotLayout({
+      count: 6,
+      dials: 4,
+      readings: 1,
+      width: 520,
+      wideBottom: true,
+      wideLineHeight: 120,
+      grownLines: [true, false],
+      ...LANDSCAPE,
+    });
+    expect(layout.lineHeights).toEqual([120, QUICK_WIDE_LINE]);
+    const used = layout.rows * layout.rowHeight + 120 + QUICK_WIDE_LINE + (layout.rows + 1) * layout.gap;
+    expect(used).toBeCloseTo(LANDSCAPE.height, 6);
+  });
+
+  it("grows every line when the panel does not say which is the weather", () => {
+    const layout = quickSlotLayout({ count: 6, dials: 4, readings: 1, width: 520, wideBottom: true, wideLineHeight: 120, ...LANDSCAPE });
+    expect(layout.lineHeights).toEqual([120, 120]);
+  });
+});
+
 describe("the height the card divides", () => {
   it("takes every wide line out before the dial rows divide it", () => {
     // alex, 2026-09-25: the line slot is ONE line and the dials scale up to

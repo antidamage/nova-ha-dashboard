@@ -1,7 +1,7 @@
 /* Host Temperatures line (specs/host-temperature-gauges.md): small ring gauges
    spread evenly across a wide line slot of their own, below the weather line.
 
-   The row is a grid of equal columns that cannot overflow the slot, so the slot
+   The row shrinks its gauges rather than overflow the slot, so the slot
    opts out of the weather line's --wide-scale transform: a row that already
    spans the slot would otherwise be scaled with the weather line's factor. */
 
@@ -19,15 +19,20 @@
   padding-bottom: var(--spacing-12, 12px);
 }
 
+/* Spread evenly: the space at each end equals the space between two gauges,
+   inside 12px of side padding (alex, 2026-11-21: "distribute across the panel
+   ... with a bit of balanced padding"). Equal grid columns left the ends half the
+   gap between gauges. */
 .quick-segment.quick-segment-gauges {
-  display: grid;
+  display: flex;
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   min-height: 0;
   align-items: center;
-  justify-items: center;
-  gap: 0;
-  padding: 0;
+  justify-content: space-evenly;
+  gap: var(--spacing-4, 4px);
+  padding: 0 var(--spacing-12, 12px);
   border: 0;
   background: none;
   box-shadow: none;
@@ -35,6 +40,7 @@
 
 .quick-temp-gauge {
   display: flex;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
   flex-direction: column;

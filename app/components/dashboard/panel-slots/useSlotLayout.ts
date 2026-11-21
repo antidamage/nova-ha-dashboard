@@ -12,6 +12,8 @@ export type SlotCounts = {
   dials: number;
   /** How many readings tiles are placed. */
   readings: number;
+  /** Which wide lines, in layout order, hold the weather line that grows. */
+  grownLines?: boolean[];
 };
 
 /**
@@ -35,6 +37,7 @@ export function slotCounts(items: readonly { kind: string }[]): SlotCounts {
     // 2x2 for four dials whatever else is on the card.
     dials: items.filter((item) => isDialKind(item.kind)).length,
     readings: items.filter((item) => item.kind === "outside").length,
+    grownLines: items.filter((item) => !isDialKind(item.kind)).map((item) => item.kind === "outside"),
   };
 }
 
@@ -79,6 +82,8 @@ export function useSlotLayout(
   } = {},
 ): QuickSlotLayout {
   const { count, dials, readings } = counts;
+  // A string key, so the effect re-runs when the lines change, not every render.
+  const grownKey = counts.grownLines?.map((grown) => (grown ? "1" : "0")).join("") ?? "";
   const { dividesHeight = false, wideBottom = false, wideLineHeight = 0 } = options;
   const [layout, setLayout] = useState<QuickSlotLayout>(() =>
     quickSlotLayout({ count, dials, height: 0, portrait: false, readings, wideBottom, width: 0 }),
@@ -93,6 +98,7 @@ export function useSlotLayout(
         quickSlotLayout({
           count,
           dials,
+          grownLines: grownKey ? [...grownKey].map((flag) => flag === "1") : undefined,
           // Only a panel that divides a height of its own has one to give: Quick
           // Access is a column of the page's fixed column height in landscape and
           // its rows split it (landscape.css). Everywhere else the panel is as
@@ -120,7 +126,7 @@ export function useSlotLayout(
       observer.disconnect();
       portrait.removeEventListener("change", update);
     };
-  }, [rowRef, count, dials, readings, dividesHeight, wideBottom, wideLineHeight]);
+  }, [rowRef, count, dials, readings, grownKey, dividesHeight, wideBottom, wideLineHeight]);
 
   return layout;
 }

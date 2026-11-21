@@ -41,7 +41,7 @@ describe("buildSlotItems before the first live snapshot", () => {
 
   it("gives the layout the same dial count the live card will have", () => {
     const counts = slotCounts(build(null));
-    expect(counts).toEqual({ count: 5, dials: 4, readings: 1 });
+    expect(counts).toEqual({ count: 5, dials: 4, readings: 1, grownLines: [true] });
     expect(isDialKind("pending")).toBe(true);
   });
 

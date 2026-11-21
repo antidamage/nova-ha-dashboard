@@ -46,6 +46,13 @@ export type QuickSlotLayout = PanelSlotGrid & {
    * the card's height before the dial rows divide it.
    */
   lineHeight: number;
+  /**
+   * Each wide line's own height, in layout order. Only the weather line grows to
+   * `lineHeight`; every other line stays one `QUICK_WIDE_LINE` (alex,
+   * 2026-11-21: the gauges line took the weather's grown height and was pushed
+   * off the bottom of the card).
+   */
+  lineHeights: number[];
 };
 
 export type QuickSlotRequest = {
@@ -73,6 +80,11 @@ export type QuickSlotRequest = {
    * every line is one `QUICK_WIDE_LINE` tall.
    */
   wideLineHeight?: number;
+  /**
+   * Which wide lines hold the growing weather line, in layout order. Omitted,
+   * every line takes `wideLineHeight`.
+   */
+  grownLines?: readonly boolean[];
 };
 
 /**
@@ -101,14 +113,18 @@ export function quickSlotLayout(request: QuickSlotRequest): QuickSlotLayout {
   // Each wide line slot is its own height, whatever the card's own is: it is a
   // line, not a share of them.
   const lineHeight = grid.wide > 0 ? Math.max(QUICK_WIDE_LINE, request.wideLineHeight ?? 0) : 0;
+  const lineHeights = Array.from({ length: grid.wide }, (_, index) =>
+    request.grownLines && !request.grownLines[index] ? QUICK_WIDE_LINE : lineHeight,
+  );
   if (grid.columns === 0 || grid.slot <= 0) {
     // Nothing placed, or nothing measured yet. The card's own design size, so the
     // first painted frame is a card rather than dials at their floor.
-    return { ...grid, lineHeight, rowHeight: 0, size: QUICK_TEMPERATURE_SIZE };
+    return { ...grid, lineHeight, lineHeights, rowHeight: 0, size: QUICK_TEMPERATURE_SIZE };
   }
   // What is left for the dials once every wide line has taken its own height.
   const total = grid.rows + grid.wide;
-  const rowHeight = height > 0 ? (height - grid.wide * lineHeight - (total - 1) * grid.gap) / Math.max(1, grid.rows) : 0;
+  const lines = lineHeights.reduce((sum, line) => sum + line, 0);
+  const rowHeight = height > 0 ? (height - lines - (total - 1) * grid.gap) / Math.max(1, grid.rows) : 0;
   const size = quickDialSizeForCell({ height: rowHeight, portrait, width: grid.slot });
-  return { ...grid, lineHeight, rowHeight, size };
+  return { ...grid, lineHeight, lineHeights, rowHeight, size };
 }

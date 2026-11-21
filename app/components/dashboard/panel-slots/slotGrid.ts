@@ -38,7 +38,7 @@ export function slotGridStyle(
   if (capRows && fits && layout.rowHeight > quickSlotHeight(layout.size)) {
     const capped = [
       ...Array.from({ length: layout.rows }, () => "auto"),
-      ...Array.from({ length: layout.wide }, () => `${layout.lineHeight}px`),
+      ...lineTracks(layout),
     ].join(" ");
     return { ...slotGridStyle(layout, scale, { ...options, capRows: false }), gridTemplateRows: capped, alignContent: "center" };
   }
@@ -51,7 +51,7 @@ export function slotGridStyle(
         ...Array.from({ length: layout.rows }, () =>
           layout.rowHeight > 0 ? (fits ? "minmax(0, 1fr)" : "minmax(min-content, 1fr)") : "auto",
         ),
-        ...Array.from({ length: layout.wide }, () => `${layout.lineHeight}px`),
+        ...lineTracks(layout),
       ].join(" ")
     : null;
   return {
@@ -78,6 +78,11 @@ export function slotGridStyle(
     // (specs/dial-preset-band.md).
     "--dial-pull": `${dialPresetPull(layout.size).toFixed(2)}px`,
   } as CSSProperties;
+}
+
+/** One track per wide line, each its own height: only the weather line grows. */
+function lineTracks(layout: QuickSlotLayout): string[] {
+  return Array.from({ length: layout.wide }, (_, index) => `${layout.lineHeights?.[index] ?? layout.lineHeight}px`);
 }
 
 /**

@@ -106,26 +106,42 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
   card holding the line has 12px (`--spacing-12`) of padding under it. The
   dial rows give that space up: `useSlotLayout` measures the row's content
   box, so padding is never counted as height the dials can have.
-- **Evenly distributed:** the gauges spread across the line's full width with
-  equal space around each (equal grid columns).
+- **Evenly distributed, with balanced padding (alex, 2026-11-21):** a flex
+  row with `justify-content: space-evenly` inside 12px (`--spacing-12`) of side
+  padding, so the space at each end equals the space between two gauges. The
+  earlier equal grid columns left the ends half the inner gap.
+- **One line tall, always (alex, 2026-11-21: the Ununhexium gauge was
+  "appearing then being clipped off" in landscape and portrait).** Only the
+  weather line grows to the card's width; the gauges line keeps
+  `QUICK_WIDE_LINE` (56px). Before, every wide line took the weather's grown
+  height, so after first paint the card's rows outgrew its box and the gauges
+  were pushed past its bottom. `slotCounts` reports which lines grow
+  (`grownLines`), and `quickSlotLayout` returns one height per line
+  (`lineHeights`).
+- **Per person (alex, 2026-11-21: "only show this set of temp gauges for
+  alex"):** a home user's card never inherits the gauges from the shared
+  card; they appear only on a card whose Quick Access list names the preset.
+  The weather line is still inherited unless the list names its own, and
+  inherited lines sit before the person's own, so the gauges stay the bottom
+  line.
 - **The slot model as it is.** Every module that is not a dial already takes
   its own wide line track in slot order (`panelSlots.ts` `wideBottom`:
   `wide = count - dials`, and `slotGrid.ts` adds one track per wide slot). So
   placing the gauges slot after the weather slot is what makes it the next
-  line. The added row takes one line (56px, or the weather line's grown
-  height) plus a gap out of the card's height, and the dial rows share what is
-  left.
+  line. The added row takes one line (56px) plus a gap out of the card's
+  height, and the dial rows share what is left.
 - **Not scaled with the weather line.** When the weather line is shrunk,
   every wide slot takes its factor (`--wide-scale`). The gauges slot opts out
-  of that transform. Its row is a grid of equal columns that cannot overflow
-  the slot, so the slot measures as fitting and the weather's factor is left
+  of that transform. Its row shrinks its gauges rather than overflowing the
+  slot, so the slot measures as fitting and the weather's factor is left
   as it was.
 
 ## Live configuration (data, not source)
 
 The live dashboard gets one preset, **Host temperatures**, with sources
 `Ununhexium=<its host-metrics /flat URL>` and `Iridium=<its host-metrics /flat
-URL>`, placed in the Quick Access slot list directly after Outside Weather.
+URL>`, named in alex's home-user Quick Access list only (2026-11-21; it
+was on the shared slot list after Outside Weather until then).
 That is runtime configuration written through the config API, not a commit.
 
 ## Done means

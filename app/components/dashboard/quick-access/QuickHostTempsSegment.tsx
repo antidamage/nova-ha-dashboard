@@ -51,12 +51,7 @@ export function QuickHostTempsSegment({ title, sources }: { title: string; sourc
   const stale = receivedAt === null || now - receivedAt > HOST_TEMPS_STALE_MS;
   const cells = gaugeCells(sources, data?.sources, stale, rememberedParts);
   return (
-    <div
-      className="quick-segment quick-segment-gauges"
-      aria-label={title}
-      role="group"
-      style={{ gridTemplateColumns: `repeat(${Math.max(1, cells.length)}, minmax(0, 1fr))` }}
-    >
+    <div className="quick-segment quick-segment-gauges" aria-label={title} role="group">
       {cells.map((cell) => (
         <TemperatureGauge key={cell.key} label={cell.label} celsius={cell.celsius} dim={cell.dim} />
       ))}
