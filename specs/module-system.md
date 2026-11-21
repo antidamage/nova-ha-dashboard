@@ -551,9 +551,10 @@ answers its own API, and a fetch scoped to it. A module must never configure
 or guess this: `next start` honours `PORT`, and on this deployment port 3000 is
 Grafana.
 
-**Client only:** `api.react` (the host's React), `api.jsx` (the JSX runtime's
-`jsx`/`jsxs`, so a module can be built without a JSX pragma resolving to its
-own React), `api.components` (`ControlCard`, `CheckboxRow`, `ConfigSelect`,
+**Client only:** `api.react` (the host's React), `api.jsx`, `api.jsxs` and
+`api.Fragment` (the JSX runtime, each directly on the api, not nested: `const {
+jsx, jsxs, Fragment } = api`; so a module can be built without a JSX pragma
+resolving to its own React), `api.components` (`ControlCard`, `CheckboxRow`, `ConfigSelect`,
 `MomentaryFeedbackButton`, `SliderControlPanel`, `IconButton`, `ModalOverlay`,
 `ConfirmDialog`), `api.request(path, init)` (fetch scoped to the module's own
 routes), `api.emit(id, payload)` (forwards to the server bus).
