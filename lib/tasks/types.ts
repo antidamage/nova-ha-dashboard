@@ -19,6 +19,8 @@ export type TaskInput = {
   annoy?: unknown;
   follows?: unknown;
   moduleData?: unknown;
+  owner?: string;
+  household?: boolean;
 };
 
 export type TaskPatch = Partial<{
@@ -29,6 +31,8 @@ export type TaskPatch = Partial<{
   annoy: unknown;
   follows: unknown;
   moduleData: unknown;
+  owner: string;
+  household: boolean;
 }>;
 
 // Completions that can still be taken back.

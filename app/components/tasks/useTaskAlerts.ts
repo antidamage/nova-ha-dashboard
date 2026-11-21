@@ -17,6 +17,8 @@ import {
   type AlertState,
 } from "./task-model";
 import { useAlertAudio } from "./useAlertAudio";
+import { useViewerEpoch } from "../home-users/useViewerEpoch";
+import { useChimePreference } from "./useChimePreference";
 import { useTaskAlertEvents, useTaskListLoader } from "./useTaskFeed";
 
 /**
@@ -72,6 +74,9 @@ export function useTaskAlerts({
   // this was one hook: the loader, then the chime's clip check and cadence.
   useTaskListLoader({ setMessage, setTasks, setTasksLoaded, taskPushRevision });
   const { audioRef, clearAudioCadence, reminderAlertUrl, setTaskAudioExists, startAudioCadence, taskAudioExists } = useAlertAudio();
+  // This user's chimes setting: off means no sound here and no claim of the chime, so a
+  // device whose user has chimes on still plays it (specs/private-reminders.md, section 6).
+  const { chimeEnabled } = useChimePreference();
 
   const clearAlert = useCallback(
     (taskId?: string) => {
@@ -86,6 +91,12 @@ export function useTaskAlerts({
     },
     [clearAudioCadence],
   );
+
+  // A banner raised for the previous user is dropped on a user change, not left up until the next list lands.
+  const viewerEpoch = useViewerEpoch();
+  useEffect(() => {
+    if (viewerEpoch > 0) clearAlert();
+  }, [viewerEpoch, clearAlert]);
 
   const triggerAlert = useCallback((nextAlert: AlertState) => {
     const dismissed = tasksRef.current.some((task) => task.id === nextAlert.taskId && (isTaskComplete(task) || isTaskAlertSilenced(task)));
@@ -201,7 +212,7 @@ export function useTaskAlerts({
   }, [alertChimed]);
 
   useEffect(() => {
-    if (washAlertId || !alertOccurrence || !alertTaskId || !taskAudioExists) {
+    if (washAlertId || !alertOccurrence || !alertTaskId || !taskAudioExists || !chimeEnabled) {
       return;
     }
 
@@ -224,7 +235,7 @@ export function useTaskAlerts({
     return () => {
       clearAudioCadence();
     };
-  }, [alertAnnoy, alertOccurrence, alertTaskId, clearAudioCadence, startAudioCadence, taskAudioExists, washAlertId]);
+  }, [alertAnnoy, alertOccurrence, alertTaskId, chimeEnabled, clearAudioCadence, startAudioCadence, taskAudioExists, washAlertId]);
 
   // Capture-phase swallow so the tap that silences the alarm cannot also hit a
   // light button underneath. With banners disabled there IS no overlay to tap,

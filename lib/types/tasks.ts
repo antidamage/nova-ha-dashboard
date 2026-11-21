@@ -86,4 +86,11 @@ export type Task = {
    * intended one.
    */
   moduleData?: Record<string, unknown>;
+  /**
+   * The home user (person id) this reminder belongs to. Private to them unless
+   * `household` is set. Absent on a legacy reminder (specs/private-reminders.md).
+   */
+  owner?: string;
+  /** Visible to, and writable by, every user and device. Off unless someone turns it on. */
+  household?: boolean;
 };

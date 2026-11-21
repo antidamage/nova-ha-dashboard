@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Task } from "../../../../lib/types";
+import { useViewerEpoch } from "../../home-users/useViewerEpoch";
 import { subscribeToDashboardEvents } from "../../sharedDashboardEvents";
 import { REMINDER_ICONS_CHANGED_EVENT } from "../../tasks/reminder-roster-client";
 import { parseRoster } from "./tile-model";
@@ -19,12 +20,18 @@ export function useReminderFeed() {
   // collapse.
   const [loaded, setLoaded] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const viewerEpoch = useViewerEpoch();
 
   // Initial load. SSE carries every later change, but the stream only pushes on
   // change — and the static demo build has no real stream at all — so the first
   // paint has to come from a plain fetch, exactly as TasksPanel does.
   useEffect(() => {
     let cancelled = false;
+    // A new viewer starts from nothing (specs/private-reminders.md, section 4).
+    if (viewerEpoch > 0) {
+      setTasks([]);
+      setRoster([]);
+    }
 
     const load = async () => {
       try {
@@ -57,7 +64,7 @@ export function useReminderFeed() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [viewerEpoch]);
 
   useEffect(() => {
     if (typeof EventSource === "undefined") {

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { Task } from "../../../lib/types";
+import { useViewerEpoch } from "../home-users/useViewerEpoch";
 import { subscribeToDashboardEvents } from "../sharedDashboardEvents";
 import { jsonFetch } from "./task-api";
 import type { AlertState } from "./task-model";
@@ -19,9 +20,15 @@ type FeedSetters = {
 };
 
 export function useTaskListLoader({ setMessage, setTasks, setTasksLoaded, taskPushRevision }: FeedSetters) {
+  const viewerEpoch = useViewerEpoch();
   useEffect(() => {
     let alive = true;
     let loading = false;
+    // A new viewer starts from nothing (specs/private-reminders.md, section 4).
+    if (viewerEpoch > 0) {
+      setTasks([]);
+      setTasksLoaded(false);
+    }
 
     const loadTasks = async () => {
       if (loading) {
@@ -67,7 +74,7 @@ export function useTaskListLoader({ setMessage, setTasks, setTasksLoaded, taskPu
       window.removeEventListener("pageshow", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, []);
+  }, [viewerEpoch]);
 }
 
 export function useTaskAlertEvents({

@@ -3,6 +3,7 @@
 import { type Dispatch, type SetStateAction, useEffect } from "react";
 import type { OrbInfoDisplay, OrbInfoPreferences, OrbInfoSources } from "../../../../lib/orb-info/types";
 import type { DashboardState, Task } from "../../../../lib/types";
+import { useViewerEpoch } from "../../home-users/useViewerEpoch";
 import { subscribeToDashboardEvents } from "../../sharedDashboardEvents";
 import { ORB_INFO_CHANGE_EVENT, POWER_POLL_MS, PREFERENCES_POLL_MS, WATCHFACE_POLL_MS } from "./constants";
 import { applyTaskDismissal, dashboardSourceFrom, millisFromIso, numberOrNull } from "./source-model";
@@ -203,9 +204,12 @@ export function useTasksFeed(
   needsTasks: boolean,
   setTasks: Dispatch<SetStateAction<Task[] | null>>,
 ) {
+  const viewerEpoch = useViewerEpoch();
   useEffect(() => {
     if (!needsTasks) return;
     let alive = true;
+    // A new viewer starts from nothing: another user's reminders are never held for it.
+    if (viewerEpoch > 0) setTasks(null);
 
     const unsubscribe = subscribeToDashboardEvents({
       tasks: (event) => {
@@ -246,5 +250,5 @@ export function useTasksFeed(
       alive = false;
       unsubscribe();
     };
-  }, [needsTasks]);
+  }, [needsTasks, viewerEpoch, setTasks]);
 }

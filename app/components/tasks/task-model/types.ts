@@ -20,6 +20,8 @@ export type TaskDraft = {
   followOffsetDays: string;
   followHour: string;
   annoy: boolean;
+  /** Visible to everyone, not just its owner (specs/private-reminders.md). */
+  household: boolean;
   /** Per-module state carried through the editor, keyed by module id. */
   moduleData?: Record<string, unknown>;
 };
@@ -37,5 +39,6 @@ export type TaskEditorSaveDraft = {
   repeat: TaskRepeat | null;
   follows: TaskFollows | null;
   annoy: boolean;
+  household: boolean;
   moduleData?: Record<string, unknown>;
 };

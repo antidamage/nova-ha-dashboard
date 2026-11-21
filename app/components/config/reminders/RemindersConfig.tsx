@@ -23,7 +23,6 @@ import { ReminderGlyphMark, reminderGlyphLabel } from "../../reminders/icon-regi
 import { ReminderIconPicker } from "../../reminders/ReminderIconPicker";
 import { SlideSwitch, SwitchRow } from "../../SlideSwitch";
 import { OUTLINE_OPTIONS, SOURCE_LABELS } from "./constants";
-import { DailyTasksAddressField } from "./DailyTasksAddressField";
 import { configWithOutlineShape, isRecord, parseRoster } from "./roster-model";
 import type { RosterEntry } from "./types";
 
@@ -207,8 +206,6 @@ export function RemindersConfig() {
             })}
           </div>
         </div>
-
-        <DailyTasksAddressField />
 
         <div className="grid gap-2">
           <span className="theme-display-label zone-title-bar">Reminder Icons</span>

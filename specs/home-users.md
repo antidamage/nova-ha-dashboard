@@ -146,6 +146,10 @@ buttons. Confirming clears `nova.dashboard.homeUser.v1` **and**
 also clears the `<html>` flags). The identity chooser then shows, followed by the
 experience chooser.
 
+## 3a. Reminders follow the user
+
+A device's chosen user decides which reminders it sees and sets: see `specs/private-reminders.md`. The choice is written to the `nova-viewer` cookie when it changes.
+
 ## 4. Per-user Quick Access
 
 `quickAccess` is an ordered list of entries:

@@ -190,7 +190,9 @@
       "maxTiles": 10,
       "undoWindowMs": 600000,
       "undoHoldMs": 2000,
-      "dailyTasksUrl": "",
+      "legacyOwner": "",
+      "allowHousehold": false,
+      "clientViewers": [],
       "classifier": {
         "enabled": true,
         "timeoutMs": 4000

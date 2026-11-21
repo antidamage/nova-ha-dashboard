@@ -2,13 +2,16 @@
 // orb-timer events. Voice events are in ./voice.
 
 import { readDashboardBuildId } from "../build-id";
+import { readDashboardConfig } from "../dashboard-config";
 import { appendTaskSnapshotEvents } from "../household-events";
+import { visibleRosterEntries, visibleTasks } from "../tasks/ownership";
 import type { DashboardState, SunStatus, Task } from "../types";
 import { LIGHT_COMMAND_EVENT_HOLD_MS } from "./constants";
 import { store } from "./store";
 import {
   broadcast,
   broadcastTask,
+  broadcastTaskScoped,
   dashboardStateSignature,
   sendClient,
   sseEvent,
@@ -77,9 +80,24 @@ export function publishDashboardError(message: string) {
   broadcast(sseEvent("dashboard-error", JSON.stringify({ message })));
 }
 
+/** The legacy owner the stream filters by, read from config (specs/private-reminders.md, section 3). */
+async function refreshTaskLegacyOwner() {
+  try {
+    store.taskLegacyOwner = (await readDashboardConfig()).dashboard.reminders.legacyOwner;
+  } catch {
+    // Keep the last known value: an unreadable config must not widen what is sent.
+  }
+}
+
+// Each viewer is sent its own task list, built from the latest tasks at send
+// time, so two quick publishes can never deliver an older list last.
 export function publishTasks(tasks: Task[]) {
-  store.latestTasksJson = JSON.stringify({ tasks });
-  broadcastTask(sseEvent("tasks", store.latestTasksJson));
+  store.latestTasks = tasks;
+  void refreshTaskLegacyOwner().then(() => {
+    broadcastTaskScoped((viewer, legacyOwner) =>
+      sseEvent("tasks", JSON.stringify({ tasks: visibleTasks(store.latestTasks, viewer, legacyOwner) })),
+    );
+  });
   void appendTaskSnapshotEvents(tasks).catch((error) => {
     console.error("[nova-dashboard] Failed to persist normalized task events", { error });
   });
@@ -96,7 +114,23 @@ export function publishTaskDismiss(taskId: string) {
 // triggered it was written.
 export function publishReminderIcons(entries: unknown[]) {
   store.latestReminderIconsJson = JSON.stringify({ entries });
-  broadcastTask(sseEvent("reminder-icons", store.latestReminderIconsJson));
+  void (async () => {
+    await refreshTaskLegacyOwner();
+    // Before the first task snapshot there is nothing to match names against: read the tasks.
+    if (store.latestTasks.length === 0) {
+      store.latestTasks = await (await import("../tasks")).readTasks();
+    }
+    broadcastTaskScoped((viewer, legacyOwner) =>
+      sseEvent(
+        "reminder-icons",
+        JSON.stringify({
+          entries: visibleRosterEntries(entries as { key: string }[], store.latestTasks, viewer, legacyOwner),
+        }),
+      ),
+    );
+  })().catch((error) => {
+    console.error("[nova-dashboard] Failed to publish reminder icons", { error });
+  });
 }
 
 // The active Design (presentation layer) changed. Every screen in the house

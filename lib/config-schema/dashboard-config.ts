@@ -365,14 +365,31 @@ export const DashboardConfigSchema = z.object({
         undoWindowMs: millisecondsSchema.default(600_000),
         /** How long the press must be held to fire the undo. */
         undoHoldMs: millisecondsSchema.default(2_000),
-        /** A separate daily tasks site; its unfinished count is a tile at the end of the bar. Empty: no tile. */
-        dailyTasksUrl: z.string().trim().max(500).default(""),
         classifier: z
           .object({
             enabled: z.boolean().default(true),
             timeoutMs: millisecondsSchema.default(4_000),
           })
           .prefault({}),
+        /**
+         * Private reminders (specs/private-reminders.md). A reminder with no owner is
+         * read as this home user's until it is moved; empty: only system callers see it.
+         */
+        legacyOwner: z.string().trim().max(80).default(""),
+        /** Offer the "Household" box in the reminder editor. Off until someone wants it. */
+        allowHousehold: z.boolean().default(false),
+        /**
+         * A temporary bridge for clients that cannot say who they are (the Apple TV): a
+         * request with no viewer whose User-Agent contains the text is read as that home user.
+         */
+        clientViewers: z
+          .array(
+            z.object({
+              userAgentContains: z.string().trim().min(1).max(120),
+              user: z.string().trim().min(1).max(80),
+            }),
+          )
+          .default([]),
       })
       .prefault({}),
     // Installable modules (specs/module-system.md). Only the deployment-level

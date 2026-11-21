@@ -20,6 +20,7 @@ import {
 } from "./task-model";
 
 export function TaskEditor({
+  allowHousehold = false,
   anchorOptions,
   busy,
   initial,
@@ -28,6 +29,8 @@ export function TaskEditor({
   rosterGlyphs,
   submitLabel,
 }: {
+  /** Offer the "Household" box (dashboard.reminders.allowHousehold). A reminder already household keeps it shown. */
+  allowHousehold?: boolean;
   /** Reminders this one may be scheduled from — local ones, never itself. */
   anchorOptions: Task[];
   busy: boolean;
@@ -51,6 +54,7 @@ export function TaskEditor({
     setError(null);
   }, [
     initial.annoy,
+    initial.household,
     initial.end,
     initial.hasEnd,
     initial.name,
@@ -111,6 +115,7 @@ export function TaskEditor({
       repeat: draftRepeat(draft),
       follows: draftFollows(draft),
       annoy: draft.annoy,
+      household: draft.household,
       moduleData: draft.moduleData,
     }, chosenGlyph);
   };
@@ -199,6 +204,13 @@ export function TaskEditor({
           label="Keep chiming until dismissed"
           onChange={(annoy) => setDraft((current) => ({ ...current, annoy }))}
         />
+        {allowHousehold || initial.household ? (
+          <TaskCheckbox
+            checked={draft.household}
+            label="Household (everyone sees it)"
+            onChange={(household) => setDraft((current) => ({ ...current, household }))}
+          />
+        ) : null}
         {draft.repeatEnabled ? (
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
             <label className="grid gap-1 text-xs font-black uppercase text-neutral-400">

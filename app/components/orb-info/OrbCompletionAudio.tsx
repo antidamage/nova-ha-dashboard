@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import { timerSoundSlot } from "../../../lib/orb-timer-model";
 import { useDeviceTheme } from "../accentColor";
+import { useChimePreference } from "../tasks/useChimePreference";
 import { useOrbSettings } from "./useOrbSettings";
 import { useOrbTimer } from "./useOrbTimer";
 import { playUxSound, resolveUxSoundUrl } from "../dashboard/controlSound";
@@ -12,6 +13,7 @@ import { playUxSound, resolveUxSoundUrl } from "../dashboard/controlSound";
  * as a timer and needs nothing of its own.
  */
 export function OrbCompletionAudio() {
+  const { chimeEnabled } = useChimePreference();
   const { timer, now } = useOrbTimer();
   const { hasTimer } = useOrbSettings();
   const { theme } = useDeviceTheme();
@@ -40,10 +42,10 @@ export function OrbCompletionAudio() {
     // stay silent, and do not claim the chime either, so no screen is left
     // thinking it played.
     const timerUrl = resolveUxSoundUrl("timerAlert");
-    if (timer && slot !== null && timerUrl) void play(timer.id, `${timer.id}:${hasTimer ? slot : "once"}`,
+    if (timer && slot !== null && timerUrl && chimeEnabled) void play(timer.id, `${timer.id}:${hasTimer ? slot : "once"}`,
       "/api/orb-timer", { command: "chime", id: timer.id, slot });
     liveIds.current = live;
-  }, [timer, now, hasTimer, theme.uxSounds]);
+  }, [timer, now, hasTimer, theme.uxSounds, chimeEnabled]);
   useEffect(() => () => { liveIds.current.clear(); }, []);
   return null;
 }

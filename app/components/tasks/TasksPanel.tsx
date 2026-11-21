@@ -38,12 +38,20 @@ import {
   type TaskEditorSaveDraft,
 } from "./task-model";
 import { PanelSlots } from "../dashboard/panel-slots/PanelSlots";
+import { SlideSwitch } from "../SlideSwitch";
+import { useReminderBarSettings } from "../dashboard/reminderBarSettings";
+import { useViewerState } from "../home-users/useViewerState";
 import { TasksAdvanced } from "./TasksAdvanced";
+import { useChimePreference } from "./useChimePreference";
 import { TaskSourceIcon } from "./TaskSourceIcon";
 import { useTaskAlerts } from "./useTaskAlerts";
 
 export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   const runModuleIntercepts = useModuleIntercepts();
+  const viewer = useViewerState();
+  const { allowHousehold } = useReminderBarSettings();
+  const chimePreference = useChimePreference();
+  const canAdd = viewer.userId !== null;
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -357,6 +365,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
   // One editor at a time, shown in place of the lists.
   const editorView = createOpen && !editMode ? (
     <TaskEditor
+      allowHousehold={allowHousehold}
       anchorOptions={anchorOptions}
       busy={busyId === "create"}
       initial={createDraft}
@@ -371,6 +380,7 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
     ) : (
       <TaskEditor
         key={expandedTask.id}
+        allowHousehold={allowHousehold}
         anchorOptions={anchorOptions.filter((candidate) => candidate.id !== expandedTask.id)}
         busy={busyId === expandedTask.id}
         initial={taskDraft(expandedTask)}
@@ -422,10 +432,17 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                     onBack={closeEditor}
                     lists={
                       <>
+                        {viewer.resolved && !canAdd ? (
+                          <p className="font-mono text-xs font-black uppercase text-neutral-400" data-testid="reminders-household-note">
+                            Household reminders only. Choose who you are to see yours.
+                          </p>
+                        ) : null}
                         <div className="flex flex-wrap gap-2">
                           <button
-                            className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black"
+                            className="inline-flex min-h-11 items-center gap-2 border border-neutral-700 px-3 py-2 text-sm font-black disabled:opacity-50"
                             type="button"
+                            disabled={!canAdd}
+                            title={canAdd ? undefined : "Choose who you are to add reminders"}
                             onClick={() => {
                               setCreateOpen((current) => {
                                 const next = !current;
@@ -469,6 +486,17 @@ export function TasksPanel({ showPanel = true }: { showPanel?: boolean }) {
                             Export
                           </button>
                         </div>
+
+                        {chimePreference.canSet ? (
+                          <div className="flex items-center justify-between gap-3 border border-neutral-700 px-3 py-2">
+                            <span className="font-mono text-xs font-black uppercase text-neutral-300">Chimes for this user</span>
+                            <SlideSwitch
+                              checked={chimePreference.chimeEnabled}
+                              label="Chimes for this user"
+                              onChange={() => void chimePreference.update(!chimePreference.chimeEnabled)}
+                            />
+                          </div>
+                        ) : null}
 
                         {editMode ? (
                           <div className="flex flex-wrap items-center justify-end gap-3">

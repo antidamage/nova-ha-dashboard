@@ -8,7 +8,6 @@
 
 import { useEffect, useState } from "react";
 
-import { normalizeDailyTasksUrl } from "../../../lib/daily-tasks/count";
 import {
   loadSharedClientConfig,
   readCachedClientConfig,
@@ -24,8 +23,8 @@ export type ReminderBarSettings = {
   maxTiles: number;
   undoWindowMs: number;
   undoHoldMs: number;
-  /** The daily tasks site, normalised; "" when none is configured. */
-  dailyTasksUrl: string;
+  /** Offer the "Household" box in the reminder editor (specs/private-reminders.md). */
+  allowHousehold: boolean;
 };
 
 export const DEFAULT_REMINDER_BAR_SETTINGS: ReminderBarSettings = {
@@ -35,7 +34,7 @@ export const DEFAULT_REMINDER_BAR_SETTINGS: ReminderBarSettings = {
   maxTiles: 10,
   undoWindowMs: 600_000,
   undoHoldMs: 2_000,
-  dailyTasksUrl: "",
+  allowHousehold: false,
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -73,7 +72,7 @@ export function reminderBarSettingsFromConfig(config: unknown): ReminderBarSetti
     maxTiles: positiveNumber(reminders.maxTiles, DEFAULT_REMINDER_BAR_SETTINGS.maxTiles),
     undoWindowMs: positiveNumber(reminders.undoWindowMs, DEFAULT_REMINDER_BAR_SETTINGS.undoWindowMs),
     undoHoldMs: positiveNumber(reminders.undoHoldMs, DEFAULT_REMINDER_BAR_SETTINGS.undoHoldMs),
-    dailyTasksUrl: normalizeDailyTasksUrl(reminders.dailyTasksUrl),
+    allowHousehold: reminders.allowHousehold === true,
   };
 }
 

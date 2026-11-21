@@ -138,6 +138,8 @@ export function normalizedTask(value: unknown): Task | null {
       : undefined,
     annoy: candidate.annoy === true ? true : undefined,
     moduleData: normalizedModuleData(candidate.moduleData),
+    owner: typeof candidate.owner === "string" && candidate.owner.trim() ? candidate.owner.trim() : undefined,
+    household: candidate.household === true ? true : undefined,
     repeat,
     follows,
     source,
@@ -222,6 +224,8 @@ export function validatedNewTask(input: TaskInput): Task {
     readOnly: input.readOnly ?? source !== "local",
     annoy: input.annoy === true ? true : undefined,
     moduleData: normalizedModuleData(input.moduleData),
+    owner: typeof input.owner === "string" && input.owner.trim() ? input.owner.trim() : undefined,
+    household: input.household === true ? true : undefined,
   };
 
   return refreshedRepeatingTask(task, Date.now()).task;
@@ -253,6 +257,8 @@ export function validatedParsedTask(task: Task): Task {
       : undefined,
     annoy: task.annoy === true ? true : undefined,
     moduleData: normalizedModuleData(task.moduleData),
+    owner: typeof task.owner === "string" && task.owner.trim() ? task.owner.trim() : undefined,
+    household: task.household === true ? true : undefined,
     repeat,
     follows,
     source,

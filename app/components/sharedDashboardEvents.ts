@@ -23,6 +23,8 @@
 // command echo-suppression (POLLING COOLDOWN CONTRACT) attributes commands and
 // `state` pushes to the same stream by construction.
 
+import { HOME_USER_CHANGE_EVENT, HOME_USER_STORAGE_KEY } from "./home-users/homeUserSetting";
+
 type Handler = (event: MessageEvent) => void;
 
 let source: EventSource | null = null;
@@ -142,6 +144,19 @@ function openSource(): void {
   }
 }
 
+// The stream is built per viewer on the server (specs/private-reminders.md, section 4),
+// so a change of the device's home user needs a fresh connection to get the new
+// user's events. The cookie is already written by then.
+let viewerListening = false;
+function reopenForNewViewer(): void {
+  if (refCount <= 0) {
+    return;
+  }
+  closeSource();
+  reopenDelayMs = REOPEN_DELAY_MIN_MS;
+  openSource();
+}
+
 function closeSource(): void {
   if (!source) {
     return;
@@ -168,6 +183,14 @@ export function subscribeToDashboardEvents(
 
   const entries = Object.entries(handlers);
   refCount += 1;
+  if (!viewerListening && typeof window !== "undefined") {
+    viewerListening = true;
+    window.addEventListener(HOME_USER_CHANGE_EVENT, reopenForNewViewer);
+    // Another tab of this device chose a different user: the cookie is shared, so reopen here too.
+    window.addEventListener("storage", (event) => {
+      if (!event.key || event.key === HOME_USER_STORAGE_KEY) reopenForNewViewer();
+    });
+  }
   openSource();
 
   for (const [type, handler] of entries) {

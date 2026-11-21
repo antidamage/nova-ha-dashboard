@@ -192,6 +192,8 @@ export const tools: ToolDefinition[] = [
         end: { type: ["string", "null"] },
         repeat: { type: ["object", "null"] },
         follows: { type: ["object", "null"] },
+        owner: { type: "string", description: "The home user (person id) this reminder is for. Required unless household is true." },
+        household: { type: "boolean", description: "Visible to everyone instead of one user." },
         ...confirmSchema,
       },
       additionalProperties: false,

@@ -2,6 +2,7 @@
 // and task SSE streams.
 
 import { appendTaskSnapshotEvents } from "../household-events";
+import { HOUSEHOLD_VIEWER, type Viewer } from "../tasks/ownership";
 import { sendNotificationsSnapshot } from "./notifications";
 import { startDashboardEventPoller, stopDashboardEventPollerIfIdle } from "./poller";
 import { publishDashboardBuild } from "./publish";
@@ -25,7 +26,7 @@ export function ensureHouseholdEventBackboneStarted() {
     });
 }
 
-export function subscribeDashboardEvents() {
+export function subscribeDashboardEvents(viewer: Viewer = HOUSEHOLD_VIEWER) {
   let client: DashboardEventClient | null = null;
 
   return new ReadableStream<Uint8Array>({
@@ -33,6 +34,7 @@ export function subscribeDashboardEvents() {
       client = {
         id: store.nextClientId + 1,
         controller,
+        viewer,
       };
       store.nextClientId = client.id;
       store.clients.add(client);
@@ -62,7 +64,7 @@ export function subscribeDashboardEvents() {
   });
 }
 
-export function subscribeTaskEvents() {
+export function subscribeTaskEvents(viewer: Viewer = HOUSEHOLD_VIEWER) {
   let client: DashboardEventClient | null = null;
 
   return new ReadableStream<Uint8Array>({
@@ -70,6 +72,7 @@ export function subscribeTaskEvents() {
       client = {
         id: store.nextClientId + 1,
         controller,
+        viewer,
       };
       store.nextClientId = client.id;
       store.taskClients.add(client);

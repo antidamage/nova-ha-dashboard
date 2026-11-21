@@ -56,6 +56,7 @@ export function defaultDraft(): TaskDraft {
     followOffsetDays: String(DEFAULT_FOLLOW_OFFSET_DAYS),
     followHour: String(DEFAULT_FOLLOW_HOUR),
     annoy: false,
+    household: false,
   };
 }
 
@@ -74,6 +75,7 @@ export function taskDraft(task: Task): TaskDraft {
     followOffsetDays: String(task.follows?.offsetDays ?? DEFAULT_FOLLOW_OFFSET_DAYS),
     followHour: String(task.follows?.hour ?? DEFAULT_FOLLOW_HOUR),
     annoy: task.annoy === true,
+    household: task.household === true,
     moduleData: task.moduleData,
   };
 }

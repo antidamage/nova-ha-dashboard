@@ -28,7 +28,10 @@ export async function GET() {
       // that list to every browser would publish the household's topology for
       // no gain.
       kiosk: { cameras: config.dashboard.kiosk.cameras },
-      reminders: config.dashboard.reminders,
+      // Not the owner or the device bindings: those are server-side (specs/private-reminders.md).
+      reminders: (({ legacyOwner: _legacyOwner, clientViewers: _clientViewers, ...visible }) => visible)(
+        config.dashboard.reminders,
+      ),
       specialZones: config.dashboard.specialZones,
       timing: config.dashboard.timing,
     },

@@ -292,6 +292,7 @@ dashboard.
 | `thermostat.heater.controls` | `{ entity, preferences }` |
 | `reminder.editor.fields` | `{ task, moduleData, setModuleData }` |
 | `reminder.tile.badge` | `{ task }` |
+| `reminder.bar.end` | `{ viewer }` — the device's home user id, `household`, or null. Rendered after the last reminder tile; reserves no space when it renders nothing |
 | `zone.controls.after` | `{ zone }` |
 | `config.module.panel` | `{ moduleId, config, status }` |
 

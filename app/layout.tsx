@@ -28,6 +28,7 @@ import {
   readInitialOrbTheme,
 } from "./shell/layout-data";
 import { headBootstrapScript } from "./shell/head-bootstrap-script";
+import { viewerCookieScript } from "./shell/viewer-cookie-script";
 
 // viewportFit "cover" draws the page under the iOS status bar / Dynamic Island.
 // Without it Safari fills that strip with its own tint colour. Top-fixed chrome
@@ -155,6 +156,7 @@ export default async function RootLayout({
           // so this cannot be read here directly (specs/design-modules.md).
           <script src="/api/design/bootstrap" />
         )}
+        <script dangerouslySetInnerHTML={{ __html: viewerCookieScript() }} />
         <script
           dangerouslySetInnerHTML={{
             __html: headBootstrapScript(serverSunJson, fontStacksJson),

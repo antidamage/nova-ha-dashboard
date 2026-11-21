@@ -106,6 +106,8 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<Task> {
       follows,
       annoy,
       moduleData,
+      owner: patch.owner === undefined ? current.owner : patch.owner,
+      household: patch.household === undefined ? current.household : patch.household === true ? true : undefined,
       dismissedAt: sameOccurrence ? current.dismissedAt : undefined,
       alertDismissedAt: sameOccurrence ? current.alertDismissedAt : undefined,
       alertDismissedFor: sameOccurrence ? current.alertDismissedFor : undefined,

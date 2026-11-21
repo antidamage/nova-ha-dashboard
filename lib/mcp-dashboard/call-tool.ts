@@ -13,6 +13,7 @@ import {
   readSecretSetupStatus,
   writeDashboardConfig,
 } from "../dashboard-config";
+import { homeUsers } from "../home-users/model";
 import { addTask, deleteTasks, readTasks, updateTask } from "../tasks";
 import type { HaDomain, HaState } from "../types";
 import { argsFrom, assertConfirmed, idsFrom, rgbTuple, textResult, updatePatchFrom } from "./args-model";
@@ -140,12 +141,25 @@ export async function callTool(name: string, args: Record<string, unknown>) {
   if (name === "nova.tasks.listen" || name === "nova_tasks_listen") {
     return textResult({
       endpoint: "/api/tasks?command=listen",
+      // An agent sends this header; without it the stream is the household view (specs/private-reminders.md).
+      headers: { "X-Nova-Viewer": "system" },
       eventTypes: ["client-id", "tasks", "task-alert", "task-dismiss"],
     });
   }
   if (name === "nova.tasks.add" || name === "nova_tasks_add") {
     assertConfirmed(name, args, config);
+    // An agent is a system caller (specs/private-reminders.md): it says who the reminder is for.
+    const owner = typeof args.owner === "string" ? args.owner.trim() : "";
+    const household = args.household === true;
+    if (!owner && !household) {
+      throw new Error("owner-required: say who this reminder is for (owner: a home user id), or set household: true");
+    }
+    if (owner && !homeUsers(config.dashboard.people).some((person) => person.id === owner)) {
+      throw new Error("owner-unknown: that owner is not a home user");
+    }
     return textResult(await addTask({
+      owner: owner || undefined,
+      household: household || undefined,
       end: args.end,
       name: args.name,
       repeat: args.repeat,

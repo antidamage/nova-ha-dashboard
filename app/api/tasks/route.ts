@@ -8,6 +8,16 @@ import {
 } from "../../../lib/api/task-requests";
 import { subscribeTaskEvents } from "../../../lib/dashboard-events";
 import { addTask, deleteTasks, readTasks, updateTask } from "../../../lib/tasks";
+import {
+  accessPatchFor,
+  accessStatus,
+  filterVisible,
+  ownershipForNewTask,
+  readAccess,
+  requireFollowsAnchor,
+  requireWritableTasks,
+  type TaskAccess,
+} from "../../../lib/tasks/access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -73,8 +83,8 @@ function documentationResponse(status = 200) {
   return NextResponse.json(taskCommandDocs, { status });
 }
 
-function taskEventStreamResponse() {
-  return new Response(subscribeTaskEvents(), {
+function taskEventStreamResponse(access: TaskAccess) {
+  return new Response(subscribeTaskEvents(access.viewer), {
     headers: {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
@@ -90,14 +100,18 @@ async function runJsonCommand(command: TaskCommand, body: Record<string, unknown
   if (command === "docs") {
     return documentationResponse();
   }
+  const access = await readAccess(request);
   if (command === "list") {
-    return NextResponse.json({ tasks: await readTasks() });
+    return NextResponse.json({ tasks: filterVisible(await readTasks(), access) });
   }
   if (command === "listen") {
-    return taskEventStreamResponse();
+    return taskEventStreamResponse(access);
   }
   if (command === "add") {
+    const ownership = ownershipForNewTask(access, body);
+    await requireFollowsAnchor(access, body.follows);
     const task = await addTask({
+      ...ownership,
       name: body.name,
       start: body.start,
       end: body.end,
@@ -114,10 +128,13 @@ async function runJsonCommand(command: TaskCommand, body: Record<string, unknown
     if (!id) {
       throw new Error("Task id is required");
     }
-    return NextResponse.json(await updateTask(id, taskUpdatePatchFrom(body)));
+    await requireWritableTasks(access, [id]);
+    await requireFollowsAnchor(access, body.follows);
+    return NextResponse.json(await updateTask(id, { ...taskUpdatePatchFrom(body), ...accessPatchFor(access, body) }));
   }
 
   const ids = taskIdsFrom(body.ids, body.id ?? url.searchParams.get("ids") ?? url.searchParams.get("id"));
+  await requireWritableTasks(access, ids);
   if (!ids.length) {
     throw new Error("Task id is required");
   }
@@ -130,16 +147,16 @@ export async function GET(request: Request) {
   try {
     const command = taskCommandFrom(request);
     if (command === "listen") {
-      return taskEventStreamResponse();
+      return taskEventStreamResponse(await readAccess(request));
     }
     if (command === "list") {
-      return NextResponse.json({ tasks: await readTasks() });
+      return NextResponse.json({ tasks: filterVisible(await readTasks(), await readAccess(request)) });
     }
     return documentationResponse();
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to read reminders" },
-      { status: 500 },
+      { status: accessStatus(error, 500) },
     );
   }
 }
@@ -151,7 +168,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Reminder command failed", docs: taskCommandDocs },
-      { status: 400 },
+      { status: accessStatus(error, 400) },
     );
   }
 }
@@ -163,7 +180,7 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Reminder update failed", docs: taskCommandDocs },
-      { status: 400 },
+      { status: accessStatus(error, 400) },
     );
   }
 }
@@ -175,7 +192,7 @@ export async function DELETE(request: Request) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Reminder removal failed", docs: taskCommandDocs },
-      { status: 400 },
+      { status: accessStatus(error, 400) },
     );
   }
 }

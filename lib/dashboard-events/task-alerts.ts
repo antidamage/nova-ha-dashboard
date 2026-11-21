@@ -1,12 +1,14 @@
 // Reminder alert scanning and the task / reminder-icon snapshots sent to a
 // newly connected client.
 
+import { readDashboardConfig } from "../dashboard-config";
 import { emitDashboardEvent } from "../event-spool";
 import { emitModuleEvent } from "../modules/runtime/hooks";
 import type { Task } from "../types";
+import { canSeeTask, HOUSEHOLD_VIEWER, visibleRosterEntries, visibleTasks } from "../tasks/ownership";
 import { publishDashboardError } from "./publish";
 import { store } from "./store";
-import { broadcastTask, sendClient, sseEvent } from "./transport";
+import { broadcastTaskScoped, sendClient, sseEvent } from "./transport";
 import type { DashboardEventClient } from "./types";
 
 function isTaskAlerting(task: Task, now: number) {
@@ -36,8 +38,12 @@ function isTaskAlerting(task: Task, now: number) {
 export async function sendReminderIconsSnapshot(client: DashboardEventClient) {
   try {
     const { readReminderIcons } = await import("../reminder-icons");
-    store.latestReminderIconsJson = JSON.stringify({ entries: await readReminderIcons() });
-    sendClient(client, sseEvent("reminder-icons", store.latestReminderIconsJson));
+    const { readTasks } = await import("../tasks");
+    const entries = await readReminderIcons();
+    store.latestReminderIconsJson = JSON.stringify({ entries });
+    const legacyOwner = (await readDashboardConfig()).dashboard.reminders.legacyOwner;
+    const scoped = visibleRosterEntries(entries, await readTasks(), client.viewer ?? HOUSEHOLD_VIEWER, legacyOwner);
+    sendClient(client, sseEvent("reminder-icons", JSON.stringify({ entries: scoped })));
   } catch (error) {
     // The bar degrades to "no tiles" on its own; this is not worth a
     // dashboard-error toast the way a missing task list is.
@@ -48,9 +54,12 @@ export async function sendReminderIconsSnapshot(client: DashboardEventClient) {
 export async function sendTasksSnapshot(client: DashboardEventClient) {
   try {
     const { readTasks } = await import("../tasks");
-    store.latestTasksJson = JSON.stringify({ tasks: await readTasks() });
-
-    sendClient(client, sseEvent("tasks", store.latestTasksJson));
+    const tasks = await readTasks();
+    store.latestTasks = tasks;
+    const legacyOwner = (await readDashboardConfig()).dashboard.reminders.legacyOwner;
+    store.taskLegacyOwner = legacyOwner;
+    const scoped = visibleTasks(tasks, client.viewer ?? HOUSEHOLD_VIEWER, legacyOwner);
+    sendClient(client, sseEvent("tasks", JSON.stringify({ tasks: scoped })));
   } catch (error) {
     sendClient(
       client,
@@ -71,6 +80,7 @@ export async function scanTaskAlerts() {
   try {
     const { readTasks } = await import("../tasks");
     const tasks = await readTasks();
+    store.taskLegacyOwner = (await readDashboardConfig()).dashboard.reminders.legacyOwner;
     const now = Date.now();
     const activeAlertingTaskIds = new Set<string>();
 
@@ -87,13 +97,19 @@ export async function scanTaskAlerts() {
       }
 
       store.taskAlertSessions[task.id] = sessionKey;
-      broadcastTask(sseEvent("task-alert", JSON.stringify({ taskId: task.id, name: task.name, end: task.end })));
+      // Only to connections that can see the reminder: a private reminder alerts on its
+      // owner's devices alone; household and washing reminders reach everyone.
+      broadcastTaskScoped((viewer, legacyOwner) =>
+        canSeeTask(task, viewer, legacyOwner)
+          ? sseEvent("task-alert", JSON.stringify({ taskId: task.id, name: task.name, end: task.end }))
+          : null,
+      );
       // Once per occurrence, on the same edge as the chime — not once per tick.
       emitModuleEvent({
         id: "reminder.due",
         at: task.start,
         source: "server",
-        task: { id: task.id, name: task.name, moduleData: task.moduleData },
+        task: { id: task.id, name: task.name, moduleData: task.moduleData, owner: task.owner, household: task.household },
       });
       void emitDashboardEvent({
         service: "system",

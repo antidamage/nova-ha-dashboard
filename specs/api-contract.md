@@ -448,9 +448,14 @@ Tasks:
 - `GET /api/tasks/icloud-status`: return iCloud sync status.
 - `POST /api/tasks/sync-icloud`: force iCloud sync.
 - `ALL /api/tasks/mcp`: compatibility shim to `/api/mcp`.
-- `GET /api/daily-tasks/count`: the unfinished count from the daily tasks site
-  at `dashboard.reminders.dailyTasksUrl`, as `{ configured, unfinished, url }`
-  (`unfinished` null when unreadable). See `specs/tasks-panel.md`, "Daily tasks count".
+- `GET /api/reminders/prefs`, `PUT /api/reminders/prefs`: the viewer's own reminder
+  preferences, `{ chime }` (specs/private-reminders.md section 6). A household or
+  undecided viewer reads `chime: true` and gets 403 on write.
+- Every reminder route reads the viewer from the `nova-viewer` cookie or the
+  `X-Nova-Viewer` header and serves only what that viewer may see: a foreign
+  reminder id answers 404, a household or undecided add answers 403 `choose-a-user`,
+  a system add without `owner` or `household` answers 400 `owner-required`
+  (specs/private-reminders.md sections 2 to 5).
 
 Notifications (one-off, not reminders; see `notifications.md`):
 

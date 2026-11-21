@@ -31,7 +31,9 @@ export const store =
     latestSignature: null,
     latestSun: null,
     latestTaskAudioJson: null,
+    latestTasks: [],
     latestTasksJson: null,
+    taskLegacyOwner: "",
     latestReminderIconsJson: null,
     lightPollHoldUntil: 0,
     nextClientId: 0,
@@ -61,7 +63,9 @@ store.icloudSyncTimer ??= null;
 store.icloudSyncing ??= false;
 store.latestSun ??= null;
 store.latestTaskAudioJson ??= null;
+store.latestTasks ??= [];
 store.latestTasksJson ??= null;
+store.taskLegacyOwner ??= "";
 store.latestReminderIconsJson ??= null;
 store.nextIcloudSyncAt ??= 0;
 store.pollPending ??= false;

@@ -1,9 +1,12 @@
-import type { HaDomain, SpectrumCursor, SunStatus } from "../types";
+import type { HaDomain, SpectrumCursor, SunStatus, Task } from "../types";
+import type { Viewer } from "../tasks/ownership";
 import type { VoiceTranscriptEvent } from "../voice-transcript";
 
 export type DashboardEventClient = {
   id: number;
   controller: ReadableStreamDefaultController<Uint8Array>;
+  /** Who this connection is for; task events are filtered to it (specs/private-reminders.md section 4). */
+  viewer?: Viewer;
 };
 
 export type DashboardEventStore = {
@@ -25,7 +28,9 @@ export type DashboardEventStore = {
   latestSignature: string | null;
   latestSun: SunStatus | null;
   latestTaskAudioJson: string | null;
+  latestTasks: Task[];
   latestTasksJson: string | null;
+  taskLegacyOwner: string;
   latestReminderIconsJson: string | null;
   lightPollHoldUntil: number;
   nextClientId: number;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { subscribeDashboardEvents } from "../../../lib/dashboard-events";
 import { emitDashboardEvent, type DashboardEventPhase } from "../../../lib/event-spool";
+import { readAccess } from "../../../lib/tasks/access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,8 +9,9 @@ export const runtime = "nodejs";
 // GET = the shared SSE stream (server -> browsers). POST = client-originated
 // attributed events (button presses, the aircon auto loop) headed the OTHER way,
 // into the nova-monitoring event stream via the data/events spool.
-export async function GET() {
-  return new Response(subscribeDashboardEvents(), {
+export async function GET(request: Request) {
+  const { viewer } = await readAccess(request);
+  return new Response(subscribeDashboardEvents(viewer), {
     headers: {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",

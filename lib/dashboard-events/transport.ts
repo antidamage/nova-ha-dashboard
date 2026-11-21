@@ -1,5 +1,6 @@
 // SSE framing and fan-out to connected dashboard and task clients.
 
+import { HOUSEHOLD_VIEWER, viewerKey, type Viewer } from "../tasks/ownership";
 import type { DashboardState, SpectrumCursor } from "../types";
 import { encoder, store } from "./store";
 import type { DashboardEventClient } from "./types";
@@ -58,5 +59,21 @@ export function broadcastTask(chunk: string) {
   broadcast(chunk);
   for (const client of store.taskClients) {
     sendClient(client, chunk);
+  }
+}
+
+/**
+ * A task event built per viewer (specs/private-reminders.md, section 4): one
+ * payload per distinct viewer, sent only to that viewer's connections, and not
+ * at all when `chunkFor` answers null. A connection with no viewer is household.
+ */
+export function broadcastTaskScoped(chunkFor: (viewer: Viewer, legacyOwner: string) => string | null) {
+  const cache = new Map<string, string | null>();
+  for (const client of [...store.clients, ...store.taskClients]) {
+    const viewer = client.viewer ?? HOUSEHOLD_VIEWER;
+    const key = viewerKey(viewer);
+    if (!cache.has(key)) cache.set(key, chunkFor(viewer, store.taskLegacyOwner));
+    const chunk = cache.get(key);
+    if (chunk) sendClient(client, chunk);
   }
 }

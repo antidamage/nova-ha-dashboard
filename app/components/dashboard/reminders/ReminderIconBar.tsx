@@ -27,9 +27,9 @@ import { useOrbTimer } from "../../orb-info/useOrbTimer";
 import { normalizeReminderKey } from "../../../../lib/reminder-glyph";
 import { ReminderGlyphMark, reminderGlyphLabel } from "../../reminders/icon-registry";
 import { useReminderBarSettings } from "../reminderBarSettings";
-import { useModuleIntercepts } from "../../modules/ModuleHost";
+import { useModuleIntercepts, useModuleRuntime } from "../../modules/ModuleHost";
+import { useHomeUser } from "../../home-users/homeUserSetting";
 import { ModuleSlot } from "../../modules/ModuleSlot";
-import { DailyTasksTile } from "./DailyTasksTile";
 import { clusterUpcomingTiles } from "./cluster-model";
 import { buildReminderTiles, tileTooltip, TICK_MS } from "./tile-model";
 import type { Tile } from "./types";
@@ -40,6 +40,10 @@ export function ReminderIconBar() {
   const { timer, command: timerCommand } = useOrbTimer();
   const runModuleIntercepts = useModuleIntercepts();
   const settings = useReminderBarSettings();
+  const viewer = useHomeUser();
+  // A module tile can only show to a chosen user, so a household or undecided device keeps no empty bar for it.
+  const hasBarEndModule =
+    (useModuleRuntime().slots.get("reminder.bar.end")?.length ?? 0) > 0 && viewer !== null && viewer !== "household";
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
   /** taskId -> when its undo window closes. Cleared as the window lapses. */
@@ -191,7 +195,7 @@ export function ReminderIconBar() {
     [clearHold, completeTile],
   );
 
-  if (loaded && tiles.length === 0 && !settings.dailyTasksUrl) {
+  if (loaded && tiles.length === 0 && !hasBarEndModule) {
     return null;
   }
 
@@ -262,7 +266,9 @@ export function ReminderIconBar() {
           </button>
         );
       })}
-      {settings.dailyTasksUrl ? <DailyTasksTile url={settings.dailyTasksUrl} /> : null}
+      {/* A module's tile after the last reminder (the daily tasks count). It reserves no
+          space of its own: for anyone it is not for, it renders nothing. */}
+      <ModuleSlot id="reminder.bar.end" context={{ viewer }} />
       </PanelSlots>
     </div>
   );

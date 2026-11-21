@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { clearExperienceModeSetting } from "../dashboard/experienceModeSetting";
+import { setViewerCookie } from "./viewerCookie";
 
 /**
  * Which home user this device is showing (specs/home-users.md section 3). A
@@ -31,6 +32,8 @@ function announce() {
 }
 
 export function writeHomeUser(id: string) {
+  // The cookie first: another tab reacts to the storage write below, and its next request must carry it.
+  setViewerCookie(id);
   try {
     window.localStorage.setItem(HOME_USER_STORAGE_KEY, id);
   } catch {
@@ -41,6 +44,7 @@ export function writeHomeUser(id: string) {
 
 /** Log out: forget the identity and the experience choice, so both are asked again. */
 export function logOutHomeUser() {
+  setViewerCookie(null);
   try {
     window.localStorage.removeItem(HOME_USER_STORAGE_KEY);
   } catch {

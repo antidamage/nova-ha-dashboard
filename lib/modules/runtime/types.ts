@@ -17,6 +17,7 @@ export const SLOT_IDS = [
   "thermostat.heater.controls",
   "reminder.editor.fields",
   "reminder.tile.badge",
+  "reminder.bar.end",
   "zone.controls.after",
   "config.module.panel",
 ] as const;
@@ -85,7 +86,7 @@ export type ModuleEvent = {
     previousState?: string;
   };
   zone?: { id: string; name?: string };
-  task?: { id: string; name?: string; moduleData?: Record<string, unknown> };
+  task?: { id: string; name?: string; moduleData?: Record<string, unknown>; owner?: string; household?: boolean };
   target?: number;
   trigger?: string;
   reason?: string;
@@ -122,7 +123,7 @@ export type InterceptContext = {
   source: "server" | "client";
   entity?: { id: string; friendlyName?: string; domain?: string; state?: string };
   zone?: { id: string; name?: string };
-  task?: { id: string; name?: string; moduleData?: Record<string, unknown> };
+  task?: { id: string; name?: string; moduleData?: Record<string, unknown>; owner?: string; household?: boolean };
   service?: string;
   data?: Record<string, unknown>;
 };
