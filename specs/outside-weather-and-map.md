@@ -181,6 +181,17 @@ Map panel:
 - Client-only MapLibre GL component.
 - Default center is Auckland and can be configured.
 - Uses an OpenFreeMap vector source.
+- **The map's worker.** MapLibre 6 parses vector tiles in a worker it starts from
+  `new URL("./maplibre-gl-worker.mjs", import.meta.url)`, which inside a Next
+  chunk names a file that does not exist; with it missing, no vector layer
+  (buildings, roads, labels) draws and only the satellite raster shows. So
+  `next.config.ts` copies the installed worker to the git-ignored
+  `public/vendor/maplibre-gl-worker.mjs` whenever it loads (dev, build, demo
+  build; the host's `npm run build` included), and `app/components/map/worker-url.ts`
+  points MapLibre at it with `setWorkerUrl`, under the demo base path, with
+  `?v=<MapLibre version>`. A unit test fails if the copy is missing or differs
+  from `node_modules`. Found 2026-11-22: since the 6.16 bump (#115,
+  2026-10-26) the map had drawn no buildings.
 - Uses RainViewer radar through `/api/radar`.
 - Uses Esri satellite imagery through `/api/satellite`.
 - Displays background, landuse, satellite, water, radar, roads, buildings,

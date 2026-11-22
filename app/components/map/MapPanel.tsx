@@ -33,6 +33,7 @@ import { buildCyberpunkStyle, createHomeMarkerElement } from "./map-style";
 import { updateRadarSource } from "./store";
 import type { DragRotateHandlerShim } from "./types";
 import { useMapViewportFit } from "./useMapViewportFit";
+import { pointMapWorkerAtVendorCopy } from "./worker-url";
 
 export function MapPanel({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,7 @@ export function MapPanel({ className }: { className?: string }) {
     }
 
     const mapContainer = containerRef.current;
+    pointMapWorkerAtVendorCopy();
     const homeCenter = parseMapCenter(process.env.NEXT_PUBLIC_MAP_CENTER);
     const map = new maplibregl.Map({
       bearing: -17,
