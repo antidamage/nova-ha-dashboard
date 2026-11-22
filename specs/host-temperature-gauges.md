@@ -106,6 +106,10 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
   card holding the line has 12px (`--spacing-12`) of padding under it. The
   dial rows give that space up: `useSlotLayout` measures the row's content
   box, so padding is never counted as height the dials can have.
+- **On the card's floor (alex, 2026-11-22).** The weather line and the
+  gauges line are the card's last tracks and end at its 12px bottom padding;
+  the dials are centred in the height above them, not the stack as a whole
+  (specs/quick-access-card.md, "The lines sit on the card's floor").
 - **Evenly distributed, with balanced padding (alex, 2026-11-21):** a flex
   row with `justify-content: space-evenly` inside 12px (`--spacing-12`) of side
   padding, so the space at each end equals the space between two gauges. The

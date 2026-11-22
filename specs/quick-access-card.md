@@ -487,6 +487,29 @@ and the dial sizes in `quick-access/dial-model.ts`.
   what had been holding the buttons a knob-slack away from the dial that owns
   them (23px → 8px here, a 200px panel dial 58px → 20px). See
   [dial-preset-band.md](dial-preset-band.md).
+- **A preset row is one line (alex, 2026-11-22: "I would prefer they didn't
+  wrap, I like them in a line").** The lighting and Apple TV preset rows do not
+  wrap: where the row is short of room the 44px buttons narrow instead (measured
+  in Chromium at 1920x1080: three buttons need 144px in a 142px row, and wrapped
+  two and one). `quick-access-dials.css`.
+
+- **The lines sit on the card's floor, the dials centred above them (alex,
+  2026-11-22: "align the temp gauges and the weather line to the bottom of the
+  quick access panel ... the three gauges in a horizontal line is fine but centre
+  them in the remaining vertical space of that panel").** Where the dial rows
+  have more height than their dials need (`dialRowsCapped`, `slotGrid.ts`), the
+  rows are sized to the dials, as before, but the spare height no longer goes
+  around the whole stack: two equal spacer tracks hold it, one above the dials
+  and one under them, and the wide lines take the last tracks, so the bottom
+  line ends at the card's padding. The card fills the spacers with its
+  `::before` and `::after` (`data-dials-centred`), so no slot is ever placed in
+  one, and the dials move down half a row gap (`--dial-centre-shift`) because
+  the lower spacer has one more gap after it. Measured live at 1920x1080 and
+  1366x1024 with three dials, the weather line and the gauges line: 100px over
+  the dials and 100px under them. A card with no lines keeps the centred group;
+  a card whose dials need the whole height has no spare height to move. The
+  dials stay in one line where the card has room for them (the arrangement
+  rule above is unchanged).
 
 ## Reuse
 

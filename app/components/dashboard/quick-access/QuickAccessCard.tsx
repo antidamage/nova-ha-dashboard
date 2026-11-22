@@ -6,7 +6,7 @@ import type { EntityActionsHandler } from "../climateCommands";
 import { isDialKind, slotCounts, slotItemsInOrder, useSlotLayout } from "../panel-slots/useSlotLayout";
 import { useSlotScale } from "../panel-slots/useSlotScale";
 import { renderSlotItem, renderWideSlotItem } from "../panel-slots/slotItemView";
-import { slotGridStyle } from "../panel-slots/slotGrid";
+import { dialRowsCapped, slotGridStyle } from "../panel-slots/slotGrid";
 import type { QuickItem } from "./quickSlotModel";
 
 /**
@@ -91,6 +91,7 @@ export function QuickAccessCard({
         data-slot-fit={fits ? "scale" : "scroll"}
         data-wide-grown={wideHeight > 0 ? "true" : undefined}
         data-slot-columns={layout.columns}
+        data-dials-centred={layout.wide > 0 && dialRowsCapped(layout, fits) ? "true" : undefined}
         style={slotGridStyle(layout, scale, { capRows: true, fits, spread: true, wideScale })}
       >
         {slotItemsInOrder(placed, true).map((item) =>

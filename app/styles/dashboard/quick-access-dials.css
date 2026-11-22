@@ -19,7 +19,27 @@
    to fit it. `translate`, not `transform`: it applies outside the slot's own
    scale, so the step is screen pixels and is never scaled. */
 .quick-access-row > :not(.panel-slot-wide) {
-  translate: calc(var(--dial-spread, 0px) * var(--dial-column-offset, 0)) 0;
+  translate: calc(var(--dial-spread, 0px) * var(--dial-column-offset, 0)) var(--dial-centre-shift, 0px);
+}
+
+/* The lines on the card's floor, the dials centred above them (alex,
+   2026-11-22). Where the dial rows have spare height, slotGrid.ts puts an equal
+   spacer track above and under the dials; these two fill them, so the dials flow
+   from the row after the first spacer and the lines from the row after the
+   second, and the spare height is shared evenly around the dials. */
+.quick-access-row[data-dials-centred]::before,
+.quick-access-row[data-dials-centred]::after {
+  content: "";
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.quick-access-row[data-dials-centred]::before {
+  grid-row: 1;
+}
+
+.quick-access-row[data-dials-centred]::after {
+  grid-row: var(--dial-spacer-end);
 }
 
 .quick-access-row[data-slot-columns="2"] > :nth-child(2n + 1) { --dial-column-offset: -0.5; }
@@ -34,13 +54,21 @@
 /* Each dial's preset row takes back the air a titled dial's box keeps under its
    knob (`--dial-pull`, set by QuickAccessCard from the dial's own
    geometry), so the buttons sit just under the dial they belong to instead of a
-   knob-slack below it. A long playlist list wraps rather than overflows. */
+   knob-slack below it. The buttons stay on one line under their dial (alex,
+   2026-11-22: "I would prefer they didn't wrap, I like them in a line"): where
+   the row is short of room they narrow rather than drop to a second line. */
 .quick-segment-lights .quick-button-pair,
 .quick-segment-appletv .quick-button-pair {
   min-height: var(--dial-preset-band);
   margin-block-start: calc(-1 * var(--dial-pull, 0px));
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
+}
+
+.quick-segment-lights .quick-button-pair > .quick-button,
+.quick-segment-appletv .quick-button-pair > .quick-button {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 /* A module in the wide line slot is drawn on ONE line (alex, 2026-09-25: "make

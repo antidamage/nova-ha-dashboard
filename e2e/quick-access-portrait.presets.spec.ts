@@ -3,7 +3,7 @@ import { gotoDashboard } from "./helpers";
 import { dials, places } from "./quick-access-portrait.fixtures";
 
 // specs/quick-access-card.md, portrait: each dial's preset row hugs it, a full
-// playlist list wraps inside its own slot, and on a narrow phone the dials
+// playlist list stays on one line, its buttons narrowing (2026-11-22), and on a narrow phone the dials
 // shrink together to a 100px floor. The grid itself is in
 // quick-access-portrait.spec.ts.
 
@@ -31,9 +31,10 @@ test("portrait: each dial's preset row hugs it", async ({ page }) => {
   }
 });
 
-test("portrait: a full playlist list wraps its own slot without moving the dial", async ({ page }) => {
+test("portrait: a full playlist list stays on one line without moving the dial", async ({ page }) => {
   // 300px wide: a slot is one line's whole width there, and six 44px playlist
-  // buttons do not fit one slot, so the row wraps to a second line.
+  // buttons do not fit one slot at full width, so they narrow and stay on
+  // one line (alex, 2026-11-22: "I like them in a line").
   await page.setViewportSize({ width: 300, height: 640 });
   // The demo store is where a deviceless dashboard keeps the amplifier's state
   // (appleTVAmpClient). Six is the most the list may hold.
@@ -50,7 +51,9 @@ test("portrait: a full playlist list wraps its own slot without moving the dial"
   // The lights' three 44px buttons stay on one line, so the comparison has a
   // floor: it fails if either row collapses.
   expect(lightsRowBox!.height, "the lights' row is one button line").toBeLessThanOrEqual(48);
-  expect(ampRowBox!.height, "six playlists wrap to a second line").toBeGreaterThan(lightsRowBox!.height * 1.5);
+  expect(ampRowBox!.height, "six playlists stay on one line").toBeLessThanOrEqual(lightsRowBox!.height + 1);
+  const widths = await ampRow.getByRole("button").evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().width));
+  for (const width of widths) expect(width, "a narrowed playlist button stays tappable").toBeGreaterThanOrEqual(28);
 
   // Both dials start at the top of their own slot: the extra playlist line
   // grows the amplifier's slot downwards rather than moving its dial

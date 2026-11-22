@@ -30,17 +30,32 @@ export function slotGridStyle(
 ): CSSProperties {
   const { capRows = false, fits = true, spread = false, wideScale = 1 } = options;
   // A card that caps its dial rows (Quick Access) gives each row only the height
-  // its dial needs and centres the group, so few dials on a tall card are not
-  // stretched to the card's whole height (alex, 2026-11-21: "their enclosing
-  // panels take up 100% of the height").
+  // its dial needs, so few dials on a tall card are not stretched to the card's
+  // whole height (alex, 2026-11-21: "their enclosing panels take up 100% of
+  // the height").
   // Only where a row has more room than its dial needs: the rows then take their
-  // content's height, and the spare height goes around the group, not into it.
-  if (capRows && fits && layout.rowHeight > quickSlotHeight(layout.size)) {
-    const capped = [
-      ...Array.from({ length: layout.rows }, () => "auto"),
-      ...lineTracks(layout),
-    ].join(" ");
-    return { ...slotGridStyle(layout, scale, { ...options, capRows: false }), gridTemplateRows: capped, alignContent: "center" };
+  // content's height, and the spare height goes around the dials, not into them.
+  if (capRows && dialRowsCapped(layout, fits)) {
+    const base = slotGridStyle(layout, scale, { ...options, capRows: false });
+    const dialRows = Array.from({ length: layout.rows }, () => "auto");
+    if (layout.wide === 0) {
+      return { ...base, gridTemplateRows: dialRows.join(" "), alignContent: "center" };
+    }
+    // The lines sit on the card's floor and the dials are centred in the height
+    // above them (alex, 2026-11-22: "align the temp gauges and the weather line
+    // to the bottom of the quick access panel ... centre them in the remaining
+    // vertical space"). Two equal spacer tracks hold the spare height, one above
+    // the dials and one under them; the card fills them with its ::before and
+    // ::after (quick-access-dials.css), so no slot is ever placed in one.
+    const centred = ["minmax(0, 1fr)", ...dialRows, "minmax(0, 1fr)", ...lineTracks(layout)].join(" ");
+    return {
+      ...base,
+      gridTemplateRows: centred,
+      "--dial-spacer-end": `${layout.rows + 2}`,
+      // The spacer under the dials has one more row gap after it than the one
+      // above has before it; half a gap down evens the two sides.
+      "--dial-centre-shift": `${(layout.gap / 2).toFixed(2)}px`,
+    } as CSSProperties;
   }
   // A card with wide line slots states its own rows: its dials divide the height
   // that is left once each line under them has taken its one line, so those rows
@@ -78,6 +93,14 @@ export function slotGridStyle(
     // (specs/dial-preset-band.md).
     "--dial-pull": `${dialPresetPull(layout.size).toFixed(2)}px`,
   } as CSSProperties;
+}
+
+/**
+ * Whether a capping panel's dial rows have more height than their dials need, so
+ * the rows are sized to the dials and the spare height goes around them.
+ */
+export function dialRowsCapped(layout: QuickSlotLayout, fits = true): boolean {
+  return fits && layout.rows > 0 && layout.rowHeight > quickSlotHeight(layout.size);
 }
 
 /** One track per wide line, each its own height: only the weather line grows. */
