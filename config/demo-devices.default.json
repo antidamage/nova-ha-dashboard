@@ -1,4 +1,5 @@
 {
+  "mapCenter": { "lat": 40.748440, "lng": -73.985664 },
   "appleTV": {
     "playlists": [
       { "name": "Favourites", "icon": "skull", "shuffle": true, "repeat": "infinite" },

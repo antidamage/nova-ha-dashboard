@@ -429,16 +429,13 @@ export function CameraPanel({ cameraId, className }: { cameraId: string; classNa
             <p className="mt-1 text-xs text-neutral-400">Waiting for capture device</p>
           </div>
         ) : null}
+        {DEMO_MODE ? (
+          <p className="camera-demo-credit">
+            <a href="https://mevadata.org/" target="_blank" rel="noreferrer">MEVA</a> (Kitware, IARPA) ·{" "}
+            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a> · re-encoded
+          </p>
+        ) : null}
       </div>
-
-      {DEMO_MODE ? (
-        <p className="px-3 py-2 text-xs text-neutral-400">
-          Sample footage looping for this demo:{" "}
-          <a className="underline" href="https://mevadata.org/" target="_blank" rel="noreferrer">MEVA dataset</a>{" "}
-          (Kitware, IARPA),{" "}
-          <a className="underline" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>, downscaled and re-encoded.
-        </p>
-      ) : null}
       <div className="camera-controls">
         <CameraJogDial
           jog={jog}

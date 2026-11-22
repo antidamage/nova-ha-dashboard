@@ -17,6 +17,8 @@ export function demoDashboardConfig(config: DashboardConfig): DashboardConfig {
     next.dashboard.bedroomHeater.title = demoDevices.bedroomHeater.title;
     next.dashboard.controls = demoDevices.controls as DashboardConfig["dashboard"]["controls"];
     next.dashboard.lighting = { ...next.dashboard.lighting, ...demoDevices.lighting } as DashboardConfig["dashboard"]["lighting"];
+    // The world map opens on the Empire State Building (alex, 2026-11-22).
+    next.mapWeather = { ...next.mapWeather, center: demoDevices.mapCenter };
   }
   return next;
 }

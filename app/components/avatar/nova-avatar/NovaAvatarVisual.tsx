@@ -201,7 +201,7 @@ export function NovaAvatarVisual({
       aria-label={`${agentName} avatar`}
       suppressHydrationWarning
       data-demo-tooltip-title="Status Orb"
-      data-demo-tooltip="Shows gym attendance and host server load."
+      data-demo-tooltip="Shows notifications and visualises host CPU load."
       data-nova-avatar-gym-number-color={gymRgb.join(" ")}
       data-nova-avatar-gym-number-opacity={theme.gymNumberOpacity}
       data-nova-avatar-theme-ready={gymColorReady ? "true" : "false"}

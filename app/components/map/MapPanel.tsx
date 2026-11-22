@@ -80,10 +80,14 @@ export function MapPanel({ className }: { className?: string }) {
       .setLngLat(homeCenter)
       .addTo(map);
 
+    // The configured centre, once known: the load handler keeps it rather than
+    // jumping back to the build-time default.
+    let center = homeCenter;
     const applyConfiguredCenter = (configuredCenter: [number, number] | null) => {
       if (!configuredCenter || mapRef.current !== map) {
         return;
       }
+      center = configuredCenter;
       map.jumpTo({ center: configuredCenter });
       homeMarker.setLngLat(configuredCenter);
     };
@@ -116,7 +120,7 @@ export function MapPanel({ className }: { className?: string }) {
     const handleLoad = () => {
       map.jumpTo({
         bearing: -17,
-        center: homeCenter,
+        center,
         pitch: 45,
         zoom: 15,
       });

@@ -82,6 +82,29 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
+/* The demo footage's CC BY credit: one line inside the frame, on the same
+   scrim as the live pill, so it takes no layout height. */
+.camera-demo-credit {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  max-width: calc(100% - 20px);
+  margin: 0;
+  padding: 2px 7px;
+  overflow: hidden;
+  font-family: var(--cyber-mono);
+  font-size: 0.62rem;
+  color: #fff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.camera-demo-credit a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .camera-live-dot {
   width: 8px;
   height: 8px;

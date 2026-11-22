@@ -179,7 +179,13 @@ Weather panel:
 Map panel:
 
 - Client-only MapLibre GL component.
-- Default center is Auckland and can be configured.
+- Default center is Auckland and can be configured. The configured centre is
+  kept when the map finishes loading; it is never reset to the build default.
+- The public demo (the wall-display demo build) opens on the Empire State
+  Building, 40.748440, -73.985664 (`config/demo-devices.default.json`
+  `mapCenter`), at the map's own camera: zoom 15, pitch 45, bearing -17, so the
+  OpenFreeMap buildings extrude (alex, 2026-11-22). Other demo builds, e2e
+  among them, keep Auckland.
 - Uses an OpenFreeMap vector source.
 - **The map's worker.** MapLibre 6 parses vector tiles in a worker it starts from
   `new URL("./maplibre-gl-worker.mjs", import.meta.url)`, which inside a Next
