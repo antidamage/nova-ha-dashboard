@@ -55,6 +55,19 @@ export function readingsFromFlat(flat: unknown): TemperatureReading[] {
   return found.sort((a, b) => a.order - b.order).map(({ key, part, celsius }) => ({ key, part, celsius }));
 }
 
+/**
+ * Too hot, in whole degrees: the ring turns red and its glow pulses
+ * (specs/host-temperature-gauges.md, "Too hot"). A GPU at 85 C is past the
+ * card's own 84 C target, where the Iridium guard starts lowering its power
+ * limit; a CPU at 90 C is within ~10 C of a desktop CPU's throttle point.
+ */
+export const HOT_CELSIUS = { CPU: 90, GPU: 85 } as const;
+
+export function gaugeIsHot(part: string, celsius: number | null | undefined): boolean {
+  if (celsius === null || celsius === undefined || !Number.isFinite(celsius)) return false;
+  return celsius >= (part.startsWith("GPU") ? HOT_CELSIUS.GPU : HOT_CELSIUS.CPU);
+}
+
 /** How full the ring is: temperature over 100 C, clamped to 0..1. */
 export function gaugeFraction(celsius: number | null | undefined): number {
   if (celsius === null || celsius === undefined || !Number.isFinite(celsius)) return 0;

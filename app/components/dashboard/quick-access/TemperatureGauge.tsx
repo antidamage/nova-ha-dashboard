@@ -18,22 +18,25 @@ export function TemperatureGauge({
   label,
   celsius,
   dim,
+  hot = false,
 }: {
   label: string;
   celsius: number | null;
   dim: boolean;
+  /** Too hot (gaugeIsHot): the fill turns red and its glow pulses. */
+  hot?: boolean;
 }) {
   const fraction = gaugeFraction(celsius);
   const value = celsius === null ? "--" : `${celsius}°`;
   return (
     <div
-      className={`quick-temp-gauge${dim ? " is-dim" : ""}`}
+      className={`quick-temp-gauge${dim ? " is-dim" : ""}${hot ? " is-hot" : ""}`}
       role="meter"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={celsius ?? undefined}
-      aria-valuetext={celsius === null ? "no reading" : `${celsius} degrees`}
+      aria-valuetext={celsius === null ? "no reading" : `${celsius} degrees${hot ? ", too hot" : ""}`}
     >
       <div className="quick-temp-gauge-ring">
         <svg viewBox={`0 0 ${BOX} ${BOX}`} aria-hidden="true" focusable="false">

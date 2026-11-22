@@ -96,3 +96,35 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Too hot (lib/host-temperatures/sources.ts, gaugeIsHot): the fill turns the
+   extract's danger red and a glow pulses around it (alex, 2026-11-22: "the
+   gauge fill should turn red and pulse a glow when it's too hot"). This replaces
+   the heat notices the GPU guards used to post. The extract's 1.2s step sets the
+   pace, one way and back. */
+.quick-temp-gauge.is-hot .quick-temp-gauge-fill {
+  stroke: var(--cyber-danger);
+  animation: quick-temp-gauge-hot-glow 1.2s ease-in-out infinite alternate;
+}
+
+.quick-temp-gauge.is-hot .quick-temp-gauge-value {
+  color: var(--cyber-danger);
+}
+
+@keyframes quick-temp-gauge-hot-glow {
+  from {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+
+  to {
+    filter: drop-shadow(0 0 6px var(--cyber-danger));
+  }
+}
+
+/* Reduced motion: red, with a steady glow instead of a pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .quick-temp-gauge.is-hot .quick-temp-gauge-fill {
+    animation: none;
+    filter: drop-shadow(0 0 4px var(--cyber-danger));
+  }
+}

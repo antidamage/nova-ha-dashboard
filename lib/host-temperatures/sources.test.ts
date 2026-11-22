@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gaugeFraction, parseMetricSources, readingsFromFlat } from "./sources";
+import { gaugeFraction, gaugeIsHot, parseMetricSources, readingsFromFlat } from "./sources";
 
 describe("parseMetricSources", () => {
   it("reads Label=URL tokens in order and drops malformed ones", () => {
@@ -54,5 +54,20 @@ describe("gaugeFraction", () => {
     expect(gaugeFraction(130)).toBe(1);
     expect(gaugeFraction(-5)).toBe(0);
     expect(gaugeFraction(null)).toBe(0);
+  });
+});
+
+describe("gaugeIsHot", () => {
+  it("is hot from 85 C on a GPU and 90 C on a CPU", () => {
+    expect(gaugeIsHot("GPU", 84)).toBe(false);
+    expect(gaugeIsHot("GPU", 85)).toBe(true);
+    expect(gaugeIsHot("GPU 1", 85)).toBe(true);
+    expect(gaugeIsHot("CPU", 89)).toBe(false);
+    expect(gaugeIsHot("CPU", 90)).toBe(true);
+  });
+
+  it("is never hot without a reading", () => {
+    expect(gaugeIsHot("GPU", null)).toBe(false);
+    expect(gaugeIsHot("CPU", Number.NaN)).toBe(false);
   });
 });

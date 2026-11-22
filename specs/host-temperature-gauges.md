@@ -61,15 +61,29 @@ Copied from alex's Rainmeter skin (CSM "Overview-4Gauge", `Roundline` with
   copy. The track is the full circle in the card's reading colour
   (`--cyber-title-on-bg`) at 18%, the skin's faint track. The fill is the
   theme's highlight colour, `--cyber-highlight` (alex, 2026-11-20), starting at 6
-  o'clock (the bottom; alex, 2026-11-20) and running clockwise. **One colour**: no gradient and no warning
-  colours. *Render check, 2026-11-14:* the first build used the accent slot
+  o'clock (the bottom; alex, 2026-11-20) and running clockwise. **One colour** until it is too hot (below): no
+  gradient and no graded warning colours. *Render check, 2026-11-14:* the first build used the accent slot
   `--cyber-line` and `--cyber-border-dim`; on the live theme those are
   `rgb(66 50 42)` and near-black, so the ring and number barely showed. The
   interview answer was "the theme's accent/LED token"; the LED slot was used
   until 2026-11-20, when alex asked for the highlight colour instead.
-- **Fill = temperature / 100 °C**, clamped 0–1. Because one colour carries no
-  warning, the fill and the number are the whole signal, and the scale is
-  fixed so that 85 °C always looks the same.
+- **Fill = temperature / 100 °C**, clamped 0–1, so the scale is fixed and
+  85 °C always looks the same. 80 °C is four-fifths of the ring.
+- **Too hot: red, with a pulsing glow (alex, 2026-11-22: "the gauge fill
+  should turn red and pulse a glow when it's too hot").** This replaces the heat
+  notices the GPU guards used to post to the dashboard ("I'm getting heat
+  warning notifications on nova. I don't want that."); the guards now log
+  their warn and cap tiers and post only when they shed or stop work.
+  - **Thresholds** (`HOT_CELSIUS`, `lib/host-temperatures/sources.ts`): a GPU
+    from **85 °C** (past the card's own 84 °C target, where Iridium's guard
+    starts lowering the power limit), a CPU from **90 °C** (within ~10 °C of a
+    desktop CPU's throttle point). Fixed, like the scale.
+  - **Look:** the fill and the number take the extract's `--cyber-danger`
+    (#ff405b). A `drop-shadow` glow in the same red goes from 0 to 6px and
+    back, 1.2s each way (the extract's `xl` motion step), `ease-in-out`, for
+    as long as the reading holds. With reduced motion the glow is a steady
+    4px and does not pulse.
+  - **Accessibility:** `aria-valuetext` gains ", too hot".
 - **The number in the middle:** whole degrees with a `°`, 0.7rem, weight 900,
   monospace (`--cyber-mono`), in the card's reading colour
   (`--cyber-title-on-bg`, as the skin's white text), inside the ring's ~28px
