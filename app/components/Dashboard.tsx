@@ -40,7 +40,6 @@ import { TasksPanel } from "./TasksPanel";
 import { useBuildReload } from "./useBuildReload";
 import { ModuleSlot } from "./modules/ModuleSlot";
 import { DashboardChrome } from "./DashboardChrome";
-import { NotificationStack } from "./notifications/NotificationStack";
 
 export function Dashboard() {
   const { activeVariant, configuredTheme, theme, themeReady } = useDeviceTheme();
@@ -205,8 +204,6 @@ export function Dashboard() {
           </div>
           </SlotViewProvider>
           </ClimateCommandsProvider>
-
-          <NotificationStack />
 
           {toast ? (
             <div className="fixed bottom-5 right-5 max-w-sm border border-cyan-300/60 bg-neutral-950 px-4 py-3 text-sm font-black uppercase text-cyan-100 shadow-2xl">

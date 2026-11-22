@@ -3,7 +3,6 @@
 
 import { appendTaskSnapshotEvents } from "../household-events";
 import { HOUSEHOLD_VIEWER, type Viewer } from "../tasks/ownership";
-import { sendNotificationsSnapshot } from "./notifications";
 import { startDashboardEventPoller, stopDashboardEventPollerIfIdle } from "./poller";
 import { publishDashboardBuild } from "./publish";
 import { store } from "./store";
@@ -46,7 +45,6 @@ export function subscribeDashboardEvents(viewer: Viewer = HOUSEHOLD_VIEWER) {
         sendClient(client, sseEvent("state", store.latestJson));
       }
       void sendTasksSnapshot(client);
-      void sendNotificationsSnapshot(client);
       if (store.latestTaskAudioJson) {
         sendClient(client, sseEvent("task-audio", store.latestTaskAudioJson));
       }

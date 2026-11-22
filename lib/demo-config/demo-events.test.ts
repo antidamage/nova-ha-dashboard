@@ -41,15 +41,15 @@ describe("demo event push", () => {
     const page = await boot({
       handleRequest: emptyResponse,
       subscribe: (listener) => { push = listener; return () => undefined; },
-      eventSnapshot: async () => [["notifications", { notifications: [{ id: "n1" }] }]],
+      eventSnapshot: async () => [["tasks", { tasks: [{ id: "n1" }] }]],
     });
     try {
       const source = page.source();
       const received: Record<string, unknown[]> = {};
-      for (const name of ["orb-timer", "state", "notifications"]) {
+      for (const name of ["orb-timer", "state", "tasks"]) {
         source.addEventListener(name, (event) => { (received[name] ??= []).push(JSON.parse(event.data)); });
       }
-      await vi.waitFor(() => expect(received.notifications).toEqual([{ notifications: [{ id: "n1" }] }]));
+      await vi.waitFor(() => expect(received.tasks).toEqual([{ tasks: [{ id: "n1" }] }]));
 
       push("orb-timer", { timer: { id: "t1" } });
       push("state", { entities: [] });

@@ -11,7 +11,6 @@
 //   optimistic-model.ts  pure optimistic state for lighting/entity actions
 //   state-poll.ts        HA state polling and the HA state-change subscription
 //   task-alerts.ts       reminder alerts and task/icon snapshots
-//   notifications.ts     active-notification snapshot for new clients
 //   poller.ts            iCloud sync, adaptive lighting, poller start/stop
 //   subscribe.ts         backbone start and the two SSE subscriptions
 
@@ -23,8 +22,6 @@ export {
   publishDashboardState,
   publishDesign,
   publishDoorbellAlert,
-  publishNotification,
-  publishNotificationDismiss,
   publishOrbTimer,
   publishPhonoscopeConfig,
   publishReminderIcons,

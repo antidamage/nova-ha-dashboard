@@ -1,77 +1,34 @@
 <!-- START HERE, never here alone: read C:\workspace\AGENTS.md, then this repo's specs/README.md (the suite, in order). This file is one part of it. -->
-# Notifications
+# Notifications: retired
 
-One-off messages that an agent or script can put on every dashboard screen. They
-are not reminders or tasks: no schedule, no repeat, no completion, no chime, and
-they never appear in the Reminders panel or the sigil bar.
+Retired 2026-11-22, card 339099 (after card 854887 removed the demo's staged ones).
+alex: *"\"notifications\" are only ever alerts pushed through the status orb
+using only what it has now, no additional features"*, and of the live stack,
+*"I thought you were getting rid of the feature."*
 
-## Behaviour
+**What this means for the dashboard:**
 
-- `POST /api/notifications` creates one and pushes it to every connected screen
-  over the shared `/api/events` stream (`notification` event). A screen that
-  connects later receives the active list (`notifications` event).
-- Each screen shows active notifications as a stack of the reminder alert's
-  banner (`NotificationStack`, mounted in `Dashboard.tsx` and the Plain design's
-  `Root.tsx`), drawn with that banner's own classes (`task-alert-banner`,
-  `task-alert-title` in `app/styles/tasks/task-alerts.css`) in a compact form:
-  title large, `body` and a small `severity · source` line below. It is not an
-  overlay and not gated by the per-device Reminder Banners setting: a
-  notification shows on every screen. The stack sits at the top centre, above a
-  reminder's overlay (z-index 1510 over 1500), ignores pointer events itself
-  and scrolls if it overflows. `.task-alert-stack` is excluded from the
-  `.dashboard-shell > *` lift in `app/styles/dashboard/background.css`, which
-  would otherwise force it to `position: relative`.
-- Tapping a banner dismisses it for every screen (`DELETE /api/notifications?id=`,
-  then a `notification-dismiss` event). When two or more are showing, a
-  "Clear all (N)" button above the stack dismisses every notification that
-  screen is showing, one `DELETE ?id=` each (not `?all=1`, so one that arrived
-  after the screen last rendered is not cleared unseen). A 404 from one that
-  already expired is ignored. No screen calls `?all=1`; it stays for scripts.
-  Every tappable element carries `task-alert-banner`, because the reminder
-  alert's capture-phase tap swallow (`useTaskAlerts`) only lets taps on that
-  class through.
-- A notification expires after `ttlSeconds` (default 3600, range 1 to 604800), or
-  stays until dismissed when `sticky` is true. The server drops expired entries
-  on every read and write; screens also hide them locally by `expiresAt`.
-- At most 50 are kept; the oldest is evicted (and a dismiss event sent) when a
-  new one would exceed that.
-- Plain markup only, no animation, canvas or filters, so rich and lite
-  experience modes behave identically (`experience-modes.md` parity rule).
+- **No pop-up stack.** The top-centre notification stack (`NotificationStack`)
+  is gone. `/api/notifications` is gone too, along with its store, its
+  `notification` / `notification-dismiss` / `notifications` SSE events and the
+  `nova-notifications` agent skill. A `POST` to it is a 404.
+- **The orb carries alerts with what it already has.** Its existing entries
+  each alert when their own condition holds: a finished timer, a finished wash,
+  a due reminder, or any entry past its configured alert threshold, such as
+  `host-gpu`. See `status-orb-stack.md`. A notification never becomes a new orb
+  entry kind, and no feature is added to the orb to carry one.
+- **Messages for a person** go through the Discord attention route
+  (`nova-module-discord`), not the dashboard.
+- **Do not bring it back** as a parity gap, a nightly improvement or a
+  convenience for scripts. That decision is hers.
 
-## API
+The stored `data/dashboard-notifications.json` on the host is no longer read
+and is left where it is.
 
-| Request | Result |
-|---|---|
-| `GET /api/notifications` | `{ notifications: DashboardNotification[] }`, oldest first |
-| `GET /api/notifications?command=docs` | self-describing JSON |
-| `POST /api/notifications` | `201 { notification }`; `400 { error, docs }` on bad input |
-| `DELETE /api/notifications?id=<id>` | `{ ok: true }`; `404` if unknown |
-| `DELETE /api/notifications?all=1` | `{ ok: true, dismissed: string[] }` |
+The two GPU guards (`nova-gpu-guard-windows`, `nova-monitoring/gpu-guard`)
+stopped posting dashboard notices in the same change. They keep Discord
+attention, and the Windows guard keeps its tray toast. Reminders, their
+banner (per-device, off by default) and the bottom-right `toast` string in
+`Dashboard.tsx` are separate features and are unchanged.
 
-Create body:
-
-| Field | Rule |
-|---|---|
-| `title` | required, trimmed, up to 120 characters |
-| `body` | optional, up to 500 characters |
-| `severity` | `info` (default), `success`, `warning`, `critical`; shown as a word in the small line under the title unless `info`, and `critical` uses `role="alert"` |
-| `source` | optional, up to 40 characters, shown small under the message |
-| `ttlSeconds` | optional number 1 to 604800, default 3600 |
-| `sticky` | optional; `true` means no expiry and `ttlSeconds` is ignored |
-
-Like the other dashboard command APIs it carries no authentication; it is
-reachable from the LAN only.
-
-## Persistence
-
-`data/dashboard-notifications.json` (override: `NOVA_DASHBOARD_NOTIFICATIONS`),
-rewritten atomically through a write queue, so a restart keeps unexpired
-notifications.
-
-## Code
-
-`lib/notifications/` (`model.ts` validation and expiry, `store.ts` file and
-publishing, `types.ts`), facade `lib/notifications.ts`, route
-`app/api/notifications/route.ts`, SSE helpers in `lib/dashboard-events/publish.ts`
-and `lib/dashboard-events/notifications.ts`, UI in `app/components/notifications/`.
-Tests: `lib/notifications/notifications.test.ts`. Agent skill: `skills/nova-notifications/SKILL.md`.
+Git history before card 339099 holds the retired design, for reference only.

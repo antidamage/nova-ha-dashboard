@@ -457,11 +457,7 @@ Tasks:
   a system add without `owner` or `household` answers 400 `owner-required`
   (specs/private-reminders.md sections 2 to 5).
 
-Notifications (one-off, not reminders; see `notifications.md`):
-
-- `GET /api/notifications`: list active notifications; `?command=docs` for docs.
-- `POST /api/notifications`: create one (`title`, `body`, `severity`, `source`, `ttlSeconds`, `sticky`).
-- `DELETE /api/notifications?id=<id>` or `?all=1`: dismiss one or all.
+Notifications: retired 2026-11-22, no `/api/notifications` route (see `notifications.md`).
 
 Map/weather tiles:
 
