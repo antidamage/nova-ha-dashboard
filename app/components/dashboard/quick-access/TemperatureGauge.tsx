@@ -1,4 +1,4 @@
-import { gaugeFraction } from "../../../../lib/host-temperatures/sources";
+import { gaugeFraction, gaugeFullCelsius } from "../../../../lib/host-temperatures/sources";
 
 /**
  * One small ring gauge (specs/host-temperature-gauges.md): the geometry of
@@ -16,17 +16,20 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export function TemperatureGauge({
   label,
+  part,
   celsius,
   dim,
   hot = false,
 }: {
   label: string;
+  /** "CPU", "GPU" or "GPU n": sets the ring's scale (gaugeFraction). */
+  part: string;
   celsius: number | null;
   dim: boolean;
   /** Too hot (gaugeIsHot): the fill turns red and its glow pulses. */
   hot?: boolean;
 }) {
-  const fraction = gaugeFraction(celsius);
+  const fraction = gaugeFraction(part, celsius);
   const value = celsius === null ? "--" : `${celsius}°`;
   return (
     <div
@@ -34,7 +37,7 @@ export function TemperatureGauge({
       role="meter"
       aria-label={label}
       aria-valuemin={0}
-      aria-valuemax={100}
+      aria-valuemax={Math.round(gaugeFullCelsius(part))}
       aria-valuenow={celsius ?? undefined}
       aria-valuetext={celsius === null ? "no reading" : `${celsius} degrees${hot ? ", too hot" : ""}`}
     >

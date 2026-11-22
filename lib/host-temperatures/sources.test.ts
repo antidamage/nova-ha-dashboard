@@ -49,19 +49,25 @@ describe("readingsFromFlat", () => {
 });
 
 describe("gaugeFraction", () => {
-  it("fills against 100 C, clamped", () => {
-    expect(gaugeFraction(85)).toBeCloseTo(0.85);
-    expect(gaugeFraction(130)).toBe(1);
-    expect(gaugeFraction(-5)).toBe(0);
-    expect(gaugeFraction(null)).toBe(0);
+  it("puts each part's hot temperature at 90% of the ring", () => {
+    expect(gaugeFraction("GPU", 84)).toBeCloseTo(0.9);
+    expect(gaugeFraction("CPU", 90)).toBeCloseTo(0.9);
+    expect(gaugeFraction("GPU", 80)).toBeCloseTo(0.857, 2);
+    expect(gaugeFraction("CPU", 100)).toBe(1);
+  });
+
+  it("clamps and treats no reading as empty", () => {
+    expect(gaugeFraction("GPU", 130)).toBe(1);
+    expect(gaugeFraction("CPU", -5)).toBe(0);
+    expect(gaugeFraction("CPU", null)).toBe(0);
   });
 });
 
 describe("gaugeIsHot", () => {
-  it("is hot from 85 C on a GPU and 90 C on a CPU", () => {
-    expect(gaugeIsHot("GPU", 84)).toBe(false);
-    expect(gaugeIsHot("GPU", 85)).toBe(true);
-    expect(gaugeIsHot("GPU 1", 85)).toBe(true);
+  it("is hot from 84 C on a GPU and 90 C on a CPU", () => {
+    expect(gaugeIsHot("GPU", 83)).toBe(false);
+    expect(gaugeIsHot("GPU", 84)).toBe(true);
+    expect(gaugeIsHot("GPU 1", 84)).toBe(true);
     expect(gaugeIsHot("CPU", 89)).toBe(false);
     expect(gaugeIsHot("CPU", 90)).toBe(true);
   });

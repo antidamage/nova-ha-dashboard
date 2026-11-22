@@ -11,7 +11,7 @@ import { HOST_TEMPS_STALE_MS, useHostTemperatures } from "./useHostTemperatures"
  * row never re-flows.
  */
 
-export type GaugeCell = { key: string; label: string; celsius: number | null; dim: boolean; hot: boolean };
+export type GaugeCell = { key: string; label: string; part: string; celsius: number | null; dim: boolean; hot: boolean };
 
 /** Before a machine has answered once, assume a CPU and a GPU so the row has its shape. */
 const PLACEHOLDER_PARTS = ["CPU", "GPU"];
@@ -33,12 +33,12 @@ export function gaugeCells(
     if (result?.ok) {
       remembered.set(id, result.readings.map((r) => r.part));
       for (const reading of result.readings) {
-        cells.push({ key: `${id}|${reading.key}`, label: `${source.label} ${reading.part}`, celsius: reading.celsius, dim: stale, hot: gaugeIsHot(reading.part, reading.celsius) });
+        cells.push({ key: `${id}|${reading.key}`, label: `${source.label} ${reading.part}`, part: reading.part, celsius: reading.celsius, dim: stale, hot: gaugeIsHot(reading.part, reading.celsius) });
       }
       continue;
     }
     for (const part of remembered.get(id) ?? PLACEHOLDER_PARTS) {
-      cells.push({ key: `${id}|${part}`, label: `${source.label} ${part}`, celsius: null, dim: true, hot: false });
+      cells.push({ key: `${id}|${part}`, label: `${source.label} ${part}`, part, celsius: null, dim: true, hot: false });
     }
   }
   return cells;
@@ -53,7 +53,7 @@ export function QuickHostTempsSegment({ title, sources }: { title: string; sourc
   return (
     <div className="quick-segment quick-segment-gauges" aria-label={title} role="group">
       {cells.map((cell) => (
-        <TemperatureGauge key={cell.key} label={cell.label} celsius={cell.celsius} dim={cell.dim} hot={cell.hot} />
+        <TemperatureGauge key={cell.key} label={cell.label} part={cell.part} celsius={cell.celsius} dim={cell.dim} hot={cell.hot} />
       ))}
     </div>
   );
