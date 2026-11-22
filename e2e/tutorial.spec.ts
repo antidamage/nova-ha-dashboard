@@ -137,4 +137,99 @@ test.describe("tutorial mode", () => {
     await expect(page.locator(".tutorial-layer")).toBeVisible();
     expect(await stepId(page)).toBe("lights");
   });
+
+  test("Pause freezes the finger and Resume carries on", async ({ page }) => {
+    await openTour(page);
+    await page.locator(".tutorial-button-next").click();
+    const button = page.locator(".tutorial-playback-button");
+    await expect(button).toHaveText("Pause");
+    await page.waitForTimeout(1500);
+    await button.click();
+    await expect(button).toHaveText("Resume");
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    const dial = page.locator("[data-tutorial-copy='light'] .rotary-encoder-dial");
+    await page.waitForTimeout(800);
+    const held = await dial.getAttribute("aria-valuenow");
+    await page.waitForTimeout(1200);
+    expect(await dial.getAttribute("aria-valuenow")).toBe(held);
+    await button.click();
+    await expect(button).toHaveText("Pause");
+    await expect.poll(() => dial.getAttribute("aria-valuenow"), { timeout: 15_000 }).not.toBe(held);
+  });
+
+  test("a long pause on the orb step starts the play again from a fresh copy", async ({ page }) => {
+    await openTour(page);
+    for (let step = 0; step < 20; step += 1) {
+      if ((await stepId(page)) === "orb") break;
+      await page.locator(".tutorial-button-next").click();
+    }
+    if ((await stepId(page)) !== "orb") test.skip(true, "no status orb on this layout");
+    const host = page.locator(".tutorial-orb-host");
+    await expect.poll(() => host.getAttribute("data-orb-dial"), { timeout: 20_000 }).toBe("open");
+    await page.locator(".tutorial-playback-button").click();
+    // Longer than the dial's 5s idle close: the copy moves on without the script.
+    await page.waitForTimeout(6000);
+    await page.locator(".tutorial-playback-button").click();
+    await expect(page.locator(".tutorial-playback-button")).toHaveText("Pause");
+    // The play restarts: the dial opens and walks the entries again, wash included.
+    const seen = new Set<string>();
+    for (let tick = 0; tick < 80 && seen.size < 3; tick += 1) {
+      if ((await host.getAttribute("data-orb-dial")) === "open") seen.add((await host.getAttribute("data-orb-entry")) ?? "");
+      await page.waitForTimeout(250);
+    }
+    expect([...seen].sort()).toEqual(["bins", "timer", "wash"]);
+  });
+
+  test("the fold step drags the fold open and back closed on its own", async ({ page }) => {
+    await openTour(page);
+    for (let step = 0; step < 20; step += 1) {
+      if ((await stepId(page)) === "advanced") break;
+      await page.locator(".tutorial-button-next").click();
+    }
+    if ((await stepId(page)) !== "advanced") test.skip(true, "no closed fold on this layout");
+    await expect.poll(() => page.locator(".advanced-fold[data-open='true']").count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await expect.poll(() => page.locator(".advanced-fold[data-open='true']").count(), { timeout: 20_000 }).toBe(0);
+  });
+
+  test("the theme step walks the four modes unmasked, stores nothing, and gives the page back", async ({ page }) => {
+    await openTour(page);
+    const stored = () => page.evaluate(() => window.localStorage.getItem("nova.dashboard.themeOverride.v1"));
+    const before = await stored();
+    for (let step = 0; step < 20; step += 1) {
+      if ((await stepId(page)) === "theme") break;
+      await page.locator(".tutorial-button-next").click();
+    }
+    expect(await stepId(page)).toBe("theme");
+    await expect(page.locator(".tutorial-layer")).toHaveAttribute("data-lifted", "true");
+    await expect(page.locator(".tutorial-target-ring")).toBeVisible();
+    const mode = page.locator(".dashboard-theme-override-link");
+    const seen = new Set<string>();
+    for (let tick = 0; tick < 40 && seen.size < 4; tick += 1) {
+      seen.add((await mode.getAttribute("data-theme-override")) ?? "");
+      await page.waitForTimeout(500);
+    }
+    expect([...seen].sort()).toEqual(["auto", "dark", "light", "unset"]);
+    const variants = await page.evaluate(() => document.documentElement.dataset.themeVariant);
+    expect(variants).toBeTruthy();
+    expect(await stored()).toBe(before);
+    await page.locator(".tutorial-bar .tutorial-button").first().click();
+    await expect(mode).toHaveAttribute("data-theme-override", before ?? "unset");
+    expect(await stored()).toBe(before);
+  });
+
+  test("the aircon layer view shows Manual with every ring", async ({ page }) => {
+    await openTour(page);
+    for (let step = 0; step < 20; step += 1) {
+      if ((await stepId(page)) === "aircon") break;
+      await page.locator(".tutorial-button-next").click();
+    }
+    if ((await stepId(page)) !== "aircon") test.skip(true, "no aircon on this layout");
+    await page.locator(".tutorial-layers-button").click();
+    await expect(page.locator(".layer-note-lead")).toHaveText("Shown in Manual so every ring draws.");
+    for (const ring of ["mode", "fan", "fresh", "timer"]) {
+      await expect(page.locator(`.rotary-encoder-ring-layer[data-portal-tag='tutorial'] [data-ring-id='${ring}']`)).toHaveCount(1);
+    }
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".tutorial-playback-button")).toHaveText("Replay");
+  });
 });

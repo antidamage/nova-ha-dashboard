@@ -56,13 +56,15 @@ type Props = {
   avatar: NovaAvatarTheme;
   /** Bumped to remount the copy at its starting state. */
   resetKey: number;
+  /** The aircon layer view's example: start in Manual, every ring showing. A prop on the copy only. */
+  manual?: boolean;
 };
 
 /**
  * Mounts a deviceless copy over the real control: knobs line their dial's
  * centre up with the real dial's, the orb its box.
  */
-export const SandboxCopy = forwardRef<HTMLDivElement, Props>(function SandboxCopy({ kind, target, step, avatar, resetKey }, ref) {
+export const SandboxCopy = forwardRef<HTMLDivElement, Props>(function SandboxCopy({ kind, target, step, avatar, resetKey, manual }, ref) {
   const anchor = kind === "light" || kind === "aircon" ? dialOf(target) ?? target : target;
   const rect = useTrackedRect(anchor);
   const innerRef = useRef<HTMLDivElement | null>(null);
@@ -101,7 +103,7 @@ export const SandboxCopy = forwardRef<HTMLDivElement, Props>(function SandboxCop
         <div ref={innerRef} key={resetKey} className="tutorial-copy-inner">
           {kind === "light" ? <LightCopy size={size} /> : null}
           {kind === "aircon" ? (
-            <DemoTemperatureDial id="tutorial" size={size} startMode={step.aircon?.mode ?? "auto"} target={22} room={21.4} />
+            <DemoTemperatureDial id="tutorial" size={size} startMode={manual ? "manual" : step.aircon?.mode ?? "auto"} target={22} room={21.4} />
           ) : null}
           {kind === "orb" ? <SandboxOrb size={Math.round(rect.width)} avatar={avatar} /> : null}
         </div>

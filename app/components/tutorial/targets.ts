@@ -38,6 +38,8 @@ export function findTarget(kind: TutorialTargetKind): HTMLElement | null {
     case "fold":
       return first(".advanced-fold:not([data-foldless])", (element) =>
         (element as HTMLElement).dataset.open !== "true" && Boolean(element.querySelector(".advanced-fold-divider")));
+    case "theme-button":
+      return first(".dashboard-theme-override-link");
     case "page":
       return document.body;
   }

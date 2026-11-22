@@ -28,6 +28,7 @@ export const Finger = forwardRef<FingerHandle>(function Finger(_, ref) {
   }), []);
   return (
     <div ref={element} className="tutorial-finger" data-visible="false" data-pressed="false" aria-hidden="true">
+      <span className="tutorial-finger-ripple" />
       <span className="tutorial-finger-ring" />
       <span className="tutorial-finger-pad" />
     </div>

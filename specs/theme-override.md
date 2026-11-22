@@ -21,6 +21,10 @@ round 2, task log `20260914T101019Z-06c0031b`.
   `ThemeSelection` from config. `auto`, `light` and `dark` override it on this
   device only; `auto` resolves by the sun exactly as the global `auto` does.
 - The config page shows and edits the global setting as before.
+- **Tour preview** (alex, 2026-11-22; `specs/tutorial-mode.md`, "Light and
+  dark"). The tour can hold a preview override in memory, which wins over the
+  stored one while it is set and is never stored. The button's icon follows
+  it. Clearing it returns the page to the stored override, or to config.
 
 ## Header buttons
 

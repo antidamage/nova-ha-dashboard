@@ -54,7 +54,8 @@
   /* Never scrolls: the stack is sized to fit (layers/layerFit.ts). */
   overflow: hidden;
   perspective: 1400px;
-  touch-action: pan-y;
+  /* Vertical drag tilts the stack: it never scrolls the page. */
+  touch-action: none;
   cursor: grab;
 }
 
@@ -62,9 +63,18 @@
   position: relative;
   flex: none;
   transform-style: preserve-3d;
-  /* Moved down by half the lifts' height, so the whole stack is centred. */
-  transform: translateY(var(--layer-shift, 0px)) rotateX(55deg) rotateZ(var(--layer-turn, -35deg));
+  /* Moved down by half the lifts' height, so the whole stack is centred. The
+     tilt is dragged between 0deg (straight down) and 75deg. */
+  transform: translateY(var(--layer-shift, 0px)) rotateX(var(--layer-tilt, 55deg)) rotateZ(var(--layer-turn, -35deg));
   transition: transform 300ms ease;
+}
+
+.layer-note-lead {
+  margin: 0 0 8px;
+  font-family: var(--cyber-mono);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--cyber-highlight);
 }
 
 .layer-card {

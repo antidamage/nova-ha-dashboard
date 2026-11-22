@@ -148,10 +148,21 @@ zone to find one.
 
 ### The finger
 
-- A drawn fingertip (a soft round pad, 44px, the theme's text colour at 70%,
-  with a darker press ring that shrinks in while pressed) moves along each
-  gesture **slowly**: a tap is 300ms down, a drag moves at about 60px per
-  second, with a 600ms rest between parts.
+- A drawn fingertip (a soft round pad, 44px, the theme's text colour at 70%)
+  moves along each gesture **slowly**: a tap is 300ms down, a drag moves at
+  about 60px per second, with a 600ms rest between parts.
+- **A press is unmistakable** (alex, 2026-11-22: "can't tell from the
+  little finger-orb when it's being pressed"). While pressed the pad keeps its
+  size and grows to 112%, fills with the theme highlight (`--cyber-highlight`)
+  for the whole press, and a 4px highlight ring sits outside it at 135%. The
+  pressed pad and the ring carry dark outlines (black at 70-75%), because the
+  highlight alone washed out on a pale knob face in the rendered check; both
+  ease over the motion extract's `md` (300ms). A ripple in the same colour
+  spreads from the contact point once per press-down over `lg` (450ms), so it
+  outlasts a tap without restarting mid-press. Released, the pad is the text
+  colour again and the ring is gone. Under reduced motion there is no ripple
+  and the fill and ring switch without a transition. Rendered check: pressed
+  and released side by side on the default theme and one alt theme.
 - It **drives the copy with synthetic pointer events** at its own position,
   so the real component code handles the gesture and the copy reacts exactly
   as the real one would.
@@ -162,6 +173,25 @@ zone to find one.
   **cancels the finger** for that step at once: the step shows Replay, and
   the finger never resumes on top of the user's own state. Replay resets the
   copy and plays again.
+- **Pause and Resume** (alex, 2026-11-22: "the tutorial playback for each
+  control needs a pause/resume button"). One button slot in the caption
+  panel: **Pause** while the finger plays, **Resume** while paused, **Replay**
+  once the run has finished or been cancelled. It is one
+  `MomentaryFeedbackButton` whose label swaps in place, with `aria-pressed`
+  while paused; focus stays on it; 48px minimum. Pausing freezes the script's
+  clock: the finger stays where it is and the copy keeps its state. A pause
+  during a drag holds the pointer down and the thumb still; a pause during a
+  tap waits for the release, so a paused tap never becomes a long press.
+  Resume carries on from the same point after a pause shorter than 3s. The
+  copies keep their own idle timers, which a pause cannot hold: the orb's dial
+  closes after 5s and a climate dial relocks. So after a longer pause, Resume
+  starts the play again from a fresh copy rather than carrying on against a
+  copy that has moved (PR #198 review). Replay, a step change, opening the
+  layer view or a real press on the copy end a pause along with the run.
+  Pause and Resume are input, so the idle count restarts at each; while
+  paused the live idle exit waits **5 minutes** instead of 60s, so a pause
+  to read is never cut short but a tour paused and walked away from still
+  closes.
 - **Reduced motion**: the finger jumps between the gesture's key points
   instead of gliding, and the mask does not ease.
 
@@ -175,19 +205,60 @@ copy were dropped.
 |---|---|---|---|---|
 | 1 | Welcome | none; the cut-out is the "?" button | — | What the tour covers; Back/Next and the close box. |
 | 2 | Lights | light knob, Brt lit | turns brightness; taps to Hue and turns; taps to Sat and turns | Turning sets brightness, from wherever you grab the knob. A tap switches to hue, then saturation; turn each. |
-| 3 | Air conditioner | aircon knob, locked, Auto | one tap unlocks; turns the target; taps to Manual so the rings show; drags Fan, drags Mode, taps Fresh Air, drags Timer | One tap unlocks it; turn for the target, tap to cycle Auto, Manual and Off. In Manual, drag each ring by its thumb. |
-| 4 | Status orb | orb copy with a running wash | taps the orb open; taps to turn the wash's finish bell off, then on | The orb shows what's running, like this wash. Open it with a tap; a tap then turns the finish alert off or on. |
-| 5 | Advanced | the first fold divider, real | drags the panel past the divider until the fold opens, then lets it close | More settings live past the ADVANCED line. Pull past it to open. (The advanced areas are being redesigned, so the tour stops at the line.) |
-| 6 | Background | the whole page, mask lifted | — | The background is a live shader. |
+| 3 | Air conditioner | aircon knob, locked, Auto | one tap unlocks; turns the target; taps to Manual so the rings show; drags Fan; drags Mode from its first stop to its last, through Cool, Fan and Heat; taps Fresh Air; drags Timer | One tap unlocks it; turn for the target, tap to cycle Auto, Manual and Off. In Manual, drag each ring by its thumb. |
+| 4 | Status orb | orb copy with three staged entries: a kitchen timer (lucide `Timer`, counting down from 12:00), a running wash (`WashingMachine`, 42:18 with its finish bell) and "Bins out" (`Trash2`) | taps the orb open; turns through timer, wash and bins; turns back to the wash; taps its finish bell off, then on | The orb shows what's running. Tap to open it and turn to switch; on the wash, a tap turns the finish alert off or on. |
+| 5 | Advanced | the first fold divider, real | drags from the middle of the divider line past the snap point until the fold opens; rests; drags back the other way to close it | Advanced settings sit past the ADVANCED line. Drag past the line until it snaps open; drag back to close. |
+| 6 | Light and dark | the real theme button (`.dashboard-theme-override-link`), **mask lifted** so the page is not dimmed | no finger; the page itself walks the button's four modes, 3.5s each, round and round | Sets this screen's theme: Follows config, Auto (by the sun), Light or Dark. Tap to cycle; it never changes other screens. |
+| 7 | Background | the whole page, mask lifted | — | The background is a live shader. |
+
+**Light and dark** (alex, 2026-11-22: "include the dark/light mode
+selector in the demo tutorial, and have it actually change between light and
+dark every few seconds … don't dim the background … explain all of the
+modes"). The step shows the button (`specs/theme-override.md`) with **no
+mask**, so the whole page can be seen changing; a highlight ring round the
+real button marks the target instead. Apart from Background, it is the one
+unmasked step, because what it teaches is the whole page. The page walks the
+button's own cycle, **Follows config → Auto → Light → Dark**, 3.5s each,
+round and round until the step is left, and the button's icon and label
+follow it. A phase caption names the mode on show:
+
+- "Follows config: this screen uses the house theme."
+- "Auto: light by day, dark at night."
+- "Light: always light on this screen."
+- "Dark: always dark on this screen."
+
+Where config or the sun already match Light or Dark, the page does not change
+on those two, and the caption says what they do. Under reduced motion each
+mode is held 7s. Pause freezes the cycle on the mode showing; Resume carries
+on. The real button is inert for the step, so no tap can store a mode
+mid-preview. The cycle is not input: on live, the tour's 60s idle exit still
+closes it, which also clears the preview.
+
+The cycle is a **preview override held in memory only**
+(`theme/accent/override-preview.ts`): `readThemeOverride` returns it while it
+is set, and setting or clearing it dispatches only the same-window override
+event, whose handler re-applies the theme with no broadcast and no persist.
+It is never written to `localStorage` (so another instance sees no storage
+event), never posted and never cached; a unit test holds that. One cleanup,
+the step's own, clears it and returns the page to the device's preference:
+on Back, Next, the close box, Esc, the idle exit and tour unmount; a reload
+clears it because nothing was stored. The step has no copy, no finger and no
+layer view, and runs on live and demo alike.
 
 Step 5 uses the real fold, because opening it changes only the view. Its
 target is the first **closed** fold in page order. The tour closes only the
 folds it opened, when the step ends or the tour exits; a fold the household
 already had open is left as it was. Nothing inside an advanced area is
-touched or explained: the pull starts on the divider line at a point that is
-not on a control, and the fold is closed by scrolling it back to the offset
-it had while closed (its own re-lock), never by a second drag that could
-start on something inside it.
+touched or explained. The pull starts at the **horizontal middle of the
+divider line** (alex, 2026-11-22); when a control sits there, at the
+clear point on the line nearest the middle. At the end of the demo the
+finger **drags the fold back** the other way, again from the divider line at
+a point that is not on a control, past the snap point so the fold re-locks
+closed (alex, 2026-11-22: "drag it back rather than just resetting it").
+A drag never starts on anything inside the advanced area. When no clear point
+exists, or the fold is still open after the drag back, the tour falls back to
+scrolling it to the offset it had while closed (its own re-lock), so a fold
+the tour opened is always closed again.
 
 ### The caption panel and bottom bar
 
@@ -240,7 +311,26 @@ background step.
 - It opens a full-viewport stage over the tour. The control's layers are
   **fanned apart in 3D like a stack of cards**: tilted back about 55° and
   rotated about 35°, each layer lifted further along the stack's axis, with a
-  1s ease out of the flat stack on open. Dragging on the stage turns it.
+  1s ease out of the flat stack on open.
+- **Dragging on the stage turns and tilts it** (alex, 2026-11-22).
+  Sideways drag turns the stack about its axis, in the direction that moves
+  the near edge with the finger: dragging right turns it anticlockwise as seen
+  from above (the reverse of the first build). Vertical drag tilts it: down
+  brings the top toward the viewer, flattening the stack until it is seen
+  **straight down** (tilt 0°, the cards over one another); up tips it back,
+  to at most 75°. Both use 0.3° per pixel. The turn is unbounded. The stage
+  body is `touch-action: none`, so a vertical drag tilts and never scrolls.
+  The cards are sized once for the worst case over the whole tilt range, so
+  the stack never resizes mid-drag and always fits; the centring shift
+  follows the current tilt. Rendered check at 0°, 55° and 75°, landscape and
+  phone portrait.
+- **The aircon example is Manual with every ring showing** (alex,
+  2026-11-22). Opening the view on the aircon step remounts the copy in
+  Manual and unlocks it, so Mode, Fan, Fresh Air and Timer are all there to
+  draw, and the note starts "Shown in Manual so every ring draws." It is a
+  prop on the copy only, never read from or written to the real card.
+  Closing the view remounts the copy at the step's own start (Auto, locked)
+  and offers Replay.
 - Every card shows **one layer**. The cards carry no text (text skewed in 3D
   cannot be read); beside the stack in landscape, and under it on a phone, a
   flat list names each layer top-first with its tag, **CSS**, **SVG**,
@@ -250,8 +340,9 @@ background step.
 - **Previews are pre-rendered to a canvas for this view.** On open, each
   layer is rasterised once into its own 2D canvas: CSS and SVG layers are
   isolated (only that layer visible) and drawn through an SVG
-  `foreignObject` or serialised SVG. The orb's Canvas 2D body is copied from
-  its own canvas **live** while the view is open, so that card keeps moving.
+  `foreignObject` or serialised SVG. The orb's Canvas 2D body is split into
+  **five cards** (below), each drawn **live** by the orb's own renderer while
+  the view is open, so those cards keep moving.
   The background's WebGL cards are stills (below), to keep GPU cost off the
   kiosks.
 - **Tap a card** (or hover it, with a mouse) to raise it and show its
@@ -292,10 +383,29 @@ background step.
 |---|---|---|
 | Voice glow | CSS | A radial gradient that fades in; nothing to draw per frame. |
 | Glass disc | CSS backdrop-filter + SVG lens filter | Refracts the real page behind it. Chromium uses the SVG filter through `backdrop-filter: url()`; WebKit gets a copy of the backdrop through the same filter. |
-| Orb body | Canvas 2D | Animated rings, fields and load easing at 60fps; one canvas redraw is cheaper than hundreds of DOM nodes. |
+| Body: base discs | Canvas 2D | The orb module's filled discs, the body's base. |
+| Body: fields | Canvas 2D | The module's arc and line fields: many short segments animated per frame, the reason the body is a canvas. |
+| Body: rings | Canvas 2D | The module's rings, whose sweep follows the load. |
+| Body: marks | Canvas 2D | The module's arcs, lines and polygons. |
+| Body: gloss | Canvas 2D | Layers clipped to the orb's rim: the module's own highlights, drawn last. |
 | Reflection and gloss | CSS | Blend-mode layers; the reflection drifts with a transform. |
 | Dial indicator | CSS | The knob's own ring and unlock-ring layers, reused, so the orb's dial lights like every knob. |
 | Counter | DOM text | Sharp at any scale. |
+
+The five body cards (alex, 2026-11-22: "break up the canvas steps into
+coherent layers… maybe go for five") come from the theme's orb module, read
+once on open. Each card runs the module's renderer with only its own group of
+the module's layers enabled, in the module's order, on the frame of the real
+orb's canvas. The groups partition the module: every layer is in exactly
+one, so the five cards together are the body, and a unit test holds that.
+One shared animation frame loop draws all five and stops when the view
+closes; each layer is drawn once per frame across the five, the same work as
+the single live card they replace. A layer joins the first group that fits: **gloss** if it is
+clipped to the rim, else by type — `disc` base discs, `arcField`/`lineField`
+fields, `ring` rings, `arc`/`line`/`polygon` marks. A group the module has no
+layers for is left out, like any absent layer. Each card's paragraph keeps the
+"why Canvas 2D" reason: one redraw a frame is cheaper than hundreds of moving
+DOM nodes.
 
 **Background**, bottom to top:
 

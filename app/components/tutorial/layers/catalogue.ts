@@ -5,11 +5,13 @@
  * appears that is not named here. Paragraphs: three sentences, 280 characters.
  */
 
+import type { OrbGroup } from "./orbGroups";
+
 export type LayerMethod = "CSS" | "SVG" | "Canvas 2D" | "WebGL";
 
 /**
- * How a card's preview is made. Every kind but `canvas` is drawn once, when
- * the view opens; `canvas` copies a live canvas every frame.
+ * How a card's preview is made. Every kind but `orb-group` is drawn once, when
+ * the view opens; `orb-group` cards are drawn live, every frame.
  */
 export type LayerSource =
   /** An element inside the control, drawn in the control's frame. */
@@ -20,7 +22,8 @@ export type LayerSource =
   | { kind: "page"; selector: string }
   /** A flat fill in an element's computed background colour. */
   | { kind: "fill"; selector: string }
-  | { kind: "canvas"; selector: string }
+  /** One group of the orb module's Canvas 2D layers, drawn live (orbGroups.ts). */
+  | { kind: "orb-group"; group: OrbGroup }
   | { kind: "webgl"; term: FluidTerm }
   | { kind: "pseudo"; selector: string; pseudo: "::before" | "::after" };
 
@@ -82,8 +85,16 @@ export const LAYER_SETS: Record<LayerSetId, LayerSet> = {
         why: "A radial gradient that fades in while Nova listens. There is nothing to draw per frame." },
       { id: "glass", name: "Glass disc", method: "CSS", source: { kind: "dom", selector: ".nova-orb-glass" },
         why: "A backdrop-filter refracts the real page behind the orb through an SVG lens filter. Safari can't filter a live backdrop, so it gets a copy." },
-      { id: "body", name: "Orb body", method: "Canvas 2D", source: { kind: "canvas", selector: ".nova-avatar-canvas" },
-        why: "Animated rings, fields and load easing at 60fps. One canvas redraw a frame is far cheaper than hundreds of moving DOM nodes." },
+      { id: "body-base", name: "Body: base discs", method: "Canvas 2D", source: { kind: "orb-group", group: "base" },
+        why: "The orb module's filled discs, the body's base. One canvas redraw a frame is far cheaper than hundreds of moving DOM nodes." },
+      { id: "body-fields", name: "Body: fields", method: "Canvas 2D", source: { kind: "orb-group", group: "fields" },
+        why: "Arc and line fields: many short segments moved every frame. This is why the body is a canvas and not DOM." },
+      { id: "body-rings", name: "Body: rings", method: "Canvas 2D", source: { kind: "orb-group", group: "rings" },
+        why: "The module's rings, whose sweep eases toward the host's CPU load. Redrawn each frame on the same canvas." },
+      { id: "body-marks", name: "Body: marks", method: "Canvas 2D", source: { kind: "orb-group", group: "marks" },
+        why: "The module's arcs, lines and polygons, drawn on the same canvas in the same pass." },
+      { id: "body-gloss", name: "Body: gloss", method: "Canvas 2D", source: { kind: "orb-group", group: "gloss" },
+        why: "Layers clipped to the orb's rim: the module's own highlights, drawn last so they sit over everything else in the body." },
       { id: "reflection", name: "Reflection and gloss", method: "CSS", source: { kind: "dom", selector: ".nova-orb-reflection" },
         why: "Blend-mode layers over the body. The reflection drifts by a transform as the orb moves, which the compositor does for free." },
       { id: "indicator", name: "Dial indicator", method: "CSS", source: { kind: "dom", selector: ".orb-dial-indicator" },

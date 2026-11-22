@@ -5,18 +5,24 @@ import { forwardRef, type CSSProperties } from "react";
 import { MomentaryFeedbackButton } from "../MomentaryFeedbackButton";
 import type { Placement } from "./geometry-model";
 import type { TutorialStep } from "./steps";
+import type { PlaybackSlot } from "./useTourPlayback";
+
+const PLAYBACK_LABEL = { pause: "Pause", resume: "Resume", replay: "Replay" } as const;
 
 type PanelProps = {
   step: TutorialStep;
   /** The phase caption while one plays, else the step's own. */
   caption: string;
+  /** A second line under the caption: the theme step's mode on show. */
+  detail?: string | null;
   placement: Placement;
   width: number;
   flash: boolean;
-  showReplay: boolean;
+  /** The one playback slot: Pause, Resume or Replay (useTourPlayback). */
+  playback: PlaybackSlot;
   offscreen: boolean;
   onClose: () => void;
-  onReplay: () => void;
+  onPlayback: () => void;
   onBackToControl: () => void;
   /** Opens "How was this control built?"; absent where the step has none. */
   onLayers?: () => void;
@@ -28,7 +34,7 @@ type PanelProps = {
  * and Replay / Back to the control when they apply.
  */
 export const TutorialPanel = forwardRef<HTMLDivElement, PanelProps>(function TutorialPanel(
-  { step, caption, placement, width, flash, showReplay, offscreen, onClose, onReplay, onBackToControl, onLayers },
+  { step, caption, detail, placement, width, flash, playback, offscreen, onClose, onPlayback, onBackToControl, onLayers },
   ref,
 ) {
   const style = { transform: `translate3d(${placement.left.toFixed(1)}px, ${placement.top.toFixed(1)}px, 0)`, width } as CSSProperties;
@@ -55,13 +61,21 @@ export const TutorialPanel = forwardRef<HTMLDivElement, PanelProps>(function Tut
       </MomentaryFeedbackButton>
       <h2 id="tutorial-step-title" className="tutorial-title">{step.title}</h2>
       <p className="tutorial-caption" aria-live="polite">{caption}</p>
-      {showReplay || offscreen || onLayers ? (
+      {detail ? <p className="tutorial-caption tutorial-caption-detail" aria-live="polite">{detail}</p> : null}
+      {playback || offscreen || onLayers ? (
         <div className="tutorial-panel-actions">
           {offscreen ? (
             <MomentaryFeedbackButton className="tutorial-button" onClick={onBackToControl}>Back to the control</MomentaryFeedbackButton>
           ) : null}
-          {showReplay ? (
-            <MomentaryFeedbackButton className="tutorial-button" onClick={onReplay}>Replay</MomentaryFeedbackButton>
+          {playback ? (
+            <MomentaryFeedbackButton
+              className="tutorial-button tutorial-playback-button"
+              data-playback={playback}
+              aria-pressed={playback === "replay" ? undefined : playback === "resume"}
+              onClick={onPlayback}
+            >
+              {PLAYBACK_LABEL[playback]}
+            </MomentaryFeedbackButton>
           ) : null}
           {onLayers ? (
             <MomentaryFeedbackButton className="tutorial-button tutorial-layers-button" onClick={onLayers}>How was this control built?</MomentaryFeedbackButton>

@@ -7,7 +7,7 @@ import type { LayerSetId } from "./layers/catalogue";
  * short sentences (160 characters) by `steps.test.ts`.
  */
 
-export type TutorialTargetKind = "help-button" | "light" | "aircon" | "orb" | "fold" | "page";
+export type TutorialTargetKind = "help-button" | "light" | "aircon" | "orb" | "fold" | "theme-button" | "page";
 export type TutorialCopyKind = "light" | "aircon" | "orb" | null;
 export type TutorialScriptId = "none" | "lights" | "aircon" | "orb-dial" | "fold-open";
 
@@ -24,6 +24,10 @@ export type TutorialStep = {
   layers?: LayerSetId;
   /** A device feature the step needs; it is skipped when the feature is off. */
   requires?: "statusOrb" | "background";
+  /** No dimming mask: a highlight ring marks the target and the page shows through. */
+  unmasked?: boolean;
+  /** Walks the theme button's modes as an in-memory preview (useThemeCycle). */
+  themeCycle?: boolean;
 };
 
 export const CAPTION_MAX_CHARS = 160;
@@ -60,7 +64,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: "orb",
     layers: "orb",
     title: "Status orb",
-    caption: "The orb shows what's running, like this wash. Open it with a tap; a tap then turns the finish alert off or on.",
+    caption: "The orb shows what's running. Tap to open it and turn to switch; on the wash, a tap turns the finish alert off or on.",
     target: "orb",
     copy: "orb",
     script: "orb-dial",
@@ -69,10 +73,20 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: "advanced",
     title: "Advanced",
-    caption: "More settings live past the ADVANCED line. Pull past it to open.",
+    caption: "Advanced settings sit past the ADVANCED line. Drag past the line until it snaps open; drag back to close.",
     target: "fold",
     copy: null,
     script: "fold-open",
+  },
+  {
+    id: "theme",
+    title: "Light and dark",
+    caption: "Sets this screen's theme: Follows config, Auto (by the sun), Light or Dark. Tap to cycle; it never changes other screens.",
+    target: "theme-button",
+    copy: null,
+    script: "none",
+    unmasked: true,
+    themeCycle: true,
   },
   {
     id: "background",

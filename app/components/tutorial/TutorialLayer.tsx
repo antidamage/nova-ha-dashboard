@@ -6,7 +6,6 @@ import type { DeviceTheme } from "../accentColor";
 import { LayerStage } from "./layers/LayerStage";
 import { useLayerView } from "./layers/useLayerView";
 import { Finger, type FingerHandle } from "./finger/Finger";
-import { useFingerDriver } from "./finger/useFingerDriver";
 import { BAR_HEIGHT, captionPlacement, cutoutFor, isOffscreen, maskPath, PANEL_GAP, panelWidth, unionBox, VIEWPORT_GUTTER } from "./geometry-model";
 import { installInputGuard } from "./inputGuard";
 import { SandboxCopy } from "./sandbox/SandboxCopy";
@@ -14,8 +13,9 @@ import { TUTORIAL_STEPS, type TutorialStep } from "./steps";
 import { findTarget, resolveSteps } from "./targets";
 import { TutorialBar, TutorialPanel } from "./TutorialCaption";
 import { closeTutorial, useTutorialOpen } from "./tutorialStore";
-import { useFoldRestore, useIdleExit } from "./useTourLifecycle";
-import { nextFrames, reducedMotion, settled, useCopyRingLayer, useViewport } from "./tourHooks";
+import { IDLE_EXIT_MS, PAUSED_IDLE_EXIT_MS, useFoldRestore, useIdleExit } from "./useTourLifecycle";
+import { useTourPlayback } from "./useTourPlayback";
+import { nextFrames, reducedMotion, settled, useCopyModes, useCopyRingLayer, useViewport } from "./tourHooks";
 import { useTrackedRect } from "./useTrackedRect";
 
 const DEMO = process.env.NEXT_PUBLIC_NOVA_DEMO_MODE === "true";
@@ -33,6 +33,7 @@ function Tour({ theme }: { theme: DeviceTheme }) {
   const [resolved, setResolved] = useState<{ step: TutorialStep; element: HTMLElement | null } | null>(null);
   const target = resolved && resolved.step === step ? resolved.element : null;
   const [resetKey, setResetKey] = useState(0);
+  const { manual, copyModes } = useCopyModes(step, setResetKey);
   const [flash, setFlash] = useState(false);
   // The current phase's caption, while a phased script plays (null: the step's).
   const [phase, setPhase] = useState<string | null>(null);
@@ -107,19 +108,12 @@ function Tour({ theme }: { theme: DeviceTheme }) {
   }, [step, target]);
   const draw = useCallback((view: Parameters<FingerHandle["draw"]>[0]) => fingerRef.current?.draw(view), []);
 
-  const { playing: driving, replay, stop } = useFingerDriver({
-    script: step && target ? step.script : "none",
-    getRoot,
-    within,
-    reset,
-    draw,
-    reducedMotion: reduced,
-    onSay: setPhase,
-  });
+  const playback = useTourPlayback({ step, target, getRoot, within, reset, draw, reduced, onSay: setPhase });
   // The driver's own state: it is false whenever no script is running, however
-  // the last one ended (finished, taken over, or cut short by Next).
-  const touch = useIdleExit(!DEMO, driving, exit);
-  const layers = useLayerView(step, copyRef, stop);
+  // the last one ended (finished, taken over, or cut short by Next). Paused
+  // counts as idle, with a longer limit.
+  const touch = useIdleExit(!DEMO, playback.driving && !playback.paused, exit, playback.paused ? PAUSED_IDLE_EXIT_MS : IDLE_EXIT_MS);
+  const layers = useLayerView(step, copyRef, playback.stop, copyModes);
   const { view: layerView, close: closeLayers, opening: layersOpening } = layers;
 
   // The guard, and the tour's own keys, which only apply with focus in the
@@ -155,36 +149,44 @@ function Tour({ theme }: { theme: DeviceTheme }) {
   if (!step) return null;
   const width = panelWidth(viewport);
   const placement = captionPlacement(offscreen ? null : cutout, viewport, { width, height: panelHeight });
-  const lifted = step.target === "page";
+  const lifted = step.target === "page" || Boolean(step.unmasked);
+  // An unmasked step still marks its target, with a ring and no dimming.
+  const ring = step.unmasked && step.target !== "page" ? cutout : null;
 
   return (
     <div className="tutorial-layer" data-tutorial-step={step.id} data-lifted={lifted ? "true" : undefined}>
       <svg className="tutorial-mask" width={viewport.width} height={viewport.height} aria-hidden="true">
         <path d={maskPath(viewport, lifted ? null : cutout)} fillRule="evenodd" />
       </svg>
+      {ring ? (
+        <div className="tutorial-target-ring" aria-hidden="true" style={{ transform: `translate3d(${ring.left}px, ${ring.top}px, 0)`, width: ring.width, height: ring.height }} />
+      ) : null}
       {step.copy && target ? (
-        <SandboxCopy ref={copyRef} kind={step.copy} target={target} step={step} avatar={avatar} resetKey={resetKey} />
+        <SandboxCopy ref={copyRef} kind={step.copy} target={target} step={step} avatar={avatar} resetKey={resetKey} manual={manual} />
       ) : null}
       <Finger ref={fingerRef} />
       <TutorialPanel
         ref={panelRef}
         step={step}
-        caption={phase ?? step.caption}
+        caption={step.themeCycle ? step.caption : phase ?? step.caption}
+        detail={step.themeCycle ? phase : null}
         placement={placement}
         width={width}
         flash={flash}
-        showReplay={step.script !== "none" && !driving}
+        playback={playback.slot}
         offscreen={offscreen}
         onClose={exit}
-        onReplay={() => {
+        onPlayback={() => {
           touch();
-          replay();
+          playback.press();
         }}
         onBackToControl={scrollToTarget}
         onLayers={layers.available ? () => void layers.open() : undefined}
       />
       <TutorialBar index={index} count={steps.length} onBack={() => !layersOpening && go(-1)} onNext={() => !layersOpening && go(1)} />
-      {layers.view ? <LayerStage setId={layers.view.setId} control={layers.view.control} theme={theme} onClose={layers.close} /> : null}
+      {layers.view ? (
+        <LayerStage setId={layers.view.setId} control={layers.view.control} theme={theme} lead={manual ? "Shown in Manual so every ring draws." : undefined} onClose={layers.close} />
+      ) : null}
     </div>
   );
 }

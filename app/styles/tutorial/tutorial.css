@@ -183,21 +183,7 @@ html[data-tutorial-open] .demo-tooltip {
   transition: transform 150ms ease;
 }
 
-.tutorial-finger-ring {
-  border: 3px solid var(--cyber-border-dim);
-  transform: scale(1.5);
-  opacity: 0;
-  transition: transform 300ms ease, opacity 300ms ease;
-}
-
-.tutorial-finger[data-pressed="true"] .tutorial-finger-pad {
-  transform: scale(0.78);
-}
-
-.tutorial-finger[data-pressed="true"] .tutorial-finger-ring {
-  transform: scale(1.05);
-  opacity: 1;
-}
+/* The press ring and ripple are in finger-press.css. */
 
 .tutorial-panel,
 .tutorial-bar {
@@ -336,5 +322,10 @@ html[data-tutorial-open] .demo-tooltip {
 .tutorial-orb-bell {
   width: 18px;
   height: 18px;
+}
+
+.tutorial-orb-note {
+  font-size: 0.8rem;
+  text-transform: uppercase;
 }
 

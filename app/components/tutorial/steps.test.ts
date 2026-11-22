@@ -19,8 +19,17 @@ describe("tutorial steps", () => {
 
   it("covers what alex asked for, in teaching order", () => {
     expect(TUTORIAL_STEPS.map((step) => step.id)).toEqual([
-      "welcome", "lights", "aircon", "orb", "advanced", "background",
+      "welcome", "lights", "aircon", "orb", "advanced", "theme", "background",
     ]);
+  });
+
+  it("keeps the theme step's mode captions to the same caps, one per mode in the button's order", async () => {
+    const { THEME_CYCLE } = await import("./useThemeCycle");
+    expect(THEME_CYCLE.map((entry) => entry.mode)).toEqual(["unset", "auto", "light", "dark"]);
+    for (const entry of THEME_CYCLE) {
+      expect(entry.say.length).toBeLessThanOrEqual(CAPTION_MAX_CHARS);
+      expect(sentences(entry.say)).toBeLessThanOrEqual(2);
+    }
   });
 
   it("only drives a real control on the fold step; every other gesture plays on a copy", () => {

@@ -3,13 +3,13 @@
 import type { DeviceTheme } from "../../accentColor";
 import type { Layer, LayerSet } from "./catalogue";
 import { renderFluidTerms } from "./fluidTerms";
+import { groupsPresent, orbModuleFor } from "./orbGroups";
 import { drawClone, rasteriseLayer } from "./rasterise";
 
 /**
  * Pre-renders every card of a layer set into its canvas, once, when the view
- * opens (specs/tutorial-mode.md, "How was this control built?"). A live
- * canvas layer (the orb's body) is only sized here; `copyLiveCanvas` keeps it
- * moving.
+ * opens (specs/tutorial-mode.md, "How was this control built?"). The orb
+ * body's group cards are only sized here; `startOrbGroupLoop` draws them live.
  */
 
 export type Frame = { left: number; top: number; width: number; height: number };
@@ -41,17 +41,6 @@ function sizeCanvas(canvas: HTMLCanvasElement, frame: Frame) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = Math.max(1, Math.round(frame.width * dpr));
   canvas.height = Math.max(1, Math.round(frame.height * dpr));
-}
-
-/** Copies a live canvas (the orb's body) into its card, where it sits in the frame. */
-export function copyLiveCanvas(source: HTMLCanvasElement, card: HTMLCanvasElement, frame: Frame) {
-  const ctx = card.getContext("2d");
-  if (!ctx || source.width === 0) return;
-  const rect = source.getBoundingClientRect();
-  const sx = card.width / frame.width;
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.clearRect(0, 0, card.width, card.height);
-  ctx.drawImage(source, (rect.left - frame.left) * sx, (rect.top - frame.top) * sx, rect.width * sx, rect.height * sx);
 }
 
 async function renderOne(layer: Layer, canvas: HTMLCanvasElement, sources: CardSources): Promise<boolean> {
@@ -86,9 +75,9 @@ async function renderOne(layer: Layer, canvas: HTMLCanvasElement, sources: CardS
       div.style.setProperty("inset", "0");
       return drawClone(div, frame.width, frame.height, canvas);
     }
-    case "canvas":
+    case "orb-group":
       sizeCanvas(canvas, frame);
-      return Boolean(control?.querySelector(source.selector));
+      return Boolean(control?.querySelector(".nova-avatar-canvas")) && groupsPresent(orbModuleFor(sources.theme.avatar)).has(source.group);
     case "webgl":
       return true;
   }

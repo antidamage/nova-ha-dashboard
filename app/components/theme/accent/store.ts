@@ -12,8 +12,6 @@ import {
   SHARED_THEME_STORAGE_KEY,
   SHARED_THEME_WRITE_DEBOUNCE_MS,
   SHARED_THEME_WRITE_RETRY_MS,
-  THEME_OVERRIDE_CHANGE_EVENT,
-  THEME_OVERRIDE_STORAGE_KEY,
   THEME_SCOPE_COOKIE_NAME,
   THEME_SCOPE_STORAGE_KEY,
   THEME_STORAGE_KEY,
@@ -21,8 +19,8 @@ import {
 import { DEFAULT_THEME_SET } from "./defaults";
 import { normalizeThemeScope } from "./normalize-model";
 import { normalizeTheme, normalizeThemeSet } from "./theme-model";
-import { normalizeThemeOverride, resolveDeviceTheme } from "./variant-model";
-import type { DeviceTheme, DeviceThemeSet, ThemeConfigScope, ThemeOverride, ThemeStorageValue, ThemeVariant } from "./types";
+import { resolveDeviceTheme } from "./variant-model";
+import type { DeviceTheme, DeviceThemeSet, ThemeConfigScope, ThemeStorageValue, ThemeVariant } from "./types";
 
 // After the user edits a theme value (e.g. dragging a colour spectrum or an
 // intensity/opacity slider) we hold off the background shared-theme refresh for
@@ -38,29 +36,7 @@ export function isThemePollingPaused() {
   return isControlInteractionCoolingDown();
 }
 
-export function readThemeOverride(): ThemeOverride {
-  if (typeof window === "undefined") return "unset";
-  try {
-    return normalizeThemeOverride(window.localStorage.getItem(THEME_OVERRIDE_STORAGE_KEY));
-  } catch {
-    return "unset";
-  }
-}
-
-export function writeThemeOverride(next: ThemeOverride) {
-  if (typeof window === "undefined") return;
-  const normalized = normalizeThemeOverride(next);
-  try {
-    if (normalized === "unset") {
-      window.localStorage.removeItem(THEME_OVERRIDE_STORAGE_KEY);
-    } else {
-      window.localStorage.setItem(THEME_OVERRIDE_STORAGE_KEY, normalized);
-    }
-  } catch {
-    // Storage blocked: the change still applies for this page view.
-  }
-  window.dispatchEvent(new CustomEvent(THEME_OVERRIDE_CHANGE_EVENT, { detail: normalized }));
-}
+export { readThemeOverride, writeThemeOverride } from "./override-store";
 
 // While the theme config editor is open it pins :root to the variant being edited
 // (the light/dark tab), regardless of the active selection. Without this, the

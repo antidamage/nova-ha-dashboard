@@ -38,19 +38,27 @@ function ringHost(root: HTMLElement) {
   return document.querySelector<HTMLElement>(".rotary-encoder-ring-layer[data-portal-tag='tutorial']") ?? root;
 }
 
-/** Drags a ring's thumb `sweep` degrees along its ring. */
-const ringDrag = (ringId: string, sweep: number): ScriptPart => (root) => {
+/** Rings run 7:30 → 4:30 over the top (225° → 495°); drags stay just inside. */
+const RING_FIRST_DEG = 228;
+const RING_LAST_DEG = 492;
+
+/** Drags a ring's thumb along its ring, to the angle `target` picks from where it starts. */
+const ringArc = (ringId: string, target: (from: number) => number): ScriptPart => (root) => {
   const hotspot = ringHost(root).querySelector<SVGPathElement>(`[data-ring-id="${ringId}"] [data-thumb-hotspot]`);
   if (!hotspot) return [];
   const { centre } = dial(root);
   const thumb = centreOf(hotspot.getBoundingClientRect());
   const radius = Math.hypot(thumb.x - centre.x, thumb.y - centre.y);
   const from = angleOf(centre, thumb);
-  // Rings run 7:30 → 4:30 over the top (225° → 495°); keep the sweep inside.
   const unwrapped = from < 180 ? from + 360 : from;
-  const to = Math.max(228, Math.min(492, unwrapped + sweep));
+  const to = Math.max(RING_FIRST_DEG, Math.min(RING_LAST_DEG, target(unwrapped)));
   return [{ kind: "arc", centre, radius, fromDeg: unwrapped, toDeg: to }];
 };
+
+/** Drags a ring's thumb `sweep` degrees along its ring. */
+const ringDrag = (ringId: string, sweep: number) => ringArc(ringId, (from) => from + sweep);
+/** Drags a ring's thumb to the end of its ring, through every stop on the way. */
+const ringDragToEnd = (ringId: string) => ringArc(ringId, () => RING_LAST_DEG);
 
 /** A tap on a toggle ring's track: it has no thumb. */
 const ringTap = (ringId: string): ScriptPart => (root) => {
@@ -87,8 +95,8 @@ function pullStart(fold: HTMLElement, vertical: boolean): Point | null {
   const line = (fold.querySelector<HTMLElement>(".advanced-fold-divider") ?? fold).getBoundingClientRect();
   const bottom = Math.min(line.bottom, window.innerHeight - 96);
   const top = Math.max(line.top, 24);
-  const candidates = Array.from({ length: 9 }, (_, index) => {
-    const share = (index + 1) / 10;
+  // The middle of the line first, then outward (alex, 2026-11-22).
+  const candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9].map((share) => {
     return vertical
       ? { x: line.left + line.width * share, y: Math.min(Math.max(line.top + line.height / 2, top), bottom) }
       : { x: line.left + line.width / 2, y: top + (bottom - top) * share };
@@ -115,10 +123,25 @@ const foldPull: ScriptPart = (fold) => {
 };
 
 /**
- * Closing is never a second drag: once open, a drag could start on a control
- * in the Advanced area, and nothing in there is the tour's to touch. Scrolling
- * the fold back to its closed offset is the fold's own re-lock
- * (specs/advanced-fold.md).
+ * The drag back: from the divider line again, never from a control inside the
+ * Advanced area, the other way, past the snap point. Only on a fold the tour
+ * opened; `foldClose` re-locks it if the drag left it open.
+ */
+const foldDragBack: ScriptPart = (fold) => {
+  if (fold.dataset.tutorialOffset === undefined || fold.dataset.open !== "true") return [];
+  const vertical = fold.dataset.axis !== "x";
+  const travelled = Math.abs((vertical ? fold.scrollTop : fold.scrollLeft) - Number(fold.dataset.tutorialOffset));
+  const distance = Math.min(320, travelled + 60);
+  const begin = pullStart(fold, vertical);
+  if (!begin) return [];
+  const end = vertical ? { x: begin.x, y: begin.y + distance } : { x: begin.x + distance, y: begin.y };
+  return [{ kind: "drag", path: [begin, end] }];
+};
+
+/**
+ * The fallback close: scrolling the fold back to its closed offset is the
+ * fold's own re-lock (specs/advanced-fold.md). It does nothing when the drag
+ * back already closed it, and only ever touches a fold the tour opened.
  */
 export function closeFold(fold: HTMLElement) {
   const offset = Number(fold.dataset.tutorialOffset ?? 0);
@@ -151,16 +174,18 @@ export const SCRIPT_PARTS: Record<TutorialScriptId, ScriptEntry[]> = {
     tapDial, rest(500), tapDial, rest(500), tapDial, rest(700),
     say("Here's how to adjust one: turn to set the target, up and down."),
     turn(-30, 50), rest(300), turn(50, -10), rest(600),
-    say("In Manual each ring sets one thing: drag it by its thumb."),
-    tapDial, rest(900), ringDrag("fan", 70), ringDrag("mode", 45), ringTap("fresh"), rest(400), ringDrag("timer", 80),
+    say("In Manual each ring sets one thing; Mode runs Cool, Fan and Heat."),
+    tapDial, rest(900), ringDrag("fan", 70), ringDragToEnd("mode"), ringTap("fresh"), rest(400), ringDrag("timer", 80),
   ],
   "orb-dial": [
-    say("The orb shows what's running, like this wash. Tap to open it."),
+    say("The orb shows what's running: a timer, the wash and the bins. Tap to open it."),
     tapOrb, rest(900),
-    say("With it open, a tap turns the wash's finish alert off, and on again."),
+    say("Turn round the orb to switch between them."),
+    turnOrb(-20, 30), rest(600), turnOrb(-20, 30), rest(800), turnOrb(30, -20), rest(600),
+    say("On the wash, a tap turns its finish alert off, and on again."),
     tapOrb, rest(1200), tapOrb, rest(900),
   ],
-  "fold-open": [foldPull, rest(1800), foldClose],
+  "fold-open": [foldPull, rest(1800), foldDragBack, rest(600), foldClose],
 };
 
 /** The fold step drives the real fold with mouse events; the rest drive copies. */

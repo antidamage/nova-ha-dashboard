@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
 import type { Size } from "./geometry-model";
 
 /** Small hooks and waits the tour layer uses (specs/tutorial-mode.md). */
@@ -54,6 +54,28 @@ export function useCopyRingLayer() {
     return () => observer.disconnect();
   }, []);
   return layer;
+}
+
+/**
+ * The aircon layer view's example (specs/tutorial-mode.md): the copy remounted
+ * in Manual while the view is open, and at the step's own start after.
+ */
+export function useCopyModes(step: unknown, setResetKey: Dispatch<SetStateAction<number>>) {
+  const [manual, setManual] = useState(false);
+  useEffect(() => setManual(false), [step]);
+  const copyModes = useMemo(() => ({
+    remountManual: async () => {
+      setManual(true);
+      setResetKey((key) => key + 1);
+      await nextFrames();
+      await nextFrames();
+    },
+    restoreCopy: () => {
+      setManual(false);
+      setResetKey((key) => key + 1);
+    },
+  }), [setResetKey]);
+  return { manual, copyModes };
 }
 
 export const reducedMotion = () => typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;

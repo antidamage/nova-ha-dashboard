@@ -5,6 +5,8 @@ import { closeFold } from "./finger/scripts";
 
 /** Idle exit on the live dashboard (specs/tutorial-mode.md, "Idle exit"). */
 export const IDLE_EXIT_MS = 60_000;
+/** While paused: a pause to read is never cut short, but one walked away from still closes. */
+export const PAUSED_IDLE_EXIT_MS = 5 * 60_000;
 const IDLE_CHECK_MS = 1_000;
 
 /**
@@ -13,9 +15,11 @@ const IDLE_CHECK_MS = 1_000;
  * synthetic events are not input. Returns `touch`, for input the tour handles
  * itself (its keys, Replay).
  */
-export function useIdleExit(enabled: boolean, playing: boolean, exit: () => void) {
+export function useIdleExit(enabled: boolean, playing: boolean, exit: () => void, limitMs = IDLE_EXIT_MS) {
   const lastRef = useRef(Date.now());
   const playingRef = useRef(playing);
+  const limitRef = useRef(limitMs);
+  limitRef.current = limitMs;
   const touch = useCallback(() => {
     lastRef.current = Date.now();
   }, []);
@@ -33,7 +37,7 @@ export function useIdleExit(enabled: boolean, playing: boolean, exit: () => void
     const types = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"] as const;
     for (const type of types) window.addEventListener(type, onInput, { capture: true, passive: true });
     const timer = window.setInterval(() => {
-      if (!playingRef.current && Date.now() - lastRef.current >= IDLE_EXIT_MS) exit();
+      if (!playingRef.current && Date.now() - lastRef.current >= limitRef.current) exit();
     }, IDLE_CHECK_MS);
     return () => {
       for (const type of types) window.removeEventListener(type, onInput, { capture: true });
